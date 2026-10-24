@@ -1,4 +1,5 @@
 import { distance, type Vec2 } from '../vec2';
+import { createLine, stepLine, straightenLine, type VerletLine } from './line';
 import {
   chargePower,
   clampCastAngle,
@@ -20,6 +21,10 @@ export interface FishingInput {
   reel: boolean;
   /** Peruu latauksen (hiiren oikea). */
   cancel: boolean;
+  /** Jarrun säätö tällä askeleella: -1 löysää, +1 kiristää. */
+  dragDelta?: number;
+  /** Kelan vaihde 0–2, jos vaihdettiin tällä askeleella. */
+  gear?: number;
 }
 
 export interface FishingState {
@@ -36,6 +41,19 @@ export interface FishingState {
   onLand: boolean;
   /** Heittonappi pitää päästää irti ennen uutta latausta (esim. kelauksen jälkeen). */
   needRelease: boolean;
+  /** Ulkona olevan siiman pituus (m). */
+  lineLength: number;
+  line: VerletLine;
+  /** Siiman jännitys (kg). */
+  tension: number;
+  /** Jarrun asetus (kg): tätä suurempi veto vie siimaa kelalta. */
+  drag: number;
+  /** Kelan vaihde: indeksi REEL.gears-taulukkoon. */
+  gear: number;
+  /** Vieheen nopeus vedessä (m/s), syvyyttä ja kalojen kiinnostusta varten. */
+  lureSpeed: number;
+  /** Onko jarru luistanut tällä askeleella (äänimerkkiä varten). */
+  dragSlipping: boolean;
 }
 
 export interface FishingContext {
@@ -48,12 +66,31 @@ export interface FishingContext {
 export const LURE = {
   /** Uppoamisnopeus löysällä siimalla (m/s). */
   sinkRate: 0.35,
-  /** Kelausnopeus (m/s). */
-  reelSpeed: 0.9,
-  /** Kelatessa viehe nousee: nousu (m/s) per kelausnopeus. */
+  /** Liikkuva viehe nousee: nousu (m/s) per vieheen nopeus (m/s). */
   lift: 0.5,
+  /** Vieheen vastus vedessä: jännitys = base + coeff · v² (kg). */
+  dragBase: 0.05,
+  dragCoeff: 0.35,
+  /** Rannalla raahattavan vieheen kitka (kg). */
+  landFriction: 0.6,
   /** Viehe on kotona, kun se on näin lähellä vavan kärkeä. */
   homeDistance: 1.5,
+} as const;
+
+export const REEL = {
+  /** Kelausnopeudet (m/s) vaihteittain: hidas, normaali, nopea. */
+  gears: [0.45, 0.9, 1.5],
+  /** Jarrun säätöväli ja askel (kg). */
+  minDrag: 0.25,
+  maxDrag: 8,
+  dragStep: 0.25,
+  defaultDrag: 2,
+  /** Siiman kestävyys (kg), 0,25 mm monofiili. */
+  lineStrength: 5,
+  /** Kelan kapasiteetti (m). */
+  spool: 150,
+  /** Löysää siimaa veteen osuessa (osuus heiton pituudesta). */
+  landingSlack: 0.04,
 } as const;
 
 export const createFishing = (): FishingState => ({
@@ -65,6 +102,13 @@ export const createFishing = (): FishingState => ({
   depth: 0,
   onLand: false,
   needRelease: false,
+  lineLength: 0,
+  line: createLine({ x: 0, y: 0 }, { x: 0, y: 0 }),
+  tension: 0,
+  drag: REEL.defaultDrag,
+  gear: 1,
+  lureSpeed: 0,
+  dragSlipping: false,
 });
 
 export interface FishingEvents {
@@ -88,11 +132,22 @@ export function stepFishing(
 ): FishingEvents {
   const events: FishingEvents = {};
   const tip = rodTip(ctx.tubePos, ctx.heading);
+  if (input.dragDelta) {
+    s.drag = Math.max(
+      REEL.minDrag,
+      Math.min(REEL.maxDrag, s.drag + Math.sign(input.dragDelta) * REEL.dragStep),
+    );
+  }
+  if (input.gear !== undefined) s.gear = Math.max(0, Math.min(REEL.gears.length - 1, input.gear));
+  s.dragSlipping = false;
 
   switch (s.stage) {
     case 'idle':
       s.lure = tip;
       s.depth = 0;
+      s.lineLength = 0;
+      s.tension = 0;
+      s.lureSpeed = 0;
       if (!input.castHeld) s.needRelease = false;
       else if (!s.needRelease) {
         s.stage = 'charging';
@@ -120,39 +175,71 @@ export function stepFishing(
       const f = s.flight!;
       const landed = stepFlight(f, dt);
       s.lure = { ...f.pos };
+      s.lineLength = Math.min(REEL.spool, f.travelled);
+      straightenLine(s.line, tip, s.lure);
       if (landed) {
         s.flight = null;
         s.stage = 'water';
         s.onLand = !ctx.isWater(s.lure);
         s.depth = 0;
+        s.lineLength = Math.min(REEL.spool, distance(tip, s.lure) * (1 + REEL.landingSlack));
         if (!s.onLand) events.splash = { ...s.lure };
       }
       break;
     }
 
     case 'water': {
-      const toTip = distance(s.lure, tip);
       const reeling = input.reel && !input.cancel;
-      if (reeling && toTip > 0) {
-        const step = Math.min(toTip, LURE.reelSpeed * dt);
-        s.lure = {
-          x: s.lure.x + ((tip.x - s.lure.x) / toTip) * step,
-          y: s.lure.y + ((tip.y - s.lure.y) / toTip) * step,
-        };
-      }
+      if (reeling) s.lineLength = Math.max(0, s.lineLength - REEL.gears[s.gear]! * dt);
+      pullLure(s, tip, dt);
+      stepLine(s.line, tip, s.lure, s.lineLength, dt, { x: 0.15, y: 0.1 });
+
       if (s.onLand && ctx.isWater(s.lure)) s.onLand = false;
       if (!s.onLand) {
         const bottom = ctx.depthAt(s.lure);
-        const rate = LURE.sinkRate - (reeling ? LURE.lift * LURE.reelSpeed : 0);
+        const rate = LURE.sinkRate - LURE.lift * s.lureSpeed;
         s.depth = Math.max(0, Math.min(bottom, s.depth + rate * dt));
       }
       if (distance(s.lure, tip) <= LURE.homeDistance) {
         s.stage = 'idle';
         s.needRelease = true;
+        s.lineLength = 0;
+        s.tension = 0;
         events.home = true;
       }
       break;
     }
   }
   return events;
+}
+
+/**
+ * Siima vetää viehettä kohti vavan kärkeä, jos se on kireällä. Jos vieheen
+ * vastus ylittäisi jarrun, jarru luistaa ja kela antaa siimaa.
+ */
+function pullLure(s: FishingState, tip: Vec2, dt: number): void {
+  const d = distance(s.lure, tip);
+  const over = d - s.lineLength;
+  if (over <= 0 || d === 0) {
+    s.tension = 0;
+    s.lureSpeed = 0;
+    return;
+  }
+  let speed = over / dt;
+  let tension = (s.onLand ? LURE.landFriction : LURE.dragBase) + LURE.dragCoeff * speed * speed;
+  if (tension > s.drag) {
+    // Nopeus, jolla vastus on täsmälleen jarrun suuruinen.
+    const base = s.onLand ? LURE.landFriction : LURE.dragBase;
+    speed = Math.sqrt(Math.max(0, s.drag - base) / LURE.dragCoeff);
+    tension = s.drag;
+    s.dragSlipping = true;
+  }
+  const move = Math.min(over, speed * dt);
+  s.lure = {
+    x: s.lure.x + ((tip.x - s.lure.x) / d) * move,
+    y: s.lure.y + ((tip.y - s.lure.y) / d) * move,
+  };
+  s.lineLength = Math.min(REEL.spool, distance(s.lure, tip));
+  s.tension = tension;
+  s.lureSpeed = move / dt;
 }

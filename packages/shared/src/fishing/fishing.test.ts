@@ -58,8 +58,10 @@ describe('kalastuksen vaiheet', () => {
     hold(s, 5, input());
     const deep = s.depth;
     const before = distance(s.lure, rodTip(ctx.tubePos, ctx.heading));
-    hold(s, 2, input({ reel: true }));
+    // Ensin kelataan löysä siima, sitten viehe alkaa tulla.
+    hold(s, 3, input({ reel: true }));
     expect(distance(s.lure, rodTip(ctx.tubePos, ctx.heading))).toBeLessThan(before - 1.5);
+    expect(s.tension).toBeGreaterThan(0);
     expect(s.depth).toBeLessThan(deep);
     hold(s, 60, input({ reel: true }));
     expect(s.stage).toBe('idle');
@@ -74,6 +76,27 @@ describe('kalastuksen vaiheet', () => {
     stepFishing(s, input(), ctx, DT);
     stepFishing(s, input({ castHeld: true }), ctx, DT);
     expect(s.stage).toBe('charging');
+  });
+
+  it('jarru luistaa, kun veto ylittää sen', () => {
+    const s = castAndLand(0.6);
+    hold(s, 1, input());
+    const out = s.lineLength;
+    // Rengas karkaa nopeasti poispäin vieheestä löysällä jarrulla.
+    s.drag = 0.25;
+    const fast = { ...ctx, tubePos: { x: -3, y: 0 } };
+    stepFishing(s, input(), fast, DT);
+    expect(s.dragSlipping).toBe(true);
+    expect(s.tension).toBeCloseTo(0.25);
+    expect(s.lineLength).toBeGreaterThan(out);
+  });
+
+  it('vaihde ja jarru säätyvät rajoissa', () => {
+    const s = createFishing();
+    for (let i = 0; i < 100; i++) stepFishing(s, input({ dragDelta: 1 }), ctx, DT);
+    expect(s.drag).toBe(8);
+    stepFishing(s, input({ gear: 5 }), ctx, DT);
+    expect(s.gear).toBe(2);
   });
 
   it('peruutus keskeyttää latauksen', () => {
