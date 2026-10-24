@@ -52,6 +52,16 @@ export class Input {
     return this.released.has(code);
   }
 
+  /** Ohjelmallinen syöte (suorituskykytesti, automaattiset testit). */
+  simulate(code: string, down: boolean, mouse?: { x: number; y: number }): void {
+    if (mouse) {
+      this.mouseX = mouse.x;
+      this.mouseY = mouse.y;
+    }
+    if (down) this.press(code);
+    else this.release(code);
+  }
+
   private press(code: string) {
     if (!this.down.has(code)) this.pressedQueue.add(code);
     this.down.add(code);

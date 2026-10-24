@@ -7,6 +7,7 @@ import { Sfx } from './audio/sfx';
 import { SoloGame } from './game/soloGame';
 import { Hud } from './ui/hud';
 import { Screens, loadSettings } from './ui/screens';
+import { Bench } from './dev/bench';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) throw new Error('#app puuttuu');
@@ -35,6 +36,9 @@ const screens = new Screens(app);
 let settings = loadSettings(DEFAULT_SETTINGS);
 let game: SoloGame | null = null;
 let paused = false;
+let bench: Bench | null = null;
+let updateTime = 0;
+let updateCount = 0;
 
 function startGame(s: CompetitionSettings) {
   settings = s;
@@ -83,7 +87,10 @@ retro.onResize((r) => {
   hud.setPixelSize(r.scale / (window.devicePixelRatio || 1));
 });
 
-if (devDifficulty) {
+if (params.has('bench')) {
+  startGame({ durationMinutes: 10, difficulty: 'easy', winRule: 'total' });
+  bench = new Bench(game!, input, retro, app);
+} else if (devDifficulty) {
   startGame({
     ...settings,
     difficulty: devDifficulty,
@@ -116,13 +123,22 @@ startLoop({
     }
     if (input.wasPressed('F3')) fps.toggle();
     if (input.wasPressed('Escape')) togglePause();
+    bench?.script(dt);
+    const t0 = performance.now();
     if (game && !paused && !screens.open) game.update(dt);
+    updateTime += performance.now() - t0;
+    updateCount++;
   },
   render(alpha, frameTime) {
     const active = game ?? menuScene;
+    const t0 = performance.now();
     active.render(alpha);
     retro.render(active.scene, active.view.camera);
+    bench?.timing(updateTime, performance.now() - t0, updateCount);
+    updateTime = 0;
+    updateCount = 0;
     const { width, height, scale } = retro.resolution;
     fps.frame(frameTime, `${width}×${height} ×${scale} · ${active.view.metersPerPixel} m/px`);
+    bench?.frame(frameTime);
   },
 });

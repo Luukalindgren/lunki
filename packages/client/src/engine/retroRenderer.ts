@@ -55,21 +55,6 @@ const PALETTE_FRAG = /* glsl */ `
   }
 `;
 
-const BLIT_FRAG = /* glsl */ `
-  uniform sampler2D tSource;
-  uniform vec2 uSourceSize;
-  uniform float uScale;
-  uniform float uScreenHeight;
-  void main() {
-    // Ylävasen kulma ankkurina: sisäinen pikseli = uScale × uScale näytön pikseliä.
-    vec2 frag = vec2(gl_FragCoord.x, uScreenHeight - gl_FragCoord.y);
-    vec2 px = floor(frag / uScale);
-    vec2 uv = (px + 0.5) / uSourceSize;
-    uv.y = 1.0 - uv.y;
-    gl_FragColor = texture2D(tSource, uv);
-  }
-`;
-
 function makeTarget(width: number, height: number, depth: boolean) {
   return new THREE.WebGLRenderTarget(width, height, {
     minFilter: THREE.NearestFilter,
@@ -80,9 +65,11 @@ function makeTarget(width: number, height: number, depth: boolean) {
 }
 
 /**
- * Piirtää kohtauksen pieneen render targetiin, kvantisoi sen pelin palettiin
- * ja skaalaa lopuksi kokonaislukukertoimella koko ruudulle. Paletin haku tehdään
- * pienessä resoluutiossa, joten raskain osa ei riipu näytön koosta.
+ * Piirtää kohtauksen pieneen render targetiin ja kvantisoi sen pelin palettiin
+ * suoraan canvasille, jonka piirtopuskuri on sisäisen resoluution kokoinen.
+ * Selain skaalaa canvasin CSS:llä (image-rendering: pixelated)
+ * kokonaislukukertoimella koko ruudulle, joten GPU:n työ ei riipu näytön
+ * koosta lainkaan: 4K-näytölläkin piirretään vain n. 480×270 pikseliä.
  */
 export class RetroRenderer {
   readonly renderer: THREE.WebGLRenderer;
@@ -90,11 +77,9 @@ export class RetroRenderer {
   paletteMode: PaletteMode = 'palette';
 
   private readonly sceneTarget = makeTarget(1, 1, true);
-  private readonly paletteTarget = makeTarget(1, 1, false);
   private readonly quadCamera = new THREE.Camera();
   private readonly quad: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
   private readonly paletteMaterial: THREE.ShaderMaterial;
-  private readonly blitMaterial: THREE.ShaderMaterial;
   private readonly quadScene = new THREE.Scene();
   private readonly listeners = new Set<(r: RetroResolution) => void>();
 
@@ -106,6 +91,8 @@ export class RetroRenderer {
     });
     this.renderer.setPixelRatio(1);
     this.renderer.autoClear = true;
+    // Tilastot kerätään koko ruudulta (kolme vaihetta), ei vain viimeisestä.
+    this.renderer.info.autoReset = false;
 
     this.paletteMaterial = new THREE.ShaderMaterial({
       vertexShader: FULLSCREEN_VERT,
@@ -115,18 +102,6 @@ export class RetroRenderer {
         uPalette: { value: PALETTE.map(([r, g, b]) => new THREE.Vector3(r, g, b)) },
         uMode: { value: 0 },
         uDitherAmount: { value: 0.06 },
-      },
-      depthTest: false,
-      depthWrite: false,
-    });
-    this.blitMaterial = new THREE.ShaderMaterial({
-      vertexShader: FULLSCREEN_VERT,
-      fragmentShader: BLIT_FRAG,
-      uniforms: {
-        tSource: { value: this.paletteTarget.texture },
-        uSourceSize: { value: new THREE.Vector2(1, 1) },
-        uScale: { value: 1 },
-        uScreenHeight: { value: 1 },
       },
       depthTest: false,
       depthWrite: false,
@@ -156,16 +131,12 @@ export class RetroRenderer {
 
   render(scene: THREE.Scene, camera: THREE.Camera): void {
     const r = this.renderer;
+    r.info.reset();
     r.setRenderTarget(this.sceneTarget);
     r.render(scene, camera);
 
     this.paletteMaterial.uniforms.uMode!.value =
       this.paletteMode === 'dither' ? 0 : this.paletteMode === 'palette' ? 1 : 2;
-    this.quad.material = this.paletteMaterial;
-    r.setRenderTarget(this.paletteTarget);
-    r.render(this.quadScene, this.quadCamera);
-
-    this.quad.material = this.blitMaterial;
     r.setRenderTarget(null);
     r.render(this.quadScene, this.quadCamera);
   }
@@ -173,31 +144,21 @@ export class RetroRenderer {
   dispose(): void {
     window.removeEventListener('resize', this.resize);
     this.sceneTarget.dispose();
-    this.paletteTarget.dispose();
     this.paletteMaterial.dispose();
-    this.blitMaterial.dispose();
     this.quad.geometry.dispose();
     this.renderer.dispose();
   }
 
   private resize = () => {
     const dpr = window.devicePixelRatio || 1;
-    const cssW = window.innerWidth;
-    const cssH = window.innerHeight;
-    const screenW = Math.floor(cssW * dpr);
-    const screenH = Math.floor(cssH * dpr);
-    this.renderer.setSize(screenW, screenH, false);
-    this.canvas.style.width = `${cssW}px`;
-    this.canvas.style.height = `${cssH}px`;
-
-    const res = computeResolution(screenW, screenH);
+    const res = computeResolution(window.innerWidth * dpr, window.innerHeight * dpr);
     this.resolution = res;
+    this.renderer.setSize(res.width, res.height, false);
+    // Yksi sisäinen pikseli = scale näytön fyysistä pikseliä. Canvas voi olla
+    // hieman ikkunaa suurempi; ylijäämä leikkautuu oikealta ja alhaalta.
+    this.canvas.style.width = `${(res.width * res.scale) / dpr}px`;
+    this.canvas.style.height = `${(res.height * res.scale) / dpr}px`;
     this.sceneTarget.setSize(res.width, res.height);
-    this.paletteTarget.setSize(res.width, res.height);
-    const u = this.blitMaterial.uniforms;
-    (u.uSourceSize!.value as THREE.Vector2).set(res.width, res.height);
-    u.uScale!.value = res.scale;
-    u.uScreenHeight!.value = screenH;
     for (const l of this.listeners) l(res);
   };
 }
