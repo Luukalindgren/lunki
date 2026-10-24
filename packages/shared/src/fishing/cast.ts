@@ -55,8 +55,9 @@ export function chargePower(heldSeconds: number): number {
   return t <= 1 ? t : 2 - t;
 }
 
-export function launchLure(from: Vec2, angle: number, power: number): LureFlight {
-  const speed = Math.max(CAST.minPower, Math.min(1, power)) * CAST.maxSpeed;
+/** `factor` = varusteiden heittokerroin (vieheen paino, siiman paksuus). */
+export function launchLure(from: Vec2, angle: number, power: number, factor = 1): LureFlight {
+  const speed = Math.max(CAST.minPower, Math.min(1, power)) * CAST.maxSpeed * factor;
   const h = Math.cos(CAST.launchAngle) * speed;
   return {
     pos: { ...from },
@@ -96,8 +97,14 @@ export function stepFlight(f: LureFlight, dt: number): boolean {
 }
 
 /** Ennustaa osumakohdan (heittoviivaa varten). */
-export function predictLanding(from: Vec2, angle: number, power: number, dt = 1 / 60): Vec2 {
-  const f = launchLure(from, angle, power);
+export function predictLanding(
+  from: Vec2,
+  angle: number,
+  power: number,
+  factor = 1,
+  dt = 1 / 60,
+): Vec2 {
+  const f = launchLure(from, angle, power, factor);
   for (let i = 0; i < 60 * 10 && !stepFlight(f, dt); i++);
   return f.pos;
 }

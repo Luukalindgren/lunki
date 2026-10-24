@@ -26,7 +26,7 @@ Valikosta "Moninpeli" luodaan huone, ja kaverit liittyvät koodilla
 Peli kavereille: asiakas on GitHub Pagesissa ja palvelin pyörii omalla
 koneella tunnelin kautta. Ohje: [docs/julkaisu.md](docs/julkaisu.md).
 Verkkokoodin rakenne: [docs/moninpeli.md](docs/moninpeli.md).
-Kalalajit ja niiden käytös: [docs/kalalajit.md](docs/kalalajit.md).
+Kalalajit, vieheet ja varusteet: [docs/kalalajit.md](docs/kalalajit.md).
 
 Muut komennot:
 

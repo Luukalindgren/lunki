@@ -1,11 +1,12 @@
 import { CAST, predictLanding } from '../fishing/cast';
+import { MAX_CAST_FACTOR } from '../fishing/gear';
 import { distance, type Vec2 } from '../vec2';
 
 let maxCast: number | null = null;
 
-/** Pisin mahdollinen heitto renkaan keskeltä mitattuna (m). */
+/** Pisin mahdollinen heitto renkaan keskeltä mitattuna (m), pisimmälle lentävillä varusteilla. */
 export function maxCastDistance(): number {
-  maxCast ??= Math.abs(predictLanding({ x: 0, y: 0 }, 0, 1).x) + CAST.rodReach;
+  maxCast ??= Math.abs(predictLanding({ x: 0, y: 0 }, 0, 1, MAX_CAST_FACTOR).x) + CAST.rodReach;
   return maxCast;
 }
 

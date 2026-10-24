@@ -1,5 +1,9 @@
 import {
   DIFFICULTY_NAMES,
+  LINES,
+  LINE_IDS,
+  LURES,
+  LURE_IDS,
   NAME_MAX_LENGTH,
   PENALTY_OPTIONS,
   PLAYER_COUNTS,
@@ -18,6 +22,7 @@ import {
   type PlayerResult,
   type RoomSettings,
   type SpeciesId,
+  type Tackle,
   type WinRule,
 } from '@lunki/shared';
 import type { LobbyView } from '../net/session';
@@ -228,11 +233,17 @@ export class Screens {
     this.show(panel);
   }
 
-  showPause(onResume: () => void, onQuit: () => void, multiplayer = false): void {
+  showPause(
+    onResume: () => void,
+    onQuit: () => void,
+    multiplayer = false,
+    tackle?: { current: Tackle; onChange: (t: Tackle) => void },
+  ): void {
     const panel = this.panel();
     panel.append(
       h('h2', multiplayer ? 'Valikko' : 'Tauko'),
       ...(multiplayer ? [h('p', 'Kisa jatkuu muilla taustalla.', 'hint')] : []),
+      ...(tackle ? [this.tackleEditor(tackle.current, tackle.onChange)] : []),
       this.buttons([
         ['Jatka', onResume],
         [multiplayer ? 'Poistu kisasta' : 'Lopeta kisa', onQuit],
@@ -424,6 +435,52 @@ export class Screens {
         PENALTY_OPTIONS.map((o) => [o.value, o.label, !o.ready]),
         s.capsizePenalty,
         () => undefined,
+      ),
+    );
+    return box;
+  }
+
+  /** Varusteet: viehe, siima ja teräsperukka. */
+  private tackleEditor(initial: Tackle, onChange: (t: Tackle) => void): HTMLElement {
+    const t = { ...initial };
+    const box = document.createElement('div');
+    box.className = 'settings';
+    const hint = h('p', LURES[t.lure].hint, 'hint');
+    const set = (patch: Partial<Tackle>) => {
+      Object.assign(t, patch);
+      hint.textContent = LURES[t.lure].hint;
+      onChange({ ...t });
+    };
+    box.append(
+      this.choice(
+        'Viehe (R)',
+        LURE_IDS.map((id) => [id, LURES[id].name]),
+        t.lure,
+        (v) => set({ lure: v as Tackle['lure'] }),
+      ),
+      hint,
+      this.choice(
+        'Siima',
+        LINE_IDS.map((id) => [
+          id,
+          `${LINES[id].name} (${String(LINES[id].strength).replace('.', ',')} kg)`,
+        ]),
+        t.line,
+        (v) => set({ line: v as Tackle['line'] }),
+      ),
+      this.choice(
+        'Teräsperukka',
+        [
+          ['no', 'Ei'],
+          ['yes', 'Kyllä'],
+        ],
+        t.leader ? 'yes' : 'no',
+        (v) => set({ leader: v === 'yes' }),
+      ),
+      h(
+        'p',
+        'Ohut siima heittyy pidemmälle mutta katkeaa helpommin. Hauki voi purra siiman poikki ilman perukkaa.',
+        'hint',
       ),
     );
     return box;

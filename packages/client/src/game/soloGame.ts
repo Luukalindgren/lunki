@@ -1,8 +1,10 @@
 import * as THREE from 'three';
 import {
+  LINES,
   LUNKINJARVI,
-  REEL,
+  LURES,
   chargePower,
+  describeTackle,
   WaterBody,
   collideTubeWithShore,
   createTube,
@@ -32,6 +34,7 @@ import {
   type FishingState,
   type PlayerResult,
   type LakeMap,
+  type Tackle,
   type Vec2,
   type TubeInput,
   type TubeState,
@@ -43,6 +46,7 @@ import { RemotePlayersView } from './remotePlayersView';
 import type { Sfx } from '../audio/sfx';
 import type { Hud } from '../ui/hud';
 import { FishingView } from './fishingView';
+import { loadTackle, nextLure, saveTackle } from './tackle';
 import { TopDownCamera } from './topDownCamera';
 import { animateFins, createTubeMesh } from './tubeMesh';
 
@@ -78,7 +82,9 @@ export class SoloGame {
   tube: TubeState;
   private prevTube: TubeState;
   private readonly tubeMesh = createTubeMesh();
-  readonly fishing: FishingState = createFishing();
+  readonly fishing: FishingState = createFishing(loadTackle());
+  /** Vaihdettavat varusteet: otetaan käyttöön, kun viehe on kelalla. */
+  private pendingTackle: Tackle | null = null;
   private readonly fishingView = new FishingView();
   /** Hiiren osoittama piste maailmassa. */
   aim: Vec2 = { x: 0, y: 0 };
@@ -160,6 +166,19 @@ export class SoloGame {
     };
   }
 
+  /** Vaihtaa varusteet heti, tai kun viehe seuraavan kerran on kelalla. */
+  setTackle(t: Tackle): void {
+    this.pendingTackle = { ...t };
+    const f = this.fishing.stage;
+    if (f !== 'idle' && f !== 'charging')
+      this.hud.showMessage(`${LURES[t.lure].name} vaihtuu, kun viehe on kelalla`, 1.5);
+  }
+
+  /** Varusteet sellaisina kuin ne ovat seuraavassa heitossa. */
+  get tackle(): Tackle {
+    return this.pendingTackle ?? this.fishing.tackle;
+  }
+
   get difficulty() {
     return this.settings.difficulty;
   }
@@ -176,6 +195,8 @@ export class SoloGame {
     const frozen = this.net?.world.phase === 'countdown';
     if (input.wheel !== 0) this.view.zoom(input.wheel);
     if (input.wasPressed('KeyH')) this.hud.toggleHelp();
+    if (input.wasPressed('KeyR'))
+      this.setTackle(nextLure(this.pendingTackle ?? this.fishing.tackle));
 
     this.prevTube = this.tube;
     if (this.net) {
@@ -223,6 +244,7 @@ export class SoloGame {
         ...(input.wasPressed('Digit1') ? { gear: 0 } : {}),
         ...(input.wasPressed('Digit2') ? { gear: 1 } : {}),
         ...(input.wasPressed('Digit3') ? { gear: 2 } : {}),
+        ...(this.pendingTackle ? { tackle: this.pendingTackle } : {}),
       },
       this.fishingContext(fishEvents.strike),
       dt,
@@ -245,8 +267,9 @@ export class SoloGame {
     }
 
     this.hud.setPower(f.stage === 'charging' ? chargePower(f.charge) : null);
-    this.hud.setTension(f.tension, f.drag, REEL.lineStrength);
+    this.hud.setTension(f.tension, f.drag, LINES[f.tackle.line].strength);
     this.hud.setStatus([
+      describeTackle(f.tackle),
       `Siimaa ${f.lineLength.toFixed(1)} m`,
       `Jarru ${f.drag.toFixed(2)} kg · kela ${f.gear + 1}`,
       `Viehe ${f.stage === 'water' && !f.onLand ? f.depth.toFixed(1) : '0.0'} m`,
@@ -301,9 +324,17 @@ export class SoloGame {
       sfx.lost();
       hud.showMessage('Kala irtosi – pidä siima kireällä', 2.5);
     }
-    if (events.lineBroken) {
+    if (events.tackleChanged) {
+      this.pendingTackle = null;
+      saveTackle(this.fishing.tackle);
+      hud.showMessage(`Viehe: ${LURES[this.fishing.tackle.lure].name}`, 1.5);
+    }
+    if (events.bitOff) {
       sfx.lost();
-      hud.showMessage('Siima katkesi! Löysää jarrua (Q)', 3);
+      hud.showMessage('Hauki katkaisi siiman hampaillaan – kokeile teräsperukkaa', 3.5);
+    } else if (events.lineBroken) {
+      sfx.lost();
+      hud.showMessage('Siima katkesi! Löysää jarrua (Q) tai vaihda paksumpi siima', 3);
     }
     if (events.caught) {
       sfx.caught();

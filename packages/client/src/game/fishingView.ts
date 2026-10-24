@@ -5,6 +5,7 @@ import {
   chargePower,
   predictLanding,
   rodTip,
+  tackleCastFactor,
   type Fish,
   type FishingContext,
   type FishingState,
@@ -111,7 +112,7 @@ export class FishingView {
       const angle = castAngle(ctx, aim);
       const target =
         s.stage === 'charging'
-          ? predictLanding(tip, angle, chargePower(s.charge))
+          ? predictLanding(tip, angle, chargePower(s.charge), tackleCastFactor(s.tackle))
           : {
               x: tip.x + Math.cos(angle) * Math.hypot(aim.x - tip.x, aim.y - tip.y),
               y: tip.y + Math.sin(angle) * Math.hypot(aim.x - tip.x, aim.y - tip.y),

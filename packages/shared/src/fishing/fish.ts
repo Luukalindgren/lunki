@@ -2,6 +2,7 @@ import { wrapAngle } from '../physics/tube';
 import type { Rng } from '../rng';
 import { distance, type Vec2 } from '../vec2';
 import type { DifficultyParams } from './difficulty';
+import { LURES, tackleAppeal, type Tackle } from './gear';
 
 export type SpeciesId = 'perch' | 'pike' | 'roach' | 'zander' | 'trout';
 
@@ -258,6 +259,8 @@ export interface LureInfo {
   fishable: boolean;
   /** Vavan kärki: kala kääntyy pois, jos viehe tulee liian lähelle kalastajaa. */
   tip: Vec2;
+  /** Kalastajan varusteet (viehe, siima, perukka). */
+  tackle?: Tackle;
 }
 
 export interface FishEvents {
@@ -356,17 +359,19 @@ function randomWaterPoint(
 }
 
 /**
- * Kuinka houkutteleva viehe on kalalle (0–1): nopeus lähellä mieluisaa,
- * syvyys lähellä kalan syvyyttä.
+ * Kuinka houkutteleva viehe on kalalle: nopeus lähellä mieluisaa, syvyys
+ * lähellä kalan syvyyttä, kertoimena vieheen ja siiman sopivuus lajille.
  */
 export function lureAppeal(fish: Fish, lure: LureInfo): number {
   const sp = SPECIES[fish.species];
   const dv = Math.abs(lure.speed - sp.preferredSpeed) / sp.speedTolerance;
-  // Pysähtynytkin viehe kiinnostaa vähän (uppoava viehe).
-  const speedScore = Math.max(lure.speed < 0.05 ? 0.25 : 0, 1 - dv * dv * 0.5);
+  // Pysähtynytkin viehe kiinnostaa vähän (vajoava viehe; jigi eniten).
+  const still = lure.tackle ? LURES[lure.tackle.lure].stillAppeal : 0.25;
+  const speedScore = Math.max(lure.speed < 0.05 ? still : 0, 1 - dv * dv * 0.5);
   const dd = Math.abs(lure.depth - fish.depth);
   const depthScore = Math.max(0, 1 - dd / 2.5);
-  return speedScore * depthScore;
+  const gear = lure.tackle ? tackleAppeal(lure.tackle, fish.species) : 1;
+  return speedScore * depthScore * gear;
 }
 
 /** Vapaana olevien kalojen tekoäly yhdelle askeleelle. */
