@@ -117,3 +117,121 @@ export function extractLake(res: OverpassResponse): OsmLake {
     islands,
   };
 }
+
+/** Ympäristön kohdetyypit pelissä. */
+export type SurroundingKind =
+  | 'forest'
+  | 'field'
+  | 'residential'
+  | 'wetland'
+  | 'reeds'
+  | 'scrub'
+  | 'beach'
+  | 'bare'
+  | 'water'
+  | 'building'
+  | 'road'
+  | 'track'
+  | 'path'
+  | 'pier'
+  | 'stream';
+
+export interface OsmSurroundingFeature {
+  id: string;
+  kind: SurroundingKind;
+  name?: string;
+  /** Alueet: ulkoreunat ja reiät. Viivat: `line`. */
+  outer?: LonLatRing[];
+  inner?: LonLatRing[];
+  line?: LonLatRing;
+}
+
+export interface OsmSurroundings {
+  source: string;
+  box: { west: number; south: number; east: number; north: number };
+  features: OsmSurroundingFeature[];
+}
+
+const LINE_KINDS = new Set<SurroundingKind>(['road', 'track', 'path', 'stream']);
+
+/** OSM-tagit → pelin kohdetyyppi (tai null, jos kohdetta ei käytetä). */
+export function classify(tags: Record<string, string>): SurroundingKind | null {
+  if (tags.building) return 'building';
+  const hw = tags.highway;
+  if (hw) {
+    if (hw === 'track') return 'track';
+    if (/^(path|footway|cycleway|bridleway|steps)$/.test(hw)) return 'path';
+    if (
+      /^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|service|living_street|road)(_link)?$/.test(
+        hw,
+      )
+    )
+      return 'road';
+    return null;
+  }
+  if (/^(pier|breakwater|jetty)$/.test(tags.man_made ?? '')) return 'pier';
+  if (tags.leisure === 'slipway') return 'pier';
+  if (tags.waterway)
+    return /^(stream|river|ditch|drain|canal)$/.test(tags.waterway) ? 'stream' : null;
+  const lu = tags.landuse;
+  const nat = tags.natural;
+  if (lu === 'forest' || nat === 'wood') return 'forest';
+  if (nat === 'wetland') return tags.wetland === 'reedbed' ? 'reeds' : 'wetland';
+  if (
+    /^(farmland|meadow|grass|orchard|allotments|plant_nursery|village_green)$/.test(lu ?? '') ||
+    nat === 'grassland'
+  )
+    return 'field';
+  if (
+    /^(residential|farmyard|commercial|industrial|retail|cemetery|recreation_ground)$/.test(
+      lu ?? '',
+    )
+  )
+    return 'residential';
+  if (nat === 'scrub' || nat === 'heath') return 'scrub';
+  if (nat === 'beach' || nat === 'sand' || tags.leisure === 'swimming_area') return 'beach';
+  if (nat === 'bare_rock' || lu === 'quarry') return 'bare';
+  if (nat === 'water' || lu === 'reservoir' || lu === 'basin') return 'water';
+  return null;
+}
+
+/**
+ * Ympäristön kohteet Overpassin vastauksesta. Itse Lunkinjärvi jätetään pois,
+ * ja kohteet, joilla ei ole pistettä rajauksen sisällä, karsitaan.
+ */
+export function extractSurroundings(
+  res: OverpassResponse,
+  box: OsmSurroundings['box'],
+  lakeName = 'Lunkinjärvi',
+): OsmSurroundings {
+  const inside = (r: LonLatRing) =>
+    r.some(
+      ([lon, lat]) => lon >= box.west && lon <= box.east && lat >= box.south && lat <= box.north,
+    );
+  const features: OsmSurroundingFeature[] = [];
+  for (const e of res.elements) {
+    const tags = e.tags ?? {};
+    const kind = classify(tags);
+    if (!kind) continue;
+    if (kind === 'water' && tags.name === lakeName) continue;
+    const id = `${e.type}/${e.id}`;
+    const name = tags.name;
+    const base = { id, kind, ...(name ? { name } : {}) };
+    if (e.type === 'way' && e.geometry) {
+      const ring = toRing(e.geometry);
+      if (!inside(ring)) continue;
+      const closed = ring.length >= 4 && key(ring[0]!) === key(ring[ring.length - 1]!);
+      if (LINE_KINDS.has(kind) || (kind === 'pier' && !closed))
+        features.push({ ...base, line: ring });
+      else if (closed) features.push({ ...base, outer: [ring], inner: [] });
+    } else if (e.type === 'relation' && e.members) {
+      const rings = (role: string) =>
+        assembleRings(
+          e.members!.filter((m) => m.role === role && m.geometry).map((m) => toRing(m.geometry!)),
+        );
+      const outer = rings('outer').filter(inside);
+      if (outer.length > 0) features.push({ ...base, outer, inner: rings('inner') });
+    }
+  }
+  return { source: '© OpenStreetMapin tekijät, ODbL 1.0', box, features };
+}

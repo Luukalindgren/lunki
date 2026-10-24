@@ -1,7 +1,8 @@
 import type { BottomFeatures } from './bottom';
 import features from './lunkinjarvi-features.json';
 import data from './lunkinjarvi.json';
-import type { LakeMap } from './types';
+import surroundings from './lunkinjarvi-surroundings.json';
+import type { LakeMap, LakeSurroundings } from './types';
 
 /**
  * Lunkinjärvi (Tammela) pelin karttamuodossa. Generoitu map-pipeline-paketilla
@@ -14,3 +15,6 @@ export const LUNKINJARVI: LakeMap = data;
  * saa muokata käsin (ks. docs/pohja.md).
  */
 export const LUNKINJARVI_BOTTOM = features as BottomFeatures;
+
+/** Järven ympäristö: maankäyttö, rakennukset, tiet ja maasto (karttaputki, #19). */
+export const LUNKINJARVI_SURROUNDINGS = surroundings as LakeSurroundings;

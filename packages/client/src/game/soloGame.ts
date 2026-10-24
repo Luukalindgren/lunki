@@ -25,6 +25,7 @@ import {
   LureStage,
   LakeBottom,
   LUNKINJARVI_BOTTOM,
+  LUNKINJARVI_SURROUNDINGS,
   resetFishing,
   rodTip,
   sonarPing,
@@ -45,6 +46,7 @@ import {
 import type { Input } from '../engine/input';
 import { createBottomMesh } from '../world/bottomMesh';
 import { createShoreScenery } from '../world/shoreScenery';
+import { createMapOverlay, createTerrainMesh } from '../world/surroundingsMesh';
 import type { RetroResolution } from '../engine/resolution';
 import { PovCamera } from './povCamera';
 import { createLakeMesh, toWorld } from '../world/lakeMesh';
@@ -102,7 +104,9 @@ export class SoloGame {
   /** Kalastajan silmin -näkymä (V vaihtaa). */
   readonly pov = new PovCamera();
   viewMode: 'top' | 'pov' = 'top';
-  private readonly scenery: THREE.Group;
+  /** Vain POV:ssa näkyvät (maasto, metsänreuna) ja vain ylhäältä näkyvät (karttapohja). */
+  private readonly scenery = new THREE.Group();
+  private readonly mapOverlay = new THREE.Group();
   private readonly povRod: THREE.Line;
   readonly water: WaterBody;
   readonly bottom: LakeBottom;
@@ -168,9 +172,15 @@ export class SoloGame {
     this.scene.add(createLakeMesh(map));
     this.scene.add(createBottomMesh(this.bottom));
     this.scene.add(this.tubeMesh);
-    this.scenery = createShoreScenery(map);
+    const surroundings = map === LUNKINJARVI ? LUNKINJARVI_SURROUNDINGS : undefined;
+    this.scenery.add(createShoreScenery(map, surroundings));
+    if (surroundings) {
+      const terrain = createTerrainMesh(map, surroundings);
+      if (terrain) this.scenery.add(terrain);
+      this.mapOverlay.add(createMapOverlay(surroundings));
+    }
     this.scenery.visible = false;
-    this.scene.add(this.scenery);
+    this.scene.add(this.scenery, this.mapOverlay);
     this.povRod = new THREE.Line(
       new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
       new THREE.LineBasicMaterial({ color: 0xf6d04d }),
@@ -224,6 +234,7 @@ export class SoloGame {
     this.viewMode = mode;
     const pov = mode === 'pov';
     this.scenery.visible = pov;
+    this.mapOverlay.visible = !pov;
     this.povRod.visible = pov;
     this.tubeMesh.visible = !pov;
     this.scene.background = new THREE.Color(pov ? SKY_COLOR : LAND_COLOR);
