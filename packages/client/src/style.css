@@ -117,6 +117,25 @@ body {
   background: #f6d04d;
 }
 
+.hud-sonar {
+  right: calc(var(--u) * 4);
+  top: calc(var(--u) * 82);
+  padding: var(--u);
+}
+
+.hud-sonar canvas {
+  display: block;
+  width: calc(var(--u) * 64);
+  height: calc(var(--u) * 44);
+  image-rendering: pixelated;
+}
+
+.hud-sonar-label {
+  margin-top: var(--u);
+  font-size: calc(var(--u) * 8);
+  text-align: right;
+}
+
 .hud-tension-label {
   position: absolute;
   top: 100%;
