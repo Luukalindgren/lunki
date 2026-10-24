@@ -68,7 +68,7 @@ function startGame(s: CompetitionSettings, seed = devSeed) {
     LUNKINJARVI,
     net,
   );
-  game.view.setResolution(retro.resolution);
+  game.setResolution(retro.resolution);
   game.onFinished = () => showResults();
   if (import.meta.env.DEV) Object.assign(window, { lunki: game });
   paused = false;
@@ -252,7 +252,7 @@ function togglePause() {
 }
 
 retro.onResize((r) => {
-  game?.view.setResolution(r);
+  game?.setResolution(r);
   hud.setPixelSize(r.scale / (window.devicePixelRatio || 1));
 });
 
@@ -307,7 +307,7 @@ startLoop({
     const active = game ?? menuScene;
     const t0 = performance.now();
     active.render(alpha);
-    retro.render(active.scene, active.view.camera);
+    retro.render(active.scene, active.camera);
     bench?.timing(updateTime, performance.now() - t0, updateCount);
     updateTime = 0;
     updateCount = 0;

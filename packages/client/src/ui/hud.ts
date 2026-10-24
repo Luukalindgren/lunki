@@ -42,7 +42,7 @@ export class Hud {
       'W/S potki · A/D käänny · Shift pikapotku<br>' +
       'Hiiri: tähtää, pidä pohjassa ja päästä = heitto<br>' +
       'Hiiri pohjassa / välilyönti = kelaa · 1/2/3 kelausnopeus · R vaihda viehe<br>' +
-      'K kaikuluotain · ' +
+      'K kaikuluotain · V kalastajan silmin · ' +
       'Q/E jarru löysemmälle/kireämmälle · rulla = zoom · H = ohje · Esc = tauko';
     this.timer = el('div', 'hud-timer hud-panel');
     this.catches = el('div', 'hud-catches hud-panel');
