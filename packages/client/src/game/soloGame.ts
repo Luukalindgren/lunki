@@ -49,7 +49,9 @@ import { createShoreScenery } from '../world/shoreScenery';
 import { createMapOverlay, createTerrainMesh } from '../world/surroundingsMesh';
 import type { RetroResolution } from '../engine/resolution';
 import { PovCamera } from './povCamera';
-import { createLakeMesh, toWorld } from '../world/lakeMesh';
+import { createLakeMesh, toWorld, waterTime } from '../world/lakeMesh';
+import { createBuildings, createPiers, planPiers } from '../world/buildings';
+import { createVegetation } from '../world/vegetation';
 import type { NetWorld } from '../net/netWorld';
 import { RemotePlayersView } from './remotePlayersView';
 import type { Sfx } from '../audio/sfx';
@@ -174,9 +176,14 @@ export class SoloGame {
     this.scene.add(this.tubeMesh);
     const surroundings = map === LUNKINJARVI ? LUNKINJARVI_SURROUNDINGS : undefined;
     this.scenery.add(createShoreScenery(map, surroundings));
+    this.scenery.add(createVegetation(map, surroundings, this.bottom));
     if (surroundings) {
       const terrain = createTerrainMesh(map, surroundings);
       if (terrain) this.scenery.add(terrain);
+      const buildings = createBuildings(surroundings);
+      if (buildings) this.scenery.add(buildings);
+      const piers = createPiers(planPiers(map, surroundings));
+      if (piers) this.scene.add(piers);
       this.mapOverlay.add(createMapOverlay(surroundings));
     }
     this.scenery.visible = false;
@@ -262,6 +269,7 @@ export class SoloGame {
 
   update(dt: number): void {
     const input = this.input;
+    waterTime.value += dt;
     if (this.competition.finished) return;
     if (this.net ? this.syncCompetition() : stepCompetition(this.competition, dt)) {
       this.sfx.caught();
