@@ -129,3 +129,149 @@ body {
 [hidden] {
   display: none !important;
 }
+
+.screen {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgb(11 15 20 / 55%);
+  font-family: 'VT323', monospace;
+  color: #eef2f3;
+  padding: 16px;
+}
+
+.screen-panel {
+  max-width: 560px;
+  width: 100%;
+  max-height: 100%;
+  overflow: auto;
+  background: #1c232b;
+  border: 4px solid #5f6b78;
+  box-shadow: 8px 8px 0 #0b0f14;
+  padding: 20px 24px;
+  font-size: 24px;
+}
+
+.screen-panel h1 {
+  margin: 0;
+  font-size: 72px;
+  font-weight: normal;
+  color: #f6d04d;
+  text-shadow: 4px 4px 0 #8c1c1c;
+  letter-spacing: 4px;
+}
+
+.screen-panel h2 {
+  margin: 0 0 12px;
+  font-size: 44px;
+  font-weight: normal;
+  color: #f6d04d;
+}
+
+.screen-panel p {
+  margin: 8px 0;
+}
+
+.screen-panel .subtitle {
+  color: #83c2db;
+  margin-bottom: 20px;
+}
+
+.screen-panel .hint {
+  font-size: 19px;
+  color: #8e99a4;
+}
+
+.screen-panel .total {
+  color: #fff3b0;
+}
+
+.choice {
+  margin: 14px 0;
+}
+
+.choice-label {
+  display: block;
+  margin-bottom: 6px;
+  color: #c3cbd2;
+}
+
+.choice-options,
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.buttons {
+  margin: 18px 0 10px;
+}
+
+.screen button {
+  font: inherit;
+  font-size: 24px;
+  color: #eef2f3;
+  background: #39424d;
+  border: 3px solid #5f6b78;
+  padding: 4px 14px;
+  cursor: pointer;
+}
+
+.screen button:hover,
+.screen button:focus-visible {
+  border-color: #f6d04d;
+  outline: none;
+}
+
+.screen button.selected {
+  background: #1b5a84;
+  border-color: #83c2db;
+}
+
+.screen button.primary {
+  background: #8c1c1c;
+  border-color: #d23a2a;
+}
+
+.catch-list {
+  margin: 8px 0;
+  padding-left: 32px;
+  white-space: pre;
+  max-height: 40vh;
+  overflow: auto;
+}
+
+.hud-timer {
+  left: 50%;
+  top: calc(var(--u) * 4);
+  transform: translateX(-50%);
+  font-size: calc(var(--u) * 14);
+}
+
+.hud-timer.low {
+  color: #f08a2c;
+}
+
+.hud-catches {
+  left: calc(var(--u) * 4);
+  top: calc(var(--u) * 4);
+  white-space: pre;
+  font-size: calc(var(--u) * 8);
+}
+
+.hud-weigh {
+  left: 50%;
+  top: 22%;
+  transform: translateX(-50%);
+  text-align: center;
+  font-size: calc(var(--u) * 12);
+  color: #fff3b0;
+  padding: calc(var(--u) * 4) calc(var(--u) * 8);
+}
+
+.hud-weigh small {
+  display: block;
+  font-size: calc(var(--u) * 8);
+  color: #c3cbd2;
+}

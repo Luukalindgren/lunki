@@ -9,7 +9,12 @@ import {
   findLaunchPoint,
   DIFFICULTIES,
   Rng,
+  createCompetition,
   createFishPopulation,
+  formatTime,
+  recordCatch,
+  stepCompetition,
+  timeLeft,
   createFishing,
   formatWeight,
   lureInfo,
@@ -18,8 +23,8 @@ import {
   protoDepthAt,
   stepFishing,
   stepTube,
-  type Catch,
-  type Difficulty,
+  type CompetitionSettings,
+  type CompetitionState,
   type FishPopulation,
   type FishingContext,
   type FishingState,
@@ -63,8 +68,10 @@ export class SoloGame {
   aim: Vec2 = { x: 0, y: 0 };
   readonly rng: Rng;
   readonly fish: FishPopulation;
-  readonly catches: Catch[] = [];
+  readonly competition: CompetitionState;
   private reelClickTimer = 0;
+  /** Kutsutaan, kun kilpailuaika loppuu. */
+  onFinished: (() => void) | null = null;
 
   constructor(
     private readonly input: Input,
@@ -72,10 +79,11 @@ export class SoloGame {
     private readonly sfx: Sfx,
     /** Muuntaa näytön CSS-pikselin sisäiseksi pikseliksi. */
     private readonly screenToInternal: (x: number, y: number) => { x: number; y: number },
-    readonly difficulty: Difficulty = 'normal',
+    readonly settings: CompetitionSettings,
     seed = Date.now() >>> 0,
     readonly map: LakeMap = LUNKINJARVI,
   ) {
+    this.competition = createCompetition(settings);
     this.water = new WaterBody(map);
     this.rng = new Rng(seed);
     this.fish = createFishPopulation(
@@ -107,12 +115,22 @@ export class SoloGame {
       heading: this.tube.heading,
       isWater: (p) => this.water.isWater(p),
       depthAt: (p) => protoDepthAt(this.water, p),
-      fish: { pop: this.fish, diff: DIFFICULTIES[this.difficulty], rng: this.rng, strike },
+      fish: { pop: this.fish, diff: DIFFICULTIES[this.settings.difficulty], rng: this.rng, strike },
     };
+  }
+
+  get difficulty() {
+    return this.settings.difficulty;
   }
 
   update(dt: number): void {
     const input = this.input;
+    if (this.competition.finished) return;
+    if (stepCompetition(this.competition, dt)) {
+      this.sfx.caught();
+      this.onFinished?.();
+      return;
+    }
     if (input.wheel !== 0) this.view.zoom(input.wheel);
     if (input.wasPressed('KeyH')) this.hud.toggleHelp();
 
@@ -133,7 +151,7 @@ export class SoloGame {
       this.fish,
       lureInfo(f, this.fishingContext()),
       world,
-      DIFFICULTIES[this.difficulty],
+      DIFFICULTIES[this.settings.difficulty],
       this.rng,
       dt,
     );
@@ -176,8 +194,22 @@ export class SoloGame {
       `Jarru ${f.drag.toFixed(2)} kg · kela ${f.gear + 1}`,
       `Viehe ${f.stage === 'water' && !f.onLand ? f.depth.toFixed(1) : '0.0'} m`,
       `Pohja ${protoDepthAt(this.water, lureOut ? f.lure : this.tube.pos).toFixed(1)} m`,
-      `Saalis ${this.catches.length} kpl · ${formatWeight(this.catches.reduce((a, c) => a + c.weight, 0))}`,
     ]);
+    const left = timeLeft(this.competition);
+    this.hud.setTimer(formatTime(left), left < 60);
+    const catches = this.competition.catches;
+    const total = catches.reduce((a, c) => a + c.weight, 0);
+    this.hud.setCatches(
+      catches.length === 0
+        ? []
+        : [
+            `Saalis ${catches.length} kpl  ${formatWeight(total)}`,
+            ...catches
+              .slice(-5)
+              .reverse()
+              .map((c) => `${formatTime(c.time)} ${c.name} ${formatWeight(c.weight)}`),
+          ],
+    );
     this.hud.update(dt);
   }
 
@@ -212,9 +244,14 @@ export class SoloGame {
     }
     if (events.caught) {
       sfx.caught();
-      this.catches.push(events.caught);
+      const record = recordCatch(this.competition, events.caught);
       this.fishingView.startSplash(this.fishing.lure);
-      hud.showMessage(`${events.caught.name} ${formatWeight(events.caught.weight)}`, 3);
+      const catches = this.competition.catches;
+      const biggest = catches.every((c) => c === record || c.weight < events.caught!.weight);
+      hud.showWeighIn(
+        `${events.caught.name} ${formatWeight(events.caught.weight)}`,
+        catches.length > 1 && biggest ? 'Kisan suurin tähän asti!' : `${catches.length}. kala`,
+      );
     }
     if (this.fishing.dragSlipping) sfx.dragSlip();
     this.reelClickTimer -= dt;
@@ -222,6 +259,23 @@ export class SoloGame {
       sfx.reelClick();
       this.reelClickTimer = 0.09 / (this.fishing.gear + 1);
     }
+  }
+
+  /** Vapauttaa GPU-resurssit, kun kierros päättyy. */
+  dispose(): void {
+    this.scene.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      mesh.geometry?.dispose();
+      const mats = Array.isArray(mesh.material)
+        ? mesh.material
+        : mesh.material
+          ? [mesh.material]
+          : [];
+      for (const m of mats) {
+        (m as THREE.MeshBasicMaterial).map?.dispose();
+        m.dispose();
+      }
+    });
   }
 
   /** Piirtää interpoloiden edellisen ja nykyisen askeleen välillä. */
