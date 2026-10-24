@@ -1,0 +1,35 @@
+name: Karttadata
+
+# Hakee Lunkinjärven rantaviivan OpenStreetMapista ja tallentaa sen
+# artefaktiksi. Ajetaan käsin, kun karttaa halutaan päivittää.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - packages/map-pipeline/src/fetchOsm.ts
+      - packages/map-pipeline/src/osm.ts
+      - .github/workflows/map-data.yml
+
+jobs:
+  fetch-osm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @lunki/map-pipeline fetch-osm
+        env:
+          # GitHubin ajoympäristössä IPv6-yhteydet Overpassiin aikakatkaistaan.
+          NODE_OPTIONS: --dns-result-order=ipv4first
+      - name: Tulosta data lokiin
+        run: |
+          sha256sum packages/map-pipeline/data/osm-lunkinjarvi.json
+          fold -w 4000 packages/map-pipeline/data/osm-lunkinjarvi.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: osm-lunkinjarvi
+          path: packages/map-pipeline/data/osm-lunkinjarvi.json

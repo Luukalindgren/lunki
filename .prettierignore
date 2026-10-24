@@ -1,3 +1,5 @@
 dist
 coverage
 pnpm-lock.yaml
+packages/map-pipeline/data
+packages/shared/src/map/*.json

@@ -41,3 +41,14 @@ packages/
 
 Pelin fysiikka ja säännöt ovat `shared`-paketissa, jotta asiakas ja palvelin
 laskevat ne samalla koodilla.
+
+## Kartta-aineisto
+
+Prototyypin rantaviiva: © [OpenStreetMapin tekijät](https://www.openstreetmap.org/copyright),
+ODbL 1.0. Aineisto haetaan `Karttadata`-työnkulussa (GitHub Actions →
+Run workflow) tai paikallisesti:
+
+```sh
+pnpm --filter @lunki/map-pipeline fetch-osm   # OSM → packages/map-pipeline/data
+pnpm --filter @lunki/map-pipeline build-map   # → packages/shared/src/map/lunkinjarvi.json
+```

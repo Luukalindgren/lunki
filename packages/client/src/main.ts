@@ -1,9 +1,11 @@
 import * as THREE from 'three';
-import { GAME_NAME } from '@lunki/shared';
+import { GAME_NAME, LUNKINJARVI, WaterBody, findOpenWaterPoint, type Vec2 } from '@lunki/shared';
 import { FpsMeter } from './engine/fpsMeter';
 import { Input } from './engine/input';
 import { startLoop } from './engine/loop';
 import { RetroRenderer, type PaletteMode } from './engine/retroRenderer';
+import { TopDownCamera } from './game/topDownCamera';
+import { createLakeMesh, toWorld } from './world/lakeMesh';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) throw new Error('#app puuttuu');
@@ -17,71 +19,67 @@ const retro = new RetroRenderer(canvas);
 const input = new Input(canvas);
 const fps = new FpsMeter(app, import.meta.env.DEV);
 
-// Testikohtaus: vettä, pari saarta ja pyörivä kelluntarengas.
+const map = LUNKINJARVI;
+const water = new WaterBody(map);
+
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x83c2db);
-const camera = new THREE.PerspectiveCamera(45, 16 / 9, 0.5, 500);
-camera.position.set(0, 30, 30);
-camera.lookAt(0, 0, 0);
-
-scene.add(new THREE.HemisphereLight(0xeef2f3, 0x24502c, 1.2));
-const sun = new THREE.DirectionalLight(0xfff3b0, 2);
-sun.position.set(20, 40, 10);
+scene.background = new THREE.Color(0x24502c);
+scene.add(new THREE.HemisphereLight(0xeef2f3, 0x24502c, 1.5));
+const sun = new THREE.DirectionalLight(0xfff3b0, 1.5);
+sun.position.set(-50, 100, -30);
 scene.add(sun);
+scene.add(createLakeMesh(map));
 
-const water = new THREE.Mesh(
-  new THREE.PlaneGeometry(200, 200),
-  new THREE.MeshLambertMaterial({ color: 0x1b5a84 }),
-);
-water.rotation.x = -Math.PI / 2;
-scene.add(water);
-
-const islandMat = new THREE.MeshLambertMaterial({ color: 0x3b7337 });
-for (const [x, z, r] of [
-  [-14, -6, 5],
-  [12, -10, 3],
-  [6, 12, 4],
-] as const) {
-  const island = new THREE.Mesh(new THREE.CylinderGeometry(r, r + 1.5, 1.5, 12), islandMat);
-  island.position.set(x, 0.4, z);
-  scene.add(island);
-}
-
+// Väliaikainen kelluntarengas: suora WASD-liike, kunnes oikea fysiikka (#6) tulee.
+const TUBE_RADIUS = 0.8;
 const tube = new THREE.Mesh(
-  new THREE.TorusGeometry(2, 0.7, 8, 16),
+  new THREE.TorusGeometry(TUBE_RADIUS * 0.75, TUBE_RADIUS * 0.3, 6, 12),
   new THREE.MeshLambertMaterial({ color: 0xd23a2a }),
 );
 tube.rotation.x = -Math.PI / 2;
-tube.position.y = 0.5;
 scene.add(tube);
+let player: Vec2 = findOpenWaterPoint(water, map.bounds);
 
-retro.onResize(({ width, height }) => {
-  camera.aspect = width / height;
-  camera.updateProjectionMatrix();
-});
+const view = new TopDownCamera();
+view.snapTo(player);
+retro.onResize((r) => view.setResolution(r));
 
 const paletteModes: PaletteMode[] = ['palette', 'dither', 'off'];
-let t = 0;
 
 startLoop({
   update(dt) {
     input.beginStep();
-    t += dt;
     if (input.wasPressed('F2')) {
       const i = paletteModes.indexOf(retro.paletteMode);
       retro.paletteMode = paletteModes[(i + 1) % paletteModes.length]!;
     }
     if (input.wasPressed('F3')) fps.toggle();
-    const speed = 8;
-    if (input.isDown('KeyW')) tube.position.z -= speed * dt;
-    if (input.isDown('KeyS')) tube.position.z += speed * dt;
-    if (input.isDown('KeyA')) tube.position.x -= speed * dt;
-    if (input.isDown('KeyD')) tube.position.x += speed * dt;
-    tube.rotation.z = t * 0.8;
+    if (input.wheel !== 0) view.zoom(input.wheel);
+
+    const speed = input.isDown('ShiftLeft') ? 40 : 4;
+    const move = { x: 0, y: 0 };
+    if (input.isDown('KeyW') || input.isDown('ArrowUp')) move.y += 1;
+    if (input.isDown('KeyS') || input.isDown('ArrowDown')) move.y -= 1;
+    if (input.isDown('KeyA') || input.isDown('ArrowLeft')) move.x -= 1;
+    if (input.isDown('KeyD') || input.isDown('ArrowRight')) move.x += 1;
+    if (move.x !== 0 || move.y !== 0) {
+      const len = Math.hypot(move.x, move.y);
+      const next = {
+        x: player.x + (move.x / len) * speed * dt,
+        y: player.y + (move.y / len) * speed * dt,
+      };
+      player = water.moveCircle(player, next, TUBE_RADIUS)?.position ?? next;
+    }
+    view.follow(player, dt);
   },
   render(_alpha, frameTime) {
-    retro.render(scene, camera);
+    tube.position.copy(toWorld(player, 0.1));
+    view.apply();
+    retro.render(scene, view.camera);
     const { width, height, scale } = retro.resolution;
-    fps.frame(frameTime, `${width}×${height} ×${scale} · ${retro.paletteMode}`);
+    fps.frame(
+      frameTime,
+      `${width}×${height} ×${scale} · ${view.metersPerPixel} m/px · ${retro.paletteMode}`,
+    );
   },
 });
