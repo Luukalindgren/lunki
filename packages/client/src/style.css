@@ -288,3 +288,51 @@ body {
   white-space: pre-wrap;
   max-width: calc(100% - 64px);
 }
+
+.screen input[type='text'] {
+  font: inherit;
+  font-size: 26px;
+  width: 100%;
+  box-sizing: border-box;
+  color: #eef2f3;
+  background: #0b0f14;
+  border: 3px solid #5f6b78;
+  padding: 4px 10px;
+}
+
+.screen input[type='text']:focus {
+  border-color: #f6d04d;
+  outline: none;
+}
+
+.screen-panel .error {
+  color: #f08a4b;
+}
+
+.room-code {
+  font-size: 56px;
+  color: #fff3b0;
+  letter-spacing: 4px;
+  margin: 0 0 8px !important;
+}
+
+.player-list {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0;
+}
+
+.player-list li {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 2px solid #39424d;
+  padding: 2px 0;
+}
+
+.player-state {
+  color: #8e99a4;
+}
+
+.player-state.ok {
+  color: #8fd16a;
+}

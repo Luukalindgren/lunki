@@ -1,4 +1,9 @@
-import { DEFAULT_SETTINGS, GAME_NAME, type CompetitionSettings } from '@lunki/shared';
+import {
+  DEFAULT_SETTINGS,
+  GAME_NAME,
+  parseRoomCode,
+  type CompetitionSettings,
+} from '@lunki/shared';
 import { FpsMeter } from './engine/fpsMeter';
 import { Input } from './engine/input';
 import { startLoop } from './engine/loop';
@@ -8,6 +13,8 @@ import { SoloGame } from './game/soloGame';
 import { Hud } from './ui/hud';
 import { Screens, loadSettings } from './ui/screens';
 import { Bench } from './dev/bench';
+import { loadIdentity, saveName } from './net/identity';
+import { NetSession, describeJoinError, inviteLink } from './net/session';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) throw new Error('#app puuttuu');
@@ -37,13 +44,15 @@ let settings = loadSettings(DEFAULT_SETTINGS);
 let game: SoloGame | null = null;
 let paused = false;
 let bench: Bench | null = null;
+/** Moninpelihuone, jos pelaaja on sellaisessa. */
+let session: NetSession | null = null;
 let updateTime = 0;
 let updateCount = 0;
 
-function startGame(s: CompetitionSettings) {
-  settings = s;
+function startGame(s: CompetitionSettings, seed = devSeed) {
+  if (!session) settings = s;
   game?.dispose();
-  game = new SoloGame(input, hud, sfx, (x, y) => retro.screenToInternal(x, y), s, devSeed);
+  game = new SoloGame(input, hud, sfx, (x, y) => retro.screenToInternal(x, y), s, seed);
   game.view.setResolution(retro.resolution);
   game.onFinished = () => showResults();
   if (import.meta.env.DEV) Object.assign(window, { lunki: game });
@@ -54,17 +63,110 @@ function startGame(s: CompetitionSettings) {
 
 function showMenu() {
   hud.setVisible(false);
-  screens.showStart(settings, startGame);
+  screens.showStart(
+    settings,
+    (s) => startGame(s),
+    () => showMultiplayer(),
+  );
 }
 
 function showResults() {
   if (!game) return;
   hud.setVisible(false);
+  if (session) {
+    // Moninpelin tulostaulu tulee issuessa #16; nyt näytetään omat saaliit.
+    screens.showResults(game.competition, leaveRoom, leaveRoom);
+    return;
+  }
   screens.showResults(
     game.competition,
     () => startGame(settings),
     () => showMenu(),
   );
+}
+
+// --- Moninpeli -------------------------------------------------------------
+
+function showMultiplayer(code = '', error?: string) {
+  hud.setVisible(false);
+  const { name } = loadIdentity();
+  screens.showMultiplayer(
+    name,
+    code,
+    (n) => void connect(n, null),
+    (n, c) => {
+      const parsed = parseRoomCode(c);
+      if (parsed) void connect(n, parsed);
+      else showMultiplayer(c, 'Tarkista koodi: muotoa LUNKI-XXXX.');
+    },
+    () => {
+      history.replaceState(null, '', location.pathname);
+      showMenu();
+    },
+    error,
+  );
+}
+
+async function connect(name: string, code: string | null) {
+  const options = { name: saveName(name), playerId: loadIdentity().playerId };
+  let cancelled = false;
+  screens.showMessage(code ? 'Liitytään…' : 'Luodaan huonetta…', 'Yhdistetään palvelimeen.', () => {
+    cancelled = true;
+    showMultiplayer(code ?? '');
+  });
+  try {
+    const s = code ? await NetSession.join(code, options) : await NetSession.create(options);
+    if (cancelled) return void s.leave();
+    enterLobby(s);
+  } catch (err) {
+    if (!cancelled) showMultiplayer(code ?? '', describeJoinError(err));
+  }
+}
+
+function enterLobby(s: NetSession) {
+  session = s;
+  let notice: string | undefined;
+  const render = () => {
+    if (session !== s || game || !s.ready) return;
+    const v = s.view();
+    history.replaceState(null, '', inviteLink(v.code));
+    screens.showLobby(
+      v,
+      inviteLink(v.code),
+      {
+        onReady: (r) => s.setReady(r),
+        onStart: () => s.start(),
+        onLeave: leaveRoom,
+      },
+      notice,
+    );
+  };
+  s.onChange = () => {
+    notice = undefined;
+    render();
+  };
+  s.onError = (m) => {
+    notice = m;
+    render();
+  };
+  s.onStarted = (m, v) => startGame(v.settings, m.seed);
+  s.onDisconnect = () => {
+    session = null;
+    game?.dispose();
+    game = null;
+    showMultiplayer('', 'Yhteys palvelimeen katkesi.');
+  };
+  render();
+}
+
+function leaveRoom() {
+  const s = session;
+  session = null;
+  void s?.leave();
+  game?.dispose();
+  game = null;
+  history.replaceState(null, '', location.pathname);
+  showMenu();
 }
 
 function togglePause() {
@@ -96,6 +198,8 @@ if (params.has('bench')) {
     difficulty: devDifficulty,
     durationMinutes: Number(params.get('minutes') ?? settings.durationMinutes),
   });
+} else if (params.has('huone')) {
+  showMultiplayer(params.get('huone') ?? '');
 } else {
   showMenu();
 }

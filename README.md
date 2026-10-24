@@ -16,6 +16,13 @@ pnpm install
 pnpm dev          # avaa pelin selaimessa (http://localhost:5173)
 ```
 
+Moninpeli paikallisesti: käynnistä lisäksi pelipalvelin toisessa
+terminaalissa (`pnpm dev:server`, portti 2567). Peli ottaa yhteyden samaan
+koneeseen porttiin 2567; toisen palvelimen voi antaa osoitteella
+`?palvelin=wss://…` tai koontiaikana muuttujalla `VITE_LUNKI_SERVER`.
+Valikosta "Moninpeli" luodaan huone, ja kaverit liittyvät koodilla
+(esim. `LUNKI-4F7K`) tai kutsulinkillä.
+
 Muut komennot:
 
 | Komento           | Mitä tekee                                     |

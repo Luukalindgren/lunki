@@ -1,0 +1,77 @@
+/** Yhteiset määrittelyt asiakkaan ja palvelimen välille. */
+
+/** Colyseus-huonetyypin nimi. */
+export const ROOM_NAME = 'lunki';
+
+/** Oletuspelaajamäärä huoneessa. Rakenne sallii isomman. */
+export const DEFAULT_MAX_PLAYERS = 8;
+export const MAX_PLAYERS_LIMIT = 32;
+
+export const NAME_MAX_LENGTH = 16;
+
+/** Huonekoodin merkit: ei sekoittuvia (0/O, 1/I/L). */
+const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+export const CODE_LENGTH = 4;
+export const CODE_PREFIX = 'LUNKI-';
+
+/** Arpoo huonekoodin (pelkkä tunnisteosa, esim. "4F7K"). */
+export function randomRoomCode(random: () => number = Math.random): string {
+  let s = '';
+  for (let i = 0; i < CODE_LENGTH; i++)
+    s += CODE_ALPHABET[Math.floor(random() * CODE_ALPHABET.length)]!;
+  return s;
+}
+
+/** Näytettävä muoto: LUNKI-4F7K. */
+export const formatRoomCode = (code: string) => `${CODE_PREFIX}${code}`;
+
+/**
+ * Tulkitsee käyttäjän kirjoittaman koodin tai linkin. Hyväksyy esim.
+ * "lunki-4f7k", "4F7K", " 4f 7k " ja "https://…/?huone=LUNKI-4F7K".
+ * Palauttaa tunnisteosan tai null, jos koodi ei kelpaa.
+ */
+export function parseRoomCode(input: string): string | null {
+  let s = input.trim();
+  const fromUrl = /[?&]huone=([^&#]+)/i.exec(s);
+  if (fromUrl) s = decodeURIComponent(fromUrl[1]!);
+  s = s.toUpperCase().replace(/[\s-]/g, '');
+  if (s.startsWith('LUNKI')) s = s.slice(5);
+  if (s.length !== CODE_LENGTH) return null;
+  for (const ch of s) if (!CODE_ALPHABET.includes(ch)) return null;
+  return s;
+}
+
+/** Siistii nimimerkin: ei ohjausmerkkejä, korkeintaan 16 merkkiä. */
+export function sanitizeName(name: unknown): string {
+  const s = typeof name === 'string' ? name : '';
+  const printable = [...s].filter((ch) => ch.charCodeAt(0) >= 0x20 && ch !== '\u007f').join('');
+  const clean = printable.trim().replace(/\s+/g, ' ');
+  return [...clean].slice(0, NAME_MAX_LENGTH).join('') || 'Kalastaja';
+}
+
+/** Liittymisen valinnat (create/join). */
+export interface JoinOptions {
+  name: string;
+  /** Selaimen muistiin tallennettu satunnainen tunniste. */
+  playerId: string;
+}
+
+/** Huoneen vaiheet. */
+export type RoomPhase = 'lobby' | 'playing' | 'finished';
+
+/** Asiakkaan viestit palvelimelle. */
+export const ClientMsg = {
+  ready: 'ready',
+  start: 'start',
+  name: 'name',
+} as const;
+
+/** Palvelimen viestit asiakkaille. */
+export const ServerMsg = {
+  started: 'started',
+  error: 'error',
+} as const;
+
+export interface StartedMessage {
+  seed: number;
+}
