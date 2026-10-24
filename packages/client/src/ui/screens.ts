@@ -1,6 +1,10 @@
 import {
   DIFFICULTY_NAMES,
   NAME_MAX_LENGTH,
+  PENALTY_OPTIONS,
+  PLAYER_COUNTS,
+  SPECIES_OPTIONS,
+  WEATHER_OPTIONS,
   WIN_RULE_NAMES,
   formatRoomCode,
   DURATIONS,
@@ -10,6 +14,8 @@ import {
   type CompetitionSettings,
   type CompetitionState,
   type Difficulty,
+  type RoomSettings,
+  type WinRule,
 } from '@lunki/shared';
 import type { LobbyView } from '../net/session';
 
@@ -143,7 +149,12 @@ export class Screens {
   showLobby(
     v: LobbyView,
     link: string,
-    actions: { onReady: (ready: boolean) => void; onStart: () => void; onLeave: () => void },
+    actions: {
+      onReady: (ready: boolean) => void;
+      onStart: () => void;
+      onLeave: () => void;
+      onSettings: (patch: Partial<RoomSettings>) => void;
+    },
     notice?: string,
   ): void {
     const panel = this.panel();
@@ -173,11 +184,9 @@ export class Screens {
       copy,
       h('p', `Pelaajat ${v.players.length}/${v.maxPlayers}`, 'choice-label'),
       list,
-      h(
-        'p',
-        `${v.settings.durationMinutes} min · ${WIN_RULE_NAMES[v.settings.winRule]} · ${DIFFICULTY_NAMES[v.settings.difficulty]}`,
-        'hint',
-      ),
+      v.amHost
+        ? this.settingsEditor(v.settings, v.players.length, actions.onSettings)
+        : this.settingsSummary(v.settings),
     );
     if (notice) panel.append(h('p', notice, 'error'));
     const buttons: [string, () => void][] = [];
@@ -260,7 +269,7 @@ export class Screens {
 
   private choice(
     label: string,
-    options: [string, string][],
+    options: [string, string, boolean?][],
     selected: string,
     onChange: (v: string) => void,
   ): HTMLElement {
@@ -269,9 +278,10 @@ export class Screens {
     row.append(h('span', label, 'choice-label'));
     const group = document.createElement('div');
     group.className = 'choice-options';
-    for (const [value, text] of options) {
+    for (const [value, text, disabled] of options) {
       const b = document.createElement('button');
       b.textContent = text;
+      b.disabled = disabled === true;
       b.classList.toggle('selected', value === selected);
       b.addEventListener('click', () => {
         group.querySelectorAll('button').forEach((x) => x.classList.remove('selected'));
@@ -282,6 +292,94 @@ export class Screens {
     }
     row.append(group);
     return row;
+  }
+
+  /** Isännän asetusvalinnat aulassa. */
+  private settingsEditor(
+    s: RoomSettings,
+    playerCount: number,
+    change: (patch: Partial<RoomSettings>) => void,
+  ): HTMLElement {
+    const box = document.createElement('div');
+    box.className = 'settings';
+    box.append(
+      this.choice(
+        'Kilpailuaika',
+        DURATIONS.map((d) => [String(d), `${d} min`]),
+        String(s.durationMinutes),
+        (v) => change({ durationMinutes: Number(v) }),
+      ),
+      this.choice(
+        'Voittaja',
+        (Object.keys(WIN_RULE_NAMES) as WinRule[]).map((w) => [w, WIN_RULE_NAMES[w]]),
+        s.winRule,
+        (v) => change({ winRule: v as WinRule }),
+      ),
+      this.choice(
+        'Kalastuksen vaikeus',
+        (Object.keys(DIFFICULTY_NAMES) as Difficulty[]).map((d) => [d, DIFFICULTY_NAMES[d]]),
+        s.difficulty,
+        (v) => change({ difficulty: v as Difficulty }),
+      ),
+      this.choice(
+        'Pelaajia enintään',
+        PLAYER_COUNTS.map((n) => [String(n), String(n), n < playerCount]),
+        String(s.maxPlayers),
+        (v) => change({ maxPlayers: Number(v) }),
+      ),
+      h('p', 'Tulossa myöhemmin:', 'hint'),
+      this.choice(
+        'Sää',
+        WEATHER_OPTIONS.map((o) => [o.value, o.label, !o.ready]),
+        s.weather,
+        () => undefined,
+      ),
+      this.choice(
+        'Salama',
+        PENALTY_OPTIONS.map((o) => [o.value, o.label, !o.ready]),
+        s.lightningPenalty,
+        () => undefined,
+      ),
+      this.choice(
+        'Kaatuminen',
+        PENALTY_OPTIONS.map((o) => [o.value, o.label, !o.ready]),
+        s.capsizePenalty,
+        () => undefined,
+      ),
+      this.choice(
+        'Kalalajit',
+        SPECIES_OPTIONS.map((o) => [o.value, o.label, !o.ready]),
+        s.species[0] ?? 'perch',
+        () => undefined,
+      ),
+    );
+    return box;
+  }
+
+  /** Muut pelaajat näkevät asetukset tekstinä. */
+  private settingsSummary(s: RoomSettings): HTMLElement {
+    const label = <T>(list: { value: T; label: string }[], v: T) =>
+      list.find((o) => o.value === v)?.label ?? String(v);
+    const box = document.createElement('div');
+    box.className = 'settings-summary';
+    const rows: [string, string][] = [
+      ['Kilpailuaika', `${s.durationMinutes} min`],
+      ['Voittaja', WIN_RULE_NAMES[s.winRule]],
+      ['Vaikeus', DIFFICULTY_NAMES[s.difficulty]],
+      ['Pelaajia enintään', String(s.maxPlayers)],
+      ['Sää', label(WEATHER_OPTIONS, s.weather)],
+      [
+        'Salama / kaatuminen',
+        `${label(PENALTY_OPTIONS, s.lightningPenalty)} / ${label(PENALTY_OPTIONS, s.capsizePenalty)}`,
+      ],
+      ['Kalalajit', s.species.map((v) => label(SPECIES_OPTIONS, v)).join(', ')],
+    ];
+    for (const [k, v] of rows) {
+      const row = document.createElement('div');
+      row.append(h('span', k, 'choice-label'), h('span', v));
+      box.append(row);
+    }
+    return box;
   }
 
   private input(label: string, value: string, maxLength: number, placeholder: string): HTMLElement {

@@ -16,6 +16,7 @@ import {
   isPlausibleSplash,
   sanitizeName,
   stepPlayerTube,
+  validateSettingsPatch,
   type InputMessage,
   type JoinOptions,
   type SplashMessage,
@@ -94,6 +95,31 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     this.onMessage(ClientMsg.ready, (client, ready: unknown) => {
       const p = this.state.players.get(client.sessionId);
       if (p && this.state.phase === 'lobby') p.ready = ready === true;
+    });
+
+    this.onMessage(ClientMsg.settings, (client, patch: unknown) => {
+      if (client.sessionId !== this.state.hostId || this.state.phase !== 'lobby') return;
+      const valid = validateSettingsPatch(patch, this.state.players.size);
+      const s = this.state.settings;
+      let changed = false;
+      for (const [key, value] of Object.entries(valid)) {
+        if (key === 'species') {
+          const list = value as string[];
+          if (list.join() !== [...s.species].join()) {
+            s.species.splice(0, s.species.length, ...list);
+            changed = true;
+          }
+        } else if ((s as unknown as Record<string, unknown>)[key] !== value) {
+          (s as unknown as Record<string, unknown>)[key] = value;
+          changed = true;
+        }
+      }
+      if (valid.maxPlayers !== undefined) {
+        this.maxClients = valid.maxPlayers;
+        void this.setMatchmaking({ maxClients: valid.maxPlayers });
+      }
+      // Muuttuneet säännöt: muiden pitää kuitata valmius uudelleen.
+      if (changed) this.state.players.forEach((p) => (p.ready = false));
     });
 
     this.onMessage(ClientMsg.name, (client, name: unknown) => {

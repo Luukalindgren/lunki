@@ -1,4 +1,4 @@
-import { schema, t, type SchemaType } from '@colyseus/schema';
+import { ArraySchema, schema, t, type SchemaType } from '@colyseus/schema';
 import { DEFAULT_MAX_PLAYERS, DEFAULT_SETTINGS } from '@lunki/shared';
 
 /**
@@ -37,6 +37,11 @@ export const SettingsState = schema(
     difficulty: t.string().default(DEFAULT_SETTINGS.difficulty),
     winRule: t.string().default(DEFAULT_SETTINGS.winRule),
     maxPlayers: t.uint8().default(DEFAULT_MAX_PLAYERS),
+    // Paikat tuleville asetuksille (vaiheet 3–4).
+    weather: t.string().default('calm'),
+    lightningPenalty: t.string().default('none'),
+    capsizePenalty: t.string().default('none'),
+    species: t.array('string').default(() => new ArraySchema<string>('perch')),
   },
   'SettingsState',
 );

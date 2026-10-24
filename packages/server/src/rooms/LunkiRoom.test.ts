@@ -166,4 +166,41 @@ describe('LunkiRoom', () => {
     await host.leave();
     await guest.leave();
   });
+
+  it('isäntä muuttaa asetuksia ja kaikki näkevät ne', async () => {
+    const host = await sdk().create(ROOM_NAME, { name: 'A', playerId: 'a' });
+    const guest = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
+    await until(() => players(guest).length === 2);
+    guest.send(ClientMsg.ready, true);
+    await until(() => players(host).some((p) => p.ready));
+
+    // Vieras ei voi muuttaa asetuksia.
+    guest.send(ClientMsg.settings, { durationMinutes: 10 });
+    host.send(ClientMsg.settings, {
+      durationMinutes: 30,
+      winRule: 'biggest',
+      difficulty: 'easy',
+      maxPlayers: 4,
+      weather: 'stormy',
+    });
+    await until(() => guest.state.settings.durationMinutes === 30);
+    const s = guest.state.settings;
+    expect([s.winRule, s.difficulty, s.maxPlayers, s.weather]).toEqual([
+      'biggest',
+      'easy',
+      4,
+      'calm',
+    ]);
+    expect([...s.species]).toEqual(['perch']);
+    // Muutos nollaa valmiuden.
+    await until(() => players(host).every((p) => !p.ready));
+
+    // Täysi huone ei ota lisää pelaajia.
+    host.send(ClientMsg.settings, { maxPlayers: 2 });
+    await until(() => guest.state.settings.maxPlayers === 2);
+    await expect(sdk().joinById(host.roomId, { name: 'C', playerId: 'c' })).rejects.toThrow();
+
+    await host.leave();
+    await guest.leave();
+  });
 });
