@@ -35,6 +35,21 @@ export function serverUrl(): string {
   return `${proto}://${location.hostname || 'localhost'}:2567`;
 }
 
+/** Onko pelipalvelin tavoitettavissa? (Colyseuksen /__healthcheck) */
+export async function checkServer(timeoutMs = 4000): Promise<boolean> {
+  const http = serverUrl().replace(/^ws/, 'http').replace(/\/$/, '');
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${http}/__healthcheck`, { signal: ctrl.signal });
+    return res.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** Linkki, jolla kaveri pääsee suoraan huoneeseen. */
 export function inviteLink(code: string): string {
   const url = new URL(location.href);

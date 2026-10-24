@@ -404,3 +404,7 @@ body {
 .catch-list.results li.me {
   color: #f6d04d;
 }
+
+.screen-panel .server-status.ok {
+  color: #8fd16a;
+}
