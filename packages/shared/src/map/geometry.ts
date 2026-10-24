@@ -84,3 +84,28 @@ export function findOpenWaterPoint(
   }
   return best;
 }
+
+/**
+ * Lähtöpaikka: satunnainen vesipiste noin `shoreDistance` metrin päässä
+ * rannasta, kuin kalastaja olisi juuri potkinut rannasta vesille.
+ */
+export function findLaunchPoint(
+  water: {
+    isWater(p: Vec2): boolean;
+    closestShorePoint(p: Vec2): { distance: number } | null;
+  },
+  bounds: { minX: number; minY: number; maxX: number; maxY: number },
+  random: () => number,
+  shoreDistance = 20,
+): Vec2 {
+  for (let i = 0; i < 2000; i++) {
+    const p = {
+      x: bounds.minX + random() * (bounds.maxX - bounds.minX),
+      y: bounds.minY + random() * (bounds.maxY - bounds.minY),
+    };
+    if (!water.isWater(p)) continue;
+    const d = water.closestShorePoint(p)?.distance ?? 0;
+    if (Math.abs(d - shoreDistance) < shoreDistance * 0.25) return p;
+  }
+  return findOpenWaterPoint(water, bounds);
+}

@@ -6,12 +6,21 @@ import {
   WaterBody,
   collideTubeWithShore,
   createTube,
-  findOpenWaterPoint,
+  findLaunchPoint,
+  DIFFICULTIES,
+  Rng,
+  createFishPopulation,
   createFishing,
+  formatWeight,
+  lureInfo,
+  stepFishPopulation,
   lerpAngle,
   protoDepthAt,
   stepFishing,
   stepTube,
+  type Catch,
+  type Difficulty,
+  type FishPopulation,
   type FishingContext,
   type FishingState,
   type LakeMap,
@@ -21,10 +30,14 @@ import {
 } from '@lunki/shared';
 import type { Input } from '../engine/input';
 import { createLakeMesh, toWorld } from '../world/lakeMesh';
+import type { Sfx } from '../audio/sfx';
 import type { Hud } from '../ui/hud';
 import { FishingView } from './fishingView';
 import { TopDownCamera } from './topDownCamera';
 import { animateFins, createTubeMesh } from './tubeMesh';
+
+/** Kalojen määrä järvessä. Saatujen tilalle syntyy uusia. */
+const FISH_COUNT = 1800;
 
 /** Näppäinasettelu: WASD tai nuolet. */
 export function readTubeInput(input: Input): TubeInput {
@@ -48,16 +61,33 @@ export class SoloGame {
   private readonly fishingView = new FishingView();
   /** Hiiren osoittama piste maailmassa. */
   aim: Vec2 = { x: 0, y: 0 };
+  readonly rng: Rng;
+  readonly fish: FishPopulation;
+  readonly catches: Catch[] = [];
+  private reelClickTimer = 0;
 
   constructor(
     private readonly input: Input,
     private readonly hud: Hud,
+    private readonly sfx: Sfx,
     /** Muuntaa näytön CSS-pikselin sisäiseksi pikseliksi. */
     private readonly screenToInternal: (x: number, y: number) => { x: number; y: number },
+    readonly difficulty: Difficulty = 'normal',
+    seed = Date.now() >>> 0,
     readonly map: LakeMap = LUNKINJARVI,
   ) {
     this.water = new WaterBody(map);
-    this.tube = createTube(findOpenWaterPoint(this.water, map.bounds));
+    this.rng = new Rng(seed);
+    this.fish = createFishPopulation(
+      { isWater: (p) => this.water.isWater(p), depthAt: (p) => protoDepthAt(this.water, p) },
+      map.bounds,
+      this.rng,
+      FISH_COUNT,
+    );
+    const start = findLaunchPoint(this.water, map.bounds, () => this.rng.next());
+    // Selkä rantaan päin, katse järvelle.
+    const shore = this.water.closestShorePoint(start)?.point ?? start;
+    this.tube = createTube(start, Math.atan2(start.y - shore.y, start.x - shore.x));
     this.prevTube = this.tube;
 
     this.scene.background = new THREE.Color(0x24502c);
@@ -71,12 +101,13 @@ export class SoloGame {
     this.view.snapTo(this.tube.pos);
   }
 
-  private fishingContext(): FishingContext {
+  private fishingContext(strike?: number): FishingContext {
     return {
       tubePos: this.tube.pos,
       heading: this.tube.heading,
       isWater: (p) => this.water.isWater(p),
       depthAt: (p) => protoDepthAt(this.water, p),
+      fish: { pop: this.fish, diff: DIFFICULTIES[this.difficulty], rng: this.rng, strike },
     };
   }
 
@@ -93,22 +124,35 @@ export class SoloGame {
     this.aim = this.view.internalToWorld(internal.x, internal.y);
     const f = this.fishing;
     const lureOut = f.stage === 'flight' || f.stage === 'water';
+    const reeling = lureOut && (input.isDown('Mouse0') || input.isDown('Space'));
+    const world = {
+      isWater: (p: Vec2) => this.water.isWater(p),
+      depthAt: (p: Vec2) => protoDepthAt(this.water, p),
+    };
+    const fishEvents = stepFishPopulation(
+      this.fish,
+      lureInfo(f, this.fishingContext()),
+      world,
+      DIFFICULTIES[this.difficulty],
+      this.rng,
+      dt,
+    );
     const events = stepFishing(
       f,
       {
         aim: this.aim,
         castHeld: input.isDown('Mouse0'),
-        reel: lureOut && (input.isDown('Mouse0') || input.isDown('Space')),
+        reel: reeling,
         cancel: input.isDown('Mouse2'),
         dragDelta: (input.wasPressed('KeyE') ? 1 : 0) - (input.wasPressed('KeyQ') ? 1 : 0),
         ...(input.wasPressed('Digit1') ? { gear: 0 } : {}),
         ...(input.wasPressed('Digit2') ? { gear: 1 } : {}),
         ...(input.wasPressed('Digit3') ? { gear: 2 } : {}),
       },
-      this.fishingContext(),
+      this.fishingContext(fishEvents.strike),
       dt,
     );
-    if (events.splash) this.fishingView.startSplash(events.splash);
+    this.handleEvents(events, fishEvents.follow !== undefined, reeling, dt);
     if (f.onLand && f.stage === 'water')
       this.hud.showMessage('Viehe rannalla – kelaa takaisin', 0.2);
 
@@ -132,8 +176,52 @@ export class SoloGame {
       `Jarru ${f.drag.toFixed(2)} kg · kela ${f.gear + 1}`,
       `Viehe ${f.stage === 'water' && !f.onLand ? f.depth.toFixed(1) : '0.0'} m`,
       `Pohja ${protoDepthAt(this.water, lureOut ? f.lure : this.tube.pos).toFixed(1)} m`,
+      `Saalis ${this.catches.length} kpl · ${formatWeight(this.catches.reduce((a, c) => a + c.weight, 0))}`,
     ]);
     this.hud.update(dt);
+  }
+
+  private handleEvents(
+    events: ReturnType<typeof stepFishing>,
+    follow: boolean,
+    reeling: boolean,
+    dt: number,
+  ): void {
+    const { hud, sfx } = this;
+    if (events.splash) {
+      this.fishingView.startSplash(events.splash);
+      sfx.splash();
+    }
+    if (follow) sfx.tick();
+    if (events.strike) {
+      sfx.strike();
+      hud.showMessage('Tärppi!', 1.2);
+    }
+    if (events.hooked) {
+      sfx.hooked();
+      hud.showMessage('Kala kiinni!', 1.5);
+    }
+    if (events.missed) hud.showMessage('Ohi meni – kelaa heti tärpin jälkeen', 2);
+    if (events.escaped) {
+      sfx.lost();
+      hud.showMessage('Kala irtosi – pidä siima kireällä', 2.5);
+    }
+    if (events.lineBroken) {
+      sfx.lost();
+      hud.showMessage('Siima katkesi! Löysää jarrua (Q)', 3);
+    }
+    if (events.caught) {
+      sfx.caught();
+      this.catches.push(events.caught);
+      this.fishingView.startSplash(this.fishing.lure);
+      hud.showMessage(`${events.caught.name} ${formatWeight(events.caught.weight)}`, 3);
+    }
+    if (this.fishing.dragSlipping) sfx.dragSlip();
+    this.reelClickTimer -= dt;
+    if (reeling && this.reelClickTimer <= 0) {
+      sfx.reelClick();
+      this.reelClickTimer = 0.09 / (this.fishing.gear + 1);
+    }
   }
 
   /** Piirtää interpoloiden edellisen ja nykyisen askeleen välillä. */
@@ -147,7 +235,8 @@ export class SoloGame {
     this.tubeMesh.position.copy(toWorld(pos));
     this.tubeMesh.rotation.y = lerpAngle(a.heading, b.heading, alpha);
     animateFins(this.tubeMesh, b.kickPhase);
-    this.fishingView.update(this.fishing, this.fishingContext(), this.aim, 1 / 60);
+    const hooked = this.fish.fish.find((x) => x.id === this.fishing.hookedId) ?? null;
+    this.fishingView.update(this.fishing, this.fishingContext(), this.aim, 1 / 60, hooked);
     this.view.apply();
   }
 }
