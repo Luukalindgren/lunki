@@ -14,7 +14,11 @@ export class Hud {
   private readonly tensionFill: HTMLDivElement;
   private readonly tensionDrag: HTMLDivElement;
   private readonly help: HTMLDivElement;
+  private readonly timer: HTMLDivElement;
+  private readonly catches: HTMLDivElement;
+  private readonly weigh: HTMLDivElement;
   private messageTimer = 0;
+  private weighTimer = 0;
 
   constructor(parent: HTMLElement) {
     this.root = el('div', 'hud');
@@ -35,8 +39,22 @@ export class Hud {
       'W/S potki · A/D käänny · Shift pikapotku<br>' +
       'Hiiri: tähtää, pidä pohjassa ja päästä = heitto<br>' +
       'Hiiri pohjassa / välilyönti = kelaa · 1/2/3 kelausnopeus<br>' +
-      'Q/E jarru löysemmälle/kireämmälle · rulla = zoom · H = ohje';
-    this.root.append(this.status, this.power, this.tension, this.message, this.help);
+      'Q/E jarru löysemmälle/kireämmälle · rulla = zoom · H = ohje · Esc = tauko';
+    this.timer = el('div', 'hud-timer hud-panel');
+    this.catches = el('div', 'hud-catches hud-panel');
+    this.catches.hidden = true;
+    this.weigh = el('div', 'hud-weigh hud-panel');
+    this.weigh.hidden = true;
+    this.root.append(
+      this.status,
+      this.power,
+      this.tension,
+      this.message,
+      this.help,
+      this.timer,
+      this.catches,
+      this.weigh,
+    );
   }
 
   /** Sisäisen pikselin koko CSS-pikseleinä. */
@@ -62,6 +80,32 @@ export class Hud {
     this.tensionDrag.style.bottom = pct(drag);
   }
 
+  setTimer(text: string, low: boolean): void {
+    if (this.timer.textContent !== text) this.timer.textContent = text;
+    this.timer.classList.toggle('low', low);
+  }
+
+  /** Viimeisimmät saaliit vasemmassa yläkulmassa. */
+  setCatches(lines: string[]): void {
+    this.catches.hidden = lines.length === 0;
+    const text = lines.join('\n');
+    if (this.catches.textContent !== text) this.catches.textContent = text;
+  }
+
+  /** Punnitus: iso ilmoitus saaliista. */
+  showWeighIn(title: string, detail: string, seconds = 3): void {
+    this.weigh.replaceChildren(document.createTextNode(title));
+    const small = document.createElement('small');
+    small.textContent = detail;
+    this.weigh.appendChild(small);
+    this.weigh.hidden = false;
+    this.weighTimer = seconds;
+  }
+
+  setVisible(visible: boolean): void {
+    this.root.hidden = !visible;
+  }
+
   toggleHelp(): void {
     this.help.hidden = !this.help.hidden;
   }
@@ -73,6 +117,10 @@ export class Hud {
   }
 
   update(dt: number): void {
+    if (this.weighTimer > 0) {
+      this.weighTimer -= dt;
+      if (this.weighTimer <= 0) this.weigh.hidden = true;
+    }
     if (this.messageTimer > 0) {
       this.messageTimer -= dt;
       if (this.messageTimer <= 0) this.message.hidden = true;

@@ -1,4 +1,5 @@
 export * from './fishing';
+export * from './game';
 export * from './map';
 export * from './physics';
 export * from './rng';
