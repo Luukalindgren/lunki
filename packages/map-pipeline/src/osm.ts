@@ -52,15 +52,14 @@ export function assembleRings(parts: LonLatRing[]): LonLatRing[] {
   const rings: LonLatRing[] = [];
   while (open.length > 0) {
     let ring = open.shift()!;
-    let guard = open.length + 1;
-    while (key(ring[0]!) !== key(ring[ring.length - 1]!) && guard-- > 0) {
+    // Jokainen kierros kuluttaa yhden osan, joten silmukka päättyy aina.
+    while (key(ring[0]!) !== key(ring[ring.length - 1]!)) {
       const end = key(ring[ring.length - 1]!);
       const i = open.findIndex((p) => key(p[0]!) === end || key(p[p.length - 1]!) === end);
       if (i < 0) break;
       const next = open.splice(i, 1)[0]!;
       const oriented = key(next[0]!) === end ? next : [...next].reverse();
       ring = [...ring, ...oriented.slice(1)];
-      guard = open.length + 1;
     }
     if (key(ring[0]!) === key(ring[ring.length - 1]!) && ring.length >= 4) rings.push(ring);
   }
