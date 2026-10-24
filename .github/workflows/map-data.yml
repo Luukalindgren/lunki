@@ -8,6 +8,7 @@ on:
     paths:
       - packages/map-pipeline/src/fetchOsm.ts
       - packages/map-pipeline/src/osm.ts
+      - .github/workflows/map-data.yml
 
 jobs:
   fetch-osm:
@@ -21,6 +22,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @lunki/map-pipeline fetch-osm
+        env:
+          # GitHubin ajoympäristössä IPv6-yhteydet Overpassiin aikakatkaistaan.
+          NODE_OPTIONS: --dns-result-order=ipv4first
       - name: Tulosta data lokiin
         run: fold -w 4000 packages/map-pipeline/data/osm-lunkinjarvi.json
       - uses: actions/upload-artifact@v4
