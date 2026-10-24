@@ -64,6 +64,8 @@ export const ClientMsg = {
   ready: 'ready',
   start: 'start',
   name: 'name',
+  /** Isäntä muuttaa asetuksia: Partial<RoomSettings>. */
+  settings: 'settings',
   /** Renkaan syötteet ja vieheen sijainti, ks. InputMessage. */
   input: 'input',
   /** Viehe osui veteen: palvelin tarkistaa heiton uskottavuuden. */

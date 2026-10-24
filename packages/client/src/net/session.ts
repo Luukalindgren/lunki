@@ -4,10 +4,12 @@ import {
   ROOM_NAME,
   ServerMsg,
   formatRoomCode,
-  type CompetitionSettings,
   type Difficulty,
   type InputMessage,
   type JoinOptions,
+  type Penalty,
+  type RoomSettings,
+  type Weather,
   type SplashMessage,
   type RoomPhase,
   type StartedMessage,
@@ -51,7 +53,7 @@ export interface LobbyView {
   phase: RoomPhase;
   players: LobbyPlayer[];
   maxPlayers: number;
-  settings: CompetitionSettings;
+  settings: RoomSettings;
   amHost: boolean;
   /** Kaikki muut kuin isäntä ovat valmiina. */
   allReady: boolean;
@@ -78,7 +80,16 @@ export interface StateSchema {
   phase: string;
   hostId: string;
   seed: number;
-  settings: { durationMinutes: number; difficulty: string; winRule: string; maxPlayers: number };
+  settings: {
+    durationMinutes: number;
+    difficulty: string;
+    winRule: string;
+    maxPlayers: number;
+    weather: string;
+    lightningPenalty: string;
+    capsizePenalty: string;
+    species: Iterable<string>;
+  };
   players: Map<string, PlayerSchema>;
 }
 
@@ -145,6 +156,11 @@ export class NetSession {
         durationMinutes: s.settings.durationMinutes,
         difficulty: s.settings.difficulty as Difficulty,
         winRule: s.settings.winRule as WinRule,
+        maxPlayers: s.settings.maxPlayers,
+        weather: s.settings.weather as Weather,
+        lightningPenalty: s.settings.lightningPenalty as Penalty,
+        capsizePenalty: s.settings.capsizePenalty as Penalty,
+        species: [...s.settings.species],
       },
       amHost: s.hostId === me,
       allReady: players.every((p) => p.host || p.ready),
@@ -157,6 +173,11 @@ export class NetSession {
 
   start(): void {
     this.room.send(ClientMsg.start);
+  }
+
+  /** Vain isäntä; palvelin tarkistaa arvot. */
+  changeSettings(patch: Partial<RoomSettings>): void {
+    this.room.send(ClientMsg.settings, patch);
   }
 
   get sessionId(): string {

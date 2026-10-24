@@ -149,17 +149,27 @@ function enterLobby(s: NetSession) {
       v,
       inviteLink(v.code),
       {
-        onReady: (r) => s.setReady(r),
+        onReady: (r) => {
+          wasReady = r;
+          s.setReady(r);
+        },
         onStart: () => s.start(),
         onLeave: leaveRoom,
+        onSettings: (patch) => s.changeSettings(patch),
       },
       notice,
     );
   };
+  let wasReady = false;
   s.onChange = (v) => {
     // Kisa alkaa, kun tila aloituspaikkoineen on saapunut.
     if (v.phase === 'playing' && !game) return startGame(v.settings, s.room.state.seed);
-    notice = undefined;
+    const ready = v.players.find((p) => p.me)?.ready ?? false;
+    notice =
+      wasReady && !ready && !v.amHost
+        ? 'Asetukset muuttuivat: tarkista ne ja kuittaa valmius uudelleen.'
+        : undefined;
+    wasReady = ready;
     render();
   };
   s.onError = (m) => {
