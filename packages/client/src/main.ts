@@ -89,8 +89,16 @@ function showResults() {
   if (!game) return;
   hud.setVisible(false);
   if (session) {
-    // Moninpelin tulostaulu tulee issuessa #16; nyt näytetään omat saaliit.
-    screens.showResults(game.competition, leaveRoom, leaveRoom);
+    const s = session;
+    const v = s.view();
+    screens.showRaceResults(
+      s.results(),
+      v.settings,
+      s.sessionId,
+      v.amHost,
+      () => s.restart(),
+      leaveRoom,
+    );
     return;
   }
   screens.showResults(
@@ -134,6 +142,7 @@ async function connect(name: string, code: string | null) {
     if (cancelled) return void s.leave();
     enterLobby(s);
   } catch (err) {
+    console.warn('Liittyminen epäonnistui', err);
     if (!cancelled) showMultiplayer(code ?? '', describeJoinError(err));
   }
 }
@@ -163,7 +172,15 @@ function enterLobby(s: NetSession) {
   let wasReady = false;
   s.onChange = (v) => {
     // Kisa alkaa, kun tila aloituspaikkoineen on saapunut.
-    if (v.phase === 'playing' && !game) return startGame(v.settings, s.room.state.seed);
+    if (v.phase !== 'lobby' && !game) return startGame(v.settings, s.room.state.seed);
+    if (v.phase !== 'lobby') return;
+    if (game) {
+      // Isäntä palautti huoneen aulaan uutta kisaa varten.
+      game.dispose();
+      game = null;
+      paused = false;
+      hud.setVisible(false);
+    }
     const ready = v.players.find((p) => p.me)?.ready ?? false;
     notice =
       wasReady && !ready && !v.amHost
@@ -200,10 +217,16 @@ function togglePause() {
   paused = !paused;
   if (paused) {
     hud.setVisible(false);
-    screens.showPause(togglePause, () => {
-      game!.competition.finished = true;
-      showResults();
-    });
+    screens.showPause(
+      togglePause,
+      session
+        ? leaveRoom
+        : () => {
+            game!.competition.finished = true;
+            showResults();
+          },
+      session !== null,
+    );
   } else {
     screens.hide();
     hud.setVisible(true);
@@ -255,7 +278,8 @@ startLoop({
     if (input.wasPressed('Escape')) togglePause();
     bench?.script(dt);
     const t0 = performance.now();
-    if (game && !paused && !screens.open) game.update(dt);
+    // Moninpelissä kisa jatkuu valikon ollessa auki.
+    if (game && ((!paused && !screens.open) || (session && paused))) game.update(dt);
     updateTime += performance.now() - t0;
     updateCount++;
   },

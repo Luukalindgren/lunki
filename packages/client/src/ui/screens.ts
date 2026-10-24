@@ -14,6 +14,7 @@ import {
   type CompetitionSettings,
   type CompetitionState,
   type Difficulty,
+  type PlayerResult,
   type RoomSettings,
   type WinRule,
 } from '@lunki/shared';
@@ -202,15 +203,67 @@ export class Screens {
     this.show(panel);
   }
 
-  showPause(onResume: () => void, onQuit: () => void): void {
+  showPause(onResume: () => void, onQuit: () => void, multiplayer = false): void {
     const panel = this.panel();
     panel.append(
-      h('h2', 'Tauko'),
+      h('h2', multiplayer ? 'Valikko' : 'Tauko'),
+      ...(multiplayer ? [h('p', 'Kisa jatkuu muilla taustalla.', 'hint')] : []),
       this.buttons([
         ['Jatka', onResume],
-        ['Lopeta kisa', onQuit],
+        [multiplayer ? 'Poistu kisasta' : 'Lopeta kisa', onQuit],
       ]),
     );
+    this.show(panel);
+  }
+
+  /** Moninpelin lopputulokset voittoehdon mukaan. */
+  showRaceResults(
+    results: PlayerResult[],
+    settings: RoomSettings,
+    myId: string,
+    amHost: boolean,
+    onRestart: () => void,
+    onLeave: () => void,
+  ): void {
+    const panel = this.panel();
+    const winner = results[0];
+    panel.append(
+      h('h2', 'Kisa päättyi!'),
+      h(
+        'p',
+        winner && winner.summary.score > 0
+          ? `Voittaja: ${winner.name} (${formatWeight(winner.summary.score)})`
+          : 'Kukaan ei saanut kalaa.',
+        'total',
+      ),
+    );
+    const table = document.createElement('ol');
+    table.className = 'catch-list results';
+    for (const r of results) {
+      const li = document.createElement('li');
+      li.value = r.rank;
+      li.classList.toggle('me', r.id === myId);
+      const biggest = r.summary.biggest ? formatWeight(r.summary.biggest.weight) : '–';
+      li.textContent = `${r.name.padEnd(12)} ${String(r.summary.count).padStart(2)} kpl  ${formatWeight(r.summary.total).padStart(8)}  suurin ${biggest}`;
+      table.appendChild(li);
+    }
+    panel.append(
+      table,
+      h(
+        'p',
+        `${WIN_RULE_NAMES[settings.winRule]} · ${DIFFICULTY_NAMES[settings.difficulty]} · ${settings.durationMinutes} min`,
+        'hint',
+      ),
+      this.buttons(
+        amHost
+          ? [
+              ['Uusi kisa samalla porukalla', onRestart],
+              ['Poistu', onLeave],
+            ]
+          : [['Poistu', onLeave]],
+      ),
+    );
+    if (!amHost) panel.append(h('p', 'Huoneen luoja voi aloittaa uuden kisan.', 'hint'));
     this.show(panel);
   }
 

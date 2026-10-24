@@ -5,6 +5,9 @@ import {
   TubePredictor,
   encodeInputs,
   lerpAngle,
+  type Catch,
+  type PlayerResult,
+  type RoomPhase,
   type TubeInput,
   type TubeState,
   type Vec2,
@@ -66,6 +69,8 @@ export class NetWorld {
   readonly renderOffset = { x: 0, y: 0 };
   /** Palvelin hylkäsi heiton. */
   onCastRejected: (() => void) | null = null;
+  /** Palvelin ei hyväksynyt saalista punnitukseen. */
+  onCatchRejected: (() => void) | null = null;
 
   constructor(
     private readonly session: NetSession,
@@ -77,10 +82,36 @@ export class NetWorld {
     this.predictor = new TubePredictor(toTube(me), water, () => this.latestOthers);
     session.onState = (s) => this.onState(s);
     session.onCastRejected = () => this.onCastRejected?.();
+    session.onCatchRejected = () => this.onCatchRejected?.();
   }
 
   sendSplash(p: Vec2): void {
     this.session.sendSplash({ x: p.x, y: p.y });
+  }
+
+  sendCatch(c: Catch): void {
+    this.session.sendCatch(c);
+  }
+
+  get phase(): RoomPhase {
+    return this.session.room.state.phase as RoomPhase;
+  }
+
+  /** Kisa-aika palvelimen kellosta (s). */
+  get raceClock(): number {
+    return this.session.room.state.clock;
+  }
+
+  get countdown(): number {
+    return this.session.room.state.countdown;
+  }
+
+  get myId(): string {
+    return this.session.sessionId;
+  }
+
+  results(): PlayerResult[] {
+    return this.session.results();
   }
 
   /** Oma askel: ennakoidaan heti ja lähetetään syötteet erissä. */
@@ -154,5 +185,6 @@ export class NetWorld {
   dispose(): void {
     this.session.onState = null;
     this.session.onCastRejected = null;
+    this.session.onCatchRejected = null;
   }
 }

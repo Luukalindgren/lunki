@@ -12,6 +12,8 @@ import {
   formatRoomCode,
   maxCastDistance,
   parseRoomCode,
+  rankPlayers,
+  type CatchRecord,
 } from '@lunki/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createServer } from '../server';
@@ -87,7 +89,7 @@ describe('LunkiRoom', () => {
     guest.send(ClientMsg.ready, true);
     await until(() => players(host).every((p, i) => i === 0 || p.ready));
     host.send(ClientMsg.start);
-    await until(() => seed >= 0 && guest.state.phase === 'playing');
+    await until(() => seed >= 0 && guest.state.phase === 'countdown');
     expect(guest.state.seed).toBe(seed);
 
     // Alkaneeseen kisaan ei pääse mukaan.
@@ -111,7 +113,11 @@ describe('LunkiRoom', () => {
   });
 
   it('palvelin ajaa renkaan syötteillä ja ennakointi osuu', async () => {
-    const host = await sdk().create(ROOM_NAME, { name: 'A', playerId: 'a' });
+    const host = await sdk().create(ROOM_NAME, {
+      name: 'A',
+      playerId: 'a',
+      testTiming: { countdown: 0.1, duration: 60 },
+    });
     const guest = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
     await until(() => players(host).length === 2);
     guest.send(ClientMsg.ready, true);
@@ -202,5 +208,71 @@ describe('LunkiRoom', () => {
 
     await host.leave();
     await guest.leave();
+  });
+
+  it('neljän pelaajan kisa: punnitus palvelimella ja oikea voittaja', async () => {
+    const host = await sdk().create(ROOM_NAME, {
+      name: 'Luuka',
+      playerId: 'a',
+      testTiming: { countdown: 0.2, duration: 1.5 },
+    });
+    const guests = await Promise.all(
+      ['Bertta', 'Cecilia', 'Daniel'].map((name, i) =>
+        sdk().joinById(host.roomId, { name, playerId: `g${i}` }),
+      ),
+    );
+    const all = [host, ...guests];
+    await until(() => players(host).length === 4);
+    for (const g of guests) g.send(ClientMsg.ready, true);
+    await until(() => players(host).filter((p) => p.ready).length === 3);
+    host.send(ClientMsg.start);
+    await until(() => host.state.phase === 'countdown');
+    expect(host.state.countdown).toBeGreaterThan(0);
+
+    // Lähtölaskennan aikana saalis ei kelpaa.
+    let rejected = 0;
+    host.onMessage(ServerMsg.catchRejected, () => rejected++);
+    host.send(ClientMsg.catch, { species: 'perch', name: 'Ahven', weight: 0.3 });
+    await until(() => rejected === 1);
+    await until(() => host.state.phase === 'playing');
+
+    const me = (room: Room) => room.state.players.get(room.sessionId) as { x: number; y: number };
+    const land = async (room: Room, weight: number) => {
+      const p = me(room);
+      room.send(ClientMsg.splash, { x: p.x + 10, y: p.y });
+      room.send(ClientMsg.catch, { species: 'perch', name: 'Ahven', weight });
+    };
+    // Ilman heittoa saalis hylätään.
+    host.send(ClientMsg.catch, { species: 'perch', name: 'Ahven', weight: 0.4 });
+    await until(() => rejected === 2);
+    await land(host, 0.4);
+    await land(guests[0]!, 0.9);
+    await land(guests[1]!, 0.35);
+    // Liian painava ahven hylätään.
+    await land(guests[2]!, 3);
+    await until(() => host.state.catches.length === 3);
+
+    await until(() => all.every((r) => r.state.phase === 'finished'), 4000);
+    type C = { player: string; angler: string } & CatchRecord;
+    const catches = [...(host.state.catches as Iterable<C>)].map((c) => ({ ...c }));
+    const ids = [...new Set(catches.map((c) => c.player))];
+    const results = rankPlayers(
+      ids.map((id) => ({
+        id,
+        name: catches.find((c) => c.player === id)!.angler,
+        catches: catches.filter((c) => c.player === id),
+      })),
+      'total',
+    );
+    expect(results.map((r) => r.name)).toEqual(['Bertta', 'Luuka', 'Cecilia']);
+    // Kisan jälkeen saaliita ei enää punnita.
+    await land(host, 0.5);
+    await until(() => rejected === 3);
+
+    // Isäntä palauttaa aulaan.
+    host.send(ClientMsg.restart);
+    await until(() => guests[0]!.state.phase === 'lobby' && guests[0]!.state.catches.length === 0);
+
+    for (const r of all) await r.leave();
   });
 });

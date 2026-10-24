@@ -57,7 +57,7 @@ export interface JoinOptions {
 }
 
 /** Huoneen vaiheet. */
-export type RoomPhase = 'lobby' | 'playing' | 'finished';
+export type RoomPhase = 'lobby' | 'countdown' | 'playing' | 'finished';
 
 /** Asiakkaan viestit palvelimelle. */
 export const ClientMsg = {
@@ -70,6 +70,10 @@ export const ClientMsg = {
   input: 'input',
   /** Viehe osui veteen: palvelin tarkistaa heiton uskottavuuden. */
   splash: 'splash',
+  /** Kala nostettu: palvelin punnitsee (Catch). */
+  catch: 'catch',
+  /** Isäntä palauttaa huoneen aulaan uutta kisaa varten. */
+  restart: 'restart',
 } as const;
 
 /** Vieheen tila muille näytettäväksi. */
@@ -94,6 +98,8 @@ export const ServerMsg = {
   error: 'error',
   /** Palvelin hylkäsi heiton: viehe takaisin kelalle. */
   castRejected: 'castRejected',
+  /** Palvelin ei hyväksynyt saalista punnitukseen. */
+  catchRejected: 'catchRejected',
 } as const;
 
 export interface StartedMessage {

@@ -17,6 +17,7 @@ export class Hud {
   private readonly timer: HTMLDivElement;
   private readonly catches: HTMLDivElement;
   private readonly weigh: HTMLDivElement;
+  private readonly countdown: HTMLDivElement;
   private messageTimer = 0;
   private weighTimer = 0;
 
@@ -45,6 +46,8 @@ export class Hud {
     this.catches.hidden = true;
     this.weigh = el('div', 'hud-weigh hud-panel');
     this.weigh.hidden = true;
+    this.countdown = el('div', 'hud-countdown');
+    this.countdown.hidden = true;
     this.root.append(
       this.status,
       this.power,
@@ -54,6 +57,7 @@ export class Hud {
       this.timer,
       this.catches,
       this.weigh,
+      this.countdown,
     );
   }
 
@@ -100,6 +104,12 @@ export class Hud {
     this.weigh.appendChild(small);
     this.weigh.hidden = false;
     this.weighTimer = seconds;
+  }
+
+  /** Iso lähtölaskenta ruudun keskellä; null piilottaa. */
+  setCountdown(text: string | null): void {
+    this.countdown.hidden = text === null;
+    if (text !== null && this.countdown.textContent !== text) this.countdown.textContent = text;
   }
 
   setVisible(visible: boolean): void {

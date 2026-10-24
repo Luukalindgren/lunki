@@ -390,3 +390,17 @@ body {
   display: inline;
   margin: 0;
 }
+
+.hud-countdown {
+  position: absolute;
+  left: 50%;
+  top: 30%;
+  transform: translate(-50%, -50%);
+  font-size: calc(var(--u) * 40);
+  color: #f6d04d;
+  text-shadow: calc(var(--u) * 2) calc(var(--u) * 2) 0 #8c1c1c;
+}
+
+.catch-list.results li.me {
+  color: #f6d04d;
+}
