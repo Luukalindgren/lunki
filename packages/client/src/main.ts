@@ -199,7 +199,23 @@ function enterLobby(s: NetSession) {
     game = null;
     showMultiplayer('', 'Yhteys palvelimeen katkesi.');
   };
-  render();
+  s.onConnection = (connected) =>
+    hud.showMessage(connected ? 'Yhteys palautui' : 'Yhteys katkesi – yhdistetään uudelleen…', 3);
+  // Uudelleenyhdistäessä kisa voi olla jo käynnissä.
+  if (s.ready) s.onChange(s.view());
+  else render();
+}
+
+/** Sivun uudelleenlataus kesken kisan: palataan samaan renkaaseen. */
+async function tryResume(): Promise<boolean> {
+  if (!NetSession.canResume()) return false;
+  screens.showMessage('Palataan kisaan…', 'Yhdistetään palvelimeen.');
+  const s = await NetSession.resume();
+  if (!s) return false;
+  // Odotetaan ensimmäistä tilaa.
+  for (let i = 0; i < 100 && !s.ready; i++) await new Promise((r) => setTimeout(r, 20));
+  enterLobby(s);
+  return true;
 }
 
 function leaveRoom() {
@@ -247,10 +263,12 @@ if (params.has('bench')) {
     difficulty: devDifficulty,
     durationMinutes: Number(params.get('minutes') ?? settings.durationMinutes),
   });
-} else if (params.has('huone')) {
-  showMultiplayer(params.get('huone') ?? '');
 } else {
-  showMenu();
+  void tryResume().then((resumed) => {
+    if (resumed) return;
+    if (params.has('huone')) showMultiplayer(params.get('huone') ?? '');
+    else showMenu();
+  });
 }
 
 // Taustakohtaus valikon taakse: tyhjä järvi.

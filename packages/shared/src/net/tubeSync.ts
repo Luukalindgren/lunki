@@ -95,6 +95,11 @@ export class InputQueue {
   get length(): number {
     return this.queue.length;
   }
+
+  /** Yhteys katkesi: jonossa olevat hylätään, kuittaus säilyy. */
+  clear(): void {
+    this.queue = [];
+  }
 }
 
 export const cloneTube = (t: TubeState): TubeState => ({
@@ -141,8 +146,11 @@ export class TubePredictor {
     private readonly water: WaterBody,
     /** Muiden pelaajien viimeisimmät palvelintilat törmäyksiä varten. */
     private readonly others: () => readonly TubeState[] = () => [],
+    /** Uudelleenyhdistäessä numerointi jatkuu palvelimen kuittauksesta. */
+    startSeq = 0,
   ) {
     this.tube = cloneTube(start);
+    this.seq = startSeq;
   }
 
   private advance(t: TubeState, input: TubeInput): TubeState {

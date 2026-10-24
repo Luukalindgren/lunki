@@ -36,6 +36,9 @@ export interface CreateOptions extends Partial<JoinOptions> {
   testTiming?: { countdown: number; duration: number };
 }
 
+/** Näin kauan (s) katkenneen pelaajan paikka odottaa paluuta. */
+export const RECONNECT_SECONDS = Number(process.env.LUNKI_RECONNECT_SECONDS) || 60;
+
 /** Järvi on sama kaikille huoneille. */
 const water = new WaterBody(LUNKINJARVI);
 
@@ -208,6 +211,26 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     p.name = this.uniqueName(sanitizeName(options.name));
     this.state.players.set(client.sessionId, p);
     if (!this.state.hostId) this.state.hostId = client.sessionId;
+  }
+
+  /** Yhteys katkesi ilman lähtöä: paikka pidetään hetken. */
+  override onDrop(client: Client) {
+    const p = this.state.players.get(client.sessionId);
+    if (p) p.connected = false;
+    // Rengas jää odottamaan; vanhat syötteet hylätään, kuittaus säilyy.
+    this.sims.get(client.sessionId)?.inputs.clear();
+    // Jos paluuta ei tule ajoissa, Colyseus kutsuu onLeave-metodia.
+    // Huonetta suljettaessa paluuta ei voi enää sallia.
+    try {
+      this.allowReconnection(client, RECONNECT_SECONDS);
+    } catch {
+      // ei haittaa
+    }
+  }
+
+  override onReconnect(client: Client) {
+    const p = this.state.players.get(client.sessionId);
+    if (p) p.connected = true;
   }
 
   override onLeave(client: Client) {

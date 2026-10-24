@@ -173,7 +173,13 @@ export class Screens {
     list.className = 'player-list';
     for (const p of v.players) {
       const li = document.createElement('li');
-      const state = p.host ? 'luoja' : p.ready ? 'valmis' : 'odottaa';
+      const state = !p.connected
+        ? 'yhteys poikki'
+        : p.host
+          ? 'luoja'
+          : p.ready
+            ? 'valmis'
+            : 'odottaa';
       li.textContent = `${p.name}${p.me ? ' (sinä)' : ''}`;
       li.append(h('span', state, `player-state ${p.host || p.ready ? 'ok' : ''}`));
       list.appendChild(li);
