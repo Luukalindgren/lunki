@@ -11,7 +11,10 @@ export const ZOOM_LEVELS = [0.0625, 0.125, 0.25, 0.5, 1, 2, 4, 8] as const;
  */
 export class TopDownCamera {
   readonly camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 1000);
+  /** Pelaajan valitsema zoomitaso. */
   zoomIndex = 1;
+  /** Automaattinen loitonnus (esim. kauas heitetty viehe näkyviin). */
+  private autoZoomIndex = 0;
   readonly center: Vec2 = { x: 0, y: 0 };
   private resolution: RetroResolution = { width: 1, height: 1, scale: 1 };
 
@@ -20,7 +23,19 @@ export class TopDownCamera {
   }
 
   get metersPerPixel(): number {
-    return ZOOM_LEVELS[this.zoomIndex]!;
+    return ZOOM_LEVELS[Math.max(this.zoomIndex, this.autoZoomIndex)]!;
+  }
+
+  /** Loitontaa tarvittaessa niin, että annettu alue (m) mahtuu kuvaan. */
+  fitSpan(width: number, height: number): void {
+    const { width: w, height: h } = this.resolution;
+    const need = Math.max(width / w, height / h);
+    let i = 0;
+    while (i < ZOOM_LEVELS.length - 1 && ZOOM_LEVELS[i]! < need) i++;
+    if (i !== this.autoZoomIndex) {
+      this.autoZoomIndex = i;
+      this.updateProjection();
+    }
   }
 
   setResolution(r: RetroResolution): void {

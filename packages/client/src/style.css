@@ -29,3 +29,66 @@ body {
   font-size: 12px;
   pointer-events: none;
 }
+
+.hud {
+  --u: 3px;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  font-family: 'VT323', monospace;
+  font-size: calc(var(--u) * 10);
+  line-height: 1;
+  color: #eef2f3;
+  text-shadow: var(--u) var(--u) 0 #0b0f14;
+}
+
+.hud-panel {
+  position: absolute;
+  background: rgb(11 15 20 / 65%);
+  border: var(--u) solid #39424d;
+  padding: calc(var(--u) * 2) calc(var(--u) * 3);
+}
+
+.hud-status {
+  left: calc(var(--u) * 4);
+  bottom: calc(var(--u) * 4);
+  white-space: pre;
+}
+
+.hud-power {
+  left: 50%;
+  top: 50%;
+  width: calc(var(--u) * 5);
+  height: calc(var(--u) * 40);
+  padding: 0;
+  transform: translate(calc(var(--u) * 24), -50%);
+}
+
+.hud-power-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #f6d04d;
+}
+
+.hud-message {
+  position: absolute;
+  top: 30%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: calc(var(--u) * 16);
+  color: #fff3b0;
+}
+
+.hud-help {
+  right: calc(var(--u) * 4);
+  bottom: calc(var(--u) * 4);
+  font-size: calc(var(--u) * 8);
+  color: #c3cbd2;
+}
+
+[hidden] {
+  display: none !important;
+}
