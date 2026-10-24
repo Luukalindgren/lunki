@@ -23,12 +23,17 @@ koneeseen porttiin 2567; toisen palvelimen voi antaa osoitteella
 Valikosta "Moninpeli" luodaan huone, ja kaverit liittyvät koodilla
 (esim. `LUNKI-4F7K`) tai kutsulinkillä.
 
+Peli kavereille: asiakas on GitHub Pagesissa ja palvelin pyörii omalla
+koneella tunnelin kautta. Ohje: [docs/julkaisu.md](docs/julkaisu.md).
+Verkkokoodin rakenne: [docs/moninpeli.md](docs/moninpeli.md).
+
 Muut komennot:
 
 | Komento           | Mitä tekee                                     |
 | ----------------- | ---------------------------------------------- |
 | `pnpm dev`        | Asiakkaan kehityspalvelin (Vite)               |
 | `pnpm dev:server` | Pelipalvelin kehitystilassa                    |
+| `pnpm server`     | Pelipalvelin pelikäyttöön (portti 2567)        |
 | `pnpm test`       | Kaikkien pakettien testit (Vitest)             |
 | `pnpm lint`       | ESLint                                         |
 | `pnpm typecheck`  | TypeScript-tarkistus kaikille paketeille       |

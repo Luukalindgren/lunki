@@ -120,7 +120,8 @@ export class Screens {
     const codeInput = this.input('Huonekoodi', code, 40, 'LUNKI-XXXX');
     const nameValue = () => (nameInput.querySelector('input') as HTMLInputElement).value;
     const codeValue = () => (codeInput.querySelector('input') as HTMLInputElement).value;
-    panel.append(h('h2', 'Moninpeli'), nameInput);
+    const status = h('p', 'Tarkistetaan palvelinta…', 'hint server-status');
+    panel.append(h('h2', 'Moninpeli'), status, nameInput);
     if (error) panel.append(h('p', error, 'error'));
     panel.append(
       this.buttons([['Luo uusi huone', () => onCreate(nameValue())]]),
@@ -137,6 +138,17 @@ export class Screens {
     this.show(panel);
     if (code) codeInput.querySelector('input')!.focus();
     else nameInput.querySelector('input')!.select();
+  }
+
+  /** Moninpelivalikon palvelinrivi. */
+  setServerStatus(ok: boolean): void {
+    const el = this.root.querySelector<HTMLElement>('.server-status');
+    if (!el) return;
+    el.textContent = ok
+      ? 'Palvelin päällä'
+      : 'Palvelimeen ei saada yhteyttä. Yksinpeli toimii silti; moninpeliin tarvitaan palvelin päälle.';
+    el.classList.toggle('error', !ok);
+    el.classList.toggle('ok', ok);
   }
 
   showMessage(title: string, text: string, onCancel?: () => void): void {

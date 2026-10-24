@@ -16,7 +16,7 @@ import { Hud } from './ui/hud';
 import { Screens, loadSettings } from './ui/screens';
 import { Bench } from './dev/bench';
 import { loadIdentity, saveName } from './net/identity';
-import { NetSession, describeJoinError, inviteLink } from './net/session';
+import { NetSession, checkServer, describeJoinError, inviteLink } from './net/session';
 import { NetWorld } from './net/netWorld';
 
 const app = document.querySelector<HTMLDivElement>('#app');
@@ -128,6 +128,7 @@ function showMultiplayer(code = '', error?: string) {
     },
     error,
   );
+  void checkServer().then((ok) => screens.setServerStatus(ok));
 }
 
 async function connect(name: string, code: string | null) {

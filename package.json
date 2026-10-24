@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "pnpm --filter @lunki/client dev",
     "dev:server": "pnpm --filter @lunki/server dev",
+    "server": "pnpm --filter @lunki/server start",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint .",
