@@ -336,3 +336,22 @@ body {
 .player-state.ok {
   color: #8fd16a;
 }
+
+.name-tags {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.name-tag {
+  position: fixed;
+  transform: translate(-50%, calc(-100% - 14px));
+  font-family: 'VT323', monospace;
+  font-size: 18px;
+  color: #eef2f3;
+  background: rgb(11 15 20 / 70%);
+  border-bottom: 3px solid;
+  padding: 0 6px;
+  white-space: nowrap;
+}

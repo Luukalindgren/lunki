@@ -1,6 +1,18 @@
 import { Client, type Room } from '@colyseus/sdk';
 import type { Server } from '@colyseus/core';
-import { ClientMsg, ROOM_NAME, ServerMsg, formatRoomCode, parseRoomCode } from '@lunki/shared';
+import {
+  ClientMsg,
+  LUNKINJARVI,
+  ROOM_NAME,
+  ServerMsg,
+  TubePredictor,
+  WaterBody,
+  createTube,
+  encodeInputs,
+  formatRoomCode,
+  maxCastDistance,
+  parseRoomCode,
+} from '@lunki/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createServer } from '../server';
 
@@ -96,5 +108,62 @@ describe('LunkiRoom', () => {
 
   it('tuntematon koodi ei kelpaa', async () => {
     await expect(sdk().joinById('ZZZZ', { name: 'A', playerId: 'a' })).rejects.toThrow();
+  });
+
+  it('palvelin ajaa renkaan syötteillä ja ennakointi osuu', async () => {
+    const host = await sdk().create(ROOM_NAME, { name: 'A', playerId: 'a' });
+    const guest = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
+    await until(() => players(host).length === 2);
+    guest.send(ClientMsg.ready, true);
+    await until(() => players(host).every((p) => p.name === 'A' || p.ready));
+    host.send(ClientMsg.start);
+    await until(() => host.state.phase === 'playing');
+
+    type P = {
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      heading: number;
+      angVel: number;
+      kickPhase: number;
+      ack: number;
+    };
+    const me = () => host.state.players.get(host.sessionId) as P;
+    const other = () => host.state.players.get(guest.sessionId) as P;
+    const start = { x: me().x, y: me().y };
+    // Samalta rannalta, mutta ei päällekkäin.
+    const gap = Math.hypot(start.x - other().x, start.y - other().y);
+    expect(gap).toBeGreaterThan(10);
+    expect(gap).toBeLessThan(250);
+
+    // Potkitaan 30 askelta (jonon maksimi kerralla) ja verrataan omaan ennakointiin.
+    const water = new WaterBody(LUNKINJARVI);
+    const predictor = new TubePredictor(
+      { ...createTube({ x: me().x, y: me().y }, me().heading) },
+      water,
+    );
+    for (let k = 0; k < 10; k++) {
+      for (let j = 0; j < 3; j++) predictor.step({ kick: 1, turn: 0, sprint: false });
+      host.send(ClientMsg.input, { i: encodeInputs(predictor.takeOutgoing()!), l: [0, 0, 0] });
+    }
+    await until(() => me().ack === 30, 4000);
+    const p = me();
+    expect(Math.hypot(p.x - start.x, p.y - start.y)).toBeGreaterThan(0.05);
+    expect(p.x).toBe(predictor.tube.pos.x);
+    expect(p.y).toBe(predictor.tube.pos.y);
+    expect(p.heading).toBe(predictor.tube.heading);
+
+    // Liian pitkä heitto hylätään, järkevä ei.
+    let rejected = 0;
+    host.onMessage(ServerMsg.castRejected, () => rejected++);
+    host.send(ClientMsg.splash, { x: p.x + 5, y: p.y });
+    host.send(ClientMsg.splash, { x: p.x + maxCastDistance() + 30, y: p.y });
+    await until(() => rejected > 0);
+    await new Promise((r) => setTimeout(r, 100));
+    expect(rejected).toBe(1);
+
+    await host.leave();
+    await guest.leave();
   });
 });

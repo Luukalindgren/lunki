@@ -6,7 +6,9 @@ import {
   formatRoomCode,
   type CompetitionSettings,
   type Difficulty,
+  type InputMessage,
   type JoinOptions,
+  type SplashMessage,
   type RoomPhase,
   type StartedMessage,
   type WinRule,
@@ -55,12 +57,23 @@ export interface LobbyView {
   allReady: boolean;
 }
 
-interface PlayerSchema {
+export interface PlayerSchema {
   name: string;
   ready: boolean;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  heading: number;
+  angVel: number;
+  kickPhase: number;
+  ack: number;
+  lureX: number;
+  lureY: number;
+  lureStage: number;
 }
 
-interface StateSchema {
+export interface StateSchema {
   code: string;
   phase: string;
   hostId: string;
@@ -72,6 +85,9 @@ interface StateSchema {
 /** Yhteys yhteen huoneeseen. */
 export class NetSession {
   onChange: ((view: LobbyView) => void) | null = null;
+  /** Jokainen tilapäivitys pelin aikana (renkaiden synkronointi). */
+  onState: ((state: StateSchema) => void) | null = null;
+  onCastRejected: (() => void) | null = null;
   onStarted: ((msg: StartedMessage, view: LobbyView) => void) | null = null;
   onError: ((message: string) => void) | null = null;
   /** Yhteys katkesi muusta syystä kuin omasta lähdöstä. */
@@ -80,10 +96,13 @@ export class NetSession {
 
   private constructor(readonly room: Room<unknown, StateSchema>) {
     room.onStateChange(() => {
-      if (this.ready) this.onChange?.(this.view());
+      if (!this.ready) return;
+      this.onState?.(this.room.state);
+      this.onChange?.(this.view());
     });
     room.onMessage(ServerMsg.started, (m: StartedMessage) => this.onStarted?.(m, this.view()));
     room.onMessage(ServerMsg.error, (m: string) => this.onError?.(m));
+    room.onMessage(ServerMsg.castRejected, () => this.onCastRejected?.());
     room.onLeave(() => {
       if (!this.leaving) this.onDisconnect?.();
     });
@@ -138,6 +157,18 @@ export class NetSession {
 
   start(): void {
     this.room.send(ClientMsg.start);
+  }
+
+  get sessionId(): string {
+    return this.room.sessionId;
+  }
+
+  sendInput(msg: InputMessage): void {
+    this.room.send(ClientMsg.input, msg);
+  }
+
+  sendSplash(msg: SplashMessage): void {
+    this.room.send(ClientMsg.splash, msg);
   }
 
   async leave(): Promise<void> {

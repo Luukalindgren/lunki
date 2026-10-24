@@ -1,0 +1,99 @@
+import * as THREE from 'three';
+import { CAST, LureStage, rodTip } from '@lunki/shared';
+import type { RemotePlayer } from '../net/netWorld';
+import { toWorld } from '../world/lakeMesh';
+import { animateFins, createTubeMesh } from './tubeMesh';
+
+/** Muiden renkaiden värit: oma on punainen. */
+const COLORS = [0x1b5a84, 0x8fd16a, 0xf6d04d, 0x9b59b6, 0xf08a2c, 0x83c2db, 0xeef2f3];
+
+interface Entry {
+  tube: THREE.Group;
+  lure: THREE.Mesh;
+  line: THREE.Line;
+  tag: HTMLDivElement;
+}
+
+/** Piirtää muut pelaajat, heidän vieheensä ja nimilaput. */
+export class RemotePlayersView {
+  readonly group = new THREE.Group();
+  private readonly entries = new Map<string, Entry>();
+  private readonly tags: HTMLDivElement;
+  private colorIndex = 0;
+  private readonly v = new THREE.Vector3();
+
+  constructor(parent: HTMLElement) {
+    this.tags = document.createElement('div');
+    this.tags.className = 'name-tags';
+    parent.appendChild(this.tags);
+  }
+
+  update(players: RemotePlayer[], camera: THREE.Camera, canvas: HTMLCanvasElement): void {
+    const seen = new Set<string>();
+    const rect = canvas.getBoundingClientRect();
+    for (const p of players) {
+      seen.add(p.id);
+      const e = this.entries.get(p.id) ?? this.add(p.id);
+      e.tube.position.copy(toWorld(p.pos));
+      e.tube.rotation.y = p.heading;
+      animateFins(e.tube, p.kickPhase);
+
+      const showLure = p.lure !== null && p.lureStage !== LureStage.none;
+      e.lure.visible = e.line.visible = showLure;
+      if (showLure) {
+        const tip = toWorld(rodTip(p.pos, p.heading), CAST.tipHeight);
+        const lure = toWorld(p.lure!, p.lureStage === LureStage.flight ? 1 : 0.05);
+        e.lure.position.copy(lure);
+        const pos = e.line.geometry.attributes.position as THREE.BufferAttribute;
+        pos.setXYZ(0, tip.x, tip.y, tip.z);
+        pos.setXYZ(1, lure.x, lure.y, lure.z);
+        pos.needsUpdate = true;
+        e.line.geometry.computeBoundingSphere();
+      }
+
+      // Nimilappu renkaan yläpuolelle näytön koordinaateissa.
+      this.v.copy(e.tube.position).setY(1.5).project(camera);
+      const visible = Math.abs(this.v.x) <= 1.1 && Math.abs(this.v.y) <= 1.1;
+      e.tag.hidden = !visible;
+      if (visible) {
+        e.tag.textContent = p.name;
+        e.tag.style.left = `${rect.left + ((this.v.x + 1) / 2) * rect.width}px`;
+        e.tag.style.top = `${rect.top + ((1 - this.v.y) / 2) * rect.height}px`;
+      }
+    }
+    for (const [id, e] of this.entries) if (!seen.has(id)) this.remove(id, e);
+  }
+
+  private add(id: string): Entry {
+    const color = COLORS[this.colorIndex++ % COLORS.length]!;
+    const tube = createTubeMesh(color);
+    const lure = new THREE.Mesh(
+      new THREE.BoxGeometry(0.5, 0.5, 0.5),
+      new THREE.MeshBasicMaterial({ color: 0xf08a2c }),
+    );
+    const line = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+      new THREE.LineBasicMaterial({ color: 0xc3cbd2 }),
+    );
+    line.frustumCulled = false;
+    this.group.add(tube, lure, line);
+    const tag = document.createElement('div');
+    tag.className = 'name-tag';
+    tag.style.borderColor = `#${color.toString(16).padStart(6, '0')}`;
+    this.tags.appendChild(tag);
+    const e = { tube, lure, line, tag };
+    this.entries.set(id, e);
+    return e;
+  }
+
+  private remove(id: string, e: Entry): void {
+    this.group.remove(e.tube, e.lure, e.line);
+    e.tag.remove();
+    this.entries.delete(id);
+  }
+
+  dispose(): void {
+    for (const [id, e] of this.entries) this.remove(id, e);
+    this.tags.remove();
+  }
+}

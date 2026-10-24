@@ -20,7 +20,9 @@ import {
   lureInfo,
   stepFishPopulation,
   lerpAngle,
+  LureStage,
   protoDepthAt,
+  resetFishing,
   stepFishing,
   stepTube,
   type CompetitionSettings,
@@ -35,6 +37,8 @@ import {
 } from '@lunki/shared';
 import type { Input } from '../engine/input';
 import { createLakeMesh, toWorld } from '../world/lakeMesh';
+import type { NetWorld } from '../net/netWorld';
+import { RemotePlayersView } from './remotePlayersView';
 import type { Sfx } from '../audio/sfx';
 import type { Hud } from '../ui/hud';
 import { FishingView } from './fishingView';
@@ -54,7 +58,18 @@ export function readTubeInput(input: Input): TubeInput {
   };
 }
 
-/** Yksinpeli: yksi pelaaja järvellä. Kasvaa heiton, siiman ja kalojen myötä. */
+/** Moninpelin kytkentä: palvelin ajaa renkaan, muut pelaajat piirretään. */
+export interface NetLink {
+  world: NetWorld;
+  /** Nimilappujen kerros ja canvas, jonka päälle ne asemoidaan. */
+  overlay: HTMLElement;
+  canvas: HTMLCanvasElement;
+}
+
+/**
+ * Pelikierros järvellä. Yksinpelissä rengas liikkuu paikallisesti;
+ * moninpelissä (net) oma rengas ennakoidaan ja palvelin on totuus.
+ */
 export class SoloGame {
   readonly scene = new THREE.Scene();
   readonly view = new TopDownCamera();
@@ -72,6 +87,7 @@ export class SoloGame {
   private reelClickTimer = 0;
   /** Kutsutaan, kun kilpailuaika loppuu. */
   onFinished: (() => void) | null = null;
+  private readonly remoteView: RemotePlayersView | null = null;
 
   constructor(
     private readonly input: Input,
@@ -82,6 +98,7 @@ export class SoloGame {
     readonly settings: CompetitionSettings,
     seed = Date.now() >>> 0,
     readonly map: LakeMap = LUNKINJARVI,
+    private readonly net?: NetLink,
   ) {
     this.competition = createCompetition(settings);
     this.water = new WaterBody(map);
@@ -92,10 +109,15 @@ export class SoloGame {
       this.rng,
       FISH_COUNT,
     );
-    const start = findLaunchPoint(this.water, map.bounds, () => this.rng.next());
-    // Selkä rantaan päin, katse järvelle.
-    const shore = this.water.closestShorePoint(start)?.point ?? start;
-    this.tube = createTube(start, Math.atan2(start.y - shore.y, start.x - shore.x));
+    if (net) {
+      // Palvelin arpoi aloituspaikan.
+      this.tube = net.world.predictor.tube;
+    } else {
+      const start = findLaunchPoint(this.water, map.bounds, () => this.rng.next());
+      // Selkä rantaan päin, katse järvelle.
+      const shore = this.water.closestShorePoint(start)?.point ?? start;
+      this.tube = createTube(start, Math.atan2(start.y - shore.y, start.x - shore.x));
+    }
     this.prevTube = this.tube;
 
     this.scene.background = new THREE.Color(0x24502c);
@@ -107,6 +129,14 @@ export class SoloGame {
     this.scene.add(this.tubeMesh);
     this.scene.add(this.fishingView.group);
     this.view.snapTo(this.tube.pos);
+    if (net) {
+      this.remoteView = new RemotePlayersView(net.overlay);
+      this.scene.add(this.remoteView.group);
+      net.world.onCastRejected = () => {
+        resetFishing(this.fishing);
+        this.hud.showMessage('Palvelin hylkäsi heiton', 2);
+      };
+    }
   }
 
   private fishingContext(strike?: number): FishingContext {
@@ -135,8 +165,21 @@ export class SoloGame {
     if (input.wasPressed('KeyH')) this.hud.toggleHelp();
 
     this.prevTube = this.tube;
-    const next = stepTube(this.tube, readTubeInput(input), dt);
-    this.tube = collideTubeWithShore(this.tube, next, this.water);
+    if (this.net) {
+      const f = this.fishing;
+      const stage =
+        f.hookedId !== null
+          ? LureStage.hooked
+          : f.stage === 'flight'
+            ? LureStage.flight
+            : f.stage === 'water'
+              ? LureStage.water
+              : LureStage.none;
+      this.tube = this.net.world.stepOwn(readTubeInput(input), f.lure, stage);
+    } else {
+      const next = stepTube(this.tube, readTubeInput(input), dt);
+      this.tube = collideTubeWithShore(this.tube, next, this.water);
+    }
 
     const internal = this.screenToInternal(input.mouseX, input.mouseY);
     this.aim = this.view.internalToWorld(internal.x, internal.y);
@@ -223,6 +266,7 @@ export class SoloGame {
     if (events.splash) {
       this.fishingView.startSplash(events.splash);
       sfx.splash();
+      this.net?.world.sendSplash(events.splash);
     }
     if (follow) sfx.tick();
     if (events.strike) {
@@ -263,6 +307,8 @@ export class SoloGame {
 
   /** Vapauttaa GPU-resurssit, kun kierros päättyy. */
   dispose(): void {
+    this.remoteView?.dispose();
+    this.net?.world.dispose();
     this.scene.traverse((o) => {
       const mesh = o as THREE.Mesh;
       mesh.geometry?.dispose();
@@ -292,5 +338,7 @@ export class SoloGame {
     const hooked = this.fish.fish.find((x) => x.id === this.fishing.hookedId) ?? null;
     this.fishingView.update(this.fishing, this.fishingContext(), this.aim, 1 / 60, hooked);
     this.view.apply();
+    if (this.net && this.remoteView)
+      this.remoteView.update(this.net.world.others(), this.view.camera, this.net.canvas);
   }
 }
