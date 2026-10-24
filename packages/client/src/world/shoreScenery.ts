@@ -1,5 +1,16 @@
 import * as THREE from 'three';
-import { valueNoise, type LakeMap, type Vec2 } from '@lunki/shared';
+import {
+  LandCover,
+  terrainHeightAt,
+  valueNoise,
+  type AreaKind,
+  type LakeMap,
+  type LakeSurroundings,
+  type Vec2,
+} from '@lunki/shared';
+
+/** Maankäyttö, jossa rannalla ei kasva metsää. */
+const OPEN_LAND = new Set<AreaKind>(['field', 'residential', 'beach', 'bare', 'water', 'reeds']);
 
 /** Metsänreunan etäisyys rantaviivasta maalle (m) ja näytteenväli (m). */
 const INLAND = 7;
@@ -10,14 +21,20 @@ const STEP = 4;
  * seinämä, jonka yläreuna vaihtelee kuin kuusikon ja koivikon latvat.
  * Ylhäältä katsottuna seinämä ei näy, joten se piilotetaan siinä tilassa.
  */
-export function createShoreScenery(map: LakeMap): THREE.Group {
+export function createShoreScenery(map: LakeMap, surroundings?: LakeSurroundings): THREE.Group {
   const group = new THREE.Group();
   group.name = 'shore-scenery';
-  for (const ring of [map.shore, ...map.islands]) group.add(treeLine(resample(ring, STEP)));
+  const cover = surroundings ? new LandCover(surroundings) : null;
+  for (const ring of [map.shore, ...map.islands])
+    group.add(treeLine(resample(ring, STEP), cover, surroundings?.terrain ?? null));
   return group;
 }
 
-function treeLine(ring: Vec2[]): THREE.Mesh {
+function treeLine(
+  ring: Vec2[],
+  cover: LandCover | null,
+  terrain: LakeSurroundings['terrain'],
+): THREE.Mesh {
   const n = ring.length;
   const positions: number[] = [];
   const colors: number[] = [];
@@ -41,8 +58,12 @@ function treeLine(ring: Vec2[]): THREE.Mesh {
     const broad = valueNoise(p.x / 90, p.y / 90, 21);
     const spike = Math.abs(valueNoise(p.x / 5, p.y / 5, 22));
     // Korostettu korkeus, jotta metsänreuna erottuu kilometrin päästä.
-    const h = 22 + broad * 8 + spike * 10;
-    positions.push(x, -0.5, -y, x, h, -y);
+    // Pelloilla, pihoilla ja rannoilla ei ole metsänreunaa.
+    const kind = cover?.kindAt({ x, y }) ?? null;
+    const open = kind !== null && OPEN_LAND.has(kind);
+    const base = Math.max(0, terrainHeightAt(terrain, { x, y })) - 0.5;
+    const h = open ? 0.5 : 22 + broad * 8 + spike * 10;
+    positions.push(x, base, -y, x, base + h, -y);
     const c = spike > 0.6 ? dark : broad > 0.3 ? birch : mid;
     colors.push(c.r * 0.7, c.g * 0.7, c.b * 0.7, c.r, c.g, c.b);
     const a = i * 2;

@@ -1,4 +1,5 @@
 import {
+  pointInRing,
   signedArea,
   simplifyPath,
   simplifyRing,
@@ -161,17 +162,6 @@ function closeless(ring: Vec2[]): Vec2[] {
 
 function orient(ring: Vec2[], ccw: boolean): Vec2[] {
   return signedArea(ring) > 0 === ccw ? ring : [...ring].reverse();
-}
-
-export function pointInRing(p: Vec2, ring: readonly Vec2[]): boolean {
-  let inside = false;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const a = ring[i]!;
-    const b = ring[j]!;
-    if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x)
-      inside = !inside;
-  }
-  return inside;
 }
 
 /** Sutherland–Hodgman: monikulmio suorakaiteen sisään. */

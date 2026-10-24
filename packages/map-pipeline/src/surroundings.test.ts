@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { classify } from './osm';
-import { clipLine, clipRing, pointInRing, toSurroundings, type Dem } from './surroundings';
+import { pointInRing } from '@lunki/shared';
+import { clipLine, clipRing, toSurroundings, type Dem } from './surroundings';
 import { toLakeMap } from './lakeMap';
 import type { OsmLake, OsmSurroundings } from './osm';
 
