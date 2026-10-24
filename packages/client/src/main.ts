@@ -4,6 +4,7 @@ import { Input } from './engine/input';
 import { startLoop } from './engine/loop';
 import { RetroRenderer, type PaletteMode } from './engine/retroRenderer';
 import { SoloGame } from './game/soloGame';
+import { Hud } from './ui/hud';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) throw new Error('#app puuttuu');
@@ -16,8 +17,12 @@ app.appendChild(canvas);
 const retro = new RetroRenderer(canvas);
 const input = new Input(canvas);
 const fps = new FpsMeter(app, import.meta.env.DEV);
-const game = new SoloGame(input);
-retro.onResize((r) => game.view.setResolution(r));
+const hud = new Hud(app);
+const game = new SoloGame(input, hud, (x, y) => retro.screenToInternal(x, y));
+retro.onResize((r) => {
+  game.view.setResolution(r);
+  hud.setPixelSize(r.scale / (window.devicePixelRatio || 1));
+});
 
 const paletteModes: PaletteMode[] = ['palette', 'dither', 'off'];
 

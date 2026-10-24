@@ -1,0 +1,95 @@
+import { describe, expect, it } from 'vitest';
+import { distance } from '../vec2';
+import { CAST, rodTip } from './cast';
+import {
+  createFishing,
+  stepFishing,
+  type FishingContext,
+  type FishingInput,
+  type FishingState,
+} from './fishing';
+
+const DT = 1 / 60;
+const ctx: FishingContext = {
+  tubePos: { x: 0, y: 0 },
+  heading: 0,
+  isWater: (p) => p.x < 100,
+  depthAt: () => 3,
+};
+const input = (o: Partial<FishingInput> = {}): FishingInput => ({
+  aim: { x: 50, y: 0 },
+  castHeld: false,
+  reel: false,
+  cancel: false,
+  ...o,
+});
+
+function hold(s: FishingState, seconds: number, i: FishingInput) {
+  for (let t = 0; t < seconds; t += DT) stepFishing(s, i, ctx, DT);
+}
+
+function castAndLand(power: number): FishingState {
+  const s = createFishing();
+  stepFishing(s, input({ castHeld: true }), ctx, DT);
+  hold(s, CAST.chargeTime * power - DT, input({ castHeld: true }));
+  stepFishing(s, input(), ctx, DT);
+  expect(s.stage).toBe('flight');
+  hold(s, 6, input());
+  return s;
+}
+
+describe('kalastuksen vaiheet', () => {
+  it('heitto: lataus → lento → vesi', () => {
+    const s = castAndLand(0.6);
+    expect(s.stage).toBe('water');
+    expect(s.power).toBeGreaterThan(0.5);
+    expect(s.lure.x).toBeGreaterThan(15);
+    expect(Math.abs(s.lure.y)).toBeLessThan(1e-6);
+  });
+
+  it('viehe uppoaa pohjaan asti', () => {
+    const s = castAndLand(0.5);
+    hold(s, 20, input());
+    expect(s.depth).toBe(3);
+  });
+
+  it('kelaus tuo vieheen takaisin ja nostaa sitä', () => {
+    const s = castAndLand(0.5);
+    hold(s, 5, input());
+    const deep = s.depth;
+    const before = distance(s.lure, rodTip(ctx.tubePos, ctx.heading));
+    hold(s, 2, input({ reel: true }));
+    expect(distance(s.lure, rodTip(ctx.tubePos, ctx.heading))).toBeLessThan(before - 1.5);
+    expect(s.depth).toBeLessThan(deep);
+    hold(s, 60, input({ reel: true }));
+    expect(s.stage).toBe('idle');
+  });
+
+  it('kelauksen jälkeen nappi pitää päästää ennen uutta heittoa', () => {
+    const s = castAndLand(0.3);
+    hold(s, 60, input({ reel: true, castHeld: true }));
+    expect(s.stage).toBe('idle');
+    stepFishing(s, input({ castHeld: true }), ctx, DT);
+    expect(s.stage).toBe('idle');
+    stepFishing(s, input(), ctx, DT);
+    stepFishing(s, input({ castHeld: true }), ctx, DT);
+    expect(s.stage).toBe('charging');
+  });
+
+  it('peruutus keskeyttää latauksen', () => {
+    const s = createFishing();
+    stepFishing(s, input({ castHeld: true }), ctx, DT);
+    stepFishing(s, input({ castHeld: true, cancel: true }), ctx, DT);
+    expect(s.stage).toBe('idle');
+  });
+
+  it('rannalle heitetty viehe on maalla', () => {
+    const s = createFishing();
+    const far = { ...ctx, isWater: () => false };
+    stepFishing(s, input({ castHeld: true }), far, DT);
+    for (let t = 0; t < 0.5; t += DT) stepFishing(s, input({ castHeld: true }), far, DT);
+    for (let t = 0; t < 6; t += DT) stepFishing(s, input(), far, DT);
+    expect(s.onLand).toBe(true);
+    expect(s.depth).toBe(0);
+  });
+});

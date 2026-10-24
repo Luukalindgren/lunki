@@ -1,3 +1,4 @@
+export * from './fishing';
 export * from './map';
 export * from './physics';
 export * from './vec2';
