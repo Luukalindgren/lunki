@@ -89,6 +89,43 @@ body {
   color: #c3cbd2;
 }
 
+.hud-tension {
+  right: calc(var(--u) * 4);
+  top: calc(var(--u) * 4);
+  width: calc(var(--u) * 8);
+  height: calc(var(--u) * 60);
+  padding: 0;
+}
+
+.hud-tension-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #2f9e8f;
+}
+
+.hud-tension-fill.slip {
+  background: #d23a2a;
+}
+
+.hud-tension-drag {
+  position: absolute;
+  left: calc(var(--u) * -2);
+  right: calc(var(--u) * -2);
+  height: var(--u);
+  background: #f6d04d;
+}
+
+.hud-tension-label {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: calc(var(--u) * 2);
+  font-size: calc(var(--u) * 8);
+}
+
 [hidden] {
   display: none !important;
 }

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import {
+  LINE_POINTS,
   castAngle,
   chargePower,
   predictLanding,
@@ -51,7 +52,9 @@ export class FishingView {
     this.group.add(this.lureShadow);
 
     this.line = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+      new THREE.BufferGeometry().setFromPoints(
+        Array.from({ length: LINE_POINTS + 1 }, () => new THREE.Vector3()),
+      ),
       new THREE.LineBasicMaterial({ color: 0xc3cbd2 }),
     );
     this.group.add(this.line);
@@ -106,7 +109,28 @@ export class FishingView {
         s.onLand ? 0xf08a2c : depthFade > 0.6 ? 0x6b2d6e : depthFade > 0.1 ? 0xc05bb4 : 0xf08a2c,
       );
       this.lure.scale.setScalar(1 + height * 0.08);
-      setLine(this.line, toWorld(tip, 1.2), this.lure.position);
+      // Ensimmäinen piste on vavan kärjessä ilmassa, loput siimasta lepää pinnalla.
+      const pos = this.line.geometry.getAttribute('position') as THREE.BufferAttribute;
+      const top = toWorld(tip, 1.2);
+      pos.setXYZ(0, top.x, top.y, top.z);
+      if (s.stage === 'flight') {
+        for (let i = 1; i <= LINE_POINTS; i++) {
+          const t = i / LINE_POINTS;
+          pos.setXYZ(
+            i,
+            top.x + (this.lure.position.x - top.x) * t,
+            0.25,
+            top.z + (this.lure.position.z - top.z) * t,
+          );
+        }
+      } else {
+        s.line.points.forEach((p, i) => pos.setXYZ(i + 1, p.x, 0.04, -p.y));
+      }
+      pos.needsUpdate = true;
+      this.line.geometry.computeBoundingSphere();
+      (this.line.material as THREE.LineBasicMaterial).color.setHex(
+        s.tension > s.drag * 0.95 ? 0xf6d04d : s.tension > 0.3 ? 0xeef2f3 : 0x8e99a4,
+      );
     }
 
     this.splashAge += dt;

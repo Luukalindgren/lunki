@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import {
   LUNKINJARVI,
+  REEL,
   chargePower,
   WaterBody,
   collideTubeWithShore,
@@ -99,6 +100,10 @@ export class SoloGame {
         castHeld: input.isDown('Mouse0'),
         reel: lureOut && (input.isDown('Mouse0') || input.isDown('Space')),
         cancel: input.isDown('Mouse2'),
+        dragDelta: (input.wasPressed('KeyE') ? 1 : 0) - (input.wasPressed('KeyQ') ? 1 : 0),
+        ...(input.wasPressed('Digit1') ? { gear: 0 } : {}),
+        ...(input.wasPressed('Digit2') ? { gear: 1 } : {}),
+        ...(input.wasPressed('Digit3') ? { gear: 2 } : {}),
       },
       this.fishingContext(),
       dt,
@@ -121,11 +126,10 @@ export class SoloGame {
     }
 
     this.hud.setPower(f.stage === 'charging' ? chargePower(f.charge) : null);
-    const lineOut = lureOut
-      ? Math.hypot(f.lure.x - this.tube.pos.x, f.lure.y - this.tube.pos.y)
-      : 0;
+    this.hud.setTension(f.tension, f.drag, REEL.lineStrength);
     this.hud.setStatus([
-      `Siimaa ${lineOut.toFixed(1)} m`,
+      `Siimaa ${f.lineLength.toFixed(1)} m`,
+      `Jarru ${f.drag.toFixed(2)} kg · kela ${f.gear + 1}`,
       `Viehe ${f.stage === 'water' && !f.onLand ? f.depth.toFixed(1) : '0.0'} m`,
       `Pohja ${protoDepthAt(this.water, lureOut ? f.lure : this.tube.pos).toFixed(1)} m`,
     ]);
