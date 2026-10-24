@@ -275,4 +275,43 @@ describe('LunkiRoom', () => {
 
     for (const r of all) await r.leave();
   });
+
+  it('katkennut pelaaja palaa samaan renkaaseen ja saaliisiin', async () => {
+    const host = await sdk().create(ROOM_NAME, {
+      name: 'A',
+      playerId: 'a',
+      testTiming: { countdown: 0.1, duration: 30 },
+    });
+    const guest = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
+    await until(() => players(host).length === 2);
+    guest.send(ClientMsg.ready, true);
+    await until(() => players(host).some((p) => p.ready));
+    host.send(ClientMsg.start);
+    await until(() => guest.state.phase === 'playing');
+
+    type P = { x: number; y: number; ack: number; connected: boolean };
+    const gp = () => host.state.players.get(guest.sessionId) as P;
+    const pos = { x: gp().x, y: gp().y };
+    guest.send(ClientMsg.splash, { x: pos.x + 5, y: pos.y });
+    guest.send(ClientMsg.catch, { species: 'perch', name: 'Ahven', weight: 0.5 });
+    await until(() => host.state.catches.length === 1);
+
+    // Yhteys katkeaa (esim. sivun uudelleenlataus).
+    const token = guest.reconnectionToken;
+    const sessionId = guest.sessionId;
+    guest.reconnection.enabled = false;
+    guest.connection.close(4010);
+    await until(() => gp()?.connected === false);
+    expect(players(host)).toHaveLength(2);
+
+    const back = await sdk().reconnect(token);
+    expect(back.sessionId).toBe(sessionId);
+    await until(() => gp().connected === true);
+    await until(() => back.state.catches?.length === 1);
+    const me = back.state.players.get(back.sessionId) as P;
+    expect([me.x, me.y]).toEqual([pos.x, pos.y]);
+
+    await host.leave();
+    await back.leave();
+  });
 });

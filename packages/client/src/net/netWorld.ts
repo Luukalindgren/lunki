@@ -69,6 +69,11 @@ export class NetWorld {
   readonly renderOffset = { x: 0, y: 0 };
   /** Palvelin hylkäsi heiton. */
   onCastRejected: (() => void) | null = null;
+  /** Toinen pelaaja poistui kisasta. */
+  onPeerLeft: ((name: string) => void) | null = null;
+  /** Toisen pelaajan yhteys katkesi tai palasi. */
+  onPeerConnection: ((name: string, connected: boolean) => void) | null = null;
+  private readonly peerConnected = new Map<string, boolean>();
   /** Palvelin ei hyväksynyt saalista punnitukseen. */
   onCatchRejected: (() => void) | null = null;
 
@@ -79,7 +84,8 @@ export class NetWorld {
   ) {
     const me = session.room.state.players.get(session.sessionId);
     if (!me) throw new Error('Oma pelaaja puuttuu huoneesta');
-    this.predictor = new TubePredictor(toTube(me), water, () => this.latestOthers);
+    // Uudelleenyhdistäessä syötteiden numerointi jatkuu palvelimen kuittauksesta.
+    this.predictor = new TubePredictor(toTube(me), water, () => this.latestOthers, me.ack);
     session.onState = (s) => this.onState(s);
     session.onCastRejected = () => this.onCastRejected?.();
     session.onCatchRejected = () => this.onCatchRejected?.();
@@ -147,9 +153,13 @@ export class NetWorld {
       let r = this.remotes.get(id);
       if (!r) {
         r = { name: p.name, buf: new SnapshotBuffer(lerpSnap) };
+        this.peerConnected.set(id, p.connected);
         this.remotes.set(id, r);
       }
-      r.name = p.name;
+      r.name = p.connected ? p.name : `${p.name} (katkos)`;
+      const was = this.peerConnected.get(id);
+      if (was !== undefined && was !== p.connected) this.onPeerConnection?.(p.name, p.connected);
+      this.peerConnected.set(id, p.connected);
       r.buf.push(now, {
         pos: { x: p.x, y: p.y },
         heading: p.heading,
@@ -158,7 +168,12 @@ export class NetWorld {
         lureStage: p.lureStage,
       });
     });
-    for (const id of this.remotes.keys()) if (!seen.has(id)) this.remotes.delete(id);
+    for (const [id, r] of this.remotes)
+      if (!seen.has(id)) {
+        this.remotes.delete(id);
+        this.peerConnected.delete(id);
+        this.onPeerLeft?.(r.name.replace(/ \(katkos\)$/, ''));
+      }
     this.latestOthers = others;
   }
 

@@ -52,6 +52,7 @@ export interface LobbyPlayer {
   ready: boolean;
   host: boolean;
   me: boolean;
+  connected: boolean;
 }
 
 export interface LobbyView {
@@ -68,6 +69,7 @@ export interface LobbyView {
 export interface PlayerSchema {
   name: string;
   ready: boolean;
+  connected: boolean;
   x: number;
   y: number;
   vx: number;
@@ -124,7 +126,16 @@ export class NetSession {
   onDisconnect: (() => void) | null = null;
   private leaving = false;
 
+  /** Oma yhteys katkesi hetkeksi / palasi (automaattinen uudelleenyhdistys). */
+  onConnection: ((connected: boolean) => void) | null = null;
+
   private constructor(readonly room: Room<unknown, StateSchema>) {
+    saveResume(room.reconnectionToken);
+    room.onDrop(() => this.onConnection?.(false));
+    room.onReconnect(() => {
+      saveResume(room.reconnectionToken);
+      this.onConnection?.(true);
+    });
     room.onStateChange(() => {
       if (!this.ready) return;
       this.onState?.(this.room.state);
@@ -135,6 +146,7 @@ export class NetSession {
     room.onMessage(ServerMsg.castRejected, () => this.onCastRejected?.());
     room.onMessage(ServerMsg.catchRejected, () => this.onCatchRejected?.());
     room.onLeave(() => {
+      clearResume();
       if (!this.leaving) this.onDisconnect?.();
     });
   }
@@ -147,6 +159,26 @@ export class NetSession {
   static async join(code: string, options: JoinOptions): Promise<NetSession> {
     const room = await new Client(serverUrl()).joinById<StateSchema>(code, options);
     return new NetSession(room);
+  }
+
+  /**
+   * Sivun uudelleenlatauksen jälkeen: palaa samaan huoneeseen ja renkaaseen,
+   * jos paikka on vielä varattu. Palauttaa null, jos palattavaa ei ole.
+   */
+  static canResume(): boolean {
+    return loadResume() !== null;
+  }
+
+  static async resume(): Promise<NetSession | null> {
+    const token = loadResume();
+    if (!token) return null;
+    try {
+      const room = await new Client(serverUrl()).reconnect<StateSchema>(token);
+      return new NetSession(room);
+    } catch {
+      clearResume();
+      return null;
+    }
   }
 
   /** Ensimmäinen tila on saapunut. */
@@ -165,6 +197,7 @@ export class NetSession {
         ready: p.ready,
         host: id === s.hostId,
         me: id === me,
+        connected: p.connected,
       }),
     );
     return {
@@ -244,7 +277,35 @@ export class NetSession {
 
   async leave(): Promise<void> {
     this.leaving = true;
+    clearResume();
     await this.room.leave(true).catch(() => undefined);
+  }
+}
+
+const RESUME_KEY = 'lunki.resume';
+
+// Välilehtikohtainen muisti: uudelleenlataus palaa peliin, uusi välilehti ei.
+function saveResume(token: string): void {
+  try {
+    sessionStorage.setItem(RESUME_KEY, token);
+  } catch {
+    // ei haittaa
+  }
+}
+
+function loadResume(): string | null {
+  try {
+    return sessionStorage.getItem(RESUME_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function clearResume(): void {
+  try {
+    sessionStorage.removeItem(RESUME_KEY);
+  } catch {
+    // ei haittaa
   }
 }
 

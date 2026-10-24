@@ -34,6 +34,13 @@ muut pelaajat: SnapshotBuffer, piirretään 120 ms menneisyydestä
   (`rankPlayers`, sama funktio kuin yksinpelin tuloksissa). Isäntä voi
   palauttaa huoneen aulaan uutta kisaa varten.
 
+- **Yhteyskatkos.** Palvelin pitää katkenneen pelaajan paikkaa 60 s
+  (`LUNKI_RECONNECT_SECONDS`). Rengas odottaa paikallaan ja muut näkevät
+  nimen perässä "(katkos)". Lyhyet katkokset SDK yhdistää itse; sivun
+  uudelleenlatauksessa asiakas palaa välilehden muistiin tallennetulla
+  tunnisteella samaan renkaaseen ja saaliisiin, ja syötteiden numerointi
+  jatkuu palvelimen kuittauksesta.
+
 ## Testaus viiveellä
 
 ```sh

@@ -134,6 +134,12 @@ export class SoloGame {
     if (net) {
       this.remoteView = new RemotePlayersView(net.overlay);
       this.scene.add(this.remoteView.group);
+      net.world.onPeerConnection = (name, connected) =>
+        this.hud.showMessage(
+          connected ? `${name} palasi kisaan` : `${name}: yhteys katkesi, odotetaan…`,
+          3,
+        );
+      net.world.onPeerLeft = (name) => this.hud.showMessage(`${name} poistui kisasta`, 3);
       net.world.onCatchRejected = () =>
         this.hud.showMessage('Palvelin ei hyväksynyt saalista punnitukseen', 2.5);
       net.world.onCastRejected = () => {
