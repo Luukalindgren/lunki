@@ -243,6 +243,7 @@ function togglePause() {
             showResults();
           },
       session !== null,
+      { current: game.tackle, onChange: (t) => game?.setTackle(t) },
     );
   } else {
     screens.hide();

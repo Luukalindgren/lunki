@@ -19,3 +19,24 @@ Moninpelissä palvelin hylkää saaliin, jonka lajia ei ole huoneen lajistossa.
 
 Kaislikoita ei vielä ole kartassa, joten hauen elinalue on toistaiseksi matala rantavesi.
 Kun pohjakartta (#20) ja kasvillisuus tulevat, elinalueet tarkentuvat.
+
+## Vieheet ja varusteet
+
+Varusteet vaihdetaan taukovalikosta (Esc) tai vieheen pikanäppäimellä R. Vaihto tapahtuu,
+kun viehe on kelalla. Parametrit: `packages/shared/src/fishing/gear.ts`.
+
+| Viehe   | Uppoaminen                                          | Heitto   | Parhaat lajit        |
+| ------- | --------------------------------------------------- | -------- | -------------------- |
+| Lusikka | uppoaa, nousee kelatessa                            | pitkä    | hauki, taimen, ahven |
+| Vaappu  | kelluu, sukeltaa kelatessa n. 2,5 m:iin             | lyhyt    | hauki, kuha, taimen  |
+| Jigi    | painuu nopeasti pohjaan, kiinnostaa myös paikallaan | pisin    | kuha, ahven          |
+| Lippa   | uppoaa hitaasti                                     | lyhyehkö | ahven, taimen, särki |
+
+| Siima   | Kestävyys | Heitto   | Kalat                  |
+| ------- | --------- | -------- | ---------------------- |
+| 0,20 mm | 3,5 kg    | +7 %     | kiinnostuvat herkemmin |
+| 0,25 mm | 5 kg      | normaali | normaali               |
+| 0,30 mm | 7 kg      | −8 %     | arkailevat             |
+
+Teräsperukka estää hauen hampaita katkaisemasta siimaa väsytyksessä (normaalilla ja
+realistisella noin 3 % sekunnissa), mutta muut lajit tarttuvat siihen hieman harvemmin.

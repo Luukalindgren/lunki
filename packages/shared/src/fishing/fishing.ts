@@ -9,6 +9,14 @@ import {
   type LureInfo,
   type SpeciesId,
 } from './fish';
+import {
+  DEFAULT_TACKLE,
+  LINES,
+  LURES,
+  PIKE_BITE_OFF_RATE,
+  tackleCastFactor,
+  type Tackle,
+} from './gear';
 import { createLine, stepLine, straightenLine, type VerletLine } from './line';
 import {
   chargePower,
@@ -35,6 +43,8 @@ export interface FishingInput {
   dragDelta?: number;
   /** Kelan vaihde 0–2, jos vaihdettiin tällä askeleella. */
   gear?: number;
+  /** Uudet varusteet; vaihtuvat vain vieheen ollessa kelalla. */
+  tackle?: Tackle;
 }
 
 export interface FishingState {
@@ -69,6 +79,8 @@ export interface FishingState {
   strikeAge: number;
   /** Väsytettävä kala. */
   hookedId: number | null;
+  /** Viehe, siima ja perukka. */
+  tackle: Tackle;
 }
 
 export interface FishingContext {
@@ -86,11 +98,8 @@ export interface FishingContext {
   };
 }
 
+/** Kaikille vieheille yhteiset vakiot; uppoaminen ja uinti ovat vieheen ominaisuuksia (LURES). */
 export const LURE = {
-  /** Uppoamisnopeus löysällä siimalla (m/s). */
-  sinkRate: 0.35,
-  /** Liikkuva viehe nousee: nousu (m/s) per vieheen nopeus (m/s). */
-  lift: 0.5,
   /** Vieheen vastus vedessä: jännitys = base + coeff · v² (kg). */
   dragBase: 0.05,
   dragCoeff: 0.35,
@@ -108,15 +117,13 @@ export const REEL = {
   maxDrag: 8,
   dragStep: 0.25,
   defaultDrag: 2,
-  /** Siiman kestävyys (kg), 0,25 mm monofiili. */
-  lineStrength: 5,
   /** Kelan kapasiteetti (m). */
   spool: 150,
   /** Löysää siimaa veteen osuessa (osuus heiton pituudesta). */
   landingSlack: 0.04,
 } as const;
 
-export const createFishing = (): FishingState => ({
+export const createFishing = (tackle: Tackle = DEFAULT_TACKLE): FishingState => ({
   stage: 'idle',
   charge: 0,
   power: 0,
@@ -135,6 +142,7 @@ export const createFishing = (): FishingState => ({
   struckId: null,
   strikeAge: 0,
   hookedId: null,
+  tackle: { ...tackle },
 });
 
 export interface Catch {
@@ -157,6 +165,10 @@ export interface FishingEvents {
   escaped?: boolean;
   /** Siima katkesi. */
   lineBroken?: boolean;
+  /** Hauki katkaisi siiman hampaillaan (ei perukkaa). */
+  bitOff?: boolean;
+  /** Varusteet vaihdettiin. */
+  tackleChanged?: boolean;
   caught?: Catch;
 }
 
@@ -179,6 +191,7 @@ export function lureInfo(s: FishingState, ctx: FishingContext): LureInfo | null 
     speed: s.lureSpeed,
     fishable: s.hookedId === null,
     tip: rodTip(ctx.tubePos, ctx.heading),
+    tackle: s.tackle,
   };
 }
 
@@ -204,6 +217,10 @@ export function stepFishing(
     );
   }
   if (input.gear !== undefined) s.gear = Math.max(0, Math.min(REEL.gears.length - 1, input.gear));
+  if (input.tackle && (s.stage === 'idle' || s.stage === 'charging')) {
+    s.tackle = { ...input.tackle };
+    events.tackleChanged = true;
+  }
   s.dragSlipping = false;
 
   switch (s.stage) {
@@ -231,7 +248,7 @@ export function stepFishing(
         break;
       }
       s.power = chargePower(s.charge);
-      s.flight = launchLure(tip, castAngle(ctx, input.aim), s.power);
+      s.flight = launchLure(tip, castAngle(ctx, input.aim), s.power, tackleCastFactor(s.tackle));
       s.stage = 'flight';
       events.cast = s.power;
       break;
@@ -274,9 +291,11 @@ export function stepFishing(
         pullLure(s, tip, dt);
         if (s.onLand && ctx.isWater(s.lure)) s.onLand = false;
         if (!s.onLand) {
-          const bottom = ctx.depthAt(s.lure);
-          const rate = LURE.sinkRate - LURE.lift * s.lureSpeed;
-          s.depth = Math.max(0, Math.min(bottom, s.depth + rate * dt));
+          const lure = LURES[s.tackle.lure];
+          const rate = lure.sinkRate - lure.lift * s.lureSpeed;
+          // Vaappu sukeltaa vain lippansa syvyyteen; syvemmältä se ei kelatessa painu.
+          const limit = Math.min(ctx.depthAt(s.lure), Math.max(lure.maxDepth, s.depth));
+          s.depth = Math.max(0, Math.min(limit, s.depth + rate * dt));
         }
       }
       stepLine(s.line, tip, s.lure, s.lineLength, dt, { x: 0.15, y: 0.1 });
@@ -425,8 +444,20 @@ function fight(
   s.depth = f.depth;
   s.lureSpeed = 0;
 
-  if (diff.lineCanBreak && tension > REEL.lineStrength) {
+  if (diff.lineCanBreak && tension > LINES[s.tackle.line].strength) {
     events.lineBroken = true;
+    release(f, rng);
+    resetFishing(s);
+    return;
+  }
+  if (
+    diff.lineCanBreak &&
+    f.species === 'pike' &&
+    !s.tackle.leader &&
+    rng.chance(PIKE_BITE_OFF_RATE, dt)
+  ) {
+    events.lineBroken = true;
+    events.bitOff = true;
     release(f, rng);
     resetFishing(s);
     return;
