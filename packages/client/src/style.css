@@ -275,3 +275,16 @@ body {
   font-size: calc(var(--u) * 8);
   color: #c3cbd2;
 }
+
+.bench-result {
+  position: absolute;
+  left: 16px;
+  top: 40px;
+  margin: 0;
+  padding: 12px;
+  background: rgb(11 15 20 / 85%);
+  color: #9ef0d6;
+  font-size: 14px;
+  white-space: pre-wrap;
+  max-width: calc(100% - 64px);
+}
