@@ -328,9 +328,10 @@ export class SoloGame {
   render(alpha: number): void {
     const a = this.prevTube;
     const b = this.tube;
+    const offset = this.net?.world.renderOffset ?? { x: 0, y: 0 };
     const pos = {
-      x: a.pos.x + (b.pos.x - a.pos.x) * alpha,
-      y: a.pos.y + (b.pos.y - a.pos.y) * alpha,
+      x: a.pos.x + (b.pos.x - a.pos.x) * alpha + offset.x,
+      y: a.pos.y + (b.pos.y - a.pos.y) * alpha + offset.y,
     };
     this.tubeMesh.position.copy(toWorld(pos));
     this.tubeMesh.rotation.y = lerpAngle(a.heading, b.heading, alpha);

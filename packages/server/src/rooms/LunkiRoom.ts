@@ -15,7 +15,6 @@ import {
   findLaunchPoint,
   isPlausibleSplash,
   sanitizeName,
-  stepPlayerTube,
   validateSettingsPatch,
   type InputMessage,
   type JoinOptions,
@@ -24,6 +23,7 @@ import {
   type Vec2,
 } from '@lunki/shared';
 import { releaseCode, reserveCode } from './codes';
+import { stepSims, type Sim } from './simulation';
 import { LunkiState, PlayerState } from './state';
 
 export interface CreateOptions extends Partial<JoinOptions> {
@@ -37,11 +37,6 @@ const water = new WaterBody(LUNKINJARVI);
 const SPAWN_SPACING = 15;
 /** …ja samalta rannalta, korkeintaan näin kaukana ensimmäisestä (m). */
 const SPAWN_RADIUS = 120;
-
-interface Sim {
-  tube: TubeState;
-  inputs: InputQueue;
-}
 
 /**
  * Yksi kilpailuhuone. Huoneen tunniste on lyhyt koodi (esim. 4F7K), jolla
@@ -194,15 +189,14 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     });
   }
 
-  /** Yksi palvelimen askel: jokainen rengas etenee yhdellä syötteellään. */
+  /** Yksi palvelimen askel (ks. stepSims). */
   private step() {
-    this.sims.forEach((sim, id) => {
-      const input = sim.inputs.next();
-      if (!input) return;
-      sim.tube = stepPlayerTube(sim.tube, input, water);
-      const p = this.state.players.get(id);
-      if (p) writeTube(p, sim.tube, sim.inputs.lastSeq);
-    });
+    const ids = [...this.sims.keys()];
+    const sims = ids.map((id) => this.sims.get(id)!);
+    for (const i of stepSims(sims, water)) {
+      const p = this.state.players.get(ids[i]!);
+      if (p) writeTube(p, sims[i]!.tube, sims[i]!.inputs.lastSeq);
+    }
   }
 
   /** Lisää numeron, jos sama nimi on jo huoneessa. */
