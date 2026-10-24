@@ -28,7 +28,7 @@ export function createLakeMesh(map: LakeMap): THREE.Group {
   for (const island of map.islands) shape.holes.push(new THREE.Path(toShapePoints(island)));
   const water = new THREE.Mesh(
     new THREE.ShapeGeometry(shape),
-    new THREE.MeshLambertMaterial({ color: 0x1b5a84 }),
+    new THREE.MeshLambertMaterial({ color: 0xffffff, map: createWaterTexture() }),
   );
   water.rotation.x = -Math.PI / 2;
   water.name = 'water';
@@ -44,4 +44,37 @@ export function createLakeMesh(map: LakeMap): THREE.Group {
     group.add(line);
   }
   return group;
+}
+
+/**
+ * Vedenpinnan pikselikuvio: harvoja välkehtiviä aallonharjoja tummalla pohjalla.
+ * ShapeGeometryn UV:t ovat metrejä, joten toisto määrää tekselin koon (0,25 m).
+ */
+function createWaterTexture(): THREE.Texture {
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#1b5a84';
+  ctx.fillRect(0, 0, size, size);
+  // Kiinteä siemen, jotta kuvio on aina sama.
+  let seed = 7;
+  const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < 220; i++) {
+    const x = Math.floor(rand() * size);
+    const y = Math.floor(rand() * size);
+    const len = 2 + Math.floor(rand() * 4);
+    ctx.fillStyle = rand() < 0.6 ? '#2b7aa6' : '#123a5c';
+    ctx.fillRect(x, y, len, 1);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(1 / 32, 1 / 32);
+  texture.magFilter = THREE.NearestFilter;
+  // Kaukaa katsottuna kuvio sulautuu pohjaväriin eikä välky.
+  texture.minFilter = THREE.NearestMipmapLinearFilter;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
 }
