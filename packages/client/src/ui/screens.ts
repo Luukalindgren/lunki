@@ -10,12 +10,14 @@ import {
   DURATIONS,
   formatTime,
   formatWeight,
+  isSpeciesId,
   summarize,
   type CompetitionSettings,
   type CompetitionState,
   type Difficulty,
   type PlayerResult,
   type RoomSettings,
+  type SpeciesId,
   type WinRule,
 } from '@lunki/shared';
 import type { LobbyView } from '../net/session';
@@ -25,7 +27,11 @@ const SETTINGS_KEY = 'lunki.soloSettings';
 export function loadSettings(defaults: CompetitionSettings): CompetitionSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    if (raw) return { ...defaults, ...(JSON.parse(raw) as Partial<CompetitionSettings>) };
+    if (raw) {
+      const s = { ...defaults, ...(JSON.parse(raw) as Partial<CompetitionSettings>) };
+      const species = Array.isArray(s.species) ? s.species.filter(isSpeciesId) : [];
+      return { ...s, species: species.length > 0 ? species : defaults.species };
+    }
   } catch {
     // Selaimen muisti ei käytössä: oletukset kelpaavat.
   }
@@ -87,6 +93,7 @@ export class Screens {
         'Helppo: kala tarttuu aina ja tulee ylös kelaamalla. Realistinen: vastaisku, jarru ja siiman kireys ratkaisevat.',
         'hint',
       ),
+      this.speciesChoice(settings.species ?? [], (list) => (settings.species = list)),
       this.buttons([
         [
           'Aloita kisa',
@@ -398,6 +405,7 @@ export class Screens {
         String(s.maxPlayers),
         (v) => change({ maxPlayers: Number(v) }),
       ),
+      this.speciesChoice(s.species, (species) => change({ species })),
       h('p', 'Tulossa myöhemmin:', 'hint'),
       this.choice(
         'Sää',
@@ -417,14 +425,38 @@ export class Screens {
         s.capsizePenalty,
         () => undefined,
       ),
-      this.choice(
-        'Kalalajit',
-        SPECIES_OPTIONS.map((o) => [o.value, o.label, !o.ready]),
-        s.species[0] ?? 'perch',
-        () => undefined,
-      ),
     );
     return box;
+  }
+
+  /** Monivalinta: järven kalalajit. Vähintään yksi laji jää aina valituksi. */
+  private speciesChoice(
+    initial: readonly SpeciesId[],
+    onChange: (species: SpeciesId[]) => void,
+  ): HTMLElement {
+    const selected = new Set(initial);
+    const row = document.createElement('div');
+    row.className = 'choice';
+    row.append(h('span', 'Kalalajit', 'choice-label'));
+    const group = document.createElement('div');
+    group.className = 'choice-options';
+    for (const o of SPECIES_OPTIONS) {
+      const b = document.createElement('button');
+      b.textContent = o.native ? o.label : `${o.label}*`;
+      if (!o.native) b.title = 'Ei elä Lunkinjärvessä';
+      b.classList.toggle('selected', selected.has(o.value));
+      b.addEventListener('click', () => {
+        if (selected.has(o.value)) {
+          if (selected.size === 1) return;
+          selected.delete(o.value);
+        } else selected.add(o.value);
+        b.classList.toggle('selected', selected.has(o.value));
+        onChange(SPECIES_OPTIONS.map((x) => x.value).filter((v) => selected.has(v)));
+      });
+      group.appendChild(b);
+    }
+    row.append(group, h('p', '* Ei Lunkinjärven oma laji, lisätään huvin vuoksi.', 'hint'));
+    return row;
   }
 
   /** Muut pelaajat näkevät asetukset tekstinä. */

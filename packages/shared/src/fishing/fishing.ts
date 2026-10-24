@@ -456,9 +456,15 @@ function release(f: FishPopulation['fish'][number], rng: Rng) {
   f.stamina = 1;
 }
 
-/** Uusi kala syntyy jonkin toisen kalan lähelle (parvet säilyvät). */
-function respawnPoint(pop: FishPopulation, caught: { id: number }, rng: Rng): Vec2 {
-  const others = pop.fish.filter((x) => x.id !== caught.id && x.mode === 'roam');
+/** Uusi kala syntyy saman lajin toisen kalan lähelle (parvet ja elinalueet säilyvät). */
+function respawnPoint(
+  pop: FishPopulation,
+  caught: { id: number; species: SpeciesId },
+  rng: Rng,
+): Vec2 {
+  const roaming = pop.fish.filter((x) => x.id !== caught.id && x.mode === 'roam');
+  const same = roaming.filter((x) => x.species === caught.species);
+  const others = same.length > 0 ? same : roaming;
   const host = others[Math.floor(rng.next() * others.length)];
   return host ? { ...host.pos } : { x: 0, y: 0 };
 }

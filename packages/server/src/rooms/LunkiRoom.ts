@@ -114,6 +114,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
           splashedSinceLastCatch: sim.splashed,
           now,
           lastCatchAt: sim.lastCatchAt,
+          species: [...this.state.settings.species],
         })
       ) {
         client.send(ServerMsg.catchRejected);

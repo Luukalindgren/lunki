@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { Rng } from '../rng';
 import { DIFFICULTIES, type Difficulty } from './difficulty';
-import { SPECIES, randomWeight, spawnFish, stepFishPopulation, type FishPopulation } from './fish';
+import {
+  NATIVE_SPECIES,
+  SPECIES,
+  SPECIES_IDS,
+  createFishPopulation,
+  randomWeight,
+  spawnFish,
+  stepFishPopulation,
+  type FishPopulation,
+  type SpeciesId,
+} from './fish';
 import {
   createFishing,
   lureInfo,
@@ -133,5 +143,90 @@ describe('kalat', () => {
     sim.s.lineLength += 15;
     for (let i = 0; i < 6 / DT && sim.s.hookedId !== null; i++) step(sim, {});
     expect(sim.log.some((e) => e.escaped || e.caught)).toBe(true);
+  });
+});
+
+describe('kalalajit', () => {
+  // Kaistale, jonka pohja syvenee rannasta (y = ±150) keskelle 6,5 m:iin.
+  const lake = {
+    isWater: (p: { x: number; y: number }) => Math.abs(p.x) < 400 && Math.abs(p.y) < 150,
+    depthAt: (p: { x: number; y: number }) =>
+      Math.max(0.2, Math.min(6.5, (150 - Math.abs(p.y)) * 0.05)),
+  };
+  const bounds = { minX: -400, minY: -150, maxX: 400, maxY: 150 };
+  const count = (pop: FishPopulation, id: SpeciesId) =>
+    pop.fish.filter((f) => f.species === id).length;
+
+  it('oletuksena järvessä on ahven, hauki ja särki', () => {
+    expect(NATIVE_SPECIES).toEqual(['perch', 'pike', 'roach']);
+    const pop = createFishPopulation(lake, bounds, new Rng(1), 1800);
+    expect(pop.fish).toHaveLength(1800);
+    expect(count(pop, 'perch')).toBeGreaterThan(count(pop, 'roach'));
+    expect(count(pop, 'roach')).toBeGreaterThan(count(pop, 'pike'));
+    expect(count(pop, 'pike')).toBeGreaterThan(50);
+    expect(count(pop, 'zander') + count(pop, 'trout')).toBe(0);
+  });
+
+  it('asetus määrää lajiston', () => {
+    const pop = createFishPopulation(lake, bounds, new Rng(2), 600, ['zander', 'trout']);
+    expect(count(pop, 'zander') + count(pop, 'trout')).toBe(600);
+    // Tyhjä tai tuntematon lista palaa oletuslajistoon.
+    const fallback = createFishPopulation(lake, bounds, new Rng(2), 100, []);
+    expect(new Set(fallback.fish.map((f) => f.species))).toEqual(new Set(NATIVE_SPECIES));
+  });
+
+  it('lajit asettuvat omiin syvyyksiinsä', () => {
+    const pop = createFishPopulation(lake, bounds, new Rng(3), 3000, SPECIES_IDS);
+    const medianDepth = (id: SpeciesId) => {
+      const d = pop.fish
+        .filter((f) => f.species === id)
+        .map((f) => lake.depthAt(f.pos))
+        .sort((a, b) => a - b);
+      return d[Math.floor(d.length / 2)]!;
+    };
+    // Hauki rantakaislikon reunalla, kuha syvänteessä.
+    expect(medianDepth('pike')).toBeLessThan(2.5);
+    expect(medianDepth('zander')).toBeGreaterThan(4);
+    expect(medianDepth('pike')).toBeLessThan(medianDepth('perch'));
+  });
+
+  it('hauet ovat isompia ja harvinaisia jättejä syntyy', () => {
+    const rng = new Rng(4);
+    const pike = Array.from({ length: 4000 }, () => randomWeight(SPECIES.pike, rng));
+    const perch = Array.from({ length: 4000 }, () => randomWeight(SPECIES.perch, rng));
+    const median = (ws: number[]) => [...ws].sort((a, b) => a - b)[ws.length / 2]!;
+    expect(median(pike)).toBeGreaterThan(5 * median(perch));
+    expect(pike.filter((w) => w > 5).length).toBeGreaterThan(10);
+    expect(perch.filter((w) => w > 0.8).length).toBeGreaterThan(5);
+  });
+
+  it('särki tarttuu uistimeen harvemmin kuin ahven', () => {
+    const strikes = (id: SpeciesId) => {
+      let n = 0;
+      for (let seed = 1; seed <= 30; seed++) {
+        const rng = new Rng(seed);
+        const pop: FishPopulation = { fish: [], nextId: 1, tick: 0 };
+        const f = spawnFish(pop, id, { x: 3, y: 0 }, world, rng);
+        f.depth = 1.5;
+        pop.fish.push(f);
+        // Viehe kulkee lajin mieluisaa vauhtia kalan edessä.
+        const lure = {
+          pos: { x: 4, y: 0 },
+          depth: 1.5,
+          speed: SPECIES[id].preferredSpeed,
+          fishable: true,
+          tip: { x: -20, y: 0 },
+        };
+        for (let i = 0; i < 20 / DT; i++) {
+          const ev = stepFishPopulation(pop, lure, world, DIFFICULTIES.normal, rng, DT);
+          if (ev.strike) {
+            n++;
+            break;
+          }
+        }
+      }
+      return n;
+    };
+    expect(strikes('roach')).toBeLessThan(strikes('perch'));
   });
 });

@@ -83,4 +83,9 @@ describe('saaliin tarkistus', () => {
     ).toBe(false);
     expect(isPlausibleCatch(null, ok)).toBe(false);
   });
+  it('hylkää lajin, jota huoneen järvessä ei ole', () => {
+    const pike = { species: 'pike' as const, name: 'Hauki', weight: 2 };
+    expect(isPlausibleCatch(pike, { ...ok, species: ['perch', 'pike'] })).toBe(true);
+    expect(isPlausibleCatch(pike, { ...ok, species: ['perch'] })).toBe(false);
+  });
 });

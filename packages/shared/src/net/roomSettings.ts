@@ -1,4 +1,5 @@
 import { DIFFICULTIES, type Difficulty } from '../fishing/difficulty';
+import { SPECIES, SPECIES_IDS, type SpeciesId } from '../fishing/fish';
 import { DURATIONS, type CompetitionSettings, type WinRule } from '../game/competition';
 import { MAX_PLAYERS_LIMIT } from './protocol';
 
@@ -14,8 +15,8 @@ export interface RoomSettings extends CompetitionSettings {
   lightningPenalty: Penalty;
   /** Renkaan kaatumisen rangaistus (vaihe 4). */
   capsizePenalty: Penalty;
-  /** Kalalajit (vaihe 3). */
-  species: string[];
+  /** Järven kalalajit. */
+  species: SpeciesId[];
 }
 
 export type Weather = 'calm' | 'variable' | 'stormy';
@@ -36,12 +37,9 @@ export const PENALTY_OPTIONS: { value: Penalty; label: string; ready: boolean }[
   { value: 'time-out', label: 'Jäähy', ready: false },
 ];
 
-export const SPECIES_OPTIONS: { value: string; label: string; ready: boolean }[] = [
-  { value: 'perch', label: 'Ahven', ready: true },
-  { value: 'pike', label: 'Hauki', ready: false },
-  { value: 'roach', label: 'Särki', ready: false },
-  { value: 'zander', label: 'Kuha', ready: false },
-];
+/** Lajit valintoina; `native` = elää oikeasti Lunkinjärvessä. */
+export const SPECIES_OPTIONS: { value: SpeciesId; label: string; native: boolean }[] =
+  SPECIES_IDS.map((id) => ({ value: id, label: SPECIES[id].name, native: SPECIES[id].native }));
 
 const readyValues = <T>(list: { value: T; ready: boolean }[]) =>
   list.filter((o) => o.ready).map((o) => o.value);
@@ -73,10 +71,9 @@ export function validateSettingsPatch(patch: unknown, playerCount: number): Part
   if (readyValues(PENALTY_OPTIONS).includes(p.capsizePenalty as Penalty))
     out.capsizePenalty = p.capsizePenalty as Penalty;
   if (Array.isArray(p.species)) {
-    const allowed = readyValues(SPECIES_OPTIONS);
-    const species = [...new Set(p.species)].filter((s): s is string =>
-      allowed.includes(s as string),
-    );
+    // Järjestys aina sama, jotta sama valinta tuottaa saman järven.
+    const wanted = new Set<unknown>(p.species);
+    const species = SPECIES_IDS.filter((id) => wanted.has(id));
     if (species.length > 0) out.species = species;
   }
   return out;
