@@ -26,7 +26,9 @@ jobs:
           # GitHubin ajoympäristössä IPv6-yhteydet Overpassiin aikakatkaistaan.
           NODE_OPTIONS: --dns-result-order=ipv4first
       - name: Tulosta data lokiin
-        run: fold -w 4000 packages/map-pipeline/data/osm-lunkinjarvi.json
+        run: |
+          sha256sum packages/map-pipeline/data/osm-lunkinjarvi.json
+          fold -w 4000 packages/map-pipeline/data/osm-lunkinjarvi.json
       - uses: actions/upload-artifact@v4
         with:
           name: osm-lunkinjarvi

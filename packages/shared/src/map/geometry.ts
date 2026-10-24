@@ -56,3 +56,31 @@ function simplifyPath(points: readonly Vec2[], tolerance: number): Vec2[] {
   const right = simplifyPath(points.slice(index), tolerance);
   return [...left.slice(0, -1), ...right];
 }
+
+/**
+ * Etsii vesialueelta pisteen, joka on kauimpana rannasta (karkea ruudukkohaku).
+ * Käytetään esim. aloituspaikan valintaan.
+ */
+export function findOpenWaterPoint(
+  water: {
+    isWater(p: Vec2): boolean;
+    closestShorePoint(p: Vec2): { distance: number } | null;
+  },
+  bounds: { minX: number; minY: number; maxX: number; maxY: number },
+  step = 20,
+): Vec2 {
+  let best: Vec2 = { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 };
+  let bestDist = -1;
+  for (let y = bounds.minY + step / 2; y < bounds.maxY; y += step) {
+    for (let x = bounds.minX + step / 2; x < bounds.maxX; x += step) {
+      const p = { x, y };
+      if (!water.isWater(p)) continue;
+      const d = water.closestShorePoint(p)?.distance ?? 0;
+      if (d > bestDist) {
+        bestDist = d;
+        best = p;
+      }
+    }
+  }
+  return best;
+}

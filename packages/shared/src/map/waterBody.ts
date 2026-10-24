@@ -104,8 +104,32 @@ export class WaterBody {
   }
 
   /**
-   * Pitää r-säteisen ympyrän vedessä. Palauttaa korjauksen, jos ympyrä osui
-   * rantaan, muuten null.
+   * Siirtää r-säteisen ympyrän pisteestä `from` pisteeseen `to` ja pitää sen
+   * vedessä. Jos korjaus ei onnistu (esim. kapea poukama), ympyrä jää paikalleen.
+   */
+  moveCircle(from: Vec2, to: Vec2, radius: number): ShoreHit | null {
+    let p = to;
+    let normal: Vec2 | null = null;
+    // Terävissä kulmissa yksi korjaus voi työntää toisen rantajanan päälle.
+    for (let i = 0; i < 4; i++) {
+      const hit = this.resolveCircle(p, radius);
+      if (!hit) return normal ? { position: p, normal } : null;
+      p = hit.position;
+      normal = hit.normal;
+    }
+    if (
+      this.isWater(p) &&
+      (this.closestShorePoint(p, radius)?.distance ?? radius) >= radius * 0.9
+    ) {
+      return { position: p, normal: normal! };
+    }
+    const back = this.resolveCircle(from, radius);
+    return { position: back?.position ?? from, normal: normal ?? back?.normal ?? { x: 0, y: 0 } };
+  }
+
+  /**
+   * Yksi korjausaskel: työntää r-säteisen ympyrän pois lähimmästä rannasta.
+   * Palauttaa korjauksen, jos ympyrä osui rantaan, muuten null.
    */
   resolveCircle(p: Vec2, radius: number): ShoreHit | null {
     const inWater = this.isWater(p);
