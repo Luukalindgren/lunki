@@ -18,6 +18,8 @@ const SPLASH_TIME = 0.6;
 /** Heittoviiva, osumakohta, viehe, siima ja roiskeet. */
 export class FishingView {
   readonly group = new THREE.Group();
+  /** Kalastajan silmin -näkymä. */
+  pov = false;
   private readonly aimLine: THREE.Line;
   private readonly aimMarker: THREE.Mesh;
   private readonly lure: THREE.Mesh;
@@ -105,7 +107,8 @@ export class FishingView {
     const tip = rodTip(ctx.tubePos, ctx.heading);
 
     // Tähtäys näkyy aina, kun vapa on valmiina; latauksessa osumakohta seuraa voimaa.
-    const aiming = s.stage === 'idle' || s.stage === 'charging';
+    // Kalastajan silmin tähtäimenä on hiiri; osumakohta näkyy vasta latauksessa.
+    const aiming = this.pov ? s.stage === 'charging' : s.stage === 'idle' || s.stage === 'charging';
     this.aimLine.visible = aiming;
     this.aimMarker.visible = aiming;
     if (aiming) {
@@ -131,7 +134,11 @@ export class FishingView {
     if (out) {
       const height = s.flight?.height ?? 0;
       // Ylhäältä katsottuna korkeus näkyy siirtymänä pohjoiseen varjosta.
-      this.lure.position.copy(toWorld({ x: s.lure.x, y: s.lure.y + height * 0.35 }, 0.3));
+      this.lure.position.copy(
+        this.pov
+          ? toWorld(s.lure, 0.15 + height)
+          : toWorld({ x: s.lure.x, y: s.lure.y + height * 0.35 }, 0.3),
+      );
       this.lureShadow.position.copy(toWorld(s.lure, 0.03));
       const depthFade = Math.min(1, s.depth / 2);
       (this.lure.material as THREE.MeshBasicMaterial).color.setHex(

@@ -26,6 +26,7 @@ import {
   LakeBottom,
   LUNKINJARVI_BOTTOM,
   resetFishing,
+  rodTip,
   sonarPing,
   stepFishing,
   stepTube,
@@ -43,6 +44,9 @@ import {
 } from '@lunki/shared';
 import type { Input } from '../engine/input';
 import { createBottomMesh } from '../world/bottomMesh';
+import { createShoreScenery } from '../world/shoreScenery';
+import type { RetroResolution } from '../engine/resolution';
+import { PovCamera } from './povCamera';
 import { createLakeMesh, toWorld } from '../world/lakeMesh';
 import type { NetWorld } from '../net/netWorld';
 import { RemotePlayersView } from './remotePlayersView';
@@ -55,6 +59,8 @@ import { animateFins, createTubeMesh } from './tubeMesh';
 
 /** Kalojen määrä järvessä. Saatujen tilalle syntyy uusia. */
 const FISH_COUNT = 1800;
+const LAND_COLOR = 0x24502c;
+const SKY_COLOR = 0x83c2db;
 
 /** Pohja lasketaan kerran karttaa kohden (valikon taustajärvi ja kisa jakavat sen). */
 const bottoms = new WeakMap<LakeMap, LakeBottom>();
@@ -93,6 +99,11 @@ export interface NetLink {
 export class SoloGame {
   readonly scene = new THREE.Scene();
   readonly view = new TopDownCamera();
+  /** Kalastajan silmin -näkymä (V vaihtaa). */
+  readonly pov = new PovCamera();
+  viewMode: 'top' | 'pov' = 'top';
+  private readonly scenery: THREE.Group;
+  private readonly povRod: THREE.Line;
   readonly water: WaterBody;
   readonly bottom: LakeBottom;
   tube: TubeState;
@@ -149,7 +160,7 @@ export class SoloGame {
     }
     this.prevTube = this.tube;
 
-    this.scene.background = new THREE.Color(0x24502c);
+    this.scene.background = new THREE.Color(LAND_COLOR);
     this.scene.add(new THREE.HemisphereLight(0xeef2f3, 0x24502c, 1.5));
     const sun = new THREE.DirectionalLight(0xfff3b0, 1.5);
     sun.position.set(-50, 100, -30);
@@ -157,6 +168,16 @@ export class SoloGame {
     this.scene.add(createLakeMesh(map));
     this.scene.add(createBottomMesh(this.bottom));
     this.scene.add(this.tubeMesh);
+    this.scenery = createShoreScenery(map);
+    this.scenery.visible = false;
+    this.scene.add(this.scenery);
+    this.povRod = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+      new THREE.LineBasicMaterial({ color: 0xf6d04d }),
+    );
+    this.povRod.visible = false;
+    this.povRod.frustumCulled = false;
+    this.scene.add(this.povRod);
     this.scene.add(this.fishingView.group);
     this.view.snapTo(this.tube.pos);
     hud.setCountdown(null);
@@ -189,6 +210,28 @@ export class SoloGame {
     };
   }
 
+  /** Aktiivinen kamera piirtoa varten. */
+  get camera(): THREE.Camera {
+    return this.viewMode === 'pov' ? this.pov.camera : this.view.camera;
+  }
+
+  setResolution(r: RetroResolution): void {
+    this.view.setResolution(r);
+    this.pov.setResolution(r);
+  }
+
+  setViewMode(mode: 'top' | 'pov'): void {
+    this.viewMode = mode;
+    const pov = mode === 'pov';
+    this.scenery.visible = pov;
+    this.povRod.visible = pov;
+    this.tubeMesh.visible = !pov;
+    this.scene.background = new THREE.Color(pov ? SKY_COLOR : LAND_COLOR);
+    this.scene.fog = pov ? new THREE.Fog(SKY_COLOR, 500, 2600) : null;
+    this.fishingView.pov = pov;
+    this.hud.showMessage(pov ? 'Kalastajan silmin (V)' : 'Ylhäältä (V)', 1.2);
+  }
+
   /** Vaihtaa varusteet heti, tai kun viehe seuraavan kerran on kelalla. */
   setTackle(t: Tackle): void {
     this.pendingTackle = { ...t };
@@ -219,6 +262,7 @@ export class SoloGame {
     if (input.wheel !== 0) this.view.zoom(input.wheel);
     if (input.wasPressed('KeyH')) this.hud.toggleHelp();
     if (input.wasPressed('KeyK')) this.hud.sonar.toggle();
+    if (input.wasPressed('KeyV')) this.setViewMode(this.viewMode === 'top' ? 'pov' : 'top');
     if (input.wasPressed('KeyR'))
       this.setTackle(nextLure(this.pendingTackle ?? this.fishing.tackle));
 
@@ -241,7 +285,10 @@ export class SoloGame {
     }
 
     const internal = this.screenToInternal(input.mouseX, input.mouseY);
-    this.aim = this.view.internalToWorld(internal.x, internal.y);
+    this.aim = (this.viewMode === 'pov' ? this.pov : this.view).internalToWorld(
+      internal.x,
+      internal.y,
+    );
     const f = this.fishing;
     const lureOut = f.stage === 'flight' || f.stage === 'water';
     const reeling = !frozen && lureOut && (input.isDown('Mouse0') || input.isDown('Space'));
@@ -450,14 +497,30 @@ export class SoloGame {
       x: a.pos.x + (b.pos.x - a.pos.x) * alpha + offset.x,
       y: a.pos.y + (b.pos.y - a.pos.y) * alpha + offset.y,
     };
+    const heading = lerpAngle(a.heading, b.heading, alpha);
     this.tubeMesh.position.copy(toWorld(pos));
-    this.tubeMesh.rotation.y = lerpAngle(a.heading, b.heading, alpha);
+    this.tubeMesh.rotation.y = heading;
     animateFins(this.tubeMesh, b.kickPhase);
     const hooked = this.fish.fish.find((x) => x.id === this.fishing.hookedId) ?? null;
     this.fishingView.update(this.fishing, this.fishingContext(), this.aim, 1 / 60, hooked);
     this.view.apply();
+    if (this.viewMode === 'pov') {
+      this.pov.apply(pos, heading, b.kickPhase);
+      // Vapa oikeasta kädestä kärkeen; kärki on siiman alkupiste.
+      const tip = rodTip(pos, heading);
+      const hand = {
+        x: pos.x + Math.cos(heading - 1.1) * 0.45,
+        y: pos.y + Math.sin(heading - 1.1) * 0.45,
+      };
+      const attr = this.povRod.geometry.getAttribute('position') as THREE.BufferAttribute;
+      const h0 = toWorld(hand, 0.3);
+      const h1 = toWorld(tip, 1.2);
+      attr.setXYZ(0, h0.x, h0.y, h0.z);
+      attr.setXYZ(1, h1.x, h1.y, h1.z);
+      attr.needsUpdate = true;
+    }
     if (this.net && this.remoteView)
-      this.remoteView.update(this.net.world.others(), this.view.camera, this.net.canvas);
+      this.remoteView.update(this.net.world.others(), this.camera, this.net.canvas);
   }
 }
 
