@@ -73,6 +73,8 @@ export class Input {
   }
 
   private onKeyDown = (e: KeyboardEvent) => {
+    // Tekstikenttiin kirjoittaminen ei ohjaa peliä.
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
     if (e.code.startsWith('Arrow') || e.code === 'Space' || e.code.startsWith('F')) {
       if (e.code !== 'F5' && e.code !== 'F11' && e.code !== 'F12') e.preventDefault();
     }

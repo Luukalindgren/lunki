@@ -1,6 +1,7 @@
 export * from './fishing';
 export * from './game';
 export * from './map';
+export * from './net';
 export * from './physics';
 export * from './rng';
 export * from './vec2';

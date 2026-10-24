@@ -1,4 +1,7 @@
 import { GAME_NAME } from '@lunki/shared';
+import { createServer } from './server';
 
-// Colyseus-palvelin tulee tähän vaiheessa 2 (issue #12).
-console.log(`${GAME_NAME}-palvelin: ei vielä toteutettu`);
+const port = Number(process.env.PORT ?? 2567);
+const server = createServer();
+await server.listen(port);
+console.log(`${GAME_NAME}-palvelin kuuntelee porttia ${port}`);
