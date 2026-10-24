@@ -1,4 +1,4 @@
-export * from './depth';
+export * from './bottom';
 export * from './geometry';
 export * from './lunkinjarvi';
 export * from './projection';

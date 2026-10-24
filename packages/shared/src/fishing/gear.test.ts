@@ -139,3 +139,57 @@ describe('vieheet ja siimat', () => {
     expect(isTackle({ lure: 'jig', line: 'thin' })).toBe(false);
   });
 });
+
+describe('pohjatartunta', () => {
+  const rocks = { kind: 'rocks' as const, pos: { x: 30, y: 0 }, radius: 12 };
+  /** Viehe kivikon kohdalla pohjassa, kelataan kunnes jotain tapahtuu. */
+  function snagRun(seed: number, drag = 1, line: Tackle['line'] = 'medium') {
+    const rng = new Rng(seed);
+    const s = createFishing(tackle({ lure: 'jig', line }));
+    s.stage = 'water';
+    s.lure = { x: 32, y: 0 };
+    s.lineLength = 30;
+    s.depth = 6;
+    s.drag = drag;
+    const ctx: FishingContext = {
+      tubePos: { x: 0, y: 0 },
+      heading: 0,
+      ...world,
+      structureAt: (p) => (distance(p, rocks.pos) <= rocks.radius ? rocks : null),
+      fish: { pop: { fish: [], nextId: 1, tick: 0 }, diff: DIFFICULTIES.normal, rng },
+    };
+    const log: FishingEvents[] = [];
+    for (let i = 0; i < 30 / DT && s.stage === 'water'; i++) {
+      // Nykäisyjigaus: kelataan ja tauotetaan, jolloin jigi painuu pohjaan.
+      const reel = s.snag !== null || Math.floor(i / 40) % 2 === 0;
+      log.push(
+        stepFishing(s, { aim: { x: 30, y: 0 }, castHeld: false, reel, cancel: false }, ctx, DT),
+      );
+    }
+    return log;
+  }
+
+  it('pohjaa hipova viehe tarttuu kivikkoon ja irtoaa tai jää pohjaan', () => {
+    let snagged = 0;
+    let freed = 0;
+    let lost = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+      const log = snagRun(seed);
+      if (log.some((e) => e.snagged)) snagged++;
+      if (log.some((e) => e.unsnagged)) freed++;
+      if (log.some((e) => e.lureLost)) lost++;
+    }
+    expect(snagged).toBeGreaterThan(10);
+    expect(freed).toBeGreaterThan(0);
+    expect(lost).toBeGreaterThan(0);
+  });
+
+  it('liian kireä jarru katkaisee ohuen siiman tartunnassa heti', () => {
+    for (let seed = 1; seed <= 10; seed++) {
+      const log = snagRun(seed, 6, 'thin');
+      if (!log.some((e) => e.snagged)) continue;
+      expect(log.some((e) => e.unsnagged)).toBe(false);
+      expect(log.some((e) => e.lureLost)).toBe(true);
+    }
+  });
+});

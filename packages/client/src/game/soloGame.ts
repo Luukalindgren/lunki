@@ -23,7 +23,8 @@ import {
   stepFishPopulation,
   lerpAngle,
   LureStage,
-  protoDepthAt,
+  LakeBottom,
+  LUNKINJARVI_BOTTOM,
   resetFishing,
   sonarPing,
   stepFishing,
@@ -41,6 +42,7 @@ import {
   type TubeState,
 } from '@lunki/shared';
 import type { Input } from '../engine/input';
+import { createBottomMesh } from '../world/bottomMesh';
 import { createLakeMesh, toWorld } from '../world/lakeMesh';
 import type { NetWorld } from '../net/netWorld';
 import { RemotePlayersView } from './remotePlayersView';
@@ -53,6 +55,18 @@ import { animateFins, createTubeMesh } from './tubeMesh';
 
 /** Kalojen määrä järvessä. Saatujen tilalle syntyy uusia. */
 const FISH_COUNT = 1800;
+
+/** Pohja lasketaan kerran karttaa kohden (valikon taustajärvi ja kisa jakavat sen). */
+const bottoms = new WeakMap<LakeMap, LakeBottom>();
+function bottomFor(map: LakeMap, water: WaterBody): LakeBottom {
+  let b = bottoms.get(map);
+  if (!b) {
+    const features = map === LUNKINJARVI ? LUNKINJARVI_BOTTOM : { maxDepth: 6, features: [] };
+    b = new LakeBottom(water, map.bounds, features);
+    bottoms.set(map, b);
+  }
+  return b;
+}
 
 /** Näppäinasettelu: WASD tai nuolet. */
 export function readTubeInput(input: Input): TubeInput {
@@ -80,6 +94,7 @@ export class SoloGame {
   readonly scene = new THREE.Scene();
   readonly view = new TopDownCamera();
   readonly water: WaterBody;
+  readonly bottom: LakeBottom;
   tube: TubeState;
   private prevTube: TubeState;
   private readonly tubeMesh = createTubeMesh();
@@ -110,9 +125,14 @@ export class SoloGame {
   ) {
     this.competition = createCompetition(settings);
     this.water = new WaterBody(map);
+    this.bottom = bottomFor(map, this.water);
     this.rng = new Rng(seed);
     this.fish = createFishPopulation(
-      { isWater: (p) => this.water.isWater(p), depthAt: (p) => protoDepthAt(this.water, p) },
+      {
+        isWater: (p) => this.water.isWater(p),
+        depthAt: (p) => this.bottom.depthAt(p),
+        structures: this.bottom.structures,
+      },
       map.bounds,
       this.rng,
       FISH_COUNT,
@@ -135,6 +155,7 @@ export class SoloGame {
     sun.position.set(-50, 100, -30);
     this.scene.add(sun);
     this.scene.add(createLakeMesh(map));
+    this.scene.add(createBottomMesh(this.bottom));
     this.scene.add(this.tubeMesh);
     this.scene.add(this.fishingView.group);
     this.view.snapTo(this.tube.pos);
@@ -162,7 +183,8 @@ export class SoloGame {
       tubePos: this.tube.pos,
       heading: this.tube.heading,
       isWater: (p) => this.water.isWater(p),
-      depthAt: (p) => protoDepthAt(this.water, p),
+      depthAt: (p) => this.bottom.depthAt(p),
+      structureAt: (p) => this.bottom.structureAt(p),
       fish: { pop: this.fish, diff: DIFFICULTIES[this.settings.difficulty], rng: this.rng, strike },
     };
   }
@@ -225,7 +247,7 @@ export class SoloGame {
     const reeling = !frozen && lureOut && (input.isDown('Mouse0') || input.isDown('Space'));
     const world = {
       isWater: (p: Vec2) => this.water.isWater(p),
-      depthAt: (p: Vec2) => protoDepthAt(this.water, p),
+      depthAt: (p: Vec2) => this.bottom.depthAt(p),
     };
     const fishEvents = stepFishPopulation(
       this.fish,
@@ -275,10 +297,10 @@ export class SoloGame {
       `Siimaa ${f.lineLength.toFixed(1)} m`,
       `Jarru ${f.drag.toFixed(2)} kg · kela ${f.gear + 1}`,
       `Viehe ${f.stage === 'water' && !f.onLand ? f.depth.toFixed(1) : '0.0'} m`,
-      `Pohja ${protoDepthAt(this.water, lureOut ? f.lure : this.tube.pos).toFixed(1)} m`,
+      `Pohja ${this.bottom.depthAt(lureOut ? f.lure : this.tube.pos).toFixed(1)} m`,
     ]);
     this.hud.sonar.update(dt, () =>
-      sonarPing(this.tube.pos, this.fish.fish, protoDepthAt(this.water, this.tube.pos)),
+      sonarPing(this.tube.pos, this.fish.fish, this.bottom.depthAt(this.tube.pos)),
     );
     const left = timeLeft(this.competition);
     this.hud.setTimer(formatTime(left), left < 60);
@@ -334,9 +356,17 @@ export class SoloGame {
       saveTackle(this.fishing.tackle);
       hud.showMessage(`Viehe: ${LURES[this.fishing.tackle.lure].name}`, 1.5);
     }
+    if (events.snagged) {
+      sfx.strike();
+      hud.showMessage('Pohjatartunta! Kelaa irrottaaksesi', 2);
+    }
+    if (events.unsnagged) hud.showMessage('Viehe irtosi pohjasta', 1.5);
     if (events.bitOff) {
       sfx.lost();
       hud.showMessage('Hauki katkaisi siiman hampaillaan – kokeile teräsperukkaa', 3.5);
+    } else if (events.lureLost) {
+      sfx.lost();
+      hud.showMessage('Siima katkesi – viehe jäi pohjaan', 3);
     } else if (events.lineBroken) {
       sfx.lost();
       hud.showMessage('Siima katkesi! Löysää jarrua (Q) tai vaihda paksumpi siima', 3);

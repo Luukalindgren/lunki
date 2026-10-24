@@ -1,0 +1,21 @@
+{
+  "maxDepth": 8,
+  "features": [
+    { "type": "hole", "name": "Länsiselän syvänne", "x": -250, "y": 150, "radius": 70, "depth": 10.5 },
+    { "type": "shoal", "name": "Itäselän karikko", "x": 650, "y": 0, "radius": 35, "depth": 1.2 },
+    { "type": "shoal", "name": "Salmen matalikko", "x": 60, "y": 60, "radius": 28, "depth": 2.2 },
+    { "type": "dropoff", "name": "Penkan reuna", "x": -150, "y": -20, "radius": 40, "depth": 2.5 },
+    { "type": "rocks", "name": "Lahden kivikko", "x": -880, "y": 470, "radius": 14 },
+    { "type": "rocks", "name": "Länsirannan kivikko", "x": -500, "y": 140, "radius": 15 },
+    { "type": "rocks", "name": "Pohjoisrannan kivet", "x": 420, "y": 160, "radius": 12 },
+    { "type": "rocks", "name": "Itäselän kivikko", "x": 700, "y": -250, "radius": 16 },
+    { "type": "tree", "name": "Kaatunut koivu", "x": -794.8, "y": 469.4, "length": 14, "angle": -2.04 },
+    { "type": "tree", "name": "Kaatunut kuusi", "x": -392, "y": 430.4, "length": 16, "angle": -0.85 },
+    { "type": "tree", "name": "Rantamänty", "x": 428.5, "y": -223.8, "length": 13, "angle": 1.54 },
+    { "type": "tree", "name": "Tervaleppä", "x": 947.7, "y": -322.2, "length": 12, "angle": -2.56 },
+    { "type": "tree", "name": "Kelo", "x": 130.6, "y": 301, "length": 15, "angle": 0.1 },
+    { "type": "steep", "name": "Pohjoisrannan jyrkkä rinne", "x": -300, "y": 400, "radius": 140, "steepness": 2.2 },
+    { "type": "steep", "name": "Itärannan kallio", "x": 960, "y": 60, "radius": 110, "steepness": 1.8 },
+    { "type": "steep", "name": "Luoteislahden loiva pohja", "x": -900, "y": 420, "radius": 160, "steepness": 0.5 }
+  ]
+}

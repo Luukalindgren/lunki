@@ -230,3 +230,23 @@ describe('kalalajit', () => {
     expect(strikes('roach')).toBeLessThan(strikes('perch'));
   });
 });
+
+describe('rakenteet', () => {
+  it('hauet hakeutuvat kaatuneiden puiden luo', () => {
+    const lake = {
+      isWater: (p: { x: number; y: number }) => Math.abs(p.x) < 400 && Math.abs(p.y) < 150,
+      depthAt: () => 2,
+      structures: [{ kind: 'tree' as const, pos: { x: 300, y: 140 }, radius: 9 }],
+    };
+    const pop = createFishPopulation(
+      lake,
+      { minX: -400, minY: -150, maxX: 400, maxY: 150 },
+      new Rng(5),
+      2000,
+      ['pike'],
+    );
+    const nearTree = pop.fish.filter((f) => Math.hypot(f.pos.x - 300, f.pos.y - 140) < 25);
+    // Satunnaisesti alueelle osuisi alle 1 %; rakenteen luona on noin neljännes.
+    expect(nearTree.length / pop.fish.length).toBeGreaterThan(0.15);
+  });
+});

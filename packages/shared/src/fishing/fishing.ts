@@ -1,3 +1,4 @@
+import type { Structure } from '../map/bottom';
 import { distance, type Vec2 } from '../vec2';
 import type { Rng } from '../rng';
 import type { DifficultyParams } from './difficulty';
@@ -81,6 +82,8 @@ export interface FishingState {
   hookedId: number | null;
   /** Viehe, siima ja perukka. */
   tackle: Tackle;
+  /** Pohjaan tarttunut viehe: kuinka kauan sitä on yritetty irrottaa (s), null = vapaa. */
+  snag: number | null;
 }
 
 export interface FishingContext {
@@ -88,6 +91,8 @@ export interface FishingContext {
   heading: number;
   isWater(p: Vec2): boolean;
   depthAt(p: Vec2): number;
+  /** Rakenne (kivikko, puu) vieheen kohdalla: viehe voi tarttua pohjaan. */
+  structureAt?(p: Vec2): Structure | null;
   /** Kalat: ilman tätä kalastetaan tyhjää järveä (testit, harjoittelu). */
   fish?: {
     pop: FishPopulation;
@@ -143,6 +148,7 @@ export const createFishing = (tackle: Tackle = DEFAULT_TACKLE): FishingState => 
   strikeAge: 0,
   hookedId: null,
   tackle: { ...tackle },
+  snag: null,
 });
 
 export interface Catch {
@@ -169,8 +175,23 @@ export interface FishingEvents {
   bitOff?: boolean;
   /** Varusteet vaihdettiin. */
   tackleChanged?: boolean;
+  /** Viehe tarttui pohjaan / irtosi / jäi pohjaan (siima katkesi). */
+  snagged?: boolean;
+  unsnagged?: boolean;
+  lureLost?: boolean;
   caught?: Catch;
 }
+
+/** Pohjaan tarttuminen kivikossa ja kaatuneen puun oksissa. */
+export const SNAG = {
+  /** Todennäköisyys sekunnissa, kun liikkuva viehe hipoo pohjaa rakenteen kohdalla. */
+  rate: 0.9,
+  /** Kuinka lähellä pohjaa (m) viehe voi tarttua. */
+  nearBottom: 0.35,
+  /** Irrotusyrityksen kesto (s) ja onnistumisen todennäköisyys. */
+  pullTime: 1.2,
+  freeChance: 0.6,
+} as const;
 
 export const FIGHT = {
   /** Kala nostetaan, kun se on näin lähellä vavan kärkeä ja pinnassa. */
@@ -287,6 +308,9 @@ export function stepFishing(
 
       if (hooked && fish) {
         fight(s, hooked, tip, ctx, fish, events, dt);
+      } else if (s.snag !== null) {
+        pullSnag(s, tip, reeling, fish, events, dt);
+        if (s.stage !== 'water') break;
       } else {
         pullLure(s, tip, dt);
         if (s.onLand && ctx.isWater(s.lure)) s.onLand = false;
@@ -294,8 +318,23 @@ export function stepFishing(
           const lure = LURES[s.tackle.lure];
           const rate = lure.sinkRate - lure.lift * s.lureSpeed;
           // Vaappu sukeltaa vain lippansa syvyyteen; syvemmältä se ei kelatessa painu.
-          const limit = Math.min(ctx.depthAt(s.lure), Math.max(lure.maxDepth, s.depth));
+          const bottom = ctx.depthAt(s.lure);
+          const limit = Math.min(bottom, Math.max(lure.maxDepth, s.depth));
           s.depth = Math.max(0, Math.min(limit, s.depth + rate * dt));
+          const structure =
+            s.lureSpeed > 0.05 && s.depth >= bottom - SNAG.nearBottom
+              ? ctx.structureAt?.(s.lure)
+              : null;
+          if (
+            structure &&
+            structure.kind !== 'dropoff' &&
+            s.struckId === null &&
+            fish?.rng.chance(SNAG.rate, dt)
+          ) {
+            s.snag = 0;
+            s.lureSpeed = 0;
+            events.snagged = true;
+          }
         }
       }
       stepLine(s.line, tip, s.lure, s.lineLength, dt, { x: 0.15, y: 0.1 });
@@ -341,8 +380,43 @@ function pullLure(s: FishingState, tip: Vec2, dt: number): void {
   s.lureSpeed = move / dt;
 }
 
+/**
+ * Pohjaan tarttunut viehe: kelaaminen kiristää siiman jarrun voimalla ja
+ * hetken vedon jälkeen viehe joko irtoaa tai siima katkeaa ja viehe jää pohjaan.
+ */
+function pullSnag(
+  s: FishingState,
+  tip: Vec2,
+  reeling: boolean,
+  fish: FishingContext['fish'],
+  events: FishingEvents,
+  dt: number,
+): void {
+  s.lureSpeed = 0;
+  // Viehe ei liiku: kelattu siima vain kiristyy (rengas voi silti ajautua kauemmas).
+  s.lineLength = Math.max(s.lineLength, distance(s.lure, tip));
+  if (!reeling) {
+    s.tension = 0;
+    return;
+  }
+  s.tension = s.drag;
+  s.snag = (s.snag ?? 0) + dt;
+  // Liian kireä jarru katkaisee siiman heti.
+  const snap = fish?.diff.lineCanBreak === true && s.drag > LINES[s.tackle.line].strength;
+  if (!snap && s.snag < SNAG.pullTime) return;
+  if (!snap && (fish?.rng.next() ?? 0) < SNAG.freeChance) {
+    s.snag = null;
+    events.unsnagged = true;
+  } else {
+    events.lineBroken = true;
+    events.lureLost = true;
+    resetFishing(s);
+  }
+}
+
 /** Viehe takaisin kelalle (esim. kun palvelin hylkää heiton). */
 export function resetFishing(s: FishingState): void {
+  s.snag = null;
   s.stage = 'idle';
   s.needRelease = true;
   s.lineLength = 0;
