@@ -1,0 +1,93 @@
+import { sonarRange, type SonarPing } from '@lunki/shared';
+
+/** Näytön koko sisäisinä pikseleinä (yksi pikseli = HUD:n --u). */
+const WIDTH = 64;
+const HEIGHT = 44;
+/** Uusi sarake näin usein (s): koko näyttö kattaa noin viisi sekuntia. */
+const COLUMN_TIME = 0.08;
+
+const COLORS = {
+  water: '#12324a',
+  grid: '#1d4a66',
+  bottom: '#6b4a2b',
+  bottomLine: '#e0b060',
+  small: '#f6d04d',
+  big: '#f08a2c',
+  huge: '#d23a2a',
+};
+
+/**
+ * Kaikuluotain HUD:ssa: rullaava kuva renkaan alta. Pohja ja kalat piirretään
+ * pikseleinä kankaalle, joka skaalautuu muun HUD:n mukana.
+ */
+export class SonarDisplay {
+  readonly root: HTMLDivElement;
+  private readonly canvas: HTMLCanvasElement;
+  private readonly ctx: CanvasRenderingContext2D | null;
+  private readonly label: HTMLDivElement;
+  private readonly columns: SonarPing[] = [];
+  private timer = 0;
+
+  constructor(parent: HTMLElement) {
+    this.root = document.createElement('div');
+    this.root.className = 'hud-sonar hud-panel';
+    this.canvas = document.createElement('canvas');
+    this.canvas.width = WIDTH;
+    this.canvas.height = HEIGHT;
+    this.ctx = this.canvas.getContext('2d');
+    this.label = document.createElement('div');
+    this.label.className = 'hud-sonar-label';
+    this.root.append(this.canvas, this.label);
+    parent.appendChild(this.root);
+  }
+
+  toggle(): void {
+    this.root.hidden = !this.root.hidden;
+  }
+
+  /** Kutsutaan joka askeleella; `ping` luodaan vain, kun uusi sarake tarvitaan. */
+  update(dt: number, ping: () => SonarPing): void {
+    if (this.root.hidden) return;
+    this.timer -= dt;
+    if (this.timer > 0) return;
+    this.timer += COLUMN_TIME;
+    if (this.timer < 0) this.timer = COLUMN_TIME;
+    const p = ping();
+    this.columns.push(p);
+    if (this.columns.length > WIDTH) this.columns.shift();
+    const fish =
+      p.echoes.length > 0 ? ` · ${p.echoes.length} kala${p.echoes.length > 1 ? 'a' : ''}` : '';
+    this.label.textContent = `${p.bottom.toFixed(1).replace('.', ',')} m${fish}`;
+    this.draw();
+  }
+
+  private draw(): void {
+    const g = this.ctx;
+    if (!g) return;
+    g.fillStyle = COLORS.water;
+    g.fillRect(0, 0, WIDTH, HEIGHT);
+    const range = sonarRange(Math.max(...this.columns.map((c) => c.bottom)));
+    const y = (depth: number) => Math.round((depth / range) * (HEIGHT - 1));
+    // Metrin välein himmeä apuviiva.
+    g.fillStyle = COLORS.grid;
+    for (let d = 1; d < range; d++) {
+      for (let x = (d % 2) * 2; x < WIDTH; x += 4) g.fillRect(x, y(d), 1, 1);
+    }
+    const offset = WIDTH - this.columns.length;
+    this.columns.forEach((c, i) => {
+      const x = offset + i;
+      const by = y(c.bottom);
+      g.fillStyle = COLORS.bottom;
+      g.fillRect(x, by, 1, HEIGHT - by);
+      g.fillStyle = COLORS.bottomLine;
+      g.fillRect(x, by, 1, 1);
+      for (const e of c.echoes) {
+        const ey = Math.min(by - 1, y(e.depth));
+        // Isompi kala näkyy paksumpana ja punaisempana kaikuna.
+        const size = e.weight < 0.4 ? 1 : e.weight < 2 ? 2 : 3;
+        g.fillStyle = size === 1 ? COLORS.small : size === 2 ? COLORS.big : COLORS.huge;
+        g.fillRect(x, ey - size + 1, 1, size);
+      }
+    });
+  }
+}

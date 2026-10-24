@@ -1,4 +1,5 @@
 import '@fontsource/vt323';
+import { SonarDisplay } from './sonar';
 
 /**
  * Pelin HUD DOM-elementteinä VT323-pikselifontilla. Koko skaalautuu samalla
@@ -18,6 +19,7 @@ export class Hud {
   private readonly catches: HTMLDivElement;
   private readonly weigh: HTMLDivElement;
   private readonly countdown: HTMLDivElement;
+  readonly sonar: SonarDisplay;
   private messageTimer = 0;
   private weighTimer = 0;
 
@@ -40,6 +42,7 @@ export class Hud {
       'W/S potki · A/D käänny · Shift pikapotku<br>' +
       'Hiiri: tähtää, pidä pohjassa ja päästä = heitto<br>' +
       'Hiiri pohjassa / välilyönti = kelaa · 1/2/3 kelausnopeus · R vaihda viehe<br>' +
+      'K kaikuluotain · ' +
       'Q/E jarru löysemmälle/kireämmälle · rulla = zoom · H = ohje · Esc = tauko';
     this.timer = el('div', 'hud-timer hud-panel');
     this.catches = el('div', 'hud-catches hud-panel');
@@ -59,6 +62,7 @@ export class Hud {
       this.weigh,
       this.countdown,
     );
+    this.sonar = new SonarDisplay(this.root);
   }
 
   /** Sisäisen pikselin koko CSS-pikseleinä. */

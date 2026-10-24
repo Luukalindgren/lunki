@@ -25,6 +25,7 @@ import {
   LureStage,
   protoDepthAt,
   resetFishing,
+  sonarPing,
   stepFishing,
   stepTube,
   type CompetitionSettings,
@@ -195,6 +196,7 @@ export class SoloGame {
     const frozen = this.net?.world.phase === 'countdown';
     if (input.wheel !== 0) this.view.zoom(input.wheel);
     if (input.wasPressed('KeyH')) this.hud.toggleHelp();
+    if (input.wasPressed('KeyK')) this.hud.sonar.toggle();
     if (input.wasPressed('KeyR'))
       this.setTackle(nextLure(this.pendingTackle ?? this.fishing.tackle));
 
@@ -275,6 +277,9 @@ export class SoloGame {
       `Viehe ${f.stage === 'water' && !f.onLand ? f.depth.toFixed(1) : '0.0'} m`,
       `Pohja ${protoDepthAt(this.water, lureOut ? f.lure : this.tube.pos).toFixed(1)} m`,
     ]);
+    this.hud.sonar.update(dt, () =>
+      sonarPing(this.tube.pos, this.fish.fish, protoDepthAt(this.water, this.tube.pos)),
+    );
     const left = timeLeft(this.competition);
     this.hud.setTimer(formatTime(left), left < 60);
     if (this.net) {
