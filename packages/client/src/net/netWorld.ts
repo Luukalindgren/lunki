@@ -1,5 +1,6 @@
 import {
   LureStage,
+  NET_DT,
   SnapshotBuffer,
   TubePredictor,
   encodeInputs,
@@ -56,7 +57,13 @@ export class NetWorld {
   readonly predictor: TubePredictor;
   private readonly remotes = new Map<string, { name: string; buf: SnapshotBuffer<RemoteSnap> }>();
   private lure: [number, number, number] = [0, 0, LureStage.none];
-  private lastAck = -1;
+  /** Muiden viimeisimmät palvelintilat (ennakoinnin törmäyksiin). */
+  private latestOthers: TubeState[] = [];
+  /**
+   * Korjauksen pehmennys: kun palvelin siirtää omaa rengasta (esim.
+   * törmäyksessä), piirretään vanhasta paikasta ja liu'utaan uuteen.
+   */
+  readonly renderOffset = { x: 0, y: 0 };
   /** Palvelin hylkäsi heiton. */
   onCastRejected: (() => void) | null = null;
 
@@ -67,7 +74,7 @@ export class NetWorld {
   ) {
     const me = session.room.state.players.get(session.sessionId);
     if (!me) throw new Error('Oma pelaaja puuttuu huoneesta');
-    this.predictor = new TubePredictor(toTube(me), water);
+    this.predictor = new TubePredictor(toTube(me), water, () => this.latestOthers);
     session.onState = (s) => this.onState(s);
     session.onCastRejected = () => this.onCastRejected?.();
   }
@@ -78,6 +85,9 @@ export class NetWorld {
 
   /** Oma askel: ennakoidaan heti ja lähetetään syötteet erissä. */
   stepOwn(input: TubeInput, lure: Vec2 | null, lureStage: number): TubeState {
+    const decay = Math.exp(-NET_DT * 10);
+    this.renderOffset.x *= decay;
+    this.renderOffset.y *= decay;
     const tube = this.predictor.step(input);
     this.lure = lure ? [lure.x, lure.y, lureStage] : [0, 0, LureStage.none];
     const out = this.predictor.takeOutgoing();
@@ -88,14 +98,20 @@ export class NetWorld {
   private onState(s: StateSchema): void {
     const now = this.clock();
     const seen = new Set<string>();
+    const others: TubeState[] = [];
     s.players.forEach((p, id) => {
       if (id === this.session.sessionId) {
-        if (p.ack !== this.lastAck) {
-          this.lastAck = p.ack;
-          this.predictor.reconcile(toTube(p), p.ack);
-        }
+        const before = this.predictor.tube.pos;
+        this.predictor.reconcile(toTube(p), p.ack);
+        const after = this.predictor.tube.pos;
+        this.renderOffset.x += before.x - after.x;
+        this.renderOffset.y += before.y - after.y;
+        // Iso hyppy (esim. palvelimen siirto): ei liu'uteta.
+        if (Math.hypot(this.renderOffset.x, this.renderOffset.y) > 5)
+          this.renderOffset.x = this.renderOffset.y = 0;
         return;
       }
+      others.push(toTube(p));
       seen.add(id);
       let r = this.remotes.get(id);
       if (!r) {
@@ -112,6 +128,7 @@ export class NetWorld {
       });
     });
     for (const id of this.remotes.keys()) if (!seen.has(id)) this.remotes.delete(id);
+    this.latestOthers = others;
   }
 
   /** Muiden pelaajien sijainnit piirtohetkellä. */

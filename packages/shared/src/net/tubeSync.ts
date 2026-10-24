@@ -1,4 +1,5 @@
 import { collideTubeWithShore, stepTube, type TubeInput, type TubeState } from '../physics/tube';
+import { collideTubePair } from '../physics/tubeCollision';
 import type { WaterBody } from '../map/waterBody';
 
 /**
@@ -105,6 +106,24 @@ export const cloneTube = (t: TubeState): TubeState => ({
 });
 
 /**
+ * Törmäyttää renkaan muihin (joita ei liikuteta) ja pitää sen vedessä.
+ * Palvelin liikuttaa molempia; ennakoinnissa muut ovat paikallaan, joten
+ * törmäyksessä syntyy pieni korjaus, joka pehmennetään piirrossa.
+ */
+export function collideWithOthers(
+  tube: TubeState,
+  others: readonly TubeState[],
+  water: WaterBody,
+): TubeState {
+  let t = tube;
+  for (const o of others) {
+    const r = collideTubePair(t, o);
+    if (r) t = collideTubeWithShore(t, r[0], water);
+  }
+  return t;
+}
+
+/**
  * Asiakkaan ennakointi: oma rengas liikkuu heti syötteen mukaan. Kun palvelimen
  * tila ja kuittaus saapuvat, lähdetään palvelimen tilasta ja ajetaan
  * kuittaamattomat syötteet uudelleen.
@@ -120,8 +139,14 @@ export class TubePredictor {
   constructor(
     start: TubeState,
     private readonly water: WaterBody,
+    /** Muiden pelaajien viimeisimmät palvelintilat törmäyksiä varten. */
+    private readonly others: () => readonly TubeState[] = () => [],
   ) {
     this.tube = cloneTube(start);
+  }
+
+  private advance(t: TubeState, input: TubeInput): TubeState {
+    return collideWithOthers(stepPlayerTube(t, input, this.water), this.others(), this.water);
   }
 
   /** Oma askel: ennakoi ja jonottaa syötteen lähetettäväksi. */
@@ -129,7 +154,7 @@ export class TubePredictor {
     const net: NetInput = { seq: ++this.seq, ...input };
     this.pending.push(net);
     this.outbox.push(net);
-    this.tube = stepPlayerTube(this.tube, net, this.water);
+    this.tube = this.advance(this.tube, net);
     return this.tube;
   }
 
@@ -145,7 +170,7 @@ export class TubePredictor {
   reconcile(server: TubeState, ackSeq: number): void {
     while (this.pending.length > 0 && this.pending[0]!.seq <= ackSeq) this.pending.shift();
     let t = cloneTube(server);
-    for (const i of this.pending) t = stepPlayerTube(t, i, this.water);
+    for (const i of this.pending) t = this.advance(t, i);
     this.lastCorrection = Math.hypot(t.pos.x - this.tube.pos.x, t.pos.y - this.tube.pos.y);
     this.tube = t;
   }
