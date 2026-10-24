@@ -1,20 +1,32 @@
 name: Karttadata
 
-# Hakee Lunkinjärven rantaviivan OpenStreetMapista ja tallentaa sen
-# artefaktiksi. Ajetaan käsin, kun karttaa halutaan päivittää.
+# Hakee Lunkinjärven aineistot avoimista lähteistä: rantaviiva ja ympäristö
+# OpenStreetMapista, korkeusmalli Copernicus DEM:stä. Pilviympäristö ei
+# tavoita näitä palvelimia, joten haku tehdään GitHubin ajoympäristössä.
+#
+# Pull requestissa (saman repon haarasta) haettu ja käännetty data
+# kommitoidaan takaisin PR:n haaraan. Käsin ajettaessa data tallennetaan
+# artefaktiksi.
 on:
   workflow_dispatch:
   pull_request:
     paths:
-      - packages/map-pipeline/src/fetchOsm.ts
+      - packages/map-pipeline/src/fetch*.ts
+      - packages/map-pipeline/src/overpass.ts
       - packages/map-pipeline/src/osm.ts
+      - packages/map-pipeline/src/area.ts
       - .github/workflows/map-data.yml
 
+permissions:
+  contents: write
+
 jobs:
-  fetch-osm:
+  fetch:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref }}
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -25,11 +37,29 @@ jobs:
         env:
           # GitHubin ajoympäristössä IPv6-yhteydet Overpassiin aikakatkaistaan.
           NODE_OPTIONS: --dns-result-order=ipv4first
-      - name: Tulosta data lokiin
+      - run: pnpm --filter @lunki/map-pipeline fetch-surroundings
+        env:
+          NODE_OPTIONS: --dns-result-order=ipv4first
+      - run: pnpm --filter @lunki/map-pipeline fetch-dem
+      - run: pnpm --filter @lunki/map-pipeline build-map
+      - name: Tiivisteet lokiin
+        run: sha256sum packages/map-pipeline/data/*.json packages/shared/src/map/lunkinjarvi*.json
+      - name: Kommitoi data PR:n haaraan
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         run: |
-          sha256sum packages/map-pipeline/data/osm-lunkinjarvi.json
-          fold -w 4000 packages/map-pipeline/data/osm-lunkinjarvi.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add packages/map-pipeline/data packages/shared/src/map
+          if git diff --cached --quiet; then
+            echo "Data ei muuttunut."
+          else
+            git commit -m "Karttadata: OSM-ympäristö ja korkeusmalli (automaattinen haku)"
+            git push
+          fi
       - uses: actions/upload-artifact@v4
+        if: github.event_name == 'workflow_dispatch'
         with:
-          name: osm-lunkinjarvi
-          path: packages/map-pipeline/data/osm-lunkinjarvi.json
+          name: karttadata
+          path: |
+            packages/map-pipeline/data/
+            packages/shared/src/map/lunkinjarvi*.json

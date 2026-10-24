@@ -37,7 +37,8 @@ export function simplifyRing(ring: readonly Vec2[], tolerance: number): Vec2[] {
   return [...first.slice(0, -1), ...second.slice(0, -1)];
 }
 
-function simplifyPath(points: readonly Vec2[], tolerance: number): Vec2[] {
+/** Douglas–Peucker-yksinkertaistus avoimelle murtoviivalle. */
+export function simplifyPath(points: readonly Vec2[], tolerance: number): Vec2[] {
   if (points.length <= 2) return [...points];
   const a = points[0]!;
   const b = points[points.length - 1]!;
