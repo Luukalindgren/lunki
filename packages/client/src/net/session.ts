@@ -5,7 +5,13 @@ import {
   ServerMsg,
   formatRoomCode,
   type Difficulty,
+  rankPlayers,
+  type Catch,
+  type CatchRecord,
   type InputMessage,
+  type PlayerCatches,
+  type PlayerResult,
+  type SpeciesId,
   type JoinOptions,
   type Penalty,
   type RoomSettings,
@@ -91,6 +97,18 @@ export interface StateSchema {
     species: Iterable<string>;
   };
   players: Map<string, PlayerSchema>;
+  clock: number;
+  countdown: number;
+  catches: Iterable<CatchSchema>;
+}
+
+export interface CatchSchema {
+  player: string;
+  angler: string;
+  species: string;
+  name: string;
+  weight: number;
+  time: number;
 }
 
 /** Yhteys yhteen huoneeseen. */
@@ -99,6 +117,7 @@ export class NetSession {
   /** Jokainen tilapäivitys pelin aikana (renkaiden synkronointi). */
   onState: ((state: StateSchema) => void) | null = null;
   onCastRejected: (() => void) | null = null;
+  onCatchRejected: (() => void) | null = null;
   onStarted: ((msg: StartedMessage, view: LobbyView) => void) | null = null;
   onError: ((message: string) => void) | null = null;
   /** Yhteys katkesi muusta syystä kuin omasta lähdöstä. */
@@ -114,6 +133,7 @@ export class NetSession {
     room.onMessage(ServerMsg.started, (m: StartedMessage) => this.onStarted?.(m, this.view()));
     room.onMessage(ServerMsg.error, (m: string) => this.onError?.(m));
     room.onMessage(ServerMsg.castRejected, () => this.onCastRejected?.());
+    room.onMessage(ServerMsg.catchRejected, () => this.onCatchRejected?.());
     room.onLeave(() => {
       if (!this.leaving) this.onDisconnect?.();
     });
@@ -190,6 +210,36 @@ export class NetSession {
 
   sendSplash(msg: SplashMessage): void {
     this.room.send(ClientMsg.splash, msg);
+  }
+
+  sendCatch(c: Catch): void {
+    this.room.send(ClientMsg.catch, c);
+  }
+
+  /** Isäntä: takaisin aulaan uutta kisaa varten. */
+  restart(): void {
+    this.room.send(ClientMsg.restart);
+  }
+
+  /** Tulostaulu voittoehdon mukaan (myös lähteneiden saaliit). */
+  results(): PlayerResult[] {
+    const s = this.room.state;
+    const rows = new Map<string, PlayerCatches & { catches: CatchRecord[] }>();
+    s.players.forEach((p, id) => rows.set(id, { id, name: p.name, catches: [] }));
+    for (const c of s.catches) {
+      let row = rows.get(c.player);
+      if (!row) {
+        row = { id: c.player, name: c.angler, catches: [] };
+        rows.set(c.player, row);
+      }
+      row.catches.push({
+        species: c.species as SpeciesId,
+        name: c.name,
+        weight: c.weight,
+        time: c.time,
+      });
+    }
+    return rankPlayers([...rows.values()], s.settings.winRule as WinRule);
   }
 
   async leave(): Promise<void> {

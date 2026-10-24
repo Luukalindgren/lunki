@@ -30,6 +30,7 @@ import {
   type FishPopulation,
   type FishingContext,
   type FishingState,
+  type PlayerResult,
   type LakeMap,
   type Vec2,
   type TubeInput,
@@ -129,9 +130,12 @@ export class SoloGame {
     this.scene.add(this.tubeMesh);
     this.scene.add(this.fishingView.group);
     this.view.snapTo(this.tube.pos);
+    hud.setCountdown(null);
     if (net) {
       this.remoteView = new RemotePlayersView(net.overlay);
       this.scene.add(this.remoteView.group);
+      net.world.onCatchRejected = () =>
+        this.hud.showMessage('Palvelin ei hyväksynyt saalista punnitukseen', 2.5);
       net.world.onCastRejected = () => {
         resetFishing(this.fishing);
         this.hud.showMessage('Palvelin hylkäsi heiton', 2);
@@ -156,11 +160,13 @@ export class SoloGame {
   update(dt: number): void {
     const input = this.input;
     if (this.competition.finished) return;
-    if (stepCompetition(this.competition, dt)) {
+    if (this.net ? this.syncCompetition() : stepCompetition(this.competition, dt)) {
       this.sfx.caught();
       this.onFinished?.();
       return;
     }
+    // Lähtölaskennan aikana rengas ja vapa odottavat.
+    const frozen = this.net?.world.phase === 'countdown';
     if (input.wheel !== 0) this.view.zoom(input.wheel);
     if (input.wasPressed('KeyH')) this.hud.toggleHelp();
 
@@ -175,7 +181,8 @@ export class SoloGame {
             : f.stage === 'water'
               ? LureStage.water
               : LureStage.none;
-      this.tube = this.net.world.stepOwn(readTubeInput(input), f.lure, stage);
+      const tubeInput = frozen ? { kick: 0, turn: 0, sprint: false } : readTubeInput(input);
+      this.tube = this.net.world.stepOwn(tubeInput, f.lure, stage);
     } else {
       const next = stepTube(this.tube, readTubeInput(input), dt);
       this.tube = collideTubeWithShore(this.tube, next, this.water);
@@ -185,7 +192,7 @@ export class SoloGame {
     this.aim = this.view.internalToWorld(internal.x, internal.y);
     const f = this.fishing;
     const lureOut = f.stage === 'flight' || f.stage === 'water';
-    const reeling = lureOut && (input.isDown('Mouse0') || input.isDown('Space'));
+    const reeling = !frozen && lureOut && (input.isDown('Mouse0') || input.isDown('Space'));
     const world = {
       isWater: (p: Vec2) => this.water.isWater(p),
       depthAt: (p: Vec2) => protoDepthAt(this.water, p),
@@ -202,7 +209,7 @@ export class SoloGame {
       f,
       {
         aim: this.aim,
-        castHeld: input.isDown('Mouse0'),
+        castHeld: !frozen && input.isDown('Mouse0'),
         reel: reeling,
         cancel: input.isDown('Mouse2'),
         dragDelta: (input.wasPressed('KeyE') ? 1 : 0) - (input.wasPressed('KeyQ') ? 1 : 0),
@@ -240,6 +247,11 @@ export class SoloGame {
     ]);
     const left = timeLeft(this.competition);
     this.hud.setTimer(formatTime(left), left < 60);
+    if (this.net) {
+      this.updateRaceHud();
+      this.hud.update(dt);
+      return;
+    }
     const catches = this.competition.catches;
     const total = catches.reduce((a, c) => a + c.weight, 0);
     this.hud.setCatches(
@@ -288,6 +300,7 @@ export class SoloGame {
     }
     if (events.caught) {
       sfx.caught();
+      this.net?.world.sendCatch(events.caught);
       const record = recordCatch(this.competition, events.caught);
       this.fishingView.startSplash(this.fishing.lure);
       const catches = this.competition.catches;
@@ -303,6 +316,37 @@ export class SoloGame {
       sfx.reelClick();
       this.reelClickTimer = 0.09 / (this.fishing.gear + 1);
     }
+  }
+
+  /** Moninpeli: kello ja loppu palvelimelta. Palauttaa true, kun kisa päättyy. */
+  private syncCompetition(): boolean {
+    const w = this.net!.world;
+    this.competition.elapsed = w.raceClock;
+    if (w.phase !== 'finished') return false;
+    this.competition.finished = true;
+    return true;
+  }
+
+  private raceHudTimer = 0;
+
+  /** Lähtölaskenta ja tulostaulu (top 5 + oma sijoitus). */
+  private updateRaceHud(): void {
+    const w = this.net!.world;
+    const cd = w.phase === 'countdown' ? Math.ceil(w.countdown) : 0;
+    this.hud.setCountdown(
+      w.phase === 'countdown'
+        ? String(Math.max(1, cd))
+        : this.competition.elapsed < 1.2
+          ? 'Kalastamaan!'
+          : null,
+    );
+    if ((this.raceHudTimer = (this.raceHudTimer + 1) % 15) !== 1) return;
+    const results = w.results();
+    const lines = results.slice(0, 5).map((r) => scoreLine(r, r.id === w.myId));
+    const me = results.find((r) => r.id === w.myId);
+    if (me && me.rank > 5 && !results.slice(0, 5).includes(me))
+      lines.push('…', scoreLine(me, true));
+    this.hud.setCatches(['Tulostaulu', ...lines]);
   }
 
   /** Vapauttaa GPU-resurssit, kun kierros päättyy. */
@@ -342,4 +386,9 @@ export class SoloGame {
     if (this.net && this.remoteView)
       this.remoteView.update(this.net.world.others(), this.view.camera, this.net.canvas);
   }
+}
+
+function scoreLine(r: PlayerResult, me: boolean): string {
+  const name = r.name.length > 10 ? `${r.name.slice(0, 9)}…` : r.name;
+  return `${me ? '>' : ' '}${r.rank}. ${name.padEnd(10)} ${formatWeight(r.summary.score).padStart(7)}`;
 }

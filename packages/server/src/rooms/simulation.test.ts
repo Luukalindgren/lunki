@@ -21,8 +21,8 @@ function setup(): Sim[] {
   const a = createTube({ x: center.x - 3, y: center.y }, Math.PI); // katse länteen, liike itään
   const b = createTube({ x: center.x + 3, y: center.y }, 0); // katse itään, liike länteen
   return [
-    { tube: a, inputs: new InputQueue() },
-    { tube: b, inputs: new InputQueue() },
+    { tube: a, inputs: new InputQueue(), splashed: false, lastCatchAt: 0 },
+    { tube: b, inputs: new InputQueue(), splashed: false, lastCatchAt: 0 },
   ];
 }
 

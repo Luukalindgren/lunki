@@ -1,5 +1,6 @@
 import { Room, type Client } from '@colyseus/core';
 import {
+  COUNTDOWN_SECONDS,
   ClientMsg,
   DEFAULT_MAX_PLAYERS,
   InputQueue,
@@ -13,7 +14,10 @@ import {
   decodeInputs,
   distance,
   findLaunchPoint,
+  isPlausibleCatch,
   isPlausibleSplash,
+  SPECIES,
+  type Catch,
   sanitizeName,
   validateSettingsPatch,
   type InputMessage,
@@ -24,10 +28,12 @@ import {
 } from '@lunki/shared';
 import { releaseCode, reserveCode } from './codes';
 import { stepSims, type Sim } from './simulation';
-import { LunkiState, PlayerState } from './state';
+import { CatchState, LunkiState, PlayerState } from './state';
 
 export interface CreateOptions extends Partial<JoinOptions> {
   maxPlayers?: number;
+  /** Vain testeihin: lyhyempi lähtölaskenta ja kisa (s). */
+  testTiming?: { countdown: number; duration: number };
 }
 
 /** Järvi on sama kaikille huoneille. */
@@ -47,8 +53,15 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   override state = new LunkiState();
   /** Palvelimen sisäinen tila pelaajittain (sessionId). */
   private readonly sims = new Map<string, Sim>();
+  private countdownSeconds = COUNTDOWN_SECONDS;
+  /** Kehitystä varten: LUNKI_RACE_SECONDS lyhentää kaikki kisat. */
+  private durationOverride: number | null = Number(process.env.LUNKI_RACE_SECONDS) || null;
 
   override onCreate(options: CreateOptions = {}) {
+    if (process.env.VITEST && options.testTiming) {
+      this.countdownSeconds = options.testTiming.countdown;
+      this.durationOverride = options.testTiming.duration;
+    }
     const code = reserveCode();
     this.roomId = code;
     this.state.code = code;
@@ -63,7 +76,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     this.onMessage(ClientMsg.input, (client, msg: InputMessage) => {
       const sim = this.sims.get(client.sessionId);
       const p = this.state.players.get(client.sessionId);
-      if (!sim || !p || this.state.phase !== 'playing') return;
+      if (!sim || !p || this.state.phase === 'lobby') return;
       sim.inputs.push(decodeInputs(msg?.i));
       const l = msg?.l;
       if (Array.isArray(l) && l.every((v) => typeof v === 'number' && Number.isFinite(v))) {
@@ -83,8 +96,51 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     this.onMessage(ClientMsg.splash, (client, msg: SplashMessage) => {
       const sim = this.sims.get(client.sessionId);
       if (!sim || this.state.phase !== 'playing') return;
-      if (!isPlausibleSplash(sim.tube.pos, { x: Number(msg?.x), y: Number(msg?.y) }))
-        client.send(ServerMsg.castRejected);
+      if (isPlausibleSplash(sim.tube.pos, { x: Number(msg?.x), y: Number(msg?.y) }))
+        sim.splashed = true;
+      else client.send(ServerMsg.castRejected);
+    });
+
+    this.onMessage(ClientMsg.catch, (client, msg: Partial<Catch>) => {
+      const sim = this.sims.get(client.sessionId);
+      const now = this.state.clock;
+      if (
+        !sim ||
+        this.state.phase !== 'playing' ||
+        !isPlausibleCatch(msg, {
+          splashedSinceLastCatch: sim.splashed,
+          now,
+          lastCatchAt: sim.lastCatchAt,
+        })
+      ) {
+        client.send(ServerMsg.catchRejected);
+        return;
+      }
+      sim.splashed = false;
+      sim.lastCatchAt = now;
+      const c = new CatchState();
+      c.player = client.sessionId;
+      c.angler = this.state.players.get(client.sessionId)?.name ?? '';
+      c.species = msg.species;
+      c.name = SPECIES[msg.species].name;
+      c.weight = Math.round(msg.weight * 1000) / 1000;
+      c.time = now;
+      this.state.catches.push(c);
+    });
+
+    this.onMessage(ClientMsg.restart, (client) => {
+      if (client.sessionId !== this.state.hostId || this.state.phase !== 'finished') return;
+      this.setTimestep();
+      this.sims.clear();
+      this.state.catches.clear();
+      this.state.clock = 0;
+      this.state.countdown = 0;
+      this.state.players.forEach((p) => {
+        p.ready = false;
+        p.lureStage = 0;
+      });
+      this.state.phase = 'lobby';
+      void this.unlock();
     });
 
     this.onMessage(ClientMsg.ready, (client, ready: unknown) => {
@@ -137,7 +193,9 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       }
       this.state.seed = (Math.random() * 2 ** 32) >>> 0;
       this.spawnPlayers(this.state.seed);
-      this.state.phase = 'playing';
+      this.state.clock = 0;
+      this.state.countdown = this.countdownSeconds;
+      this.state.phase = 'countdown';
       void this.lock();
       this.setFixedTimestep(() => this.step(), 1 / NET_DT);
       this.broadcast(ServerMsg.started, { seed: this.state.seed });
@@ -184,16 +242,30 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       // Selkä rantaan päin, katse järvelle.
       const shore = water.closestShorePoint(pos)?.point ?? pos;
       const tube = createTube(pos, Math.atan2(pos.y - shore.y, pos.x - shore.x));
-      this.sims.set(id, { tube, inputs: new InputQueue() });
+      this.sims.set(id, {
+        tube,
+        inputs: new InputQueue(),
+        splashed: false,
+        lastCatchAt: -Infinity,
+      });
       writeTube(p, tube, 0);
     });
   }
 
-  /** Yksi palvelimen askel (ks. stepSims). */
+  /** Yksi palvelimen askel: kisan kello ja renkaat (ks. stepSims). */
   private step() {
+    const st = this.state;
+    if (st.phase === 'countdown') {
+      st.countdown = Math.max(0, st.countdown - NET_DT);
+      if (st.countdown === 0) st.phase = 'playing';
+    } else if (st.phase === 'playing') {
+      const end = this.durationOverride ?? st.settings.durationMinutes * 60;
+      st.clock = Math.min(end, st.clock + NET_DT);
+      if (st.clock >= end) st.phase = 'finished';
+    }
     const ids = [...this.sims.keys()];
     const sims = ids.map((id) => this.sims.get(id)!);
-    for (const i of stepSims(sims, water)) {
+    for (const i of stepSims(sims, water, st.phase === 'countdown')) {
       const p = this.state.players.get(ids[i]!);
       if (p) writeTube(p, sims[i]!.tube, sims[i]!.inputs.lastSeq);
     }

@@ -26,12 +26,19 @@ muut pelaajat: SnapshotBuffer, piirretään 120 ms menneisyydestä
   heitto hylätään ja viehe palaa kelalle.
 - **Kalastus** (viehe, siima, kalat) lasketaan vielä asiakkaalla. Kaikilla on
   sama kalakanta yhteisestä siemenestä, mutta kukin näkee oman kopionsa.
-  Saaliiden punnitus palvelimella tulee issuessa #16.
+- **Kisan kulku palvelimella.** Aula → lähtölaskenta (3 s, renkaat paikallaan)
+  → kisa palvelimen kellolla → loppu. Nostettu kala punnitaan palvelimella
+  (`isPlausibleCatch`): laji ja paino lajin rajoissa, heitto veteen edellisen
+  saaliin jälkeen ja vähintään 4 s saaliiden välillä. Hyväksytyt saaliit ovat
+  kaikkien nähtävissä, ja tulostaulu lasketaan niistä voittoehdon mukaan
+  (`rankPlayers`, sama funktio kuin yksinpelin tuloksissa). Isäntä voi
+  palauttaa huoneen aulaan uutta kisaa varten.
 
 ## Testaus viiveellä
 
 ```sh
 COLYSEUS_LATENCY=150 pnpm dev:server   # 150 ms edestakainen viive
+LUNKI_RACE_SECONDS=60 pnpm dev:server  # kaikki kisat minuutin mittaisia
 pnpm dev
 ```
 

@@ -11,19 +11,26 @@ import {
 export interface Sim {
   tube: TubeState;
   inputs: InputQueue;
+  /** Viehe on käynyt vedessä edellisen saaliin jälkeen. */
+  splashed: boolean;
+  /** Edellisen saaliin kisa-aika (s). */
+  lastCatchAt: number;
 }
+
+const FROZEN = { kick: 0, turn: 0, sprint: false };
 
 /**
  * Yksi palvelimen askel: jokainen rengas etenee yhdellä syötteellään
- * (tyhjällä jonolla odottaa), sitten ratkaistaan renkaiden väliset
+ * (tyhjällä jonolla odottaa; `frozen` = lähtölaskenta), sitten ratkaistaan renkaiden väliset
  * törmäykset. Palauttaa muuttuneiden indeksit.
  */
-export function stepSims(sims: Sim[], water: WaterBody): Set<number> {
+export function stepSims(sims: Sim[], water: WaterBody, frozen = false): Set<number> {
   const moved = new Set<number>();
   sims.forEach((sim, i) => {
     const input = sim.inputs.next();
     if (!input) return;
-    sim.tube = stepPlayerTube(sim.tube, input, water);
+    // Lähtölaskennan aikana syötteet kuitataan, mutta rengas ei liiku.
+    sim.tube = stepPlayerTube(sim.tube, frozen ? FROZEN : input, water);
     moved.add(i);
   });
   const before = sims.map((s) => s.tube);

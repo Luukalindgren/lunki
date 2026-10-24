@@ -47,6 +47,22 @@ export const SettingsState = schema(
 );
 export type SettingsState = SchemaType<typeof SettingsState>;
 
+/** Punnittu saalis: näkyy kaikille. */
+export const CatchState = schema(
+  {
+    /** Saajan sessionId ja nimi (nimi säilyy, vaikka pelaaja lähtisi). */
+    player: t.string(),
+    angler: t.string(),
+    species: t.string(),
+    name: t.string(),
+    weight: t.float32().default(0),
+    /** Kisa-aika saaliin hetkellä (s). */
+    time: t.float32().default(0),
+  },
+  'CatchState',
+);
+export type CatchState = SchemaType<typeof CatchState>;
+
 export const LunkiState = schema(
   {
     /** Huonekoodin tunnisteosa, esim. "4F7K". */
@@ -56,6 +72,11 @@ export const LunkiState = schema(
     hostId: t.string(),
     settings: SettingsState,
     players: t.map(PlayerState),
+    /** Kisa-aika (s) palvelimen kellosta; lähtölaskennan aikana 0. */
+    clock: t.float32().default(0),
+    /** Lähtölaskentaa jäljellä (s). */
+    countdown: t.float32().default(0),
+    catches: t.array(CatchState),
     /** Kalojen ja aloituspaikkojen siemen, arvotaan kisan alkaessa. */
     seed: t.uint32().default(0),
   },
