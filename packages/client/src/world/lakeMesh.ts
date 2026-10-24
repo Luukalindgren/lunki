@@ -16,20 +16,19 @@ export function createLakeMesh(map: LakeMap): THREE.Group {
 
   const { minX, minY, maxX, maxY } = map.bounds;
   const margin = 4000;
+  // Jaettu pienempiin kolmioihin: kilometrien kokoisten kolmioiden syvyysarvot
+  // heittelevät lähellä kameraa niin, että maa voi peittää veden POV-näkymässä.
   const land = new THREE.Mesh(
-    new THREE.PlaneGeometry(maxX - minX + margin * 2, maxY - minY + margin * 2),
+    new THREE.PlaneGeometry(maxX - minX + margin * 2, maxY - minY + margin * 2, 48, 48),
     new THREE.MeshLambertMaterial({ color: 0x3b7337 }),
   );
   land.rotation.x = -Math.PI / 2;
-  land.position.set((minX + maxX) / 2, -0.05, -(minY + maxY) / 2);
+  land.position.set((minX + maxX) / 2, -0.3, -(minY + maxY) / 2);
   group.add(land);
 
   const shape = new THREE.Shape(toShapePoints(map.shore));
   for (const island of map.islands) shape.holes.push(new THREE.Path(toShapePoints(island)));
-  const water = new THREE.Mesh(
-    new THREE.ShapeGeometry(shape),
-    new THREE.MeshLambertMaterial({ color: 0xffffff, map: createWaterTexture() }),
-  );
+  const water = new THREE.Mesh(new THREE.ShapeGeometry(shape), createWaterMaterial());
   water.rotation.x = -Math.PI / 2;
   water.name = 'water';
   group.add(water);
@@ -44,6 +43,28 @@ export function createLakeMesh(map: LakeMap): THREE.Group {
     group.add(line);
   }
   return group;
+}
+
+/** Veden aaltoilun kello (s); päivitetään pelisilmukasta. */
+export const waterTime = { value: 0 };
+
+/**
+ * Vesi aaltoilee: kuviota luetaan hitaasti vaeltavilla siniaalloilla
+ * vääristettynä, jolloin aallonharjat kiemurtelevat ja välkehtivät.
+ */
+function createWaterMaterial(): THREE.MeshLambertMaterial {
+  const material = new THREE.MeshLambertMaterial({ color: 0xffffff, map: createWaterTexture() });
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uWaterTime = waterTime;
+    shader.fragmentShader = ('uniform float uWaterTime;\n' + shader.fragmentShader).replace(
+      'vec4 sampledDiffuseColor = texture2D( map, vMapUv );',
+      /* glsl */ `vec2 waveUv = vMapUv + vec2(uWaterTime * 0.004, uWaterTime * 0.0015);
+      waveUv.x += sin(vMapUv.y * 40.0 + uWaterTime * 1.3) * 0.01;
+      waveUv.y += sin(vMapUv.x * 33.0 - uWaterTime * 1.1) * 0.008;
+      vec4 sampledDiffuseColor = texture2D( map, waveUv );`,
+    );
+  };
+  return material;
 }
 
 /**

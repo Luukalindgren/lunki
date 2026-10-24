@@ -8,17 +8,18 @@ import {
   type LakeSurroundings,
   type Vec2,
 } from '@lunki/shared';
+import { TREE_BAND } from './vegetation';
 
 /** Maankäyttö, jossa rannalla ei kasva metsää. */
 const OPEN_LAND = new Set<AreaKind>(['field', 'residential', 'beach', 'bare', 'water', 'reeds']);
 
-/** Metsänreunan etäisyys rantaviivasta maalle (m) ja näytteenväli (m). */
-const INLAND = 7;
+/** Metsänreunan etäisyys rantaviivasta maalle (m) ja näytteenväli (m). Edessä on puuspritejä. */
+const INLAND = TREE_BAND + 2;
 const STEP = 4;
 
 /**
- * Rannan metsänreuna siluettina POV-näkymää varten: rantaviivaa seuraava
- * seinämä, jonka yläreuna vaihtelee kuin kuusikon ja koivikon latvat.
+ * Metsän massa siluettina POV-näkymää varten: rannan puuvyöhykkeen takana
+ * rantaviivaa seuraava seinämä, jonka yläreuna vaihtelee kuin kuusikon ja koivikon latvat.
  * Ylhäältä katsottuna seinämä ei näy, joten se piilotetaan siinä tilassa.
  */
 export function createShoreScenery(map: LakeMap, surroundings?: LakeSurroundings): THREE.Group {
@@ -62,7 +63,7 @@ function treeLine(
     const kind = cover?.kindAt({ x, y }) ?? null;
     const open = kind !== null && OPEN_LAND.has(kind);
     const base = Math.max(0, terrainHeightAt(terrain, { x, y })) - 0.5;
-    const h = open ? 0.5 : 22 + broad * 8 + spike * 10;
+    const h = open ? 0.5 : 15 + broad * 6 + spike * 7;
     positions.push(x, base, -y, x, base + h, -y);
     const c = spike > 0.6 ? dark : broad > 0.3 ? birch : mid;
     colors.push(c.r * 0.7, c.g * 0.7, c.b * 0.7, c.r, c.g, c.b);
