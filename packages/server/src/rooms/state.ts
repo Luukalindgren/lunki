@@ -1,5 +1,5 @@
 import { ArraySchema, schema, t, type SchemaType } from '@colyseus/schema';
-import { DEFAULT_MAX_PLAYERS, DEFAULT_SETTINGS } from '@lunki/shared';
+import { DEFAULT_MAX_PLAYERS, DEFAULT_SETTINGS, NATIVE_SPECIES } from '@lunki/shared';
 
 /**
  * Pelaaja huoneessa. Avaimena Colyseuksen sessionId. Renkaan tila on
@@ -41,7 +41,7 @@ export const SettingsState = schema(
     weather: t.string().default('calm'),
     lightningPenalty: t.string().default('none'),
     capsizePenalty: t.string().default('none'),
-    species: t.array('string').default(() => new ArraySchema<string>('perch')),
+    species: t.array('string').default(() => new ArraySchema<string>(...NATIVE_SPECIES)),
   },
   'SettingsState',
 );

@@ -1,4 +1,5 @@
 import type { Difficulty } from '../fishing/difficulty';
+import { NATIVE_SPECIES, type SpeciesId } from '../fishing/fish';
 import type { Catch } from '../fishing/fishing';
 
 /** Kilpailun kesto minuutteina. */
@@ -17,12 +18,15 @@ export interface CompetitionSettings {
   durationMinutes: number;
   difficulty: Difficulty;
   winRule: WinRule;
+  /** Järven kalalajit; oletuksena Lunkinjärven oikeat lajit. */
+  species?: SpeciesId[];
 }
 
 export const DEFAULT_SETTINGS: CompetitionSettings = {
   durationMinutes: 15,
   difficulty: 'normal',
   winRule: 'total',
+  species: [...NATIVE_SPECIES],
 };
 
 export interface CatchRecord extends Catch {

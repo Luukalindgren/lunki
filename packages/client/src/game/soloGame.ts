@@ -109,6 +109,7 @@ export class SoloGame {
       map.bounds,
       this.rng,
       FISH_COUNT,
+      settings.species,
     );
     if (net) {
       // Palvelin arpoi aloituspaikan.

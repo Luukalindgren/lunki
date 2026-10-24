@@ -43,15 +43,22 @@ export function rankPlayers(players: readonly PlayerCatches[], rule: WinRule): P
 }
 
 /**
- * Palvelimen tarkistus saaliille: laji on olemassa, paino lajin rajoissa,
+ * Palvelimen tarkistus saaliille: laji on järvessä, paino lajin rajoissa,
  * viehe on käynyt vedessä edellisen saaliin jälkeen eikä saaliita tule liian
  * tiheään.
  */
 export function isPlausibleCatch(
   c: Partial<Catch> | null | undefined,
-  ctx: { splashedSinceLastCatch: boolean; now: number; lastCatchAt: number },
+  ctx: {
+    splashedSinceLastCatch: boolean;
+    now: number;
+    lastCatchAt: number;
+    /** Huoneen lajisto: muita lajeja järvessä ei ole. */
+    species?: readonly string[];
+  },
 ): c is Catch {
   if (!c || typeof c.species !== 'string' || !Object.hasOwn(SPECIES, c.species)) return false;
+  if (ctx.species && !ctx.species.includes(c.species)) return false;
   const sp = SPECIES[c.species];
   if (typeof c.weight !== 'number' || !Number.isFinite(c.weight)) return false;
   if (c.weight < sp.minWeight - 1e-9 || c.weight > sp.maxWeight + 1e-9) return false;

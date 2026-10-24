@@ -21,7 +21,7 @@ describe('validateSettingsPatch', () => {
           maxPlayers: 1000,
           weather: 'stormy',
           capsizePenalty: 'lose-catch',
-          species: ['pike'],
+          species: ['whale'],
           extra: 1,
         },
         2,
@@ -35,9 +35,11 @@ describe('validateSettingsPatch', () => {
     expect(validateSettingsPatch({ maxPlayers: 16 }, 3)).toEqual({ maxPlayers: 16 });
   });
 
-  it('kalalajeista jää vain toteutetut', () => {
-    expect(validateSettingsPatch({ species: ['perch', 'pike', 'perch'] }, 1)).toEqual({
-      species: ['perch'],
-    });
+  it('kalalajeista jää vain tunnetut, aina samassa järjestyksessä', () => {
+    expect(
+      validateSettingsPatch({ species: ['trout', 'perch', 'whale', 'pike', 'perch'] }, 1),
+    ).toEqual({ species: ['perch', 'pike', 'trout'] });
+    expect(validateSettingsPatch({ species: [] }, 1)).toEqual({});
+    expect(validateSettingsPatch({ species: ['toString'] }, 1)).toEqual({});
   });
 });

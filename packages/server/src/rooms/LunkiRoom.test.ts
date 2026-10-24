@@ -188,6 +188,7 @@ describe('LunkiRoom', () => {
       difficulty: 'easy',
       maxPlayers: 4,
       weather: 'stormy',
+      species: ['perch', 'zander'],
     });
     await until(() => guest.state.settings.durationMinutes === 30);
     const s = guest.state.settings;
@@ -197,7 +198,7 @@ describe('LunkiRoom', () => {
       4,
       'calm',
     ]);
-    expect([...s.species]).toEqual(['perch']);
+    expect([...s.species]).toEqual(['perch', 'zander']);
     // Muutos nollaa valmiuden.
     await until(() => players(host).every((p) => !p.ready));
 
