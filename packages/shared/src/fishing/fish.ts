@@ -1,3 +1,4 @@
+import type { Structure } from '../map/bottom';
 import { wrapAngle } from '../physics/tube';
 import type { Rng } from '../rng';
 import { distance, type Vec2 } from '../vec2';
@@ -21,6 +22,9 @@ export interface Species {
   habitat: { minDepth: number; maxDepth: number };
   /** Osuus parvista, jotka partioivat missä syvyydessä tahansa. */
   wanderShare: number;
+  /** Pohjan rakenteet, joiden luona laji viihtyy, ja osuus parvista siellä. */
+  structures: Structure['kind'][];
+  structureShare: number;
   /** Painon mediaani (kg) ja lognormaalin hajonta. */
   medianWeight: number;
   weightSpread: number;
@@ -62,6 +66,8 @@ export const SPECIES: Record<SpeciesId, Species> = {
     // Rantojen tuntuma ja syvänteiden reunat.
     habitat: { minDepth: 1, maxDepth: 4.5 },
     wanderShare: 0.25,
+    structures: ['rocks', 'dropoff'],
+    structureShare: 0.3,
     medianWeight: 0.14,
     weightSpread: 0.65,
     minWeight: 0.03,
@@ -91,6 +97,8 @@ export const SPECIES: Record<SpeciesId, Species> = {
     schoolSpread: 0,
     habitat: { minDepth: 0.6, maxDepth: 2.2 },
     wanderShare: 0.1,
+    structures: ['tree', 'rocks'],
+    structureShare: 0.25,
     medianWeight: 1.3,
     weightSpread: 0.6,
     minWeight: 0.35,
@@ -120,6 +128,8 @@ export const SPECIES: Record<SpeciesId, Species> = {
     schoolSpread: 12,
     habitat: { minDepth: 0.5, maxDepth: 3 },
     wanderShare: 0.3,
+    structures: [],
+    structureShare: 0,
     medianWeight: 0.11,
     weightSpread: 0.5,
     minWeight: 0.02,
@@ -150,6 +160,8 @@ export const SPECIES: Record<SpeciesId, Species> = {
     schoolSpread: 6,
     habitat: { minDepth: 4, maxDepth: 99 },
     wanderShare: 0.15,
+    structures: ['dropoff', 'rocks'],
+    structureShare: 0.4,
     medianWeight: 1,
     weightSpread: 0.55,
     minWeight: 0.3,
@@ -179,6 +191,8 @@ export const SPECIES: Record<SpeciesId, Species> = {
     schoolSpread: 15,
     habitat: { minDepth: 2, maxDepth: 99 },
     wanderShare: 0.5,
+    structures: [],
+    structureShare: 0,
     medianWeight: 0.9,
     weightSpread: 0.5,
     minWeight: 0.3,
@@ -248,6 +262,8 @@ const FAR_STRIDE = 20;
 export interface FishWorld {
   isWater(p: Vec2): boolean;
   depthAt(p: Vec2): number;
+  /** Pohjan rakenteet (kivikot, puut, jyrkänteet), joille kalat hakeutuvat. */
+  structures?: readonly Structure[];
 }
 
 /** Vieheen tiedot kaloille. */
@@ -344,6 +360,18 @@ function randomWaterPoint(
   sp: Species,
   rng: Rng,
 ): Vec2 {
+  // Osa parvista asettuu lajille mieluisan rakenteen luo.
+  const spots = (world.structures ?? []).filter((s) => sp.structures.includes(s.kind));
+  if (spots.length > 0 && rng.next() < sp.structureShare) {
+    const s = spots[Math.floor(rng.next() * spots.length)]!;
+    for (let i = 0; i < 20; i++) {
+      const p = {
+        x: s.pos.x + rng.normal(0, s.radius / 2),
+        y: s.pos.y + rng.normal(0, s.radius / 2),
+      };
+      if (world.isWater(p)) return p;
+    }
+  }
   let fallback: Vec2 | null = null;
   // Osa parvista partioi missä syvyydessä tahansa.
   const anyDepth = rng.next() < sp.wanderShare;
