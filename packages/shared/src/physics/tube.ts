@@ -1,0 +1,130 @@
+import type { Vec2 } from '../vec2';
+
+/**
+ * Kelluntarenkaan 2D-fysiikka vedenpinnalla. Jaettu asiakkaan ja palvelimen
+ * kesken, joten kaiken pitää olla deterministista: sama tila + syöte + dt
+ * → sama tulos.
+ *
+ * Kelluntarenkaalla potkitaan räpylöillä, jolloin kalastaja liikkuu selkä
+ * edellä. `heading` on suunta, johon kalastaja katsoo (ja heittää).
+ */
+export interface TubeState {
+  pos: Vec2;
+  vel: Vec2;
+  /** Katsesuunta radiaaneina, 0 = itään, π/2 = pohjoiseen. */
+  heading: number;
+  /** Kääntymisnopeus rad/s. */
+  angVel: number;
+  /** Potkurytmin vaihe 0–1. */
+  kickPhase: number;
+}
+
+export interface TubeInput {
+  /** 1 = potki taaksepäin (normaali liike), -1 = melo eteenpäin, 0 = lepää. */
+  kick: number;
+  /** 1 = käänny vastapäivään (vasemmalle), -1 = myötäpäivään. */
+  turn: number;
+  /** Nopeat potkut: enemmän työntöä. */
+  sprint: boolean;
+}
+
+export const TUBE_RADIUS = 0.8;
+
+export const TUBE_PHYSICS = {
+  /** Keskimääräinen työntökiihtyvyys taaksepäin potkiessa (m/s²). */
+  kickAccel: 1.3,
+  /** Pikapotkujen kerroin. */
+  sprintFactor: 1.8,
+  /** Eteenpäin meloessa työntö on heikompi. */
+  forwardFactor: 0.45,
+  /** Potkurytmi (potkua sekunnissa) normaalisti ja pikapotkuin. */
+  kickRate: 1.1,
+  sprintKickRate: 1.8,
+  /** Kuinka paljon työntö sykkii potkujen tahdissa (0 = tasainen). */
+  kickPulse: 0.7,
+  /** Lineaarinen ja neliöllinen vedenvastus. */
+  linearDrag: 0.35,
+  quadraticDrag: 0.2,
+  /** Kääntymisen kiihtyvyys ja vastus. */
+  turnAccel: 5,
+  turnDrag: 4.5,
+  /** Paljonko nopeudesta jää rantaan osuessa kimmotessa. */
+  shoreBounce: 0.2,
+} as const;
+
+export const createTube = (pos: Vec2, heading = Math.PI / 2): TubeState => ({
+  pos: { ...pos },
+  vel: { x: 0, y: 0 },
+  heading,
+  angVel: 0,
+  kickPhase: 0,
+});
+
+const clamp1 = (v: number) => Math.max(-1, Math.min(1, v));
+
+/** Etenee yhden kiinteän askeleen. Ei käsittele rantaa (ks. collideTubeWithShore). */
+export function stepTube(s: TubeState, input: TubeInput, dt: number): TubeState {
+  const P = TUBE_PHYSICS;
+  const kick = clamp1(input.kick);
+  const turn = clamp1(input.turn);
+
+  // Potkurytmi: työntö sykkii, mutta keskiarvo pysyy samana.
+  const rate = input.sprint ? P.sprintKickRate : P.kickRate;
+  const kickPhase = kick !== 0 ? (s.kickPhase + rate * dt) % 1 : 0;
+  const pulse = 1 + P.kickPulse * Math.sin(kickPhase * Math.PI * 2);
+  let thrust = kick * P.kickAccel * pulse * (input.sprint ? P.sprintFactor : 1);
+  if (kick < 0) thrust *= P.forwardFactor;
+
+  // Selkä menosuuntaan: positiivinen potku vie vastakkaiseen suuntaan kuin katse.
+  const dirX = -Math.cos(s.heading);
+  const dirY = -Math.sin(s.heading);
+
+  const speed = Math.hypot(s.vel.x, s.vel.y);
+  const drag = P.linearDrag + P.quadraticDrag * speed;
+  const ax = dirX * thrust - s.vel.x * drag;
+  const ay = dirY * thrust - s.vel.y * drag;
+
+  // Semi-implisiittinen Euler: nopeus ensin, sitten sijainti.
+  const vel = { x: s.vel.x + ax * dt, y: s.vel.y + ay * dt };
+  const pos = { x: s.pos.x + vel.x * dt, y: s.pos.y + vel.y * dt };
+
+  const angAcc = turn * P.turnAccel - s.angVel * P.turnDrag;
+  const angVel = s.angVel + angAcc * dt;
+  const heading = wrapAngle(s.heading + angVel * dt);
+
+  return { pos, vel, heading, angVel, kickPhase };
+}
+
+/** Rantakorjaus: siirtää renkaan veteen ja poistaa rantaan päin olevan nopeuden. */
+export function collideTubeWithShore(
+  prev: TubeState,
+  next: TubeState,
+  water: {
+    moveCircle(from: Vec2, to: Vec2, radius: number): { position: Vec2; normal: Vec2 } | null;
+  },
+): TubeState {
+  const hit = water.moveCircle(prev.pos, next.pos, TUBE_RADIUS);
+  if (!hit) return next;
+  const vn = next.vel.x * hit.normal.x + next.vel.y * hit.normal.y;
+  const vel =
+    vn < 0
+      ? {
+          x: next.vel.x - (1 + TUBE_PHYSICS.shoreBounce) * vn * hit.normal.x,
+          y: next.vel.y - (1 + TUBE_PHYSICS.shoreBounce) * vn * hit.normal.y,
+        }
+      : next.vel;
+  return { ...next, pos: hit.position, vel };
+}
+
+export function wrapAngle(a: number): number {
+  const twoPi = Math.PI * 2;
+  a %= twoPi;
+  if (a > Math.PI) a -= twoPi;
+  if (a <= -Math.PI) a += twoPi;
+  return a;
+}
+
+/** Kulmien interpolointi lyhintä reittiä. */
+export function lerpAngle(a: number, b: number, t: number): number {
+  return a + wrapAngle(b - a) * t;
+}
