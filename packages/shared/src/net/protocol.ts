@@ -64,12 +64,34 @@ export const ClientMsg = {
   ready: 'ready',
   start: 'start',
   name: 'name',
+  /** Renkaan syötteet ja vieheen sijainti, ks. InputMessage. */
+  input: 'input',
+  /** Viehe osui veteen: palvelin tarkistaa heiton uskottavuuden. */
+  splash: 'splash',
 } as const;
+
+/** Vieheen tila muille näytettäväksi. */
+export const LureStage = { none: 0, flight: 1, water: 2, hooked: 3 } as const;
+export type LureStage = (typeof LureStage)[keyof typeof LureStage];
+
+export interface InputMessage {
+  /** encodeInputs()-muodossa. */
+  i: number[];
+  /** Viehe: [x, y, LureStage]. */
+  l?: [number, number, number];
+}
+
+export interface SplashMessage {
+  x: number;
+  y: number;
+}
 
 /** Palvelimen viestit asiakkaille. */
 export const ServerMsg = {
   started: 'started',
   error: 'error',
+  /** Palvelin hylkäsi heiton: viehe takaisin kelalle. */
+  castRejected: 'castRejected',
 } as const;
 
 export interface StartedMessage {

@@ -1,0 +1,196 @@
+import { collideTubeWithShore, stepTube, type TubeInput, type TubeState } from '../physics/tube';
+import type { WaterBody } from '../map/waterBody';
+
+/**
+ * Renkaan liikkeen verkkosynkronointi. Palvelin on totuus: se ajaa jokaisen
+ * pelaajan syötteet samalla jaetulla fysiikalla. Asiakas ennakoi oman
+ * renkaansa heti ja korjaa, kun palvelimen tila saapuu.
+ */
+
+/** Kiinteä askel sekä asiakkaalla että palvelimella. */
+export const NET_DT = 1 / 60;
+/** Montako askelta syötteitä kerätään yhteen viestiin (60/3 = 20 viestiä/s). */
+export const INPUT_BATCH = 3;
+/** Palvelin pudottaa vanhimmat, jos jono kasvaa tätä pidemmäksi (n. 0,5 s). */
+export const MAX_INPUT_QUEUE = 30;
+
+export interface NetInput extends TubeInput {
+  /** Juokseva numero, jolla palvelin kuittaa käsitellyt syötteet. */
+  seq: number;
+}
+
+/** Pakkaa syötteen yhdeksi luvuksi: potku, käännös ja pikapotku. */
+export function packInput(i: TubeInput): number {
+  const kick = Math.max(-1, Math.min(1, Math.round(i.kick))) + 1;
+  const turn = Math.max(-1, Math.min(1, Math.round(i.turn))) + 1;
+  return kick | (turn << 2) | (i.sprint ? 16 : 0);
+}
+
+export function unpackInput(packed: number): TubeInput {
+  const p = packed | 0;
+  return {
+    kick: Math.min(2, p & 3) - 1,
+    turn: Math.min(2, (p >> 2) & 3) - 1,
+    sprint: (p & 16) !== 0,
+  };
+}
+
+/** Viestin muoto: [seq1, packed1, seq2, packed2, …]. */
+export function encodeInputs(list: NetInput[]): number[] {
+  const out: number[] = [];
+  for (const i of list) out.push(i.seq, packInput(i));
+  return out;
+}
+
+export function decodeInputs(data: unknown): NetInput[] {
+  if (!Array.isArray(data)) return [];
+  const out: NetInput[] = [];
+  for (let k = 0; k + 1 < data.length && out.length < MAX_INPUT_QUEUE; k += 2) {
+    const seq = data[k];
+    const packed = data[k + 1];
+    if (typeof seq !== 'number' || typeof packed !== 'number' || !Number.isFinite(seq)) continue;
+    out.push({ seq, ...unpackInput(packed) });
+  }
+  return out;
+}
+
+/** Yksi askel: fysiikka ja rantatörmäys. Sama asiakkaalla ja palvelimella. */
+export function stepPlayerTube(
+  tube: TubeState,
+  input: TubeInput,
+  water: WaterBody,
+  dt = NET_DT,
+): TubeState {
+  return collideTubeWithShore(tube, stepTube(tube, input, dt), water);
+}
+
+/**
+ * Palvelimen syötejono yhdelle pelaajalle. Jokainen palvelimen askel kuluttaa
+ * korkeintaan yhden syötteen, joten asiakas ei voi nopeuttaa peliä
+ * lähettämällä enemmän. Tyhjällä jonolla rengas odottaa: palvelimen tila
+ * vastaa silloin aina tarkasti kuitattuja syötteitä, ja ennakointi osuu.
+ */
+export class InputQueue {
+  private queue: NetInput[] = [];
+  /** Viimeisin käsitelty seq (kuittaus asiakkaalle). */
+  lastSeq = 0;
+
+  push(inputs: NetInput[]): void {
+    for (const i of inputs) {
+      const newest = this.queue.length > 0 ? this.queue[this.queue.length - 1]!.seq : this.lastSeq;
+      if (i.seq > newest) this.queue.push(i);
+    }
+    if (this.queue.length > MAX_INPUT_QUEUE)
+      this.queue.splice(0, this.queue.length - MAX_INPUT_QUEUE);
+  }
+
+  next(): TubeInput | null {
+    const i = this.queue.shift();
+    if (!i) return null;
+    this.lastSeq = i.seq;
+    return i;
+  }
+
+  get length(): number {
+    return this.queue.length;
+  }
+}
+
+export const cloneTube = (t: TubeState): TubeState => ({
+  pos: { ...t.pos },
+  vel: { ...t.vel },
+  heading: t.heading,
+  angVel: t.angVel,
+  kickPhase: t.kickPhase,
+});
+
+/**
+ * Asiakkaan ennakointi: oma rengas liikkuu heti syötteen mukaan. Kun palvelimen
+ * tila ja kuittaus saapuvat, lähdetään palvelimen tilasta ja ajetaan
+ * kuittaamattomat syötteet uudelleen.
+ */
+export class TubePredictor {
+  tube: TubeState;
+  private pending: NetInput[] = [];
+  private outbox: NetInput[] = [];
+  private seq = 0;
+  /** Viimeisimmän korjauksen suuruus (m), seurantaa varten. */
+  lastCorrection = 0;
+
+  constructor(
+    start: TubeState,
+    private readonly water: WaterBody,
+  ) {
+    this.tube = cloneTube(start);
+  }
+
+  /** Oma askel: ennakoi ja jonottaa syötteen lähetettäväksi. */
+  step(input: TubeInput): TubeState {
+    const net: NetInput = { seq: ++this.seq, ...input };
+    this.pending.push(net);
+    this.outbox.push(net);
+    this.tube = stepPlayerTube(this.tube, net, this.water);
+    return this.tube;
+  }
+
+  /** Palauttaa lähetettävät syötteet, kun niitä on kertynyt erän verran. */
+  takeOutgoing(force = false): NetInput[] | null {
+    if (this.outbox.length < INPUT_BATCH && !(force && this.outbox.length > 0)) return null;
+    const out = this.outbox;
+    this.outbox = [];
+    return out;
+  }
+
+  /** Palvelimen tila saapui: korjaa ja ennakoi uudelleen. */
+  reconcile(server: TubeState, ackSeq: number): void {
+    while (this.pending.length > 0 && this.pending[0]!.seq <= ackSeq) this.pending.shift();
+    let t = cloneTube(server);
+    for (const i of this.pending) t = stepPlayerTube(t, i, this.water);
+    this.lastCorrection = Math.hypot(t.pos.x - this.tube.pos.x, t.pos.y - this.tube.pos.y);
+    this.tube = t;
+  }
+
+  get unacked(): number {
+    return this.pending.length;
+  }
+}
+
+export interface Snapshot<T> {
+  time: number;
+  value: T;
+}
+
+/**
+ * Muiden pelaajien pehmeä liike: tilat puskuroidaan ja piirretään hieman
+ * menneisyydestä kahden tilan välistä interpoloiden.
+ */
+export class SnapshotBuffer<T> {
+  private snaps: Snapshot<T>[] = [];
+
+  constructor(
+    private readonly lerp: (a: T, b: T, t: number) => T,
+    private readonly maxAge = 2,
+  ) {}
+
+  push(time: number, value: T): void {
+    const last = this.snaps[this.snaps.length - 1];
+    if (last && time <= last.time) return;
+    this.snaps.push({ time, value });
+    while (this.snaps.length > 2 && this.snaps[0]!.time < time - this.maxAge) this.snaps.shift();
+  }
+
+  sample(time: number): T | null {
+    const s = this.snaps;
+    if (s.length === 0) return null;
+    if (time <= s[0]!.time) return s[0]!.value;
+    for (let k = s.length - 1; k >= 0; k--) {
+      const a = s[k]!;
+      if (a.time <= time) {
+        const b = s[k + 1];
+        if (!b) return a.value;
+        return this.lerp(a.value, b.value, (time - a.time) / (b.time - a.time));
+      }
+    }
+    return s[s.length - 1]!.value;
+  }
+}

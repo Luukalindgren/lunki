@@ -1,6 +1,8 @@
 import {
   DEFAULT_SETTINGS,
   GAME_NAME,
+  LUNKINJARVI,
+  WaterBody,
   parseRoomCode,
   type CompetitionSettings,
 } from '@lunki/shared';
@@ -15,6 +17,7 @@ import { Screens, loadSettings } from './ui/screens';
 import { Bench } from './dev/bench';
 import { loadIdentity, saveName } from './net/identity';
 import { NetSession, describeJoinError, inviteLink } from './net/session';
+import { NetWorld } from './net/netWorld';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) throw new Error('#app puuttuu');
@@ -52,7 +55,19 @@ let updateCount = 0;
 function startGame(s: CompetitionSettings, seed = devSeed) {
   if (!session) settings = s;
   game?.dispose();
-  game = new SoloGame(input, hud, sfx, (x, y) => retro.screenToInternal(x, y), s, seed);
+  const net = session
+    ? { world: new NetWorld(session, new WaterBody(LUNKINJARVI)), overlay: app!, canvas }
+    : undefined;
+  game = new SoloGame(
+    input,
+    hud,
+    sfx,
+    (x, y) => retro.screenToInternal(x, y),
+    s,
+    seed,
+    LUNKINJARVI,
+    net,
+  );
   game.view.setResolution(retro.resolution);
   game.onFinished = () => showResults();
   if (import.meta.env.DEV) Object.assign(window, { lunki: game });
@@ -141,7 +156,9 @@ function enterLobby(s: NetSession) {
       notice,
     );
   };
-  s.onChange = () => {
+  s.onChange = (v) => {
+    // Kisa alkaa, kun tila aloituspaikkoineen on saapunut.
+    if (v.phase === 'playing' && !game) return startGame(v.settings, s.room.state.seed);
     notice = undefined;
     render();
   };
@@ -149,7 +166,6 @@ function enterLobby(s: NetSession) {
     notice = m;
     render();
   };
-  s.onStarted = (m, v) => startGame(v.settings, m.seed);
   s.onDisconnect = () => {
     session = null;
     game?.dispose();

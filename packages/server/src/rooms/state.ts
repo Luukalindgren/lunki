@@ -1,7 +1,10 @@
 import { schema, t, type SchemaType } from '@colyseus/schema';
 import { DEFAULT_MAX_PLAYERS, DEFAULT_SETTINGS } from '@lunki/shared';
 
-/** Pelaaja huoneessa. Avaimena Colyseuksen sessionId. */
+/**
+ * Pelaaja huoneessa. Avaimena Colyseuksen sessionId. Renkaan tila on
+ * float64, jotta asiakkaan ennakointi voi lähteä täsmälleen samasta tilasta.
+ */
 export const PlayerState = schema(
   {
     /** Selaimen muistissa pysyvä tunniste (uudelleenyhdistämistä varten). */
@@ -9,6 +12,19 @@ export const PlayerState = schema(
     name: t.string(),
     ready: t.boolean(),
     connected: t.boolean().default(true),
+    x: t.float64().default(0),
+    y: t.float64().default(0),
+    vx: t.float64().default(0),
+    vy: t.float64().default(0),
+    heading: t.float64().default(0),
+    angVel: t.float64().default(0),
+    kickPhase: t.float64().default(0),
+    /** Viimeisin käsitelty syötteen numero. */
+    ack: t.uint32().default(0),
+    /** Viehe muiden nähtäväksi (ei vaikuta peliin). */
+    lureX: t.float32().default(0),
+    lureY: t.float32().default(0),
+    lureStage: t.uint8().default(0),
   },
   'PlayerState',
 );
@@ -36,7 +52,7 @@ export const LunkiState = schema(
     settings: SettingsState,
     players: t.map(PlayerState),
     /** Kalojen ja aloituspaikkojen siemen, arvotaan kisan alkaessa. */
-    seed: t.uint32(),
+    seed: t.uint32().default(0),
   },
   'LunkiState',
 );

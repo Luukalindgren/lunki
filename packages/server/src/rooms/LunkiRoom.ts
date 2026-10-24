@@ -2,10 +2,25 @@ import { Room, type Client } from '@colyseus/core';
 import {
   ClientMsg,
   DEFAULT_MAX_PLAYERS,
+  InputQueue,
+  LUNKINJARVI,
   MAX_PLAYERS_LIMIT,
+  NET_DT,
+  Rng,
   ServerMsg,
+  WaterBody,
+  createTube,
+  decodeInputs,
+  distance,
+  findLaunchPoint,
+  isPlausibleSplash,
   sanitizeName,
+  stepPlayerTube,
+  type InputMessage,
   type JoinOptions,
+  type SplashMessage,
+  type TubeState,
+  type Vec2,
 } from '@lunki/shared';
 import { releaseCode, reserveCode } from './codes';
 import { LunkiState, PlayerState } from './state';
@@ -14,13 +29,28 @@ export interface CreateOptions extends Partial<JoinOptions> {
   maxPlayers?: number;
 }
 
+/** Järvi on sama kaikille huoneille. */
+const water = new WaterBody(LUNKINJARVI);
+
+/** Pelaajat aloittavat vähintään näin kaukana toisistaan (m), jos mahdollista. */
+const SPAWN_SPACING = 15;
+/** …ja samalta rannalta, korkeintaan näin kaukana ensimmäisestä (m). */
+const SPAWN_RADIUS = 120;
+
+interface Sim {
+  tube: TubeState;
+  inputs: InputQueue;
+}
+
 /**
  * Yksi kilpailuhuone. Huoneen tunniste on lyhyt koodi (esim. 4F7K), jolla
- * kaverit liittyvät. Vaiheessa 2 huone hoitaa aulan; pelisilmukka tulee
- * issuessa #13.
+ * kaverit liittyvät. Aulan jälkeen palvelin ajaa renkaiden liikkeen
+ * 60 Hz:n askeleella ja lähettää tilan 20 kertaa sekunnissa.
  */
 export class LunkiRoom extends Room<{ state: LunkiState }> {
   override state = new LunkiState();
+  /** Palvelimen sisäinen tila pelaajittain (sessionId). */
+  private readonly sims = new Map<string, Sim>();
 
   override onCreate(options: CreateOptions = {}) {
     const code = reserveCode();
@@ -31,6 +61,35 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     this.maxClients = this.state.settings.maxPlayers;
     // Koodilla liitytään, joten huone ei näy julkisessa listassa.
     void this.setPrivate(true);
+    // Syötteitä tulee 20 viestiä sekunnissa; reilu yläraja väärinkäytöksille.
+    this.maxMessagesPerSecond = 60;
+
+    this.onMessage(ClientMsg.input, (client, msg: InputMessage) => {
+      const sim = this.sims.get(client.sessionId);
+      const p = this.state.players.get(client.sessionId);
+      if (!sim || !p || this.state.phase !== 'playing') return;
+      sim.inputs.push(decodeInputs(msg?.i));
+      const l = msg?.l;
+      if (Array.isArray(l) && l.every((v) => typeof v === 'number' && Number.isFinite(v))) {
+        // Vieheen sijainti on vain näytettävä; rajataan järkevälle alueelle.
+        const lure = { x: l[0]!, y: l[1]! };
+        const ok = distance(lure, sim.tube.pos) < 200;
+        p.lureStage = ok ? Math.max(0, Math.min(3, Math.round(l[2]!))) : 0;
+        if (ok) {
+          p.lureX = lure.x;
+          p.lureY = lure.y;
+        }
+      } else {
+        p.lureStage = 0;
+      }
+    });
+
+    this.onMessage(ClientMsg.splash, (client, msg: SplashMessage) => {
+      const sim = this.sims.get(client.sessionId);
+      if (!sim || this.state.phase !== 'playing') return;
+      if (!isPlausibleSplash(sim.tube.pos, { x: Number(msg?.x), y: Number(msg?.y) }))
+        client.send(ServerMsg.castRejected);
+    });
 
     this.onMessage(ClientMsg.ready, (client, ready: unknown) => {
       const p = this.state.players.get(client.sessionId);
@@ -56,8 +115,10 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         return;
       }
       this.state.seed = (Math.random() * 2 ** 32) >>> 0;
+      this.spawnPlayers(this.state.seed);
       this.state.phase = 'playing';
       void this.lock();
+      this.setFixedTimestep(() => this.step(), 1 / NET_DT);
       this.broadcast(ServerMsg.started, { seed: this.state.seed });
     });
   }
@@ -82,6 +143,42 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     releaseCode(this.state.code);
   }
 
+  /**
+   * Arpoo aloituspaikat rannan tuntumasta: kaikki samalle rannalle
+   * (korkeintaan SPAWN_RADIUS päähän ensimmäisestä), toisistaan erilleen.
+   */
+  private spawnPlayers(seed: number) {
+    const rng = new Rng(seed ^ 0x5bd1e995);
+    const launch = () => findLaunchPoint(water, LUNKINJARVI.bounds, () => rng.next());
+    const taken: Vec2[] = [];
+    this.state.players.forEach((p, id) => {
+      let pos = launch();
+      if (taken.length > 0) {
+        const fits = (q: Vec2) =>
+          distance(q, taken[0]!) < SPAWN_RADIUS &&
+          taken.every((t) => distance(t, q) >= SPAWN_SPACING);
+        for (let k = 0; k < 400 && !fits(pos); k++) pos = launch();
+      }
+      taken.push(pos);
+      // Selkä rantaan päin, katse järvelle.
+      const shore = water.closestShorePoint(pos)?.point ?? pos;
+      const tube = createTube(pos, Math.atan2(pos.y - shore.y, pos.x - shore.x));
+      this.sims.set(id, { tube, inputs: new InputQueue() });
+      writeTube(p, tube, 0);
+    });
+  }
+
+  /** Yksi palvelimen askel: jokainen rengas etenee yhdellä syötteellään. */
+  private step() {
+    this.sims.forEach((sim, id) => {
+      const input = sim.inputs.next();
+      if (!input) return;
+      sim.tube = stepPlayerTube(sim.tube, input, water);
+      const p = this.state.players.get(id);
+      if (p) writeTube(p, sim.tube, sim.inputs.lastSeq);
+    });
+  }
+
   /** Lisää numeron, jos sama nimi on jo huoneessa. */
   private uniqueName(name: string): string {
     const taken = new Set([...this.state.players.values()].map((p) => p.name));
@@ -91,4 +188,15 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       if (!taken.has(candidate)) return candidate;
     }
   }
+}
+
+function writeTube(p: PlayerState, t: TubeState, ack: number) {
+  p.x = t.pos.x;
+  p.y = t.pos.y;
+  p.vx = t.vel.x;
+  p.vy = t.vel.y;
+  p.heading = t.heading;
+  p.angVel = t.angVel;
+  p.kickPhase = t.kickPhase;
+  p.ack = ack;
 }

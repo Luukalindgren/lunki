@@ -282,7 +282,7 @@ export function stepFishing(
       stepLine(s.line, tip, s.lure, s.lineLength, dt, { x: 0.15, y: 0.1 });
 
       if (s.hookedId === null && distance(s.lure, tip) <= LURE.homeDistance) {
-        reset(s);
+        resetFishing(s);
         events.home = true;
       }
       break;
@@ -322,7 +322,8 @@ function pullLure(s: FishingState, tip: Vec2, dt: number): void {
   s.lureSpeed = move / dt;
 }
 
-function reset(s: FishingState): void {
+/** Viehe takaisin kelalle (esim. kun palvelin hylkää heiton). */
+export function resetFishing(s: FishingState): void {
   s.stage = 'idle';
   s.needRelease = true;
   s.lineLength = 0;
@@ -427,7 +428,7 @@ function fight(
   if (diff.lineCanBreak && tension > REEL.lineStrength) {
     events.lineBroken = true;
     release(f, rng);
-    reset(s);
+    resetFishing(s);
     return;
   }
 
@@ -445,7 +446,7 @@ function fight(
     // Saatu kala poistuu ja järveen ilmestyy uusi jonnekin muualle.
     const idx = pop.fish.indexOf(f);
     pop.fish[idx] = spawnFish(pop, f.species, respawnPoint(pop, f, rng), world, rng);
-    reset(s);
+    resetFishing(s);
   }
 }
 
