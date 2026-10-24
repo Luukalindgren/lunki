@@ -5,6 +5,7 @@ import {
   chargePower,
   predictLanding,
   rodTip,
+  type Fish,
   type FishingContext,
   type FishingState,
   type Vec2,
@@ -22,6 +23,7 @@ export class FishingView {
   private readonly lureShadow: THREE.Mesh;
   private readonly line: THREE.Line;
   private readonly splash: THREE.Mesh;
+  private readonly fishShadow: THREE.Mesh;
   private splashAge = Infinity;
 
   constructor() {
@@ -65,6 +67,19 @@ export class FishingView {
     );
     this.splash.rotation.x = -Math.PI / 2;
     this.group.add(this.splash);
+
+    // Pinnan lähellä väsytettävä kala näkyy tummana varjona.
+    const shape = new THREE.Shape();
+    shape.ellipse(0, 0, 0.5, 0.15, 0, Math.PI * 2, false, 0);
+    shape.moveTo(-0.45, 0);
+    shape.lineTo(-0.75, 0.18);
+    shape.lineTo(-0.75, -0.18);
+    this.fishShadow = new THREE.Mesh(
+      new THREE.ShapeGeometry(shape),
+      new THREE.MeshBasicMaterial({ color: 0x0d2238 }),
+    );
+    this.fishShadow.rotation.x = -Math.PI / 2;
+    this.group.add(this.fishShadow);
   }
 
   startSplash(at: Vec2): void {
@@ -72,7 +87,20 @@ export class FishingView {
     this.splashAge = 0;
   }
 
-  update(s: FishingState, ctx: FishingContext, aim: Vec2, dt: number): void {
+  update(
+    s: FishingState,
+    ctx: FishingContext,
+    aim: Vec2,
+    dt: number,
+    hooked: Fish | null = null,
+  ): void {
+    this.fishShadow.visible = !!hooked && hooked.depth < 1.6;
+    if (hooked) {
+      const len = Math.cbrt(hooked.weight / 0.012) / 10; // ahvenen pituus (m) painosta
+      this.fishShadow.scale.setScalar(len / 1.1);
+      this.fishShadow.position.copy(toWorld(hooked.pos, 0.02));
+      this.fishShadow.rotation.z = hooked.heading;
+    }
     const tip = rodTip(ctx.tubePos, ctx.heading);
 
     // Tähtäys näkyy aina, kun vapa on valmiina; latauksessa osumakohta seuraa voimaa.

@@ -1,4 +1,14 @@
 import { distance, type Vec2 } from '../vec2';
+import type { Rng } from '../rng';
+import type { DifficultyParams } from './difficulty';
+import {
+  SPECIES,
+  spawnFish,
+  stepHookedFish,
+  type FishPopulation,
+  type LureInfo,
+  type SpeciesId,
+} from './fish';
 import { createLine, stepLine, straightenLine, type VerletLine } from './line';
 import {
   chargePower,
@@ -54,6 +64,11 @@ export interface FishingState {
   lureSpeed: number;
   /** Onko jarru luistanut tällä askeleella (äänimerkkiä varten). */
   dragSlipping: boolean;
+  /** Vieheeseen iskenyt kala, joka ei vielä ole tarttunut, ja iskusta kulunut aika. */
+  struckId: number | null;
+  strikeAge: number;
+  /** Väsytettävä kala. */
+  hookedId: number | null;
 }
 
 export interface FishingContext {
@@ -61,6 +76,14 @@ export interface FishingContext {
   heading: number;
   isWater(p: Vec2): boolean;
   depthAt(p: Vec2): number;
+  /** Kalat: ilman tätä kalastetaan tyhjää järveä (testit, harjoittelu). */
+  fish?: {
+    pop: FishPopulation;
+    diff: DifficultyParams;
+    rng: Rng;
+    /** Kala, joka iski tällä askeleella (stepFishPopulation). */
+    strike?: number | undefined;
+  };
 }
 
 export const LURE = {
@@ -109,12 +132,54 @@ export const createFishing = (): FishingState => ({
   gear: 1,
   lureSpeed: 0,
   dragSlipping: false,
+  struckId: null,
+  strikeAge: 0,
+  hookedId: null,
 });
+
+export interface Catch {
+  species: SpeciesId;
+  name: string;
+  weight: number;
+}
 
 export interface FishingEvents {
   cast?: number;
   splash?: Vec2;
   home?: boolean;
+  /** Kala iski (tärppi). */
+  strike?: boolean;
+  /** Kala tarttui. */
+  hooked?: boolean;
+  /** Isku meni ohi (ei vastaiskua ajoissa). */
+  missed?: boolean;
+  /** Kala irtosi väsytyksessä. */
+  escaped?: boolean;
+  /** Siima katkesi. */
+  lineBroken?: boolean;
+  caught?: Catch;
+}
+
+export const FIGHT = {
+  /** Kala nostetaan, kun se on näin lähellä vavan kärkeä ja pinnassa. */
+  landDistance: 2.2,
+  landDepth: 1,
+  /** Kalan vastus vedettäessä: kg per kg kalaa ja per (m/s)². */
+  bodyDrag: 0.3,
+  /** Siimaa ei voi kelata tätä lyhyemmäksi kalan ollessa kiinni. */
+  minLine: 1.2,
+} as const;
+
+/** Vieheen tiedot kalojen tekoälylle. */
+export function lureInfo(s: FishingState, ctx: FishingContext): LureInfo | null {
+  if (s.stage !== 'water' || s.onLand) return null;
+  return {
+    pos: s.lure,
+    depth: s.depth,
+    speed: s.lureSpeed,
+    fishable: s.hookedId === null,
+    tip: rodTip(ctx.tubePos, ctx.heading),
+  };
 }
 
 /** Heiton suunta: hiiren suunta renkaasta, rajattuna kalastajan ulottuville. */
@@ -190,21 +255,34 @@ export function stepFishing(
 
     case 'water': {
       const reeling = input.reel && !input.cancel;
-      if (reeling) s.lineLength = Math.max(0, s.lineLength - REEL.gears[s.gear]! * dt);
-      pullLure(s, tip, dt);
+      const fish = ctx.fish;
+      const hooked =
+        s.hookedId !== null && fish ? fish.pop.fish.find((f) => f.id === s.hookedId) : undefined;
+      const minLine = hooked ? FIGHT.minLine : 0;
+      if (reeling) s.lineLength = Math.max(minLine, s.lineLength - REEL.gears[s.gear]! * dt);
+
+      if (fish && s.struckId === null && !hooked && fish.strike !== undefined) {
+        s.struckId = fish.strike;
+        s.strikeAge = 0;
+        events.strike = true;
+      }
+      if (fish && s.struckId !== null) resolveStrike(s, reeling, fish, events, dt);
+
+      if (hooked && fish) {
+        fight(s, hooked, tip, ctx, fish, events, dt);
+      } else {
+        pullLure(s, tip, dt);
+        if (s.onLand && ctx.isWater(s.lure)) s.onLand = false;
+        if (!s.onLand) {
+          const bottom = ctx.depthAt(s.lure);
+          const rate = LURE.sinkRate - LURE.lift * s.lureSpeed;
+          s.depth = Math.max(0, Math.min(bottom, s.depth + rate * dt));
+        }
+      }
       stepLine(s.line, tip, s.lure, s.lineLength, dt, { x: 0.15, y: 0.1 });
 
-      if (s.onLand && ctx.isWater(s.lure)) s.onLand = false;
-      if (!s.onLand) {
-        const bottom = ctx.depthAt(s.lure);
-        const rate = LURE.sinkRate - LURE.lift * s.lureSpeed;
-        s.depth = Math.max(0, Math.min(bottom, s.depth + rate * dt));
-      }
-      if (distance(s.lure, tip) <= LURE.homeDistance) {
-        s.stage = 'idle';
-        s.needRelease = true;
-        s.lineLength = 0;
-        s.tension = 0;
+      if (s.hookedId === null && distance(s.lure, tip) <= LURE.homeDistance) {
+        reset(s);
         events.home = true;
       }
       break;
@@ -242,4 +320,144 @@ function pullLure(s: FishingState, tip: Vec2, dt: number): void {
   s.lineLength = Math.min(REEL.spool, distance(s.lure, tip));
   s.tension = tension;
   s.lureSpeed = move / dt;
+}
+
+function reset(s: FishingState): void {
+  s.stage = 'idle';
+  s.needRelease = true;
+  s.lineLength = 0;
+  s.tension = 0;
+  s.struckId = null;
+  s.hookedId = null;
+}
+
+/** Iskun jälkeen: tarttuuko kala (vastaisku = kelaus ajoissa) vai sylkeekö se vieheen. */
+function resolveStrike(
+  s: FishingState,
+  reeling: boolean,
+  fish: NonNullable<FishingContext['fish']>,
+  events: FishingEvents,
+  dt: number,
+): void {
+  const f = fish.pop.fish.find((x) => x.id === s.struckId);
+  if (!f || f.mode !== 'struck') {
+    s.struckId = null;
+    return;
+  }
+  s.strikeAge += dt;
+  const { diff, rng } = fish;
+  if (diff.autoHook || (reeling && s.strikeAge <= diff.hookWindow)) {
+    s.struckId = null;
+    if (diff.autoHook || rng.next() < diff.hookChance) {
+      f.mode = 'hooked';
+      f.stamina = 1;
+      f.running = true;
+      f.timer = rng.range(1, 2.5);
+      f.slack = 0;
+      s.hookedId = f.id;
+      events.hooked = true;
+    } else {
+      f.mode = 'roam';
+      f.cooldown = rng.range(10, 20);
+      events.missed = true;
+    }
+  } else if (s.strikeAge > diff.hookWindow) {
+    s.struckId = null;
+    f.mode = 'roam';
+    f.cooldown = rng.range(10, 20);
+    events.missed = true;
+  }
+}
+
+/** Väsytys: kala ui ja vetää, siima ja jarru rajoittavat, kelaus tuo lähemmäs. */
+function fight(
+  s: FishingState,
+  f: FishPopulation['fish'][number],
+  tip: Vec2,
+  ctx: FishingContext,
+  fish: NonNullable<FishingContext['fish']>,
+  events: FishingEvents,
+  dt: number,
+): void {
+  const { diff, rng, pop } = fish;
+  const world = { isWater: ctx.isWater, depthAt: ctx.depthAt };
+  const res = stepHookedFish(f, tip, s.tension, world, diff, rng, dt);
+
+  const speed = res.outSpeed;
+  let next = {
+    x: f.pos.x + Math.cos(f.heading) * Math.abs(speed) * dt,
+    y: f.pos.y + Math.sin(f.heading) * Math.abs(speed) * dt,
+  };
+  if (!ctx.isWater(next)) {
+    f.heading += Math.PI / 2;
+    next = { ...f.pos };
+  }
+
+  // Kalan veto siiman suuntaan: pakeneva kala vetää täysillä, sivulle uiva vähemmän.
+  const away = Math.atan2(f.pos.y - tip.y, f.pos.x - tip.x);
+  const outward = Math.max(0.25, Math.cos(f.heading - away));
+  let raw = res.pull * outward;
+
+  const d = distance(next, tip);
+  let tension = 0;
+  if (d > s.lineLength) {
+    const pulledSpeed = (d - s.lineLength) / dt;
+    raw += f.weight * FIGHT.bodyDrag * (1 + pulledSpeed * pulledSpeed);
+    if (raw > s.drag) {
+      // Jarru luistaa: kala vie siimaa.
+      s.lineLength = Math.min(REEL.spool, d);
+      tension = s.drag;
+      s.dragSlipping = true;
+    } else {
+      next = {
+        x: tip.x + ((next.x - tip.x) / d) * s.lineLength,
+        y: tip.y + ((next.y - tip.y) / d) * s.lineLength,
+      };
+      tension = raw;
+    }
+  }
+  s.tension = tension;
+  f.pos = next;
+  // Siiman pituus rajaa syvyyttä: lähelle kelattu kala nousee.
+  f.depth = Math.min(f.depth, s.lineLength * 0.7);
+  s.lure = { ...f.pos };
+  s.depth = f.depth;
+  s.lureSpeed = 0;
+
+  if (diff.lineCanBreak && tension > REEL.lineStrength) {
+    events.lineBroken = true;
+    release(f, rng);
+    reset(s);
+    return;
+  }
+
+  f.slack = tension > 0.01 ? 0 : f.slack + dt;
+  if (f.slack > diff.slackEscape) {
+    events.escaped = true;
+    release(f, rng);
+    s.hookedId = null;
+    return;
+  }
+
+  if (distance(f.pos, tip) <= FIGHT.landDistance && f.depth <= FIGHT.landDepth) {
+    const sp = SPECIES[f.species];
+    events.caught = { species: f.species, name: sp.name, weight: f.weight };
+    // Saatu kala poistuu ja järveen ilmestyy uusi jonnekin muualle.
+    const idx = pop.fish.indexOf(f);
+    pop.fish[idx] = spawnFish(pop, f.species, respawnPoint(pop, f, rng), world, rng);
+    reset(s);
+  }
+}
+
+function release(f: FishPopulation['fish'][number], rng: Rng) {
+  f.mode = 'roam';
+  f.cooldown = rng.range(20, 40);
+  f.stamina = 1;
+}
+
+/** Uusi kala syntyy jonkin toisen kalan lähelle (parvet säilyvät). */
+function respawnPoint(pop: FishPopulation, caught: { id: number }, rng: Rng): Vec2 {
+  const others = pop.fish.filter((x) => x.id !== caught.id && x.mode === 'roam');
+  const host = others[Math.floor(rng.next() * others.length)];
+  return host ? { ...host.pos } : { x: 0, y: 0 };
 }

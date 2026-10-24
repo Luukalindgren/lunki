@@ -3,6 +3,7 @@ import { FpsMeter } from './engine/fpsMeter';
 import { Input } from './engine/input';
 import { startLoop } from './engine/loop';
 import { RetroRenderer, type PaletteMode } from './engine/retroRenderer';
+import { Sfx } from './audio/sfx';
 import { SoloGame } from './game/soloGame';
 import { Hud } from './ui/hud';
 
@@ -18,11 +19,29 @@ const retro = new RetroRenderer(canvas);
 const input = new Input(canvas);
 const fps = new FpsMeter(app, import.meta.env.DEV);
 const hud = new Hud(app);
-const game = new SoloGame(input, hud, (x, y) => retro.screenToInternal(x, y));
+const sfx = new Sfx();
+window.addEventListener('pointerdown', () => sfx.unlock());
+window.addEventListener('keydown', () => sfx.unlock());
+// Kehitystä varten: ?difficulty=easy&seed=123
+const params = new URLSearchParams(location.search);
+const difficulty = (['easy', 'normal', 'realistic'] as const).find(
+  (d) => d === params.get('difficulty'),
+);
+const seed = params.has('seed') ? Number(params.get('seed')) : undefined;
+const game = new SoloGame(
+  input,
+  hud,
+  sfx,
+  (x, y) => retro.screenToInternal(x, y),
+  difficulty,
+  seed,
+);
 retro.onResize((r) => {
   game.view.setResolution(r);
   hud.setPixelSize(r.scale / (window.devicePixelRatio || 1));
 });
+
+if (import.meta.env.DEV) Object.assign(window, { lunki: game });
 
 const paletteModes: PaletteMode[] = ['palette', 'dither', 'off'];
 

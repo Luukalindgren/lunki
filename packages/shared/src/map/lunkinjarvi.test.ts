@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findOpenWaterPoint, signedArea } from './geometry';
+import { findLaunchPoint, findOpenWaterPoint, signedArea } from './geometry';
 import { LUNKINJARVI } from './lunkinjarvi';
 import { WaterBody } from './waterBody';
 
@@ -21,6 +21,18 @@ describe('Lunkinjärven kartta', () => {
     const p = findOpenWaterPoint(water, LUNKINJARVI.bounds);
     expect(water.isWater(p)).toBe(true);
     expect(water.closestShorePoint(p)!.distance).toBeGreaterThan(100);
+  });
+
+  it('lähtöpaikka on vedessä lähellä rantaa', () => {
+    let seed = 1;
+    const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 10; i++) {
+      const p = findLaunchPoint(water, LUNKINJARVI.bounds, random);
+      expect(water.isWater(p)).toBe(true);
+      const d = water.closestShorePoint(p)!.distance;
+      expect(d).toBeGreaterThan(14);
+      expect(d).toBeLessThan(26);
+    }
   });
 
   it('ranta pysäyttää liikkeen kaikkialla', () => {
