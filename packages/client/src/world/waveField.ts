@@ -61,12 +61,23 @@ export class WaveField {
     return true;
   }
 
-  /** Merkitsevä aallonkorkeus (m) pisteessä tuulen nopeudella windSpeed. */
+  /**
+   * Merkitsevä aallonkorkeus (m) pisteessä tuulen nopeudella windSpeed.
+   * Ruutujen välillä interpoloidaan kuten shaderin tekstuurissa, jotta
+   * keinunta ei nyi ruudun rajalla.
+   */
   heightAt(p: Vec2, windSpeed: number): number {
     const b = this.map.bounds;
-    const i = Math.max(0, Math.min(this.cols - 1, Math.round((p.x - b.minX) / CELL)));
-    const j = Math.max(0, Math.min(this.rows - 1, Math.round((p.y - b.minY) / CELL)));
-    return this.factors[j * this.cols + i]! * windSpeed;
+    const fx = Math.max(0, Math.min(this.cols - 1, (p.x - b.minX) / CELL));
+    const fy = Math.max(0, Math.min(this.rows - 1, (p.y - b.minY) / CELL));
+    const i = Math.min(this.cols - 2, Math.floor(fx));
+    const j = Math.min(this.rows - 2, Math.floor(fy));
+    const u = fx - i;
+    const v = fy - j;
+    const f = (a: number, c: number) => this.factors[c * this.cols + a]!;
+    const top = f(i, j) * (1 - u) + f(i + 1, j) * u;
+    const bottom = f(i, j + 1) * (1 - u) + f(i + 1, j + 1) * u;
+    return (top * (1 - v) + bottom * v) * windSpeed;
   }
 }
 

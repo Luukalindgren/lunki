@@ -230,14 +230,18 @@ export class Hud {
     this.messageTimer = seconds;
   }
 
-  /** Salaman välähdys: koko ruudun vaaleus tällä hetkellä (0–1). */
-  flash(strength: number): void {
+  /**
+   * Salaman välähdys: koko ruudun vaaleus tällä hetkellä (0–1). `invert` =
+   * aivan lähellä iskiessä kuva kääntyy hetkeksi negatiiviksi.
+   */
+  flash(strength: number, invert = false): void {
     this.flashLevel = strength;
+    this.flashEl.classList.toggle('hud-flash-invert', invert && strength > 0);
   }
 
   update(dt: number): void {
     // Portaittain, kuten muukin retrografiikka.
-    const opacity = String(Math.round(this.flashLevel * 4) / 5);
+    const opacity = String(Math.round(this.flashLevel * 5) / 5);
     if (this.flashEl.style.opacity !== opacity) this.flashEl.style.opacity = opacity;
     if (this.weighTimer > 0) {
       this.weighTimer -= dt;
