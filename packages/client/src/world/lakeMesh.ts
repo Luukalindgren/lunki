@@ -307,7 +307,7 @@ float waterBayer(vec2 p) {
         vec3 toEye = normalize(cameraPosition - vGlitterPos);
         vec3 refl = vec3(-toEye.x, toEye.y, -toEye.z);
         float across = dot(normalize(refl.xz), normalize(uGlitterDir.xz));
-        float path = smoothstep(0.985, 0.998, across) * (1.0 - smoothstep(0.04, 0.3, abs(refl.y - uGlitterDir.y)));
+        float path = smoothstep(0.99, 0.999, across) * (1.0 - smoothstep(0.04, 0.3, abs(refl.y - uGlitterDir.y)));
         float sparkle = waterHash(floor(gl_FragCoord.xy) + floor(uWaterTime * 5.0) * vec2(7.0, 3.0));
         float glint = step(1.0 - path * 0.75, sparkle) * uGlitter;
         outgoingLight = mix(outgoingLight, uGlitterColor, glint);
