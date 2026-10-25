@@ -40,8 +40,9 @@ export class RemotePlayersView {
       seen.add(p.id);
       const e = this.entries.get(p.id) ?? this.add(p.id, p.appearance);
       if (!sameAppearance(e.appearance, p.appearance)) this.recolor(e, p.appearance);
-      e.tube.position.copy(toWorld(p.pos));
+      e.tube.position.copy(toWorld(p.pos, p.lift ?? 0));
       e.tube.rotation.y = p.heading;
+      e.tube.rotation.x = p.tumble ?? 0;
       animateFins(e.tube, p.kickPhase);
 
       const showLure = p.lure !== null && p.lureStage !== LureStage.none;

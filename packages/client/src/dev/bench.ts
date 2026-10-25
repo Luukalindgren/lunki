@@ -34,7 +34,7 @@ export class Bench {
     const aim = { x: cx + Math.cos(h) * cx * 0.6, y: cy - Math.sin(h) * cy * 0.6 };
     const phase = t % 10;
     // 0–3 s potkitaan ja käännytään, 3–4 s ladataan heitto, 4–10 s kelataan.
-    this.input.simulate('KeyW', phase < 3);
+    this.input.simulate('KeyS', phase < 3);
     this.input.simulate('KeyA', phase > 1 && phase < 1.6);
     this.input.simulate(
       'Mouse0',
@@ -59,7 +59,7 @@ export class Bench {
 
   private finish(): void {
     this.done = true;
-    this.input.simulate('KeyW', false);
+    this.input.simulate('KeyS', false);
     this.input.simulate('Mouse0', false);
     const sorted = [...this.frames].sort((a, b) => a - b);
     const pct = (p: number) => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))]!;

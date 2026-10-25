@@ -24,6 +24,7 @@ import {
   type PlayerResult,
   type SpeciesId,
   type BigWaveMessage,
+  type SpoutMessage,
   type ChatMessage,
   CHAT_HISTORY,
   CHAT_PROTOCOL,
@@ -219,7 +220,7 @@ export class NetSession {
   onCatchRejected: (() => void) | null = null;
   onLightning: ((msg: LightningMessage) => void) | null = null;
   onBigWave: ((msg: BigWaveMessage) => void) | null = null;
-  onSpout: ((msg: BigWaveMessage) => void) | null = null;
+  onSpout: ((msg: SpoutMessage) => void) | null = null;
   onUntangled: ((msg: UntangledMessage) => void) | null = null;
   onRecord: ((msg: RecordMessage) => void) | null = null;
   /** Chat muuttui (uusi viesti tai historia palvelimelta). */
@@ -255,7 +256,7 @@ export class NetSession {
     room.onMessage(ServerMsg.catchRejected, () => this.onCatchRejected?.());
     room.onMessage(ServerMsg.lightning, (m: LightningMessage) => this.onLightning?.(m));
     room.onMessage(ServerMsg.bigWave, (m: BigWaveMessage) => this.onBigWave?.(m));
-    room.onMessage(ServerMsg.spout, (m: BigWaveMessage) => this.onSpout?.(m));
+    room.onMessage(ServerMsg.spout, (m: SpoutMessage) => this.onSpout?.(m));
     room.onMessage(ServerMsg.untangled, (m: UntangledMessage) => this.onUntangled?.(m));
     room.onMessage(ServerMsg.record, (m: RecordMessage) => this.onRecord?.(m));
     room.onMessage(ServerMsg.chat, (m: ChatMessage) => {

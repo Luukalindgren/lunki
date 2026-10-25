@@ -53,6 +53,8 @@ export const DEFAULT_SETTINGS: CompetitionSettings = {
 export interface CatchRecord extends Catch {
   /** Kilpailuaika saaliin hetkellä (s alusta). */
   time: number;
+  /** Paikka järvellä, jossa kala nostettiin (punnituskorttiin). */
+  at?: Vec2;
 }
 
 export interface CompetitionState {
@@ -85,9 +87,10 @@ export function stepCompetition(c: CompetitionState, dt: number): boolean {
 }
 
 /** Kirjaa punnitun saaliin, jos kilpailu on käynnissä. */
-export function recordCatch(c: CompetitionState, fish: Catch): CatchRecord | null {
+export function recordCatch(c: CompetitionState, fish: Catch, at?: Vec2): CatchRecord | null {
   if (c.finished) return null;
-  const record = { ...fish, time: c.elapsed };
+  const record: CatchRecord = { ...fish, time: c.elapsed };
+  if (at) record.at = { x: at.x, y: at.y };
   c.catches.push(record);
   return record;
 }

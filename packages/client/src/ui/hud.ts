@@ -1,4 +1,7 @@
 import '@fontsource/vt323';
+import type { SpeciesId } from '@lunki/shared';
+import { CompassDisplay } from './compass';
+import { fishImage } from './fishArt';
 import { LureSonarDisplay } from './lureSonar';
 import { SonarDisplay } from './sonar';
 
@@ -26,6 +29,8 @@ export class Hud {
   private readonly flashEl: HTMLDivElement;
   private flashLevel = 0;
   readonly sonar: SonarDisplay;
+  /** Kompassinauha ajastimen alla. */
+  readonly compass: CompassDisplay;
   /** Vieheluotain: näkyy, kun viehe on vedessä. */
   readonly lureSonar: LureSonarDisplay;
   private messageTimer = 0;
@@ -86,6 +91,7 @@ export class Hud {
       this.weigh,
       this.countdown,
     );
+    this.compass = new CompassDisplay(this.root);
     // Luotaimet oikeassa reunassa vierekkäin; kapealla ruudulla allekkain.
     const gauges = el('div', 'hud-gauges');
     this.root.appendChild(gauges);
@@ -143,9 +149,16 @@ export class Hud {
     if (this.catches.textContent !== text) this.catches.textContent = text;
   }
 
-  /** Punnitus: iso ilmoitus saaliista. */
-  showWeighIn(title: string, detail: string, seconds = 3): void {
-    this.weigh.replaceChildren(document.createTextNode(title));
+  /** Punnitus: iso ilmoitus saaliista, kalan kuva painoon suhteutettuna. */
+  showWeighIn(
+    title: string,
+    detail: string,
+    seconds = 3,
+    fish?: { species: SpeciesId; weight: number },
+  ): void {
+    this.weigh.replaceChildren();
+    if (fish) this.weigh.appendChild(fishImage(fish.species, fish.weight, 'calc(var(--u) * 2)'));
+    this.weigh.appendChild(document.createTextNode(title));
     const small = document.createElement('small');
     small.textContent = detail;
     this.weigh.appendChild(small);
@@ -191,7 +204,7 @@ export class Hud {
             : []),
         ]
       : [
-          'W/S potki · A/D käänny · Shift pikapotku (vie kuntoa)',
+          'W eteen · S selkä edellä (nopein) · A/D käänny · Shift pikapotku',
           'Hiiri: tähtää, pidä pohjassa ja päästä = heitto',
           'Hiiri pohjassa tai välilyönti = kelaa',
           '1/2/3 kelausnopeus · Q/E jarru löysemmälle/kireämmälle',
@@ -217,14 +230,18 @@ export class Hud {
     this.messageTimer = seconds;
   }
 
-  /** Salaman välähdys: koko ruudun vaaleus tällä hetkellä (0–1). */
-  flash(strength: number): void {
+  /**
+   * Salaman välähdys: koko ruudun vaaleus tällä hetkellä (0–1). `invert` =
+   * aivan lähellä iskiessä kuva kääntyy hetkeksi negatiiviksi.
+   */
+  flash(strength: number, invert = false): void {
     this.flashLevel = strength;
+    this.flashEl.classList.toggle('hud-flash-invert', invert && strength > 0);
   }
 
   update(dt: number): void {
     // Portaittain, kuten muukin retrografiikka.
-    const opacity = String(Math.round(this.flashLevel * 4) / 5);
+    const opacity = String(Math.round(this.flashLevel * 5) / 5);
     if (this.flashEl.style.opacity !== opacity) this.flashEl.style.opacity = opacity;
     if (this.weighTimer > 0) {
       this.weighTimer -= dt;

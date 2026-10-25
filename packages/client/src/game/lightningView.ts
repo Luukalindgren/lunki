@@ -2,26 +2,40 @@ import * as THREE from 'three';
 import type { Vec2 } from '@lunki/shared';
 
 /** Salaman näkyvyysaika (s) ja korkeus (m). */
-const BOLT_SECONDS = 0.7;
+const BOLT_SECONDS = 1.1;
 const TOP = 350;
 const SEGMENTS = 18;
 const BRANCHES = 3;
 const BRANCH_SEGMENTS = 5;
-/** Salaman puolileveys vähintään näin monta pikseliä, jotta se näkyy kaukaakin. */
-const HALF_WIDTH_PX = 1.2;
+/** Salaman ytimen puolileveys vähintään näin monta pikseliä, jotta se näkyy kaukaakin. */
+const HALF_WIDTH_PX = 2;
+/** Hehkun leveys ytimeen nähden. */
+const HALO = 3;
 /** Iskukohdan valon kantama (m). */
-const LIGHT_RANGE = 450;
+const LIGHT_RANGE = 600;
+/** Shokkiaalto vedessä: kesto (s) ja suurin säde (m). */
+const RING_SECONDS = 0.9;
+const RING_RADIUS = 28;
 
 /**
  * Välähdyksen kirkkaus ajan funktiona (s iskusta): kirkas isku, lyhyt
- * pimeä hetki, toinen isku ja hiipuva jälkihehku, kuten oikeassa salamassa.
+ * pimeä hetki, pari uutta iskua samaa kanavaa pitkin ja hiipuva
+ * jälkihehku, kuten oikeassa salamassa.
  */
 export function flashCurve(age: number): number {
   if (age < 0 || age >= BOLT_SECONDS) return 0;
-  if (age < 0.07) return 1;
-  if (age < 0.13) return 0.15;
-  if (age < 0.24) return 0.9;
-  return 0.6 * (1 - (age - 0.24) / (BOLT_SECONDS - 0.24));
+  if (age < 0.08) return 1;
+  if (age < 0.14) return 0.15;
+  if (age < 0.26) return 1;
+  if (age < 0.32) return 0.3;
+  if (age < 0.42) return 0.85;
+  return 0.6 * (1 - (age - 0.42) / (BOLT_SECONDS - 0.42));
+}
+
+/** Ruudun tärinän voimakkuus 0–1 iskun jälkeen (s): heti täysillä, hiipuu nopeasti. */
+export function shakeCurve(age: number): number {
+  if (age < 0 || age >= 0.8) return 0;
+  return (1 - age / 0.8) ** 2;
 }
 
 /**
@@ -32,7 +46,12 @@ export class LightningView {
   readonly group = new THREE.Group();
   private readonly bolt: THREE.Mesh;
   private readonly boltPositions: Float32Array;
+  /** Ytimen ympärillä leveämpi, värillinen hehku. */
+  private readonly halo: THREE.Mesh;
+  private readonly haloPositions: Float32Array;
   private readonly glow: THREE.Sprite;
+  /** Shokkiaalto ja höyryrengas iskukohdan vedessä. */
+  private readonly ring: THREE.Mesh;
   private readonly light = new THREE.PointLight(0xeef2f3, 0, LIGHT_RANGE, 1);
   private readonly paths: THREE.Vector3[][] = [];
   private age = Infinity;
@@ -44,33 +63,63 @@ export class LightningView {
   constructor() {
     const quads = SEGMENTS + BRANCHES * BRANCH_SEGMENTS;
     this.boltPositions = new Float32Array(quads * 4 * 3);
+    this.haloPositions = new Float32Array(quads * 4 * 3);
     const index: number[] = [];
     for (let q = 0; q < quads; q++) {
       const v = q * 4;
       index.push(v, v + 1, v + 2, v + 2, v + 1, v + 3);
     }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(this.boltPositions, 3));
-    g.setIndex(index);
-    this.bolt = new THREE.Mesh(
-      g,
-      new THREE.MeshBasicMaterial({ color: 0xfff3b0, side: THREE.DoubleSide, fog: false }),
+    const ribbon = (positions: Float32Array, color: number, order: number) => {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      g.setIndex(index);
+      const m = new THREE.Mesh(
+        g,
+        new THREE.MeshBasicMaterial({
+          color,
+          side: THREE.DoubleSide,
+          fog: false,
+          // Ydin piirretään hehkun päälle, vaikka ne ovat samassa kohdassa.
+          depthWrite: order === 1,
+        }),
+      );
+      m.renderOrder = order;
+      m.frustumCulled = false;
+      m.visible = false;
+      return m;
+    };
+    this.halo = ribbon(this.haloPositions, 0xc05bb4, 0);
+    this.bolt = ribbon(this.boltPositions, 0xeef2f3, 1);
+    const ringGeometry = new THREE.RingGeometry(0.9, 1, 32);
+    ringGeometry.rotateX(-Math.PI / 2);
+    this.ring = new THREE.Mesh(
+      ringGeometry,
+      new THREE.MeshBasicMaterial({ color: 0xeef2f3, side: THREE.DoubleSide, fog: false }),
     );
-    this.bolt.frustumCulled = false;
-    this.bolt.visible = false;
+    this.ring.visible = false;
     // Iskukohdan hehku ja vesiroiske: kameraa kohti käännetty valopallo.
     this.glow = new THREE.Sprite(
       new THREE.SpriteMaterial({ map: glowTexture(), alphaTest: 0.5, fog: false }),
     );
     this.glow.visible = false;
     this.light.position.y = 30;
-    this.group.add(this.bolt, this.glow, this.light);
+    this.group.add(this.halo, this.bolt, this.glow, this.ring, this.light);
     this.group.name = 'lightning';
   }
 
   /** Välähdyksen voimakkuus 0–1 valaistukseen ja ruudun välähdykseen. */
   get flash(): number {
     return flashCurve(this.age);
+  }
+
+  /** Ruudun tärinä 0–1 (kerrotaan iskun läheisyydellä). */
+  get shake(): number {
+    return shakeCurve(this.age);
+  }
+
+  /** Aikaa viimeisimmästä iskusta (s). */
+  get sinceStrike(): number {
+    return this.age;
   }
 
   strike(pos: Vec2): void {
@@ -103,6 +152,7 @@ export class LightningView {
       this.paths.push(branch);
     }
     this.glow.position.set(pos.x, 0, -pos.y);
+    this.ring.position.set(pos.x, 0.08, -pos.y);
     this.light.position.x = pos.x;
     this.light.position.z = -pos.y;
     this.age = 0;
@@ -112,9 +162,14 @@ export class LightningView {
     this.age += dt;
     const k = flashCurve(this.age);
     // Salama itse näkyy vain kirkkaimpina hetkinä, joten se välkkyy.
-    this.bolt.visible = k >= 0.5;
+    this.bolt.visible = k >= 0.3;
+    this.halo.visible = k >= 0.5;
     this.glow.visible = k > 0;
-    this.light.intensity = k * 4;
+    this.light.intensity = k * 6;
+    // Shokkiaalto leviää iskukohdasta ja ohenee.
+    const r = this.age / RING_SECONDS;
+    this.ring.visible = r < 1;
+    if (r < 1) this.ring.scale.setScalar(2 + RING_RADIUS * Math.sqrt(r));
   }
 
   /**
@@ -127,7 +182,7 @@ export class LightningView {
     if (k <= 0) return;
     const pixel = pixelSize(camera, heightPx);
     const glowAt = this.glow.position;
-    this.glow.scale.setScalar(Math.max(4, pixel(glowAt) * 8) * (0.4 + 0.6 * k));
+    this.glow.scale.setScalar(Math.max(8, pixel(glowAt) * 14) * (0.4 + 0.6 * k));
     if (!this.bolt.visible) return;
     const ortho = camera instanceof THREE.OrthographicCamera;
     if (ortho) camera.getWorldDirection(this.toCamera).negate();
@@ -140,16 +195,24 @@ export class LightningView {
         if (!ortho) this.toCamera.subVectors(camera.position, a).normalize();
         this.seg.subVectors(b, a);
         this.side.crossVectors(this.seg, this.toCamera).normalize();
-        const w = Math.max(0.25 * scale, pixel(a) * HALF_WIDTH_PX * scale);
-        this.writeQuad(q++, a, b, w);
+        const w = Math.max(0.35 * scale, pixel(a) * HALF_WIDTH_PX * scale);
+        this.writeQuad(this.boltPositions, q, a, b, w);
+        this.writeQuad(this.haloPositions, q++, a, b, w * HALO);
       }
     });
-    this.bolt.geometry.setDrawRange(0, q * 6);
-    this.bolt.geometry.getAttribute('position').needsUpdate = true;
+    for (const m of [this.bolt, this.halo]) {
+      m.geometry.setDrawRange(0, q * 6);
+      m.geometry.getAttribute('position').needsUpdate = true;
+    }
   }
 
-  private writeQuad(q: number, a: THREE.Vector3, b: THREE.Vector3, w: number): void {
-    const p = this.boltPositions;
+  private writeQuad(
+    p: Float32Array,
+    q: number,
+    a: THREE.Vector3,
+    b: THREE.Vector3,
+    w: number,
+  ): void {
     const s = this.side;
     const o = q * 12;
     p[o] = a.x - s.x * w;

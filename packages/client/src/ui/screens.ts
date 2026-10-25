@@ -50,11 +50,21 @@ import {
 } from '@lunki/shared';
 import type { LobbyView } from '../net/session';
 import { LIBRARIES } from './credits';
+import { fishImage } from './fishArt';
+import {
+  cardBlob,
+  cardFileName,
+  drawWeighCard,
+  weighCardText,
+  type WeighCardInfo,
+} from './weighCard';
 import { LakeMapView, describeSpot } from './lakeMap';
 import { drawTubePreview } from './tubePreview';
 import { VOLUME_LEVELS, type AudioSettings, type VolumeLevel } from '../audio/settings';
 
 const SETTINGS_KEY = 'lunki.soloSettings';
+/** Kalojen kuvat listoissa: kapealla näytöllä pienempinä (ks. style.css). */
+const LIST_FISH_SCALE = 'var(--fish-px, 2px)';
 
 const PART_NAMES: Record<AppearancePart, string> = {
   tube: 'Kelluntarengas',
@@ -159,13 +169,14 @@ export class Screens {
       ['Tekijät ja lähteet', actions.onCredits],
     ]);
     menu.classList.add('main-menu');
+    panel.classList.add('start-panel');
     panel.append(
-      h('h1', 'LUNKI'),
+      waveTitle('LUNKI'),
       h('p', 'Kelluntarengaskalastusta Tammelan Lunkinjärvellä', 'subtitle'),
       menu,
       h(
         'p',
-        'W/S potki (rengas kulkee selkä edellä) · A/D käänny · hiiri tähtää ja heittää · kelaa hiirellä tai välilyönnillä · Q/E jarru · Esc tauko',
+        'W kohti räpylöitä · S selkä edellä (nopein) · A/D käänny · hiiri tähtää ja heittää · kelaa hiirellä tai välilyönnillä · Q/E jarru · Esc tauko',
         'hint',
       ),
       h('p', 'Kartta © OpenStreetMapin tekijät, Copernicus DEM, Syke', 'hint credit-line'),
@@ -580,6 +591,7 @@ export class Screens {
         for (const r of rows) {
           const li = document.createElement('li');
           li.textContent = `${formatWeight(r.weight).padStart(8)}  ${r.angler.padEnd(16)} ${formatDate(r.date)}`;
+          li.append(fishImage(r.species, r.weight, LIST_FISH_SCALE));
           ol.appendChild(li);
         }
         if (rows.length === 0) ol.append(h('li', 'Ei vielä saaliita', 'hint'));
@@ -632,8 +644,10 @@ export class Screens {
     onLeave: () => void,
     tackles?: ReadonlyMap<string, Tackle>,
     chat?: (parent: HTMLElement) => void,
+    card?: WeighCardInfo | null,
   ): void {
     const panel = this.panel();
+    panel.dataset.screen = 'race-results';
     const winner = results[0];
     panel.append(
       h('h2', 'Kisa päättyi!'),
@@ -654,6 +668,8 @@ export class Screens {
       const biggest = r.summary.biggest ? formatWeight(r.summary.biggest.weight) : '–';
       li.textContent = `${r.name.padEnd(12)} ${String(r.summary.count).padStart(2)} kpl  ${formatWeight(r.summary.total).padStart(8)}  suurin ${biggest}`;
       const gear = tackles?.get(r.id);
+      const big = r.summary.biggest;
+      if (big) li.append(fishImage(big.species, big.weight, LIST_FISH_SCALE));
       if (gear) li.append(h('span', describeFullTackle(gear), 'player-gear'));
       table.appendChild(li);
     }
@@ -665,6 +681,7 @@ export class Screens {
         'hint',
       ),
     );
+    if (card) panel.append(this.weighCard(card));
     if (chat) chat(panel);
     panel.append(
       this.buttons(
@@ -680,7 +697,12 @@ export class Screens {
     this.show(panel);
   }
 
-  showResults(c: CompetitionState, onAgain: () => void, onMenu: () => void): void {
+  showResults(
+    c: CompetitionState,
+    onAgain: () => void,
+    onMenu: () => void,
+    card?: WeighCardInfo | null,
+  ): void {
     const panel = this.panel();
     const sum = summarize(c.catches, c.settings.winRule);
     panel.append(
@@ -699,6 +721,7 @@ export class Screens {
       for (const ct of [...c.catches].sort((a, b) => b.weight - a.weight)) {
         const li = document.createElement('li');
         li.textContent = `${ct.name.padEnd(8)} ${formatWeight(ct.weight).padStart(8)}   ${formatTime(ct.time)}`;
+        li.append(fishImage(ct.species, ct.weight, LIST_FISH_SCALE));
         list.appendChild(li);
       }
       panel.append(
@@ -709,6 +732,7 @@ export class Screens {
           'total',
         ),
       );
+      if (card) panel.append(this.weighCard(card));
     }
     panel.append(
       h(
@@ -722,6 +746,58 @@ export class Screens {
       ]),
     );
     this.show(panel);
+  }
+
+  /** Kisan suurimman kalan punnituskortti: tallennus kuvana ja jakaminen. */
+  private weighCard(info: WeighCardInfo): HTMLElement {
+    const box = document.createElement('div');
+    box.className = 'weigh-card-box';
+    const canvas = drawWeighCard(info);
+    const status = h('p', '', 'hint');
+    const url = location.origin + location.pathname;
+    const save = async () => {
+      const blob = await cardBlob(canvas);
+      if (!blob) return;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = cardFileName(info);
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      status.textContent = 'Kuva tallennettu';
+    };
+    const share = async () => {
+      const text = weighCardText(info, url);
+      const blob = await cardBlob(canvas);
+      try {
+        const file = blob ? new File([blob], cardFileName(info), { type: 'image/png' }) : null;
+        if (file && navigator.canShare?.({ files: [file] })) {
+          await navigator.share({ files: [file], text });
+          return;
+        }
+        if (blob && typeof ClipboardItem !== 'undefined') {
+          await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+          status.textContent = 'Kuva kopioitu – liitä se viestiin kavereille';
+          return;
+        }
+        await navigator.clipboard.writeText(text);
+        status.textContent = 'Teksti kopioitu – liitä se viestiin kavereille';
+      } catch (err) {
+        // Käyttäjä perui jakamisen tai selain esti leikepöydän.
+        if ((err as Error).name !== 'AbortError') {
+          status.textContent = 'Jakaminen ei onnistunut – tallenna kuva';
+        }
+      }
+    };
+    box.append(
+      h('p', 'Punnituskortti: kisan suurin kalasi', 'choice-label'),
+      canvas,
+      this.buttons([
+        ['Jaa', () => void share()],
+        ['Tallenna kuva', () => void save()],
+      ]),
+      status,
+    );
+    return box;
   }
 
   private panel(): HTMLDivElement {
@@ -744,6 +820,12 @@ export class Screens {
   private show(panel: HTMLElement, cleanup?: () => void, scroll?: [number, number] | null): void {
     this.runCleanup();
     this.cleanup = cleanup ?? null;
+    // Saman näkymän uudelleenpiirto (aula, tulokset) ei toista avausanimaatiota,
+    // muuten paneeli välähtäisi jokaisella tilamuutoksella.
+    const prev = this.root.firstElementChild as HTMLElement | null;
+    const redraw =
+      !this.root.hidden && !!panel.dataset.screen && prev?.dataset.screen === panel.dataset.screen;
+    if (!redraw) panel.classList.add('enter');
     this.root.replaceChildren(panel);
     this.root.hidden = false;
     // Saman näkymän uudelleenpiirto (aula) säilyttää vierityksen.
@@ -1127,6 +1209,8 @@ export class Screens {
     list.forEach(([text, action], i) => {
       const b = document.createElement('button');
       b.textContent = text;
+      // Porrastettu sisääntulo päävalikossa.
+      b.style.setProperty('--i', String(i));
       if (i === 0) b.classList.add('primary');
       b.addEventListener('click', action);
       row.appendChild(b);
@@ -1140,6 +1224,19 @@ function startText(start: Vec2 | null): string {
   if (!start) return 'Satunnainen kohta rannan tuntumassa.';
   const spot = describeSpot(start);
   return `Kartalta valittu kohta${spot ? `: ${spot.charAt(0).toLowerCase()}${spot.slice(1)}` : ''}.`;
+}
+
+/** Otsikko, jonka kirjaimet keinuvat vuorotellen kuin laineilla. */
+function waveTitle(text: string): HTMLElement {
+  const title = document.createElement('h1');
+  title.setAttribute('aria-label', text);
+  for (const [i, ch] of [...text].entries()) {
+    const letter = h('span', ch, 'wave-letter');
+    letter.setAttribute('aria-hidden', 'true');
+    letter.style.setProperty('--i', String(i));
+    title.append(letter);
+  }
+  return title;
 }
 
 function h(tag: string, text: string, className?: string): HTMLElement {

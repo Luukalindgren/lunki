@@ -18,13 +18,24 @@ export const BIG_WAVE = {
   warning: 4,
   /** Kaatuneena ollaan näin kauan (s): rengas ei liiku eikä kalastaa voi. */
   recover: 6,
+  /**
+   * Aallon suunnan hajonta tuulen suunnasta (rad, keskihajonta) ja suurin
+   * poikkeama: puuskainen myrsky tuo aaltoja vinosti ja välillä sivulta.
+   */
+  spread: { windy: 0.3, rain: 0.35, thunder: 0.55, storm: 0.75 } as Partial<Record<Sky, number>>,
+  maxSpread: 1.5,
 } as const;
 
 /** Iso aalto kisan aikana. */
 export interface BigWave {
   /** Kisa-aika (s), jolloin aalto osuu. */
   t: number;
+  /** Aallon kulkusuunnan poikkeama tuulen suunnasta (rad). */
+  offset: number;
 }
+
+/** Suunta (rad), johon iso aalto kulkee, kun tuuli puhaltaa suuntaan windDir. */
+export const bigWaveDir = (wave: BigWave, windDir: number) => windDir + wave.offset;
 
 /**
  * Isot aallot koko kisan ajaksi sään suunnitelmasta. Palvelin ja asiakkaat
@@ -32,6 +43,8 @@ export interface BigWave {
  */
 export function planBigWaves(plan: WeatherPlan, seed: number, durationS: number): BigWave[] {
   const rng = new Rng(seed ^ 0x1b873593);
+  // Suunnat omasta jonostaan, jotta aaltojen ajat pysyvät ennallaan.
+  const dirs = new Rng(seed ^ 0x68e31da4);
   const waves: BigWave[] = [];
   plan.segments.forEach((seg, i) => {
     const mean = BIG_WAVE.interval[seg.sky];
@@ -42,29 +55,37 @@ export function planBigWaves(plan: WeatherPlan, seed: number, durationS: number)
     for (;;) {
       t += Math.max(BIG_WAVE.warning * 2, -Math.log(1 - rng.next()) * mean);
       if (t >= end) break;
-      waves.push({ t: Math.round(t * 100) / 100 });
+      const sd = BIG_WAVE.spread[seg.sky] ?? 0;
+      const offset = Math.max(
+        -BIG_WAVE.maxSpread,
+        Math.min(BIG_WAVE.maxSpread, dirs.normal(0, sd)),
+      );
+      waves.push({ t: Math.round(t * 100) / 100, offset: Math.round(offset * 1000) / 1000 });
     }
   });
   return waves;
 }
 
-/** Ison aallon korkeus (m) pisteessä p: pyyhkäisymatka ratkaisee, kuten muillakin aalloilla. */
+/**
+ * Ison aallon korkeus (m) pisteessä p: pyyhkäisymatka aallon tulosuuntaan
+ * ratkaisee, kuten muillakin aalloilla.
+ */
 export function bigWaveHeight(
   rings: readonly (readonly Vec2[])[],
   p: Vec2,
   windSpeed: number,
-  windDir: number,
+  waveDir: number,
 ): number {
-  return BIG_WAVE.factor * waveHeight(windSpeed, fetchDistance(rings, p, windDir));
+  return BIG_WAVE.factor * waveHeight(windSpeed, fetchDistance(rings, p, waveDir));
 }
 
 /**
  * Kaatuuko rengas: aalto on tarpeeksi korkea ja tulee sivulta tai takaa.
- * Aallot tulevat sieltä, mistä tuulee, eli suunnasta windDir + π.
+ * Aalto kulkee suuntaan waveDir, joten se tulee suunnasta waveDir + π.
  */
-export function capsizes(heading: number, windDir: number, height: number): boolean {
+export function capsizes(heading: number, waveDir: number, height: number): boolean {
   if (height < BIG_WAVE.capsizeHeight) return false;
-  const from = windDir + Math.PI;
+  const from = waveDir + Math.PI;
   const off = Math.abs(Math.atan2(Math.sin(heading - from), Math.cos(heading - from)));
   return off > BIG_WAVE.safeAngle;
 }
