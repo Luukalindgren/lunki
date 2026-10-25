@@ -10,8 +10,8 @@ export type Penalty = 'none' | 'time-out' | 'lose-catch' | 'out';
 export const PENALTY_NAMES: Record<Penalty, string> = {
   none: 'Ei rangaistusta',
   'time-out': 'Jäähy (60 s)',
-  'lose-catch': 'Menetä saalis',
-  out: 'Putoat kisasta',
+  'lose-catch': 'Saaliin menetys',
+  out: 'Kisasta putoaminen',
 };
 
 export const PENALTY_IDS = Object.keys(PENALTY_NAMES) as Penalty[];

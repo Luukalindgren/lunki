@@ -281,7 +281,7 @@ export interface LureInfo {
   fishable: boolean;
   /** Vavan kärki: kala kääntyy pois, jos viehe tulee liian lähelle kalastajaa. */
   tip: Vec2;
-  /** Kalastajan varusteet (viehe, siima, perukka). */
+  /** Kalastajan varusteet (viehe, siima, peruke). */
   tackle?: Tackle;
 }
 

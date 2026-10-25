@@ -81,7 +81,7 @@ export interface FishingState {
   strikeAge: number;
   /** Väsytettävä kala. */
   hookedId: number | null;
-  /** Viehe, siima ja perukka. */
+  /** Viehe, siima ja peruke. */
   tackle: Tackle;
   /** Pohjaan tarttunut viehe: kuinka kauan sitä on yritetty irrottaa (s), null = vapaa. */
   snag: number | null;
@@ -196,7 +196,7 @@ export interface FishingEvents {
   escaped?: boolean;
   /** Siima katkesi. */
   lineBroken?: boolean;
-  /** Hauki katkaisi siiman hampaillaan (ei perukkaa). */
+  /** Hauki katkaisi siiman hampaillaan (ei peruketta). */
   bitOff?: boolean;
   /** Varusteet vaihdettiin. */
   tackleChanged?: boolean;
