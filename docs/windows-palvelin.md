@@ -131,6 +131,29 @@ _Asetukset → Järjestelmä → Virta → Näyttö ja lepotila → Lepotila: Ei
    ssh lunki 'cd ~\Projektit\lunki; .\scripts\windows\lunki.ps1 kaynnista'
    ```
 
+## 6. Lyhyet komennot Macilta
+
+`scripts/mac/lunki.sh` kirjoittaa SSH-komennon puolestasi. Ota se käyttöön
+aliaksena (korvaa polku repositorion kansiolla Macilla):
+
+```sh
+echo "alias lunki='$HOME/Projects/lunki/scripts/mac/lunki.sh'" >> ~/.zshrc
+source ~/.zshrc
+```
+
+| Komento           | Mitä tekee                                           |
+| ----------------- | ---------------------------------------------------- |
+| `lunki`           | Palvelimen ja tunnelin tila                          |
+| `lunki kaynnista` | Päivittää koodin ja käynnistää palvelimen            |
+| `lunki pysayta`   | Pysäyttää palvelimen                                 |
+| `lunki uudelleen` | Pysäyttää ja käynnistää (hakee samalla uuden koodin) |
+| `lunki loki`      | Lokin loppu; `lunki seuraa` jatkaa (Ctrl+C lopettaa) |
+| `lunki ssh`       | Tavallinen SSH-istunto pelikoneelle                  |
+
+Oletuksena käytetään `~/.ssh/config`-oikotietä `lunki` ja pelikoneen kansiota
+`~\Projektit\lunki`. Toisen voi antaa ympäristömuuttujilla `LUNKI_SSH_HOST`
+ja `LUNKI_PC_DIR`.
+
 ## Vianetsintä
 
 | Oire                              | Syy ja korjaus                                                                                                                                                                |
