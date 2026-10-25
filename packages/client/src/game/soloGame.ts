@@ -23,7 +23,13 @@ import {
   bigWaveHeight,
   capsizes,
   planBigWaves,
+  planWaterspouts,
+  activeSpouts,
+  spoutAffects,
+  spoutCapture,
+  spoutWind,
   LIGHTNING,
+  SPOUT,
   OUT_OF_RACE,
   windVector,
   waveLength,
@@ -55,6 +61,7 @@ import {
   type Penalty,
   type Strike,
   type BigWave,
+  type Waterspout,
   type LakeMap,
   type Tackle,
   type Vec2,
@@ -69,11 +76,12 @@ import type { RetroResolution } from '../engine/resolution';
 import { PovCamera } from './povCamera';
 import { LightningView } from './lightningView';
 import { BigWaveView } from './bigWaveView';
+import { SpoutView } from './spoutView';
 import { createLakeMesh, createWaterWaves, toWorld, waterTime } from '../world/lakeMesh';
 import { WAVE_FACTOR_SCALE, WaveField } from '../world/waveField';
 import { createBuildings, createPiers, planPiers } from '../world/buildings';
 import { createVegetation } from '../world/vegetation';
-import { WeatherView, windFrom, windName } from './weatherView';
+import { WeatherView, compassIn, windFrom, windName } from './weatherView';
 import type { NetWorld } from '../net/netWorld';
 import { RemotePlayersView } from './remotePlayersView';
 import type { Sfx } from '../audio/sfx';
@@ -179,6 +187,10 @@ export class SoloGame {
   private capsizedUntil = 0;
   private capsizedAt = -Infinity;
   private readonly rings: Vec2[][];
+  private readonly spouts: Waterspout[];
+  private readonly spoutView = new SpoutView();
+  private spoutsSeen = 0;
+  private spoutWarnTimer = 0;
   /** Aaltojen näkyvä aaltoluku (rad/m) ja kulmataajuus (rad/s). */
   private waveK = 1;
   private waveOmega = 1;
@@ -229,7 +241,19 @@ export class SoloGame {
     this.strikes = net ? [] : planLightning(plan, seed, settings.durationMinutes * 60);
     this.bigWaves = planBigWaves(plan, seed, settings.durationMinutes * 60);
     this.rings = [map.shore, ...map.islands];
-    this.scene.add(this.weather.group, this.lightning.group, this.bigWaveView.group);
+    this.spouts = planWaterspouts(
+      plan,
+      seed,
+      settings.durationMinutes * 60,
+      this.water,
+      map.bounds,
+    );
+    this.scene.add(
+      this.weather.group,
+      this.lightning.group,
+      this.bigWaveView.group,
+      this.spoutView.group,
+    );
     this.waves = new WaveField(map);
     this.waterWaves.uWaveTex.value = this.waves.texture;
     this.waterWaves.uWaveBounds.value.copy(this.waves.bounds);
@@ -273,7 +297,12 @@ export class SoloGame {
         this.hud.showMessage('Palvelin ei hyväksynyt saalista punnitukseen', 2.5);
       net.world.onLightning = (m) =>
         this.onStrike({ x: m.x, y: m.y }, m.victims.includes(net.world.myId));
-      net.world.onBigWave = (m) => this.onBigWave(m.victims.includes(net.world.myId));
+      net.world.onBigWave = (m) => {
+        if (m.victims.includes(net.world.myId)) this.onCapsize('wave');
+      };
+      net.world.onSpout = (m) => {
+        if (m.victims.includes(net.world.myId)) this.onCapsize('spout');
+      };
       net.world.onCastRejected = () => {
         resetFishing(this.fishing);
         this.hud.showMessage('Palvelin hylkäsi heiton', 2);
@@ -296,6 +325,21 @@ export class SoloGame {
   /** Tuuli nyt (m/s); kisan päätyttyä tyyntä. */
   get wind(): Vec2 {
     return this.competition.finished ? { x: 0, y: 0 } : windVector(this.weather.now);
+  }
+
+  /** Renkaaseen vaikuttava tuuli: sään tuuli ja trombin imu (heittoon trombi ei vaikuta). */
+  private get tubeWind(): Vec2 {
+    const w = this.wind;
+    const now = this.competition.elapsed;
+    if (this.competition.finished) return w;
+    if (!spoutAffects(this.capsizedUntilAbs, now)) return w;
+    const s = spoutWind(this.spouts, now, this.tube.pos);
+    return { x: w.x + s.x, y: w.y + s.y };
+  }
+
+  /** Oma rengas kumossa tähän kisa-aikaan asti. */
+  private get capsizedUntilAbs(): number {
+    return this.net ? this.net.world.capsizedUntil : this.capsizedUntil;
   }
 
   /** Aktiivinen kamera piirtoa varten. */
@@ -356,8 +400,40 @@ export class SoloGame {
 
   /** Kumossa jäljellä (s). */
   private get capsizeLeft(): number {
-    const until = this.net ? this.net.world.capsizedUntil : this.capsizedUntil;
-    return Math.max(0, until - this.competition.elapsed);
+    return Math.max(0, this.capsizedUntilAbs - this.competition.elapsed);
+  }
+
+  /**
+   * Trombit: näkymä, varoitukset ja yksinpelissä nappaus (moninpelissä
+   * palvelin). Trombi näkyy kaukaa ja imee renkaan, joka tulee liian lähelle.
+   */
+  private updateSpouts(dt: number): void {
+    const now = this.competition.elapsed;
+    const spots = activeSpouts(this.spouts, now);
+    this.spoutView.update(dt, spots);
+    const born = this.spouts.filter((s) => s.t0 <= now).length;
+    if (born > this.spoutsSeen) {
+      this.spoutsSeen = born;
+      if (spots.length > 0) {
+        this.hud.showMessage('Trombi järvellä! Pysy kaukana siitä', 3);
+        this.sfx.rumble();
+      }
+    }
+    if (!this.net && spoutAffects(this.capsizedUntil, now)) {
+      const fling = spoutCapture(this.spouts, now, this.tube.pos);
+      if (fling) {
+        this.tube = { ...this.tube, vel: fling };
+        this.capsizedUntil = now + BIG_WAVE.recover;
+        this.onCapsize('spout');
+      }
+    }
+    // Imualueella muistutetaan pakenemaan.
+    this.spoutWarnTimer -= dt;
+    const near = spots.some((p) => distance(p, this.tube.pos) < SPOUT.radius);
+    if (near && this.capsizeLeft === 0 && this.spoutWarnTimer <= 0) {
+      this.hud.showMessage('Trombi imee! Potki karkuun (Shift)', 2);
+      this.spoutWarnTimer = 4;
+    }
   }
 
   /**
@@ -373,8 +449,10 @@ export class SoloGame {
     while (this.nextWave < this.bigWaves.length && this.bigWaves[this.nextWave]!.t <= now) {
       this.nextWave++;
       if (felt) this.sfx.wave();
-      if (!this.net)
-        this.onBigWave(this.capsizeLeft === 0 && capsizes(this.tube.heading, w.windDir, h));
+      if (!this.net && this.capsizeLeft === 0 && capsizes(this.tube.heading, w.windDir, h)) {
+        this.capsizedUntil = now + BIG_WAVE.recover;
+        this.onCapsize('wave');
+      }
     }
     const next = this.bigWaves[this.nextWave];
     const prev = this.bigWaves[this.nextWave - 1];
@@ -388,13 +466,28 @@ export class SoloGame {
       this.hud.showMessage(`Iso aalto ${windFrom(w.windDir)}! Käänny aaltoa kohti`, 3);
   }
 
-  /** Iso aalto meni ohi; `hitMe` = kaatoi oman renkaan. */
-  private onBigWave(hitMe: boolean): void {
-    if (!hitMe) return;
-    if (!this.net) this.capsizedUntil = this.competition.elapsed + BIG_WAVE.recover;
+  /** Lähimmän trombin etäisyys ja suunta säärivillä, esim. " · trombi 320 m lounaassa". */
+  private spoutText(): string {
+    const p = this.tube.pos;
+    let best: Vec2 | null = null;
+    for (const c of activeSpouts(this.spouts, this.competition.elapsed))
+      if (!best || distance(c, p) < distance(best, p)) best = c;
+    if (!best) return '';
+    const d = Math.round(distance(best, p) / 10) * 10;
+    return ` · trombi ${d} m ${compassIn(Math.atan2(best.y - p.y, best.x - p.x))}`;
+  }
+
+  /** Oma rengas kaatui ison aallon tai trombin takia. */
+  private onCapsize(cause: 'wave' | 'spout'): void {
     this.capsizedAt = this.competition.elapsed;
+    if (cause === 'spout') this.sfx.wave();
     const penalty = this.punish(this.settings.capsizePenalty ?? 'none');
-    this.hud.showWeighIn('Kaaduit!', penalty || 'Käänny aaltoa kohti, niin pysyt pystyssä', 4);
+    this.hud.showWeighIn(
+      cause === 'wave' ? 'Kaaduit!' : 'Trombi kaatoi sinut!',
+      penalty ||
+        (cause === 'wave' ? 'Käänny aaltoa kohti, niin pysyt pystyssä' : 'Pysy kaukana trombista'),
+      4,
+    );
   }
 
   /** Jäähyä jäljellä (s); pudonneella Infinity. */
@@ -456,6 +549,7 @@ export class SoloGame {
     if (!this.net) this.strikeLightning();
     this.lightning.update(dt);
     this.updateBigWaves();
+    this.updateSpouts(dt);
     const timeOut = this.timeOutLeft;
     const capsized = this.capsizeLeft > 0;
     const still = { kick: 0, turn: 0, sprint: false };
@@ -472,9 +566,14 @@ export class SoloGame {
               ? LureStage.water
               : LureStage.none;
       const tubeInput = frozen || capsized ? still : readTubeInput(input);
-      this.tube = this.net.world.stepOwn(tubeInput, f.lure, stage, frozen ? undefined : this.wind);
+      this.tube = this.net.world.stepOwn(
+        tubeInput,
+        f.lure,
+        stage,
+        frozen ? undefined : this.tubeWind,
+      );
     } else {
-      const next = stepTube(this.tube, capsized ? still : readTubeInput(input), dt, this.wind);
+      const next = stepTube(this.tube, capsized ? still : readTubeInput(input), dt, this.tubeWind);
       this.tube = collideTubeWithShore(this.tube, next, this.water);
     }
 
@@ -589,7 +688,8 @@ export class SoloGame {
     this.hud.setWeather(
       `${SKY_NAMES[w.sky]} · ${windName(w.windDir)} ${Math.round(w.windSpeed)} m/s` +
         (hs >= 0.05 ? ` · aallot ${hs.toFixed(1).replace('.', ',')} m` : '') +
-        (w.sky === 'thunder' || w.sky === 'storm' ? ' · salamavaara!' : ''),
+        (w.sky === 'thunder' || w.sky === 'storm' ? ' · salamavaara!' : '') +
+        this.spoutText(),
     );
   }
 

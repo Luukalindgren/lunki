@@ -104,6 +104,8 @@ export const ServerMsg = {
   lightning: 'lightning',
   /** Iso aalto osui, ks. BigWaveMessage. */
   bigWave: 'bigWave',
+  /** Trombi nappasi renkaita (sama muoto kuin BigWaveMessage). */
+  spout: 'spout',
 } as const;
 
 export interface BigWaveMessage {

@@ -142,6 +142,7 @@ export class NetSession {
   onCatchRejected: (() => void) | null = null;
   onLightning: ((msg: LightningMessage) => void) | null = null;
   onBigWave: ((msg: BigWaveMessage) => void) | null = null;
+  onSpout: ((msg: BigWaveMessage) => void) | null = null;
   onStarted: ((msg: StartedMessage, view: LobbyView) => void) | null = null;
   onError: ((message: string) => void) | null = null;
   /** Yhteys katkesi muusta syystä kuin omasta lähdöstä. */
@@ -169,6 +170,7 @@ export class NetSession {
     room.onMessage(ServerMsg.catchRejected, () => this.onCatchRejected?.());
     room.onMessage(ServerMsg.lightning, (m: LightningMessage) => this.onLightning?.(m));
     room.onMessage(ServerMsg.bigWave, (m: BigWaveMessage) => this.onBigWave?.(m));
+    room.onMessage(ServerMsg.spout, (m: BigWaveMessage) => this.onSpout?.(m));
     room.onLeave(() => {
       clearResume();
       if (!this.leaving) this.onDisconnect?.();
