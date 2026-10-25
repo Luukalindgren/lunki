@@ -94,6 +94,7 @@ import type { Hud } from '../ui/hud';
 import { FishingView } from './fishingView';
 import { loadTackle, nextLure, saveTackle } from './tackle';
 import { TopDownCamera } from './topDownCamera';
+import { QuietSpot } from './quietSpot';
 import { animateFins, createTubeMesh } from './tubeMesh';
 
 /** Kalojen määrä järvessä. Saatujen tilalle syntyy uusia. */
@@ -163,6 +164,8 @@ export class SoloGame {
   /** Vaihdettavat varusteet: otetaan käyttöön, kun viehe on kelalla. */
   private pendingTackle: Tackle | null = null;
   private readonly fishingView = new FishingView();
+  /** Vinkkaa paikan vaihdosta, kun heitot menevät tyhjiin. */
+  private readonly quietSpot = new QuietSpot();
   /** Hiiren osoittama piste maailmassa. */
   aim: Vec2 = { x: 0, y: 0 };
   readonly rng: Rng;
@@ -830,7 +833,13 @@ export class SoloGame {
     dt: number,
   ): void {
     const { hud, sfx } = this;
-    if (events.cast !== undefined) sfx.cast(events.cast);
+    if (events.cast !== undefined) {
+      sfx.cast(events.cast);
+      this.quietSpot.cast(this.tube.pos);
+    }
+    if (follow || events.strike) this.quietSpot.noticed();
+    if (events.home && this.quietSpot.home())
+      hud.showMessage('Hiljaista – potki muualle, K näyttää kalat', 4);
     if (events.splash) {
       this.fishingView.startSplash(events.splash);
       sfx.splash();
