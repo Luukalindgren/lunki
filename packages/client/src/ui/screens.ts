@@ -47,11 +47,14 @@ import {
 } from '@lunki/shared';
 import type { LobbyView } from '../net/session';
 import { LIBRARIES } from './credits';
+import { fishImage } from './fishArt';
 import { LakeMapView, describeSpot } from './lakeMap';
 import { drawTubePreview } from './tubePreview';
 import { VOLUME_LEVELS, type AudioSettings, type VolumeLevel } from '../audio/settings';
 
 const SETTINGS_KEY = 'lunki.soloSettings';
+/** Kalojen kuvat listoissa: kapealla näytöllä pienempinä (ks. style.css). */
+const LIST_FISH_SCALE = 'var(--fish-px, 2px)';
 
 const PART_NAMES: Record<AppearancePart, string> = {
   tube: 'Kelluntarengas',
@@ -566,6 +569,7 @@ export class Screens {
         for (const r of rows) {
           const li = document.createElement('li');
           li.textContent = `${formatWeight(r.weight).padStart(8)}  ${r.angler.padEnd(16)} ${formatDate(r.date)}`;
+          li.append(fishImage(r.species, r.weight, LIST_FISH_SCALE));
           ol.appendChild(li);
         }
         if (rows.length === 0) ol.append(h('li', 'Ei vielä saaliita', 'hint'));
@@ -640,6 +644,8 @@ export class Screens {
       const biggest = r.summary.biggest ? formatWeight(r.summary.biggest.weight) : '–';
       li.textContent = `${r.name.padEnd(12)} ${String(r.summary.count).padStart(2)} kpl  ${formatWeight(r.summary.total).padStart(8)}  suurin ${biggest}`;
       const gear = tackles?.get(r.id);
+      const big = r.summary.biggest;
+      if (big) li.append(fishImage(big.species, big.weight, LIST_FISH_SCALE));
       if (gear) li.append(h('span', describeFullTackle(gear), 'player-gear'));
       table.appendChild(li);
     }
@@ -685,6 +691,7 @@ export class Screens {
       for (const ct of [...c.catches].sort((a, b) => b.weight - a.weight)) {
         const li = document.createElement('li');
         li.textContent = `${ct.name.padEnd(8)} ${formatWeight(ct.weight).padStart(8)}   ${formatTime(ct.time)}`;
+        li.append(fishImage(ct.species, ct.weight, LIST_FISH_SCALE));
         list.appendChild(li);
       }
       panel.append(

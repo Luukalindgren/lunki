@@ -94,6 +94,7 @@ import type { NetWorld } from '../net/netWorld';
 import { RemotePlayersView } from './remotePlayersView';
 import type { Sfx } from '../audio/sfx';
 import type { Hud } from '../ui/hud';
+import { fishLengthCm } from '../ui/fishArt';
 import { FishingView } from './fishingView';
 import { ROD_TIP_Y, rodSideOffset } from './lineHang';
 import { loadTackle, nextLure, saveTackle } from './tackle';
@@ -934,9 +935,12 @@ export class SoloGame {
       this.fishingView.startSplash(this.fishing.lure);
       const catches = this.competition.catches;
       const biggest = catches.every((c) => c === record || c.weight < events.caught!.weight);
+      const length = `${Math.round(fishLengthCm(events.caught.species, events.caught.weight))} cm`;
       hud.showWeighIn(
         `${events.caught.name} ${formatWeight(events.caught.weight)}`,
-        catches.length > 1 && biggest ? 'Kisan suurin tähän asti!' : `${catches.length}. kala`,
+        `${length} · ${catches.length > 1 && biggest ? 'kisan suurin tähän asti!' : `${catches.length}. kala`}`,
+        3.5,
+        events.caught,
       );
     }
     if (this.fishing.dragSlipping) sfx.dragSlip();

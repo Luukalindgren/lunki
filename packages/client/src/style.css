@@ -345,6 +345,11 @@ body {
   left: 50%;
   top: 22%;
   transform: translateX(-50%);
+  /* Kapealla näytöllä kortti ja kalan kuva mahtuvat ruutuun. */
+  width: max-content;
+  max-width: calc(100% - var(--u) * 8);
+  box-sizing: border-box;
+  z-index: 1;
   text-align: center;
   font-size: calc(var(--u) * 12);
   color: #fff3b0;
@@ -425,6 +430,32 @@ body {
 
 .player-state.ok {
   color: #8fd16a;
+}
+
+.fish-art {
+  image-rendering: pixelated;
+  vertical-align: middle;
+}
+
+.catch-list .fish-art {
+  margin-left: 12px;
+}
+
+.hud-weigh .fish-art {
+  display: block;
+  margin: 0 auto calc(var(--u) * 2);
+  max-width: 100%;
+  height: auto !important;
+}
+
+:root {
+  --fish-px: 2px;
+}
+
+@media (max-width: 600px) {
+  :root {
+    --fish-px: 1px;
+  }
 }
 
 .player-gear {
