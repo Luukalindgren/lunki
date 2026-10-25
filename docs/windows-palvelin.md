@@ -149,6 +149,7 @@ source ~/.zshrc
 | `lunki uudelleen` | Pysäyttää ja käynnistää (hakee samalla uuden koodin) |
 | `lunki loki`      | Lokin loppu; `lunki seuraa` jatkaa (Ctrl+C lopettaa) |
 | `lunki ssh`       | Tavallinen SSH-istunto pelikoneelle                  |
+| `lunki lan`       | LAN-peli tältä Macilta ([docs/lan.md](lan.md))       |
 
 Oletuksena käytetään `~/.ssh/config`-oikotietä `lunki` ja pelikoneen kansiota
 `~\Projektit\lunki`. Toisen voi antaa ympäristömuuttujilla `LUNKI_SSH_HOST`

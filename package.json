@@ -11,6 +11,7 @@
     "dev:server": "pnpm --filter @lunki/server dev",
     "server": "pnpm --filter @lunki/server start",
     "report": "pnpm --filter @lunki/server report",
+    "lan": "pnpm --filter @lunki/client build:lan && pnpm --filter @lunki/server lan",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint .",

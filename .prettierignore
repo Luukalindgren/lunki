@@ -1,4 +1,5 @@
 dist
+dist-lan
 coverage
 pnpm-lock.yaml
 packages/map-pipeline/data
