@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import {
   LandCover,
   pointInRing,
-  terrainHeightAt,
   valueNoise,
   type AreaKind,
   type LakeMap,
@@ -10,6 +9,7 @@ import {
   type Vec2,
 } from '@lunki/shared';
 import { spriteMipmaps } from '../engine/pixelMipmaps';
+import { Ground } from './ground';
 
 /** Spritet kuvakartassa vasemmalta oikealle. */
 type SpriteKind = 'spruce' | 'pine' | 'birch' | 'reeds';
@@ -59,10 +59,14 @@ export interface Plant {
  * lajia kohden). Puut sijoitetaan rantaviivalta maalle maankäytön mukaan,
  * kaislat kartan kaislikoihin (ilmakuvista rajatut, ks. lunkinjarvi-reeds.json).
  */
-export function createVegetation(map: LakeMap, surroundings?: LakeSurroundings): THREE.Group {
+export function createVegetation(
+  map: LakeMap,
+  surroundings?: LakeSurroundings,
+  ground?: Ground,
+): THREE.Group {
   const group = new THREE.Group();
   group.name = 'vegetation';
-  const plants = planVegetation(map, surroundings);
+  const plants = planVegetation(map, surroundings, ground);
   const texture = createAtlas();
   const material = new THREE.MeshBasicMaterial({
     map: texture,
@@ -103,12 +107,15 @@ export function createVegetation(map: LakeMap, surroundings?: LakeSurroundings):
 }
 
 /** Kasvien paikat; erillään piirrosta, jotta sijoittelua voi testata. */
-export function planVegetation(map: LakeMap, surroundings?: LakeSurroundings): Plant[] {
+export function planVegetation(
+  map: LakeMap,
+  surroundings?: LakeSurroundings,
+  ground = new Ground(map, surroundings?.terrain ?? null),
+): Plant[] {
   // Kiinteä siemen: sama järvi näyttää aina samalta.
   let seed = 23;
   const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   const cover = surroundings ? new LandCover(surroundings) : null;
-  const terrain = surroundings?.terrain ?? null;
   const yards = new BuildingIndex(surroundings);
   const isWater = (p: Vec2) =>
     pointInRing(p, map.shore) && !map.islands.some((isl) => pointInRing(p, isl));
@@ -136,7 +143,7 @@ export function planVegetation(map: LakeMap, surroundings?: LakeSurroundings): P
         // Aukiot ja harvemmat kohdat metsässä.
         if (valueNoise(pos.x / 40, pos.y / 40, 41) < -0.45) density *= 0.2;
         if (rand() > density) continue;
-        const h = Math.max(0, terrainHeightAt(terrain, pos));
+        const h = Math.max(0, ground.heightAt(pos));
         const mix = valueNoise(pos.x / 60, pos.y / 60, 42);
         // Koivuja rannassa ja lehtimetsälaikuissa, mäntyjä kankailla, muuten kuusta.
         const species: SpriteKind =

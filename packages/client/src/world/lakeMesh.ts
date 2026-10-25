@@ -52,6 +52,10 @@ export function createLakeMesh(map: LakeMap, waves = createWaterWaves()): THREE.
     alphaTest: 0.5,
     depthWrite: false,
   });
+  // Kuvio on tehty ylhäältä katsottavaksi: POV-näkymässä se näkyi isoina
+  // vaaleina laattoina veden pinnalla, joten se piilotetaan siellä (ks. REED_PATCHES).
+  const patches = new THREE.Group();
+  patches.name = REED_PATCHES;
   for (const bed of map.reeds ?? []) {
     const patch = new THREE.Mesh(
       new THREE.ShapeGeometry(new THREE.Shape(toShapePoints(bed.ring))),
@@ -60,8 +64,9 @@ export function createLakeMesh(map: LakeMap, waves = createWaterWaves()): THREE.
     patch.rotation.x = -Math.PI / 2;
     patch.position.y = 0.015;
     patch.name = 'reeds';
-    group.add(patch);
+    patches.add(patch);
   }
+  group.add(patches);
 
   const shoreMaterial = new THREE.LineBasicMaterial({ color: 0xb99a68 });
   for (const ring of [map.shore, ...map.islands]) {
@@ -74,6 +79,9 @@ export function createLakeMesh(map: LakeMap, waves = createWaterWaves()): THREE.
   }
   return group;
 }
+
+/** Ylhäältä-näkymän kaislikkokuvioiden ryhmän nimi. */
+export const REED_PATCHES = 'reed-patches';
 
 /** Kaislikkokuvion yhden toiston koko (m) ja tupsujen määrä toistossa. */
 const REED_TEXTURE_METERS = 8;

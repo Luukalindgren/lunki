@@ -1,12 +1,6 @@
 import * as THREE from 'three';
-import {
-  LandCover,
-  pointInRing,
-  type AreaKind,
-  type LakeMap,
-  type LakeSurroundings,
-  type LineKind,
-} from '@lunki/shared';
+import { LandCover, type AreaKind, type LakeSurroundings, type LineKind } from '@lunki/shared';
+import type { Ground } from './ground';
 
 /** Maankäytön värit (palettisävyjä). */
 export const AREA_COLORS: Record<AreaKind, number> = {
@@ -66,52 +60,95 @@ export function createMapOverlay(s: LakeSurroundings): THREE.Group {
   return group;
 }
 
+/** Maaston ruohokuvion yhden toiston koko (m). */
+const GRASS_TEXTURE_METERS = 8;
+
 /**
- * POV-näkymän maasto: korkeusmallista matalapolygoninen pinta, väritetty
- * maankäytön mukaan. Järven kohdalla pinta painetaan veden alle, ja rannassa
- * maa nousee hieman pinnan yläpuolelle.
+ * POV-näkymän maasto: maanpinnasta (ks. Ground) matalapolygoninen pinta,
+ * väritetty maankäytön mukaan ja kuvioitu pikseliruoholla, jotta rinteet
+ * näyttävät maalta eivätkä tasaisilta seiniltä. Järven kohdalla pinta on
+ * veden alla.
  */
-export function createTerrainMesh(map: LakeMap, s: LakeSurroundings): THREE.Mesh | null {
-  const t = s.terrain;
-  if (!t) return null;
+export function createTerrainMesh(ground: Ground, s: LakeSurroundings): THREE.Mesh | null {
+  if (!ground.terrain) return null;
+  const { cols, rows, cell } = ground;
   const cover = new LandCover(s);
-  const positions = new Float32Array(t.cols * t.rows * 3);
-  const colors = new Float32Array(t.cols * t.rows * 3);
+  const positions = new Float32Array(cols * rows * 3);
+  const colors = new Float32Array(cols * rows * 3);
+  const uvs = new Float32Array(cols * rows * 2);
   const color = new THREE.Color();
-  for (let j = 0; j < t.rows; j++) {
-    for (let i = 0; i < t.cols; i++) {
-      const k = j * t.cols + i;
-      const p = { x: t.minX + i * t.cell, y: t.minY + j * t.cell };
-      const inLake = pointInRing(p, map.shore) && !map.islands.some((isl) => pointInRing(p, isl));
-      const h = inLake ? -3 : Math.max(0.4, t.heights[k]!);
+  for (let j = 0; j < rows; j++) {
+    for (let i = 0; i < cols; i++) {
+      const k = j * cols + i;
+      const p = { x: ground.minX + i * cell, y: ground.minY + j * cell };
+      const h = ground.heights[k]!;
       positions.set([p.x, h, -p.y], k * 3);
-      const kind = inLake ? null : cover.kindAt(p);
+      uvs.set([p.x / GRASS_TEXTURE_METERS, p.y / GRASS_TEXTURE_METERS], k * 2);
+      const kind = ground.water[k] ? null : cover.kindAt(p);
       color.setHex(kind ? AREA_COLORS[kind] : DEFAULT_GROUND);
       // Kevyt korkeusvarjostus, jotta mäet erottuvat.
-      color.multiplyScalar(0.85 + Math.min(0.3, h / 120));
+      color.multiplyScalar(0.85 + Math.min(0.3, Math.max(0, h) / 120));
       colors.set([color.r, color.g, color.b], k * 3);
     }
   }
   const index: number[] = [];
-  for (let j = 0; j < t.rows - 1; j++) {
-    for (let i = 0; i < t.cols - 1; i++) {
-      const a = j * t.cols + i;
+  for (let j = 0; j < rows - 1; j++) {
+    for (let i = 0; i < cols - 1; i++) {
+      const a = j * cols + i;
       const b = a + 1;
-      const c = a + t.cols;
+      const c = a + cols;
       const d = c + 1;
-      // Vastapäivään ylhäältä katsottuna: normaali ylöspäin.
+      // Vastapäivään ylhäältä katsottuna: normaali ylöspäin. Lävistäjä b–c
+      // kuten Ground.heightAt.
       index.push(a, b, c, b, d, c);
     }
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  g.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
   g.setIndex(index);
   g.computeVertexNormals();
   const mesh = new THREE.Mesh(
     g,
-    new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }),
+    new THREE.MeshLambertMaterial({
+      vertexColors: true,
+      flatShading: true,
+      map: createGrassTexture(),
+    }),
   );
   mesh.name = 'terrain';
   return mesh;
+}
+
+/**
+ * Harmaasävyinen ruohokuvio, joka kerrotaan maankäytön värillä: valkoisella
+ * pohjalla tummia tupsuja ja korsia. Paletissa sävyt hyppäävät viereiseen
+ * vihreään, mikä näkyy pikseliruohona.
+ */
+function createGrassTexture(): THREE.Texture {
+  const size = 32;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, size, size);
+  // Kiinteä siemen, jotta kuvio on aina sama.
+  let seed = 13;
+  const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < 150; i++) {
+    const x = Math.floor(rand() * size);
+    const y = Math.floor(rand() * size);
+    ctx.fillStyle = rand() < 0.6 ? '#8c8c8c' : '#c8c8c8';
+    ctx.fillRect(x, y, 1, 1 + Math.floor(rand() * 2));
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.magFilter = THREE.NearestFilter;
+  // Kaukaa katsottuna kuvio sulautuu keskisävyyn eikä välky.
+  texture.minFilter = THREE.NearestMipmapLinearFilter;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
 }
