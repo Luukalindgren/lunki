@@ -83,7 +83,7 @@ import { SpoutView } from './spoutView';
 import { KnotView } from './knotView';
 import { createLakeMesh, createWaterWaves, toWorld, waterTime } from '../world/lakeMesh';
 import { WAVE_FACTOR_SCALE, WaveField } from '../world/waveField';
-import { createBuildings, createPiers, planPiers } from '../world/buildings';
+import { createBuildings, createPiers } from '../world/buildings';
 import { createVegetation } from '../world/vegetation';
 import { WeatherView, compassIn, windFrom, windName } from './weatherView';
 import type { NetWorld } from '../net/netWorld';
@@ -275,7 +275,7 @@ export class SoloGame {
       if (terrain) this.scenery.add(terrain);
       const buildings = createBuildings(surroundings);
       if (buildings) this.scenery.add(buildings);
-      const piers = createPiers(planPiers(map, surroundings));
+      const piers = createPiers(map.piers ?? []);
       if (piers) this.scene.add(piers);
       this.mapOverlay.add(createMapOverlay(surroundings));
     }

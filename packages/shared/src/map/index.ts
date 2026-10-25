@@ -2,6 +2,7 @@ export * from './bottom';
 export * from './credits';
 export * from './geometry';
 export * from './lunkinjarvi';
+export * from './piers';
 export * from './projection';
 export * from './surroundings';
 export * from './types';

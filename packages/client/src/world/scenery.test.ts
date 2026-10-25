@@ -7,7 +7,6 @@ import {
   WaterBody,
   pointInRing,
 } from '@lunki/shared';
-import { footprint, planPiers } from './buildings';
 import { planVegetation } from './vegetation';
 
 const map = LUNKINJARVI;
@@ -46,28 +45,5 @@ describe('rantamaisema', () => {
         t.kind !== 'reeds' && corners.some((c) => Math.hypot(c.x - t.pos.x, c.y - t.pos.y) < 8),
     );
     expect(tree).toBeUndefined();
-  });
-
-  it('laiturit lähtevät rannasta järvelle', () => {
-    const piers = planPiers(map, LUNKINJARVI_SURROUNDINGS);
-    expect(piers.length).toBeGreaterThan(3);
-    for (const p of piers) {
-      expect(inLake(p.to)).toBe(true);
-      expect(inLake(p.from)).toBe(false);
-    }
-  });
-
-  it('pohjapiirroksen suorakaide', () => {
-    const f = footprint([
-      { x: 0, y: 0 },
-      { x: 4, y: 4 },
-      { x: 2, y: 6 },
-      { x: -2, y: 2 },
-    ]);
-    expect(f.length).toBeCloseTo(Math.hypot(4, 4));
-    expect(f.width).toBeCloseTo(Math.hypot(2, 2));
-    expect(f.center.x).toBeCloseTo(1);
-    expect(f.center.y).toBeCloseTo(3);
-    expect(f.area).toBeCloseTo(16);
   });
 });

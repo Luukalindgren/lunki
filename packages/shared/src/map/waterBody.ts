@@ -1,5 +1,6 @@
 import type { Vec2 } from '../vec2';
 import { closestPointOnSegment } from './geometry';
+import { pierRing } from './piers';
 import type { LakeMap } from './types';
 
 interface Segment {
@@ -33,7 +34,8 @@ export class WaterBody {
     private readonly cellSize = 16,
     private readonly bandHeight = 8,
   ) {
-    for (const ring of [map.shore, ...map.islands]) {
+    // Laiturit ovat vesialueen sisällä kuin pienet saaret.
+    for (const ring of [map.shore, ...map.islands, ...(map.piers ?? []).map(pierRing)]) {
       for (let i = 0; i < ring.length; i++) {
         const a = ring[i]!;
         const b = ring[(i + 1) % ring.length]!;

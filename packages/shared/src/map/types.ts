@@ -1,3 +1,4 @@
+import type { Pier } from './piers';
 import type { Vec2 } from '../vec2';
 
 /**
@@ -15,6 +16,8 @@ export interface LakeMap {
   /** Saarten rantaviivat (myötäpäivään). */
   islands: Vec2[][];
   bounds: { minX: number; minY: number; maxX: number; maxY: number };
+  /** Laiturit: este renkaalle ja vieheelle (ks. piers.ts). */
+  piers?: Pier[];
 }
 
 /** Ympäristön aluetyypit (maankäyttö ja rakennukset). */
