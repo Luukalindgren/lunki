@@ -92,6 +92,7 @@ function showMenu() {
     (s) => startGame(s),
     () => showMultiplayer(),
     () => void showRecords(),
+    () => screens.showCredits(showMenu),
   );
 }
 

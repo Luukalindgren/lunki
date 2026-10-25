@@ -31,11 +31,13 @@ import {
   type RoomSettings,
   type SpeciesId,
   type Tackle,
+  mapCredits,
   type RecordBoard,
   type WeatherLevel,
   type WinRule,
 } from '@lunki/shared';
 import type { LobbyView } from '../net/session';
+import { LIBRARIES } from './credits';
 
 const SETTINGS_KEY = 'lunki.soloSettings';
 
@@ -94,6 +96,7 @@ export class Screens {
     onStart: (s: CompetitionSettings) => void,
     onMultiplayer: () => void,
     onRecords: () => void,
+    onCredits: () => void,
   ): void {
     const settings = { ...initial };
     const panel = this.panel();
@@ -151,12 +154,14 @@ export class Screens {
         ],
         ['Moninpeli', onMultiplayer],
         ['Ennätykset', onRecords],
+        ['Tekijät ja lähteet', onCredits],
       ]),
       h(
         'p',
         'W/S potki · A/D käänny · hiiri tähtää ja heittää · kelaa hiirellä tai välilyönnillä · Q/E jarru · Esc tauko',
         'hint',
       ),
+      h('p', 'Kartta © OpenStreetMapin tekijät, Copernicus DEM, Syke', 'hint credit-line'),
     );
     this.show(panel);
   }
@@ -280,6 +285,51 @@ export class Screens {
       ]);
     buttons.push(['Poistu', actions.onLeave]);
     panel.append(this.buttons(buttons));
+    this.show(panel);
+  }
+
+  /** Tekijät, kartta-aineistojen lähdemaininnat ja kirjastojen lisenssit. */
+  showCredits(onBack: () => void): void {
+    const panel = this.panel();
+    const list = (items: (string | HTMLElement)[]) => {
+      const ul = document.createElement('ul');
+      ul.className = 'credits';
+      for (const item of items) {
+        const li = document.createElement('li');
+        li.append(item);
+        ul.appendChild(li);
+      }
+      return ul;
+    };
+    const link = (text: string, url: string) => {
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.textContent = text;
+      return a;
+    };
+    panel.append(
+      h('h2', 'Tekijät ja lähteet'),
+      h('p', 'Lunki: Luuka Lindgren ja Claude Code. Äänet syntetisoidaan selaimessa.'),
+      h('p', 'Kartta-aineistot', 'choice-label'),
+      list(mapCredits()),
+      h(
+        'p',
+        'Lunkinjärvestä ei ole julkista luotausaineistoa, joten pohja on laskettu rantaviivasta ja syvänteet ja karikot ovat keksittyjä.',
+        'hint',
+      ),
+      h('p', 'Kirjastot', 'choice-label'),
+      list(
+        LIBRARIES.map((l) => {
+          const span = document.createElement('span');
+          span.append(link(l.name, l.url), ` – ${l.license}`);
+          return span;
+        }),
+      ),
+      list([link('OpenStreetMapin tekijänoikeudet', 'https://www.openstreetmap.org/copyright')]),
+      this.buttons([['Takaisin', onBack]]),
+    );
     this.show(panel);
   }
 

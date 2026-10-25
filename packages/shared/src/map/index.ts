@@ -1,4 +1,5 @@
 export * from './bottom';
+export * from './credits';
 export * from './geometry';
 export * from './lunkinjarvi';
 export * from './projection';
