@@ -8,7 +8,7 @@ taimenen voi lisätä asetuksista (yksinpelin asetusnäkymä, moninpelissä isä
 | ------ | -------- | ----- | -------------------------- | --------------- | ---------------------- | ------------------------------------------------------- |
 | Ahven  | kyllä    | 12    | 1–4,5 m, rantojen tuntuma  | 140 g           | 1 %, ~0,7 kg           | Runsain, kiinnostuu reippaasta vieheestä                |
 | Hauki  | kyllä    | yksin | 0,6–2,2 m, kaislikon reuna | 1,3 kg          | 3 %, ~5 kg (max 12 kg) | Vaanii paikallaan, iskee kauas ja nopeasti              |
-| Särki  | kyllä    | 24    | 0,5–3 m                    | 110 g           | 1 %, ~0,45 kg          | Ei petokala: tarttuu harvoin, vain hitaaseen vieheeseen |
+| Särki  | kyllä    | 24    | 0,5–3 m, kaislikon reuna   | 110 g           | 1 %, ~0,45 kg          | Ei petokala: tarttuu harvoin, vain hitaaseen vieheeseen |
 | Kuha   | ei       | 5     | yli 4 m, syvänteet         | 1 kg            | 3 %, ~4 kg             | Pohjan tuntumassa, hidas viehe                          |
 | Taimen | ei       | 3     | yli 2 m, avovesi           | 0,9 kg          | 3 %, ~3 kg             | Partioi laajasti, vahvin taistelija                     |
 
@@ -17,8 +17,9 @@ taimen 0,5). Saatu kala korvautuu uudella saman lajin kalalla lajitoverin lähel
 
 Moninpelissä palvelin hylkää saaliin, jonka lajia ei ole huoneen lajistossa.
 
-Kaislikoita ei vielä ole kartassa, joten hauen elinalue on toistaiseksi matala rantavesi.
-Kun pohjakartta (#20) ja kasvillisuus tulevat, elinalueet tarkentuvat.
+Osa hauista (35 %) ja särkiparvista (20 %) asettuu kaislikoiden ja lumpeikoiden reunoille
+(`lunkinjarvi-reeds.json`). Kaislikossa viehe voi tarttua varsiin missä syvyydessä tahansa,
+ja rengas kulkee siellä hitaasti.
 
 ## Vieheet ja varusteet
 

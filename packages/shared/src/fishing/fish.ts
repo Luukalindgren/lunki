@@ -97,8 +97,8 @@ export const SPECIES: Record<SpeciesId, Species> = {
     schoolSpread: 0,
     habitat: { minDepth: 0.6, maxDepth: 2.2 },
     wanderShare: 0.1,
-    structures: ['tree', 'rocks'],
-    structureShare: 0.25,
+    structures: ['reeds', 'tree', 'rocks'],
+    structureShare: 0.35,
     medianWeight: 1.3,
     weightSpread: 0.6,
     minWeight: 0.35,
@@ -128,8 +128,8 @@ export const SPECIES: Record<SpeciesId, Species> = {
     schoolSpread: 12,
     habitat: { minDepth: 0.5, maxDepth: 3 },
     wanderShare: 0.3,
-    structures: [],
-    structureShare: 0,
+    structures: ['reeds'],
+    structureShare: 0.2,
     medianWeight: 0.11,
     weightSpread: 0.5,
     minWeight: 0.02,
@@ -361,6 +361,9 @@ export function spawnFish(
   };
 }
 
+/** Kaislikon reunalle asettuvien kalojen hajonta (m). */
+const REED_EDGE_SPREAD = 4;
+
 function randomWaterPoint(
   world: FishWorld,
   b: { minX: number; minY: number; maxX: number; maxY: number },
@@ -372,9 +375,12 @@ function randomWaterPoint(
   if (spots.length > 0 && rng.next() < sp.structureShare) {
     const s = spots[Math.floor(rng.next() * spots.length)]!;
     for (let i = 0; i < 20; i++) {
+      // Kaislikossa kalat vaanivat reunalla, muualla rakenteen ympärillä.
+      const c = s.ring ? s.ring[Math.floor(rng.next() * s.ring.length)]! : s.pos;
+      const spread = s.ring ? REED_EDGE_SPREAD : s.radius / 2;
       const p = {
-        x: s.pos.x + rng.normal(0, s.radius / 2),
-        y: s.pos.y + rng.normal(0, s.radius / 2),
+        x: c.x + rng.normal(0, spread),
+        y: c.y + rng.normal(0, spread),
       };
       if (world.isWater(p)) return p;
     }

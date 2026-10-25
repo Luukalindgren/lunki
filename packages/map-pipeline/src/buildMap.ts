@@ -1,7 +1,8 @@
 /**
  * Muuntaa avoimen aineiston pelin karttamuotoon (ETRS-TM35FIN-metrit, origo
  * järven keskellä) ja kirjoittaa sen shared-pakettiin:
- * - lunkinjarvi.json: rantaviiva ja saaret (OSM)
+ * - lunkinjarvi.json: rantaviiva (OSM) ja saaret (OSM tai ilmakuvista tulkitut,
+ *   data/islands-aerial.json)
  * - lunkinjarvi-surroundings.json: maankäyttö, rakennukset, tiet (OSM) ja
  *   maaston korkeus (Copernicus DEM), jos aineistot on haettu.
  *
@@ -11,7 +12,7 @@ import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { toLakeMap } from './lakeMap';
+import { toLakeMap, type AerialIslands } from './lakeMap';
 import type { OsmLake, OsmSurroundings } from './osm';
 import { toSurroundings, type Dem } from './surroundings';
 
@@ -22,7 +23,7 @@ const readJson = async <T>(file: string): Promise<T | null> =>
   existsSync(file) ? (JSON.parse(await readFile(file, 'utf8')) as T) : null;
 
 const osm = (await readJson<OsmLake>(data('osm-lunkinjarvi.json')))!;
-const map = toLakeMap(osm);
+const map = toLakeMap(osm, await readJson<AerialIslands>(data('islands-aerial.json')));
 await writeFile(shared('lunkinjarvi.json'), JSON.stringify(map) + '\n');
 
 const w = map.bounds.maxX - map.bounds.minX;

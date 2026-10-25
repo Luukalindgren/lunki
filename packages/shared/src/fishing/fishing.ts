@@ -346,13 +346,12 @@ export function stepFishing(
           const bottom = ctx.depthAt(s.lure);
           const limit = Math.min(bottom, Math.max(lure.maxDepth, s.depth));
           s.depth = Math.max(0, Math.min(limit, s.depth + rate * dt));
-          const structure =
-            s.lureSpeed > 0.05 && s.depth >= bottom - SNAG.nearBottom
-              ? ctx.structureAt?.(s.lure)
-              : null;
+          // Kivikko ja oksat ovat pohjassa; kaislikon varret ulottuvat pintaan asti.
+          const structure = s.lureSpeed > 0.05 ? ctx.structureAt?.(s.lure) : null;
           if (
             structure &&
             structure.kind !== 'dropoff' &&
+            (structure.kind === 'reeds' || s.depth >= bottom - SNAG.nearBottom) &&
             s.struckId === null &&
             fish?.rng.chance(SNAG.rate, dt)
           ) {

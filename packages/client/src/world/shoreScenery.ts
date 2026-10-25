@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import {
   LandCover,
+  signedArea,
   terrainHeightAt,
   valueNoise,
   type AreaKind,
@@ -26,8 +27,13 @@ export function createShoreScenery(map: LakeMap, surroundings?: LakeSurroundings
   const group = new THREE.Group();
   group.name = 'shore-scenery';
   const cover = surroundings ? new LandCover(surroundings) : null;
-  for (const ring of [map.shore, ...map.islands])
-    group.add(treeLine(resample(ring, STEP), cover, surroundings?.terrain ?? null));
+  const terrain = surroundings?.terrain ?? null;
+  group.add(treeLine(resample(map.shore, STEP), cover, terrain, INLAND, 1));
+  // Saaret ovat kapeita: siluetti saaren sisään, ja luotojen puut ovat matalampia.
+  for (const island of map.islands) {
+    const inland = Math.min(INLAND, Math.sqrt(Math.abs(signedArea(island))) / 4);
+    group.add(treeLine(resample(island, STEP / 2), cover, terrain, inland, 0.6));
+  }
   return group;
 }
 
@@ -35,6 +41,8 @@ function treeLine(
   ring: Vec2[],
   cover: LandCover | null,
   terrain: LakeSurroundings['terrain'],
+  inland: number,
+  heightScale: number,
 ): THREE.Mesh {
   const n = ring.length;
   const positions: number[] = [];
@@ -53,8 +61,8 @@ function treeLine(
     const len = Math.hypot(tx, ty) || 1;
     const nx = ty / len;
     const ny = -tx / len;
-    const x = p.x + nx * INLAND;
-    const y = p.y + ny * INLAND;
+    const x = p.x + nx * inland;
+    const y = p.y + ny * inland;
     // Latvojen korkeus: laaja vaihtelu (metsikkö) + terävä (yksittäiset puut).
     const broad = valueNoise(p.x / 90, p.y / 90, 21);
     const spike = Math.abs(valueNoise(p.x / 5, p.y / 5, 22));
@@ -63,7 +71,7 @@ function treeLine(
     const kind = cover?.kindAt({ x, y }) ?? null;
     const open = kind !== null && OPEN_LAND.has(kind);
     const base = Math.max(0, terrainHeightAt(terrain, { x, y })) - 0.5;
-    const h = open ? 0.5 : 15 + broad * 6 + spike * 7;
+    const h = open ? 0.5 : (15 + broad * 6 + spike * 7) * heightScale;
     positions.push(x, base, -y, x, base + h, -y);
     const c = spike > 0.6 ? dark : broad > 0.3 ? birch : mid;
     colors.push(c.r * 0.7, c.g * 0.7, c.b * 0.7, c.r, c.g, c.b);

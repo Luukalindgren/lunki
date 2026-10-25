@@ -7,6 +7,7 @@ describe('lähdemaininnat', () => {
     expect(credits.some((c) => c.includes('OpenStreetMap'))).toBe(true);
     expect(credits.some((c) => c.includes('Copernicus'))).toBe(true);
     expect(credits.some((c) => c.includes('Syke'))).toBe(true);
+    expect(credits.some((c) => c.includes('ilmakuvista'))).toBe(true);
     expect(new Set(credits).size).toBe(credits.length);
   });
 });
