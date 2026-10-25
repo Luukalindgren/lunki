@@ -165,7 +165,7 @@ export class Screens {
       menu,
       h(
         'p',
-        'W/S potki (rengas kulkee selkä edellä) · A/D käänny · hiiri tähtää ja heittää · kelaa hiirellä tai välilyönnillä · Q/E jarru · Esc tauko',
+        'W kohti räpylöitä · S selkä edellä (nopein) · A/D käänny · hiiri tähtää ja heittää · kelaa hiirellä tai välilyönnillä · Q/E jarru · Esc tauko',
         'hint',
       ),
       h('p', 'Kartta © OpenStreetMapin tekijät, Copernicus DEM, Syke', 'hint credit-line'),
