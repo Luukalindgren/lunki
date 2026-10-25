@@ -1,4 +1,5 @@
 import '@fontsource/vt323';
+import { LureSonarDisplay } from './lureSonar';
 import { SonarDisplay } from './sonar';
 
 /**
@@ -25,6 +26,8 @@ export class Hud {
   private readonly flashEl: HTMLDivElement;
   private flashLevel = 0;
   readonly sonar: SonarDisplay;
+  /** Vieheluotain: näkyy, kun viehe on vedessä. */
+  readonly lureSonar: LureSonarDisplay;
   private messageTimer = 0;
   private weighTimer = 0;
   private multiplayer = false;
@@ -83,7 +86,11 @@ export class Hud {
       this.weigh,
       this.countdown,
     );
-    this.sonar = new SonarDisplay(this.root);
+    // Luotaimet oikeassa reunassa vierekkäin; kapealla ruudulla allekkain.
+    const gauges = el('div', 'hud-gauges');
+    this.root.appendChild(gauges);
+    this.sonar = new SonarDisplay(gauges);
+    this.lureSonar = new LureSonarDisplay(gauges);
   }
 
   /** Sisäisen pikselin koko CSS-pikseleinä. */
@@ -173,7 +180,8 @@ export class Hud {
           'Kosketa järveä: tähtää, pidä ja päästä = heitto',
           'Sormi järvellä tai KELAA = kelaa',
           'NOP kelausnopeus · JAR−/JAR+ jarru',
-          'VIEHE vaihda · LUOT kaikuluotain · KAM silmin',
+          'VIEHE vaihda · LUOT kaikuluotain · SYV vieheen syvyys',
+          'KAM kalastajan silmin',
           '+/− zoom · ? ohje · II tauko',
           'Ukkosella kelaa viehe sisään ja pysy rannan lähellä',
           'Viehe maalla tai laiturilla: KATKO katkaisee siiman',
@@ -186,7 +194,8 @@ export class Hud {
           'Hiiri: tähtää, pidä pohjassa ja päästä = heitto',
           'Hiiri pohjassa tai välilyönti = kelaa',
           '1/2/3 kelausnopeus · Q/E jarru löysemmälle/kireämmälle',
-          'R vaihda viehe · K kaikuluotain · V kalastajan silmin',
+          'R vaihda viehe · K kaikuluotain · L vieheen syvyys',
+          'V kalastajan silmin',
           'Rulla = zoom · H = ohje · Esc = tauko',
           'Ukkosella kelaa viehe sisään ja pysy rannan lähellä',
           'Viehe maalla tai laiturilla: C katkaisee siiman',

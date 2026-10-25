@@ -21,6 +21,7 @@ import {
   tautness,
   writeLine,
 } from './lineHang';
+import { lureColor } from './lureColor';
 
 const SPLASH_TIME = 0.6;
 /** Siiman piirtokorkeus pinnalla. */
@@ -167,10 +168,7 @@ export class FishingView {
           : toWorld({ x: s.lure.x, y: s.lure.y + height * 0.35 }, 0.3),
       );
       this.lureShadow.position.copy(toWorld(s.lure, 0.03));
-      const depthFade = Math.min(1, s.depth / 2);
-      (this.lure.material as THREE.MeshBasicMaterial).color.setHex(
-        s.onLand ? 0xf08a2c : depthFade > 0.6 ? 0x6b2d6e : depthFade > 0.1 ? 0xc05bb4 : 0xf08a2c,
-      );
+      (this.lure.material as THREE.MeshBasicMaterial).color.setHex(lureColor(s.depth, s.onLand));
       this.lure.scale.setScalar(1 + height * 0.08);
       // Siima roikkuu vavan kärjestä kaarena veteen ja jatkaa pinnalla fysiikan muotoa.
       this.taut += (tautness(s.tension) - this.taut) * Math.min(1, dt * 4);
