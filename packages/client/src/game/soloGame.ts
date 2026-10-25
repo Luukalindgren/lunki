@@ -80,6 +80,7 @@ import {
 } from '@lunki/shared';
 import type { Input } from '../engine/input';
 import { createBottomMesh } from '../world/bottomMesh';
+import { Ground } from '../world/ground';
 import { createShoreScenery } from '../world/shoreScenery';
 import { createMapOverlay, createTerrainMesh } from '../world/surroundingsMesh';
 import type { RetroResolution } from '../engine/resolution';
@@ -191,6 +192,12 @@ export class SoloGame {
   private readonly mist: MistView;
   readonly waves: WaveField;
   private readonly waterWaves = createWaterWaves();
+  /**
+   * Ylhäältä katsottavat järven osat: kaislikkokuviot ja saarten litteät
+   * kannet. POV-näkymässä ne näkyivät isoina vaaleina laattoina; siellä
+   * kaislat ovat spritejä ja saaret maastoa.
+   */
+  private readonly topViewOnly: THREE.Object3D[];
   private readonly lightning = new LightningView();
   /** Ruudun välähdyksen voimakkuus viimeisimmästä salamasta: lähellä kirkkaampi. */
   private flashStrength = 0;
@@ -308,7 +315,9 @@ export class SoloGame {
     this.waves = new WaveField(map);
     this.waterWaves.uWaveTex.value = this.waves.texture;
     this.waterWaves.uWaveBounds.value.copy(this.waves.bounds);
-    this.scene.add(createLakeMesh(map, this.waterWaves));
+    const lake = createLakeMesh(map, this.waterWaves);
+    this.topViewOnly = lake.children.filter((c) => c.name === 'reeds' || c.name === 'island');
+    this.scene.add(lake);
     const center = {
       x: (map.bounds.minX + map.bounds.maxX) / 2,
       y: (map.bounds.minY + map.bounds.maxY) / 2,
@@ -324,12 +333,13 @@ export class SoloGame {
     this.flightShadow.visible = false;
     this.scene.add(this.flightShadow);
     const surroundings = map === LUNKINJARVI ? LUNKINJARVI_SURROUNDINGS : undefined;
-    this.scenery.add(createShoreScenery(map, surroundings));
-    this.scenery.add(createVegetation(map, surroundings));
+    const ground = new Ground(map, surroundings?.terrain ?? null);
+    this.scenery.add(createShoreScenery(map, surroundings, ground));
+    this.scenery.add(createVegetation(map, surroundings, ground));
     if (surroundings) {
-      const terrain = createTerrainMesh(map, surroundings);
+      const terrain = createTerrainMesh(ground, surroundings, map.islands);
       if (terrain) this.scenery.add(terrain);
-      const buildings = createBuildings(surroundings);
+      const buildings = createBuildings(surroundings, ground);
       if (buildings) this.scenery.add(buildings);
       const piers = createPiers(map.piers ?? []);
       if (piers) this.scene.add(piers);
@@ -444,6 +454,7 @@ export class SoloGame {
     this.mapOverlay.visible = !pov;
     this.povRod.visible = pov;
     this.tubeMesh.visible = !pov;
+    for (const o of this.topViewOnly) o.visible = !pov;
     this.sky.dome.visible = pov;
     this.scene.background = new THREE.Color(LAND_COLOR);
     this.scene.fog = pov ? new THREE.Fog(this.sky.lighting.horizon, 500, 2600) : null;

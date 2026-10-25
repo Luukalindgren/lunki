@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { footprint, terrainHeightAt, type LakeSurroundings, type Pier } from '@lunki/shared';
+import { footprint, type LakeSurroundings, type Pier } from '@lunki/shared';
+import type { Ground } from './ground';
 
 /** Seinien värit: punamulta yleisin, sitten keltainen ja vaalea. */
 const WALLS = [0x8c1c1c, 0x8c1c1c, 0x8c1c1c, 0xc9a54a, 0xd8d4c4];
@@ -10,7 +11,7 @@ const ROOFS = [0x3a3a3a, 0x2a2420, 0x6a1a1a];
  * Rakennukset OSM-pohjapiirroksista POV-näkymää varten: suorakaiderunko ja
  * harjakatto pitkän sivun suuntaan. Kaikki yhdeksi verkoksi.
  */
-export function createBuildings(s: LakeSurroundings): THREE.Mesh | null {
+export function createBuildings(s: LakeSurroundings, ground: Ground): THREE.Mesh | null {
   const parts: THREE.BufferGeometry[] = [];
   s.areas
     .filter((a) => a.kind === 'building')
@@ -19,9 +20,12 @@ export function createBuildings(s: LakeSurroundings): THREE.Mesh | null {
       // Sauna tai vaja matala, talot yksikerroksisia, isot rakennukset korkeampia.
       const wallH = f.area < 25 ? 2.4 : f.area < 150 ? 3 : 4.5;
       const rise = Math.min(4, f.width * 0.35);
-      const base = Math.max(0, terrainHeightAt(s.terrain, f.center)) - 0.6;
-      const walls = new THREE.BoxGeometry(f.width, wallH + 0.6, f.length).toNonIndexed();
-      walls.translate(0, (wallH + 0.6) / 2, 0);
+      // Rinteessä sokkeli jatkuu alarinteen puolelle, jottei talo leiju.
+      const heights = [f.center, ...a.rings[0]!].map((p) => Math.max(0, ground.heightAt(p)));
+      const base = Math.min(...heights) - 0.6;
+      const eaves = Math.max(...heights) - base + wallH;
+      const walls = new THREE.BoxGeometry(f.width, eaves, f.length).toNonIndexed();
+      walls.translate(0, eaves / 2, 0);
       const roofShape = new THREE.Shape([
         new THREE.Vector2(-f.width / 2 - 0.3, 0),
         new THREE.Vector2(f.width / 2 + 0.3, 0),
@@ -31,7 +35,7 @@ export function createBuildings(s: LakeSurroundings): THREE.Mesh | null {
         depth: f.length + 0.4,
         bevelEnabled: false,
       });
-      roof.translate(0, wallH + 0.6, -(f.length + 0.4) / 2);
+      roof.translate(0, eaves, -(f.length + 0.4) / 2);
       paint(walls, WALLS[i % WALLS.length]!);
       paint(roof, ROOFS[(i * 7) % ROOFS.length]!);
       for (const g of [walls, roof]) {
