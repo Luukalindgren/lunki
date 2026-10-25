@@ -6,8 +6,10 @@ import { distance } from '../vec2';
 import {
   SPOUT,
   activeSpouts,
+  flightPosition,
   planWaterspouts,
   spoutCapture,
+  spoutLanding,
   spoutPosition,
   spoutWind,
   type Waterspout,
@@ -82,5 +84,38 @@ describe('trombi', () => {
     const fled = run(start, true);
     expect(fled.caught).toBe(false);
     expect(fled.end).toBeGreaterThan(SPOUT.radius);
+  });
+
+  it('lennättää renkaan selälle 120–320 m päähän, poispäin trombista', () => {
+    const lake = new WaterBody(LUNKINJARVI);
+    let seed = 3;
+    const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const from = { x: -200, y: 200 };
+    for (let i = 0; i < 20; i++) {
+      const to = spoutLanding(from, { x: 4, y: 0 }, lake, rand)!;
+      expect(to).not.toBeNull();
+      expect(lake.isWater(to)).toBe(true);
+      expect(lake.closestShorePoint(to, SPOUT.landingShore)).toBeNull();
+      const d = distance(from, to);
+      expect(d).toBeGreaterThan(SPOUT.minFlight * 0.2);
+      expect(d).toBeLessThanOrEqual(SPOUT.maxFlight);
+    }
+    // Toisen trombin kohdalle ei laskeuduta.
+    const spot = { x: -50, y: 200 };
+    for (let i = 0; i < 20; i++) {
+      const to = spoutLanding(from, { x: 4, y: 0 }, lake, rand, [spot]);
+      if (to) expect(distance(to, spot)).toBeGreaterThan(SPOUT.radius);
+    }
+  });
+
+  it('lento nousee ilmaan ja laskeutuu perille', () => {
+    const f = { from: { x: 0, y: 0 }, to: { x: 200, y: 0 } };
+    expect(flightPosition(f, 0)).toEqual({ pos: { x: 0, y: 0 }, height: 0 });
+    const mid = flightPosition(f, 0.5);
+    expect(mid.height).toBeGreaterThan(SPOUT.flightHeight * 0.8);
+    expect(mid.pos.x).toBeCloseTo(100);
+    const end = flightPosition(f, 1);
+    expect(end.pos.x).toBeCloseTo(200);
+    expect(end.height).toBeCloseTo(0);
   });
 });

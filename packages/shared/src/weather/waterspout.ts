@@ -25,10 +25,17 @@ export const SPOUT = {
   maxWind: 36,
   /** Imun osuus; loput on pyörrettä vastapäivään. */
   inflow: 0.85,
-  /** Tätä lähempänä keskustaa (m) rengas kaatuu ja sinkoutuu. */
+  /** Tätä lähempänä keskustaa (m) trombi nappaa renkaan ja lennättää sen. */
   capture: 6,
-  /** Sinkoutumisen nopeus ulospäin (m/s). */
+  /** Sinkoutumisen nopeus ulospäin (m/s), jos laskeutumispaikkaa ei löydy. */
   fling: 4,
+  /** Lento: kesto (s), lakikorkeus (m) ja matka (m). Lennon jälkeen ollaan kumossa. */
+  flight: 3.5,
+  flightHeight: 28,
+  minFlight: 120,
+  maxFlight: 320,
+  /** Laskeutumispaikka vähintään näin kaukana rannasta (m). */
+  landingShore: 20,
   /**
    * Kumossa ja vielä näin kauan (s) pystyyn pääsyn jälkeen trombi ei vaikuta
    * renkaaseen, jotta siitä ehtii potkia pois.
@@ -138,4 +145,51 @@ export function spoutCapture(spouts: readonly Waterspout[], t: number, p: Vec2):
     return d > 1e-6 ? { x: dx * k, y: dy * k } : { x: SPOUT.fling, y: 0 };
   }
   return null;
+}
+
+/** Trombin lennättämän renkaan matka: mistä lähti ja minne laskeutuu. */
+export interface SpoutFlight {
+  from: Vec2;
+  to: Vec2;
+}
+
+/**
+ * Laskeutumispaikka trombin lennättämälle: vedelle selälle 120–320 m päähän,
+ * mieluiten sinkoutumissuuntaan (`away`) ja kauas muista trombeista.
+ * Palauttaa null, jos sopivaa paikkaa ei löydy (rengas vain sinkoutuu).
+ */
+export function spoutLanding(
+  from: Vec2,
+  away: Vec2,
+  water: WaterBody,
+  rand: () => number,
+  avoid: readonly Vec2[] = [],
+): Vec2 | null {
+  const base =
+    Math.hypot(away.x, away.y) > 1e-6 ? Math.atan2(away.y, away.x) : rand() * Math.PI * 2;
+  for (let k = 0; k < 60; k++) {
+    // Ensin suunnilleen sinkoutumissuuntaan, sitten yhä laajemmalta.
+    const angle = base + (rand() - 0.5) * Math.min(Math.PI * 2, 1 + k * 0.15);
+    const d = SPOUT.minFlight + rand() * (SPOUT.maxFlight - SPOUT.minFlight) * (1 - k / 80);
+    const p = { x: from.x + Math.cos(angle) * d, y: from.y + Math.sin(angle) * d };
+    if (!water.isWater(p)) continue;
+    if (water.closestShorePoint(p, SPOUT.landingShore)) continue;
+    if (avoid.some((c) => Math.hypot(c.x - p.x, c.y - p.y) < SPOUT.radius * 1.5)) continue;
+    return { x: Math.round(p.x * 100) / 100, y: Math.round(p.y * 100) / 100 };
+  }
+  return null;
+}
+
+/**
+ * Paikka ja korkeus lennon aikana, k = 0…1. Rengas nousee pyörteessä ensin
+ * jyrkästi ja putoaa loppumatkasta kaarena.
+ */
+export function flightPosition(f: SpoutFlight, k: number): { pos: Vec2; height: number } {
+  const t = Math.min(1, Math.max(0, k));
+  // Vaakaliike alkaa hitaasti (rengas kieppuu ylös trombissa) ja kiihtyy.
+  const along = t * t * (3 - 2 * t);
+  return {
+    pos: { x: f.from.x + (f.to.x - f.from.x) * along, y: f.from.y + (f.to.y - f.from.y) * along },
+    height: SPOUT.flightHeight * Math.sin(Math.PI * Math.pow(t, 0.75)),
+  };
 }

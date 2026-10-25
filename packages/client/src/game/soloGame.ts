@@ -24,6 +24,7 @@ import {
   resolveStrike,
   distance,
   BIG_WAVE,
+  bigWaveDir,
   bigWaveHeight,
   capsizes,
   planBigWaves,
@@ -31,6 +32,7 @@ import {
   activeSpouts,
   spoutAffects,
   spoutCapture,
+  spoutLanding,
   spoutWind,
   LIGHTNING,
   SPOUT,
@@ -65,6 +67,7 @@ import {
   type Penalty,
   type Strike,
   type BigWave,
+  type SpoutFlight,
   type Waterspout,
   type UntangledMessage,
   type RecordMessage,
@@ -83,7 +86,7 @@ import type { RetroResolution } from '../engine/resolution';
 import { PovCamera } from './povCamera';
 import { LightningView } from './lightningView';
 import { BigWaveView } from './bigWaveView';
-import { SpoutView } from './spoutView';
+import { SpoutView, flightPose } from './spoutView';
 import { KnotView } from './knotView';
 import {
   createLakeMesh,
@@ -217,6 +220,14 @@ export class SoloGame {
   private readonly spoutView = new SpoutView();
   private spoutsSeen = 0;
   private spoutWarnTimer = 0;
+  /** Oma lento trombin mukana (kisa-aika, s), ja yksinpelin laskeutumispaikkojen arpa. */
+  private flight: (SpoutFlight & { t0: number }) | null = null;
+  private readonly spoutRng: Rng;
+  /** Lentävän renkaan varjo vedessä: kertoo ylhäältä katsottuna, kuinka korkealla ollaan. */
+  private readonly flightShadow = new THREE.Mesh(
+    new THREE.CircleGeometry(1, 12).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color: 0x0b0f14 }),
+  );
   /** Aallokko: keinunta ja POV-näkymän aaltoileva lähivesi. */
   private readonly swell: Swell;
   private readonly swellPatch: THREE.Mesh;
@@ -240,6 +251,7 @@ export class SoloGame {
     this.water = new WaterBody(map);
     this.bottom = bottomFor(map, this.water);
     this.rng = new Rng(seed);
+    this.spoutRng = new Rng(seed ^ 0x51ed270b);
     this.fish = createFishPopulation(
       {
         isWater: (p) => this.water.isWater(p),
@@ -309,6 +321,8 @@ export class SoloGame {
     this.applyWeatherLight();
     this.scene.add(createBottomMesh(this.bottom, this.waterWaves));
     this.scene.add(this.tubeMesh);
+    this.flightShadow.visible = false;
+    this.scene.add(this.flightShadow);
     const surroundings = map === LUNKINJARVI ? LUNKINJARVI_SURROUNDINGS : undefined;
     this.scenery.add(createShoreScenery(map, surroundings));
     this.scenery.add(createVegetation(map, surroundings));
@@ -362,7 +376,11 @@ export class SoloGame {
           this.hud.showMessage(`${angler} ehti nostaa saman kalan – se karkasi sinulta`, 3);
       };
       net.world.onSpout = (m) => {
-        if (m.victims.includes(net.world.myId)) this.onCapsize('spout');
+        if (!m.victims.includes(net.world.myId)) return;
+        const f = m.flights?.find((x) => x.id === net.world.myId);
+        this.startFlight(
+          f ? { from: { x: f.fromX, y: f.fromY }, to: { x: f.toX, y: f.toY } } : null,
+        );
       };
       net.world.onCastRejected = () => {
         resetFishing(this.fishing, this.fishCtx);
@@ -491,9 +509,15 @@ export class SoloGame {
     if (!this.net && spoutAffects(this.capsizedUntil, now)) {
       const fling = spoutCapture(this.spouts, now, this.tube.pos);
       if (fling) {
-        this.tube = { ...this.tube, vel: fling };
-        this.capsizedUntil = now + BIG_WAVE.recover;
-        this.onCapsize('spout');
+        const from = { ...this.tube.pos };
+        const to = spoutLanding(from, fling, this.water, () => this.spoutRng.next(), spots);
+        // Rengas on heti perillä; lento piirretään kaarena lähtöpaikasta.
+        this.tube = to
+          ? { ...this.tube, pos: to, vel: { x: 0, y: 0 }, angVel: 0 }
+          : { ...this.tube, vel: fling };
+        this.prevTube = this.tube;
+        this.capsizedUntil = now + (to ? SPOUT.flight : 0) + BIG_WAVE.recover;
+        this.startFlight(to ? { from, to } : null);
       }
     }
     // Imualueella muistutetaan pakenemaan.
@@ -512,14 +536,18 @@ export class SoloGame {
   private updateBigWaves(): void {
     const now = this.competition.elapsed;
     const w = this.weather.now;
-    const h = bigWaveHeight(this.rings, this.tube.pos, w.windSpeed, w.windDir);
+    // Jokainen aalto tulee omasta suunnastaan tuulen ympäriltä.
+    const height = (wave: BigWave) =>
+      bigWaveHeight(this.rings, this.tube.pos, w.windSpeed, bigWaveDir(wave, w.windDir));
     // Pientä aaltoa (suojaisessa poukamassa tai heikossa tuulessa) ei huomaa.
-    const felt = h >= BIG_WAVE.capsizeHeight / 2;
+    const felt = (h: number) => h >= BIG_WAVE.capsizeHeight / 2;
     while (this.nextWave < this.bigWaves.length && this.bigWaves[this.nextWave]!.t <= now) {
-      const t = this.bigWaves[this.nextWave++]!.t;
+      const wave = this.bigWaves[this.nextWave++]!;
+      const h = height(wave);
       // Kisaan palatessa ohi menneet aallot eivät kuulu kerralla.
-      if (felt && now - t < 1) this.sfx.wave();
-      if (!this.net && this.capsizeLeft === 0 && capsizes(this.tube.heading, w.windDir, h)) {
+      if (felt(h) && now - wave.t < 1) this.sfx.wave();
+      const dir = bigWaveDir(wave, w.windDir);
+      if (!this.net && this.capsizeLeft === 0 && capsizes(this.tube.heading, dir, h)) {
         this.capsizedUntil = now + BIG_WAVE.recover;
         this.onCapsize('wave');
       }
@@ -527,16 +555,20 @@ export class SoloGame {
     const next = this.bigWaves[this.nextWave];
     const prev = this.bigWaves[this.nextWave - 1];
     // Harja näkyy tulossa olevasta aallosta tai juuri ohi menneestä.
-    const until =
-      next && next.t - now <= BIG_WAVE.warning ? next.t - now : prev ? prev.t - now : null;
-    this.bigWaveView.update(felt ? until : null, w.windDir, this.tube.pos);
+    const shown = next && next.t - now <= BIG_WAVE.warning ? next : prev;
+    const h = shown ? height(shown) : 0;
+    const until = shown && felt(h) ? shown.t - now : null;
+    const dir = shown ? bigWaveDir(shown, w.windDir) : w.windDir;
+    this.bigWaveView.update(until, dir, this.tube.pos);
     // Harjan kohdalla rengas nousee aallon päälle ja laskee takaisin.
-    this.bigWaveLift =
-      felt && until !== null ? 0.5 * SWELL_GAIN * h * Math.exp(-((until / 0.8) ** 2)) : 0;
+    this.bigWaveLift = until !== null ? 0.5 * SWELL_GAIN * h * Math.exp(-((until / 0.8) ** 2)) : 0;
     if (!next || next.t - now > BIG_WAVE.warning || this.warnedWave === this.nextWave) return;
     this.warnedWave = this.nextWave;
-    if (h >= BIG_WAVE.capsizeHeight)
-      this.hud.showMessage(`Iso aalto ${windFrom(w.windDir)}! Käänny aaltoa kohti`, 3);
+    if (height(next) >= BIG_WAVE.capsizeHeight)
+      this.hud.showMessage(
+        `Iso aalto ${windFrom(bigWaveDir(next, w.windDir))}! Käänny aaltoa kohti`,
+        3,
+      );
   }
 
   /** Lähimmän trombin etäisyys ja suunta säärivillä, esim. " · trombi 320 m lounaassa". */
@@ -599,15 +631,48 @@ export class SoloGame {
     );
   }
 
+  /** Trombi nappasi: lento muualle järvelle (null = vain kaatuu paikalleen). */
+  private startFlight(flight: SpoutFlight | null): void {
+    const now = this.competition.elapsed;
+    this.flight = flight ? { ...flight, t0: now } : null;
+    this.onCapsize('spout');
+    // Kumossa kellumisen animaatio alkaa vasta laskeutuessa.
+    if (flight) this.capsizedAt = now + SPOUT.flight;
+  }
+
+  /** Lennon asento nyt, tai null jos ei lennetä. Laskeutuessa molskahtaa. */
+  private flightNow(): ReturnType<typeof flightPose> | null {
+    const f = this.flight;
+    if (!f) return null;
+    const k = (this.competition.elapsed - f.t0) / SPOUT.flight;
+    if (k >= 1 || k < 0) {
+      this.flight = null;
+      if (k >= 1) {
+        this.sfx.splash();
+        this.fishingView.startSplash(this.tube.pos);
+      }
+      return null;
+    }
+    return flightPose(f, k, this.tube.pos);
+  }
+
   /** Oma rengas kaatui ison aallon tai trombin takia. */
   private onCapsize(cause: 'wave' | 'spout'): void {
     this.capsizedAt = this.competition.elapsed;
     if (cause === 'spout') this.sfx.wave();
     const penalty = this.punish(this.settings.capsizePenalty ?? 'none', 'Kaatumisen jäähy');
     this.hud.showWeighIn(
-      cause === 'wave' ? 'Kaaduit!' : 'Trombi kaatoi sinut!',
+      cause === 'wave'
+        ? 'Kaaduit!'
+        : this.flight
+          ? 'Trombi nappasi sinut!'
+          : 'Trombi kaatoi sinut!',
       penalty ||
-        (cause === 'wave' ? 'Käänny aaltoa kohti, niin pysyt pystyssä' : 'Pysy kaukana trombista'),
+        (cause === 'wave'
+          ? 'Käänny aaltoa kohti, niin pysyt pystyssä'
+          : this.flight
+            ? 'Lennät järven yli – pysy kaukana trombeista'
+            : 'Pysy kaukana trombista'),
       4,
     );
   }
@@ -780,7 +845,8 @@ export class SoloGame {
         Math.abs(f.lure.y - this.tube.pos.y) * 1.3 + 10,
       );
     } else {
-      this.view.follow(this.tube.pos, dt, 3);
+      // Lennossa kamera seuraa rengasta ilmassa.
+      this.view.follow(this.flightNow()?.pos ?? this.tube.pos, dt, this.flight ? 6 : 3);
       this.view.fitSpan(0, 0);
     }
 
@@ -790,7 +856,11 @@ export class SoloGame {
     this.hud.setPower(f.stage === 'charging' ? chargePower(f.charge) : null);
     this.hud.setTension(f.tension, f.drag, breakingStrength(f.tackle));
     this.hud.setStatus([
-      ...(capsized ? [`Kumossa! Pystyyn ${Math.ceil(this.capsizeLeft)} s`] : []),
+      ...(this.flight
+        ? ['Lennät trombin mukana!']
+        : capsized
+          ? [`Kumossa! Pystyyn ${Math.ceil(this.capsizeLeft)} s`]
+          : []),
       ...(tangle
         ? [
             `Sotkussa: ${tangle.with} · ${Math.round(tangle.progress * 100)} %`,
@@ -1138,15 +1208,29 @@ export class SoloGame {
     const a = this.prevTube;
     const b = this.tube;
     const offset = this.net?.world.renderOffset ?? { x: 0, y: 0 };
-    const pos = {
+    let pos = {
       x: a.pos.x + (b.pos.x - a.pos.x) * alpha + offset.x,
       y: a.pos.y + (b.pos.y - a.pos.y) * alpha + offset.y,
     };
-    const heading = lerpAngle(a.heading, b.heading, alpha);
-    this.tubeMesh.position.copy(toWorld(pos));
+    let heading = lerpAngle(a.heading, b.heading, alpha);
+    // Trombin mukana rengas lentää kieppuen kaarena perille.
+    const air = this.flight ? this.flightNow() : null;
+    if (air) {
+      pos = air.pos;
+      heading += air.spin;
+    }
+    this.tubeMesh.position.copy(toWorld(pos, air?.height ?? 0));
     this.tubeMesh.rotation.y = heading;
     const roll = this.capsizeRoll();
-    this.tubeMesh.rotation.x = roll;
+    this.tubeMesh.rotation.x = air ? air.tumble : roll;
+    // Ylhäältä katsottuna korkealla lentävä rengas näkyy isompana, ja sen
+    // varjo vedessä pienenee korkeuden mukana.
+    this.tubeMesh.scale.setScalar(1 + (air?.height ?? 0) / 14);
+    this.flightShadow.visible = air !== null && this.viewMode === 'top';
+    if (air) {
+      this.flightShadow.position.copy(toWorld(air.pos, 0.05));
+      this.flightShadow.scale.setScalar(Math.max(0.4, 1 - air.height / SPOUT.flightHeight));
+    }
     animateFins(this.tubeMesh, b.kickPhase);
     const hooked = this.fish.fish.find((x) => x.id === this.fishing.hookedId) ?? null;
     this.fishingView.update(this.fishing, this.fishingContext(), this.aim, 1 / 60, hooked);
@@ -1162,11 +1246,23 @@ export class SoloGame {
     this.hud.compass.update(heading);
     if (this.viewMode === 'pov') {
       // Kumossa kamera kallistuu ja painuu veden rajaan.
-      this.pov.apply(pos, heading, b.kickPhase, {
-        lift: this.rock.lift - 0.7 * (roll / Math.PI),
-        roll: this.rock.roll + roll * 0.3,
-        pitch: this.rock.pitch,
-      });
+      this.pov.apply(
+        pos,
+        heading,
+        b.kickPhase,
+        air
+          ? // Ilmassa katse painuu alas järvelle.
+            {
+              lift: air.height,
+              roll: air.tumble * 0.4,
+              pitch: -0.6 * (air.height / SPOUT.flightHeight),
+            }
+          : {
+              lift: this.rock.lift - 0.7 * (roll / Math.PI),
+              roll: this.rock.roll + roll * 0.3,
+              pitch: this.rock.pitch,
+            },
+      );
       // Vapa oikeasta kädestä kärkeen; kärki on siiman alkupiste.
       const side = rodSideOffset(heading);
       const tip = rodTip(pos, heading);

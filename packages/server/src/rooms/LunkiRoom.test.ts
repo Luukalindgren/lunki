@@ -16,6 +16,7 @@ import {
   encodeInputs,
   formatRoomCode,
   BIG_WAVE,
+  SPOUT,
   OUT_OF_RACE,
   bigWaveHeight,
   maxCastDistance,
@@ -31,6 +32,7 @@ import {
   type ChatMessage,
   type CatchRecord,
   type BigWaveMessage,
+  type SpoutMessage,
   type RecordBoard,
   type RecordMessage,
   type UntangledMessage,
@@ -702,7 +704,7 @@ describe('LunkiRoom', () => {
     expect(best).toBeGreaterThan(BIG_WAVE.capsizeHeight);
     const room = matchMaker.getLocalRoomById(host.roomId) as unknown as {
       weather: WeatherPlan;
-      bigWaves: { t: number }[];
+      bigWaves: { t: number; offset: number }[];
       nextWave: number;
       sims: Map<string, { tube: TubeState }>;
       state: { clock: number };
@@ -716,7 +718,7 @@ describe('LunkiRoom', () => {
     room.sims.get(guest.sessionId)!.tube = createTube({ x: open.x, y: open.y + 3 }, Math.PI);
     const waves: BigWaveMessage[] = [];
     guest.onMessage(ServerMsg.bigWave, (m: BigWaveMessage) => waves.push(m));
-    room.bigWaves = [{ t: room.state.clock }];
+    room.bigWaves = [{ t: room.state.clock, offset: 0 }];
     room.nextWave = 0;
     await until(() => waves.length === 1);
     expect(waves[0]!.victims).toEqual([host.sessionId]);
@@ -769,7 +771,7 @@ describe('LunkiRoom', () => {
     await host.leave();
   });
 
-  it('trombi nappaa liian lähelle tulleen ja sinkoaa sen', async () => {
+  it('trombi nappaa liian lähelle tulleen ja lennättää sen muualle järvelle', async () => {
     const host = await sdk().create(ROOM_NAME, {
       name: 'A',
       playerId: 'a',
@@ -789,8 +791,9 @@ describe('LunkiRoom', () => {
       spouts: { t0: number; t1: number; start: { x: number; y: number }; dir: number }[];
       state: { clock: number };
     };
-    const spouts: BigWaveMessage[] = [];
-    host.onMessage(ServerMsg.spout, (m: BigWaveMessage) => spouts.push(m));
+    const spouts: SpoutMessage[] = [];
+    host.onMessage(ServerMsg.spout, (m: SpoutMessage) => spouts.push(m));
+    const start = { x: me().x, y: me().y };
     // Trombi syntyy 2 m renkaasta länteen.
     room.spouts = [
       {
@@ -803,8 +806,17 @@ describe('LunkiRoom', () => {
     await until(() => spouts.length === 1);
     expect(spouts[0]!.victims).toEqual([host.sessionId]);
     await until(() => me().capsizedUntil > 0 && host.state.catches.length === 0);
-    // Sinkoutuu poispäin (itään).
-    await until(() => me().vx > 0);
+    // Lentää 120–320 m päähän vedelle; palvelin siirtää renkaan heti perille.
+    const flight = spouts[0]!.flights[0]!;
+    expect(flight.id).toBe(host.sessionId);
+    expect(Math.hypot(flight.fromX - start.x, flight.fromY - start.y)).toBeLessThan(1);
+    const far = Math.hypot(flight.toX - flight.fromX, flight.toY - flight.fromY);
+    expect(far).toBeGreaterThanOrEqual(SPOUT.minFlight * 0.2);
+    expect(far).toBeLessThanOrEqual(SPOUT.maxFlight);
+    expect(new WaterBody(LUNKINJARVI).isWater({ x: flight.toX, y: flight.toY })).toBe(true);
+    await until(() => Math.hypot(me().x - flight.toX, me().y - flight.toY) < 2);
+    // Lennon ja kumossa olon ajan ei kalasteta.
+    expect(me().capsizedUntil).toBeGreaterThanOrEqual(SPOUT.flight + BIG_WAVE.recover);
     await new Promise((r) => setTimeout(r, 300));
     // Kumossa ja vielä hetken sen jälkeen trombi ei nappaa uudelleen.
     expect(spouts.length).toBe(1);

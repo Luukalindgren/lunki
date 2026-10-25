@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { Vec2 } from '@lunki/shared';
+import { flightPosition, type SpoutFlight, type Vec2 } from '@lunki/shared';
 
 const HEIGHT = 140;
 /** Yhtä aikaa näkyvien trombien enimmäismäärä. */
@@ -57,4 +57,25 @@ export class SpoutView {
       g.rotation.y = this.spin;
     });
   }
+}
+
+/**
+ * Lennon asento hetkellä k = 0…1: paikka, korkeus (m), kieppuminen pystyakselin
+ * ympäri ja kellahtelu (rad). Viimeisellä viidenneksellä kaari kääntyy kohti
+ * renkaan todellista paikkaa `actual`, jotta laskeutuminen ei nytkähdä.
+ */
+export function flightPose(
+  f: SpoutFlight,
+  k: number,
+  actual: Vec2,
+): { pos: Vec2; height: number; spin: number; tumble: number } {
+  const blend = Math.min(1, Math.max(0, (k - 0.8) / 0.2));
+  const to = {
+    x: f.to.x + (actual.x - f.to.x) * blend,
+    y: f.to.y + (actual.y - f.to.y) * blend,
+  };
+  const { pos, height } = flightPosition({ from: f.from, to }, k);
+  // Pyörre kieputtaa nopeasti nousussa ja hidastuu pudotessa.
+  const spin = Math.PI * 7 * Math.sqrt(Math.min(1, Math.max(0, k)));
+  return { pos, height, spin, tumble: Math.sin(Math.PI * 2 * k) * 0.9 };
 }
