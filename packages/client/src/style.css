@@ -886,15 +886,39 @@ body {
 }
 
 .screen-panel .settings button.swatch {
+  position: relative;
   width: 32px;
   height: 32px;
   padding: 0;
   border: 2px solid #39424d;
 }
 
+/* Valittu: tumma ja vaalea kaksoisreunus, isompi koko ja ruksi, jotta erottuu kaikilla väreillä. */
 .screen-panel .settings button.swatch.selected {
-  border-color: #fff3b0;
-  box-shadow: 0 0 0 2px #0b0f14;
+  z-index: 1;
+  border: 3px solid #0b0f14;
+  box-shadow:
+    0 0 0 3px #f6d04d,
+    0 0 0 5px #0b0f14;
+  transform: scale(1.12);
+}
+
+.screen-panel .settings button.swatch.selected::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: 28%;
+  height: 52%;
+  border: solid #eef2f3;
+  border-width: 0 4px 4px 0;
+  transform: translate(-50%, -50%) rotate(45deg);
+  filter: drop-shadow(0 0 1px #0b0f14);
+}
+
+.screen-panel .settings button.swatch.light.selected::after {
+  border-color: #0b0f14;
+  filter: drop-shadow(0 0 1px #eef2f3);
 }
 
 .player-color {
