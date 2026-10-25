@@ -1,5 +1,7 @@
 import '@fontsource/vt323';
+import type { SpeciesId } from '@lunki/shared';
 import { CompassDisplay } from './compass';
+import { fishImage } from './fishArt';
 import { LureSonarDisplay } from './lureSonar';
 import { SonarDisplay } from './sonar';
 
@@ -147,9 +149,16 @@ export class Hud {
     if (this.catches.textContent !== text) this.catches.textContent = text;
   }
 
-  /** Punnitus: iso ilmoitus saaliista. */
-  showWeighIn(title: string, detail: string, seconds = 3): void {
-    this.weigh.replaceChildren(document.createTextNode(title));
+  /** Punnitus: iso ilmoitus saaliista, kalan kuva painoon suhteutettuna. */
+  showWeighIn(
+    title: string,
+    detail: string,
+    seconds = 3,
+    fish?: { species: SpeciesId; weight: number },
+  ): void {
+    this.weigh.replaceChildren();
+    if (fish) this.weigh.appendChild(fishImage(fish.species, fish.weight, 'calc(var(--u) * 2)'));
+    this.weigh.appendChild(document.createTextNode(title));
     const small = document.createElement('small');
     small.textContent = detail;
     this.weigh.appendChild(small);
