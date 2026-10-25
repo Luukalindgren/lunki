@@ -24,6 +24,7 @@ import {
   type ChatMessage,
   CHAT_HISTORY,
   CHAT_PROTOCOL,
+  LAND_CUT_PROTOCOL,
   type UntangledMessage,
   RECORDS_PATH,
   type RecordBoard,
@@ -160,6 +161,8 @@ export interface StateSchema {
     weather: string;
     lightningPenalty: string;
     capsizePenalty: string;
+    /** Puuttuu vanhalta palvelimelta. */
+    landPenalty?: number;
     species: Iterable<string>;
     customStart: boolean;
     startX: number;
@@ -311,6 +314,7 @@ export class NetSession {
         weather: isWeatherLevel(s.settings.weather) ? s.settings.weather : 'realistic',
         lightningPenalty: s.settings.lightningPenalty as Penalty,
         capsizePenalty: s.settings.capsizePenalty as Penalty,
+        landPenalty: s.settings.landPenalty ?? 0,
         species: [...s.settings.species].filter(isSpeciesId),
         start: s.settings.customStart ? { x: s.settings.startX, y: s.settings.startY } : null,
       },
@@ -350,6 +354,11 @@ export class NetSession {
 
   sendCutLine(): void {
     this.room.send(ClientMsg.cutLine);
+  }
+
+  /** Vanha palvelin ei tunne viestiä; silloin sakko pidetään vain omalla koneella. */
+  sendLandCut(): void {
+    if (this.serverProtocol >= LAND_CUT_PROTOCOL) this.room.send(ClientMsg.landCut);
   }
 
   sendTackle(t: Tackle): void {

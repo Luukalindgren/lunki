@@ -31,6 +31,10 @@ export class Hud {
   /** Kosketusohjaus: ohjeessa napit näppäinten sijaan. */
   private touch = false;
 
+  get touchMode(): boolean {
+    return this.touch;
+  }
+
   constructor(parent: HTMLElement) {
     this.root = el('div', 'hud');
     parent.appendChild(this.root);
@@ -172,6 +176,7 @@ export class Hud {
           'VIEHE vaihda · LUOT kaikuluotain · KAM silmin',
           '+/− zoom · ? ohje · II tauko',
           'Ukkosella kelaa viehe sisään ja pysy rannan lähellä',
+          'Viehe maalla tai laiturilla: KATKO katkaisee siiman',
           ...(multiplayer
             ? ['Sotkussa kelatkaa yhdessä · KATKO katkaisee', 'VIESTI = kirjoita muille']
             : []),
@@ -184,6 +189,7 @@ export class Hud {
           'R vaihda viehe · K kaikuluotain · V kalastajan silmin',
           'Rulla = zoom · H = ohje · Esc = tauko',
           'Ukkosella kelaa viehe sisään ja pysy rannan lähellä',
+          'Viehe maalla tai laiturilla: C katkaisee siiman',
           ...(multiplayer
             ? ['Sotkussa kelatkaa yhdessä · C katkaisee siiman', 'Enter = viesti muille']
             : []),

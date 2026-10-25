@@ -106,13 +106,43 @@ describe('kalastuksen vaiheet', () => {
     expect(s.stage).toBe('idle');
   });
 
-  it('rannalle heitetty viehe on maalla', () => {
+  it('maalle heitetty viehe juuttuu, eikä kelaus irrota sitä', () => {
     const s = createFishing();
-    const far = { ...ctx, isWater: () => false };
-    stepFishing(s, input({ castHeld: true }), far, DT);
-    for (let t = 0; t < 0.5; t += DT) stepFishing(s, input({ castHeld: true }), far, DT);
-    for (let t = 0; t < 6; t += DT) stepFishing(s, input(), far, DT);
+    const land = { ...ctx, isWater: () => false };
+    let stuck = false;
+    stepFishing(s, input({ castHeld: true }), land, DT);
+    for (let t = 0; t < 0.5; t += DT) stepFishing(s, input({ castHeld: true }), land, DT);
+    for (let t = 0; t < 6; t += DT) stuck = !!stepFishing(s, input(), land, DT).stuck || stuck;
+    expect(stuck).toBe(true);
     expect(s.onLand).toBe(true);
     expect(s.depth).toBe(0);
+    const at = { ...s.lure };
+    for (let t = 0; t < 10; t += DT) stepFishing(s, input({ reel: true }), land, DT);
+    expect(s.stage).toBe('water');
+    expect(s.lure).toEqual(at);
+    expect(s.tension).toBe(s.drag);
+  });
+
+  it('juuttunut viehe vapautuu vain katkaisemalla siima', () => {
+    const s = createFishing();
+    const land = { ...ctx, isWater: () => false };
+    stepFishing(s, input({ castHeld: true }), land, DT);
+    for (let t = 0; t < 0.5; t += DT) stepFishing(s, input({ castHeld: true }), land, DT);
+    for (let t = 0; t < 6; t += DT) stepFishing(s, input(), land, DT);
+    const ev = stepFishing(s, input({ cut: true }), land, DT);
+    expect(ev.lineCut).toBe(true);
+    expect(ev.lureLost).toBe(true);
+    expect(s.stage).toBe('idle');
+    expect(s.onLand).toBe(false);
+  });
+
+  it('vedessä katkaisu ei tee mitään', () => {
+    const s = createFishing();
+    stepFishing(s, input({ castHeld: true }), ctx, DT);
+    for (let t = 0; t < 0.5; t += DT) stepFishing(s, input({ castHeld: true }), ctx, DT);
+    for (let t = 0; t < 6; t += DT) stepFishing(s, input(), ctx, DT);
+    expect(s.stage).toBe('water');
+    expect(stepFishing(s, input({ cut: true }), ctx, DT).lineCut).toBeUndefined();
+    expect(s.stage).toBe('water');
   });
 });

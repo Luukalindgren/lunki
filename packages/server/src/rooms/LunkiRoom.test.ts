@@ -637,6 +637,37 @@ describe('LunkiRoom', () => {
     await guest.leave();
   });
 
+  it('maalle juuttuneen vieheen katkaisu tuo valitun aikasakon', async () => {
+    const host = await sdk().create(ROOM_NAME, {
+      name: 'A',
+      playerId: 'a',
+      testTiming: { countdown: 0.1, duration: 60 },
+    });
+    await until(() => host.state?.settings?.landPenalty === 30);
+    host.send(ClientMsg.settings, { landPenalty: 15 });
+    await until(() => host.state.settings.landPenalty === 15);
+    type P = { x: number; y: number; outUntil: number };
+    const me = () => host.state.players.get(host.sessionId) as P;
+
+    // Aulassa katkaisu ei tee mitään.
+    host.send(ClientMsg.landCut);
+    host.send(ClientMsg.start);
+    await until(() => host.state.phase === 'playing');
+    expect(me().outUntil).toBe(0);
+
+    host.send(ClientMsg.landCut);
+    await until(() => me().outUntil > 0);
+    expect(me().outUntil).toBeGreaterThan(host.state.clock + 10);
+    expect(me().outUntil).toBeLessThanOrEqual(host.state.clock + 15);
+    // Sakon aikana heitto ei kelpaa.
+    let rejected = 0;
+    host.onMessage(ServerMsg.castRejected, () => rejected++);
+    host.send(ClientMsg.splash, { x: me().x + 10, y: me().y });
+    await until(() => rejected === 1);
+
+    await host.leave();
+  });
+
   it('trombi nappaa liian lähelle tulleen ja sinkoaa sen', async () => {
     const host = await sdk().create(ROOM_NAME, {
       name: 'A',

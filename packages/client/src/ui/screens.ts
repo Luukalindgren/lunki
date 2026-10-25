@@ -14,6 +14,8 @@ import {
   describeFullTackle,
   NAME_MAX_LENGTH,
   CAPSIZE_PENALTY_OPTIONS,
+  LAND_PENALTIES,
+  LAND_PENALTY_OPTIONS,
   LIGHTNING_PENALTY_OPTIONS,
   isPenalty,
   type Penalty,
@@ -73,6 +75,9 @@ export function loadSettings(defaults: CompetitionSettings): CompetitionSettings
           ? s.lightningPenalty
           : defaults.lightningPenalty,
         capsizePenalty: isPenalty(s.capsizePenalty) ? s.capsizePenalty : defaults.capsizePenalty,
+        landPenalty: (LAND_PENALTIES as readonly unknown[]).includes(s.landPenalty)
+          ? s.landPenalty
+          : defaults.landPenalty,
         start: isPoint(s.start) ? { x: s.start.x, y: s.start.y } : null,
       };
     }
@@ -223,9 +228,15 @@ export class Screens {
         settings.capsizePenalty ?? 'none',
         (v) => (settings.capsizePenalty = v as Penalty),
       ),
+      this.choice(
+        'Heitto maalle',
+        LAND_PENALTY_OPTIONS.map((o) => [String(o.value), o.label]),
+        String(settings.landPenalty ?? 30),
+        (v) => (settings.landPenalty = Number(v)),
+      ),
       h(
         'p',
-        'Ukkosella salama voi iskeä, jos vapa on ylhäällä: kelaa viehe sisään. Iso aalto kaataa renkaan sivulta: käänny aaltoa kohti.',
+        'Ukkosella salama voi iskeä, jos vapa on ylhäällä: kelaa viehe sisään. Iso aalto kaataa renkaan sivulta: käänny aaltoa kohti. Maalle tai laiturille heitetty viehe juuttuu, ja siima on katkaistava.',
         'hint',
       ),
       h('p', 'Omat värit', 'choice-label'),
@@ -791,6 +802,12 @@ export class Screens {
         s.capsizePenalty,
         (v) => change({ capsizePenalty: v as Penalty }),
       ),
+      this.choice(
+        'Heitto maalle',
+        LAND_PENALTY_OPTIONS.map((o) => [String(o.value), o.label]),
+        String(s.landPenalty),
+        (v) => change({ landPenalty: Number(v) }),
+      ),
     );
     return box;
   }
@@ -1015,6 +1032,7 @@ export class Screens {
         'Salama / kaatuminen',
         `${label(LIGHTNING_PENALTY_OPTIONS, s.lightningPenalty)} / ${label(CAPSIZE_PENALTY_OPTIONS, s.capsizePenalty)}`,
       ],
+      ['Heitto maalle', label(LAND_PENALTY_OPTIONS, s.landPenalty)],
       ['Kalalajit', s.species.map((v) => label(SPECIES_OPTIONS, v)).join(', ')],
       ['Aloituspaikka', startText(s.start ?? null)],
     ];

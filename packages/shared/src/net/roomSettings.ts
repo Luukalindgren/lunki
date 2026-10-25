@@ -18,6 +18,8 @@ export interface RoomSettings extends CompetitionSettings {
   lightningPenalty: Penalty;
   /** Renkaan kaatumisen rangaistus. */
   capsizePenalty: Penalty;
+  /** Maalle heiton aikasakko (s), yksi LAND_PENALTIES-arvoista. */
+  landPenalty: number;
   /** Järven kalalajit. */
   species: SpeciesId[];
 }
@@ -32,6 +34,14 @@ export const LIGHTNING_PENALTY_OPTIONS: { value: Penalty; label: string; ready: 
   PENALTY_IDS.map((id) => ({ value: id, label: PENALTY_NAMES[id], ready: true }));
 
 export const CAPSIZE_PENALTY_OPTIONS = LIGHTNING_PENALTY_OPTIONS;
+
+/** Maalle heiton aikasakon vaihtoehdot (s); salaman jäähyä lyhyempiä. */
+export const LAND_PENALTIES = [0, 15, 30, 60] as const;
+
+export const LAND_PENALTY_OPTIONS: { value: number; label: string }[] = LAND_PENALTIES.map((s) => ({
+  value: s,
+  label: s === 0 ? 'Ei aikasakkoa' : `Aikasakko ${s} s`,
+}));
 
 /** Lajit valintoina; `native` = elää oikeasti Lunkinjärvessä. */
 export const SPECIES_OPTIONS: { value: SpeciesId; label: string; native: boolean }[] =
@@ -74,6 +84,8 @@ export function validateSettingsPatch(
     out.lightningPenalty = p.lightningPenalty as Penalty;
   if (readyValues(CAPSIZE_PENALTY_OPTIONS).includes(p.capsizePenalty as Penalty))
     out.capsizePenalty = p.capsizePenalty as Penalty;
+  if ((LAND_PENALTIES as readonly unknown[]).includes(p.landPenalty))
+    out.landPenalty = p.landPenalty as number;
   if (Array.isArray(p.species)) {
     // Järjestys aina sama, jotta sama valinta tuottaa saman järven.
     const wanted = new Set<unknown>(p.species);

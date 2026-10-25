@@ -11,9 +11,11 @@ export const ROOM_NAME = 'lunki';
  * uudelleen: asiakas ei lähetä vanhemmalle palvelimelle viestejä, joita se
  * ei tunne. Vanha palvelin ilman kenttää = 1.
  */
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 /** Chat tuli versiossa 2. */
 export const CHAT_PROTOCOL = 2;
+/** Maalle juuttuneen vieheen siiman katkaisu (ClientMsg.landCut) tuli versiossa 3. */
+export const LAND_CUT_PROTOCOL = 3;
 
 /** Oletuspelaajamäärä huoneessa. Rakenne sallii isomman. */
 export const DEFAULT_MAX_PLAYERS = 8;
@@ -94,6 +96,8 @@ export const ClientMsg = {
   chat: 'chat',
   /** Pelaajan värit (Appearance): aulassa. */
   appearance: 'appearance',
+  /** Pelaaja katkaisi siiman maalle juuttuneen vieheen takia: aikasakko. */
+  landCut: 'landCut',
 } as const;
 
 /** Vieheen tila muille näytettäväksi. */

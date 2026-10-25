@@ -30,6 +30,14 @@ describe('validateSettingsPatch', () => {
     expect(validateSettingsPatch(null, 1)).toEqual({});
   });
 
+  it('maalle heiton aikasakko vain valmiista vaihtoehdoista', () => {
+    expect(validateSettingsPatch({ landPenalty: 15 }, 1)).toEqual({ landPenalty: 15 });
+    expect(validateSettingsPatch({ landPenalty: 0 }, 1)).toEqual({ landPenalty: 0 });
+    for (const bad of [-5, 31, 1e6, '30', null]) {
+      expect(validateSettingsPatch({ landPenalty: bad }, 1)).toEqual({});
+    }
+  });
+
   it('salaman ja kaatumisen rangaistukset', () => {
     expect(
       validateSettingsPatch({ lightningPenalty: 'out', capsizePenalty: 'time-out' }, 1),

@@ -29,6 +29,8 @@ export interface CompetitionSettings {
   lightningPenalty?: Penalty;
   /** Kaatumisen rangaistus; oletuksena ei muuta kuin kaatuminen itse. */
   capsizePenalty?: Penalty;
+  /** Maalle tai laiturille heitto: siima katkaistaan, ja uuden vieheen solmimiseen menee näin monta sekuntia. */
+  landPenalty?: number;
   /** Kartalta valittu aloituspaikka; puuttuu tai null = satunnainen rannan tuntumassa. */
   start?: Vec2 | null;
 }
@@ -41,6 +43,7 @@ export const DEFAULT_SETTINGS: CompetitionSettings = {
   weather: 'realistic',
   lightningPenalty: 'time-out',
   capsizePenalty: 'none',
+  landPenalty: 30,
 };
 
 export interface CatchRecord extends Catch {

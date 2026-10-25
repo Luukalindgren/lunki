@@ -76,8 +76,7 @@ export class TouchControls {
     this.gearButton = this.button('NOP 2', 'Kelausnopeus', () =>
       this.tapKey(`Digit${((this.gear + 1) % GEARS) + 1}`),
     );
-    this.cutButton = this.tap('KATKO', 'KeyC', 'Katkaise sotkeutunut siima');
-    this.cutButton.hidden = true;
+    this.cutButton = this.tap('KATKO', 'KeyC', 'Katkaise siima');
     const grid = div('touch-grid');
     grid.append(
       this.tap('VIEHE', 'KeyR', 'Vaihda viehe'),
@@ -98,9 +97,8 @@ export class TouchControls {
     parent.appendChild(this.root);
   }
 
-  /** Sotkun katkaisu on vain moninpelissä. */
+  /** Chat on vain moninpelissä. */
   setMultiplayer(multiplayer: boolean): void {
-    this.cutButton.hidden = !multiplayer;
     this.chatButton.hidden = !multiplayer;
   }
 

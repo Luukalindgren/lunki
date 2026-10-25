@@ -69,6 +69,7 @@ export const SettingsState = schema(
     weather: t.string().default(DEFAULT_SETTINGS.weather!),
     lightningPenalty: t.string().default(DEFAULT_SETTINGS.lightningPenalty!),
     capsizePenalty: t.string().default(DEFAULT_SETTINGS.capsizePenalty!),
+    landPenalty: t.uint8().default(DEFAULT_SETTINGS.landPenalty!),
     species: t.array('string').default(() => new ArraySchema<string>(...NATIVE_SPECIES)),
     /** Kartalta valittu aloituspaikka; false = satunnainen. */
     customStart: t.boolean().default(false),

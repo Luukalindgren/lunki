@@ -124,6 +124,11 @@ export class NetWorld {
     this.session.sendCutLine();
   }
 
+  /** Siima katkaistiin maalle juuttuneen vieheen takia: palvelin kirjaa aikasakon. */
+  landCut(): void {
+    this.session.sendLandCut();
+  }
+
   sendTackle(t: Tackle): void {
     this.session.sendTackle(t);
   }
