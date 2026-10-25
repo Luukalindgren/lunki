@@ -15,6 +15,9 @@ export class Hud {
   private readonly power: HTMLDivElement;
   private readonly powerFill: HTMLDivElement;
   private readonly message: HTMLDivElement;
+  private readonly messageText: HTMLSpanElement;
+  /** Vasen yläkulma: kello ja saaliit (kosketuksella myös tilapaneeli) allekkain. */
+  private readonly topLeft: HTMLDivElement;
   private readonly tension: HTMLDivElement;
   private readonly tensionFill: HTMLDivElement;
   private readonly tensionDrag: HTMLDivElement;
@@ -54,6 +57,9 @@ export class Hud {
     this.powerFill = el('div', 'hud-power-fill');
     this.power.appendChild(this.powerFill);
     this.message = el('div', 'hud-message');
+    this.messageText = document.createElement('span');
+    this.message.appendChild(this.messageText);
+    this.message.hidden = true;
     this.tension = el('div', 'hud-tension hud-panel');
     this.tensionFill = el('div', 'hud-tension-fill');
     this.tensionDrag = el('div', 'hud-tension-drag');
@@ -78,30 +84,38 @@ export class Hud {
     this.weigh.hidden = true;
     this.countdown = el('div', 'hud-countdown');
     this.countdown.hidden = true;
+    // Kulmiin ja yläreunaan pinot, jotta paneelit eivät mene päällekkäin
+    // eivätkä peitä ilmoituksia keskellä ruutua.
+    this.topLeft = el('div', 'hud-top-left');
+    this.topLeft.append(this.timer, this.catches);
+    const topCenter = el('div', 'hud-top-center');
     this.root.append(
       this.status,
       this.power,
       this.tension,
       this.stamina,
-      this.message,
-      this.help,
-      this.timer,
-      this.weather,
-      this.catches,
-      this.weigh,
+      this.topLeft,
+      topCenter,
       this.countdown,
     );
-    this.compass = new CompassDisplay(this.root);
-    // Luotaimet oikeassa reunassa vierekkäin; kapealla ruudulla allekkain.
+    this.compass = new CompassDisplay(topCenter);
+    topCenter.appendChild(this.weather);
+    // Luotaimet oikeassa alakulmassa ohjeen yläpuolella. Kosketusnäytöllä
+    // alakulmassa ovat ohjaimet, joten ne nousevat kireysmittarin alle.
+    const bottomRight = el('div', 'hud-bottom-right');
     const gauges = el('div', 'hud-gauges');
-    this.root.appendChild(gauges);
+    bottomRight.append(gauges, this.help);
+    this.root.appendChild(bottomRight);
     this.sonar = new SonarDisplay(gauges);
     this.lureSonar = new LureSonarDisplay(gauges);
+    // Ilmoitus ja punnitus kaiken muun päällä.
+    this.root.append(this.message, this.weigh);
   }
 
   /** Sisäisen pikselin koko CSS-pikseleinä. */
   setPixelSize(cssPx: number): void {
-    this.root.style.setProperty('--u', `${cssPx}px`);
+    // --u lasketaan tästä tyylitiedostossa: kapealla pystyruudulla HUD pienenee.
+    this.root.style.setProperty('--u0', `${cssPx}px`);
   }
 
   setStatus(lines: string[]): void {
@@ -180,6 +194,9 @@ export class Hud {
   setTouch(touch: boolean): void {
     this.touch = touch;
     this.root.classList.toggle('touch', touch);
+    // Kosketuksella tila vasempaan pinoon, alhaalla ovat ohjaimet.
+    if (touch) this.topLeft.appendChild(this.status);
+    else this.root.insertBefore(this.status, this.root.firstChild!.nextSibling);
     this.help.hidden = touch;
     this.setHelpMode(this.multiplayer);
   }
@@ -225,7 +242,7 @@ export class Hud {
   }
 
   showMessage(text: string, seconds = 2.5): void {
-    this.message.textContent = text;
+    this.messageText.textContent = text;
     this.message.hidden = false;
     this.messageTimer = seconds;
   }

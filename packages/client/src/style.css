@@ -22,8 +22,10 @@ body {
 
 .fps-meter {
   position: absolute;
-  top: 4px;
-  left: 4px;
+  /* Alareunan keskellä, ettei peitä kelloa vasemmassa yläkulmassa. */
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
   padding: 2px 6px;
   background: rgb(11 15 20 / 70%);
   font-size: 12px;
@@ -31,7 +33,8 @@ body {
 }
 
 .hud {
-  --u: 3px;
+  --u0: 3px;
+  --u: var(--u0);
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -74,18 +77,61 @@ body {
 
 .hud-message {
   position: absolute;
-  top: 30%;
-  left: 0;
-  right: 0;
+  /* Saalislistan alle ja renkaan yläpuolelle. */
+  top: 36%;
+  /* Reunoilla kireysmittari ja paneelit: pitkä ilmoitus rivittyy niiden väliin. */
+  left: calc(var(--u) * 16);
+  right: calc(var(--u) * 16);
+  z-index: 2;
   text-align: center;
-  font-size: calc(var(--u) * 16);
+  font-size: calc(var(--u) * 12);
   color: #fff3b0;
   white-space: pre-line;
 }
 
-.hud-help {
+/* Tumma tausta tekstin kokoisena, jotta ilmoitus erottuu kaiken päällä. */
+.hud-message span {
+  display: inline-block;
+  background: rgb(11 15 20 / 55%);
+  padding: 0 calc(var(--u) * 3);
+}
+
+/* Kulmien ja yläreunan pinot: paneelit allekkain ilman päällekkäisyyttä. */
+.hud-top-left,
+.hud-top-center,
+.hud-bottom-right {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 4);
+}
+
+.hud-top-left > .hud-panel,
+.hud-top-center > .hud-panel,
+.hud-bottom-right > .hud-panel {
+  position: relative;
+}
+
+.hud-top-left {
+  left: calc(var(--u) * 4);
+  top: calc(var(--u) * 4);
+  align-items: flex-start;
+}
+
+.hud-top-center {
+  left: 50%;
+  top: calc(var(--u) * 4);
+  transform: translateX(-50%);
+  align-items: center;
+}
+
+.hud-bottom-right {
   right: calc(var(--u) * 4);
   bottom: calc(var(--u) * 4);
+  align-items: flex-end;
+}
+
+.hud-help {
   white-space: pre;
   font-size: calc(var(--u) * 8);
   color: #c3cbd2;
@@ -122,7 +168,7 @@ body {
 .hud-stamina {
   position: absolute;
   left: 50%;
-  top: calc(var(--u) * 58);
+  top: calc(var(--u) * 38);
   transform: translateX(-50%);
   display: flex;
   align-items: center;
@@ -153,12 +199,8 @@ body {
   background: #d23a2a;
 }
 
-/* Luotaimet: renkaan alla oikealla, vieheluotain sen vasemmalla puolella. */
+/* Luotaimet vierekkäin, vieheluotain vasemmalla. */
 .hud-gauges {
-  position: absolute;
-  right: calc(var(--u) * 4);
-  top: calc(var(--u) * 82);
-  max-width: calc(100% - var(--u) * 8);
   display: flex;
   flex-direction: row-reverse;
   flex-wrap: wrap;
@@ -210,8 +252,8 @@ body {
 .hud-tension-label {
   position: absolute;
   top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
+  /* Oikea reuna mittarin reunaan: teksti ei valu ruudun yli. */
+  right: calc(var(--u) * -1);
   margin-top: calc(var(--u) * 2);
   font-size: calc(var(--u) * 8);
 }
@@ -343,9 +385,6 @@ body {
 }
 
 .hud-timer {
-  left: 50%;
-  top: calc(var(--u) * 4);
-  transform: translateX(-50%);
   font-size: calc(var(--u) * 14);
 }
 
@@ -365,18 +404,12 @@ body {
 }
 
 .hud-weather {
-  left: 50%;
-  top: calc(var(--u) * 41);
-  transform: translateX(-50%);
   font-size: calc(var(--u) * 7);
   white-space: nowrap;
 }
 
-/* Kompassinauha ajastimen ja sään välissä. */
+/* Kompassinauha yläreunassa, sää sen alla. */
 .hud-compass {
-  left: 50%;
-  top: calc(var(--u) * 26);
-  transform: translateX(-50%);
   height: calc(var(--u) * 11);
   padding: 0;
   overflow: hidden;
@@ -429,8 +462,6 @@ body {
 }
 
 .hud-catches {
-  left: calc(var(--u) * 4);
-  top: calc(var(--u) * 4);
   white-space: pre;
   font-size: calc(var(--u) * 8);
 }
@@ -876,14 +907,14 @@ body {
   }
 }
 
-/* HUD väistää ohjaimia. */
-.hud.touch .hud-catches {
+/* HUD väistää ohjaimia: vasen pino nappirivin oikealle puolelle. */
+.hud.touch .hud-top-left {
   left: 64px;
 }
 
+/* Tilapaneeli kellon ja saaliiden alle (alhaalla ovat ohjaimet). */
 .hud.touch .hud-status {
-  left: 64px;
-  bottom: 184px;
+  font-size: calc(var(--u) * 7);
 }
 
 /* Kuntopalkki tatin yläpuolella. */
@@ -902,25 +933,65 @@ body {
   display: none;
 }
 
+/* Alakulmassa ovat napit: luotaimet kireysmittarin alle, ohje keskelle. */
+.hud.touch .hud-bottom-right {
+  display: contents;
+}
+
+.hud.touch .hud-gauges {
+  position: absolute;
+  right: calc(var(--u) * 4);
+  top: calc(var(--u) * 82);
+}
+
 .hud.touch .hud-help {
-  right: auto;
-  bottom: auto;
+  position: absolute;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
 }
 
-/* Pystyssä tila ylös: alhaalla ovat ohjaimet ja keskellä oma rengas. */
+/* Ilmoitus vasemman pinon ja luotainten väliin. */
+.hud.touch .hud-message {
+  top: 30%;
+  left: calc(64px + var(--u) * 80);
+  right: calc(var(--u) * 182);
+}
+
+/* Pystyssä kapea ruutu: HUD pienempänä, kompassi ja sää kellon oikealle
+   puolelle, luotaimet allekkain oikeaan reunaan ja ilmoitus nappien yläpuolelle. */
 @media (orientation: portrait) {
-  .hud.touch .hud-status {
-    bottom: auto;
-    top: calc(var(--u) * 57);
+  .hud.touch {
+    --u: calc(var(--u0) * 0.75);
+  }
+
+  .hud.touch .hud-top-center {
+    left: calc(64px + var(--u) * 40);
+    transform: none;
+    align-items: flex-start;
+  }
+
+  /* Saaliit sään alapuolelle, ettei pitkä rivi osu siihen. */
+  .hud.touch .hud-catches {
+    margin-top: calc(var(--u) * 8);
     font-size: calc(var(--u) * 7);
   }
 
-  /* Luotaimet tilapaneelin alle, ettei kapealla ruudulla mene päällekkäin. */
+  .hud.touch .hud-status {
+    font-size: calc(var(--u) * 8);
+  }
+
   .hud.touch .hud-gauges {
-    top: calc(var(--u) * 99);
+    flex-direction: column;
+    align-items: flex-end;
+  }
+
+  .hud.touch .hud-message {
+    top: auto;
+    /* Nappipino: 3 riviä (3 × 44 + 2 × 6) + väli 8 + KELAA 88 + reuna 16 = 256 px. */
+    bottom: calc(264px + env(safe-area-inset-bottom, 0px));
+    left: calc(var(--u) * 4);
+    right: calc(var(--u) * 4);
   }
 }
 
@@ -1103,10 +1174,20 @@ body {
 .hud.touch .chat-hud {
   left: 50%;
   bottom: auto;
-  top: calc(var(--u) * 56);
+  top: calc(var(--u) * 38);
   transform: translateX(-50%);
   width: min(360px, 50%);
   font-size: max(14px, calc(var(--u) * 7));
+}
+
+/* Pystyssä chat vasempaan reunaan tilapaneelin alle, luotaimet ovat oikealla. */
+@media (orientation: portrait) {
+  .hud.touch .chat-hud {
+    left: calc(8px + env(safe-area-inset-left, 0px));
+    top: calc(var(--u) * 142);
+    transform: none;
+    width: calc(var(--u) * 108);
+  }
 }
 
 .touch-controls .touch-chat {
