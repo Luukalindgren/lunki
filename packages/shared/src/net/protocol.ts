@@ -100,7 +100,16 @@ export const ServerMsg = {
   castRejected: 'castRejected',
   /** Palvelin ei hyväksynyt saalista punnitukseen. */
   catchRejected: 'catchRejected',
+  /** Salama iski, ks. LightningMessage. */
+  lightning: 'lightning',
 } as const;
+
+export interface LightningMessage {
+  x: number;
+  y: number;
+  /** Osuman saaneiden sessionId:t. */
+  victims: string[];
+}
 
 export interface StartedMessage {
   seed: number;

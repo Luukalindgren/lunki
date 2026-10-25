@@ -25,6 +25,8 @@ export const PlayerState = schema(
     lureX: t.float32().default(0),
     lureY: t.float32().default(0),
     lureStage: t.uint8().default(0),
+    /** Salaman jäähy: kalastaa ei voi ennen tätä kisa-aikaa (s); pudonneella iso luku. */
+    outUntil: t.float32().default(0),
   },
   'PlayerState',
 );
@@ -38,8 +40,8 @@ export const SettingsState = schema(
     winRule: t.string().default(DEFAULT_SETTINGS.winRule),
     maxPlayers: t.uint8().default(DEFAULT_MAX_PLAYERS),
     weather: t.string().default(DEFAULT_SETTINGS.weather!),
-    // Paikat tuleville asetuksille (vaihe 4).
-    lightningPenalty: t.string().default('none'),
+    lightningPenalty: t.string().default(DEFAULT_SETTINGS.lightningPenalty!),
+    // Paikka tulevalle asetukselle (#29).
     capsizePenalty: t.string().default('none'),
     species: t.array('string').default(() => new ArraySchema<string>(...NATIVE_SPECIES)),
   },

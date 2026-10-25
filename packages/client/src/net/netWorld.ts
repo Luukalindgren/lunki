@@ -6,6 +6,7 @@ import {
   encodeInputs,
   lerpAngle,
   type Catch,
+  type LightningMessage,
   type PlayerResult,
   type RoomPhase,
   type TubeInput,
@@ -76,6 +77,8 @@ export class NetWorld {
   private readonly peerConnected = new Map<string, boolean>();
   /** Palvelin ei hyväksynyt saalista punnitukseen. */
   onCatchRejected: (() => void) | null = null;
+  /** Salama iski jonnekin järvelle. */
+  onLightning: ((msg: LightningMessage) => void) | null = null;
 
   constructor(
     private readonly session: NetSession,
@@ -89,6 +92,7 @@ export class NetWorld {
     session.onState = (s) => this.onState(s);
     session.onCastRejected = () => this.onCastRejected?.();
     session.onCatchRejected = () => this.onCatchRejected?.();
+    session.onLightning = (m) => this.onLightning?.(m);
   }
 
   sendSplash(p: Vec2): void {
@@ -114,6 +118,11 @@ export class NetWorld {
 
   get myId(): string {
     return this.session.sessionId;
+  }
+
+  /** Oma salaman jäähy: kalastaa ei voi ennen tätä kisa-aikaa (s). */
+  get outUntil(): number {
+    return this.session.room.state.players.get(this.session.sessionId)?.outUntil ?? 0;
   }
 
   results(): PlayerResult[] {
@@ -201,5 +210,6 @@ export class NetWorld {
     this.session.onState = null;
     this.session.onCastRejected = null;
     this.session.onCatchRejected = null;
+    this.session.onLightning = null;
   }
 }

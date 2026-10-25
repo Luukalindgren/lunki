@@ -1,5 +1,5 @@
 import { Client, type Room } from '@colyseus/sdk';
-import type { Server } from '@colyseus/core';
+import { matchMaker, type Server } from '@colyseus/core';
 import {
   ClientMsg,
   LUNKINJARVI,
@@ -10,12 +10,16 @@ import {
   createTube,
   encodeInputs,
   formatRoomCode,
+  OUT_OF_RACE,
   maxCastDistance,
   parseRoomCode,
   planWeather,
   rankPlayers,
+  resolveStrike,
   weatherAt,
   type CatchRecord,
+  type LightningMessage,
+  type Strike,
 } from '@lunki/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createServer } from '../server';
@@ -283,6 +287,72 @@ describe('LunkiRoom', () => {
     await until(() => guests[0]!.state.phase === 'lobby' && guests[0]!.state.catches.length === 0);
 
     for (const r of all) await r.leave();
+  });
+
+  it('salama osuu vain vapa ylhäällä, ja rangaistus seuraa', async () => {
+    const host = await sdk().create(ROOM_NAME, {
+      name: 'A',
+      playerId: 'a',
+      testTiming: { countdown: 0.1, duration: 30 },
+    });
+    const guest = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
+    await until(() => players(host).length === 2);
+    host.send(ClientMsg.settings, { weather: 'calm', lightningPenalty: 'out' });
+    await until(() => guest.state.settings.lightningPenalty === 'out');
+    guest.send(ClientMsg.ready, true);
+    await until(() => players(host).every((p) => p.name === 'A' || p.ready));
+    host.send(ClientMsg.start);
+    await until(() => host.state.phase === 'playing');
+
+    type P = { x: number; y: number; lureStage: number; outUntil: number };
+    const me = (room: Room) => room.state.players.get(room.sessionId) as P;
+    for (const room of [host, guest]) {
+      room.send(ClientMsg.splash, { x: me(room).x + 10, y: me(room).y });
+      room.send(ClientMsg.catch, { species: 'perch', name: 'Ahven', weight: 0.3 });
+    }
+    await until(() => host.state.catches.length === 2);
+    // Isännän viehe vedessä, vieraan vapa alhaalla.
+    host.send(ClientMsg.input, { i: [], l: [me(host).x + 10, me(host).y, 2] });
+    await until(() => me(host).lureStage === 2);
+
+    // Salama, joka osuu kumpaan tahansa, jos vapa on ylhäällä.
+    const water = new WaterBody(LUNKINJARVI);
+    const hits = (seed: number) =>
+      [host, guest].every(
+        (r) =>
+          resolveStrike(
+            { t: 0, seed },
+            [{ id: r.sessionId, pos: me(r), rodUp: true }],
+            water,
+            LUNKINJARVI.bounds,
+          ).victims.length === 1,
+      );
+    let seed = 1;
+    while (!hits(seed)) seed++;
+    const room = matchMaker.getLocalRoomById(host.roomId) as unknown as {
+      strikes: Strike[];
+      nextStrike: number;
+      state: { clock: number };
+    };
+    const strikes: LightningMessage[] = [];
+    guest.onMessage(ServerMsg.lightning, (m: LightningMessage) => strikes.push(m));
+    room.strikes = [{ t: room.state.clock, seed }];
+    room.nextStrike = 0;
+    await until(() => strikes.length === 1);
+    expect(strikes[0]!.victims).toEqual([host.sessionId]);
+    expect(Math.hypot(strikes[0]!.x - me(host).x, strikes[0]!.y - me(host).y)).toBeLessThan(1);
+
+    // Putoaminen: saalis menee, eikä uusi heitto kelpaa.
+    await until(() => host.state.catches.length === 1);
+    expect(host.state.catches[0].player).toBe(guest.sessionId);
+    expect(me(host).outUntil).toBe(OUT_OF_RACE);
+    let rejected = 0;
+    host.onMessage(ServerMsg.castRejected, () => rejected++);
+    host.send(ClientMsg.splash, { x: me(host).x + 10, y: me(host).y });
+    await until(() => rejected === 1);
+
+    await host.leave();
+    await guest.leave();
   });
 
   it('katkennut pelaaja palaa samaan renkaaseen ja saaliisiin', async () => {

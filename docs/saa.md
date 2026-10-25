@@ -42,8 +42,44 @@ Siirtymä alkaa 45 s ennen muutosta:
   - **Kaukaa kuuluu ukkosen jyrinää**, kun on tulossa ukkonen tai myrsky; samalla kuuluu jyrinä
   - **Tuuli yltyy**, kun tuuli voimistuu yli 3 m/s.
 
-Ukkosella ja myrskyllä jyrisee lisäksi 8–22 s välein. Salamat tulevat
-omana ominaisuutenaan (#28).
+Ukkosella ja myrskyllä jyrisee lisäksi 8–22 s välein.
+
+## Salamat
+
+Ukkosella salama iskee keskimäärin 11 s välein, myrskyllä 6 s välein
+(`planLightning` kansiossa `packages/shared/src/weather/lightning.ts`).
+Iskuhetket lasketaan kisan siemenestä, kuten säätila.
+
+- **Kenen kohdalle salama osuu?** Vain kalastajaan, jonka vapa on ylhäällä
+  eli viehe on heitossa tai vedessä tai kala on kiinni. Vapa alhaalla (viehe
+  kelalla) on aina turvassa.
+- **Osumariski:** yksi salama osuu vapa ylhäällä olevaan noin 8 %
+  todennäköisyydellä selällä. Rannan tuntumassa (alle 25 m) riski on
+  neljännes tästä, ja se kasvaa tasaisesti 200 metriin asti. Myrskyssä
+  jatkuvasti kalastava saa siis osuman noin minuutissa.
+- **Moninpeli:** palvelin ratkaisee osumat ja lähettää iskut kaikille
+  (`ServerMsg.lightning`).
+- **Muut iskut:** jos salama ei osu kehenkään, se iskee satunnaiseen
+  kohtaan järvellä, mieluiten selälle.
+
+Osuma polttaa siiman aina poikki: viehe palaa kelalle ja kiinni ollut kala
+karkaa. Lisäksi seuraa valittu rangaistus:
+
+| Rangaistus      | Mitä tapahtuu                                                 |
+| --------------- | ------------------------------------------------------------- |
+| Ei rangaistusta | Vain siima palaa poikki.                                      |
+| Jäähy (60 s)    | Heittää ei voi minuuttiin. Palvelin hylkää heitot ja saaliit. |
+| Menetä saalis   | Kaikki tähän asti punnitut kalat menetetään.                  |
+| Putoat kisasta  | Saalis menetetään, eikä loppukisan aikana voi enää kalastaa.  |
+
+Rangaistus valitaan yksinpelin alkuvalikosta tai moninpelin aulasta.
+Oletuksena on jäähy.
+
+Salama näkyy siksak-viivana taivaalta veteen, ja koko ruutu välähtää.
+Isku kuuluu viiveellä etäisyyden mukaan (343 m/s): lähellä terävänä
+räsähdyksenä ja jyrinänä, kaukana hiljaisempana jyrinänä. Ukkosella ja
+myrskyllä HUD:n säärivillä lukee "salamavaara!", ja jäähyn jäljellä oleva
+aika näkyy vasemmassa alakulmassa.
 
 ## Näkyminen pelissä
 

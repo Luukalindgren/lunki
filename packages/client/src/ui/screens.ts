@@ -5,7 +5,10 @@ import {
   LURES,
   LURE_IDS,
   NAME_MAX_LENGTH,
-  PENALTY_OPTIONS,
+  CAPSIZE_PENALTY_OPTIONS,
+  LIGHTNING_PENALTY_OPTIONS,
+  isPenalty,
+  type Penalty,
   PLAYER_COUNTS,
   SPECIES_OPTIONS,
   WEATHER_OPTIONS,
@@ -41,6 +44,9 @@ export function loadSettings(defaults: CompetitionSettings): CompetitionSettings
         ...s,
         species: species.length > 0 ? species : defaults.species,
         weather: isWeatherLevel(s.weather) ? s.weather : defaults.weather,
+        lightningPenalty: isPenalty(s.lightningPenalty)
+          ? s.lightningPenalty
+          : defaults.lightningPenalty,
       };
     }
   } catch {
@@ -111,6 +117,13 @@ export class Screens {
         settings.weather ?? 'realistic',
         (v) => (settings.weather = v as WeatherLevel),
       ),
+      this.choice(
+        'Salama',
+        LIGHTNING_PENALTY_OPTIONS.map((o) => [o.value, o.label]),
+        settings.lightningPenalty ?? 'time-out',
+        (v) => (settings.lightningPenalty = v as Penalty),
+      ),
+      h('p', 'Ukkosella salama voi iskeä, jos vapa on ylhäällä. Kelaa viehe sisään.', 'hint'),
       this.buttons([
         [
           'Aloita kisa',
@@ -435,16 +448,16 @@ export class Screens {
         s.weather,
         (v) => change({ weather: v as WeatherLevel }),
       ),
-      h('p', 'Tulossa myöhemmin:', 'hint'),
       this.choice(
         'Salama',
-        PENALTY_OPTIONS.map((o) => [o.value, o.label, !o.ready]),
+        LIGHTNING_PENALTY_OPTIONS.map((o) => [o.value, o.label]),
         s.lightningPenalty,
-        () => undefined,
+        (v) => change({ lightningPenalty: v as Penalty }),
       ),
+      h('p', 'Tulossa myöhemmin:', 'hint'),
       this.choice(
         'Kaatuminen',
-        PENALTY_OPTIONS.map((o) => [o.value, o.label, !o.ready]),
+        CAPSIZE_PENALTY_OPTIONS.map((o) => [o.value, o.label, !o.ready]),
         s.capsizePenalty,
         () => undefined,
       ),
@@ -542,7 +555,7 @@ export class Screens {
       ['Sää', label(WEATHER_OPTIONS, s.weather)],
       [
         'Salama / kaatuminen',
-        `${label(PENALTY_OPTIONS, s.lightningPenalty)} / ${label(PENALTY_OPTIONS, s.capsizePenalty)}`,
+        `${label(LIGHTNING_PENALTY_OPTIONS, s.lightningPenalty)} / ${label(CAPSIZE_PENALTY_OPTIONS, s.capsizePenalty)}`,
       ],
       ['Kalalajit', s.species.map((v) => label(SPECIES_OPTIONS, v)).join(', ')],
     ];

@@ -269,6 +269,14 @@ body {
   font-size: calc(var(--u) * 14);
 }
 
+.hud-flash {
+  position: absolute;
+  inset: 0;
+  background: #eef2f3;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .hud-weather {
   left: 50%;
   top: calc(var(--u) * 26);
