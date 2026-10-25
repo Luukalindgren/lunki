@@ -61,6 +61,10 @@ const PART_NAMES: Record<AppearancePart, string> = {
 
 const cssColor = (hex: number) => `#${hex.toString(16).padStart(6, '0')}`;
 
+/** Vaalea väri (suhteellinen kirkkaus), jolle tumma merkki erottuu paremmin. */
+const isLight = (hex: number) =>
+  0.299 * ((hex >> 16) & 0xff) + 0.587 * ((hex >> 8) & 0xff) + 0.114 * (hex & 0xff) > 140;
+
 export function loadSettings(defaults: CompetitionSettings): CompetitionSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
@@ -900,13 +904,22 @@ export class Screens {
       for (const c of colorOptions(part)) {
         const b = document.createElement('button');
         b.className = 'swatch';
+        // Ruksi tummana vaaleilla väreillä ja vaaleana tummilla.
+        if (isLight(c.hex)) b.classList.add('light');
         b.style.background = cssColor(c.hex);
         b.title = c.name;
         b.setAttribute('aria-label', `${PART_NAMES[part]}: ${c.name}`);
-        b.classList.toggle('selected', c.hex === a[part]);
+        const select = (on: boolean) => {
+          b.classList.toggle('selected', on);
+          b.setAttribute('aria-pressed', String(on));
+        };
+        select(c.hex === a[part]);
         b.addEventListener('click', () => {
-          group.querySelectorAll('button').forEach((x) => x.classList.remove('selected'));
-          b.classList.add('selected');
+          group.querySelectorAll('button').forEach((x) => {
+            x.classList.remove('selected');
+            x.setAttribute('aria-pressed', 'false');
+          });
+          select(true);
           a[part] = c.hex;
           drawTubePreview(preview, a);
           onChange({ ...a });
