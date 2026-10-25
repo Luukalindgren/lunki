@@ -142,6 +142,18 @@ export function createWaterWaves() {
     uGlitterDir: { value: new THREE.Vector3(0, 1, 0) },
     uGlitterColor: { value: new THREE.Color(0xfff3b0) },
     uGlitter: { value: 0 },
+    /** Aallokko (ks. Swell): suunta x, y, aaltoluku ja vaihe kullekin kolmelle jonolle. */
+    uSwell: { value: [new THREE.Vector4(), new THREE.Vector4(), new THREE.Vector4()] },
+    uSwellAmp: { value: new THREE.Vector3() },
+    uSwellOrigin: { value: new THREE.Vector2() },
+    /** POV-näkymän aaltoileva lähivesi: keskipiste x, y ja säde (m); 0 = pois. */
+    uPatch: { value: new THREE.Vector3(0, 0, 0) },
+    /** Vesialue tekstuurina (punainen = vettä) ja sen rajat: minX, minY, leveys, korkeus. */
+    uWaterMask: { value: null as THREE.Texture | null },
+    uWaterMaskBounds: { value: new THREE.Vector4(0, 0, 1, 1) },
+    /** Pohjan syvyyssävy (ks. bottomMesh): lähivesi piirtää sen itse. */
+    uBottomShade: { value: null as THREE.Texture | null },
+    uBottomShadeBounds: { value: new THREE.Vector4(0, 0, 1, 1) },
   };
 }
 export type WaterWaves = ReturnType<typeof createWaterWaves>;
@@ -151,8 +163,9 @@ export type WaterWaves = ReturnType<typeof createWaterWaves>;
  * vääristettynä, jolloin aallonharjat kiemurtelevat ja välkehtivät.
  * Tuulella pintaan nousee vaahtopäitä.
  */
-function createWaterMaterial(waves: WaterWaves): THREE.MeshLambertMaterial {
+function createWaterMaterial(waves: WaterWaves, patch = false): THREE.MeshLambertMaterial {
   const material = new THREE.MeshLambertMaterial({ color: 0xffffff, map: createWaterTexture() });
+  if (patch) material.defines = { SWELL_PATCH: '' };
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uWaterTime = waterTime;
     Object.assign(shader.uniforms, waves);
@@ -164,23 +177,62 @@ uniform vec2 uWaveDir;
 uniform vec3 uGlitterDir;
 uniform vec3 uGlitterColor;
 uniform float uGlitter;
+uniform vec3 uPatch;
+uniform sampler2D uWaterMask;
+uniform vec4 uWaterMaskBounds;
 varying vec3 vGlitterPos;
+#ifdef SWELL_PATCH
+varying float vSwell;
+uniform sampler2D uBottomShade;
+uniform vec4 uBottomShadeBounds;
+#endif
 float waterHash(vec2 p) {
   return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
 }
 `;
-    shader.vertexShader = ('varying vec3 vGlitterPos;\n' + shader.vertexShader).replace(
-      '#include <project_vertex>',
-      `#include <project_vertex>
+    shader.vertexShader = (SWELL_VERTEX_HEADER + shader.vertexShader)
+      .replace(
+        '#include <uv_vertex>',
+        `#include <uv_vertex>
+        #ifdef SWELL_PATCH
+        vMapUv = (mapTransform * vec3(position.xy + uPatch.xy, 1.0)).xy;
+        #endif`,
+      )
+      .replace('#include <beginnormal_vertex>', SWELL_NORMAL)
+      .replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>
+        #ifdef SWELL_PATCH
+        transformed.z += swellH;
+        #endif`,
+      )
+      .replace(
+        '#include <project_vertex>',
+        `#include <project_vertex>
       vGlitterPos = (modelMatrix * vec4(transformed, 1.0)).xyz;`,
-    );
+      );
     // onBeforeCompile näkee vielä include-rivit, joten korvataan koko map_fragment.
     shader.fragmentShader = (header + shader.fragmentShader).replace(
       '#include <map_fragment>',
-      /* glsl */ `vec2 waveUv = vMapUv + vec2(uWaterTime * 0.004, uWaterTime * 0.0015);
+      /* glsl */ `// POV-näkymässä lähivesi piirretään aaltoilevana erillisenä
+      // verkkona; tasainen järvi jättää sen kohdan väliin.
+      vec2 waterXY = vMapUv * ${WATER_TEXTURE_METERS.toFixed(1)};
+      bool inPatch = uPatch.z > 0.0 && length(waterXY - uPatch.xy) < uPatch.z &&
+        texture2D(uWaterMask, (waterXY - uWaterMaskBounds.xy) / uWaterMaskBounds.zw).r > 0.5;
+      #ifdef SWELL_PATCH
+      if (!inPatch) discard;
+      #else
+      if (inPatch) discard;
+      #endif
+      vec2 waveUv = vMapUv + vec2(uWaterTime * 0.004, uWaterTime * 0.0015);
       waveUv.x += sin(vMapUv.y * 40.0 + uWaterTime * 1.3) * 0.01;
       waveUv.y += sin(vMapUv.x * 33.0 - uWaterTime * 1.1) * 0.008;
       vec4 sampledDiffuseColor = texture2D( map, waveUv );
+      #ifdef SWELL_PATCH
+      // Aallon rinteet erottuvat porrastettuina sävyinä, kuten vanhoissa peleissä.
+      sampledDiffuseColor.rgb = mix(sampledDiffuseColor.rgb, vec3(0.024, 0.195, 0.376), 0.75 * smoothstep(0.25, 0.75, vSwell));
+      sampledDiffuseColor.rgb = mix(sampledDiffuseColor.rgb, vec3(0.006, 0.042, 0.107), 0.7 * smoothstep(0.3, 0.8, -vSwell));
+      #endif
       // Tuulen aallot: lyhyitä vaahtopäitä, jotka syntyvät, ajelehtivat
       // myötätuuleen ja sammuvat. Kaari kaartuu tuulen suuntaan, ja sen
       // takana on tumma aallonpohja. Vaahtopäitä on sitä enemmän, mitä
@@ -220,7 +272,14 @@ float waterHash(vec2 p) {
     // osuu valoon vain kapealla kaistalla, ja kimallus vaihtuu pikseleittäin.
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <opaque_fragment>',
-      /* glsl */ `outgoingLight = mix(outgoingLight, vec3(0.9, 0.95, 1.0), waterFoam);
+      /* glsl */ `#ifdef SWELL_PATCH
+      // Pohjan syvyyssävy valaisemattomana, kuten tasaisen järven päällä oleva kerros.
+      vec4 bottomShade = texture2D(uBottomShade, (waterXY - uBottomShadeBounds.xy) / uBottomShadeBounds.zw);
+      // Aallonpohjassa sävy jätetään pois: tumma pohja ja vihertävä sävy
+      // osuisivat paletissa vihreään, ja vesi näyttäisi maalta.
+      outgoingLight = mix(outgoingLight, bottomShade.rgb, bottomShade.a * (1.0 - smoothstep(0.0, 0.4, -vSwell)));
+      #endif
+      outgoingLight = mix(outgoingLight, vec3(0.9, 0.95, 1.0), waterFoam);
       if (uGlitter > 0.0) {
         vec3 toEye = normalize(cameraPosition - vGlitterPos);
         vec3 refl = vec3(-toEye.x, toEye.y, -toEye.z);
@@ -234,6 +293,209 @@ float waterHash(vec2 p) {
     );
   };
   return material;
+}
+
+/** Aaltoilevan lähiveden säde (m) ja verkon tiheys (m). */
+export const SWELL_PATCH_RADIUS = 70;
+const SWELL_PATCH_STEP = 1;
+/** Aallonpohja korkeintaan näin syvällä (m): maa on 0,3 m vedenpinnan alla. */
+const SWELL_MIN_DEPTH = 0.28;
+/** Vesimaskin pikselin koko (m). */
+const MASK_METERS = 1.25;
+/** Aallokko laantuu rantaa kohti tällä matkalla (m); ks. shoreFade. */
+export const SHORE_FADE = 14;
+
+/** Aallokon voimakkuus 0–1 rannan etäisyydestä (m): rannassa tyyntä, selällä täysi. */
+export function shoreFade(distance: number): number {
+  const k = Math.min(1, Math.max(0, distance / SHORE_FADE));
+  return k * k * (3 - 2 * k);
+}
+
+/** Aaltoilevan lähiveden uniformit ja korkeus verteksivarjostimessa (ks. Swell). */
+const SWELL_VERTEX_HEADER = /* glsl */ `varying vec3 vGlitterPos;
+uniform vec3 uPatch;
+#ifdef SWELL_PATCH
+varying float vSwell;
+uniform sampler2D uWaveTex;
+uniform vec4 uWaveBounds;
+uniform float uWaveScale;
+uniform vec4 uSwell[3];
+uniform vec3 uSwellAmp;
+uniform vec2 uSwellOrigin;
+uniform sampler2D uWaterMask;
+uniform vec4 uWaterMaskBounds;
+#endif
+`;
+
+const SWELL_NORMAL = /* glsl */ `#ifdef SWELL_PATCH
+  vec2 swellXY = position.xy + uPatch.xy;
+  float swellHs = texture2D(uWaveTex, (swellXY - uWaveBounds.xy) / uWaveBounds.zw).r * uWaveScale;
+  // Reunalla pinta tasoittuu tasaisen järven korkeuteen, ja rantaa kohti
+  // aallokko laantuu, jottei matala pohja pilkistä aallonpohjista.
+  swellHs *= 1.0 - smoothstep(uPatch.z * 0.55, uPatch.z * 0.95, length(position.xy));
+  float swellShore = texture2D(uWaterMask, (swellXY - uWaterMaskBounds.xy) / uWaterMaskBounds.zw).g;
+  float swellOpen = swellHs;
+  swellHs *= smoothstep(0.5, 1.0, swellShore);
+  vec2 swellRel = swellXY - uSwellOrigin;
+  float swellH = 0.0;
+  vec2 swellGrad = vec2(0.0);
+  for (int i = 0; i < 3; i++) {
+    vec4 w = uSwell[i];
+    float a = w.z * dot(swellRel, w.xy) - w.w;
+    swellH += uSwellAmp[i] * sin(a);
+    swellGrad += uSwellAmp[i] * cos(a) * w.z * w.xy;
+  }
+  // Syvä aallonpohja ei saa painua rannan maapohjan alle.
+  swellH = max(swellH * swellHs, ${(-SWELL_MIN_DEPTH).toFixed(2)});
+  swellGrad *= swellHs;
+  // Suhteellinen korkeus −1…1 värjäykseen: harjat vaaleampia, pohjat tummempia.
+  vSwell = swellH / max(0.03, swellOpen * (uSwellAmp.x + uSwellAmp.y + uSwellAmp.z));
+  vec3 objectNormal = normalize(vec3(-swellGrad.x, -swellGrad.y, 1.0));
+#else
+  #include <beginnormal_vertex>
+#endif
+`;
+
+/**
+ * POV-näkymän aaltoileva lähivesi: tiheä verkko kalastajan ympärillä, jonka
+ * pinta nousee ja laskee aallokon mukana. Verkko liikkuu kameran mukana
+ * kokonaisin askelin, joten pisteet pysyvät paikoillaan eivätkä aallot ui.
+ * Rantojen kohdalla verkko leikataan pois vesimaskilla.
+ */
+export function createSwellPatch(map: LakeMap, waves: WaterWaves): THREE.Mesh {
+  const mask = createWaterMask(map);
+  waves.uWaterMask.value = mask.texture;
+  waves.uWaterMaskBounds.value.copy(mask.bounds);
+  const size = SWELL_PATCH_RADIUS * 2;
+  const geometry = new THREE.PlaneGeometry(
+    size,
+    size,
+    size / SWELL_PATCH_STEP,
+    size / SWELL_PATCH_STEP,
+  );
+  const mesh = new THREE.Mesh(geometry, createWaterMaterial(waves, true));
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.frustumCulled = false;
+  mesh.visible = false;
+  mesh.name = 'swell';
+  return mesh;
+}
+
+/**
+ * Veden pinnassa makaavat kerrokset (pohjan sävy, kivet ja rungot) jätetään
+ * pois aaltoilevan lähiveden kohdalta: muuten ne kelluisivat aallonpohjien yllä.
+ */
+export function clipToSwellPatch(material: THREE.Material, waves: WaterWaves): void {
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uPatch = waves.uPatch;
+    shader.uniforms.uWaterMask = waves.uWaterMask;
+    shader.uniforms.uWaterMaskBounds = waves.uWaterMaskBounds;
+    shader.vertexShader = ('varying vec2 vPatchXY;\n' + shader.vertexShader).replace(
+      '#include <project_vertex>',
+      `#include <project_vertex>
+      vec4 patchWorld = modelMatrix * vec4(transformed, 1.0);
+      vPatchXY = vec2(patchWorld.x, -patchWorld.z);`,
+    );
+    shader.fragmentShader = (
+      `varying vec2 vPatchXY;
+uniform vec3 uPatch;
+uniform sampler2D uWaterMask;
+uniform vec4 uWaterMaskBounds;
+` + shader.fragmentShader
+    ).replace(
+      'void main() {',
+      `void main() {
+      if (uPatch.z > 0.0 && length(vPatchXY - uPatch.xy) < uPatch.z &&
+        texture2D(uWaterMask, (vPatchXY - uWaterMaskBounds.xy) / uWaterMaskBounds.zw).r > 0.5) discard;`,
+    );
+  };
+}
+
+/** Siirtää lähiveden kalastajan kohdalle (näkyvissä vain POV-näkymässä). */
+export function placeSwellPatch(mesh: THREE.Mesh, waves: WaterWaves, at: Vec2 | null): void {
+  mesh.visible = at !== null;
+  if (!at) {
+    waves.uPatch.value.z = 0;
+    return;
+  }
+  const x = Math.round(at.x / SWELL_PATCH_STEP) * SWELL_PATCH_STEP;
+  const y = Math.round(at.y / SWELL_PATCH_STEP) * SWELL_PATCH_STEP;
+  mesh.position.set(x, 0, -y);
+  waves.uPatch.value.set(x, y, SWELL_PATCH_RADIUS);
+}
+
+/**
+ * Vesialue (ranta miinus saaret) tekstuurina: punainen = vettä, vihreä =
+ * sumennettu vesialue, joka nousee rannasta selälle noin SHORE_FADE metrissä.
+ * Vihreällä aallokko laantuu rantaa kohti.
+ */
+function createWaterMask(map: LakeMap): { texture: THREE.Texture; bounds: THREE.Vector4 } {
+  const { minX, minY, maxX, maxY } = map.bounds;
+  const pad = SHORE_FADE + MASK_METERS;
+  const w = Math.ceil((maxX - minX + pad * 2) / MASK_METERS);
+  const h = Math.ceil((maxY - minY + pad * 2) / MASK_METERS);
+  const x0 = minX - pad;
+  const y0 = minY - pad;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+  // Rivi 0 = eteläreuna, kuten tekstuurin v = 0.
+  const path = (ring: readonly Vec2[]) => {
+    ring.forEach((p, i) => {
+      const px = (p.x - x0) / MASK_METERS;
+      const py = (p.y - y0) / MASK_METERS;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    });
+    ctx.closePath();
+  };
+  ctx.beginPath();
+  path(map.shore);
+  for (const island of map.islands) path(island);
+  ctx.fillStyle = '#fff';
+  ctx.fill('evenodd');
+  const pixels = ctx.getImageData(0, 0, w, h).data;
+  const water = new Float32Array(w * h);
+  for (let i = 0; i < water.length; i++) water[i] = pixels[i * 4]! / 255;
+  // Kaksi laatikkosumennusta kumpaankin suuntaan ≈ kolmioikkuna.
+  const radius = Math.max(1, Math.round(SHORE_FADE / MASK_METERS / 2));
+  const soft = boxBlur(boxBlur(water, w, h, radius), w, h, radius);
+  const data = new Uint8Array(w * h * 4);
+  for (let i = 0; i < water.length; i++) {
+    data[i * 4] = Math.round(water[i]! * 255);
+    data[i * 4 + 1] = Math.round(soft[i]! * 255);
+    data[i * 4 + 3] = 255;
+  }
+  const texture = new THREE.DataTexture(data, w, h);
+  texture.magFilter = THREE.LinearFilter;
+  texture.minFilter = THREE.LinearFilter;
+  texture.needsUpdate = true;
+  return { texture, bounds: new THREE.Vector4(x0, y0, w * MASK_METERS, h * MASK_METERS) };
+}
+
+/** Erotuva laatikkosumennus vaaka- ja pystysuuntaan. */
+function boxBlur(src: Float32Array, w: number, h: number, r: number): Float32Array {
+  const tmp = new Float32Array(src.length);
+  const out = new Float32Array(src.length);
+  const n = r * 2 + 1;
+  for (let y = 0; y < h; y++) {
+    let sum = 0;
+    for (let x = -r; x <= r; x++) sum += src[y * w + Math.min(w - 1, Math.max(0, x))]!;
+    for (let x = 0; x < w; x++) {
+      tmp[y * w + x] = sum / n;
+      sum += src[y * w + Math.min(w - 1, x + r + 1)]! - src[y * w + Math.max(0, x - r)]!;
+    }
+  }
+  for (let x = 0; x < w; x++) {
+    let sum = 0;
+    for (let y = -r; y <= r; y++) sum += tmp[Math.min(h - 1, Math.max(0, y)) * w + x]!;
+    for (let y = 0; y < h; y++) {
+      out[y * w + x] = sum / n;
+      sum += tmp[Math.min(h - 1, y + r + 1) * w + x]! - tmp[Math.max(0, y - r) * w + x]!;
+    }
+  }
+  return out;
 }
 
 /**

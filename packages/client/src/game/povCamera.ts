@@ -51,6 +51,7 @@ export class PovCamera {
   private pixelAngle = 0.005;
   private yaw = NaN;
   private roll = NaN;
+  private pitch = NaN;
 
   setResolution(r: RetroResolution): void {
     this.resolution = r;
@@ -59,17 +60,28 @@ export class PovCamera {
     this.pixelAngle = Math.atan((2 * Math.tan(THREE.MathUtils.degToRad(FOV / 2))) / r.height);
     this.yaw = NaN;
     this.roll = NaN;
+    this.pitch = NaN;
   }
 
-  /** `swell` = aallon nosto (m) ja kallistus (rad) renkaan kohdalla. */
-  apply(pos: Vec2, heading: number, kickPhase: number, swell = { lift: 0, roll: 0 }): void {
+  /**
+   * `swell` = aallon nosto (m), kallistus sivuttain (rad) ja nyökkäys
+   * (rad, + = katse ylös) renkaan kohdalla.
+   */
+  apply(
+    pos: Vec2,
+    heading: number,
+    kickPhase: number,
+    swell: { lift: number; roll: number; pitch?: number } = { lift: 0, roll: 0 },
+  ): void {
     const bob = Math.sin(kickPhase * Math.PI * 2) * 0.03 + swell.lift;
     const eye = toWorld(pos, EYE_HEIGHT + bob);
     this.camera.position.copy(eye);
     this.yaw = snapAngle(heading, this.yaw, this.pixelAngle);
     // Kallistuksen porras siirtää kuvan reunaa noin pikselin.
     this.roll = snapAngle(steadyRoll(swell.roll), this.roll, 2 / this.resolution.width);
-    this.camera.rotation.set(PITCH, this.yaw - Math.PI / 2, this.roll, 'YXZ');
+    // Nyökkäys siirtää horisonttia kokonaisia pikseleitä.
+    this.pitch = snapAngle(PITCH + (swell.pitch ?? 0), this.pitch, this.pixelAngle);
+    this.camera.rotation.set(this.pitch, this.yaw - Math.PI / 2, this.roll, 'YXZ');
     this.camera.updateMatrixWorld();
   }
 

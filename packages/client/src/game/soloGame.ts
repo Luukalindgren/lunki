@@ -36,8 +36,6 @@ import {
   SPOUT,
   OUT_OF_RACE,
   windVector,
-  waveLength,
-  wavePeriod,
   SKY_NAMES,
   recordCatch,
   stepCompetition,
@@ -87,7 +85,17 @@ import { LightningView } from './lightningView';
 import { BigWaveView } from './bigWaveView';
 import { SpoutView } from './spoutView';
 import { KnotView } from './knotView';
-import { createLakeMesh, createWaterWaves, toWorld, waterTime } from '../world/lakeMesh';
+import {
+  createLakeMesh,
+  createSwellPatch,
+  createWaterWaves,
+  placeSwellPatch,
+  SHORE_FADE,
+  shoreFade,
+  toWorld,
+  waterTime,
+} from '../world/lakeMesh';
+import { SWELL_GAIN, Swell } from '../world/swell';
 import { WAVE_FACTOR_SCALE, WaveField } from '../world/waveField';
 import { createBuildings, createPiers } from '../world/buildings';
 import { createVegetation } from '../world/vegetation';
@@ -109,8 +117,6 @@ import { loadAppearance } from './appearance';
 import { bottomFor } from '../world/lakeData';
 
 const LAND_COLOR = 0x24502c;
-/** Tyypillinen pyyhkäisymatka aallon jaksoon (m). */
-const TYPICAL_FETCH = 800;
 
 /** Näppäinasettelu: WASD tai nuolet. */
 export function readTubeInput(input: Input): TubeInput {
@@ -181,6 +187,10 @@ export class SoloGame {
   private readonly lightning = new LightningView();
   /** Ruudun välähdyksen voimakkuus viimeisimmästä salamasta: lähellä kirkkaampi. */
   private flashStrength = 0;
+  /** Ruudun tärinän voimakkuus viimeisimmästä salamasta (0–1). */
+  private shakeStrength = 0;
+  /** Salama iski aivan viereen: kuva kääntyy hetkeksi negatiiviksi. */
+  private flashInvert = false;
   /** Sisäisen resoluution korkeus (px). */
   private heightPx = 1;
   /** Yksinpelin salamat (moninpelissä palvelin ilmoittaa iskut). */
@@ -203,9 +213,13 @@ export class SoloGame {
   private readonly spoutView = new SpoutView();
   private spoutsSeen = 0;
   private spoutWarnTimer = 0;
-  /** Aaltojen näkyvä aaltoluku (rad/m) ja kulmataajuus (rad/s). */
-  private waveK = 1;
-  private waveOmega = 1;
+  /** Aallokko: keinunta ja POV-näkymän aaltoileva lähivesi. */
+  private readonly swell: Swell;
+  private readonly swellPatch: THREE.Mesh;
+  /** Renkaan keinunta (tasoitettu): nosto (m), kallistus ja nyökkäys (rad). */
+  private readonly rock = { lift: 0, roll: 0, pitch: 0 };
+  /** Ohi menevän ison aallon nosto (m) renkaan kohdalla. */
+  private bigWaveLift = 0;
 
   constructor(
     private readonly input: Input,
@@ -279,9 +293,17 @@ export class SoloGame {
     this.waterWaves.uWaveTex.value = this.waves.texture;
     this.waterWaves.uWaveBounds.value.copy(this.waves.bounds);
     this.scene.add(createLakeMesh(map, this.waterWaves));
+    const center = {
+      x: (map.bounds.minX + map.bounds.maxX) / 2,
+      y: (map.bounds.minY + map.bounds.maxY) / 2,
+    };
+    this.swell = new Swell(center);
+    this.waterWaves.uSwellOrigin.value.set(center.x, center.y);
+    this.swellPatch = createSwellPatch(map, this.waterWaves);
+    this.scene.add(this.swellPatch);
     this.updateSky(0);
     this.applyWeatherLight();
-    this.scene.add(createBottomMesh(this.bottom));
+    this.scene.add(createBottomMesh(this.bottom, this.waterWaves));
     this.scene.add(this.tubeMesh);
     const surroundings = map === LUNKINJARVI ? LUNKINJARVI_SURROUNDINGS : undefined;
     this.scenery.add(createShoreScenery(map, surroundings));
@@ -504,6 +526,9 @@ export class SoloGame {
     const until =
       next && next.t - now <= BIG_WAVE.warning ? next.t - now : prev ? prev.t - now : null;
     this.bigWaveView.update(felt ? until : null, w.windDir, this.tube.pos);
+    // Harjan kohdalla rengas nousee aallon päälle ja laskee takaisin.
+    this.bigWaveLift =
+      felt && until !== null ? 0.5 * SWELL_GAIN * h * Math.exp(-((until / 0.8) ** 2)) : 0;
     if (!next || next.t - now > BIG_WAVE.warning || this.warnedWave === this.nextWave) return;
     this.warnedWave = this.nextWave;
     if (h >= BIG_WAVE.capsizeHeight)
@@ -614,9 +639,13 @@ export class SoloGame {
 
   /** Salama iski kohtaan `pos`; `hitMe` = osui omaan vapaan. */
   private onStrike(pos: Vec2, hitMe: boolean): void {
-    const d = distance(pos, this.tube.pos);
-    this.lightning.strike(pos);
-    this.flashStrength = d < 300 ? 0.85 : d < 1000 ? 0.6 : 0.4;
+    // Osuma iskee vavan kärkeen, joten salama näkyy myös kalastajan silmin.
+    const at = hitMe ? rodTip(this.tube.pos, this.tube.heading) : pos;
+    const d = hitMe ? 0 : distance(pos, this.tube.pos);
+    this.lightning.strike(at);
+    this.flashStrength = d < 150 ? 1 : d < 400 ? 0.9 : d < 1000 ? 0.65 : 0.45;
+    this.shakeStrength = Math.max(0, 1 - d / 500);
+    this.flashInvert = d < 60;
     this.sfx.thunder(d, d / LIGHTNING.soundSpeed);
     if (!hitMe) return;
     const penalty = this.punish(this.settings.lightningPenalty ?? 'none', 'Salaman jäähy');
@@ -647,7 +676,10 @@ export class SoloGame {
       this.setTackle(nextLure(this.pendingTackle ?? this.fishing.tackle));
     if (!this.net) this.strikeLightning();
     this.lightning.update(dt);
-    this.hud.flash(this.lightning.flash * this.flashStrength);
+    this.hud.flash(
+      this.lightning.flash * this.flashStrength,
+      this.flashInvert && this.lightning.sinceStrike < 0.08,
+    );
     this.updateBigWaves();
     this.updateSpouts(dt);
     const timeOut = this.timeOutLeft;
@@ -832,7 +864,7 @@ export class SoloGame {
     );
     this.updateSky(dt);
     this.applyWeatherLight();
-    this.updateWaves(w.windSpeed, w.windDir);
+    this.updateWaves(dt, w.windSpeed, w.windDir);
     const hs = this.waves.heightAt(this.tube.pos, w.windSpeed);
     this.hud.setWeather(
       `${SKY_NAMES[w.sky]} · ${windName(w.windDir)} ${Math.round(w.windSpeed)} m/s` +
@@ -842,28 +874,28 @@ export class SoloGame {
     );
   }
 
-  /**
-   * Aallot vesishaderille ja POV-kameran keinunnalle. Aallonpituutta
-   * liioitellaan, jotta keinunta tuntuu: oikeat 2–4 m aallot olisivat liian tiheitä.
-   */
-  private updateWaves(windSpeed: number, windDir: number): void {
+  /** Aallot vesishaderille sekä renkaan keinunta pinnan korkeudesta ja kaltevuudesta. */
+  private updateWaves(dt: number, windSpeed: number, windDir: number): void {
     this.waves.update(windDir);
-    const period = wavePeriod(windSpeed, TYPICAL_FETCH);
-    this.waveK = (2 * Math.PI) / Math.max(6, waveLength(period) * 3);
-    this.waveOmega = (2 * Math.PI) / period;
     this.waterWaves.uWaveScale.value = WAVE_FACTOR_SCALE * windSpeed;
     this.waterWaves.uWaveDir.value.set(Math.cos(windDir), Math.sin(windDir));
-  }
-
-  /** Aallon pystysiirtymä (m) ja kallistus pisteessä POV-kameran keinuntaan. */
-  private swellAt(p: Vec2): { lift: number; roll: number } {
-    const w = this.weather.now;
-    const hs = this.waves.heightAt(p, w.windSpeed);
-    const along = p.x * Math.cos(w.windDir) + p.y * Math.sin(w.windDir);
-    const across = -p.x * Math.sin(w.windDir) + p.y * Math.cos(w.windDir);
-    const phase =
-      along * this.waveK - waterTime.value * this.waveOmega + Math.sin(across * 0.05) * 2;
-    return { lift: (hs / 2) * Math.sin(phase), roll: hs * 0.12 * Math.cos(phase) };
+    const p = this.tube.pos;
+    this.swell.update(dt, windSpeed, windDir, p);
+    const amp = this.waterWaves.uSwellAmp.value;
+    this.swell.waves.forEach((w, i) => {
+      this.waterWaves.uSwell.value[i]!.set(w.dir.x, w.dir.y, w.k, w.phase);
+      amp.setComponent(i, w.amp);
+    });
+    const shore = this.water.closestShorePoint(p, SHORE_FADE)?.distance ?? SHORE_FADE;
+    const s = this.swell.sample(p, this.waves.heightAt(p, windSpeed) * shoreFade(shore));
+    const h = this.tube.heading;
+    const ahead = s.slope.x * Math.cos(h) + s.slope.y * Math.sin(h);
+    const side = s.slope.x * Math.sin(h) - s.slope.y * Math.cos(h);
+    // Rengas ei seuraa pintaa jäykästi: se kelluu hieman jäljessä ja loivemmin.
+    const k = Math.min(1, dt / 0.2);
+    this.rock.lift += (s.height + this.bigWaveLift - this.rock.lift) * k;
+    this.rock.pitch += (Math.atan(ahead) * 0.7 - this.rock.pitch) * k;
+    this.rock.roll += (Math.atan(side) * 0.7 - this.rock.roll) * k;
   }
 
   /** Kisan eteneminen 0–1: aurinko liikkuu kisan aikana. */
@@ -1049,10 +1081,36 @@ export class SoloGame {
     return Math.PI * k * k * (3 - 2 * k);
   }
 
+  /**
+   * Lähellä iskevä salama tärisyttää kuvaa: kamera hyppii kokonaisia
+   * pikseleitä satunnaisesti, kuten vanhoissa peleissä.
+   */
+  private shakeCamera(): void {
+    const k = this.lightning.shake * this.shakeStrength;
+    if (k <= 0) return;
+    const px = Math.round(k * 4);
+    if (px === 0) return;
+    const jx = Math.round((Math.random() * 2 - 1) * px);
+    const jy = Math.round((Math.random() * 2 - 1) * px);
+    if (this.viewMode === 'pov') {
+      // Silmien kohdalla pikseli on noin pari senttiä: kallistetaan katsetta.
+      const a = 1.5 / this.heightPx;
+      this.pov.camera.rotation.x += jy * a;
+      this.pov.camera.rotation.y += jx * a;
+      this.pov.camera.updateMatrixWorld();
+    } else {
+      const m = this.view.metersPerPixel;
+      this.view.camera.position.x += jx * m;
+      this.view.camera.position.z += jy * m;
+      this.view.camera.updateMatrixWorld();
+    }
+  }
+
   /** Vapauttaa GPU-resurssit, kun kierros päättyy. */
   dispose(): void {
     this.remoteView?.dispose();
     this.net?.world.dispose();
+    this.waterWaves.uWaterMask.value?.dispose();
     this.scene.traverse((o) => {
       const mesh = o as THREE.Mesh;
       mesh.geometry?.dispose();
@@ -1086,13 +1144,20 @@ export class SoloGame {
     const hooked = this.fish.fish.find((x) => x.id === this.fishing.hookedId) ?? null;
     this.fishingView.update(this.fishing, this.fishingContext(), this.aim, 1 / 60, hooked);
     this.view.apply();
+    // Tyynellä lähivesi on tasainen, joten pohjan kivet ja sävyt näkyvät kuten ennenkin.
+    const rough = this.waves.heightAt(pos, this.weather.now.windSpeed) >= 0.03;
+    placeSwellPatch(
+      this.swellPatch,
+      this.waterWaves,
+      this.viewMode === 'pov' && rough ? pos : null,
+    );
     this.youMarker.update(pos, this.view.metersPerPixel, this.viewMode === 'top');
     if (this.viewMode === 'pov') {
-      const swell = this.swellAt(pos);
       // Kumossa kamera kallistuu ja painuu veden rajaan.
       this.pov.apply(pos, heading, b.kickPhase, {
-        lift: swell.lift - 0.7 * (roll / Math.PI),
-        roll: swell.roll + roll * 0.3,
+        lift: this.rock.lift - 0.7 * (roll / Math.PI),
+        roll: this.rock.roll + roll * 0.3,
+        pitch: this.rock.pitch,
       });
       // Vapa oikeasta kädestä kärkeen; kärki on siiman alkupiste.
       const side = rodSideOffset(heading);
@@ -1112,6 +1177,7 @@ export class SoloGame {
       this.sky.follow(this.pov.camera.position);
       this.mist.follow(this.pov.camera.position);
     }
+    this.shakeCamera();
     this.lightning.orient(this.camera, this.heightPx);
     if (this.net && this.remoteView)
       this.remoteView.update(this.net.world.others(), this.camera, this.net.canvas);

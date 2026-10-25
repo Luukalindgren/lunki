@@ -357,6 +357,13 @@ body {
   pointer-events: none;
 }
 
+/* Salama aivan vieressä: kuva kääntyy hetkeksi negatiiviksi. */
+.hud-flash.hud-flash-invert {
+  background: #fff;
+  mix-blend-mode: difference;
+  opacity: 1 !important;
+}
+
 .hud-weather {
   left: 50%;
   top: calc(var(--u) * 26);

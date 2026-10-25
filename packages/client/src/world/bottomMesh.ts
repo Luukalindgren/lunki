@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { LakeBottom } from '@lunki/shared';
+import { clipToSwellPatch, type WaterWaves } from './lakeMesh';
 
 /** Syvyysvyöhykkeet pinnan sävyyn: matala ranta vaalea, syvänne tumma. */
 const DEPTH_BANDS: [number, [number, number, number, number]][] = [
@@ -19,12 +20,23 @@ const SHADE_CELL = 4;
  * Pohjan näkyvät osat ylhäältä: syvyyden mukainen sävy veden pinnassa sekä
  * kivikot ja kaatuneet puut.
  */
-export function createBottomMesh(bottom: LakeBottom): THREE.Group {
+export function createBottomMesh(bottom: LakeBottom, waves?: WaterWaves): THREE.Group {
   const group = new THREE.Group();
   group.name = 'bottom';
-  group.add(createDepthShade(bottom, bottom.bounds));
+  const shade = createDepthShade(bottom, bottom.bounds);
+  group.add(shade);
   const structures = createStructures(bottom);
   if (structures) group.add(structures);
+  if (waves) {
+    // POV-näkymän aaltoileva lähivesi piirtää syvyyssävyn itse.
+    const material = shade.material as THREE.MeshBasicMaterial;
+    const w = Math.ceil((bottom.bounds.maxX - bottom.bounds.minX) / SHADE_CELL) * SHADE_CELL;
+    const h = Math.ceil((bottom.bounds.maxY - bottom.bounds.minY) / SHADE_CELL) * SHADE_CELL;
+    waves.uBottomShade.value = material.map;
+    waves.uBottomShadeBounds.value.set(bottom.bounds.minX, bottom.bounds.maxY - h, w, h);
+    clipToSwellPatch(material, waves);
+    if (structures) clipToSwellPatch(structures.material as THREE.Material, waves);
+  }
   return group;
 }
 
