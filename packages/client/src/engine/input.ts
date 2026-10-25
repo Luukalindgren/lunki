@@ -15,6 +15,8 @@ export class Input {
   /** Rullan kertymä edellisestä askeleesta. */
   wheel = 0;
   private wheelAcc = 0;
+  /** Kosketus, joka toimii hiirenä pelikuvan päällä (yksi kerrallaan). */
+  private aimPointer: number | null = null;
 
   constructor(private readonly target: HTMLElement) {
     window.addEventListener('keydown', this.onKeyDown);
@@ -23,6 +25,7 @@ export class Input {
     target.addEventListener('pointermove', this.onPointerMove);
     target.addEventListener('pointerdown', this.onPointerDown);
     window.addEventListener('pointerup', this.onPointerUp);
+    window.addEventListener('pointercancel', this.onPointerUp);
     target.addEventListener('wheel', this.onWheel, { passive: false });
     target.addEventListener('contextmenu', (e) => e.preventDefault());
   }
@@ -62,6 +65,11 @@ export class Input {
     else this.release(code);
   }
 
+  /** Zoomaus ilman rullaa (kosketusnapit): positiivinen loitontaa. */
+  scroll(steps: number): void {
+    this.wheelAcc += steps;
+  }
+
   private press(code: string) {
     if (!this.down.has(code)) this.pressedQueue.add(code);
     this.down.add(code);
@@ -84,21 +92,37 @@ export class Input {
   private onKeyUp = (e: KeyboardEvent) => this.release(e.code);
 
   private onBlur = () => {
+    this.aimPointer = null;
     for (const code of [...this.down]) this.release(code);
   };
 
   private onPointerMove = (e: PointerEvent) => {
+    if (e.pointerType !== 'mouse' && e.pointerId !== this.aimPointer) return;
     this.mouseX = e.clientX;
     this.mouseY = e.clientY;
   };
 
   private onPointerDown = (e: PointerEvent) => {
+    if (e.pointerType !== 'mouse') {
+      // Toinen sormi pelikuvalla ei siirrä tähtäystä eikä irrota nappia.
+      if (this.aimPointer !== null) return;
+      this.aimPointer = e.pointerId;
+    }
     this.onPointerMove(e);
     this.target.setPointerCapture?.(e.pointerId);
     this.press(`Mouse${e.button}`);
   };
 
-  private onPointerUp = (e: PointerEvent) => this.release(`Mouse${e.button}`);
+  private onPointerUp = (e: PointerEvent) => {
+    // Kosketusnappien sormet eivät irrota pelikuvaa pitelevää sormea.
+    if (e.pointerType !== 'mouse') {
+      if (e.pointerId !== this.aimPointer) return;
+      this.aimPointer = null;
+      this.release('Mouse0');
+      return;
+    }
+    this.release(`Mouse${e.button}`);
+  };
 
   private onWheel = (e: WheelEvent) => {
     e.preventDefault();

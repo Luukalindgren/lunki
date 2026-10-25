@@ -115,7 +115,6 @@ export class Screens {
     panel.append(
       h('h1', 'LUNKI'),
       h('p', 'Kelluntarengaskalastusta Tammelan Lunkinjärvellä', 'subtitle'),
-      ...(touchOnly() ? [h('p', NEEDS_KEYBOARD, 'error')] : []),
       menu,
       h(
         'p',
@@ -207,12 +206,7 @@ export class Screens {
     const nameValue = () => (nameInput.querySelector('input') as HTMLInputElement).value;
     const codeValue = () => (codeInput.querySelector('input') as HTMLInputElement).value;
     const status = h('p', 'Tarkistetaan palvelinta…', 'hint server-status');
-    panel.append(h('h2', 'Moninpeli'));
-    if (touchOnly()) {
-      const where = code ? ` Kirjoita siellä koodi ${code}.` : '';
-      panel.append(h('p', NEEDS_KEYBOARD + where, 'error'));
-    }
-    panel.append(status, nameInput);
+    panel.append(h('h2', 'Moninpeli'), status, nameInput);
     if (error) panel.append(h('p', error, 'error'));
     panel.append(
       this.buttons([['Luo uusi huone', () => onCreate(nameValue())]]),
@@ -859,17 +853,6 @@ export class Screens {
     });
     return row;
   }
-}
-
-const NEEDS_KEYBOARD = 'Peli tarvitsee näppäimistön ja hiiren: avaa sivu tietokoneella.';
-
-/** Laitteessa on vain kosketusnäyttö (puhelin tai tabletti ilman hiirtä). */
-function touchOnly(): boolean {
-  return (
-    typeof matchMedia === 'function' &&
-    matchMedia('(pointer: coarse)').matches &&
-    !matchMedia('(any-pointer: fine)').matches
-  );
 }
 
 function h(tag: string, text: string, className?: string): HTMLElement {
