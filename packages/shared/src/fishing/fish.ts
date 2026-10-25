@@ -2,6 +2,7 @@ import type { Structure } from '../map/bottom';
 import { wrapAngle } from '../physics/tube';
 import { Rng } from '../rng';
 import { distance, type Vec2 } from '../vec2';
+import type { WeatherNow } from '../weather/weather';
 import type { DifficultyParams } from './difficulty';
 import { LURES, tackleAppeal, type Tackle } from './gear';
 
@@ -53,6 +54,37 @@ export interface Species {
   runSpeed: number;
   /** Kuinka lähellä pohjaa laji viihtyy (m pohjasta). */
   bottomOffset: number;
+  /** Käytös: vuorokausirytmi, sää, parvi ja saalistustapa. */
+  behavior: Behavior;
+}
+
+/** Lajin käytös oikeiden kalojen tapaan. */
+export interface Behavior {
+  /** Syöntiaktiivisuus yöllä, hämärässä ja päivällä (1 = tavallinen). */
+  night: number;
+  twilight: number;
+  day: number;
+  /** Pilvisyyden ja tuulen vaikutus aktiivisuuteen (osuus täydellä pilvellä / tuulella). */
+  cloud: number;
+  wind: number;
+  /** Tuulen puoleisen rannan lisäaktiivisuus: aallot tuovat sinne ravintoa. */
+  windShore: number;
+  /** Saalistaa näön varassa: havaitsee vieheen pimeällä huonommin. */
+  visual: boolean;
+  /** Väijyjä: seisoo paikallaan, ei jahtaa kauas ja päättää iskun nopeasti. */
+  ambush: boolean;
+  /** Parvi kilpailee ruoasta: kun yksi seuraa viehettä, muutkin innostuvat. */
+  competes: boolean;
+  /** Saaliskala: parvi tiivistyy ja pakenee lähelle tulevaa haukea. */
+  prey: boolean;
+  /** Pohjan syvyys (m), jolle parvi hakeutuu valoisalla ja hämärässä tai pimeällä. */
+  dayDepth: [number, number];
+  dimDepth: [number, number];
+  /**
+   * Uintisyvyys osuutena vesipatsaasta (0 pinta, 1 pohja) valoisalla ja
+   * pimeällä. Puuttuu, jos laji pysyy pohjan tuntumassa (bottomOffset).
+   */
+  column?: { day: number; dark: number };
 }
 
 export const SPECIES: Record<SpeciesId, Species> = {
@@ -86,6 +118,22 @@ export const SPECIES: Record<SpeciesId, Species> = {
     chaseSpeed: 1.3,
     runSpeed: 1.8,
     bottomOffset: 0.8,
+    // Päiväsaalistaja: syö aamulla ja illalla, lepää yöllä pohjassa.
+    // Parvi kilpailee vieheestä, joten samasta paikasta saa usein monta.
+    behavior: {
+      night: 0.2,
+      twilight: 1.35,
+      day: 1,
+      cloud: 0,
+      wind: 0.15,
+      windShore: 0.3,
+      visual: true,
+      ambush: false,
+      competes: true,
+      prey: false,
+      dayDepth: [2, 5],
+      dimDepth: [0.8, 3],
+    },
   },
   pike: {
     id: 'pike',
@@ -117,6 +165,22 @@ export const SPECIES: Record<SpeciesId, Species> = {
     chaseSpeed: 2.4,
     runSpeed: 2.6,
     bottomOffset: 0.4,
+    // Väijyjä: seisoo kaislikon reunassa ja iskee ohi kulkevaan.
+    // Parhaimmillaan hämärässä ja pilvisellä tuulisella säällä.
+    behavior: {
+      night: 0.3,
+      twilight: 1.4,
+      day: 0.9,
+      cloud: 0.35,
+      wind: 0.25,
+      windShore: 0.25,
+      visual: true,
+      ambush: true,
+      competes: false,
+      prey: false,
+      dayDepth: [0.6, 2.2],
+      dimDepth: [0.6, 2.2],
+    },
   },
   roach: {
     id: 'roach',
@@ -149,6 +213,23 @@ export const SPECIES: Record<SpeciesId, Species> = {
     chaseSpeed: 0.9,
     runSpeed: 1.4,
     bottomOffset: 1.2,
+    // Päivällä parvi välivedessä ulompana, hämärässä matalikoilla ruokailemassa,
+    // yöllä hajallaan pohjan tuntumassa. Kulkee aaltojen mukana tuulen alle.
+    behavior: {
+      night: 0.5,
+      twilight: 1.3,
+      day: 1,
+      cloud: 0,
+      wind: 0,
+      windShore: 0,
+      visual: true,
+      ambush: false,
+      competes: false,
+      prey: true,
+      dayDepth: [1.5, 4],
+      dimDepth: [0.4, 1.5],
+      column: { day: 0.55, dark: 0.85 },
+    },
   },
   zander: {
     id: 'zander',
@@ -180,6 +261,23 @@ export const SPECIES: Record<SpeciesId, Species> = {
     chaseSpeed: 1.6,
     runSpeed: 2,
     bottomOffset: 0.3,
+    // Hämäräsaalistaja: päivällä syvänteen pohjassa, yöllä nousee matalammalle.
+    // Näkee hämärässä hyvin, joten pimeä ei haittaa.
+    behavior: {
+      night: 1.5,
+      twilight: 1.6,
+      day: 0.45,
+      cloud: 0.5,
+      wind: 0.3,
+      windShore: 0.2,
+      visual: false,
+      ambush: false,
+      competes: false,
+      prey: false,
+      dayDepth: [4, 99],
+      dimDepth: [1.5, 4],
+      column: { day: 0.95, dark: 0.6 },
+    },
   },
   trout: {
     id: 'trout',
@@ -211,6 +309,22 @@ export const SPECIES: Record<SpeciesId, Species> = {
     chaseSpeed: 2.8,
     runSpeed: 3.2,
     bottomOffset: 2,
+    // Viileän veden kala: aktiivisin hämärässä ja pilvisellä, kirkkaalla syvemmällä.
+    behavior: {
+      night: 0.4,
+      twilight: 1.4,
+      day: 0.8,
+      cloud: 0.5,
+      wind: 0.2,
+      windShore: 0,
+      visual: true,
+      ambush: false,
+      competes: false,
+      prey: false,
+      dayDepth: [2, 99],
+      dimDepth: [1, 99],
+      column: { day: 0.45, dark: 0.25 },
+    },
   },
 };
 
@@ -251,6 +365,27 @@ export interface Fish {
   slack: number;
   /** Kiinnostumisen viive: kala ei kiinnostu samasta vieheestä heti uudelleen. */
   cooldown: number;
+  /** Parvi (indeksi kalakannan parviin) tai -1, jos kala elää yksin. */
+  school: number;
+  /** Kalan paikka parvessa suhteessa parven keskipisteeseen (m). */
+  offset: Vec2;
+  /** Väijyjän seuraava väijypaikka, kun se vaihtaa paikkaa. */
+  goal: Vec2 | null;
+}
+
+/** Parvi ui yhtenä joukkona: kalat seuraavat yhteistä keskipistettä. */
+export interface School {
+  species: SpeciesId;
+  /** Parven kotipaikka, jonka ympärillä se kiertelee (homeRange). */
+  home: Vec2;
+  center: Vec2;
+  heading: number;
+  /** Tiiviys: kalojen etäisyys keskipisteestä suhteessa alkuperäiseen. */
+  spread: number;
+  /** Ruokintainto 0–1: nousee, kun parven kala seuraa viehettä. */
+  excitement: number;
+  /** Pako hauen luota: jäljellä oleva aika (s). */
+  flee: number;
 }
 
 export interface FishPopulation {
@@ -266,6 +401,11 @@ export interface FishPopulation {
   seed?: number;
   /** Ensimmäisen sukupolven kotipaikat paikoittain (parvien paikat). */
   homes?: Vec2[];
+  /** Parvet ja ensimmäisen sukupolven parvi paikoittain (-1 = yksin). */
+  schools?: School[];
+  schoolOf?: number[];
+  /** Järven keskipiste ja puolikas koko (m) tuulen puoleisen rannan laskuun. */
+  area?: { center: Vec2; half: Vec2 };
 }
 
 /** Kalojen määrä järvessä (sama asiakkaalla ja palvelimella). Saatujen tilalle syntyy uusia. */
@@ -288,17 +428,23 @@ export function fishWeight(seed: number, species: SpeciesId, slot: number, gen: 
  * toisen paikan parven luona (valinta siemenestä). Null, jos paikkaa ei ole.
  */
 export function fishHome(pop: FishPopulation, slot: number, gen: number): Vec2 | null {
+  const host = fishHomeSlot(pop, slot, gen);
+  return host === null ? null : pop.homes![host]!;
+}
+
+/** Paikka, jonka kotipaikan (ja parven) kala saa; null, jos paikkaa ei ole. */
+function fishHomeSlot(pop: FishPopulation, slot: number, gen: number): number | null {
   const homes = pop.homes;
   const species = pop.fish[slot]?.species;
   if (!homes || pop.seed === undefined || !species || !homes[slot]) return null;
-  if (gen === 0) return homes[slot];
+  if (gen === 0) return slot;
   const same: number[] = [];
   pop.fish.forEach((f, i) => {
     if (i !== slot && f.species === species && homes[i]) same.push(i);
   });
-  if (same.length === 0) return homes[slot];
+  if (same.length === 0) return slot;
   const pick = new Rng(fishSeed(pop.seed, slot, gen, 0x5bd1e995)).next();
-  return homes[same[Math.floor(pick * same.length)]!]!;
+  return same[Math.floor(pick * same.length)]!;
 }
 
 /** Kauempana kuin tämä vieheestä olevat kalat päivitetään harvemmin. */
@@ -357,6 +503,12 @@ export function createFishPopulation(
     tick: 0,
     seed: (rng.next() * 2 ** 32) >>> 0,
     homes: [],
+    schools: [],
+    schoolOf: [],
+    area: {
+      center: { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 },
+      half: { x: (bounds.maxX - bounds.minX) / 2, y: (bounds.maxY - bounds.minY) / 2 },
+    },
   };
   const list = species.filter(isSpeciesId);
   const ids = list.length > 0 ? [...new Set(list)] : NATIVE_SPECIES;
@@ -366,6 +518,20 @@ export function createFishPopulation(
     const target = pop.fish.length + Math.round((count * sp.abundance) / total);
     while (pop.fish.length < target) {
       const center = randomWaterPoint(world, bounds, sp, rng);
+      // Yksin elävät (hauki) eivät muodosta parvea. Parvi ei kuluta arpoja,
+      // joten kalakanta on sama kuin palvelimella.
+      const school = sp.schoolSize > 1 ? pop.schools!.length : -1;
+      if (school >= 0) {
+        pop.schools!.push({
+          species: id,
+          home: { ...center },
+          center: { ...center },
+          heading: Math.atan2(center.y, center.x),
+          spread: 1,
+          excitement: 0,
+          flee: 0,
+        });
+      }
       let placed = 0;
       for (let i = 0; i < sp.schoolSize * 3 && placed < sp.schoolSize; i++) {
         if (pop.fish.length >= target) break;
@@ -375,6 +541,7 @@ export function createFishPopulation(
         };
         if (!world.isWater(p)) continue;
         pop.homes!.push(p);
+        pop.schoolOf!.push(school);
         pop.fish.push(spawnFish(pop, id, p, world, rng, pop.fish.length));
         placed++;
       }
@@ -394,6 +561,11 @@ export function spawnFish(
   gen = 0,
 ): Fish {
   const sp = SPECIES[species];
+  // Uusi kala liittyy sen parveen, jonka kotipaikan se sai.
+  const host = slot === undefined ? null : gen === 0 ? slot : fishHomeSlot(pop, slot, gen);
+  const school = host === null ? -1 : (pop.schoolOf?.[host] ?? -1);
+  const schoolHome = pop.schools?.[school]?.home;
+  const offset = schoolHome ? { x: pos.x - schoolHome.x, y: pos.y - schoolHome.y } : { x: 0, y: 0 };
   return {
     id: pop.nextId++,
     gen,
@@ -412,6 +584,9 @@ export function spawnFish(
     running: false,
     slack: 0,
     cooldown: 0,
+    school: schoolHome ? school : -1,
+    offset,
+    goal: null,
   };
 }
 
@@ -469,6 +644,103 @@ export function lureAppeal(fish: Fish, lure: LureInfo): number {
   return speedScore * depthScore * gear;
 }
 
+/** Valo, sää ja tuuli, jotka ohjaavat kalojen syöntiä ja liikkeitä. */
+export interface FishConditions {
+  /** Valon määrä 0 (yö) – 1 (kirkas päivä), pilvisyys mukana. */
+  light: number;
+  /** Aamu- tai iltahämärä 0–1: petokalojen paras syöntiaika. */
+  twilight: number;
+  /** Pilvisyys 0–1. */
+  cloud: number;
+  /** Tuuli (m/s, x itään, y pohjoiseen). */
+  wind: Vec2;
+  /** Ukkonen tai myrsky: kalat painuvat pohjaan eivätkä juuri syö. */
+  storm: boolean;
+  /** Ukkosrintama lähestyy: syönti kiihtyy ennen ilmanpaineen laskua. */
+  preStorm: boolean;
+}
+
+/** Tyyni, valoisa päivä: kalat käyttäytyvät tavallisesti. */
+export const DAYTIME: FishConditions = {
+  light: 1,
+  twilight: 0,
+  cloud: 0,
+  wind: { x: 0, y: 0 },
+  storm: false,
+  preStorm: false,
+};
+
+/** Rintaman lähestyminen tuntuu kaloissa näin kauan ennen ukkosta (s). */
+const PRE_STORM = 240;
+
+/**
+ * Kalojen olosuhteet säästä ja vuorokaudenajasta (`sun`: valo ja hämäryys
+ * 0–1; oletuksena päivä).
+ */
+export function fishConditions(
+  weather: WeatherNow | null,
+  sun: { light: number; twilight: number } = DAYTIME,
+): FishConditions {
+  if (!weather) return { ...DAYTIME, light: sun.light, twilight: sun.twilight };
+  const stormy = (sky: WeatherNow['sky'] | null) => sky === 'thunder' || sky === 'storm';
+  return {
+    light: sun.light * (1 - 0.6 * weather.darkness),
+    twilight: sun.twilight,
+    cloud: Math.min(1, weather.darkness * 1.6),
+    wind: {
+      x: Math.cos(weather.windDir) * weather.windSpeed,
+      y: Math.sin(weather.windDir) * weather.windSpeed,
+    },
+    storm: stormy(weather.sky),
+    preStorm: !stormy(weather.sky) && stormy(weather.next) && weather.untilChange < PRE_STORM,
+  };
+}
+
+const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+/** Tuulen voimakkuus 0–1 (8 m/s = täysi). */
+const windStrength = (c: FishConditions) => Math.min(1, Math.hypot(c.wind.x, c.wind.y) / 8);
+
+/** Lajin syöntiaktiivisuus olosuhteissa (1 = tavallinen päivä). */
+export function speciesActivity(id: SpeciesId, c: FishConditions): number {
+  const b = SPECIES[id].behavior;
+  let a = b.night + (b.day - b.night) * clamp01(c.light);
+  a += (b.twilight - a) * clamp01(c.twilight);
+  a *= 1 + b.cloud * clamp01(c.cloud);
+  a *= 1 + b.wind * windStrength(c);
+  if (c.storm) a *= 0.4;
+  else if (c.preStorm) a *= 1.4;
+  return Math.max(0.05, Math.min(2.5, a));
+}
+
+/** Tuulen puoleinen ranta (aallot tuovat ruokaa): kerroin aktiivisuudelle. */
+function shoreFactor(pop: FishPopulation, pos: Vec2, sp: Species, c: FishConditions): number {
+  const w = Math.hypot(c.wind.x, c.wind.y);
+  if (!pop.area || sp.behavior.windShore === 0 || w < 1) return 1;
+  const ux = c.wind.x / w;
+  const uy = c.wind.y / w;
+  const { center, half } = pop.area;
+  const reach = Math.abs(ux) * half.x + Math.abs(uy) * half.y;
+  const side = ((pos.x - center.x) * ux + (pos.y - center.y) * uy) / reach;
+  return 1 + sp.behavior.windShore * Math.max(-1, Math.min(1, side)) * windStrength(c);
+}
+
+/** Havaintoetäisyys: näön varassa saalistava näkee pimeällä huonommin. */
+function senseRadius(sp: Species, c: FishConditions): number {
+  return sp.senseRadius * (sp.behavior.visual ? 0.45 + 0.55 * clamp01(c.light) : 1);
+}
+
+/** Uintisyvyys pohjan syvyydestä: laji, valo ja myrsky. */
+function swimDepth(sp: Species, bottom: number, c: FishConditions): number {
+  const col = sp.behavior.column;
+  let d = bottom - sp.bottomOffset;
+  if (c.storm) d = bottom - 0.3;
+  else if (col) {
+    const dark = 1 - clamp01(c.light);
+    d = Math.min(bottom - 0.2, bottom * (col.day + (col.dark - col.day) * dark));
+  }
+  return Math.max(0.3, d);
+}
+
 /** Vapaana olevien kalojen tekoäly yhdelle askeleelle. */
 export function stepFishPopulation(
   pop: FishPopulation,
@@ -477,37 +749,48 @@ export function stepFishPopulation(
   diff: DifficultyParams,
   rng: Rng,
   dt: number,
+  cond: FishConditions = DAYTIME,
 ): FishEvents {
   const events: FishEvents = {};
   pop.tick++;
+  const act = {} as Record<SpeciesId, number>;
+  for (const id of SPECIES_IDS) act[id] = speciesActivity(id, cond);
+  stepSchools(pop, lure, world, cond, act, rng, dt);
   for (const f of pop.fish) {
     if (f.mode === 'hooked' || f.mode === 'gone') continue;
     const sp = SPECIES[f.species];
     const near = lure?.fishable ? distance(f.pos, lure.pos) : Infinity;
+    const school = f.school >= 0 ? pop.schools?.[f.school] : undefined;
 
     if (f.mode === 'roam' && near > FAR_DISTANCE) {
       // Kaukana vieheestä riittää harva päivitys.
       if ((f.id + pop.tick) % FAR_STRIDE !== 0) continue;
       f.cooldown = Math.max(0, f.cooldown - dt * FAR_STRIDE);
-      roam(f, world, rng, dt * FAR_STRIDE);
+      move(f, school, world, cond, act[f.species], rng, dt * FAR_STRIDE);
       continue;
     }
     f.cooldown = Math.max(0, f.cooldown - dt);
+    // Kilpaileva parvi: kun yksi seuraa viehettä, muutkin kiinnostuvat herkemmin.
+    const excite = sp.behavior.competes && school ? school.excitement : 0;
+    const sense = senseRadius(sp, cond) * (1 + 0.5 * excite);
 
     if (f.mode === 'roam') {
-      roam(f, world, rng, dt);
-      if (lure && near < sp.senseRadius && f.cooldown === 0) {
+      move(f, school, world, cond, act[f.species], rng, dt);
+      if (lure && near < sense && f.cooldown === 0) {
+        const a = act[f.species] * shoreFactor(pop, f.pos, sp, cond) * (1 + 1.5 * excite);
         const appeal = lureAppeal(f, lure);
-        if (rng.chance(0.6 * appeal * sp.lureInterest * diff.biteRate, dt)) {
+        if (rng.chance(0.6 * appeal * sp.lureInterest * diff.biteRate * a, dt)) {
           f.mode = 'follow';
           f.timer = 0;
+          f.goal = null;
           events.follow = f.id;
+          if (sp.behavior.competes && school) school.excitement = 1;
         }
       }
       continue;
     }
 
-    if (!lure || !lure.fishable || near > sp.senseRadius * 1.5) {
+    if (!lure || !lure.fishable || near > sense * 1.5) {
       loseInterest(f, rng);
       continue;
     }
@@ -518,12 +801,22 @@ export function stepFishPopulation(
       swimToward(f, lure.pos, sp.chaseSpeed, 0.6, dt);
       f.depth += (lure.depth - f.depth) * Math.min(1, dt * 1.5);
       const appeal = lureAppeal(f, lure);
-      // Viehe liian lähellä kalastajaa: kala kääntyy pois.
-      if (distance(lure.pos, lure.tip) < 3.5 || f.timer > 8) {
+      const ambush = sp.behavior.ambush;
+      // Viehe liian lähellä kalastajaa: kala kääntyy pois. Väijyjä ei lähde
+      // kauas paikaltaan ja ratkaisee nopeasti, iskeekö.
+      if (
+        distance(lure.pos, lure.tip) < 3.5 ||
+        f.timer > (ambush ? 4 : 8) ||
+        (ambush && distance(f.pos, f.home) > sp.homeRange + sp.senseRadius)
+      ) {
         loseInterest(f, rng);
         continue;
       }
-      if (near < 1.2 && rng.chance((0.35 + appeal * 0.9) * sp.lureInterest * diff.biteRate, dt)) {
+      const a = Math.sqrt(act[f.species]) * (ambush ? 1.6 : 1) * (1 + excite);
+      if (
+        near < 1.2 &&
+        rng.chance((0.35 + appeal * 0.9) * sp.lureInterest * diff.biteRate * a, dt)
+      ) {
         f.mode = 'struck';
         f.timer = 0;
         events.strike = f.id;
@@ -538,31 +831,197 @@ export function stepFishPopulation(
   return events;
 }
 
+/** Saaliskalaparvi huomaa hauen näin kaukaa (m). */
+const PREDATOR_RADIUS = 10;
+
+/**
+ * Parvien liike: keskipiste kiertelee kotipaikan ympärillä ja hakeutuu
+ * valon mukaiseen syvyyteen, särkiparvi pakenee haukea ja kulkee tuulen
+ * alle, innostunut ahvenparvi kääntyy vieheen perään.
+ */
+function stepSchools(
+  pop: FishPopulation,
+  lure: LureInfo | null,
+  world: FishWorld,
+  cond: FishConditions,
+  act: Record<SpeciesId, number>,
+  rng: Rng,
+  dt: number,
+) {
+  if (!pop.schools) return;
+  let pikes: Fish[] | null = null;
+  const dim = cond.light < 0.7 || cond.twilight > 0.5;
+  for (const s of pop.schools) {
+    const sp = SPECIES[s.species];
+    const b = sp.behavior;
+    s.excitement = Math.max(0, s.excitement - dt / 20);
+    // Pimeällä parvi hajoaa, pakeneva parvi tiivistyy palloksi.
+    const spread =
+      s.flee > 0 ? 0.45 : s.excitement > 0.2 ? 0.8 : 1 + (1 - clamp01(cond.light)) * 0.6;
+    s.spread += (spread - s.spread) * Math.min(1, dt * 0.5);
+
+    if (b.prey && s.flee <= 0 && rng.next() < dt * 2) {
+      pikes ??= pop.fish.filter((f) => SPECIES[f.species].behavior.ambush && f.mode !== 'gone');
+      const reach = PREDATOR_RADIUS + sp.schoolSpread * s.spread;
+      for (const p of pikes) {
+        if (Math.abs(p.pos.x - s.center.x) > reach || Math.abs(p.pos.y - s.center.y) > reach)
+          continue;
+        if (distance(p.pos, s.center) < reach && rng.next() < 0.5 * act[p.species]) {
+          s.flee = rng.range(3, 6);
+          s.heading = Math.atan2(s.center.y - p.pos.y, s.center.x - p.pos.x);
+          break;
+        }
+      }
+    }
+
+    let speed: number;
+    if (s.flee > 0) {
+      s.flee -= dt;
+      speed = sp.runSpeed * 0.6;
+    } else {
+      s.heading += rng.normal(0, 0.35) * Math.sqrt(dt);
+      if (rng.next() < dt * 0.25) steerSchool(s, sp, lure, world, cond, dim);
+      speed = sp.roamSpeed * (0.3 + 0.7 * Math.min(1.5, act[s.species]));
+    }
+    // Parvi pysyy kotipaikkansa lähellä (palvelin tarkistaa saaliin paikan siitä).
+    if (distance(s.center, s.home) > sp.homeRange) {
+      const back = Math.atan2(s.home.y - s.center.y, s.home.x - s.center.x);
+      s.heading += wrapAngle(back - s.heading) * Math.min(1, dt * 2);
+    }
+    const next = {
+      x: s.center.x + Math.cos(s.heading) * speed * dt,
+      y: s.center.y + Math.sin(s.heading) * speed * dt,
+    };
+    if (world.isWater(next)) s.center = next;
+    else s.heading += Math.PI * (0.5 + rng.next());
+  }
+}
+
+/** Parven suunnan valinta: mieluisa syvyys, tuuli ja innostus vieheestä. */
+function steerSchool(
+  s: School,
+  sp: Species,
+  lure: LureInfo | null,
+  world: FishWorld,
+  cond: FishConditions,
+  dim: boolean,
+) {
+  const b = sp.behavior;
+  const [lo, hi] = dim ? b.dimDepth : b.dayDepth;
+  let best = s.heading;
+  let bestScore = Infinity;
+  for (const turn of [0, -0.8, 0.8]) {
+    const h = s.heading + turn;
+    const p = { x: s.center.x + Math.cos(h) * 8, y: s.center.y + Math.sin(h) * 8 };
+    if (!world.isWater(p)) continue;
+    const d = world.depthAt(p);
+    const score = Math.max(0, lo - d, d - hi) + Math.abs(turn) * 0.1;
+    if (score < bestScore) {
+      bestScore = score;
+      best = h;
+    }
+  }
+  s.heading = best;
+  // Saaliskalat kulkevat aaltojen ja planktonin mukana tuulen alle.
+  const w = windStrength(cond);
+  if (b.prey && w > 0.25) {
+    s.heading += wrapAngle(Math.atan2(cond.wind.y, cond.wind.x) - s.heading) * 0.3 * w;
+  }
+  if (lure?.fishable && s.excitement > 0.2 && distance(lure.pos, s.center) < 30) {
+    s.heading = Math.atan2(lure.pos.y - s.center.y, lure.pos.x - s.center.x);
+  }
+}
+
 function loseInterest(f: Fish, rng: Rng) {
   f.mode = 'roam';
   f.timer = 0;
   f.cooldown = rng.range(6, 15);
+  // Väijyjä palaa paikalleen.
+  if (SPECIES[f.species].behavior.ambush) f.goal = { ...f.home };
 }
 
-function roam(f: Fish, world: FishWorld, rng: Rng, dt: number) {
+/** Vapaan kalan liike: parven mukana, väijyen tai yksin vaellellen. */
+function move(
+  f: Fish,
+  school: School | undefined,
+  world: FishWorld,
+  cond: FishConditions,
+  activity: number,
+  rng: Rng,
+  dt: number,
+) {
+  const sp = SPECIES[f.species];
+  if (school) followSchool(f, school, sp, world, activity, dt);
+  else if (sp.behavior.ambush) lurk(f, sp, world, activity, rng, dt);
+  else roam(f, world, activity, rng, dt);
+  // Syvyys hakeutuu lajin ja valon mukaiseen kerrokseen harvakseltaan (kallis kysely).
+  if (rng.next() < dt * 0.5) {
+    const target = swimDepth(sp, world.depthAt(f.pos), cond);
+    f.depth += (target - f.depth) * 0.5;
+  }
+}
+
+/** Parven kala pysyy paikallaan parvessa ja kääntyy parven suuntaan. */
+function followSchool(
+  f: Fish,
+  s: School,
+  sp: Species,
+  world: FishWorld,
+  activity: number,
+  dt: number,
+) {
+  const target = {
+    x: s.center.x + f.offset.x * s.spread,
+    y: s.center.y + f.offset.y * s.spread,
+  };
+  const dx = target.x - f.pos.x;
+  const dy = target.y - f.pos.y;
+  const d = Math.hypot(dx, dy);
+  if (d < 0.3) {
+    f.heading = s.heading;
+    return;
+  }
+  const pace = s.flee > 0 ? sp.runSpeed : sp.roamSpeed * (1 + Math.min(1.5, activity)) + 0.15;
+  const step = Math.min(d, pace * dt);
+  const next = { x: f.pos.x + (dx / d) * step, y: f.pos.y + (dy / d) * step };
+  f.heading = Math.atan2(dy, dx);
+  if (world.isWater(next)) f.pos = next;
+}
+
+/** Väijyjä seisoo paikallaan ja vaihtaa väijypaikkaa harvoin. */
+function lurk(f: Fish, sp: Species, world: FishWorld, activity: number, rng: Rng, dt: number) {
+  if (f.goal) {
+    const before = f.pos;
+    swimToward(f, f.goal, sp.roamSpeed * 5, 0.3, dt);
+    if (!world.isWater(f.pos)) {
+      f.pos = before;
+      f.goal = null;
+    } else if (distance(f.pos, f.goal) < 0.5) f.goal = null;
+    return;
+  }
+  // Aktiivinen hauki (hämärä, pilvi) vaihtaa paikkaa useammin.
+  if (rng.chance(activity / 400, dt)) {
+    const a = rng.range(-Math.PI, Math.PI);
+    const r = rng.range(0, sp.homeRange);
+    const p = { x: f.home.x + Math.cos(a) * r, y: f.home.y + Math.sin(a) * r };
+    if (world.isWater(p)) f.goal = p;
+  }
+}
+
+function roam(f: Fish, world: FishWorld, activity: number, rng: Rng, dt: number) {
   const sp = SPECIES[f.species];
   f.heading += rng.normal(0, 0.6) * Math.sqrt(dt);
   if (distance(f.pos, f.home) > sp.homeRange) {
     const back = Math.atan2(f.home.y - f.pos.y, f.home.x - f.pos.x);
     f.heading += wrapAngle(back - f.heading) * Math.min(1, dt);
   }
-  const speed = sp.roamSpeed;
+  const speed = sp.roamSpeed * (0.3 + 0.7 * Math.min(1.5, activity));
   const next = {
     x: f.pos.x + Math.cos(f.heading) * speed * dt,
     y: f.pos.y + Math.sin(f.heading) * speed * dt,
   };
   if (world.isWater(next)) f.pos = next;
   else f.heading += Math.PI * (0.5 + rng.next());
-  // Syvyys hakeutuu kohti mieluisaa pohjan läheisyyttä harvakseltaan (kallis kysely).
-  if (rng.next() < dt * 0.5) {
-    const target = Math.max(0.3, world.depthAt(f.pos) - sp.bottomOffset);
-    f.depth += (target - f.depth) * 0.5;
-  }
 }
 
 function swimToward(f: Fish, target: Vec2, maxSpeed: number, keep: number, dt: number) {
