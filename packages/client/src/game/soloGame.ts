@@ -112,11 +112,14 @@ const LAND_COLOR = 0x24502c;
 /** Tyypillinen pyyhkäisymatka aallon jaksoon (m). */
 const TYPICAL_FETCH = 800;
 
-/** Näppäinasettelu: WASD tai nuolet. */
+/**
+ * Näppäinasettelu: WASD tai nuolet. W vie katseen suuntaan kohti räpylöitä
+ * (hitaampi melonta), S selkä edellä (tavallinen, nopeampi potkiminen).
+ */
 export function readTubeInput(input: Input): TubeInput {
   const down = (...codes: string[]) => codes.some((c) => input.isDown(c));
   return {
-    kick: (down('KeyW', 'ArrowUp') ? 1 : 0) - (down('KeyS', 'ArrowDown') ? 1 : 0),
+    kick: (down('KeyS', 'ArrowDown') ? 1 : 0) - (down('KeyW', 'ArrowUp') ? 1 : 0),
     turn: (down('KeyA', 'ArrowLeft') ? 1 : 0) - (down('KeyD', 'ArrowRight') ? 1 : 0),
     sprint: down('ShiftLeft', 'ShiftRight'),
   };
@@ -1087,6 +1090,7 @@ export class SoloGame {
     this.fishingView.update(this.fishing, this.fishingContext(), this.aim, 1 / 60, hooked);
     this.view.apply();
     this.youMarker.update(pos, this.view.metersPerPixel, this.viewMode === 'top');
+    this.hud.compass.update(heading);
     if (this.viewMode === 'pov') {
       const swell = this.swellAt(pos);
       // Kumossa kamera kallistuu ja painuu veden rajaan.

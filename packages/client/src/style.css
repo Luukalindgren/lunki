@@ -122,7 +122,7 @@ body {
 .hud-stamina {
   position: absolute;
   left: 50%;
-  top: calc(var(--u) * 43);
+  top: calc(var(--u) * 58);
   transform: translateX(-50%);
   display: flex;
   align-items: center;
@@ -359,10 +359,62 @@ body {
 
 .hud-weather {
   left: 50%;
-  top: calc(var(--u) * 26);
+  top: calc(var(--u) * 41);
   transform: translateX(-50%);
   font-size: calc(var(--u) * 7);
   white-space: nowrap;
+}
+
+/* Kompassinauha ajastimen ja sään välissä. */
+.hud-compass {
+  left: 50%;
+  top: calc(var(--u) * 26);
+  transform: translateX(-50%);
+  height: calc(var(--u) * 11);
+  padding: 0;
+  overflow: hidden;
+}
+
+.hud-compass-strip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+}
+
+.hud-compass-tick {
+  position: absolute;
+  bottom: 0;
+  width: var(--u);
+  height: calc(var(--u) * 2);
+  background: #5f6b78;
+}
+
+.hud-compass-tick.major {
+  height: calc(var(--u) * 3);
+  background: #c3cbd2;
+}
+
+.hud-compass-label {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: calc(var(--u) * 8);
+  color: #c3cbd2;
+}
+
+.hud-compass-label.main {
+  color: #f6d04d;
+}
+
+/* Katsesuunnan merkki alareunassa, jotta kirjaimet jäävät näkyviin. */
+.hud-compass-needle {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: var(--u);
+  height: calc(var(--u) * 5);
+  background: #d23a2a;
 }
 
 .hud-timer.low {
@@ -816,8 +868,13 @@ body {
 @media (orientation: portrait) {
   .hud.touch .hud-status {
     bottom: auto;
-    top: calc(var(--u) * 40);
+    top: calc(var(--u) * 57);
     font-size: calc(var(--u) * 7);
+  }
+
+  /* Luotaimet tilapaneelin alle, ettei kapealla ruudulla mene päällekkäin. */
+  .hud.touch .hud-gauges {
+    top: calc(var(--u) * 99);
   }
 }
 
@@ -1000,7 +1057,7 @@ body {
 .hud.touch .chat-hud {
   left: 50%;
   bottom: auto;
-  top: calc(var(--u) * 36);
+  top: calc(var(--u) * 56);
   transform: translateX(-50%);
   width: min(360px, 50%);
   font-size: max(14px, calc(var(--u) * 7));

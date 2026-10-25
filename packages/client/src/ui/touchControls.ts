@@ -123,14 +123,14 @@ export class TouchControls {
   }
 
   /**
-   * Tatin asento (-1…1, y alas) näppäimiksi. Ylös liikuttaa kohti räpylöitä
-   * eli katseen suuntaan (S), alas selkä edellä (W, nopeampi potku).
+   * Tatin asento (-1…1, y alas) näppäimiksi kuten W/S: ylös liikuttaa kohti
+   * räpylöitä eli katseen suuntaan (W), alas selkä edellä (S, nopeampi potku).
    */
   private setStick(x: number, y: number) {
     this.knob.style.transform = `translate(${x * STICK_RADIUS}px, ${y * STICK_RADIUS}px)`;
     const kicking = Math.abs(y) > DEAD_ZONE;
-    this.input.simulate('KeyS', y < -DEAD_ZONE);
-    this.input.simulate('KeyW', y > DEAD_ZONE);
+    this.input.simulate('KeyW', y < -DEAD_ZONE);
+    this.input.simulate('KeyS', y > DEAD_ZONE);
     this.input.simulate('KeyA', x < -DEAD_ZONE);
     this.input.simulate('KeyD', x > DEAD_ZONE);
     this.input.simulate('ShiftLeft', kicking && Math.hypot(x, y) >= SPRINT_AT);

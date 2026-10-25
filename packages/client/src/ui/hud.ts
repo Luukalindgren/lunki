@@ -1,4 +1,5 @@
 import '@fontsource/vt323';
+import { CompassDisplay } from './compass';
 import { LureSonarDisplay } from './lureSonar';
 import { SonarDisplay } from './sonar';
 
@@ -26,6 +27,8 @@ export class Hud {
   private readonly flashEl: HTMLDivElement;
   private flashLevel = 0;
   readonly sonar: SonarDisplay;
+  /** Kompassinauha ajastimen alla. */
+  readonly compass: CompassDisplay;
   /** Vieheluotain: näkyy, kun viehe on vedessä. */
   readonly lureSonar: LureSonarDisplay;
   private messageTimer = 0;
@@ -86,6 +89,7 @@ export class Hud {
       this.weigh,
       this.countdown,
     );
+    this.compass = new CompassDisplay(this.root);
     // Luotaimet oikeassa reunassa vierekkäin; kapealla ruudulla allekkain.
     const gauges = el('div', 'hud-gauges');
     this.root.appendChild(gauges);
@@ -191,7 +195,7 @@ export class Hud {
             : []),
         ]
       : [
-          'W/S potki · A/D käänny · Shift pikapotku (vie kuntoa)',
+          'W eteen · S selkä edellä (nopein) · A/D käänny · Shift pikapotku',
           'Hiiri: tähtää, pidä pohjassa ja päästä = heitto',
           'Hiiri pohjassa tai välilyönti = kelaa',
           '1/2/3 kelausnopeus · Q/E jarru löysemmälle/kireämmälle',
