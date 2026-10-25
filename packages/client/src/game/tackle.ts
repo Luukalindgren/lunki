@@ -1,4 +1,4 @@
-import { DEFAULT_TACKLE, LURE_IDS, isTackle, type Tackle } from '@lunki/shared';
+import { DEFAULT_TACKLE, LURE_IDS, parseTackle, type Tackle } from '@lunki/shared';
 
 const TACKLE_KEY = 'lunki.tackle';
 
@@ -6,8 +6,8 @@ const TACKLE_KEY = 'lunki.tackle';
 export function loadTackle(): Tackle {
   try {
     const raw = localStorage.getItem(TACKLE_KEY);
-    const t: unknown = raw ? JSON.parse(raw) : null;
-    if (isTackle(t)) return t;
+    const t = raw ? parseTackle(JSON.parse(raw)) : null;
+    if (t) return t;
   } catch {
     // oletukset kelpaavat
   }

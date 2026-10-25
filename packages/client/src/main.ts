@@ -14,6 +14,7 @@ import { startLoop } from './engine/loop';
 import { RetroRenderer, type PaletteMode } from './engine/retroRenderer';
 import { Sfx } from './audio/sfx';
 import { SoloGame } from './game/soloGame';
+import { loadTackle, saveTackle } from './game/tackle';
 import { Hud } from './ui/hud';
 import { Screens, loadSettings } from './ui/screens';
 import { Bench } from './dev/bench';
@@ -100,6 +101,7 @@ function showResults() {
       v.amHost,
       () => s.restart(),
       leaveRoom,
+      new Map(v.players.map((p) => [p.sessionId, p.tackle])),
     );
     return;
   }
@@ -152,6 +154,8 @@ async function connect(name: string, code: string | null) {
 
 function enterLobby(s: NetSession) {
   session = s;
+  // Viimeksi käytetyt varusteet muiden nähtäväksi.
+  s.sendTackle(loadTackle());
   let notice: string | undefined;
   const render = () => {
     if (session !== s || game || !s.ready) return;
@@ -168,6 +172,10 @@ function enterLobby(s: NetSession) {
         onStart: () => s.start(),
         onLeave: leaveRoom,
         onSettings: (patch) => s.changeSettings(patch),
+        onTackle: (t) => {
+          saveTackle(t);
+          s.sendTackle(t);
+        },
       },
       notice,
     );

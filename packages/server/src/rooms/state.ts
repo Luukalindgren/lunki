@@ -1,5 +1,10 @@
 import { ArraySchema, schema, t, type SchemaType } from '@colyseus/schema';
-import { DEFAULT_MAX_PLAYERS, DEFAULT_SETTINGS, NATIVE_SPECIES } from '@lunki/shared';
+import {
+  DEFAULT_MAX_PLAYERS,
+  DEFAULT_SETTINGS,
+  DEFAULT_TACKLE,
+  NATIVE_SPECIES,
+} from '@lunki/shared';
 
 /**
  * Pelaaja huoneessa. Avaimena Colyseuksen sessionId. Renkaan tila on
@@ -35,6 +40,11 @@ export const PlayerState = schema(
     tangleY: t.float32().default(0),
     /** Sotkun selvitys 0–1, sama molemmilla. */
     untangle: t.float32().default(0),
+    /** Varusteet muiden nähtäväksi (Tackle). */
+    rod: t.string().default(DEFAULT_TACKLE.rod),
+    lure: t.string().default(DEFAULT_TACKLE.lure),
+    line: t.string().default(DEFAULT_TACKLE.line),
+    leader: t.boolean().default(DEFAULT_TACKLE.leader),
   },
   'PlayerState',
 );

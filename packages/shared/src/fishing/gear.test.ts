@@ -5,7 +5,14 @@ import { predictLanding } from './cast';
 import { DIFFICULTIES } from './difficulty';
 import { lureAppeal, spawnFish, type FishPopulation, type LureInfo } from './fish';
 import { createFishing, stepFishing, type FishingContext, type FishingEvents } from './fishing';
-import { DEFAULT_TACKLE, isTackle, tackleCastFactor, type Tackle } from './gear';
+import {
+  DEFAULT_TACKLE,
+  breakingStrength,
+  isTackle,
+  parseTackle,
+  tackleCastFactor,
+  type Tackle,
+} from './gear';
 
 const DT = 1 / 60;
 const world = { isWater: (p: { x: number }) => Math.abs(p.x) < 500, depthAt: () => 6 };
@@ -137,6 +144,27 @@ describe('vieheet ja siimat', () => {
     expect(isTackle(DEFAULT_TACKLE)).toBe(true);
     expect(isTackle({ lure: 'toString', line: 'thin', leader: false })).toBe(false);
     expect(isTackle({ lure: 'jig', line: 'thin' })).toBe(false);
+    expect(isTackle({ ...DEFAULT_TACKLE, rod: 'toString' })).toBe(false);
+  });
+
+  it('vanha tallennus ilman vapaa saa perusvavan', () => {
+    expect(parseTackle({ lure: 'jig', line: 'thin', leader: true })).toEqual({
+      rod: 'medium',
+      lure: 'jig',
+      line: 'thin',
+      leader: true,
+    });
+    expect(parseTackle({ lure: 'nope' })).toBeNull();
+    expect(parseTackle('spoon')).toBeNull();
+  });
+
+  it('kevyt vapa heittää pidemmälle ja suojaa siimaa, järeä päinvastoin', () => {
+    const light = tackle({ rod: 'light' });
+    const heavy = tackle({ rod: 'heavy' });
+    expect(castLength(light)).toBeGreaterThan(castLength(DEFAULT_TACKLE));
+    expect(castLength(heavy)).toBeLessThan(castLength(DEFAULT_TACKLE));
+    expect(breakingStrength(light)).toBeGreaterThan(breakingStrength(DEFAULT_TACKLE));
+    expect(breakingStrength(heavy)).toBeLessThan(breakingStrength(DEFAULT_TACKLE));
   });
 });
 

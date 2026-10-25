@@ -12,7 +12,8 @@ import {
 } from './fish';
 import {
   DEFAULT_TACKLE,
-  LINES,
+  RODS,
+  breakingStrength,
   LURES,
   PIKE_BITE_OFF_RATE,
   tackleCastFactor,
@@ -404,7 +405,7 @@ function pullSnag(
   s.tension = s.drag;
   s.snag = (s.snag ?? 0) + dt;
   // Liian kireä jarru katkaisee siiman heti.
-  const snap = fish?.diff.lineCanBreak === true && s.drag > LINES[s.tackle.line].strength;
+  const snap = fish?.diff.lineCanBreak === true && s.drag > breakingStrength(s.tackle);
   if (!snap && s.snag < SNAG.pullTime) return;
   if (!snap && (fish?.rng.next() ?? 0) < SNAG.freeChance) {
     s.snag = null;
@@ -477,7 +478,7 @@ function fight(
 ): void {
   const { diff, rng, pop } = fish;
   const world = { isWater: ctx.isWater, depthAt: ctx.depthAt };
-  const res = stepHookedFish(f, tip, s.tension, world, diff, rng, dt);
+  const res = stepHookedFish(f, tip, s.tension, world, diff, rng, dt, RODS[s.tackle.rod].power);
 
   const speed = res.outSpeed;
   let next = {
@@ -520,7 +521,7 @@ function fight(
   s.depth = f.depth;
   s.lureSpeed = 0;
 
-  if (diff.lineCanBreak && tension > LINES[s.tackle.line].strength) {
+  if (diff.lineCanBreak && tension > breakingStrength(s.tackle)) {
     events.lineBroken = true;
     release(f, rng);
     resetFishing(s);

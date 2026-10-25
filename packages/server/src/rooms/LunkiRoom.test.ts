@@ -123,6 +123,25 @@ describe('LunkiRoom', () => {
     await guest.leave();
   });
 
+  it('varusteet näkyvät muille, ja kelvottomat hylätään', async () => {
+    const host = await sdk().create(ROOM_NAME, { name: 'A', playerId: 'a' });
+    const guest = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
+    await until(() => players(host).length === 2);
+    type Gear = { rod: string; lure: string; line: string; leader: boolean };
+    const gear = () => (players(host) as unknown as Gear[])[1]!;
+    expect(gear()).toMatchObject({ rod: 'medium', lure: 'spoon', line: 'medium', leader: false });
+    guest.send(ClientMsg.tackle, { rod: 'heavy', lure: 'wobbler', line: 'thick', leader: true });
+    await until(() => gear().rod === 'heavy');
+    expect(gear()).toMatchObject({ lure: 'wobbler', line: 'thick', leader: true });
+    guest.send(ClientMsg.tackle, { rod: 'huijaus', lure: 'jig', line: 'thin', leader: false });
+    guest.send(ClientMsg.tackle, { lure: 'jig' });
+    await until(() => gear().lure === 'jig');
+    // Puuttuva vapa täydentyy oletukseksi, kelvoton viesti ei muuta mitään.
+    expect(gear()).toMatchObject({ rod: 'medium', line: 'medium', leader: false });
+    await host.leave();
+    await guest.leave();
+  });
+
   it('tuntematon koodi ei kelpaa', async () => {
     await expect(sdk().joinById('ZZZZ', { name: 'A', playerId: 'a' })).rejects.toThrow();
   });

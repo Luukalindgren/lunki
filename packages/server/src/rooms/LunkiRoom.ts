@@ -40,6 +40,7 @@ import {
   type Catch,
   sanitizeName,
   validateSettingsPatch,
+  parseTackle,
   type InputMessage,
   type JoinOptions,
   type BigWave,
@@ -189,6 +190,16 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     this.onMessage(ClientMsg.cutLine, (client) => {
       const p = this.state.players.get(client.sessionId);
       if (p?.tangledWith) this.untangle(client.sessionId, p.tangledWith, 'cut', client.sessionId);
+    });
+
+    this.onMessage(ClientMsg.tackle, (client, msg: unknown) => {
+      const p = this.state.players.get(client.sessionId);
+      const t = parseTackle(msg);
+      if (!p || !t) return;
+      p.rod = t.rod;
+      p.lure = t.lure;
+      p.line = t.line;
+      p.leader = t.leader;
     });
 
     this.onMessage(ClientMsg.restart, (client) => {
