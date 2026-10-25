@@ -8,4 +8,4 @@ export * from './vec2';
 export * from './weather';
 
 /** Pelin nimi, jota käytetään otsikoissa ja lokeissa. */
-export const GAME_NAME = 'Lunki';
+export const GAME_NAME = 'Lunkinjärvi';

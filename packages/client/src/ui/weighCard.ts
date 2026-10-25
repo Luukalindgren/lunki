@@ -343,4 +343,4 @@ export function cardBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
 }
 
 export const cardFileName = (info: WeighCardInfo) =>
-  `lunki-${info.fish.species}-${info.fish.weight.toFixed(2).replace('.', '_')}kg.png`;
+  `lunkinjarvi-${info.fish.species}-${info.fish.weight.toFixed(2).replace('.', '_')}kg.png`;

@@ -288,7 +288,9 @@ body {
 
 .screen-panel h1 {
   margin: 0;
-  font-size: 72px;
+  /* LUNKINJÄRVI mahtuu yhdelle riville kapeallakin puhelimella. */
+  font-size: min(72px, 15vw);
+  white-space: nowrap;
   font-weight: normal;
   color: #f6d04d;
   text-shadow: 4px 4px 0 #8c1c1c;
