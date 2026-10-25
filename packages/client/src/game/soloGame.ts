@@ -707,7 +707,7 @@ export class SoloGame {
       DIFFICULTIES[this.settings.difficulty],
       this.rng,
       dt,
-      fishConditions(this.competition.finished ? null : this.weather.now),
+      fishConditions(this.competition.finished ? null : this.weather.now, this.daylight),
     );
     const events: ReturnType<typeof stepFishing> = tangle
       ? {}
@@ -792,10 +792,7 @@ export class SoloGame {
     const left = timeLeft(this.competition);
     this.hud.setTimer(formatTime(left), left < 60);
     this.updateWeather(dt);
-    this.sfx.updateAmbience(dt, {
-      ...this.weather.now,
-      ...daylight(this.settings.timeOfDay ?? 'day', this.dayProgress),
-    });
+    this.sfx.updateAmbience(dt, { ...this.weather.now, ...this.daylight });
     // Potkuvaihe kiertää 0–1; kumpikin räpylä loiskahtaa kerran kierroksessa.
     const strokes = Math.floor(this.tube.kickPhase * 2);
     if (strokes !== this.strokes) {
@@ -872,6 +869,11 @@ export class SoloGame {
   /** Kisan eteneminen 0–1: aurinko liikkuu kisan aikana. */
   get dayProgress(): number {
     return Math.min(1, this.competition.elapsed / (this.settings.durationMinutes * 60));
+  }
+
+  /** Päivänvalo ja hämäryys nyt: kalojen syönti ja äänimaailma seuraavat tätä. */
+  get daylight() {
+    return daylight(this.settings.timeOfDay ?? 'day', this.dayProgress);
   }
 
   /** Paletin sävytys jälkikäsittelyyn (vuorokaudenaika ja salama). */
