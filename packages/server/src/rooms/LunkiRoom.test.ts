@@ -21,6 +21,7 @@ import {
   weatherAt,
   type CatchRecord,
   type BigWaveMessage,
+  type UntangledMessage,
   type LightningMessage,
   type TubeState,
   type WeatherPlan,
@@ -466,6 +467,62 @@ describe('LunkiRoom', () => {
     expect(spouts.length).toBe(1);
     await host.leave();
   });
+
+  it('ristissä olevat siimat sotkeutuvat ja selviävät kelaamalla tai katkaisemalla', async () => {
+    const host = await sdk().create(ROOM_NAME, {
+      name: 'A',
+      playerId: 'a',
+      testTiming: { countdown: 0.1, duration: 60 },
+    });
+    const guest = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
+    await until(() => players(host).length === 2);
+    host.send(ClientMsg.settings, { weather: 'calm' });
+    await until(() => guest.state.settings.weather === 'calm');
+    guest.send(ClientMsg.ready, true);
+    await until(() => players(host).every((p) => p.name === 'A' || p.ready));
+    host.send(ClientMsg.start);
+    await until(() => host.state.phase === 'playing');
+
+    type P = { x: number; y: number; tangledWith: string; untangle: number };
+    const me = (r: Room) => r.state.players.get(r.sessionId) as P;
+    const h = { x: me(host).x, y: me(host).y };
+    const g = { x: me(guest).x, y: me(guest).y };
+    // Siimat ristiin: kumpikin heittää toisen ohi samalle puolelle (X-kuvio).
+    const len = Math.hypot(g.x - h.x, g.y - h.y);
+    const n = { x: (-(g.y - h.y) / len) * 15, y: ((g.x - h.x) / len) * 15 };
+    const cast = (r: Room, to: { x: number; y: number }, stage: number, reel: number) =>
+      r.send(ClientMsg.input, { i: [], l: [to.x + n.x, to.y + n.y, stage, reel] });
+    cast(host, g, 2, 0);
+    cast(guest, h, 2, 0);
+    await new Promise((r) => setTimeout(r, 150));
+    // Ristissä, mutta kumpikaan ei kelaa: ei sotkua.
+    expect(me(host).tangledWith).toBe('');
+    cast(host, g, 2, 1);
+    await until(() => me(host).tangledWith === guest.sessionId);
+    await until(() => me(guest).tangledWith === host.sessionId);
+
+    // Kelataan yhdessä: selviää noin 3 sekunnissa.
+    const done: UntangledMessage[] = [];
+    guest.onMessage(ServerMsg.untangled, (m: UntangledMessage) => done.push(m));
+    cast(guest, h, 2, 1);
+    await until(() => done.length === 1, 5000);
+    expect(done[0]!.how).toBe('untangled');
+    cast(host, g, 0, 0);
+    cast(guest, h, 0, 0);
+    await new Promise((r) => setTimeout(r, 100));
+    expect(me(host).tangledWith).toBe('');
+
+    // Uusi sotku (selvityksen jälkeen 2 s suoja-aika), ja vieras katkaisee siimansa.
+    cast(host, g, 2, 1);
+    cast(guest, h, 2, 0);
+    await until(() => me(guest).tangledWith === host.sessionId, 4000);
+    guest.send(ClientMsg.cutLine);
+    await until(() => done.length === 2);
+    expect(done[1]).toMatchObject({ how: 'cut', by: guest.sessionId });
+
+    await host.leave();
+    await guest.leave();
+  }, 15000);
 
   it('katkennut pelaaja palaa samaan renkaaseen ja saaliisiin', async () => {
     const host = await sdk().create(ROOM_NAME, {

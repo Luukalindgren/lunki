@@ -15,6 +15,7 @@ import {
   type PlayerResult,
   type SpeciesId,
   type BigWaveMessage,
+  type UntangledMessage,
   type JoinOptions,
   type LightningMessage,
   type Penalty,
@@ -101,6 +102,10 @@ export interface PlayerSchema {
   lureStage: number;
   outUntil: number;
   capsizedUntil: number;
+  tangledWith: string;
+  tangleX: number;
+  tangleY: number;
+  untangle: number;
 }
 
 export interface StateSchema {
@@ -143,6 +148,7 @@ export class NetSession {
   onLightning: ((msg: LightningMessage) => void) | null = null;
   onBigWave: ((msg: BigWaveMessage) => void) | null = null;
   onSpout: ((msg: BigWaveMessage) => void) | null = null;
+  onUntangled: ((msg: UntangledMessage) => void) | null = null;
   onStarted: ((msg: StartedMessage, view: LobbyView) => void) | null = null;
   onError: ((message: string) => void) | null = null;
   /** Yhteys katkesi muusta syystä kuin omasta lähdöstä. */
@@ -171,6 +177,7 @@ export class NetSession {
     room.onMessage(ServerMsg.lightning, (m: LightningMessage) => this.onLightning?.(m));
     room.onMessage(ServerMsg.bigWave, (m: BigWaveMessage) => this.onBigWave?.(m));
     room.onMessage(ServerMsg.spout, (m: BigWaveMessage) => this.onSpout?.(m));
+    room.onMessage(ServerMsg.untangled, (m: UntangledMessage) => this.onUntangled?.(m));
     room.onLeave(() => {
       clearResume();
       if (!this.leaving) this.onDisconnect?.();
@@ -273,6 +280,10 @@ export class NetSession {
 
   sendCatch(c: Catch): void {
     this.room.send(ClientMsg.catch, c);
+  }
+
+  sendCutLine(): void {
+    this.room.send(ClientMsg.cutLine);
   }
 
   /** Isäntä: takaisin aulaan uutta kisaa varten. */

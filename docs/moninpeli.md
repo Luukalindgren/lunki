@@ -41,6 +41,15 @@ muut pelaajat: SnapshotBuffer, piirretään 120 ms menneisyydestä
   tunnisteella samaan renkaaseen ja saaliisiin, ja syötteiden numerointi
   jatkuu palvelimen kuittauksesta.
 
+- **Siimojen sotkeutuminen.** Asiakas lähettää syötteen mukana vavan kärjen,
+  vieheen paikan ja tiedon kelaamisesta (`l`). Palvelin etsii joka
+  verkkoaskeleella vedessä olevat siimat, jotka ovat ristissä, kun jompikumpi
+  kelaa (`findTangles`). Sotkussa kumpikaan ei voi nostaa kalaa (kala karkaa,
+  jos se oli koukussa). Kelaavat pelaajat selvittävät sotkua yhdessä: yksin
+  kelaten 6 s, kahdestaan 3 s (`TANGLE.untangleSeconds`). C-näppäin katkaisee
+  oman siiman heti; toinen jatkaa normaalisti. Sotkukohta näkyy kaikille
+  valkoisena rastina, ja selvinnyt pari on 2 s suojassa uudelta sotkulta.
+
 ## Testaus viiveellä
 
 ```sh

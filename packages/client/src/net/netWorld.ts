@@ -8,6 +8,7 @@ import {
   type BigWaveMessage,
   type Catch,
   type LightningMessage,
+  type UntangledMessage,
   type PlayerResult,
   type RoomPhase,
   type TubeInput,
@@ -61,7 +62,7 @@ const toTube = (p: PlayerSchema): TubeState => ({
 export class NetWorld {
   readonly predictor: TubePredictor;
   private readonly remotes = new Map<string, { name: string; buf: SnapshotBuffer<RemoteSnap> }>();
-  private lure: [number, number, number] = [0, 0, LureStage.none];
+  private lure: [number, number, number, number] = [0, 0, LureStage.none, 0];
   /** Muiden viimeisimmät palvelintilat (ennakoinnin törmäyksiin). */
   private latestOthers: TubeState[] = [];
   /**
@@ -84,6 +85,8 @@ export class NetWorld {
   onBigWave: ((msg: BigWaveMessage) => void) | null = null;
   /** Trombi nappasi renkaita. */
   onSpout: ((msg: BigWaveMessage) => void) | null = null;
+  /** Siimasotku selvisi. */
+  onUntangled: ((msg: UntangledMessage) => void) | null = null;
 
   constructor(
     private readonly session: NetSession,
@@ -100,6 +103,36 @@ export class NetWorld {
     session.onLightning = (m) => this.onLightning?.(m);
     session.onBigWave = (m) => this.onBigWave?.(m);
     session.onSpout = (m) => this.onSpout?.(m);
+    session.onUntangled = (m) => this.onUntangled?.(m);
+  }
+
+  cutLine(): void {
+    this.session.sendCutLine();
+  }
+
+  /** Oma siima sotkussa: kenen kanssa, missä ja selvitys 0–1. */
+  get tangle(): { with: string; at: Vec2; progress: number } | null {
+    const players = this.session.room.state.players;
+    const me = players.get(this.session.sessionId);
+    if (!me?.tangledWith) return null;
+    return {
+      with: players.get(me.tangledWith)?.name ?? '?',
+      at: { x: me.tangleX, y: me.tangleY },
+      progress: me.untangle,
+    };
+  }
+
+  /** Kaikkien sotkujen kohdat piirtoa varten. */
+  tangles(): Vec2[] {
+    const out: Vec2[] = [];
+    this.session.room.state.players.forEach((p, id) => {
+      if (p.tangledWith && id < p.tangledWith) out.push({ x: p.tangleX, y: p.tangleY });
+    });
+    return out;
+  }
+
+  playerName(id: string): string {
+    return this.session.room.state.players.get(id)?.name ?? '?';
   }
 
   sendSplash(p: Vec2): void {
@@ -142,12 +175,18 @@ export class NetWorld {
   }
 
   /** Oma askel: ennakoidaan heti ja lähetetään syötteet erissä. */
-  stepOwn(input: TubeInput, lure: Vec2 | null, lureStage: number, wind?: Vec2): TubeState {
+  stepOwn(
+    input: TubeInput,
+    lure: Vec2 | null,
+    lureStage: number,
+    wind?: Vec2,
+    reeling = false,
+  ): TubeState {
     const decay = Math.exp(-NET_DT * 10);
     this.renderOffset.x *= decay;
     this.renderOffset.y *= decay;
     const tube = this.predictor.step(input, wind);
-    this.lure = lure ? [lure.x, lure.y, lureStage] : [0, 0, LureStage.none];
+    this.lure = lure ? [lure.x, lure.y, lureStage, reeling ? 1 : 0] : [0, 0, LureStage.none, 0];
     const out = this.predictor.takeOutgoing();
     if (out) this.session.sendInput({ i: encodeInputs(out), l: this.lure });
     return tube;
@@ -225,5 +264,6 @@ export class NetWorld {
     this.session.onLightning = null;
     this.session.onBigWave = null;
     this.session.onSpout = null;
+    this.session.onUntangled = null;
   }
 }

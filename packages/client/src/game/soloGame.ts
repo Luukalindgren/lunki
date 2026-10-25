@@ -62,6 +62,7 @@ import {
   type Strike,
   type BigWave,
   type Waterspout,
+  type UntangledMessage,
   type LakeMap,
   type Tackle,
   type Vec2,
@@ -77,6 +78,7 @@ import { PovCamera } from './povCamera';
 import { LightningView } from './lightningView';
 import { BigWaveView } from './bigWaveView';
 import { SpoutView } from './spoutView';
+import { KnotView } from './knotView';
 import { createLakeMesh, createWaterWaves, toWorld, waterTime } from '../world/lakeMesh';
 import { WAVE_FACTOR_SCALE, WaveField } from '../world/waveField';
 import { createBuildings, createPiers, planPiers } from '../world/buildings';
@@ -253,6 +255,7 @@ export class SoloGame {
       this.lightning.group,
       this.bigWaveView.group,
       this.spoutView.group,
+      this.knots.group,
     );
     this.waves = new WaveField(map);
     this.waterWaves.uWaveTex.value = this.waves.texture;
@@ -300,6 +303,7 @@ export class SoloGame {
       net.world.onBigWave = (m) => {
         if (m.victims.includes(net.world.myId)) this.onCapsize('wave');
       };
+      net.world.onUntangled = (m) => this.onUntangled(m, net.world.myId);
       net.world.onSpout = (m) => {
         if (m.victims.includes(net.world.myId)) this.onCapsize('spout');
       };
@@ -477,6 +481,46 @@ export class SoloGame {
     return ` · trombi ${d} m ${compassIn(Math.atan2(best.y - p.y, best.x - p.x))}`;
   }
 
+  private wasTangled = false;
+  private readonly knots = new KnotView();
+
+  /**
+   * Moninpelin siimasotku: ilmoitus sotkeutumisesta, sotkujen merkit
+   * järvellä ja siiman katkaisu (C). Palauttaa oman sotkun tai null.
+   */
+  private updateTangle(cut: boolean): NetWorld['tangle'] {
+    const w = this.net?.world;
+    if (!w) return null;
+    const tangle = w.tangle;
+    if (tangle && !this.wasTangled) {
+      this.sfx.strike();
+      this.hud.showMessage(`Siimasi sotkeutui: ${tangle.with}! Kelaa selvittääksesi`, 3);
+    }
+    this.wasTangled = tangle !== null;
+    this.knots.update(w.tangles());
+    if (tangle && cut) w.cutLine();
+    return tangle;
+  }
+
+  /** Sotku selvisi palvelimella. */
+  private onUntangled(m: UntangledMessage, me: string): void {
+    if (!m.players.includes(me)) return;
+    const hooked = this.fishing.hookedId !== null;
+    if (m.how === 'untangled') {
+      resetFishing(this.fishing);
+      this.hud.showMessage(
+        hooked ? 'Sotku selvisi, mutta kala karkasi' : 'Sotku selvisi – siimat kelattu sisään',
+        2.5,
+      );
+    } else if (m.by === me) {
+      resetFishing(this.fishing);
+      this.sfx.lost();
+      this.hud.showMessage('Katkaisit siimasi', 2);
+    } else {
+      this.hud.showMessage(`${this.net!.world.playerName(m.by)} katkaisi siimansa – jatka`, 2.5);
+    }
+  }
+
   /** Oma rengas kaatui ison aallon tai trombin takia. */
   private onCapsize(cause: 'wave' | 'spout'): void {
     this.capsizedAt = this.competition.elapsed;
@@ -553,6 +597,8 @@ export class SoloGame {
     const timeOut = this.timeOutLeft;
     const capsized = this.capsizeLeft > 0;
     const still = { kick: 0, turn: 0, sprint: false };
+    const reelHeld = input.isDown('Mouse0') || input.isDown('Space');
+    const tangle = this.updateTangle(input.wasPressed('KeyC'));
 
     this.prevTube = this.tube;
     if (this.net) {
@@ -571,6 +617,7 @@ export class SoloGame {
         f.lure,
         stage,
         frozen ? undefined : this.tubeWind,
+        !frozen && reelHeld,
       );
     } else {
       const next = stepTube(this.tube, capsized ? still : readTubeInput(input), dt, this.tubeWind);
@@ -584,7 +631,8 @@ export class SoloGame {
     );
     const f = this.fishing;
     const lureOut = f.stage === 'flight' || f.stage === 'water';
-    const reeling = !frozen && lureOut && (input.isDown('Mouse0') || input.isDown('Space'));
+    // Sotkussa vapa on kiinni: kelaaminen selvittää sotkua palvelimella.
+    const reeling = !frozen && !tangle && lureOut && reelHeld;
     const world = {
       isWater: (p: Vec2) => this.water.isWater(p),
       depthAt: (p: Vec2) => this.bottom.depthAt(p),
@@ -597,22 +645,24 @@ export class SoloGame {
       this.rng,
       dt,
     );
-    const events = stepFishing(
-      f,
-      {
-        aim: this.aim,
-        castHeld: !frozen && !capsized && timeOut === 0 && input.isDown('Mouse0'),
-        reel: reeling,
-        cancel: input.isDown('Mouse2'),
-        dragDelta: (input.wasPressed('KeyE') ? 1 : 0) - (input.wasPressed('KeyQ') ? 1 : 0),
-        ...(input.wasPressed('Digit1') ? { gear: 0 } : {}),
-        ...(input.wasPressed('Digit2') ? { gear: 1 } : {}),
-        ...(input.wasPressed('Digit3') ? { gear: 2 } : {}),
-        ...(this.pendingTackle ? { tackle: this.pendingTackle } : {}),
-      },
-      this.fishingContext(fishEvents.strike),
-      dt,
-    );
+    const events: ReturnType<typeof stepFishing> = tangle
+      ? {}
+      : stepFishing(
+          f,
+          {
+            aim: this.aim,
+            castHeld: !frozen && !capsized && timeOut === 0 && input.isDown('Mouse0'),
+            reel: reeling,
+            cancel: input.isDown('Mouse2'),
+            dragDelta: (input.wasPressed('KeyE') ? 1 : 0) - (input.wasPressed('KeyQ') ? 1 : 0),
+            ...(input.wasPressed('Digit1') ? { gear: 0 } : {}),
+            ...(input.wasPressed('Digit2') ? { gear: 1 } : {}),
+            ...(input.wasPressed('Digit3') ? { gear: 2 } : {}),
+            ...(this.pendingTackle ? { tackle: this.pendingTackle } : {}),
+          },
+          this.fishingContext(fishEvents.strike),
+          dt,
+        );
     this.handleEvents(events, fishEvents.follow !== undefined, reeling, dt);
     if (f.onLand && f.stage === 'water')
       this.hud.showMessage('Viehe rannalla – kelaa takaisin', 0.2);
@@ -634,6 +684,12 @@ export class SoloGame {
     this.hud.setTension(f.tension, f.drag, LINES[f.tackle.line].strength);
     this.hud.setStatus([
       ...(capsized ? [`Kumossa! Pystyssä ${Math.ceil(this.capsizeLeft)} s`] : []),
+      ...(tangle
+        ? [
+            `Sotkussa: ${tangle.with} · ${Math.round(tangle.progress * 100)} %`,
+            'Kelatkaa yhdessä · C katkaisee',
+          ]
+        : []),
       ...(timeOut === Infinity
         ? ['Salama pudotti sinut kisasta']
         : timeOut > 0

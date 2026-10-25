@@ -29,6 +29,12 @@ export const PlayerState = schema(
     outUntil: t.float32().default(0),
     /** Iso aalto kaatoi renkaan: pystyssä taas tästä kisa-ajasta (s). */
     capsizedUntil: t.float32().default(0),
+    /** Siima sotkussa tämän pelaajan (sessionId) siiman kanssa; tyhjä = ei sotkua. */
+    tangledWith: t.string().default(''),
+    tangleX: t.float32().default(0),
+    tangleY: t.float32().default(0),
+    /** Sotkun selvitys 0–1, sama molemmilla. */
+    untangle: t.float32().default(0),
   },
   'PlayerState',
 );
