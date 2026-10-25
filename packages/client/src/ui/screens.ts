@@ -159,8 +159,9 @@ export class Screens {
       ['Tekijät ja lähteet', actions.onCredits],
     ]);
     menu.classList.add('main-menu');
+    panel.classList.add('start-panel');
     panel.append(
-      h('h1', 'LUNKI'),
+      waveTitle('LUNKI'),
       h('p', 'Kelluntarengaskalastusta Tammelan Lunkinjärvellä', 'subtitle'),
       menu,
       h(
@@ -634,6 +635,7 @@ export class Screens {
     chat?: (parent: HTMLElement) => void,
   ): void {
     const panel = this.panel();
+    panel.dataset.screen = 'race-results';
     const winner = results[0];
     panel.append(
       h('h2', 'Kisa päättyi!'),
@@ -744,6 +746,12 @@ export class Screens {
   private show(panel: HTMLElement, cleanup?: () => void, scroll?: [number, number] | null): void {
     this.runCleanup();
     this.cleanup = cleanup ?? null;
+    // Saman näkymän uudelleenpiirto (aula, tulokset) ei toista avausanimaatiota,
+    // muuten paneeli välähtäisi jokaisella tilamuutoksella.
+    const prev = this.root.firstElementChild as HTMLElement | null;
+    const redraw =
+      !this.root.hidden && !!panel.dataset.screen && prev?.dataset.screen === panel.dataset.screen;
+    if (!redraw) panel.classList.add('enter');
     this.root.replaceChildren(panel);
     this.root.hidden = false;
     // Saman näkymän uudelleenpiirto (aula) säilyttää vierityksen.
@@ -1127,6 +1135,8 @@ export class Screens {
     list.forEach(([text, action], i) => {
       const b = document.createElement('button');
       b.textContent = text;
+      // Porrastettu sisääntulo päävalikossa.
+      b.style.setProperty('--i', String(i));
       if (i === 0) b.classList.add('primary');
       b.addEventListener('click', action);
       row.appendChild(b);
@@ -1140,6 +1150,19 @@ function startText(start: Vec2 | null): string {
   if (!start) return 'Satunnainen kohta rannan tuntumassa.';
   const spot = describeSpot(start);
   return `Kartalta valittu kohta${spot ? `: ${spot.charAt(0).toLowerCase()}${spot.slice(1)}` : ''}.`;
+}
+
+/** Otsikko, jonka kirjaimet keinuvat vuorotellen kuin laineilla. */
+function waveTitle(text: string): HTMLElement {
+  const title = document.createElement('h1');
+  title.setAttribute('aria-label', text);
+  for (const [i, ch] of [...text].entries()) {
+    const letter = h('span', ch, 'wave-letter');
+    letter.setAttribute('aria-hidden', 'true');
+    letter.style.setProperty('--i', String(i));
+    title.append(letter);
+  }
+  return title;
 }
 
 function h(tag: string, text: string, className?: string): HTMLElement {
