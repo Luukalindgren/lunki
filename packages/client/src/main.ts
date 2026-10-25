@@ -27,6 +27,7 @@ import { clearLastRoom, loadIdentity, loadLastRoom, saveLastRoom, saveName } fro
 import {
   NetSession,
   checkServer,
+  customServer,
   describeJoinError,
   fetchRecords,
   inviteLink,
@@ -196,7 +197,7 @@ function showMultiplayer(code = '', error?: string) {
     },
     error,
   );
-  void checkServer().then((ok) => screens.setServerStatus(ok));
+  void checkServer().then((ok) => screens.setServerStatus(ok, customServer()));
 }
 
 /** `rejoin`: päävalikon "Palaa kisaan"; epäonnistuessa huonetta ei enää tarjota. */

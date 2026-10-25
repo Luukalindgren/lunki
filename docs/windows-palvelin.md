@@ -68,6 +68,12 @@ Käyttö (myös SSH:n yli):
 Loki on tiedostossa `logs\palvelin.log`. Ennätykset tallentuvat kuten ennenkin
 tiedostoon `packages\server\data\lunki.sqlite`.
 
+Tehtävä käynnistää palvelimen kuuntelemaan vain osoitetta `127.0.0.1`
+(`LUNKI_HOST`): pelaajat tulevat Funnelin kautta, joten porttia 2567 ei näy
+kotiverkkoon. Palvelin rajoittaa huoneiden luontia ja palautteita
+IP-osoitetta kohden Funnelin kertoman pelaajan osoitteen mukaan; rajat ovat
+väljiä, joten samassa verkossa pelaavat kaverit eivät huomaa niitä.
+
 ## 4. SSH-palvelin (kerran, järjestelmänvalvojana)
 
 ```powershell

@@ -44,7 +44,7 @@ function Get-ListenerPid {
 
 function Test-Health {
   try {
-    $res = Invoke-WebRequest "http://localhost:$Port/__healthcheck" -UseBasicParsing -TimeoutSec 3
+    $res = Invoke-WebRequest "http://127.0.0.1:$Port/__healthcheck" -UseBasicParsing -TimeoutSec 3
     return $res.StatusCode -eq 200
   } catch {
     return $false
@@ -113,6 +113,9 @@ switch ($Komento) {
       Write-Log 'pnpm install epäonnistui, palvelinta ei käynnistetty'
       exit 1
     }
+    # Tunneli (Tailscale Funnel) ohjaa liikenteen osoitteeseen 127.0.0.1:2567, joten
+    # palvelimen ei tarvitse näkyä kotiverkkoon eikä tailnetiin.
+    $env:LUNKI_HOST = '127.0.0.1'
     Write-Log 'Käynnistetään palvelin (pnpm run server)'
     # Pelkkä "pnpm server" on pnpm:n oma komento, joka ei aja skriptiä.
     cmd.exe /d /c "pnpm run server >> `"$Log`" 2>&1"

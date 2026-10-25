@@ -303,12 +303,14 @@ export class Screens {
   }
 
   /** Moninpelivalikon palvelinrivi. */
-  setServerStatus(ok: boolean): void {
+  setServerStatus(ok: boolean, custom: string | null = null): void {
     const el = this.root.querySelector<HTMLElement>('.server-status');
     if (!el) return;
     el.textContent = ok
       ? 'Palvelin päällä'
       : 'Palvelimeen ei saada yhteyttä. Yksinpeli toimii silti, mutta moninpeliin palvelimen pitää olla päällä.';
+    // Linkki voi ohjata vieraalle palvelimelle: kerrotaan, minne yhdistetään.
+    if (custom) el.textContent += ` · Muu kuin pelin oma palvelin: ${custom}`;
     el.classList.toggle('error', !ok);
     el.classList.toggle('ok', ok);
   }
