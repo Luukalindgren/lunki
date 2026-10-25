@@ -48,7 +48,8 @@ jobs:
       - name: Selaimet
         run: pnpm exec playwright install --with-deps chromium firefox webkit
       - name: Selaintestit
-        run: pnpm e2e
+        # Virtuaalinäyttö Firefoxin WebGL:ää varten (ks. playwright.config.ts).
+        run: xvfb-run -a pnpm e2e
       - name: Raportti
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4

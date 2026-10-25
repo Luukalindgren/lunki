@@ -10,8 +10,15 @@ import { defineConfig, devices } from '@playwright/test';
 const SWIFTSHADER = {
   args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
 };
-/** Firefox estää WebGL2:n ohjelmistorenderöinnillä ("AllowWebgl2:false") ilman tätä. */
-export const FIREFOX_WEBGL = { firefoxUserPrefs: { 'webgl.force-enabled': true } };
+/**
+ * Headless-Firefoxilla ei ole OpenGL-ajuria lainkaan, joten CI ajaa sen
+ * näkyvänä virtuaalinäytöllä (xvfb-run, Mesan ohjelmistorenderöinti). Mesa on
+ * Firefoxin estolistalla ("AllowWebgl2:false"), siksi WebGL pakotetaan päälle.
+ */
+export const FIREFOX_WEBGL = {
+  headless: !process.env.DISPLAY,
+  firefoxUserPrefs: { 'webgl.force-enabled': true },
+};
 
 export default defineConfig({
   testDir: 'e2e',
