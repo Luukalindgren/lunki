@@ -4,10 +4,14 @@ import {
   ERRORS_PATH,
   FEEDBACK_PATH,
   RECORDS_PATH,
+  RECORDS_PER_SPECIES,
   ROOM_NAME,
+  SOLO_RECORDS_PATH,
   cleanMultiline,
   parseErrorReport,
   parseFeedback,
+  parseSoloRecord,
+  type SoloRecordReply,
 } from '@lunki/shared';
 import { FEEDBACK_EXPORTED_PATH, FEEDBACK_PENDING_PATH } from './feedback/issues';
 import type { FeedbackStore } from './feedback/store';
@@ -54,8 +58,24 @@ export function createServer({ records, feedback, feedbackToken }: ServerStores 
   setRecordStore(records ?? null);
   const feedbackLimit = rateLimit(10);
   const errorLimit = rateLimit(30);
+  const soloLimit = rateLimit(120);
   server.router = createRouter({
     records: createEndpoint(RECORDS_PATH, { method: 'GET' }, async () => records?.board() ?? {}),
+    soloRecords: createEndpoint(
+      SOLO_RECORDS_PATH,
+      { method: 'GET' },
+      async () => records?.board(RECORDS_PER_SPECIES, 'solo') ?? {},
+    ),
+    // Yksinpelin saaliista tallennetaan vain listalle mahtuvat, ettei tiedosto paisu.
+    soloRecord: createEndpoint(SOLO_RECORDS_PATH, { method: 'POST' }, async (ctx) => {
+      const e = parseSoloRecord(json(ctx.body));
+      if (!e) throw ctx.error(400);
+      if (!soloLimit()) throw ctx.error(429);
+      let place: number | null = null;
+      if (records && records.place(e, 'solo') <= RECORDS_PER_SPECIES)
+        place = records.add(e, 'solo');
+      return { place } satisfies SoloRecordReply;
+    }),
     feedback: createEndpoint(FEEDBACK_PATH, { method: 'POST' }, async (ctx) => {
       const f = parseFeedback(json(ctx.body));
       if (!f) throw ctx.error(400);

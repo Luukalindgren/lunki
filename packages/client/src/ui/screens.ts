@@ -44,6 +44,7 @@ import {
   FEEDBACK_LIMITS,
   mapCredits,
   type RecordBoard,
+  type RecordMode,
   type RecordEntry,
   type TimeOfDay,
   type WeatherLevel,
@@ -66,6 +67,11 @@ import { drawTubePreview } from './tubePreview';
 import { VOLUME_LEVELS, type AudioSettings, type VolumeLevel } from '../audio/settings';
 
 const SETTINGS_KEY = 'lunki.soloSettings';
+
+const MODE_HINTS: Record<RecordMode, string> = {
+  race: 'Listalle pääsevät moninpelikisoissa palvelimella punnitut kalat.',
+  solo: 'Yksinpelin saaliit ilmoittaa pelaajan oma selain, joten lista on erillään moninpelin ennätyksistä.',
+};
 /** Kalojen kuvat listoissa: kapealla näytöllä pienempinä (ks. style.css). */
 const LIST_FISH_SCALE = 'var(--fish-px, 2px)';
 
@@ -573,14 +579,20 @@ export class Screens {
   }
 
   /**
-   * Järven ennätyslista vaikeustasoittain; null = palvelinta ei tavoitettu.
-   * Kartalla näkyy, mistä kukin ennätyskala saatiin, ja Tiedot-napin takana
-   * saaliin aika, sää ja varusteet.
+   * Järven ennätyslista vaikeustasoittain, moninpelin ja yksinpelin listat
+   * erikseen; null = palvelinta ei tavoitettu (tai se ei tunne yksinpelin
+   * listaa). Kartalla näkyy, mistä kukin ennätyskala saatiin, ja Tiedot-napin
+   * takana saaliin aika, sää ja varusteet.
    */
-  showRecords(board: RecordBoard | null, initial: Difficulty, onBack: () => void): void {
+  showRecords(
+    raceBoard: RecordBoard | null,
+    soloBoard: RecordBoard | null,
+    initial: Difficulty,
+    onBack: () => void,
+  ): void {
     const panel = this.panel();
     panel.append(h('h2', 'Lunkinjärven ennätykset'));
-    if (!board) {
+    if (!raceBoard && !soloBoard) {
       panel.append(
         h('p', 'Pelipalvelimeen ei saatu yhteyttä, joten ennätyksiä ei voitu hakea.', 'error'),
         this.buttons([['Takaisin', onBack]]),
@@ -589,6 +601,8 @@ export class Screens {
       return;
     }
     let difficulty = initial;
+    let mode: RecordMode = 'race';
+    let board: RecordBoard = raceBoard ?? {};
     /** Kartalla näkyvät ennätykset (vain ne, joiden paikka on tallessa). */
     let placed: RecordEntry[] = [];
     const detailsBox = (r: RecordEntry) => {
@@ -643,10 +657,23 @@ export class Screens {
     const render = () => {
       lists.replaceChildren();
       placed = [];
+      const missing = mode === 'solo' ? !soloBoard : !raceBoard;
+      if (missing)
+        lists.append(
+          h(
+            'p',
+            mode === 'solo'
+              ? 'Pelipalvelin ei vielä tunne yksinpelin ennätyslistaa.'
+              : 'Moninpelin ennätyksiä ei saatu haettua.',
+            'error',
+          ),
+        );
+      board = (mode === 'solo' ? soloBoard : raceBoard) ?? {};
+      modeHint.textContent = MODE_HINTS[mode];
       const species = new Set<SpeciesId>();
       for (const o of SPECIES_OPTIONS) {
         const rows = board[difficulty]?.[o.value] ?? [];
-        if (rows.length === 0 && !o.native) continue;
+        if (missing || (rows.length === 0 && !o.native)) continue;
         lists.append(h('p', o.label, 'choice-label'));
         const ol = document.createElement('ol');
         ol.className = 'catch-list records';
@@ -713,9 +740,22 @@ export class Screens {
             })),
       );
     };
+    const modeHint = h('p', '', 'hint');
     render();
     setView(false);
     panel.append(
+      this.choice(
+        'Lista',
+        [
+          ['race', 'Moninpeli'],
+          ['solo', 'Yksinpeli'],
+        ],
+        mode,
+        (v) => {
+          mode = v as RecordMode;
+          render();
+        },
+      ),
       this.choice(
         'Vaikeus',
         (Object.keys(DIFFICULTY_NAMES) as Difficulty[]).map((d) => [d, DIFFICULTY_NAMES[d]]),
@@ -727,7 +767,7 @@ export class Screens {
       ),
       toggle,
       content,
-      h('p', 'Listalle pääsevät moninpelikisoissa palvelimella punnitut kalat.', 'hint'),
+      modeHint,
       this.buttons([['Takaisin', onBack]]),
     );
     this.show(panel, () => map.dispose());
@@ -827,6 +867,7 @@ export class Screens {
     onMenu: () => void,
     card?: WeighCardInfo | null,
     race?: RaceMapData | null,
+    recordNotes: readonly string[] = [],
   ): void {
     this.resultsOnMap = false;
     const panel = this.panel();
@@ -860,6 +901,7 @@ export class Screens {
           `Kaloja ${sum.count} · yhteensä ${formatWeight(sum.total)} · suurin ${formatWeight(sum.biggest!.weight)}`,
           'total',
         ),
+        ...recordNotes.map((n) => h('p', n, 'total')),
       );
       if (card) panel.append(this.weighCard(card));
     }

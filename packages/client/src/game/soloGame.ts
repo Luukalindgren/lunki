@@ -73,6 +73,7 @@ import {
   type RecordMessage,
   removeCaughtFish,
   type LakeMap,
+  type RecordEntry,
   type Tackle,
   type Vec2,
   type TubeInput,
@@ -188,6 +189,8 @@ export class SoloGame {
   private strokes = 0;
   /** Kutsutaan, kun kilpailuaika loppuu. */
   onFinished: (() => void) | null = null;
+  /** Yksinpelin saalis yksinpelin ennätyslistalle (moninpelissä palvelin punnitsee itse). */
+  onSoloCatch: ((entry: Omit<RecordEntry, 'date' | 'at' | 'angler'>) => void) | null = null;
   private readonly remoteView: RemotePlayersView | null = null;
   private readonly hemi = new THREE.HemisphereLight(0xeef2f3, 0x24502c, 1.5);
   private readonly sun = new THREE.DirectionalLight(0xfff3b0, 1.5);
@@ -1122,8 +1125,26 @@ export class SoloGame {
       this.net?.world.sendCatch(events.caught);
       const record = recordCatch(this.competition, events.caught, this.tube.pos);
       // Moninpelissä saaliit tulevat kartalle palvelimen punnitsemina (onCatchSeen).
-      if (record && !this.net)
+      if (record && !this.net) {
         this.raceLog.addCatch({ ...record, id: SOLO_ID, pos: this.tube.pos });
+        const gear = this.fishing.tackle;
+        const w = this.weather.now;
+        this.onSoloCatch?.({
+          species: record.species,
+          weight: record.weight,
+          difficulty: this.settings.difficulty,
+          x: this.tube.pos.x,
+          y: this.tube.pos.y,
+          raceTime: record.time,
+          timeOfDay: this.settings.timeOfDay ?? 'day',
+          sky: w.sky,
+          wind: w.windSpeed,
+          lure: gear.lure,
+          rod: gear.rod,
+          line: gear.line,
+          leader: gear.leader,
+        });
+      }
       this.fishingView.startSplash(this.fishing.lure);
       const catches = this.competition.catches;
       const biggest = catches.every((c) => c === record || c.weight < events.caught!.weight);

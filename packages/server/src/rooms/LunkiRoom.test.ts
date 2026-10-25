@@ -8,6 +8,7 @@ import {
   ERRORS_PATH,
   FEEDBACK_PATH,
   RECORDS_PATH,
+  SOLO_RECORDS_PATH,
   ServerMsg,
   TubePredictor,
   WaterBody,
@@ -35,6 +36,7 @@ import {
   type BigWaveMessage,
   type SpoutMessage,
   type RecordBoard,
+  type SoloRecordReply,
   type RecordMessage,
   type UntangledMessage,
   type LightningMessage,
@@ -360,6 +362,36 @@ describe('LunkiRoom', () => {
     await post(ERRORS_PATH, err);
     await post(ERRORS_PATH, { ...err, stack: 's2' });
     expect(feedback.errors()).toMatchObject([{ message: err.message, count: 2, stack: 's2' }]);
+  });
+
+  it('yksinpelin saaliit omalle listalleen, vain listalle mahtuvat tallennetaan', async () => {
+    const url = `http://localhost:${PORT}${SOLO_RECORDS_PATH}`;
+    const post = (body: unknown) =>
+      fetch(url, {
+        method: 'POST',
+        headers: { 'content-type': 'text/plain' },
+        body: JSON.stringify(body),
+      });
+    const fish = (weight: number) => ({
+      species: 'zander',
+      weight,
+      angler: 'Yksin',
+      difficulty: 'easy',
+    });
+    const places: (number | null)[] = [];
+    for (const w of [1, 2, 3, 4, 5, 6, 0.5])
+      places.push(((await (await post(fish(w))).json()) as SoloRecordReply).place);
+    expect(places).toEqual([1, 1, 1, 1, 1, 1, null]);
+    expect((await post({ ...fish(1), weight: 999 })).status).toBe(400);
+    const solo = (await (await fetch(url)).json()) as RecordBoard;
+    expect(solo.easy?.zander?.map((r) => r.weight)).toEqual([6, 5, 4, 3, 2]);
+    // Moninpelin lista ei sekoitu.
+    const race = (await (
+      await fetch(`http://localhost:${PORT}${RECORDS_PATH}`)
+    ).json()) as RecordBoard;
+    expect(race.easy?.zander ?? []).not.toContainEqual(
+      expect.objectContaining({ angler: 'Yksin' }),
+    );
   });
 
   it('chat-viestit kaikille, nopeusrajoitus ja historia uusille', async () => {

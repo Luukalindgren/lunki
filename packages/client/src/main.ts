@@ -2,8 +2,10 @@ import {
   DEFAULT_SETTINGS,
   GAME_NAME,
   LUNKINJARVI,
+  SPECIES,
   WaterBody,
   formatTime,
+  formatWeight,
   isTimeOfDay,
   isWeatherLevel,
   parseRoomCode,
@@ -36,6 +38,7 @@ import {
   describeJoinError,
   fetchRecords,
   inviteLink,
+  submitSoloRecord,
 } from './net/session';
 import { NetWorld } from './net/netWorld';
 import { installErrorReporting, reportContext, sendFeedback } from './net/report';
@@ -82,6 +85,8 @@ let updateTime = 0;
 let updateCount = 0;
 /** Moninpelin tulossivu näkyy: oliko pelaaja silloin isäntä (null = ei tulossivua). */
 let resultsAsHost: boolean | null = null;
+/** Yksinpelin ennätyslistalle päässeet saaliit tulossivulle. */
+let soloRecordNotes: string[] = [];
 
 function startGame(s: CompetitionSettings, seed = devSeed) {
   if (!session) settings = s;
@@ -102,6 +107,20 @@ function startGame(s: CompetitionSettings, seed = devSeed) {
   game.setResolution(retro.resolution);
   resultsAsHost = null;
   game.onFinished = () => showResults();
+  soloRecordNotes = [];
+  // Kehitystilan valitulla siemenellä saalis ei ole reilu ennätys.
+  if (!session && devSeed === undefined) {
+    const g = game;
+    g.onSoloCatch = (entry) =>
+      void submitSoloRecord({ ...entry, angler: loadIdentity().name }).then((place) => {
+        if (place === null || game !== g) return;
+        const fish = `${SPECIES[entry.species].name} ${formatWeight(entry.weight)}`;
+        const note =
+          place === 1 ? `Yksinpelin ennätys! ${fish}` : `${fish} on yksinpelin ${place}. suurin`;
+        soloRecordNotes.push(note);
+        if (!g.competition.finished) hud.showMessage(note, 3.5);
+      });
+  }
   hud.setHelpMode(session !== null);
   if (session) chat?.mount(hud.root, 'hud');
   touch?.setMultiplayer(session !== null);
@@ -154,8 +173,8 @@ async function showRecords() {
     cancelled = true;
     showMenu();
   });
-  const board = await fetchRecords();
-  if (!cancelled && !game) screens.showRecords(board, settings.difficulty, showMenu);
+  const [board, solo] = await Promise.all([fetchRecords('race'), fetchRecords('solo')]);
+  if (!cancelled && !game) screens.showRecords(board, solo, settings.difficulty, showMenu);
 }
 
 /** Punnituskortti oman kisan suurimmasta kalasta; null, jos saalista ei tullut. */
@@ -203,6 +222,7 @@ function showResults() {
     () => showMenu(),
     card,
     game.raceMap(),
+    soloRecordNotes,
   );
 }
 
