@@ -40,7 +40,7 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
     },
     {
-      command: 'pnpm server',
+      command: 'pnpm run server',
       url: 'http://localhost:2567/__healthcheck',
       reuseExistingServer: !process.env.CI,
       env: { LUNKI_DB: ':memory:' },

@@ -53,6 +53,8 @@ test('moninpeli: Chromium, Firefox ja iPhone samassa huoneessa', async ({
         [await join(webkit, devices['iPhone 15'], 'iphone'), true],
       ];
     } catch (e) {
+      // CI asentaa kaikki selaimet: siellä puuttuva selain on virhe.
+      if (process.env.CI) throw e;
       test.skip(true, `Firefox tai WebKit puuttuu tältä koneelta: ${String(e).split('\n')[0]}`);
       return;
     }
