@@ -154,10 +154,32 @@ export const createFishing = (tackle: Tackle = DEFAULT_TACKLE): FishingState => 
   snag: null,
 });
 
+/** Kalan tunniste kalakannassa: paikka (indeksi) ja sukupolvi. */
+export interface FishTag {
+  slot: number;
+  gen: number;
+}
+
+/** Verkosta tulleen kalatunnisteen tarkistus. */
+export function isFishTag(v: unknown): v is FishTag {
+  const t = v as Partial<FishTag> | null;
+  return (
+    !!t &&
+    Number.isInteger(t.slot) &&
+    Number.isInteger(t.gen) &&
+    t.slot! >= 0 &&
+    t.slot! < 10000 &&
+    t.gen! >= 0 &&
+    t.gen! < 65536
+  );
+}
+
 export interface Catch {
   species: SpeciesId;
   name: string;
   weight: number;
+  /** Mikä kala saatiin (moninpelissä sama kala voidaan nostaa vain kerran). */
+  fish?: FishTag;
 }
 
 export interface FishingEvents {
@@ -550,12 +572,50 @@ function fight(
 
   if (distance(f.pos, tip) <= FIGHT.landDistance && f.depth <= FIGHT.landDepth) {
     const sp = SPECIES[f.species];
-    events.caught = { species: f.species, name: sp.name, weight: f.weight };
-    // Saatu kala poistuu ja järveen ilmestyy uusi jonnekin muualle.
-    const idx = pop.fish.indexOf(f);
-    pop.fish[idx] = spawnFish(pop, f.species, respawnPoint(pop, f, rng), world, rng);
+    const slot = pop.fish.indexOf(f);
+    events.caught = {
+      species: f.species,
+      name: sp.name,
+      weight: f.weight,
+      fish: { slot, gen: f.gen },
+    };
+    replaceFish(pop, slot, world, rng);
     resetFishing(s);
   }
+}
+
+/** Saatu kala poistuu ja järveen ilmestyy uusi saman lajin parven luo (seuraava sukupolvi). */
+export function replaceFish(
+  pop: FishPopulation,
+  slot: number,
+  world: Parameters<typeof spawnFish>[3],
+  rng: Rng,
+): void {
+  const f = pop.fish[slot];
+  if (!f) return;
+  const next = spawnFish(pop, f.species, respawnPoint(pop, f, rng), world, rng);
+  next.gen = f.gen + 1;
+  pop.fish[slot] = next;
+}
+
+/**
+ * Moninpeli: toinen pelaaja nosti kalan. Jos sama kala on vielä omassa
+ * kopiossa, se korvautuu. Palauttaa true, jos kala oli juuri omassa
+ * väsytyksessä (silloin oma kalastus nollataan).
+ */
+export function removeCaughtFish(
+  s: FishingState,
+  pop: FishPopulation,
+  tag: FishTag,
+  world: Parameters<typeof spawnFish>[3],
+  rng: Rng,
+): boolean {
+  const f = pop.fish[tag.slot];
+  if (!f || f.gen !== tag.gen) return false;
+  const mine = s.hookedId === f.id;
+  replaceFish(pop, tag.slot, world, rng);
+  if (mine) resetFishing(s);
+  return mine;
 }
 
 function release(f: FishPopulation['fish'][number], rng: Rng) {

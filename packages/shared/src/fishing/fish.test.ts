@@ -15,6 +15,7 @@ import {
 import {
   createFishing,
   lureInfo,
+  removeCaughtFish,
   stepFishing,
   type FishingContext,
   type FishingEvents,
@@ -121,9 +122,25 @@ describe('kalat', () => {
     const sim = setup('easy', 0.42, 2);
     expect(fishUntil(sim, 120, (e) => !!e.caught)).toBe(true);
     const c = sim.log.find((e) => e.caught)!.caught!;
-    expect(c).toEqual({ species: 'perch', name: 'Ahven', weight: 0.42 });
+    expect(c).toEqual({ species: 'perch', name: 'Ahven', weight: 0.42, fish: { slot: 0, gen: 0 } });
     expect(sim.s.stage).toBe('idle');
     expect(sim.pop.fish.filter((f) => f.mode !== 'gone')).toHaveLength(2);
+    // Saadun tilalle syntyi saman paikan seuraava sukupolvi.
+    expect(sim.pop.fish[0]!.gen).toBe(1);
+  });
+
+  it('toisen nostama kala katoaa omasta kalakannasta, myös kesken väsytyksen', () => {
+    const sim = setup('easy', 0.42, 2);
+    expect(fishUntil(sim, 120, (e) => !!e.hooked)).toBe(true);
+    const hooked = sim.s.hookedId;
+    // Väärä sukupolvi ei koske omaan kalaan.
+    expect(removeCaughtFish(sim.s, sim.pop, { slot: 0, gen: 3 }, world, sim.rng)).toBe(false);
+    expect(sim.s.hookedId).toBe(hooked);
+    expect(removeCaughtFish(sim.s, sim.pop, { slot: 0, gen: 0 }, world, sim.rng)).toBe(true);
+    expect(sim.s.hookedId).toBeNull();
+    expect(sim.s.stage).toBe('idle');
+    expect(sim.pop.fish[0]!.gen).toBe(1);
+    expect(sim.pop.fish[0]!.id).not.toBe(hooked);
   });
 
   it('realistisella isku menee ohi ilman vastaiskua', () => {

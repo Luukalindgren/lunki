@@ -65,6 +65,7 @@ import {
   type Waterspout,
   type UntangledMessage,
   type RecordMessage,
+  removeCaughtFish,
   type LakeMap,
   type Tackle,
   type Vec2,
@@ -309,6 +310,14 @@ export class SoloGame {
       };
       net.world.onUntangled = (m) => this.onUntangled(m, net.world.myId);
       net.world.onRecord = (m) => this.onRecord(m, net.world.myId);
+      net.world.onRemoteCatch = (tag, angler) => {
+        const world = {
+          isWater: (p: Vec2) => this.water.isWater(p),
+          depthAt: (p: Vec2) => this.bottom.depthAt(p),
+        };
+        if (removeCaughtFish(this.fishing, this.fish, tag, world, this.rng))
+          this.hud.showMessage(`${angler} ehti nostaa saman kalan – se karkasi sinulta`, 3);
+      };
       net.world.onSpout = (m) => {
         if (m.victims.includes(net.world.myId)) this.onCapsize('spout');
       };

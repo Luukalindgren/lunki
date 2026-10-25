@@ -77,6 +77,9 @@ export const CatchState = schema(
     weight: t.float32().default(0),
     /** Kisa-aika saaliin hetkellä (s). */
     time: t.float32().default(0),
+    /** Kala kalakannassa (FishTag); -1 = ei tiedossa. */
+    fishSlot: t.int16().default(-1),
+    fishGen: t.uint16().default(0),
   },
   'CatchState',
 );

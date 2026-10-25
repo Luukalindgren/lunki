@@ -153,6 +153,37 @@ describe('LunkiRoom', () => {
     await guest.leave();
   });
 
+  it('saman kalan voi nostaa vain kerran', async () => {
+    const host = await sdk().create(ROOM_NAME, {
+      name: 'A',
+      playerId: 'a',
+      testTiming: { countdown: 0.1, duration: 30 },
+    });
+    const guest = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
+    await until(() => players(host).length === 2);
+    guest.send(ClientMsg.ready, true);
+    await until(() => players(host).filter((p) => p.ready).length === 1);
+    host.send(ClientMsg.start);
+    await until(() => host.state.phase === 'playing');
+    let rejected = 0;
+    guest.onMessage(ServerMsg.catchRejected, () => rejected++);
+    const land = (room: Room, fish: { slot: number; gen: number }) => {
+      const p = room.state.players.get(room.sessionId) as { x: number; y: number };
+      room.send(ClientMsg.splash, { x: p.x + 10, y: p.y });
+      room.send(ClientMsg.catch, { species: 'perch', name: 'Ahven', weight: 0.3, fish });
+    };
+    land(host, { slot: 7, gen: 0 });
+    await until(() => host.state.catches.length === 1);
+    expect(host.state.catches[0].fishSlot).toBe(7);
+    land(guest, { slot: 7, gen: 0 });
+    await until(() => rejected === 1);
+    // Paikan seuraava sukupolvi on eri kala.
+    land(guest, { slot: 7, gen: 1 });
+    await until(() => host.state.catches.length === 2);
+    await host.leave();
+    await guest.leave();
+  });
+
   it('palaute ja virheraportit tallentuvat palvelimelle', async () => {
     const post = (path: string, body: unknown) =>
       fetch(`http://localhost:${PORT}${path}`, {
@@ -344,7 +375,7 @@ describe('LunkiRoom', () => {
     const board = (await (
       await fetch(`http://localhost:${PORT}${RECORDS_PATH}`)
     ).json()) as RecordBoard;
-    expect(board.normal?.perch?.map((r) => [r.angler, r.weight])).toEqual([
+    expect(board.normal?.perch?.slice(0, 3).map((r) => [r.angler, r.weight])).toEqual([
       ['Bertta', 0.9],
       ['Luuka', 0.4],
       ['Cecilia', 0.35],

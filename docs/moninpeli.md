@@ -25,7 +25,11 @@ muut pelaajat: SnapshotBuffer, piirretään 120 ms menneisyydestä
   liikettään. Heiton osumapiste tarkistetaan (`isPlausibleSplash`): liian pitkä
   heitto hylätään ja viehe palaa kelalle.
 - **Kalastus** (viehe, siima, kalat) lasketaan vielä asiakkaalla. Kaikilla on
-  sama kalakanta yhteisestä siemenestä, mutta kukin näkee oman kopionsa.
+  sama kalakanta yhteisestä siemenestä, mutta kukin näkee oman kopionsa. Kalan
+  tunnistaa kaikissa kopioissa sen paikasta kalakannassa ja sukupolvesta
+  (`FishTag`): saatu kala korvautuu saman paikan seuraavalla sukupolvella.
+  Palvelin hyväksyy saman kalan vain ensimmäiseltä nostajalta, ja muiden
+  kopioista se katoaa heti, myös kesken väsytyksen.
 - **Kisan kulku palvelimella.** Aula → lähtölaskenta (3 s, renkaat paikallaan)
   → kisa palvelimen kellolla → loppu. Nostettu kala punnitaan palvelimella
   (`isPlausibleCatch`): laji ja paino lajin rajoissa, heitto veteen edellisen
