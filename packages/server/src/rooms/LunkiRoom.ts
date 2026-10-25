@@ -1,4 +1,4 @@
-import { Room, type Client } from '@colyseus/core';
+import { Room, ServerError, type Client } from '@colyseus/core';
 import {
   COUNTDOWN_SECONDS,
   ClientMsg,
@@ -53,6 +53,8 @@ import {
   fishHome,
   fishWeight,
   type FishPopulation,
+  isLateJoin,
+  JoinRefusal,
   RECORDS_PER_SPECIES,
   type Difficulty,
   type RecordMessage,
@@ -86,8 +88,25 @@ export interface CreateOptions extends Partial<JoinOptions> {
   testTiming?: { countdown: number; duration: number };
 }
 
-/** Näin kauan (s) katkenneen pelaajan paikka odottaa paluuta. */
+/**
+ * Näin kauan (s) katkenneen yhteyden paikka odottaa automaattista paluuta.
+ * Sen jälkeenkin samalla selaimella (playerId) pääsee kisaan takaisin
+ * huonekoodilla, ks. Seat.
+ */
 export const RECONNECT_SECONDS = Number(process.env.LUNKI_RECONNECT_SECONDS) || 60;
+
+/** Kisasta lähteneen paikka: sama selain pääsee jatkamaan siitä. */
+interface Seat {
+  /** Lähtijän sessionId: saaliit siirretään palaajalle. */
+  sessionId: string;
+  name: string;
+  outUntil: number;
+  capsizedUntil: number;
+  sim: Sim | null;
+}
+
+const playerIdOf = (options: Partial<JoinOptions>) =>
+  typeof options.playerId === 'string' ? options.playerId.slice(0, 64) : '';
 
 /** Järvi on sama kaikille huoneille. */
 const water = new WaterBody(LUNKINJARVI);
@@ -146,6 +165,12 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   private chatId = 0;
   /** Chatin nopeusrajoitus pelaajittain (sessionId). */
   private readonly chatLimits = new Map<string, ChatLimiter>();
+  /** Selaimen pysyvä tunniste pelaajittain (sessionId); ei jaeta muille. */
+  private readonly playerIds = new Map<string, string>();
+  /** Kesken kisan lähteneiden paikat (playerId); tyhjenee uuden kisan alkaessa. */
+  private readonly seats = new Map<string, Seat>();
+  /** Kisan ensimmäinen aloituspaikka: myöhästyneet aloittavat sen läheltä. */
+  private spawnOrigin: Vec2 | null = null;
   /** Kehitystä varten: LUNKI_RACE_SECONDS lyhentää kaikki kisat. */
   private durationOverride: number | null = Number(process.env.LUNKI_RACE_SECONDS) || null;
 
@@ -310,8 +335,9 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         p.tangledWith = '';
         p.untangle = 0;
       });
+      this.seats.clear();
+      this.spawnOrigin = null;
       this.state.phase = 'lobby';
-      void this.unlock();
     });
 
     this.onMessage(ClientMsg.chat, (client, text: unknown) => {
@@ -443,19 +469,86 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       this.state.clock = 0;
       this.state.countdown = this.countdownSeconds;
       this.state.phase = 'countdown';
-      void this.lock();
       this.setFixedTimestep(() => this.step(), 1 / NET_DT);
       this.broadcast(ServerMsg.started, { seed: this.state.seed });
     });
   }
 
+  /** Aulaan pääsee aina; kisan alettua asetus lateJoin päättää. */
+  override onAuth(_client: Client, options: Partial<JoinOptions> = {}) {
+    if (this.state.phase === 'lobby') return true;
+    const id = playerIdOf(options);
+    const returning = id !== '' && (this.seats.has(id) || this.droppedSession(id) !== undefined);
+    const rule = isLateJoin(this.state.settings.lateJoin) ? this.state.settings.lateJoin : 'open';
+    if (rule === 'closed') throw new ServerError(4403, JoinRefusal.closed);
+    if (returning) return true;
+    if (rule === 'return') throw new ServerError(4403, JoinRefusal.returnOnly);
+    // Lähteneiden paikat pidetään vapaana paluuta varten.
+    if (this.state.players.size + this.seats.size >= this.state.settings.maxPlayers)
+      throw new ServerError(4403, JoinRefusal.full);
+    return true;
+  }
+
   override onJoin(client: Client, options: Partial<JoinOptions> = {}) {
+    const id = playerIdOf(options);
+    const racing = this.state.phase !== 'lobby';
+    if (id) this.playerIds.set(client.sessionId, id);
+    // Sama selain uudesta välilehdestä: katkennut yhteys luovuttaa paikkansa.
+    const dropped = racing && id ? this.droppedSession(id) : undefined;
+    if (dropped) this.vacate(dropped);
+    const seat = racing && id ? this.seats.get(id) : undefined;
+    if (seat) this.seats.delete(id);
     const p = new PlayerState();
-    p.playerId = typeof options.playerId === 'string' ? options.playerId.slice(0, 64) : '';
-    p.name = this.uniqueName(sanitizeName(options.name));
+    p.name = this.uniqueName(seat?.name ?? sanitizeName(options.name));
     this.state.players.set(client.sessionId, p);
     if (!this.state.hostId) this.state.hostId = client.sessionId;
+    if (seat) this.resumeSeat(client.sessionId, p, seat);
+    else if (this.state.phase === 'countdown' || this.state.phase === 'playing')
+      this.spawnLate(client.sessionId, p);
     client.send(ServerMsg.chatHistory, this.chatLog);
+  }
+
+  /** Katkennut (paluuta odottava) yhteys samalta selaimelta. */
+  private droppedSession(playerId: string): string | undefined {
+    for (const [sid, pid] of this.playerIds)
+      if (pid === playerId && this.state.players.get(sid)?.connected === false) return sid;
+    return undefined;
+  }
+
+  /** Palaaja jatkaa samasta kohdasta, samoilla jäähyillä ja saaliilla. */
+  private resumeSeat(id: string, p: PlayerState, seat: Seat) {
+    p.outUntil = seat.outUntil;
+    p.capsizedUntil = seat.capsizedUntil;
+    for (const c of this.state.catches) if (c.player === seat.sessionId) c.player = id;
+    if (seat.sim) {
+      const sim = { ...seat.sim, inputs: new InputQueue() };
+      this.sims.set(id, sim);
+      writeTube(p, sim.tube, 0);
+    }
+  }
+
+  /** Uusi pelaaja kesken kisan: rannan tuntumaan muiden aloitusalueelle. */
+  private spawnLate(id: string, p: PlayerState) {
+    const origin = this.spawnOrigin ?? findLaunchPoint(water, LUNKINJARVI.bounds, Math.random);
+    const others = [...this.sims.values()].map((s) => s.tube.pos);
+    const free = (q: Vec2) => others.every((o) => distance(o, q) >= SPAWN_SPACING);
+    let pos = findStartNear(water, origin, SPAWN_RADIUS / 2, Math.random);
+    for (let k = 0; k < 400 && !free(pos); k++)
+      pos = findStartNear(water, origin, SPAWN_RADIUS / 2, Math.random);
+    this.placeTube(id, p, pos);
+  }
+
+  /** Rengas paikalleen selkä rantaan päin, katse järvelle. */
+  private placeTube(id: string, p: PlayerState, pos: Vec2) {
+    const shore = water.closestShorePoint(pos)?.point ?? pos;
+    const tube = createTube(pos, Math.atan2(pos.y - shore.y, pos.x - shore.x));
+    this.sims.set(id, {
+      tube,
+      inputs: new InputQueue(),
+      splashed: false,
+      lastCatchAt: -Infinity,
+    });
+    writeTube(p, tube, 0);
   }
 
   /** Yhteys katkesi ilman lähtöä: paikka pidetään hetken. */
@@ -475,16 +568,34 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
 
   override onReconnect(client: Client) {
     const p = this.state.players.get(client.sessionId);
-    if (p) p.connected = true;
+    // Paikka siirtyi jo uudelle yhteydelle samalta selaimelta.
+    if (!p) return void client.leave();
+    p.connected = true;
     // Katkon aikana tulleet viestit.
     client.send(ServerMsg.chatHistory, this.chatLog);
   }
 
   override onLeave(client: Client) {
-    const id = client.sessionId;
+    this.vacate(client.sessionId);
+  }
+
+  /** Pelaaja pois huoneesta; kisan aikana paikka jää odottamaan paluuta. */
+  private vacate(id: string) {
+    const p = this.state.players.get(id);
+    // Paikka luovutettiin jo uudelle yhteydelle (ks. onJoin).
+    if (!p) return;
     // Siima sotkussa lähtevän kanssa: toinen pääsee jatkamaan heti.
-    const partner = this.state.players.get(id)?.tangledWith;
-    if (partner) this.untangle(id, partner, 'cut', id);
+    if (p.tangledWith) this.untangle(id, p.tangledWith, 'cut', id);
+    const playerId = this.playerIds.get(id);
+    if (playerId && this.state.phase !== 'lobby')
+      this.seats.set(playerId, {
+        sessionId: id,
+        name: p.name,
+        outUntil: p.outUntil,
+        capsizedUntil: p.capsizedUntil,
+        sim: this.sims.get(id) ?? null,
+      });
+    this.playerIds.delete(id);
     this.state.players.delete(id);
     // Lähtijän rengas ei saa jäädä näkymättömäksi esteeksi.
     this.sims.delete(id);
@@ -525,17 +636,9 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         for (let k = 0; k < 400 && !fits(pos); k++) pos = launch();
       }
       taken.push(pos);
-      // Selkä rantaan päin, katse järvelle.
-      const shore = water.closestShorePoint(pos)?.point ?? pos;
-      const tube = createTube(pos, Math.atan2(pos.y - shore.y, pos.x - shore.x));
-      this.sims.set(id, {
-        tube,
-        inputs: new InputQueue(),
-        splashed: false,
-        lastCatchAt: -Infinity,
-      });
-      writeTube(p, tube, 0);
+      this.placeTube(id, p, pos);
     });
+    this.spawnOrigin = taken[0] ?? null;
   }
 
   /** Yksi palvelimen askel: kisan kello ja renkaat (ks. stepSims). */

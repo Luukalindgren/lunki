@@ -144,5 +144,5 @@ Tulosteessa näkyy palautteen kirjoittaja, teksti sekä selain ja pelin versio
 | ------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | "Palvelimeen ei saada yhteyttä" | Onko `pnpm run server` käynnissä ja tunneli päällä? Kokeile selaimella `https://<osoite>/__healthcheck`. |
 | Toimii kotona, ei kavereilla    | `LUNKI_SERVER_URL` puuttuu tai Julkaisua ei ajettu muuttujan lisäämisen jälkeen.                         |
-| "Huonetta ei löytynyt…"         | Koodi väärin, huone täynnä tai kisa jo alkanut. Huone katoaa, kun kaikki poistuvat.                      |
-| Pelaaja putosi kesken kisan     | Sivun uudelleenlataus palauttaa samaan renkaaseen 60 sekunnin sisällä.                                   |
+| "Huonetta ei löytynyt…"         | Koodi väärin tai huone täynnä. Huone katoaa, kun kaikki poistuvat.                                       |
+| Pelaaja putosi kesken kisan     | Päävalikon "Palaa kisaan" tai sama huonekoodi palauttaa samaan renkaaseen ja saaliisiin.                 |

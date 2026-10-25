@@ -4,8 +4,10 @@ import {
   ROOM_NAME,
   ServerMsg,
   formatRoomCode,
+  isLateJoin,
   isSpeciesId,
   isWeatherLevel,
+  JoinRefusal,
   parseTackle,
   parseAppearance,
   DEFAULT_TACKLE,
@@ -165,6 +167,8 @@ export interface StateSchema {
     capsizePenalty: string;
     /** Puuttuu vanhalta palvelimelta. */
     landPenalty?: number;
+    /** Puuttuu vanhalta palvelimelta. */
+    lateJoin?: string;
     species: Iterable<string>;
     customStart: boolean;
     startX: number;
@@ -317,6 +321,7 @@ export class NetSession {
         lightningPenalty: s.settings.lightningPenalty as Penalty,
         capsizePenalty: s.settings.capsizePenalty as Penalty,
         landPenalty: s.settings.landPenalty ?? 0,
+        lateJoin: isLateJoin(s.settings.lateJoin) ? s.settings.lateJoin : 'closed',
         species: [...s.settings.species].filter(isSpeciesId),
         start: s.settings.customStart ? { x: s.settings.startX, y: s.settings.startY } : null,
       },
@@ -448,6 +453,7 @@ function clearResume(): void {
 /** Selkokielinen virheilmoitus liittymisongelmille. */
 export function describeJoinError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
+  if ((Object.values(JoinRefusal) as string[]).includes(msg)) return msg;
   if (/not found|invalid|locked|full/i.test(msg))
     return 'Huonetta ei löytynyt, se on täynnä tai kisa on jo alkanut.';
   if (/fetch|network|ECONNREFUSED|failed/i.test(msg))

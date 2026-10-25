@@ -22,7 +22,25 @@ export interface RoomSettings extends CompetitionSettings {
   landPenalty: number;
   /** Järven kalalajit. */
   species: SpeciesId[];
+  /** Pääseekö kisaan mukaan sen jo alettua (ks. LATE_JOIN_OPTIONS). */
+  lateJoin: LateJoin;
 }
+
+/**
+ * Liittyminen kesken kisan: `open` = uudetkin pelaajat, `return` = vain
+ * kisasta pudonneet takaisin omalle paikalleen, `closed` = ei kumpikaan
+ * (lyhyt yhteyskatko palautuu silti).
+ */
+export type LateJoin = 'open' | 'return' | 'closed';
+
+export const LATE_JOIN_OPTIONS: { value: LateJoin; label: string }[] = [
+  { value: 'open', label: 'Sallittu' },
+  { value: 'return', label: 'Vain paluu' },
+  { value: 'closed', label: 'Ei' },
+];
+
+export const isLateJoin = (v: unknown): v is LateJoin =>
+  LATE_JOIN_OPTIONS.some((o) => o.value === v);
 
 /** Valinnat aulaan. `ready` = toteutettu, muut näytetään tulossa olevina. */
 export const PLAYER_COUNTS = [2, 4, 8, 12, 16] as const;
@@ -86,6 +104,7 @@ export function validateSettingsPatch(
     out.capsizePenalty = p.capsizePenalty as Penalty;
   if ((LAND_PENALTIES as readonly unknown[]).includes(p.landPenalty))
     out.landPenalty = p.landPenalty as number;
+  if (isLateJoin(p.lateJoin)) out.lateJoin = p.lateJoin;
   if (Array.isArray(p.species)) {
     // Järjestys aina sama, jotta sama valinta tuottaa saman järven.
     const wanted = new Set<unknown>(p.species);

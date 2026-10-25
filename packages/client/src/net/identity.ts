@@ -50,3 +50,34 @@ export function saveName(name: string): string {
   write(NAME_KEY, clean);
   return clean;
 }
+
+const LAST_ROOM_KEY = 'lunki.lastRoom';
+/** Näin kauan (ms) päävalikko tarjoaa paluuta: pisin kisa ja reilusti varaa. */
+const LAST_ROOM_TTL = 2 * 60 * 60 * 1000;
+
+/**
+ * Viimeisin moninpelihuone: välilehden tai selaimen sulkemisen jälkeen
+ * päävalikosta pääsee takaisin samaan kisaan. Koodit kiertävät, joten
+ * vanha muisti unohdetaan.
+ */
+export function saveLastRoom(code: string): void {
+  write(LAST_ROOM_KEY, JSON.stringify({ code, at: Date.now() }));
+}
+
+export function loadLastRoom(now = Date.now()): string | null {
+  try {
+    const v = JSON.parse(read(LAST_ROOM_KEY) ?? 'null') as { code?: unknown; at?: unknown } | null;
+    if (typeof v?.code !== 'string' || typeof v.at !== 'number') return null;
+    return now - v.at < LAST_ROOM_TTL ? v.code : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearLastRoom(): void {
+  try {
+    localStorage.removeItem(LAST_ROOM_KEY);
+  } catch {
+    // ei haittaa
+  }
+}

@@ -71,6 +71,13 @@ export interface JoinOptions {
   playerId: string;
 }
 
+/** Palvelimen syyt hylätä liittyminen; asiakas näyttää ne sellaisenaan. */
+export const JoinRefusal = {
+  closed: 'Kisa on jo käynnissä, eikä huoneen luoja salli liittymistä kesken kisan.',
+  returnOnly: 'Kisa on jo käynnissä. Kesken kisan pääsee vain takaisin omalle paikalleen.',
+  full: 'Huone on täynnä.',
+} as const;
+
 /** Huoneen vaiheet. */
 export type RoomPhase = 'lobby' | 'countdown' | 'playing' | 'finished';
 

@@ -16,6 +16,7 @@ import {
   CAPSIZE_PENALTY_OPTIONS,
   LAND_PENALTIES,
   LAND_PENALTY_OPTIONS,
+  LATE_JOIN_OPTIONS,
   LIGHTNING_PENALTY_OPTIONS,
   isPenalty,
   type Penalty,
@@ -127,6 +128,8 @@ export class Screens {
 
   /** Päävalikko: pelimuodot ja muut näkymät allekkain. */
   showStart(actions: {
+    /** Edellinen moninpelihuone, johon voi palata. */
+    rejoin?: { code: string; run: () => void };
     onSolo: () => void;
     onMultiplayer: () => void;
     onLakeMap: () => void;
@@ -137,6 +140,12 @@ export class Screens {
   }): void {
     const panel = this.panel();
     const menu = this.buttons([
+      ...(actions.rejoin
+        ? ([[`Palaa kisaan ${formatRoomCode(actions.rejoin.code)}`, actions.rejoin.run]] as [
+            string,
+            () => void,
+          ][])
+        : []),
       ['Yksinpeli', actions.onSolo],
       ['Moninpeli', actions.onMultiplayer],
       ['Järvikartta', actions.onLakeMap],
@@ -817,6 +826,17 @@ export class Screens {
         String(s.landPenalty),
         (v) => change({ landPenalty: Number(v) }),
       ),
+      this.choice(
+        'Liittyminen kesken kisan',
+        LATE_JOIN_OPTIONS.map((o) => [o.value, o.label]),
+        s.lateJoin,
+        (v) => change({ lateJoin: v as RoomSettings['lateJoin'] }),
+      ),
+      h(
+        'p',
+        'Sallittu: kaverit pääsevät mukaan vielä kisan alettua, ja yhteyden katkettua pääsee takaisin omalle paikalleen. Vain paluu: vain takaisin. Ei: kumpikaan.',
+        'hint',
+      ),
     );
     return box;
   }
@@ -1051,6 +1071,7 @@ export class Screens {
         `${label(LIGHTNING_PENALTY_OPTIONS, s.lightningPenalty)} / ${label(CAPSIZE_PENALTY_OPTIONS, s.capsizePenalty)}`,
       ],
       ['Heitto maalle', label(LAND_PENALTY_OPTIONS, s.landPenalty)],
+      ['Liittyminen kesken kisan', label(LATE_JOIN_OPTIONS, s.lateJoin)],
       ['Kalalajit', s.species.map((v) => label(SPECIES_OPTIONS, v)).join(', ')],
       ['Aloituspaikka', startText(s.start ?? null)],
     ];

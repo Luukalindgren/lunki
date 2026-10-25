@@ -237,6 +237,8 @@ export class SoloGame {
     if (net) {
       // Palvelin arpoi aloituspaikan.
       this.tube = net.world.predictor.tube;
+      // Kisaan palatessa aiemmat saaliit näkyvät heti omassa listassa.
+      this.competition.catches.push(...net.world.ownCatches());
     } else {
       const chosen = settings.start;
       const start =
@@ -312,6 +314,7 @@ export class SoloGame {
           3,
         );
       net.world.onPeerLeft = (name) => this.hud.showMessage(`${name} poistui kisasta`, 3);
+      net.world.onPeerJoined = (name) => this.hud.showMessage(`${name} tuli mukaan kisaan`, 3);
       net.world.onCatchRejected = () =>
         this.hud.showMessage('Palvelin ei hyväksynyt saalista punnitukseen', 2.5);
       net.world.onLightning = (m) =>
