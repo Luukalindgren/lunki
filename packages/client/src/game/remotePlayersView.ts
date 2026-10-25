@@ -1,11 +1,16 @@
 import * as THREE from 'three';
-import { CAST, LureStage, rodTip } from '@lunki/shared';
+import { LureStage, rodTip } from '@lunki/shared';
 import type { RemotePlayer } from '../net/netWorld';
 import { toWorld } from '../world/lakeMesh';
+import { AIR_SAMPLES, ROD_TIP_Y, flightLine, hangLine, rodSideOffset, writeLine } from './lineHang';
 import { animateFins, createTubeMesh } from './tubeMesh';
 
 /** Muiden renkaiden värit: oma on punainen. */
 const COLORS = [0x1b5a84, 0x8fd16a, 0xf6d04d, 0x9b59b6, 0xf08a2c, 0x83c2db, 0xeef2f3];
+/** Muiden siiman kireyttä ei tiedetä: piirretään puolikireänä. */
+const REMOTE_TAUT = 0.5;
+/** Siiman kärkivälit: ilmassa roikkuva osuus ja suora pätkä vieheelle. */
+const LINE_VERTS = AIR_SAMPLES + 2;
 
 interface Entry {
   tube: THREE.Group;
@@ -41,12 +46,21 @@ export class RemotePlayersView {
       const showLure = p.lure !== null && p.lureStage !== LureStage.none;
       e.lure.visible = e.line.visible = showLure;
       if (showLure) {
-        const tip = toWorld(rodTip(p.pos, p.heading), CAST.tipHeight);
-        const lure = toWorld(p.lure!, p.lureStage === LureStage.flight ? 1 : 0.05);
+        const tip = rodTip(p.pos, p.heading);
+        const side = rodSideOffset(p.heading);
+        const flying = p.lureStage === LureStage.flight;
+        const lure = toWorld(p.lure!, flying ? 1 : 0.05);
         e.lure.position.copy(lure);
+        const pts = flying
+          ? flightLine(
+              { x: tip.x + side.x, y: tip.y + side.y, h: ROD_TIP_Y },
+              { x: p.lure!.x, y: p.lure!.y, h: 1 },
+              LINE_VERTS,
+              0.05,
+            )
+          : hangLine([tip, p.lure!], ROD_TIP_Y, REMOTE_TAUT, 0.05, side);
         const pos = e.line.geometry.attributes.position as THREE.BufferAttribute;
-        pos.setXYZ(0, tip.x, tip.y, tip.z);
-        pos.setXYZ(1, lure.x, lure.y, lure.z);
+        writeLine(pos, pts);
         pos.needsUpdate = true;
         e.line.geometry.computeBoundingSphere();
       }
@@ -72,7 +86,9 @@ export class RemotePlayersView {
       new THREE.MeshBasicMaterial({ color: 0xf08a2c }),
     );
     const line = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+      new THREE.BufferGeometry().setFromPoints(
+        Array.from({ length: LINE_VERTS }, () => new THREE.Vector3()),
+      ),
       new THREE.LineBasicMaterial({ color: 0xc3cbd2 }),
     );
     line.frustumCulled = false;
