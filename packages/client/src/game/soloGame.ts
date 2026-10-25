@@ -1242,7 +1242,7 @@ export class SoloGame {
       this.waterWaves,
       this.viewMode === 'pov' && rough ? pos : null,
     );
-    this.youMarker.update(pos, this.view.metersPerPixel, this.viewMode === 'top');
+    this.youMarker.update(pos, heading, this.view.metersPerPixel, this.viewMode === 'top');
     this.hud.compass.update(heading);
     if (this.viewMode === 'pov') {
       // Kumossa kamera kallistuu ja painuu veden rajaan.
