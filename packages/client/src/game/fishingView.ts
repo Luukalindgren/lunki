@@ -33,6 +33,8 @@ export class FishingView {
   readonly group = new THREE.Group();
   /** Kalastajan silmin -näkymä. */
   pov = false;
+  /** Pelaajan valitsema siiman väri. */
+  lineColor = 0xc3cbd2;
   private readonly aimLine: THREE.Line;
   private readonly aimMarker: THREE.Mesh;
   private readonly lure: THREE.Mesh;
@@ -186,7 +188,7 @@ export class FishingView {
       pos.needsUpdate = true;
       this.line.geometry.computeBoundingSphere();
       (this.line.material as THREE.LineBasicMaterial).color.setHex(
-        s.tension > s.drag * 0.95 ? 0xf6d04d : s.tension > 0.3 ? 0xeef2f3 : 0x8e99a4,
+        s.tension > s.drag * 0.95 ? lineWarning(this.lineColor) : this.lineColor,
       );
     }
 
@@ -207,3 +209,6 @@ function setLine(line: THREE.Line, a: THREE.Vector3, b: THREE.Vector3) {
   pos.needsUpdate = true;
   line.geometry.computeBoundingSphere();
 }
+
+/** Katkeamisvaroitus: keltainen, ellei siima ole jo valmiiksi keltainen. */
+const lineWarning = (color: number) => (color === 0xfff3b0 ? 0xd23a2a : 0xf6d04d);

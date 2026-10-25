@@ -82,6 +82,8 @@ export const ClientMsg = {
   tackle: 'tackle',
   /** Chat-viesti muille (teksti), ks. ChatMessage. */
   chat: 'chat',
+  /** Pelaajan värit (Appearance): aulassa. */
+  appearance: 'appearance',
 } as const;
 
 /** Vieheen tila muille näytettäväksi. */

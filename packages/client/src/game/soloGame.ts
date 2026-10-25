@@ -98,6 +98,8 @@ import { loadTackle, nextLure, saveTackle } from './tackle';
 import { TopDownCamera } from './topDownCamera';
 import { QuietSpot } from './quietSpot';
 import { animateFins, createTubeMesh } from './tubeMesh';
+import { YouMarker } from './youMarker';
+import { loadAppearance } from './appearance';
 import { bottomFor } from '../world/lakeData';
 
 /** Kalojen määrä järvessä. Saatujen tilalle syntyy uusia. */
@@ -150,7 +152,11 @@ export class SoloGame {
   readonly bottom: LakeBottom;
   tube: TubeState;
   private prevTube: TubeState;
-  private readonly tubeMesh = createTubeMesh();
+  /** Omat värit valitaan ennen kisaa (yksinpelin asetukset tai aula). */
+  private readonly appearance = loadAppearance();
+  private readonly tubeMesh = createTubeMesh(this.appearance);
+  /** Oma sijainti kauas loitonnettaessa. */
+  private readonly youMarker = new YouMarker();
   readonly fishing: FishingState = createFishing(loadTackle());
   /** Vaihdettavat varusteet: otetaan käyttöön, kun viehe on kelalla. */
   private pendingTackle: Tackle | null = null;
@@ -287,7 +293,8 @@ export class SoloGame {
     this.povRod.visible = false;
     this.povRod.frustumCulled = false;
     this.scene.add(this.povRod);
-    this.scene.add(this.fishingView.group);
+    this.fishingView.lineColor = this.appearance.line;
+    this.scene.add(this.fishingView.group, this.youMarker.group);
     this.view.snapTo(this.tube.pos);
     hud.setCountdown(null);
     if (net) {
@@ -983,6 +990,7 @@ export class SoloGame {
     const hooked = this.fish.fish.find((x) => x.id === this.fishing.hookedId) ?? null;
     this.fishingView.update(this.fishing, this.fishingContext(), this.aim, 1 / 60, hooked);
     this.view.apply();
+    this.youMarker.update(pos, this.view.metersPerPixel, this.viewMode === 'top');
     if (this.viewMode === 'pov') {
       const swell = this.swellAt(pos);
       // Kumossa kamera kallistuu ja painuu veden rajaan.

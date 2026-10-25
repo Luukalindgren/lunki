@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { GEAR_COLORS, LINE_COLORS, randomAppearance } from '@lunki/shared';
 import { PALETTE, PALETTE_HEX, hexToRgb, nearestPaletteColor } from './palette';
 
 describe('paletti', () => {
@@ -17,5 +18,11 @@ describe('paletti', () => {
   it('kvantisoi lähimpään', () => {
     expect(nearestPaletteColor([0, 0, 0])).toEqual(hexToRgb(0x0b0f14));
     expect(nearestPaletteColor([1, 1, 1])).toEqual(hexToRgb(0xeef2f3));
+  });
+
+  it('pelaajan värit ovat paletista', () => {
+    const palette: readonly number[] = PALETTE_HEX;
+    for (const c of [...GEAR_COLORS, ...LINE_COLORS]) expect(palette).toContain(c.hex);
+    expect(palette).toContain(randomAppearance().tube);
   });
 });

@@ -1,5 +1,6 @@
 import { ArraySchema, schema, t, type SchemaType } from '@colyseus/schema';
 import {
+  DEFAULT_APPEARANCE,
   DEFAULT_MAX_PLAYERS,
   DEFAULT_SETTINGS,
   DEFAULT_TACKLE,
@@ -45,6 +46,11 @@ export const PlayerState = schema(
     lure: t.string().default(DEFAULT_TACKLE.lure),
     line: t.string().default(DEFAULT_TACKLE.line),
     leader: t.boolean().default(DEFAULT_TACKLE.leader),
+    /** Värit muiden nähtäväksi (Appearance). */
+    tubeColor: t.uint32().default(DEFAULT_APPEARANCE.tube),
+    finColor: t.uint32().default(DEFAULT_APPEARANCE.fins),
+    shirtColor: t.uint32().default(DEFAULT_APPEARANCE.shirt),
+    lineColor: t.uint32().default(DEFAULT_APPEARANCE.line),
   },
   'PlayerState',
 );

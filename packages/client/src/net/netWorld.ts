@@ -16,10 +16,11 @@ import {
   type TubeInput,
   type TubeState,
   type Tackle,
+  type Appearance,
   type Vec2,
   type WaterBody,
 } from '@lunki/shared';
-import type { NetSession, PlayerSchema, StateSchema } from './session';
+import { playerAppearance, type NetSession, type PlayerSchema, type StateSchema } from './session';
 
 /** Muut pelaajat piirretään näin paljon menneisyydestä (s), jotta liike on pehmeää. */
 const INTERPOLATION_DELAY = 0.12;
@@ -32,6 +33,7 @@ export interface RemotePlayer {
   kickPhase: number;
   lure: Vec2 | null;
   lureStage: number;
+  appearance: Appearance;
 }
 
 interface RemoteSnap {
@@ -64,7 +66,10 @@ const toTube = (p: PlayerSchema): TubeState => ({
  */
 export class NetWorld {
   readonly predictor: TubePredictor;
-  private readonly remotes = new Map<string, { name: string; buf: SnapshotBuffer<RemoteSnap> }>();
+  private readonly remotes = new Map<
+    string,
+    { name: string; appearance: Appearance; buf: SnapshotBuffer<RemoteSnap> }
+  >();
   private lure: [number, number, number, number] = [0, 0, LureStage.none, 0];
   /** Muiden viimeisimmät palvelintilat (ennakoinnin törmäyksiin). */
   private latestOthers: TubeState[] = [];
@@ -224,11 +229,12 @@ export class NetWorld {
       seen.add(id);
       let r = this.remotes.get(id);
       if (!r) {
-        r = { name: p.name, buf: new SnapshotBuffer(lerpSnap) };
+        r = { name: p.name, appearance: playerAppearance(p), buf: new SnapshotBuffer(lerpSnap) };
         this.peerConnected.set(id, p.connected);
         this.remotes.set(id, r);
       }
       r.name = p.connected ? p.name : `${p.name} (katkos)`;
+      r.appearance = playerAppearance(p);
       const was = this.peerConnected.get(id);
       if (was !== undefined && was !== p.connected) this.onPeerConnection?.(p.name, p.connected);
       this.peerConnected.set(id, p.connected);
@@ -270,6 +276,7 @@ export class NetWorld {
         kickPhase: s.kickPhase,
         lure: s.lureStage !== LureStage.none ? s.lure : null,
         lureStage: s.lureStage,
+        appearance: r.appearance,
       });
     }
     return out;

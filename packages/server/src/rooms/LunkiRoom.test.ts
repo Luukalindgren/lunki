@@ -2,6 +2,7 @@ import { Client, type Room } from '@colyseus/sdk';
 import { matchMaker, type Server } from '@colyseus/core';
 import {
   ClientMsg,
+  DEFAULT_APPEARANCE,
   LUNKINJARVI,
   ROOM_NAME,
   ERRORS_PATH,
@@ -181,6 +182,37 @@ describe('LunkiRoom', () => {
     await until(() => gear().lure === 'jig');
     // Puuttuva vapa täydentyy oletukseksi, kelvoton viesti ei muuta mitään.
     expect(gear()).toMatchObject({ rod: 'medium', line: 'medium', leader: false });
+    await host.leave();
+    await guest.leave();
+  });
+
+  it('värit näkyvät muille, ja tuntemattomat korvautuvat oletuksilla', async () => {
+    const host = await sdk().create(ROOM_NAME, { name: 'A', playerId: 'a' });
+    const guest = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
+    await until(() => players(host).length === 2);
+    type Colors = { tubeColor: number; finColor: number; shirtColor: number; lineColor: number };
+    const colors = () => (players(host) as unknown as Colors[])[1]!;
+    expect(colors().tubeColor).toBe(DEFAULT_APPEARANCE.tube);
+    guest.send(ClientMsg.appearance, {
+      tube: 0xf6d04d,
+      fins: 0xd23a2a,
+      shirt: 0x1b5a84,
+      line: 0x9ef0d6,
+    });
+    await until(() => colors().tubeColor === 0xf6d04d);
+    expect(colors()).toMatchObject({
+      finColor: 0xd23a2a,
+      shirtColor: 0x1b5a84,
+      lineColor: 0x9ef0d6,
+    });
+    guest.send(ClientMsg.appearance, {
+      tube: 0x123456,
+      fins: 0xd23a2a,
+      shirt: 0x1b5a84,
+      line: 0x9ef0d6,
+    });
+    await until(() => colors().tubeColor === DEFAULT_APPEARANCE.tube);
+    expect(colors().finColor).toBe(0xd23a2a);
     await host.leave();
     await guest.leave();
   });
