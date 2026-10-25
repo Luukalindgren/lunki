@@ -314,6 +314,9 @@ export class Screens {
     /** Liittää chatin paneeliin (sama elementti säilyy uudelleenpiirroissa). */
     chat?: (parent: HTMLElement) => void,
   ): void {
+    // Luettava ennen paneelin rakentamista: chatin siirto vanhasta paneelista
+    // lyhentää sitä, ja selain siirtää vierityskohtaa ylös chatin korkeuden verran.
+    const scroll = this.scrollOf('lobby');
     const panel = this.panel();
     panel.dataset.screen = 'lobby';
     const me = v.players.find((p) => p.me);
@@ -380,7 +383,7 @@ export class Screens {
       ]);
     buttons.push(['Poistu', actions.onLeave]);
     panel.append(this.buttons(buttons));
-    this.show(panel);
+    this.show(panel, undefined, scroll);
   }
 
   /** Testaajan palaute: teksti lähetetään pelipalvelimelle. */
@@ -687,18 +690,20 @@ export class Screens {
     this.cleanup = null;
   }
 
-  private show(panel: HTMLElement, cleanup?: () => void): void {
+  /** Saman näkymän (data-screen) vierityskohta uudelleenpiirtoa varten. */
+  private scrollOf(screen: string): [number, number] | null {
+    const prev = this.root.firstElementChild as HTMLElement | null;
+    return prev?.dataset.screen === screen ? [prev.scrollTop, this.root.scrollTop] : null;
+  }
+
+  private show(panel: HTMLElement, cleanup?: () => void, scroll?: [number, number] | null): void {
     this.runCleanup();
     this.cleanup = cleanup ?? null;
-    // Saman näkymän uudelleenpiirto (aula) säilyttää vierityksen.
-    const prev = this.root.firstElementChild as HTMLElement | null;
-    const same = !!panel.dataset.screen && prev?.dataset.screen === panel.dataset.screen;
-    const top = [prev?.scrollTop ?? 0, this.root.scrollTop];
     this.root.replaceChildren(panel);
     this.root.hidden = false;
-    if (same) {
-      panel.scrollTop = top[0]!;
-      this.root.scrollTop = top[1]!;
+    // Saman näkymän uudelleenpiirto (aula) säilyttää vierityksen.
+    if (scroll) {
+      [panel.scrollTop, this.root.scrollTop] = scroll;
       return;
     }
     // Kohdistus ei saa vierittää pitkää näkymää alas.
