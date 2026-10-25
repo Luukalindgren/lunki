@@ -48,7 +48,7 @@ const canvas = document.createElement('canvas');
 canvas.className = 'game-canvas';
 app.appendChild(canvas);
 
-const retro = new RetroRenderer(canvas);
+const retro = createRenderer(canvas, app);
 const input = new Input(canvas);
 const fps = new FpsMeter(app, import.meta.env.DEV);
 const hud = new Hud(app);
@@ -57,8 +57,10 @@ const touch = isTouchDevice() ? new TouchControls(hud.root, input) : null;
 hud.setTouch(touch !== null);
 installErrorReporting();
 const sfx = new Sfx();
-window.addEventListener('pointerdown', () => sfx.unlock());
-window.addEventListener('keydown', () => sfx.unlock());
+// Kosketuksessa selain sallii äänen vasta sormen noustessa (pointerup/touchend),
+// ei vielä painalluksessa, joten kuunnellaan molempia.
+for (const type of ['pointerdown', 'pointerup', 'touchend', 'keydown'])
+  window.addEventListener(type, () => sfx.unlock(), { passive: true });
 // Kehitystä varten: ?difficulty=easy&seed=123&minutes=1&weather=chaos&time=evening aloittaa suoraan.
 const params = new URLSearchParams(location.search);
 const devDifficulty = (['easy', 'normal', 'realistic'] as const).find(
@@ -427,6 +429,30 @@ if (params.has('bench')) {
     if (params.has('huone')) showMultiplayer(params.get('huone') ?? '');
     else showMenu();
   });
+}
+
+/**
+ * Ilman WebGL:ää (laitteistokiihdytys pois, vanha selain) peli ei piirry:
+ * tyhjän ruudun sijaan kerrotaan syy.
+ */
+function createRenderer(c: HTMLCanvasElement, parent: HTMLElement): RetroRenderer {
+  try {
+    return new RetroRenderer(c);
+  } catch (err) {
+    const screen = document.createElement('div');
+    screen.className = 'screen';
+    const panel = document.createElement('div');
+    panel.className = 'screen-panel';
+    const title = document.createElement('h2');
+    title.textContent = 'Grafiikka ei käynnisty';
+    const text = document.createElement('p');
+    text.textContent =
+      'Peli tarvitsee WebGL-grafiikkaa, jota selain ei nyt tarjoa. Ota laitteistokiihdytys käyttöön selaimen asetuksista tai kokeile toista selainta.';
+    panel.append(title, text);
+    screen.appendChild(panel);
+    parent.replaceChildren(screen);
+    throw err;
+  }
 }
 
 // Taustakohtaus valikon taakse: tyhjä järvi.

@@ -67,3 +67,20 @@ test.describe('yksinpeli', () => {
     errors.check();
   });
 });
+
+test('ilman WebGL:ää näytetään selitys tyhjän ruudun sijaan', async ({ page }) => {
+  await page.addInitScript(() => {
+    const original = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (
+      this: HTMLCanvasElement,
+      type: string,
+      ...rest: unknown[]
+    ) {
+      if (type.startsWith('webgl')) return null;
+      return (original as (...a: unknown[]) => unknown).call(this, type, ...rest);
+    } as typeof original;
+  });
+  await page.goto('/');
+  await expect(page.getByText('Grafiikka ei käynnisty')).toBeVisible();
+  await expect(page.getByText('laitteistokiihdytys')).toBeVisible();
+});
