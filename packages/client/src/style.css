@@ -452,3 +452,17 @@ body {
 .screen-panel .server-status.ok {
   color: #8fd16a;
 }
+
+.credits {
+  margin: 4px 0 8px;
+  padding-left: 20px;
+}
+
+.credits a {
+  color: #83c2db;
+}
+
+.credit-line {
+  margin-top: 4px;
+  font-size: 0.75em;
+}

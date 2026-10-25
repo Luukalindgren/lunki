@@ -59,9 +59,17 @@ laskevat ne samalla koodilla.
 
 ## Kartta-aineisto
 
-Prototyypin rantaviiva: © [OpenStreetMapin tekijät](https://www.openstreetmap.org/copyright),
-ODbL 1.0. Aineisto haetaan `Karttadata`-työnkulussa (GitHub Actions →
-Run workflow) tai paikallisesti:
+- Rantaviiva ja ympäristö (metsät, pellot, tiet, rakennukset):
+  © [OpenStreetMapin tekijät](https://www.openstreetmap.org/copyright), ODbL 1.0.
+- Maaston korkeus: Copernicus DEM GLO-30, © DLR e.V. 2010–2014 ja © Airbus Defence and
+  Space GmbH 2014–2018, Copernicus-ohjelma (EU, ESA).
+- Järven perustiedot (pinta-ala, korkeustaso): Suomen ympäristökeskus (Syke), järvirekisteri
+  [Järvi-meriwikin](https://www.jarviwiki.fi/) kautta, CC BY 4.0. Pohja on laskettu, ks.
+  [docs/pohja.md](docs/pohja.md).
+
+Pelin _Tekijät ja lähteet_ -näkymä listaa samat maininnat sekä kirjastot (three.js, Colyseus
+ja Zod, kaikki MIT) ja VT323-fontin (SIL Open Font License 1.1). Aineistot haetaan
+`Karttadata`-työnkulussa (GitHub Actions → Run workflow) tai paikallisesti:
 
 ```sh
 pnpm --filter @lunki/map-pipeline fetch-osm   # OSM → packages/map-pipeline/data
