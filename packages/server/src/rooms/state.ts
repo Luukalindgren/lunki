@@ -4,6 +4,7 @@ import {
   DEFAULT_SETTINGS,
   DEFAULT_TACKLE,
   NATIVE_SPECIES,
+  PROTOCOL_VERSION,
 } from '@lunki/shared';
 
 /**
@@ -107,6 +108,8 @@ export const LunkiState = schema(
     seed: t.uint32().default(0),
     /** Säätila palvelimen kellon mukaan (tuuli ja sade lasketaan siemenestä). */
     sky: t.string().default('calm'),
+    /** Palvelimen protokollaversio: asiakas ei käytä uudempia viestejä vanhalla palvelimella. */
+    protocol: t.uint8().default(PROTOCOL_VERSION),
   },
   'LunkiState',
 );

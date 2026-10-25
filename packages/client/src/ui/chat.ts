@@ -1,6 +1,9 @@
 import { CHAT_MAX_LENGTH, ChatLimiter, sanitizeChat } from '@lunki/shared';
 import type { NetSession } from '../net/session';
 
+const OLD_SERVER =
+  'Palvelin on vanhempaa versiota: chat toimii, kun palvelin käynnistetään uudelleen.';
+
 /** Kisan aikana viesti näkyy näin kauan (ms). */
 const HUD_SHOW_MS = 12_000;
 /** Kisan aikana näkyvät viimeisimmät viestit (kirjoittaessa enemmän). */
@@ -92,6 +95,10 @@ export class ChatBox {
   /** Avaa kirjoituskentän kisan aikana. */
   open(): void {
     if (this.mode !== 'hud' || this.typing) return;
+    if (!this.session.chatAvailable) {
+      this.say(OLD_SERVER);
+      return;
+    }
     this.form.hidden = false;
     this.root.classList.add('typing');
     this.onOpen?.();
@@ -127,6 +134,10 @@ export class ChatBox {
     const text = sanitizeChat(this.field.value);
     if (!text) {
       this.close();
+      return;
+    }
+    if (!this.session.chatAvailable) {
+      this.say(OLD_SERVER);
       return;
     }
     if (!this.limiter.take(Date.now())) {
@@ -179,7 +190,15 @@ export class ChatBox {
       n.textContent = this.notice.text;
       lines.push(n);
     } else this.notice = null;
-    if (lines.length === 0 && this.mode === 'panel') {
+    // Vanha palvelin katkaisisi yhteyden chat-viestistä: kenttä pois käytöstä.
+    const available = this.session.chatAvailable;
+    this.field.disabled = !available;
+    if (!available && this.mode === 'panel') {
+      const old = document.createElement('div');
+      old.className = 'chat-line chat-notice';
+      old.textContent = OLD_SERVER;
+      lines.push(old);
+    } else if (lines.length === 0 && this.mode === 'panel') {
       const empty = document.createElement('div');
       empty.className = 'chat-line chat-notice';
       empty.textContent = 'Ei viestejä vielä.';

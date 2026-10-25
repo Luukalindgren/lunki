@@ -24,6 +24,7 @@ import {
   resolveStrike,
   weatherAt,
   CHAT_MAX_LENGTH,
+  PROTOCOL_VERSION,
   CHAT_RATE,
   type ChatMessage,
   type CatchRecord,
@@ -269,6 +270,20 @@ describe('LunkiRoom', () => {
     await host.leave();
     await guest.leave();
     await late.leave();
+  });
+
+  it('tuntematon viestityyppi ei katkaise yhteyttä, ja protokollaversio näkyy', async () => {
+    const host = await sdk().create(ROOM_NAME, { name: 'A', playerId: 'a' });
+    await until(() => players(host).length === 1);
+    expect(host.state.protocol).toBe(PROTOCOL_VERSION);
+    let left = false;
+    host.onLeave(() => (left = true));
+    // Uudempi asiakas voi lähettää viestin, jota tämä palvelin ei vielä tunne.
+    host.send('tulevaisuuden-viesti', { x: 1 });
+    host.send(ClientMsg.name, 'Uusi');
+    await until(() => players(host)[0]?.name === 'Uusi');
+    expect(left).toBe(false);
+    await host.leave();
   });
 
   it('tuntematon koodi ei kelpaa', async () => {
