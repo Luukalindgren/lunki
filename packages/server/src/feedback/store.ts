@@ -12,6 +12,9 @@ export interface StoredFeedback extends FeedbackMessage {
   at: string;
 }
 
+/** Palaute, jota ei vielä ole viety GitHub-issueksi (ks. feedback/issues.ts). */
+export type PendingFeedback = StoredFeedback;
+
 export interface StoredError extends ErrorReport {
   count: number;
   first: string;
@@ -46,6 +49,10 @@ export class FeedbackStore {
         PRIMARY KEY (message, source)
       );
     `);
+    // Vanhoissa tietokannoissa ei vielä ole issue-saraketta.
+    const columns = db.prepare('PRAGMA table_info(feedback)').all() as { name: string }[];
+    if (!columns.some((c) => c.name === 'issue'))
+      db.exec('ALTER TABLE feedback ADD COLUMN issue INTEGER');
   }
 
   addFeedback(f: FeedbackMessage, at = new Date()): void {
@@ -80,6 +87,20 @@ export class FeedbackStore {
     return this.db
       .prepare('SELECT id, name, text, context, at FROM feedback ORDER BY id DESC LIMIT ?')
       .all(limit) as unknown as StoredFeedback[];
+  }
+
+  /** Vanhimmat palautteet, joista ei vielä ole tehty GitHub-issueta. */
+  pending(limit = 20): PendingFeedback[] {
+    return this.db
+      .prepare(
+        'SELECT id, name, text, context, at FROM feedback WHERE issue IS NULL ORDER BY id LIMIT ?',
+      )
+      .all(limit) as unknown as PendingFeedback[];
+  }
+
+  /** Merkitsee palautteen viedyksi issueen `issue`. False, jos palautetta ei ole. */
+  markExported(id: number, issue: number): boolean {
+    return this.db.prepare('UPDATE feedback SET issue = ? WHERE id = ?').run(issue, id).changes > 0;
   }
 
   errors(limit = 50): StoredError[] {

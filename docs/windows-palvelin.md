@@ -57,13 +57,14 @@ ei ole kirjautuneena, eikä salasanaa tallenneta.
 
 Käyttö (myös SSH:n yli):
 
-| Komento                                 | Mitä tekee                                                 |
-| --------------------------------------- | ---------------------------------------------------------- |
-| `.\scripts\windows\lunki.ps1 kaynnista` | `git pull`, `pnpm install` ja palvelin päälle              |
-| `.\scripts\windows\lunki.ps1 tila`      | Onko palvelin ja tunneli päällä                            |
-| `.\scripts\windows\lunki.ps1 loki`      | Palvelimen lokin loppu (`-Seuraa` jatkaa, Ctrl+C lopettaa) |
-| `.\scripts\windows\lunki.ps1 pysayta`   | Pysäyttää palvelimen                                       |
-| `.\scripts\windows\lunki.ps1 poista`    | Poistaa tehtävän                                           |
+| Komento                                    | Mitä tekee                                                 |
+| ------------------------------------------ | ---------------------------------------------------------- |
+| `.\scripts\windows\lunki.ps1 kaynnista`    | `git pull`, `pnpm install` ja palvelin päälle              |
+| `.\scripts\windows\lunki.ps1 tila`         | Onko palvelin ja tunneli päällä                            |
+| `.\scripts\windows\lunki.ps1 loki`         | Palvelimen lokin loppu (`-Seuraa` jatkaa, Ctrl+C lopettaa) |
+| `.\scripts\windows\lunki.ps1 pysayta`      | Pysäyttää palvelimen                                       |
+| `.\scripts\windows\lunki.ps1 poista`       | Poistaa tehtävän                                           |
+| `.\scripts\windows\lunki.ps1 palauteavain` | Avain palautteiden hakuun issueiksi (kohta 7)              |
 
 Loki on tiedostossa `logs\palvelin.log`. Ennätykset tallentuvat kuten ennenkin
 tiedostoon `packages\server\data\lunki.sqlite`.
@@ -147,19 +148,50 @@ echo "alias lunki='$HOME/Projects/lunki/scripts/mac/lunki.sh'" >> ~/.zshrc
 source ~/.zshrc
 ```
 
-| Komento           | Mitä tekee                                           |
-| ----------------- | ---------------------------------------------------- |
-| `lunki`           | Palvelimen ja tunnelin tila                          |
-| `lunki kaynnista` | Päivittää koodin ja käynnistää palvelimen            |
-| `lunki pysayta`   | Pysäyttää palvelimen                                 |
-| `lunki uudelleen` | Pysäyttää ja käynnistää (hakee samalla uuden koodin) |
-| `lunki loki`      | Lokin loppu; `lunki seuraa` jatkaa (Ctrl+C lopettaa) |
-| `lunki ssh`       | Tavallinen SSH-istunto pelikoneelle                  |
-| `lunki lan`       | LAN-peli tältä Macilta ([docs/lan.md](lan.md))       |
+| Komento              | Mitä tekee                                           |
+| -------------------- | ---------------------------------------------------- |
+| `lunki`              | Palvelimen ja tunnelin tila                          |
+| `lunki kaynnista`    | Päivittää koodin ja käynnistää palvelimen            |
+| `lunki pysayta`      | Pysäyttää palvelimen                                 |
+| `lunki uudelleen`    | Pysäyttää ja käynnistää (hakee samalla uuden koodin) |
+| `lunki loki`         | Lokin loppu; `lunki seuraa` jatkaa (Ctrl+C lopettaa) |
+| `lunki ssh`          | Tavallinen SSH-istunto pelikoneelle                  |
+| `lunki lan`          | LAN-peli tältä Macilta ([docs/lan.md](lan.md))       |
+| `lunki palauteavain` | Avain palautteiden hakuun issueiksi (kohta 7)        |
 
 Oletuksena käytetään `~/.ssh/config`-oikotietä `lunki` ja pelikoneen kansiota
 `~\Projektit\lunki`. Toisen voi antaa ympäristömuuttujilla `LUNKI_SSH_HOST`
 ja `LUNKI_PC_DIR`.
+
+## 7. Palautteet GitHub-issueiksi (kerran)
+
+Pelaajien palautteet tallentuvat pelikoneen tietokantaan (`pnpm report`
+näyttää ne). Työnkulku _Palautteet_ (GitHub Actions) hakee ne kolmen tunnin
+välein Funnelin kautta ja tekee jokaisesta issuen tunnisteella `palaute`.
+Niitä ei aloiteta automaattisesti: Luuka käy ne läpi ja vaihtaa tunnisteen
+(esim. `ehdotus` tai bugi) tai sulkee issuen. Haettu palaute merkitään
+tietokantaan viedyksi, joten samasta palautteesta ei tule toista issueta.
+
+Palvelin luo hakuavaimen ensimmäisellä käynnistyksellä tiedostoon
+`packages\server\data\palauteavain.txt`. Avain viedään kerran
+repositorion salaisuudeksi `LUNKI_FEEDBACK_TOKEN`. Macilta, kun
+[GitHub CLI](https://cli.github.com/) on kirjautuneena (`brew install gh`,
+`gh auth login`):
+
+```sh
+lunki uudelleen
+lunki palauteavain | gh secret set LUNKI_FEEDBACK_TOKEN -R Luukalindgren/lunki
+```
+
+Ilman `gh`:ta: aja `lunki palauteavain`, kopioi tuloste ja lisää se
+GitHubissa: _Settings → Secrets and variables → Actions → New repository
+secret_, nimi `LUNKI_FEEDBACK_TOKEN`. Kokeile: _Actions → Palautteet → Run
+workflow_.
+
+Avain vaihtuu poistamalla tiedosto, käynnistämällä palvelin uudelleen ja
+viemällä uusi avain salaisuudeksi. Kun pelikone on kiinni, ajo päättyy
+siististi ja palautteet haetaan seuraavalla kerralla. Palautelomake kertoo
+pelaajille, että palaute julkaistaan pelin GitHubissa.
 
 ## Vianetsintä
 
@@ -169,4 +201,5 @@ ja `LUNKI_PC_DIR`.
 | `Permission denied` salasanalla   | Microsoft-tilillä salasana on tilin salasana. Jos tili on salasanaton, käytä avainta (avain lisätään silloin pelikoneella suoraan tiedostoon).                                |
 | Avain ei kelpaa                   | Avain on väärässä tiedostossa tai tiedoston oikeudet ovat väärin: aja läppärin kohdan 5 `icacls`-osa uudelleen pelikoneella järjestelmänvalvojana.                            |
 | `lunki.ps1 cannot be loaded`      | Suoritus estetty: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned -Force`.                                                                                               |
+| Palautteet-ajo: "hylkäsi avaimen" | Salaisuus `LUNKI_FEEDBACK_TOKEN` ei vastaa pelikoneen avainta: vie `lunki palauteavain` uudelleen salaisuudeksi.                                                              |
 | `kaynnista` sanoo "ei vastannut"  | Komento näyttää lokin lopun. Yleisimmät: `pnpm`-komentoa ei löydy (asenna `npm install -g pnpm@10.28.0`), Node on liian vanha tai portti 2567 on jo toisen ohjelman käytössä. |

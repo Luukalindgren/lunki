@@ -2,6 +2,7 @@ import { limitRequestBodies } from './bodyLimit';
 import { openDatabase } from './db/open';
 import { limitPerIp } from './ipLimit';
 import { FeedbackStore } from './feedback/store';
+import { loadFeedbackToken } from './feedback/token';
 import { RecordStore } from './records/store';
 import { createServer } from './server';
 import { serveStatic } from './static';
@@ -19,6 +20,7 @@ export async function startServer(opts: { staticDir?: string } = {}) {
   const server = createServer({
     records: new RecordStore(db),
     feedback: new FeedbackStore(db),
+    feedbackToken: loadFeedbackToken(dbPath),
   });
   await server.listen(port, process.env.LUNKI_HOST || undefined);
   const http = server.transport.server!;

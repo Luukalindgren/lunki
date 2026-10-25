@@ -1,0 +1,37 @@
+name: Palautteet
+
+# Hakee pelaajien palautteet pelikoneen palvelimelta GitHub-issueiksi
+# tunnisteella "palaute". Issueita ei aloiteta ennen kuin Luuka on validoinut
+# ne. Palvelimen osoite tulee muuttujasta LUNKI_SERVER_URL ja avain
+# salaisuudesta LUNKI_FEEDBACK_TOKEN, ks. docs/windows-palvelin.md.
+# Kun pelikone on kiinni, ajo päättyy siististi ja yrittää seuraavalla kerralla.
+
+on:
+  schedule:
+    - cron: '23 */3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: palautteet
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Palautteet issueiksi
+        run: pnpm --filter @lunki/server feedback-issues
+        env:
+          LUNKI_SERVER_URL: ${{ vars.LUNKI_SERVER_URL }}
+          LUNKI_FEEDBACK_TOKEN: ${{ secrets.LUNKI_FEEDBACK_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

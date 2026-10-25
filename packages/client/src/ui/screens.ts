@@ -447,7 +447,11 @@ export class Screens {
     };
     panel.append(
       h('h2', 'Palaute'),
-      h('p', 'Palaute menee pelipalvelimelle Luukan luettavaksi.', 'hint'),
+      h(
+        'p',
+        'Palaute menee Luukan luettavaksi ja julkaistaan nimimerkin kanssa pelin GitHubissa.',
+        'hint',
+      ),
       nameRow,
       text,
       status,
