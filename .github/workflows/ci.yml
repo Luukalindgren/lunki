@@ -31,6 +31,32 @@ jobs:
       - name: Build
         run: pnpm build
 
+  selaimet:
+    # Peli Chromiumilla, Firefoxilla ja WebKitillä (Safari) sekä puhelinemuloinneilla (e2e/).
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm --filter @lunki/client build
+      - name: Selaimet
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+      - name: Selaintestit
+        run: pnpm e2e
+      - name: Raportti
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: selaintestit
+          path: playwright-report/
+          retention-days: 14
+
   docker:
     # Pelipalvelimen kontti pysyy rakennettavana (ks. docs/julkaisu.md).
     runs-on: ubuntu-latest
