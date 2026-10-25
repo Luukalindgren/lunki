@@ -16,7 +16,9 @@ export const MENU_AMBIENCE: AmbienceInput = { sky: 'calm', windSpeed: 2, rain: 0
 /**
  * Tuuli, sade ja linnut. Tuuli on suodatettua silmukkakohinaa; sade on
  * pehmeää, tummaa kohinaa ja sen päällä erillisten pisaroiden ropinaa
- * (harva kerros heikolle ja tiheä kovalle sateelle). Voimakkuudet seuraavat
+ * (harva kerros heikolle ja tiheä kovalle sateelle). Ukkos- ja myrskysateessa
+ * mukaan tulee rankkasade: tiheät, kovat iskut ja kohina, jotka ryöppyävät
+ * tuulenpuuskien tahdissa. Voimakkuudet seuraavat
  * säätä; linnut sirkuttavat satunnaisesti
  * poutasäällä ja hiljenevät tuulen ja sateen yltyessä. Kuikat huutavat
  * kauempana järvellä, ja huuto kaikuu rannoista.
@@ -28,6 +30,9 @@ export class Ambience {
   private readonly rainBed: GainNode;
   private readonly rainLight: GainNode;
   private readonly rainHeavy: GainNode;
+  /** Rankkasade: kovat iskut ja ryöppyävä kohina. */
+  private readonly rainPour: GainNode;
+  private readonly rainRoar: GainNode;
   private gust = 0;
   private gustTarget = 0;
   private gustTimer = 0;
@@ -69,6 +74,14 @@ export class Ambience {
     // Eripituiset silmukat, jotta kerrosten yhdistelmä ei toistu korvin kuultavasti.
     this.rainLight = this.patterLayer(3.7, 30);
     this.rainHeavy = this.patterLayer(5.3, 120);
+    this.rainPour = this.patterLayer(4.3, 450, true);
+    const roarFilter = ctx.createBiquadFilter();
+    roarFilter.type = 'bandpass';
+    roarFilter.frequency.value = 1600;
+    roarFilter.Q.value = 0.7;
+    this.rainRoar = ctx.createGain();
+    this.rainRoar.gain.value = 0;
+    loop(roarFilter, this.rainRoar);
 
     this.loons = ctx.createGain();
     this.loons.connect(out);
@@ -98,6 +111,11 @@ export class Ambience {
     this.rainBed.gain.setTargetAtTime(w.rain * 0.25, t, 0.5);
     this.rainLight.gain.setTargetAtTime(Math.min(1, w.rain / 0.3) * 0.18, t, 0.5);
     this.rainHeavy.gain.setTargetAtTime(w.rain ** 1.5 * 0.15, t, 0.5);
+    // Rankkasade alkaa ukkoskuuron sateesta (0,8) ja on täysillä myrskyssä (1).
+    const pour = Math.max(0, Math.min(1, (w.rain - 0.65) / 0.35));
+    const sheet = 0.6 + 0.8 * this.gust;
+    this.rainPour.gain.setTargetAtTime(pour * 0.3 * sheet, t, 0.3);
+    this.rainRoar.gain.setTargetAtTime(pour * 0.14 * sheet, t, 0.3);
 
     this.birdTimer -= dt;
     if (this.birdTimer <= 0) {
@@ -117,11 +135,14 @@ export class Ambience {
   }
 
   /** Silmukoituva pisarakerros; kanavilla omat pisarat, jolloin sade kuuluu laajana. */
-  private patterLayer(seconds: number, dropsPerSecond: number): GainNode {
+  private patterLayer(seconds: number, dropsPerSecond: number, hard = false): GainNode {
     const ctx = this.ctx;
     const buffer = ctx.createBuffer(2, Math.floor(ctx.sampleRate * seconds), ctx.sampleRate);
     for (let ch = 0; ch < 2; ch++)
-      buffer.copyToChannel(rainPatter(ctx.sampleRate, seconds, dropsPerSecond), ch);
+      buffer.copyToChannel(
+        rainPatter(ctx.sampleRate, seconds, dropsPerSecond, Math.random, hard),
+        ch,
+      );
     const src = ctx.createBufferSource();
     src.buffer = buffer;
     src.loop = true;

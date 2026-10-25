@@ -32,3 +32,14 @@ describe('rainPatter', () => {
     expect(Math.abs(buf[0]! - buf[buf.length - 1]!)).toBeLessThan(0.2);
   });
 });
+
+describe('rainPatter rankkasade', () => {
+  it('kovia iskuja on enemmän kuin tavallisessa sateessa', () => {
+    const loud = (hard: boolean) => {
+      const rng = new Rng(4);
+      const buf = rainPatter(SR, 2, 120, () => rng.next(), hard);
+      return buf.filter((v) => Math.abs(v) > RAIN_LAYER_RMS * 3).length;
+    };
+    expect(loud(true)).toBeGreaterThan(loud(false));
+  });
+});
