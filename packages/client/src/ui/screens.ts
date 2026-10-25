@@ -566,7 +566,10 @@ export class Screens {
     );
     if (sum.count === 0) {
       panel.append(
-        h('p', 'Ei saalista tällä kertaa. Kokeile rantojen tuntumaa ja hitaampaa kelausta.'),
+        h(
+          'p',
+          'Ei saalista tällä kertaa. Jos tärppejä ei tule, potki uuteen paikkaan: kaikuluotain (K) näyttää kalat.',
+        ),
       );
     } else {
       const list = document.createElement('ol');
