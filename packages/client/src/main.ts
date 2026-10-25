@@ -4,9 +4,11 @@ import {
   LUNKINJARVI,
   WaterBody,
   formatTime,
+  isTimeOfDay,
   isWeatherLevel,
   parseRoomCode,
   type CompetitionSettings,
+  type TimeOfDay,
   type WeatherLevel,
 } from '@lunki/shared';
 import { FpsMeter } from './engine/fpsMeter';
@@ -54,7 +56,7 @@ installErrorReporting();
 const sfx = new Sfx();
 window.addEventListener('pointerdown', () => sfx.unlock());
 window.addEventListener('keydown', () => sfx.unlock());
-// Kehitystä varten: ?difficulty=easy&seed=123&minutes=1&weather=chaos aloittaa suoraan.
+// Kehitystä varten: ?difficulty=easy&seed=123&minutes=1&weather=chaos&time=evening aloittaa suoraan.
 const params = new URLSearchParams(location.search);
 const devDifficulty = (['easy', 'normal', 'realistic'] as const).find(
   (d) => d === params.get('difficulty'),
@@ -391,6 +393,9 @@ if (params.has('bench')) {
     weather: isWeatherLevel(params.get('weather'))
       ? (params.get('weather') as WeatherLevel)
       : settings.weather,
+    timeOfDay: isTimeOfDay(params.get('time'))
+      ? (params.get('time') as TimeOfDay)
+      : settings.timeOfDay,
     durationMinutes: Number(params.get('minutes') ?? settings.durationMinutes),
   });
 } else {
@@ -407,7 +412,8 @@ const menuScene = new SoloGame(
   hud,
   sfx,
   (x, y) => retro.screenToInternal(x, y),
-  settings,
+  // Valikon taustalla aina päivä, vaikka viime kisa olisi ollut yöllä.
+  { ...settings, timeOfDay: 'day' },
   1,
 );
 menuScene.view.zoom(3);
@@ -437,7 +443,7 @@ startLoop({
     const active = game ?? menuScene;
     const t0 = performance.now();
     active.render(alpha);
-    retro.render(active.scene, active.camera);
+    retro.render(active.scene, active.camera, active.grade);
     bench?.timing(updateTime, performance.now() - t0, updateCount);
     updateTime = 0;
     updateCount = 0;

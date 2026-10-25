@@ -138,6 +138,10 @@ export function createWaterWaves() {
     uWaveBounds: { value: new THREE.Vector4(0, 0, 1, 1) },
     uWaveScale: { value: 0 },
     uWaveDir: { value: new THREE.Vector2(1, 0) },
+    /** Auringon tai kuun suunta, väri (lineaarinen) ja kimalluksen voimakkuus. */
+    uGlitterDir: { value: new THREE.Vector3(0, 1, 0) },
+    uGlitterColor: { value: new THREE.Color(0xfff3b0) },
+    uGlitter: { value: 0 },
   };
 }
 export type WaterWaves = ReturnType<typeof createWaterWaves>;
@@ -157,10 +161,19 @@ uniform sampler2D uWaveTex;
 uniform vec4 uWaveBounds;
 uniform float uWaveScale;
 uniform vec2 uWaveDir;
+uniform vec3 uGlitterDir;
+uniform vec3 uGlitterColor;
+uniform float uGlitter;
+varying vec3 vGlitterPos;
 float waterHash(vec2 p) {
   return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
 }
 `;
+    shader.vertexShader = ('varying vec3 vGlitterPos;\n' + shader.vertexShader).replace(
+      '#include <project_vertex>',
+      `#include <project_vertex>
+      vGlitterPos = (modelMatrix * vec4(transformed, 1.0)).xyz;`,
+    );
     // onBeforeCompile näkee vielä include-rivit, joten korvataan koko map_fragment.
     shader.fragmentShader = (header + shader.fragmentShader).replace(
       '#include <map_fragment>',
@@ -203,9 +216,20 @@ float waterHash(vec2 p) {
       diffuseColor *= sampledDiffuseColor;`,
     );
     // Vaahto on valkoista myös varjossa ja pilvisellä säällä.
+    // Matala aurinko tai kuu piirtää veteen kimaltelevan sillan: heijastus
+    // osuu valoon vain kapealla kaistalla, ja kimallus vaihtuu pikseleittäin.
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <opaque_fragment>',
       /* glsl */ `outgoingLight = mix(outgoingLight, vec3(0.9, 0.95, 1.0), waterFoam);
+      if (uGlitter > 0.0) {
+        vec3 toEye = normalize(cameraPosition - vGlitterPos);
+        vec3 refl = vec3(-toEye.x, toEye.y, -toEye.z);
+        float across = dot(normalize(refl.xz), normalize(uGlitterDir.xz));
+        float path = smoothstep(0.985, 0.998, across) * (1.0 - smoothstep(0.04, 0.3, abs(refl.y - uGlitterDir.y)));
+        float sparkle = waterHash(floor(gl_FragCoord.xy) + floor(uWaterTime * 5.0) * vec2(7.0, 3.0));
+        float glint = step(1.0 - path * 0.75, sparkle) * uGlitter;
+        outgoingLight = mix(outgoingLight, uGlitterColor, glint);
+      }
       #include <opaque_fragment>`,
     );
   };

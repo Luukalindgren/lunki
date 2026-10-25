@@ -2,6 +2,12 @@ import { DIFFICULTIES, type Difficulty } from '../fishing/difficulty';
 import { SPECIES, SPECIES_IDS, type SpeciesId } from '../fishing/fish';
 import { DURATIONS, type CompetitionSettings, type WinRule } from '../game/competition';
 import { PENALTY_IDS, PENALTY_NAMES, type Penalty } from '../weather/lightning';
+import {
+  TIME_OF_DAY_IDS,
+  TIME_OF_DAY_NAMES,
+  isTimeOfDay,
+  type TimeOfDay,
+} from '../weather/timeOfDay';
 import { WEATHER_LEVELS, WEATHER_LEVEL_IDS, type WeatherLevel } from '../weather/weather';
 import type { Vec2 } from '../vec2';
 import { MAX_PLAYERS_LIMIT } from './protocol';
@@ -14,6 +20,8 @@ export interface RoomSettings extends CompetitionSettings {
   maxPlayers: number;
   /** Säätaso. */
   weather: WeatherLevel;
+  /** Vuorokaudenaika. */
+  timeOfDay: TimeOfDay;
   /** Salaman rangaistus. */
   lightningPenalty: Penalty;
   /** Renkaan kaatumisen rangaistus. */
@@ -47,6 +55,10 @@ export const PLAYER_COUNTS = [2, 4, 8, 12, 16] as const;
 
 export const WEATHER_OPTIONS: { value: WeatherLevel; label: string; ready: boolean }[] =
   WEATHER_LEVEL_IDS.map((id) => ({ value: id, label: WEATHER_LEVELS[id].label, ready: true }));
+
+export const TIME_OF_DAY_OPTIONS: { value: TimeOfDay; label: string }[] = TIME_OF_DAY_IDS.map(
+  (id) => ({ value: id, label: TIME_OF_DAY_NAMES[id] }),
+);
 
 export const LIGHTNING_PENALTY_OPTIONS: { value: Penalty; label: string; ready: boolean }[] =
   PENALTY_IDS.map((id) => ({ value: id, label: PENALTY_NAMES[id], ready: true }));
@@ -98,6 +110,7 @@ export function validateSettingsPatch(
     out.maxPlayers = p.maxPlayers;
   if (readyValues(WEATHER_OPTIONS).includes(p.weather as WeatherLevel))
     out.weather = p.weather as WeatherLevel;
+  if (isTimeOfDay(p.timeOfDay)) out.timeOfDay = p.timeOfDay;
   if (readyValues(LIGHTNING_PENALTY_OPTIONS).includes(p.lightningPenalty as Penalty))
     out.lightningPenalty = p.lightningPenalty as Penalty;
   if (readyValues(CAPSIZE_PENALTY_OPTIONS).includes(p.capsizePenalty as Penalty))

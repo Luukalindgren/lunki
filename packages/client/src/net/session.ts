@@ -6,6 +6,7 @@ import {
   formatRoomCode,
   isLateJoin,
   isSpeciesId,
+  isTimeOfDay,
   isWeatherLevel,
   JoinRefusal,
   parseTackle,
@@ -177,6 +178,8 @@ export interface StateSchema {
     winRule: string;
     maxPlayers: number;
     weather: string;
+    /** Puuttuu vanhalta palvelimelta. */
+    timeOfDay?: string;
     lightningPenalty: string;
     capsizePenalty: string;
     /** Puuttuu vanhalta palvelimelta. */
@@ -332,6 +335,7 @@ export class NetSession {
         winRule: s.settings.winRule as WinRule,
         maxPlayers: s.settings.maxPlayers,
         weather: isWeatherLevel(s.settings.weather) ? s.settings.weather : 'realistic',
+        timeOfDay: isTimeOfDay(s.settings.timeOfDay) ? s.settings.timeOfDay : 'day',
         lightningPenalty: s.settings.lightningPenalty as Penalty,
         capsizePenalty: s.settings.capsizePenalty as Penalty,
         landPenalty: s.settings.landPenalty ?? 0,

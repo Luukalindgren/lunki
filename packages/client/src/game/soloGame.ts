@@ -43,6 +43,7 @@ import {
   stepCompetition,
   timeLeft,
   createFishing,
+  daylight,
   formatWeight,
   lureInfo,
   stepFishPopulation,
@@ -91,6 +92,8 @@ import { WAVE_FACTOR_SCALE, WaveField } from '../world/waveField';
 import { createBuildings, createPiers } from '../world/buildings';
 import { createVegetation } from '../world/vegetation';
 import { WeatherView, compassIn, windFrom, windName } from './weatherView';
+import { SkyView } from './skyView';
+import { MistView } from './mistView';
 import type { NetWorld } from '../net/netWorld';
 import { RemotePlayersView } from './remotePlayersView';
 import type { Sfx } from '../audio/sfx';
@@ -108,14 +111,6 @@ import { bottomFor } from '../world/lakeData';
 const LAND_COLOR = 0x24502c;
 /** Tyypillinen pyyhkäisymatka aallon jaksoon (m). */
 const TYPICAL_FETCH = 800;
-const SKY_COLOR = 0x83c2db;
-/** Taivas pilvistyy palettisävyinä portaittain: [tummuus vähintään, väri]. */
-const CLOUDY_SKIES: [number, number][] = [
-  [0.65, 0x39424d],
-  [0.45, 0x5f6b78],
-  [0.2, 0x8e99a4],
-  [0, SKY_COLOR],
-];
 
 /** Näppäinasettelu: WASD tai nuolet. */
 export function readTubeInput(input: Input): TubeInput {
@@ -178,6 +173,9 @@ export class SoloGame {
   private readonly hemi = new THREE.HemisphereLight(0xeef2f3, 0x24502c, 1.5);
   private readonly sun = new THREE.DirectionalLight(0xfff3b0, 1.5);
   readonly weather: WeatherView;
+  /** Vuorokaudenaika: taivas, usva, valo ja paletin sävytys. */
+  readonly sky: SkyView;
+  private readonly mist: MistView;
   readonly waves: WaveField;
   private readonly waterWaves = createWaterWaves();
   private readonly lightning = new LightningView();
@@ -254,8 +252,10 @@ export class SoloGame {
 
     this.scene.background = new THREE.Color(LAND_COLOR);
     this.scene.add(this.hemi);
-    this.sun.position.set(-50, 100, -30);
     this.scene.add(this.sun);
+    this.sky = new SkyView(settings.timeOfDay ?? 'day');
+    this.mist = new MistView((p) => this.water.isWater(p), map.bounds);
+    this.scene.add(this.sky.dome, this.mist.group);
     const plan = planWeather(seed, settings.weather ?? 'realistic', settings.durationMinutes * 60);
     this.weather = new WeatherView(plan);
     this.strikes = net ? [] : planLightning(plan, seed, settings.durationMinutes * 60);
@@ -279,6 +279,8 @@ export class SoloGame {
     this.waterWaves.uWaveTex.value = this.waves.texture;
     this.waterWaves.uWaveBounds.value.copy(this.waves.bounds);
     this.scene.add(createLakeMesh(map, this.waterWaves));
+    this.updateSky(0);
+    this.applyWeatherLight();
     this.scene.add(createBottomMesh(this.bottom));
     this.scene.add(this.tubeMesh);
     const surroundings = map === LUNKINJARVI ? LUNKINJARVI_SURROUNDINGS : undefined;
@@ -398,8 +400,9 @@ export class SoloGame {
     this.mapOverlay.visible = !pov;
     this.povRod.visible = pov;
     this.tubeMesh.visible = !pov;
-    this.scene.background = new THREE.Color(pov ? SKY_COLOR : LAND_COLOR);
-    this.scene.fog = pov ? new THREE.Fog(SKY_COLOR, 500, 2600) : null;
+    this.sky.dome.visible = pov;
+    this.scene.background = new THREE.Color(LAND_COLOR);
+    this.scene.fog = pov ? new THREE.Fog(this.sky.lighting.horizon, 500, 2600) : null;
     this.applyWeatherLight();
     this.fishingView.pov = pov;
     this.hud.showMessage(pov ? 'Kalastajan silmin (V)' : 'Ylhäältä (V)', 1.2);
@@ -789,7 +792,10 @@ export class SoloGame {
     const left = timeLeft(this.competition);
     this.hud.setTimer(formatTime(left), left < 60);
     this.updateWeather(dt);
-    this.sfx.updateAmbience(dt, this.weather.now);
+    this.sfx.updateAmbience(dt, {
+      ...this.weather.now,
+      ...daylight(this.settings.timeOfDay ?? 'day', this.dayProgress),
+    });
     // Potkuvaihe kiertää 0–1; kumpikin räpylä loiskahtaa kerran kierroksessa.
     const strokes = Math.floor(this.tube.kickPhase * 2);
     if (strokes !== this.strokes) {
@@ -827,6 +833,7 @@ export class SoloGame {
         : { metersPerPixel: this.view.metersPerPixel, width: this.view.width },
       { message: (text) => this.hud.showMessage(text, 3), rumble: () => this.sfx.rumble() },
     );
+    this.updateSky(dt);
     this.applyWeatherLight();
     this.updateWaves(w.windSpeed, w.windDir);
     const hs = this.waves.heightAt(this.tube.pos, w.windSpeed);
@@ -862,19 +869,47 @@ export class SoloGame {
     return { lift: (hs / 2) * Math.sin(phase), roll: hs * 0.12 * Math.cos(phase) };
   }
 
+  /** Kisan eteneminen 0–1: aurinko liikkuu kisan aikana. */
+  get dayProgress(): number {
+    return Math.min(1, this.competition.elapsed / (this.settings.durationMinutes * 60));
+  }
+
+  /** Paletin sävytys jälkikäsittelyyn (vuorokaudenaika ja salama). */
+  get grade() {
+    return this.sky.grade;
+  }
+
+  /** Vuorokaudenaika kisan etenemän ja sään mukaan; kimallus vesishaderille. */
+  private updateSky(dt: number): void {
+    const now = this.weather.now;
+    const wind = windVector(now);
+    this.sky.update(this.dayProgress, now.darkness, this.lightning.flash, wind);
+    this.mist.update(dt, this.sky.mist, wind, this.viewMode === 'pov');
+    const g = this.sky.glitter;
+    this.waterWaves.uGlitterDir.value.copy(g.dir);
+    this.waterWaves.uGlitterColor.value.copy(g.color);
+    this.waterWaves.uGlitter.value = this.viewMode === 'pov' ? g.amount : 0;
+  }
+
   /** Pilvinen taivas himmentää valon ja tummentaa taivaan ja sumun. */
   private applyWeatherLight(): void {
     const dark = this.weather.now.darkness;
     // Valoa himmennetään vain vähän: paletissa tummat sinisävyt kääntyisivät vihreiksi.
+    // Yö ja ilta tehdään paletin sävytyksellä (ks. SkyView).
     const light = 1 - 0.25 * dark;
+    const sky = this.sky.lighting;
     // Salaman välähdys valaisee koko maiseman hetkeksi.
-    this.hemi.intensity = 1.5 * light * (1 + 1.5 * this.lightning.flash);
-    this.sun.intensity = 1.5 * light * light;
+    this.hemi.intensity = 1.5 * light * sky.ambient * (1 + 1.5 * this.lightning.flash);
+    this.sun.intensity = 1.5 * light * light * sky.direct;
+    this.sun.position.copy(sky.lightDir).multiplyScalar(120);
     const bg = this.scene.background;
     if (!(bg instanceof THREE.Color)) return;
     if (this.viewMode === 'pov') {
-      bg.set(CLOUDY_SKIES.find(([min]) => dark >= min)![1]);
-      if (this.scene.fog instanceof THREE.Fog) this.scene.fog.color.copy(bg);
+      bg.copy(sky.horizon);
+      if (this.scene.fog instanceof THREE.Fog) {
+        this.scene.fog.color.copy(sky.horizon);
+        [this.scene.fog.near, this.scene.fog.far] = sky.fog;
+      }
     } else {
       bg.set(LAND_COLOR).multiplyScalar(1 - 0.4 * dark);
     }
@@ -1072,6 +1107,8 @@ export class SoloGame {
       attr.setXYZ(0, h0.x, h0.y, h0.z);
       attr.setXYZ(1, h1.x, h1.y, h1.z);
       attr.needsUpdate = true;
+      this.sky.follow(this.pov.camera.position);
+      this.mist.follow(this.pov.camera.position);
     }
     this.lightning.orient(this.camera, this.heightPx);
     if (this.net && this.remoteView)

@@ -65,6 +65,8 @@ export const SettingsState = schema(
     winRule: t.string().default(DEFAULT_SETTINGS.winRule),
     maxPlayers: t.uint8().default(DEFAULT_MAX_PLAYERS),
     weather: t.string().default(DEFAULT_SETTINGS.weather!),
+    /** TimeOfDay: vuorokaudenaika. */
+    timeOfDay: t.string().default(DEFAULT_SETTINGS.timeOfDay!),
     lightningPenalty: t.string().default(DEFAULT_SETTINGS.lightningPenalty!),
     capsizePenalty: t.string().default(DEFAULT_SETTINGS.capsizePenalty!),
     landPenalty: t.uint8().default(DEFAULT_SETTINGS.landPenalty!),
