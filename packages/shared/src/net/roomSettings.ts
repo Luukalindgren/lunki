@@ -1,6 +1,7 @@
 import { DIFFICULTIES, type Difficulty } from '../fishing/difficulty';
 import { SPECIES, SPECIES_IDS, type SpeciesId } from '../fishing/fish';
 import { DURATIONS, type CompetitionSettings, type WinRule } from '../game/competition';
+import { WEATHER_LEVELS, WEATHER_LEVEL_IDS, type WeatherLevel } from '../weather/weather';
 import { MAX_PLAYERS_LIMIT } from './protocol';
 
 /**
@@ -9,8 +10,8 @@ import { MAX_PLAYERS_LIMIT } from './protocol';
  */
 export interface RoomSettings extends CompetitionSettings {
   maxPlayers: number;
-  /** Säätaso (vaihe 4). */
-  weather: Weather;
+  /** Säätaso. */
+  weather: WeatherLevel;
   /** Salaman rangaistus (vaihe 4). */
   lightningPenalty: Penalty;
   /** Renkaan kaatumisen rangaistus (vaihe 4). */
@@ -19,17 +20,13 @@ export interface RoomSettings extends CompetitionSettings {
   species: SpeciesId[];
 }
 
-export type Weather = 'calm' | 'variable' | 'stormy';
 export type Penalty = 'none' | 'lose-catch' | 'time-out';
 
 /** Valinnat aulaan. `ready` = toteutettu, muut näytetään tulossa olevina. */
 export const PLAYER_COUNTS = [2, 4, 8, 12, 16] as const;
 
-export const WEATHER_OPTIONS: { value: Weather; label: string; ready: boolean }[] = [
-  { value: 'calm', label: 'Tyyni', ready: true },
-  { value: 'variable', label: 'Vaihteleva', ready: false },
-  { value: 'stormy', label: 'Myrskyinen', ready: false },
-];
+export const WEATHER_OPTIONS: { value: WeatherLevel; label: string; ready: boolean }[] =
+  WEATHER_LEVEL_IDS.map((id) => ({ value: id, label: WEATHER_LEVELS[id].label, ready: true }));
 
 export const PENALTY_OPTIONS: { value: Penalty; label: string; ready: boolean }[] = [
   { value: 'none', label: 'Ei rangaistusta', ready: true },
@@ -64,8 +61,8 @@ export function validateSettingsPatch(patch: unknown, playerCount: number): Part
     p.maxPlayers <= MAX_PLAYERS_LIMIT
   )
     out.maxPlayers = p.maxPlayers;
-  if (readyValues(WEATHER_OPTIONS).includes(p.weather as Weather))
-    out.weather = p.weather as Weather;
+  if (readyValues(WEATHER_OPTIONS).includes(p.weather as WeatherLevel))
+    out.weather = p.weather as WeatherLevel;
   if (readyValues(PENALTY_OPTIONS).includes(p.lightningPenalty as Penalty))
     out.lightningPenalty = p.lightningPenalty as Penalty;
   if (readyValues(PENALTY_OPTIONS).includes(p.capsizePenalty as Penalty))

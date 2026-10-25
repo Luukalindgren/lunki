@@ -3,8 +3,10 @@ import {
   GAME_NAME,
   LUNKINJARVI,
   WaterBody,
+  isWeatherLevel,
   parseRoomCode,
   type CompetitionSettings,
+  type WeatherLevel,
 } from '@lunki/shared';
 import { FpsMeter } from './engine/fpsMeter';
 import { Input } from './engine/input';
@@ -35,7 +37,7 @@ hud.setVisible(false);
 const sfx = new Sfx();
 window.addEventListener('pointerdown', () => sfx.unlock());
 window.addEventListener('keydown', () => sfx.unlock());
-// Kehitystä varten: ?difficulty=easy&seed=123&minutes=1 aloittaa suoraan.
+// Kehitystä varten: ?difficulty=easy&seed=123&minutes=1&weather=chaos aloittaa suoraan.
 const params = new URLSearchParams(location.search);
 const devDifficulty = (['easy', 'normal', 'realistic'] as const).find(
   (d) => d === params.get('difficulty'),
@@ -257,12 +259,16 @@ retro.onResize((r) => {
 });
 
 if (params.has('bench')) {
-  startGame({ durationMinutes: 10, difficulty: 'easy', winRule: 'total' });
+  // Tyyni sää, jotta mittaukset ovat vertailukelpoisia.
+  startGame({ durationMinutes: 10, difficulty: 'easy', winRule: 'total', weather: 'calm' });
   bench = new Bench(game!, input, retro, app);
 } else if (devDifficulty) {
   startGame({
     ...settings,
     difficulty: devDifficulty,
+    weather: isWeatherLevel(params.get('weather'))
+      ? (params.get('weather') as WeatherLevel)
+      : settings.weather,
     durationMinutes: Number(params.get('minutes') ?? settings.durationMinutes),
   });
 } else {

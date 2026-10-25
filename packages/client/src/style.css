@@ -80,6 +80,7 @@ body {
   text-align: center;
   font-size: calc(var(--u) * 16);
   color: #fff3b0;
+  white-space: pre-line;
 }
 
 .hud-help {
@@ -266,6 +267,14 @@ body {
   top: calc(var(--u) * 4);
   transform: translateX(-50%);
   font-size: calc(var(--u) * 14);
+}
+
+.hud-weather {
+  left: 50%;
+  top: calc(var(--u) * 26);
+  transform: translateX(-50%);
+  font-size: calc(var(--u) * 7);
+  white-space: nowrap;
 }
 
 .hud-timer.low {

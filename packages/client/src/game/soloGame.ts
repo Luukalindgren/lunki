@@ -14,6 +14,8 @@ import {
   createCompetition,
   createFishPopulation,
   formatTime,
+  planWeather,
+  SKY_NAMES,
   recordCatch,
   stepCompetition,
   timeLeft,
@@ -52,6 +54,7 @@ import { PovCamera } from './povCamera';
 import { createLakeMesh, toWorld, waterTime } from '../world/lakeMesh';
 import { createBuildings, createPiers, planPiers } from '../world/buildings';
 import { createVegetation } from '../world/vegetation';
+import { WeatherView, windName } from './weatherView';
 import type { NetWorld } from '../net/netWorld';
 import { RemotePlayersView } from './remotePlayersView';
 import type { Sfx } from '../audio/sfx';
@@ -65,6 +68,13 @@ import { animateFins, createTubeMesh } from './tubeMesh';
 const FISH_COUNT = 1800;
 const LAND_COLOR = 0x24502c;
 const SKY_COLOR = 0x83c2db;
+/** Taivas pilvistyy palettisävyinä portaittain: [tummuus vähintään, väri]. */
+const CLOUDY_SKIES: [number, number][] = [
+  [0.65, 0x39424d],
+  [0.45, 0x5f6b78],
+  [0.2, 0x8e99a4],
+  [0, SKY_COLOR],
+];
 
 /** Pohja lasketaan kerran karttaa kohden (valikon taustajärvi ja kisa jakavat sen). */
 const bottoms = new WeakMap<LakeMap, LakeBottom>();
@@ -128,6 +138,9 @@ export class SoloGame {
   /** Kutsutaan, kun kilpailuaika loppuu. */
   onFinished: (() => void) | null = null;
   private readonly remoteView: RemotePlayersView | null = null;
+  private readonly hemi = new THREE.HemisphereLight(0xeef2f3, 0x24502c, 1.5);
+  private readonly sun = new THREE.DirectionalLight(0xfff3b0, 1.5);
+  readonly weather: WeatherView;
 
   constructor(
     private readonly input: Input,
@@ -167,10 +180,13 @@ export class SoloGame {
     this.prevTube = this.tube;
 
     this.scene.background = new THREE.Color(LAND_COLOR);
-    this.scene.add(new THREE.HemisphereLight(0xeef2f3, 0x24502c, 1.5));
-    const sun = new THREE.DirectionalLight(0xfff3b0, 1.5);
-    sun.position.set(-50, 100, -30);
-    this.scene.add(sun);
+    this.scene.add(this.hemi);
+    this.sun.position.set(-50, 100, -30);
+    this.scene.add(this.sun);
+    this.weather = new WeatherView(
+      planWeather(seed, settings.weather ?? 'realistic', settings.durationMinutes * 60),
+    );
+    this.scene.add(this.weather.group);
     this.scene.add(createLakeMesh(map));
     this.scene.add(createBottomMesh(this.bottom));
     this.scene.add(this.tubeMesh);
@@ -246,6 +262,7 @@ export class SoloGame {
     this.tubeMesh.visible = !pov;
     this.scene.background = new THREE.Color(pov ? SKY_COLOR : LAND_COLOR);
     this.scene.fog = pov ? new THREE.Fog(SKY_COLOR, 500, 2600) : null;
+    this.applyWeatherLight();
     this.fishingView.pov = pov;
     this.hud.showMessage(pov ? 'Kalastajan silmin (V)' : 'Ylhäältä (V)', 1.2);
   }
@@ -370,6 +387,7 @@ export class SoloGame {
     );
     const left = timeLeft(this.competition);
     this.hud.setTimer(formatTime(left), left < 60);
+    this.updateWeather(dt);
     if (this.net) {
       this.updateRaceHud();
       this.hud.update(dt);
@@ -389,6 +407,39 @@ export class SoloGame {
           ],
     );
     this.hud.update(dt);
+  }
+
+  private updateWeather(dt: number): void {
+    const w = this.weather.update(
+      dt,
+      this.competition.elapsed,
+      this.tube.pos,
+      this.viewMode === 'pov'
+        ? null
+        : { metersPerPixel: this.view.metersPerPixel, width: this.view.width },
+      { message: (text) => this.hud.showMessage(text, 3), rumble: () => this.sfx.rumble() },
+    );
+    this.applyWeatherLight();
+    this.hud.setWeather(
+      `${SKY_NAMES[w.sky]} · ${windName(w.windDir)} ${Math.round(w.windSpeed)} m/s`,
+    );
+  }
+
+  /** Pilvinen taivas himmentää valon ja tummentaa taivaan ja sumun. */
+  private applyWeatherLight(): void {
+    const dark = this.weather.now.darkness;
+    // Valoa himmennetään vain vähän: paletissa tummat sinisävyt kääntyisivät vihreiksi.
+    const light = 1 - 0.25 * dark;
+    this.hemi.intensity = 1.5 * light;
+    this.sun.intensity = 1.5 * light * light;
+    const bg = this.scene.background;
+    if (!(bg instanceof THREE.Color)) return;
+    if (this.viewMode === 'pov') {
+      bg.set(CLOUDY_SKIES.find(([min]) => dark >= min)![1]);
+      if (this.scene.fog instanceof THREE.Fog) this.scene.fog.color.copy(bg);
+    } else {
+      bg.set(LAND_COLOR).multiplyScalar(1 - 0.4 * dark);
+    }
   }
 
   private handleEvents(

@@ -19,7 +19,7 @@ describe('validateSettingsPatch', () => {
           winRule: 'most',
           difficulty: 'toString',
           maxPlayers: 1000,
-          weather: 'stormy',
+          weather: 'tornado',
           capsizePenalty: 'lose-catch',
           species: ['whale'],
           extra: 1,
