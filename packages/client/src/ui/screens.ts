@@ -22,6 +22,7 @@ import {
   type Penalty,
   PLAYER_COUNTS,
   SPECIES_OPTIONS,
+  TIME_OF_DAY_OPTIONS,
   WEATHER_OPTIONS,
   WIN_RULE_NAMES,
   formatRoomCode,
@@ -29,6 +30,7 @@ import {
   formatTime,
   formatWeight,
   isSpeciesId,
+  isTimeOfDay,
   isWeatherLevel,
   summarize,
   type CompetitionSettings,
@@ -42,6 +44,7 @@ import {
   FEEDBACK_LIMITS,
   mapCredits,
   type RecordBoard,
+  type TimeOfDay,
   type WeatherLevel,
   type WinRule,
 } from '@lunki/shared';
@@ -79,6 +82,7 @@ export function loadSettings(defaults: CompetitionSettings): CompetitionSettings
         ...s,
         species: species.length > 0 ? species : defaults.species,
         weather: isWeatherLevel(s.weather) ? s.weather : defaults.weather,
+        timeOfDay: isTimeOfDay(s.timeOfDay) ? s.timeOfDay : defaults.timeOfDay,
         lightningPenalty: isPenalty(s.lightningPenalty)
           ? s.lightningPenalty
           : defaults.lightningPenalty,
@@ -158,13 +162,14 @@ export class Screens {
       ['Tekijät ja lähteet', actions.onCredits],
     ]);
     menu.classList.add('main-menu');
+    panel.classList.add('start-panel');
     panel.append(
-      h('h1', 'LUNKI'),
+      waveTitle('LUNKI'),
       h('p', 'Kelluntarengaskalastusta Tammelan Lunkinjärvellä', 'subtitle'),
       menu,
       h(
         'p',
-        'W/S potki (rengas kulkee selkä edellä) · A/D käänny · hiiri tähtää ja heittää · kelaa hiirellä tai välilyönnillä · Q/E jarru · Esc tauko',
+        'W kohti räpylöitä · S selkä edellä (nopein) · A/D käänny · hiiri tähtää ja heittää · kelaa hiirellä tai välilyönnillä · Q/E jarru · Esc tauko',
         'hint',
       ),
       h('p', 'Kartta © OpenStreetMapin tekijät, Copernicus DEM, Syke', 'hint credit-line'),
@@ -226,6 +231,12 @@ export class Screens {
         'hint',
       ),
       this.speciesChoice(settings.species ?? [], (list) => (settings.species = list)),
+      this.choice(
+        'Vuorokaudenaika',
+        TIME_OF_DAY_OPTIONS.map((o) => [o.value, o.label]),
+        settings.timeOfDay ?? 'day',
+        (v) => (settings.timeOfDay = v as TimeOfDay),
+      ),
       this.choice(
         'Sää',
         WEATHER_OPTIONS.map((o) => [o.value, o.label]),
@@ -450,7 +461,11 @@ export class Screens {
     };
     panel.append(
       h('h2', 'Palaute'),
-      h('p', 'Palaute menee pelipalvelimelle Luukan luettavaksi.', 'hint'),
+      h(
+        'p',
+        'Palaute menee Luukan luettavaksi ja julkaistaan nimimerkin kanssa pelin GitHubissa.',
+        'hint',
+      ),
       nameRow,
       text,
       status,
@@ -624,6 +639,7 @@ export class Screens {
     chat?: (parent: HTMLElement) => void,
   ): void {
     const panel = this.panel();
+    panel.dataset.screen = 'race-results';
     const winner = results[0];
     panel.append(
       h('h2', 'Kisa päättyi!'),
@@ -737,6 +753,12 @@ export class Screens {
   private show(panel: HTMLElement, cleanup?: () => void, scroll?: [number, number] | null): void {
     this.runCleanup();
     this.cleanup = cleanup ?? null;
+    // Saman näkymän uudelleenpiirto (aula, tulokset) ei toista avausanimaatiota,
+    // muuten paneeli välähtäisi jokaisella tilamuutoksella.
+    const prev = this.root.firstElementChild as HTMLElement | null;
+    const redraw =
+      !this.root.hidden && !!panel.dataset.screen && prev?.dataset.screen === panel.dataset.screen;
+    if (!redraw) panel.classList.add('enter');
     this.root.replaceChildren(panel);
     this.root.hidden = false;
     // Saman näkymän uudelleenpiirto (aula) säilyttää vierityksen.
@@ -811,6 +833,12 @@ export class Screens {
         (v) => change({ maxPlayers: Number(v) }),
       ),
       this.speciesChoice(s.species, (species) => change({ species })),
+      this.choice(
+        'Vuorokaudenaika',
+        TIME_OF_DAY_OPTIONS.map((o) => [o.value, o.label]),
+        s.timeOfDay,
+        (v) => change({ timeOfDay: v as TimeOfDay }),
+      ),
       this.choice(
         'Sää',
         WEATHER_OPTIONS.map((o) => [o.value, o.label]),
@@ -1074,6 +1102,7 @@ export class Screens {
       ['Voittaja', WIN_RULE_NAMES[s.winRule]],
       ['Vaikeus', DIFFICULTY_NAMES[s.difficulty]],
       ['Pelaajia enintään', String(s.maxPlayers)],
+      ['Vuorokaudenaika', label(TIME_OF_DAY_OPTIONS, s.timeOfDay)],
       ['Sää', label(WEATHER_OPTIONS, s.weather)],
       [
         'Salama / kaatuminen',
@@ -1113,6 +1142,8 @@ export class Screens {
     list.forEach(([text, action], i) => {
       const b = document.createElement('button');
       b.textContent = text;
+      // Porrastettu sisääntulo päävalikossa.
+      b.style.setProperty('--i', String(i));
       if (i === 0) b.classList.add('primary');
       b.addEventListener('click', action);
       row.appendChild(b);
@@ -1126,6 +1157,19 @@ function startText(start: Vec2 | null): string {
   if (!start) return 'Satunnainen kohta rannan tuntumassa.';
   const spot = describeSpot(start);
   return `Kartalta valittu kohta${spot ? `: ${spot.charAt(0).toLowerCase()}${spot.slice(1)}` : ''}.`;
+}
+
+/** Otsikko, jonka kirjaimet keinuvat vuorotellen kuin laineilla. */
+function waveTitle(text: string): HTMLElement {
+  const title = document.createElement('h1');
+  title.setAttribute('aria-label', text);
+  for (const [i, ch] of [...text].entries()) {
+    const letter = h('span', ch, 'wave-letter');
+    letter.setAttribute('aria-hidden', 'true');
+    letter.style.setProperty('--i', String(i));
+    title.append(letter);
+  }
+  return title;
 }
 
 function h(tag: string, text: string, className?: string): HTMLElement {

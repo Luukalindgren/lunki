@@ -2,6 +2,13 @@ import * as THREE from 'three';
 import { PALETTE } from './palette';
 import { computeResolution, type RetroResolution } from './resolution';
 
+/** Paletin sävytys (ks. SkyView): (harmaa ↔ väri `sat`) × `mul` + `add`. */
+export interface PaletteGrade {
+  mul: THREE.Vector3;
+  add: THREE.Vector3;
+  sat: number;
+}
+
 export type PaletteMode = 'dither' | 'palette' | 'off';
 
 const FULLSCREEN_VERT = /* glsl */ `
@@ -17,7 +24,17 @@ const PALETTE_FRAG = /* glsl */ `
   uniform vec3 uPalette[${PALETTE.length}];
   uniform int uMode; // 0 = dither, 1 = paletti, 2 = pois
   uniform float uDitherAmount;
+  uniform vec3 uGradeMul;
+  uniform vec3 uGradeAdd;
+  uniform float uGradeSat;
   varying vec2 vUv;
+
+  // Vuorokaudenaika sävyttää palettivärit vasta pyöristyksen jälkeen, jolloin
+  // kuva säilyttää yhtä monta sävyä yölläkin (paletin vaihto).
+  vec3 grade(vec3 c) {
+    float luma = dot(c, vec3(0.299, 0.587, 0.114));
+    return clamp(mix(vec3(luma), c, uGradeSat) * uGradeMul + uGradeAdd, 0.0, 1.0);
+  }
 
   vec3 linearToSrgb(vec3 c) {
     vec3 lo = c * 12.92;
@@ -37,7 +54,7 @@ const PALETTE_FRAG = /* glsl */ `
   void main() {
     vec3 c = linearToSrgb(clamp(texture2D(tScene, vUv).rgb, 0.0, 1.0));
     if (uMode == 2) {
-      gl_FragColor = vec4(c, 1.0);
+      gl_FragColor = vec4(grade(c), 1.0);
       return;
     }
     if (uMode == 0) c += bayer4(gl_FragCoord.xy) * uDitherAmount;
@@ -51,9 +68,15 @@ const PALETTE_FRAG = /* glsl */ `
         best = uPalette[i];
       }
     }
-    gl_FragColor = vec4(best, 1.0);
+    gl_FragColor = vec4(grade(best), 1.0);
   }
 `;
+
+const NO_GRADE: PaletteGrade = {
+  mul: new THREE.Vector3(1, 1, 1),
+  add: new THREE.Vector3(0, 0, 0),
+  sat: 1,
+};
 
 function makeTarget(width: number, height: number, depth: boolean) {
   return new THREE.WebGLRenderTarget(width, height, {
@@ -102,6 +125,9 @@ export class RetroRenderer {
         uPalette: { value: PALETTE.map(([r, g, b]) => new THREE.Vector3(r, g, b)) },
         uMode: { value: 0 },
         uDitherAmount: { value: 0.06 },
+        uGradeMul: { value: new THREE.Vector3(1, 1, 1) },
+        uGradeAdd: { value: new THREE.Vector3(0, 0, 0) },
+        uGradeSat: { value: 1 },
       },
       depthTest: false,
       depthWrite: false,
@@ -129,8 +155,13 @@ export class RetroRenderer {
     };
   }
 
-  render(scene: THREE.Scene, camera: THREE.Camera): void {
+  /** `grade` = vuorokaudenajan sävytys; puuttuu = ei sävytystä. */
+  render(scene: THREE.Scene, camera: THREE.Camera, grade?: PaletteGrade): void {
     const r = this.renderer;
+    const u = this.paletteMaterial.uniforms;
+    (u.uGradeMul!.value as THREE.Vector3).copy(grade?.mul ?? NO_GRADE.mul);
+    (u.uGradeAdd!.value as THREE.Vector3).copy(grade?.add ?? NO_GRADE.add);
+    u.uGradeSat!.value = grade?.sat ?? 1;
     r.info.reset();
     r.setRenderTarget(this.sceneTarget);
     r.render(scene, camera);

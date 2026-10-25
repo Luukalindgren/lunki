@@ -39,6 +39,7 @@ export const IP_RULES: IpRule[] = [
   { path: /^\/matchmake\/(create|joinOrCreate)\//, perMinute: 20 },
   { path: /^\/matchmake\//, perMinute: 120 },
   { path: /^\/feedback$/, perMinute: 5 },
+  { path: /^\/feedback\/exported$/, perMinute: 60 },
   { path: /^\/errors$/, perMinute: 20 },
 ];
 

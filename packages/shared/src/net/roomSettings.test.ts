@@ -38,6 +38,13 @@ describe('validateSettingsPatch', () => {
     }
   });
 
+  it('vuorokaudenaika vain tunnetuista', () => {
+    expect(validateSettingsPatch({ timeOfDay: 'night' }, 1)).toEqual({ timeOfDay: 'night' });
+    for (const bad of ['noon', 'toString', 1, null]) {
+      expect(validateSettingsPatch({ timeOfDay: bad }, 1)).toEqual({});
+    }
+  });
+
   it('salaman ja kaatumisen rangaistukset', () => {
     expect(
       validateSettingsPatch({ lightningPenalty: 'out', capsizePenalty: 'time-out' }, 1),

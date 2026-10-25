@@ -21,6 +21,47 @@ Osa hauista (35 %) ja särkiparvista (20 %) asettuu kaislikoiden ja lumpeikoiden
 (`lunkinjarvi-reeds.json`). Kaislikossa viehe voi tarttua varsiin missä syvyydessä tahansa,
 ja rengas kulkee siellä hitaasti.
 
+## Käytös
+
+Lajien käytös (`behavior` lajin parametreissa) jäljittelee oikeita kaloja:
+
+- **Parvet uivat yhdessä.** Ahven-, särki-, kuha- ja taimenparvella on yhteinen
+  keskipiste ja suunta, ja jokainen kala pysyy omalla paikallaan parvessa. Parvi kiertelee
+  kotipaikkansa ympärillä ja hakeutuu valon mukaiseen syvyyteen. Pimeällä parvi hajoaa
+  väljemmäksi, pakeneva parvi tiivistyy palloksi.
+- **Hauki väijyy.** Se seisoo yksin kaislikon, kaatuneen puun tai kivikon reunassa ja vaihtaa
+  paikkaa harvoin. Vieheen perään se lähtee vain lyhyeksi matkaa ja päättää muutamassa
+  sekunnissa, iskeekö, mutta isku on herkempi kuin muilla.
+- **Ahvenparvi kilpailee ruoasta.** Kun yksi ahven lähtee seuraamaan viehettä, koko parvi
+  innostuu noin 20 sekunniksi: muut huomaavat vieheen kauempaa, kiinnostuvat herkemmin ja
+  parvi kääntyy vieheen suuntaan. Samasta paikasta saa siksi usein monta ahventa.
+- **Särkiparvi pakenee haukea.** Kun hauki on parven lähellä, parvi pakenee muutaman sekunnin
+  poispäin hauesta. Tuulella särkiparvet kulkevat aaltojen mukana tuulen alle.
+
+| Laji   | Yö  | Hämärä | Päivä | Pilvi | Tuuli | Syvyys päivällä → hämärässä          |
+| ------ | --- | ------ | ----- | ----- | ----- | ------------------------------------ |
+| Ahven  | 0,2 | 1,35   | 1     | –     | +15 % | 2–5 m → matalikoille 0,8–3 m         |
+| Hauki  | 0,3 | 1,4    | 0,9   | +35 % | +25 % | kaislikon reuna                      |
+| Särki  | 0,5 | 1,3    | 1     | –     | –     | välivesi 1,5–4 m → matalikot 0,4–1,5 |
+| Kuha   | 1,5 | 1,6    | 0,45  | +50 % | +30 % | syvänne → nousee 1,5–4 m:iin         |
+| Taimen | 0,4 | 1,4    | 0,8   | +50 % | +20 % | pintakerros, kirkkaalla syvemmällä   |
+
+Luvut ovat syöntiaktiivisuuden kertoimia (1 = tavallinen päivä): ne kertovat, kuinka herkästi
+kala kiinnostuu vieheestä ja kuinka vilkkaasti se liikkuu. Ahven, hauki ja taimen saalistavat
+näön varassa, joten pimeällä ne huomaavat vieheen vain noin puolet lähempää. Kuha näkee
+hämärässä hyvin.
+
+Sää vaikuttaa kaikkiin lajeihin:
+
+- **Ennen ukkosta** (n. 4 min ennen rintamaa) syönti kiihtyy 40 %.
+- **Ukkosella ja myrskyllä** kalat painuvat pohjaan ja syönti lähes loppuu.
+- **Tuulen puoleisella rannalla** (rannalla, jota kohti tuuli puhaltaa) ahven, hauki ja kuha
+  ovat aktiivisempia, koska aallot tuovat sinne ravintoa; vastarannalla hiljaisempaa.
+
+Vuorokaudenaika annetaan kaloille valona ja hämäryytenä (`fishConditions`). Kalojen
+liike ei vaikuta saaliin painoon tai lajiin: ne tulevat edelleen kalakannan siemenestä, ja
+parvet pysyvät kotipaikkansa lähellä, joten palvelimen tarkistus saaliin paikasta pätee.
+
 ## Vieheet ja varusteet
 
 Varusteet valitaan moninpelin aulassa ennen kisaa, ja niitä voi vaihtaa taukovalikosta

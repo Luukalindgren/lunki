@@ -122,7 +122,7 @@ body {
 .hud-stamina {
   position: absolute;
   left: 50%;
-  top: calc(var(--u) * 43);
+  top: calc(var(--u) * 58);
   transform: translateX(-50%);
   display: flex;
   align-items: center;
@@ -153,10 +153,45 @@ body {
   background: #d23a2a;
 }
 
-.hud-sonar {
+/* Luotaimet: renkaan alla oikealla, vieheluotain sen vasemmalla puolella. */
+.hud-gauges {
+  position: absolute;
   right: calc(var(--u) * 4);
   top: calc(var(--u) * 82);
+  max-width: calc(100% - var(--u) * 8);
+  display: flex;
+  flex-direction: row-reverse;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: calc(var(--u) * 4);
+}
+
+.hud-gauges .hud-panel {
+  position: relative;
+}
+
+.hud-sonar,
+.hud-lure-sonar {
   padding: var(--u);
+}
+
+.hud-lure-sonar canvas {
+  display: block;
+  width: calc(var(--u) * 96);
+  height: calc(var(--u) * 44);
+  image-rendering: pixelated;
+}
+
+.hud-lure-sonar .hud-sonar-label {
+  text-align: left;
+}
+
+.hud-sonar-label.warn {
+  color: #f08a2c;
+}
+
+.hud-sonar-label.alert {
+  color: #d23a2a;
 }
 
 .hud-sonar canvas {
@@ -324,10 +359,62 @@ body {
 
 .hud-weather {
   left: 50%;
-  top: calc(var(--u) * 26);
+  top: calc(var(--u) * 41);
   transform: translateX(-50%);
   font-size: calc(var(--u) * 7);
   white-space: nowrap;
+}
+
+/* Kompassinauha ajastimen ja sään välissä. */
+.hud-compass {
+  left: 50%;
+  top: calc(var(--u) * 26);
+  transform: translateX(-50%);
+  height: calc(var(--u) * 11);
+  padding: 0;
+  overflow: hidden;
+}
+
+.hud-compass-strip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+}
+
+.hud-compass-tick {
+  position: absolute;
+  bottom: 0;
+  width: var(--u);
+  height: calc(var(--u) * 2);
+  background: #5f6b78;
+}
+
+.hud-compass-tick.major {
+  height: calc(var(--u) * 3);
+  background: #c3cbd2;
+}
+
+.hud-compass-label {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: calc(var(--u) * 8);
+  color: #c3cbd2;
+}
+
+.hud-compass-label.main {
+  color: #f6d04d;
+}
+
+/* Katsesuunnan merkki alareunassa, jotta kirjaimet jäävät näkyviin. */
+.hud-compass-needle {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: var(--u);
+  height: calc(var(--u) * 5);
+  background: #d23a2a;
 }
 
 .hud-timer.low {
@@ -551,10 +638,125 @@ body {
   font-size: 0.75em;
 }
 
+/* Päävalikko: napit paneelin levyisinä allekkain, kaikki keskitettynä. */
+.screen-panel.start-panel {
+  text-align: center;
+}
+
 .main-menu {
   flex-direction: column;
   align-items: stretch;
-  max-width: 360px;
+}
+
+.main-menu button {
+  position: relative;
+  padding: 6px 14px;
+}
+
+/* Retrovalikon osoitin valitun napin edessä. */
+.main-menu button:hover::before,
+.main-menu button:focus-visible::before {
+  content: '▶';
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.7em;
+  color: #f6d04d;
+  animation: cursor-blink 0.8s steps(1) infinite;
+}
+
+/* Valikoiden hillityt animaatiot: portaittaiset kuin vanhoissa peleissä. */
+.wave-letter {
+  display: inline-block;
+  animation: title-wave 2.4s steps(2) infinite;
+  animation-delay: calc(var(--i, 0) * -0.3s);
+}
+
+.screen-panel.enter {
+  animation: panel-in 0.24s steps(4) backwards;
+}
+
+.screen-panel.enter .main-menu button {
+  animation: menu-in 0.18s steps(3) backwards;
+  animation-delay: calc(0.12s + var(--i, 0) * 0.05s);
+}
+
+.screen-panel h2::after {
+  content: '';
+  display: block;
+  width: 48px;
+  height: 4px;
+  margin-top: 2px;
+  background: #8c1c1c;
+}
+
+.screen-panel.enter h2::after {
+  animation: underline-in 0.36s steps(6) backwards;
+  animation-delay: 0.12s;
+}
+
+/* Painikkeet nousevat osoittimen alla ja painuvat alas painettaessa. */
+.screen .buttons button {
+  box-shadow: 3px 3px 0 #0b0f14;
+}
+
+@media (hover: hover) {
+  .screen .buttons button:hover:not(:disabled) {
+    transform: translate(-1px, -1px);
+    box-shadow: 4px 4px 0 #0b0f14;
+  }
+}
+
+.screen .buttons button:active:not(:disabled) {
+  transform: translate(3px, 3px);
+  box-shadow: none;
+}
+
+@keyframes title-wave {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(6px);
+  }
+}
+
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+}
+
+@keyframes underline-in {
+  from {
+    width: 0;
+  }
+}
+
+@keyframes cursor-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen *,
+  .screen *::before,
+  .screen *::after,
+  .screen-panel.enter {
+    animation: none !important;
+  }
 }
 
 /* Kosketusohjaimet (puhelin, tabletti). Koot CSS-pikseleinä sormea varten. */
@@ -697,8 +899,13 @@ body {
 @media (orientation: portrait) {
   .hud.touch .hud-status {
     bottom: auto;
-    top: calc(var(--u) * 40);
+    top: calc(var(--u) * 57);
     font-size: calc(var(--u) * 7);
+  }
+
+  /* Luotaimet tilapaneelin alle, ettei kapealla ruudulla mene päällekkäin. */
+  .hud.touch .hud-gauges {
+    top: calc(var(--u) * 99);
   }
 }
 
@@ -881,7 +1088,7 @@ body {
 .hud.touch .chat-hud {
   left: 50%;
   bottom: auto;
-  top: calc(var(--u) * 36);
+  top: calc(var(--u) * 56);
   transform: translateX(-50%);
   width: min(360px, 50%);
   font-size: max(14px, calc(var(--u) * 7));
