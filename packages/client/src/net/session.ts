@@ -6,6 +6,9 @@ import {
   formatRoomCode,
   isSpeciesId,
   isWeatherLevel,
+  parseTackle,
+  DEFAULT_TACKLE,
+  type Tackle,
   type Difficulty,
   rankPlayers,
   type Catch,
@@ -72,6 +75,7 @@ export interface LobbyPlayer {
   host: boolean;
   me: boolean;
   connected: boolean;
+  tackle: Tackle;
 }
 
 export interface LobbyView {
@@ -106,6 +110,10 @@ export interface PlayerSchema {
   tangleX: number;
   tangleY: number;
   untangle: number;
+  rod: string;
+  lure: string;
+  line: string;
+  leader: boolean;
 }
 
 export interface StateSchema {
@@ -231,6 +239,7 @@ export class NetSession {
         host: id === s.hostId,
         me: id === me,
         connected: p.connected,
+        tackle: playerTackle(p),
       }),
     );
     return {
@@ -284,6 +293,10 @@ export class NetSession {
 
   sendCutLine(): void {
     this.room.send(ClientMsg.cutLine);
+  }
+
+  sendTackle(t: Tackle): void {
+    this.room.send(ClientMsg.tackle, t);
   }
 
   /** Isäntä: takaisin aulaan uutta kisaa varten. */
@@ -355,3 +368,9 @@ export function describeJoinError(err: unknown): string {
     return 'Palvelimeen ei saada yhteyttä. Onko palvelin käynnissä?';
   return `Liittyminen epäonnistui: ${msg}`;
 }
+
+/** Pelaajan varusteet tilasta; tuntemattomat arvot korvautuvat oletuksilla. */
+export const playerTackle = (p: PlayerSchema): Tackle =>
+  parseTackle({ rod: p.rod, lure: p.lure, line: p.line, leader: p.leader }) ?? {
+    ...DEFAULT_TACKLE,
+  };

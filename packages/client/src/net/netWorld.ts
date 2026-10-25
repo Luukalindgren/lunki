@@ -13,6 +13,7 @@ import {
   type RoomPhase,
   type TubeInput,
   type TubeState,
+  type Tackle,
   type Vec2,
   type WaterBody,
 } from '@lunki/shared';
@@ -108,6 +109,10 @@ export class NetWorld {
 
   cutLine(): void {
     this.session.sendCutLine();
+  }
+
+  sendTackle(t: Tackle): void {
+    this.session.sendTackle(t);
   }
 
   /** Oma siima sotkussa: kenen kanssa, missä ja selvitys 0–1. */

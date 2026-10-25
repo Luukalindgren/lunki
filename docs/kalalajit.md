@@ -22,8 +22,17 @@ Kun pohjakartta (#20) ja kasvillisuus tulevat, elinalueet tarkentuvat.
 
 ## Vieheet ja varusteet
 
-Varusteet vaihdetaan taukovalikosta (Esc) tai vieheen pikanäppäimellä R. Vaihto tapahtuu,
-kun viehe on kelalla. Parametrit: `packages/shared/src/fishing/gear.ts`.
+Varusteet valitaan moninpelin aulassa ennen kisaa, ja niitä voi vaihtaa taukovalikosta
+(Esc) tai vieheen pikanäppäimellä R. Vaihto tapahtuu, kun viehe on kelalla. Valinnat
+muistetaan selaimessa. Moninpelissä kaikkien varusteet näkyvät aulan pelaajalistassa ja
+tuloksissa. "Aloittelijan varusteet" palauttaa oletukset: perusvapa, lusikka ja 0,25 mm
+siima ilman perukkaa. Parametrit: `packages/shared/src/fishing/gear.ts`.
+
+| Vapa       | Heitto   | Siiman kestävyys | Kalan väsytys |
+| ---------- | -------- | ---------------- | ------------- |
+| Kevyt vapa | +5 %     | +15 % (joustaa)  | −20 %         |
+| Perusvapa  | normaali | normaali         | normaali      |
+| Järeä vapa | −6 %     | −10 %            | +30 %         |
 
 | Viehe   | Uppoaminen                                          | Heitto   | Parhaat lajit        |
 | ------- | --------------------------------------------------- | -------- | -------------------- |

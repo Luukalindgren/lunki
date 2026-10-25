@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {
-  LINES,
+  breakingStrength,
   LUNKINJARVI,
   LURES,
   chargePower,
@@ -681,7 +681,7 @@ export class SoloGame {
     }
 
     this.hud.setPower(f.stage === 'charging' ? chargePower(f.charge) : null);
-    this.hud.setTension(f.tension, f.drag, LINES[f.tackle.line].strength);
+    this.hud.setTension(f.tension, f.drag, breakingStrength(f.tackle));
     this.hud.setStatus([
       ...(capsized ? [`Kumossa! Pystyssä ${Math.ceil(this.capsizeLeft)} s`] : []),
       ...(tangle
@@ -822,6 +822,7 @@ export class SoloGame {
     if (events.tackleChanged) {
       this.pendingTackle = null;
       saveTackle(this.fishing.tackle);
+      this.net?.world.sendTackle(this.fishing.tackle);
       hud.showMessage(`Viehe: ${LURES[this.fishing.tackle.lure].name}`, 1.5);
     }
     if (events.snagged) {

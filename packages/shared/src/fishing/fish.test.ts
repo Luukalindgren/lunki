@@ -103,6 +103,20 @@ describe('kalat', () => {
     expect(caught).toBeGreaterThanOrEqual(8);
   });
 
+  it('järeä vapa väsyttää kalan nopeammin kuin kevyt', () => {
+    const fightTime = (rod: 'light' | 'heavy') => {
+      let total = 0;
+      for (let seed = 1; seed <= 8; seed++) {
+        const sim = setup('easy', 1.2, seed);
+        sim.s.tackle.rod = rod;
+        fishUntil(sim, 180, (e) => !!e.caught);
+        total += sim.log.length - sim.log.findIndex((e) => e.hooked);
+      }
+      return total;
+    };
+    expect(fightTime('heavy')).toBeLessThan(fightTime('light'));
+  });
+
   it('saalis kirjataan oikealla painolla ja viehe palaa', () => {
     const sim = setup('easy', 0.42, 2);
     expect(fishUntil(sim, 120, (e) => !!e.caught)).toBe(true);

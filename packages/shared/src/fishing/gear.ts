@@ -91,15 +91,72 @@ export const LINES: Record<LineId, Line> = {
 
 export const LINE_IDS = Object.keys(LINES) as LineId[];
 
+/**
+ * Vavat: kevyt joustaa ja suojaa siimaa nykäyksiltä mutta väsyttää kalaa
+ * hitaasti; järeä väsyttää nopeasti, mutta kova veto katkaisee siiman
+ * helpommin.
+ */
+export type RodId = 'light' | 'medium' | 'heavy';
+
+export interface Rod {
+  id: RodId;
+  name: string;
+  castFactor: number;
+  /** Siiman kestävyyden kerroin: vapa joustaa ja vaimentaa piikit. */
+  flex: number;
+  /** Kalan väsymisen kerroin. */
+  power: number;
+  hint: string;
+}
+
+export const RODS: Record<RodId, Rod> = {
+  light: {
+    id: 'light',
+    name: 'Kevyt vapa',
+    castFactor: 1.05,
+    flex: 1.15,
+    power: 0.8,
+    hint: 'Pitkä heitto ja armollinen siimalle, mutta väsytys kestää',
+  },
+  medium: {
+    id: 'medium',
+    name: 'Perusvapa',
+    castFactor: 1,
+    flex: 1,
+    power: 1,
+    hint: 'Tasapainoinen kaikkeen kalastukseen',
+  },
+  heavy: {
+    id: 'heavy',
+    name: 'Järeä vapa',
+    castFactor: 0.94,
+    flex: 0.9,
+    power: 1.3,
+    hint: 'Väsyttää isonkin kalan nopeasti, mutta siima katkeaa helpommin',
+  },
+};
+
+export const ROD_IDS = Object.keys(RODS) as RodId[];
+
 /** Pelaajan varusteet. Vaihdetaan vieheen ollessa kelalla. */
 export interface Tackle {
+  rod: RodId;
   lure: LureId;
   line: LineId;
   /** Teräsperukka: hauki ei katkaise siimaa, mutta muut lajit arkailevat. */
   leader: boolean;
 }
 
-export const DEFAULT_TACKLE: Tackle = { lure: 'spoon', line: 'medium', leader: false };
+/** Aloittelijan varusteet: monipuolinen lusikka, keskipaksu siima ja perusvapa. */
+export const DEFAULT_TACKLE: Tackle = {
+  rod: 'medium',
+  lure: 'spoon',
+  line: 'medium',
+  leader: false,
+};
+
+/** Siiman todellinen kestävyys (kg) vavan jousto huomioiden. */
+export const breakingStrength = (t: Tackle) => LINES[t.line].strength * RODS[t.rod].flex;
 
 /** Teräsperukka karkottaa muita kuin haukea hieman. */
 export const LEADER_SHYNESS = 0.85;
@@ -117,18 +174,21 @@ export function tackleAppeal(t: Tackle, species: SpeciesId): number {
 }
 
 export function tackleCastFactor(t: Tackle): number {
-  return LURES[t.lure].castFactor * LINES[t.line].castFactor;
+  return LURES[t.lure].castFactor * LINES[t.line].castFactor * RODS[t.rod].castFactor;
 }
 
 /** Suurin mahdollinen heittokerroin millä tahansa varusteilla (palvelimen tarkistus). */
 export const MAX_CAST_FACTOR =
   Math.max(...LURE_IDS.map((l) => LURES[l].castFactor)) *
-  Math.max(...LINE_IDS.map((l) => LINES[l].castFactor));
+  Math.max(...LINE_IDS.map((l) => LINES[l].castFactor)) *
+  Math.max(...ROD_IDS.map((r) => RODS[r].castFactor));
 
 export function isTackle(v: unknown): v is Tackle {
   if (!v || typeof v !== 'object') return false;
   const t = v as Record<string, unknown>;
   return (
+    typeof t.rod === 'string' &&
+    Object.hasOwn(RODS, t.rod) &&
     typeof t.lure === 'string' &&
     Object.hasOwn(LURES, t.lure) &&
     typeof t.line === 'string' &&
@@ -137,7 +197,22 @@ export function isTackle(v: unknown): v is Tackle {
   );
 }
 
+/**
+ * Tallennetut tai verkosta tulleet varusteet: puuttuvat kentät (esim. vanha
+ * tallennus ilman vapaa) täytetään oletuksilla. Kelvoton arvo antaa null.
+ */
+export function parseTackle(v: unknown): Tackle | null {
+  if (!v || typeof v !== 'object') return null;
+  const t = { ...DEFAULT_TACKLE, ...(v as Partial<Tackle>) };
+  return isTackle(t) ? { rod: t.rod, lure: t.lure, line: t.line, leader: t.leader } : null;
+}
+
 /** Varusteet lyhyesti HUD:iin. */
 export function describeTackle(t: Tackle): string {
   return `${LURES[t.lure].name} · ${LINES[t.line].name}${t.leader ? ' · perukka' : ''}`;
+}
+
+/** Varusteet kokonaan, vapa mukaan lukien (aula ja tulostaulu). */
+export function describeFullTackle(t: Tackle): string {
+  return `${RODS[t.rod].name} · ${describeTackle(t)}`;
 }

@@ -535,6 +535,8 @@ export function stepHookedFish(
   diff: DifficultyParams,
   rng: Rng,
   dt: number,
+  /** Vavan voima: järeä vapa väsyttää kalaa nopeammin. */
+  power = 1,
 ): FightResult {
   const sp = SPECIES[f.species];
   // Vuorottelu: väsynyt kala pakenee harvemmin ja lyhyemmin.
@@ -553,7 +555,7 @@ export function stepHookedFish(
   const effort = Math.min(pull, Math.max(tension, pull * 0.2));
   f.stamina = Math.max(
     0,
-    f.stamina - (effort * dt * diff.staminaDrain) / (sp.endurancePerKg * f.weight + 1),
+    f.stamina - (effort * power * dt * diff.staminaDrain) / (sp.endurancePerKg * f.weight + 1),
   );
   if (!f.running) f.stamina = Math.min(1, f.stamina + dt * 0.01);
 

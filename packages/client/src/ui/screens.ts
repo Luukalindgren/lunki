@@ -4,6 +4,10 @@ import {
   LINE_IDS,
   LURES,
   LURE_IDS,
+  RODS,
+  ROD_IDS,
+  DEFAULT_TACKLE,
+  describeFullTackle,
   NAME_MAX_LENGTH,
   CAPSIZE_PENALTY_OPTIONS,
   LIGHTNING_PENALTY_OPTIONS,
@@ -215,10 +219,12 @@ export class Screens {
       onStart: () => void;
       onLeave: () => void;
       onSettings: (patch: Partial<RoomSettings>) => void;
+      onTackle: (t: Tackle) => void;
     },
     notice?: string,
   ): void {
     const panel = this.panel();
+    panel.dataset.screen = 'lobby';
     const me = v.players.find((p) => p.me);
     const code = h('p', formatRoomCode(v.code), 'room-code');
     const copy = document.createElement('button');
@@ -241,7 +247,10 @@ export class Screens {
             ? 'valmis'
             : 'odottaa';
       li.textContent = `${p.name}${p.me ? ' (sinä)' : ''}`;
-      li.append(h('span', state, `player-state ${p.host || p.ready ? 'ok' : ''}`));
+      li.append(
+        h('span', state, `player-state ${p.host || p.ready ? 'ok' : ''}`),
+        h('span', describeFullTackle(p.tackle), 'player-gear'),
+      );
       list.appendChild(li);
     }
     panel.append(
@@ -254,6 +263,8 @@ export class Screens {
       v.amHost
         ? this.settingsEditor(v.settings, v.players.length, actions.onSettings)
         : this.settingsSummary(v.settings),
+      h('p', 'Omat varusteet', 'choice-label'),
+      this.tackleEditor(me?.tackle ?? DEFAULT_TACKLE, actions.onTackle),
     );
     if (notice) panel.append(h('p', notice, 'error'));
     const buttons: [string, () => void][] = [];
@@ -296,6 +307,7 @@ export class Screens {
     amHost: boolean,
     onRestart: () => void,
     onLeave: () => void,
+    tackles?: ReadonlyMap<string, Tackle>,
   ): void {
     const panel = this.panel();
     const winner = results[0];
@@ -317,6 +329,8 @@ export class Screens {
       li.classList.toggle('me', r.id === myId);
       const biggest = r.summary.biggest ? formatWeight(r.summary.biggest.weight) : '–';
       li.textContent = `${r.name.padEnd(12)} ${String(r.summary.count).padStart(2)} kpl  ${formatWeight(r.summary.total).padStart(8)}  suurin ${biggest}`;
+      const gear = tackles?.get(r.id);
+      if (gear) li.append(h('span', describeFullTackle(gear), 'player-gear'));
       table.appendChild(li);
     }
     panel.append(
@@ -387,8 +401,17 @@ export class Screens {
   }
 
   private show(panel: HTMLElement): void {
+    // Saman näkymän uudelleenpiirto (aula) säilyttää vierityksen.
+    const prev = this.root.firstElementChild as HTMLElement | null;
+    const same = !!panel.dataset.screen && prev?.dataset.screen === panel.dataset.screen;
+    const top = [prev?.scrollTop ?? 0, this.root.scrollTop];
     this.root.replaceChildren(panel);
     this.root.hidden = false;
+    if (same) {
+      panel.scrollTop = top[0]!;
+      this.root.scrollTop = top[1]!;
+      return;
+    }
     panel.querySelector<HTMLButtonElement>('button.primary')?.focus();
   }
 
@@ -475,18 +498,34 @@ export class Screens {
     return box;
   }
 
-  /** Varusteet: viehe, siima ja teräsperukka. */
+  /** Varusteet: vapa, viehe, siima ja teräsperukka. */
   private tackleEditor(initial: Tackle, onChange: (t: Tackle) => void): HTMLElement {
     const t = { ...initial };
     const box = document.createElement('div');
     box.className = 'settings';
+    const rodHint = h('p', RODS[t.rod].hint, 'hint');
     const hint = h('p', LURES[t.lure].hint, 'hint');
     const set = (patch: Partial<Tackle>) => {
       Object.assign(t, patch);
+      rodHint.textContent = RODS[t.rod].hint;
       hint.textContent = LURES[t.lure].hint;
       onChange({ ...t });
     };
+    const beginner = document.createElement('button');
+    beginner.textContent = 'Aloittelijan varusteet';
+    beginner.title = describeFullTackle(DEFAULT_TACKLE);
+    beginner.addEventListener('click', () => {
+      onChange({ ...DEFAULT_TACKLE });
+      box.replaceWith(this.tackleEditor(DEFAULT_TACKLE, onChange));
+    });
     box.append(
+      this.choice(
+        'Vapa',
+        ROD_IDS.map((id) => [id, RODS[id].name]),
+        t.rod,
+        (v) => set({ rod: v as Tackle['rod'] }),
+      ),
+      rodHint,
       this.choice(
         'Viehe (R)',
         LURE_IDS.map((id) => [id, LURES[id].name]),
@@ -517,6 +556,7 @@ export class Screens {
         'Ohut siima heittyy pidemmälle mutta katkeaa helpommin. Hauki voi purra siiman poikki ilman perukkaa.',
         'hint',
       ),
+      beginner,
     );
     return box;
   }

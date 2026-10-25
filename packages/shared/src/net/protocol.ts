@@ -76,6 +76,8 @@ export const ClientMsg = {
   restart: 'restart',
   /** Sotkeutunut pelaaja katkaisee oman siimansa. */
   cutLine: 'cutLine',
+  /** Pelaajan varusteet (Tackle): aulassa ja kisan aikana vieheen vaihtuessa. */
+  tackle: 'tackle',
 } as const;
 
 /** Vieheen tila muille näytettäväksi. */
