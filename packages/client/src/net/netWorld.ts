@@ -24,6 +24,7 @@ import {
   type Vec2,
   type WaterBody,
 } from '@lunki/shared';
+import type { RaceCatchMark, RacePlayerSpot } from '../game/raceLog';
 import { flightPose } from '../game/spoutView';
 import { playerAppearance, type NetSession, type PlayerSchema, type StateSchema } from './session';
 
@@ -114,6 +115,8 @@ export class NetWorld {
   /** Kala nostettiin (yleensä toinen pelaaja): sama kala pois omasta kalakannasta. */
   onRemoteCatch: ((fish: FishTag, angler: string) => void) | null = null;
   private seenCatches = 0;
+  /** Uusi punnittu saalis kisan aikana ja saajan paikka (tulossivun karttaan, tunnisteena nimi). */
+  onCatchSeen: ((mark: RaceCatchMark) => void) | null = null;
 
   constructor(
     private readonly session: NetSession,
@@ -168,11 +171,36 @@ export class NetWorld {
 
   /** Kaikkien sotkujen kohdat piirtoa varten. */
   tangles(): Vec2[] {
-    const out: Vec2[] = [];
+    return this.tangleSpots().map((t) => t.pos);
+  }
+
+  /** Sotkut avaimineen (pelaajaparin sessionId:t). */
+  tangleSpots(): { key: string; pos: Vec2 }[] {
+    const out: { key: string; pos: Vec2 }[] = [];
     this.session.room.state.players.forEach((p, id) => {
-      if (p.tangledWith && id < p.tangledWith) out.push({ x: p.tangleX, y: p.tangleY });
+      if (p.tangledWith && id < p.tangledWith)
+        out.push({ key: `${id}|${p.tangledWith}`, pos: { x: p.tangleX, y: p.tangleY } });
     });
     return out;
+  }
+
+  /**
+   * Kaikkien renkaiden paikat palvelimen tilasta (tulossivun reitteihin).
+   * Tunnisteena nimi: se on huoneessa yksilöllinen ja säilyy kisaan palatessa,
+   * vaikka sessionId vaihtuu.
+   */
+  racePlayers(): RacePlayerSpot[] {
+    const out: RacePlayerSpot[] = [];
+    this.session.room.state.players.forEach((p) =>
+      out.push({ id: p.name, name: p.name, pos: { x: p.x, y: p.y } }),
+    );
+    return out;
+  }
+
+  /** Pelaajan renkaan paikka palvelimen tilasta; null, jos pelaaja ei ole huoneessa. */
+  playerPos(id: string): Vec2 | null {
+    const p = this.session.room.state.players.get(id);
+    return p ? { x: p.x, y: p.y } : null;
   }
 
   playerName(id: string): string {
@@ -293,14 +321,29 @@ export class NetWorld {
         this.onPeerLeft?.(r.name.replace(/ \(katkos\)$/, ''));
       }
     this.latestOthers = others;
+    const first = !this.primed;
     this.primed = true;
     const catches = [...s.catches];
-    if (catches.length < this.seenCatches) this.seenCatches = 0;
+    // Lista lyheni (esim. saalis menetettiin jäähyssä): kaikki käydään uudelleen läpi.
+    const replay = catches.length < this.seenCatches;
+    if (replay) this.seenCatches = 0;
     // Myös omat: sivun uudelleenlatauksen jälkeen kalakanta on luotu alusta, ja
     // jo nostetut kalat pitää poistaa. Kesken kisan nostettu oma kala on jo
     // korvattu seuraavalla sukupolvella, joten sen tunniste ei enää osu.
-    for (const c of catches.slice(this.seenCatches))
+    for (const c of catches.slice(this.seenCatches)) {
       if (c.fishSlot >= 0) this.onRemoteCatch?.({ slot: c.fishSlot, gen: c.fishGen }, c.angler);
+      // Ennen liittymistä nostettujen (ja uudelleen läpi käytävien) kalojen paikkaa ei tiedetä.
+      const p = first || replay ? undefined : s.players.get(c.player);
+      if (p)
+        this.onCatchSeen?.({
+          id: c.angler,
+          pos: { x: p.x, y: p.y },
+          species: c.species as RaceCatchMark['species'],
+          name: c.name,
+          weight: c.weight,
+          time: c.time,
+        });
+    }
     this.seenCatches = catches.length;
   }
 

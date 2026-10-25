@@ -12,6 +12,7 @@ import {
   type LakeSurroundings,
   type Vec2,
 } from '@lunki/shared';
+import type { RaceEventKind, RaceMapData } from '../game/raceLog';
 import { bottomFor } from '../world/lakeData';
 import { AREA_COLORS, DEFAULT_GROUND, LINE_COLORS } from '../world/surroundingsMesh';
 import { DEPTH_BANDS, MapViewport, depthBand, scaleBarMeters, type Bounds } from './mapViewport';
@@ -232,7 +233,19 @@ export interface LakeMapOptions {
   /** Merkit (esim. ennätyskalat); napautus merkin kohdalla valitsee sen. */
   pins?: MapPin[];
   onPin?: (index: number) => void;
+  /** Kisan reitit ja tapahtumat (tulossivu); saaliit annetaan merkkeinä. */
+  race?: Pick<RaceMapData, 'tracks' | 'events'>;
 }
+
+/** Kisan tapahtumien merkkien värit (myös selitteeseen). */
+export const RACE_EVENT_STYLE: Record<
+  RaceEventKind,
+  { color: string; glyph: string; name: string }
+> = {
+  lightning: { color: '#fff36b', glyph: 'ϟ', name: 'salama' },
+  capsize: { color: '#ff8a3d', glyph: '○', name: 'kaatuminen' },
+  tangle: { color: '#eef2f3', glyph: '×', name: 'siimasotku' },
+};
 
 export interface MapPin {
   pos: Vec2;
@@ -509,6 +522,7 @@ export class LakeMapView {
     }
     if (v.scale < 0.45) this.label(ctx, this.data.map.name, v.width / 2, 14, '#fff3b0', 'center');
 
+    this.drawRace(ctx);
     if (this.probe && !this.options.onPick) this.cross(ctx, v.toScreen(this.probe), '#fff3b0', 4);
     if (this.marker) {
       const s = v.toScreen(this.marker);
@@ -527,6 +541,65 @@ export class LakeMapView {
     this.drawPins(ctx);
     this.scaleBar(ctx);
     this.label(ctx, 'P ▲', v.width - 8, 14, '#eef2f3', 'right');
+  }
+
+  /** Reitit viivoina pelaajan värillä ja tapahtumat pieninä merkkeinä. */
+  private drawRace(ctx: CanvasRenderingContext2D): void {
+    const race = this.options.race;
+    if (!race) return;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    for (const [width, outline] of [
+      [4, true],
+      [2, false],
+    ] as const) {
+      for (const t of race.tracks) {
+        ctx.strokeStyle = outline ? '#0b0f14' : t.color;
+        ctx.lineWidth = width;
+        for (const seg of t.segments) {
+          if (seg.length < 2) continue;
+          ctx.beginPath();
+          seg.forEach((p, i) => {
+            const s = this.view.toScreen(p);
+            if (i === 0) ctx.moveTo(s.x, s.y);
+            else ctx.lineTo(s.x, s.y);
+          });
+          ctx.stroke();
+        }
+      }
+    }
+    for (const e of race.events) this.eventIcon(ctx, e.kind, this.view.toScreen(e.pos));
+    ctx.lineCap = 'butt';
+    ctx.lineJoin = 'miter';
+  }
+
+  private eventIcon(ctx: CanvasRenderingContext2D, kind: RaceEventKind, s: Vec2): void {
+    const x = Math.round(s.x);
+    const y = Math.round(s.y);
+    const path = () => {
+      ctx.beginPath();
+      if (kind === 'lightning') {
+        ctx.moveTo(x + 2, y - 7);
+        ctx.lineTo(x - 2, y);
+        ctx.lineTo(x + 2, y);
+        ctx.lineTo(x - 2, y + 7);
+      } else if (kind === 'capsize') {
+        ctx.arc(x, y, 5, 0, Math.PI * 2);
+      } else {
+        ctx.moveTo(x - 4, y - 4);
+        ctx.lineTo(x + 4, y + 4);
+        ctx.moveTo(x + 4, y - 4);
+        ctx.lineTo(x - 4, y + 4);
+      }
+    };
+    path();
+    ctx.strokeStyle = '#0b0f14';
+    ctx.lineWidth = 5;
+    ctx.stroke();
+    path();
+    ctx.strokeStyle = RACE_EVENT_STYLE[kind].color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
   }
 
   /** Merkit pisteinä; valittu isompana nimen kera ja muiden päällä. */

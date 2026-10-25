@@ -1096,6 +1096,16 @@ body {
   border: 1px solid #0b0f14;
 }
 
+/* Tulossivun saaliskartta: pelaajien värit ja tapahtumamerkit. */
+.race-legend {
+  margin-top: 6px;
+}
+
+.race-legend b {
+  font-weight: normal;
+  text-shadow: 1px 1px #0b0f14;
+}
+
 /* Puhelimella vaakasuunnassa kartalle enemmän tilaa. */
 @media (max-height: 500px) {
   .lake-map-canvas {

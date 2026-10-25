@@ -119,9 +119,12 @@ import { QuietSpot } from './quietSpot';
 import { animateFins, createTubeMesh } from './tubeMesh';
 import { YouMarker } from './youMarker';
 import { loadAppearance } from './appearance';
+import { RaceLog, type RaceMapData } from './raceLog';
 import { bottomFor } from '../world/lakeData';
 
 const LAND_COLOR = 0x24502c;
+/** Yksinpelin pelaajan tunniste kisan kulussa. */
+const SOLO_ID = 'me';
 
 /**
  * Näppäinasettelu: WASD tai nuolet. W vie katseen suuntaan kohti räpylöitä
@@ -178,6 +181,8 @@ export class SoloGame {
   readonly rng: Rng;
   readonly fish: FishPopulation;
   readonly competition: CompetitionState;
+  /** Kisan kulku tulossivun karttaan. */
+  private readonly raceLog = new RaceLog();
   private reelClickTimer = 0;
   /** Potkuvaiheen puolikas edellisellä päivityksellä (räpylöiden äänet). */
   private strokes = 0;
@@ -373,8 +378,10 @@ export class SoloGame {
       net.world.onLightning = (m) =>
         this.onStrike({ x: m.x, y: m.y }, m.victims.includes(net.world.myId));
       net.world.onBigWave = (m) => {
+        for (const id of m.victims) this.logCapsize(net.world.playerPos(id));
         if (m.victims.includes(net.world.myId)) this.onCapsize('wave');
       };
+      net.world.onCatchSeen = (mark) => this.raceLog.addCatch(mark);
       net.world.onUntangled = (m) => this.onUntangled(m, net.world.myId);
       net.world.onRecord = (m) => this.onRecord(m, net.world.myId);
       net.world.onRemoteCatch = (tag, angler) => {
@@ -386,6 +393,10 @@ export class SoloGame {
           this.hud.showMessage(`${angler} ehti nostaa saman kalan – se karkasi sinulta`, 3);
       };
       net.world.onSpout = (m) => {
+        for (const id of m.victims) {
+          const f = m.flights?.find((x) => x.id === id);
+          this.logCapsize(f ? { x: f.fromX, y: f.fromY } : net.world.playerPos(id));
+        }
         if (!m.victims.includes(net.world.myId)) return;
         const f = m.flights?.find((x) => x.id === net.world.myId);
         this.startFlight(
@@ -670,6 +681,8 @@ export class SoloGame {
   /** Oma rengas kaatui ison aallon tai trombin takia. */
   private onCapsize(cause: 'wave' | 'spout'): void {
     this.capsizedAt = this.competition.elapsed;
+    // Moninpelissä kaatumiset kirjataan palvelimen viesteistä kaikille.
+    if (!this.net) this.logCapsize(this.flight?.from ?? this.tube.pos);
     if (cause === 'spout') this.sfx.wave();
     const penalty = this.punish(this.settings.capsizePenalty ?? 'none', 'Kaatumisen jäähy');
     this.hud.showWeighIn(
@@ -723,6 +736,7 @@ export class SoloGame {
     const at = hitMe ? rodTip(this.tube.pos, this.tube.heading) : pos;
     const d = hitMe ? 0 : distance(pos, this.tube.pos);
     this.lightning.strike(at);
+    this.raceLog.addEvent('lightning', pos, this.competition.elapsed);
     this.flashStrength = d < 150 ? 1 : d < 400 ? 0.9 : d < 1000 ? 0.65 : 0.45;
     this.shakeStrength = Math.max(0, 1 - d / 500);
     this.flashInvert = d < 60;
@@ -767,6 +781,7 @@ export class SoloGame {
     const still = { kick: 0, turn: 0, sprint: false };
     const reelHeld = input.isDown('Mouse0') || input.isDown('Space');
     const tangle = this.updateTangle(input.wasPressed('KeyC'));
+    if (!frozen) this.logRace();
 
     this.prevTube = this.tube;
     if (this.net) {
@@ -1106,6 +1121,9 @@ export class SoloGame {
       sfx.caught();
       this.net?.world.sendCatch(events.caught);
       const record = recordCatch(this.competition, events.caught, this.tube.pos);
+      // Moninpelissä saaliit tulevat kartalle palvelimen punnitsemina (onCatchSeen).
+      if (record && !this.net)
+        this.raceLog.addCatch({ ...record, id: SOLO_ID, pos: this.tube.pos });
       this.fishingView.startSplash(this.fishing.lure);
       const catches = this.competition.catches;
       const biggest = catches.every((c) => c === record || c.weight < events.caught!.weight);
@@ -1123,6 +1141,37 @@ export class SoloGame {
       sfx.reelClick();
       this.reelClickTimer = 0.09 / (this.fishing.gear + 1);
     }
+  }
+
+  /** Kaatuminen kartalle; null = paikkaa ei tiedetä. */
+  private logCapsize(pos: Vec2 | null): void {
+    if (pos) this.raceLog.addEvent('capsize', pos, this.competition.elapsed);
+  }
+
+  /** Tulossivun kartta: reitit kerran sekunnissa ja moninpelin sotkut. */
+  private logRace(): void {
+    const now = this.competition.elapsed;
+    const w = this.net?.world;
+    if (!w) {
+      this.raceLog.sample(now, [{ id: SOLO_ID, name: 'Sinä', pos: this.tube.pos }]);
+      return;
+    }
+    this.raceLog.sample(now, w.racePlayers());
+    this.raceLog.tangles(w.tangleSpots(), now);
+  }
+
+  /**
+   * Kisan kulku tulossivun karttaan. Saaliista näytetään vain ne, jotka
+   * lopulta jäivät voimaan (jäähyssä menetetyt pois).
+   */
+  raceMap(): RaceMapData {
+    const d = this.raceLog.data();
+    const kept = this.net
+      ? this.net.world.results().flatMap((r) => r.catches.map((c) => ({ ...c, id: r.name })))
+      : this.competition.catches.map((c) => ({ ...c, id: SOLO_ID }));
+    const counts = (m: { id: string; time: number; weight: number }) =>
+      kept.some((c) => c.id === m.id && c.time === m.time && c.weight === m.weight);
+    return { ...d, catches: d.catches.filter(counts) };
   }
 
   /** Moninpeli: kello ja loppu palvelimelta. Palauttaa true, kun kisa päättyy. */
