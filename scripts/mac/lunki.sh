@@ -48,4 +48,5 @@ esac
 # toiseen komentoon (lunki palauteavain | gh secret set …).
 tty=()
 [ -t 0 ] && [ -t 1 ] && tty=(-t)
-exec ssh "${tty[@]}" "$host" "cd $dir; $run"
+# macOSin bash 3.2 pitää tyhjää taulukkoa asettamattomana (set -u).
+exec ssh ${tty[@]+"${tty[@]}"} "$host" "cd $dir; $run"
