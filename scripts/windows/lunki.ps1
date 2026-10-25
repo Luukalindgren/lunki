@@ -110,8 +110,9 @@ switch ($Komento) {
       Write-Log 'pnpm install epäonnistui, palvelinta ei käynnistetty'
       exit 1
     }
-    Write-Log 'Käynnistetään palvelin (pnpm server)'
-    cmd.exe /d /c "pnpm server >> `"$Log`" 2>&1"
+    Write-Log 'Käynnistetään palvelin (pnpm run server)'
+    # Pelkkä "pnpm server" on pnpm:n oma komento, joka ei aja skriptiä.
+    cmd.exe /d /c "pnpm run server >> `"$Log`" 2>&1"
     Write-Log "Palvelin pysähtyi (koodi $LASTEXITCODE)"
     exit $LASTEXITCODE
   }

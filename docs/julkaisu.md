@@ -49,7 +49,7 @@ läppäriltä SSH:n yli: [windows-palvelin.md](windows-palvelin.md).
    ```powershell
    git pull
    pnpm install
-   pnpm server
+   pnpm run server
    ```
    Palvelin kertoo kuuntelevansa porttia 2567. Ikkuna pidetään auki pelin ajan.
    Ennätyslista tallentuu tiedostoon `packages/server/data/lunki.sqlite`
@@ -140,9 +140,9 @@ Tulosteessa näkyy palautteen kirjoittaja, teksti sekä selain ja pelin versio
 
 ## Vianetsintä
 
-| Oire                            | Syy ja korjaus                                                                                       |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| "Palvelimeen ei saada yhteyttä" | Onko `pnpm server` käynnissä ja tunneli päällä? Kokeile selaimella `https://<osoite>/__healthcheck`. |
-| Toimii kotona, ei kavereilla    | `LUNKI_SERVER_URL` puuttuu tai Julkaisua ei ajettu muuttujan lisäämisen jälkeen.                     |
-| "Huonetta ei löytynyt…"         | Koodi väärin, huone täynnä tai kisa jo alkanut. Huone katoaa, kun kaikki poistuvat.                  |
-| Pelaaja putosi kesken kisan     | Sivun uudelleenlataus palauttaa samaan renkaaseen 60 sekunnin sisällä.                               |
+| Oire                            | Syy ja korjaus                                                                                           |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| "Palvelimeen ei saada yhteyttä" | Onko `pnpm run server` käynnissä ja tunneli päällä? Kokeile selaimella `https://<osoite>/__healthcheck`. |
+| Toimii kotona, ei kavereilla    | `LUNKI_SERVER_URL` puuttuu tai Julkaisua ei ajettu muuttujan lisäämisen jälkeen.                         |
+| "Huonetta ei löytynyt…"         | Koodi väärin, huone täynnä tai kisa jo alkanut. Huone katoaa, kun kaikki poistuvat.                      |
+| Pelaaja putosi kesken kisan     | Sivun uudelleenlataus palauttaa samaan renkaaseen 60 sekunnin sisällä.                                   |

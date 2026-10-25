@@ -1,5 +1,5 @@
 # Pelipalvelin konttina pilvipalvelinta varten (esim. Fly.io tai Hetzner).
-# Kotikoneella palvelin ajetaan suoraan: pnpm server (ks. docs/julkaisu.md).
+# Kotikoneella palvelin ajetaan suoraan: pnpm run server (ks. docs/julkaisu.md).
 FROM node:22-slim
 WORKDIR /app
 RUN corepack enable
