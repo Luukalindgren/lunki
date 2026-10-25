@@ -153,10 +153,45 @@ body {
   background: #d23a2a;
 }
 
-.hud-sonar {
+/* Luotaimet: renkaan alla oikealla, vieheluotain sen vasemmalla puolella. */
+.hud-gauges {
+  position: absolute;
   right: calc(var(--u) * 4);
   top: calc(var(--u) * 82);
+  max-width: calc(100% - var(--u) * 8);
+  display: flex;
+  flex-direction: row-reverse;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: calc(var(--u) * 4);
+}
+
+.hud-gauges .hud-panel {
+  position: relative;
+}
+
+.hud-sonar,
+.hud-lure-sonar {
   padding: var(--u);
+}
+
+.hud-lure-sonar canvas {
+  display: block;
+  width: calc(var(--u) * 96);
+  height: calc(var(--u) * 44);
+  image-rendering: pixelated;
+}
+
+.hud-lure-sonar .hud-sonar-label {
+  text-align: left;
+}
+
+.hud-sonar-label.warn {
+  color: #f08a2c;
+}
+
+.hud-sonar-label.alert {
+  color: #d23a2a;
 }
 
 .hud-sonar canvas {

@@ -81,6 +81,7 @@ export class TouchControls {
     grid.append(
       this.tap('VIEHE', 'KeyR', 'Vaihda viehe'),
       this.tap('LUOT', 'KeyK', 'Kaikuluotain'),
+      this.tap('SYV', 'KeyL', 'Vieheen syvyys'),
       this.tap('KAM', 'KeyV', 'Kalastajan silmin'),
       this.tap('JAR−', 'KeyQ', 'Jarru löysemmälle'),
       this.tap('JAR+', 'KeyE', 'Jarru kireämmälle'),

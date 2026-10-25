@@ -633,6 +633,11 @@ export class SoloGame {
     if (input.wheel !== 0) this.view.zoom(input.wheel);
     if (input.wasPressed('KeyH')) this.hud.toggleHelp();
     if (input.wasPressed('KeyK')) this.hud.sonar.toggle();
+    if (input.wasPressed('KeyL'))
+      this.hud.showMessage(
+        this.hud.lureSonar.toggle() ? 'Vieheen syvyysnäkymä päällä' : 'Vieheen syvyysnäkymä pois',
+        1.5,
+      );
     if (input.wasPressed('KeyV')) this.setViewMode(this.viewMode === 'top' ? 'pov' : 'top');
     if (input.wasPressed('KeyR'))
       this.setTackle(nextLure(this.pendingTackle ?? this.fishing.tackle));
@@ -765,6 +770,20 @@ export class SoloGame {
     this.hud.sonar.update(dt, () =>
       sonarPing(this.tube.pos, this.fish.fish, this.bottom.depthAt(this.tube.pos)),
     );
+    this.hud.lureSonar.update(dt, f.stage === 'water' && !f.onLand, () => ({
+      tip: rodTip(this.tube.pos, this.tube.heading),
+      lure: f.lure,
+      depth: f.depth,
+      depthAt: (p) => this.bottom.depthAt(p),
+      isWater: (p) => this.water.isWater(p),
+      structureAt: (p) => this.bottom.structureAt(p),
+      fish: this.fish.fish.filter(
+        (x) => x.mode === 'follow' || x.mode === 'struck' || x.id === f.hookedId,
+      ),
+      bite: f.struckId !== null,
+      hooked: f.hookedId !== null,
+      snag: f.snag !== null,
+    }));
     const left = timeLeft(this.competition);
     this.hud.setTimer(formatTime(left), left < 60);
     this.updateWeather(dt);
