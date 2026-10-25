@@ -589,7 +589,12 @@ export class SkyView {
 
     this.glitter.dir.copy(bodyDir);
     this.glitter.color.set(look.glitter);
-    this.glitter.amount = bodyDir.y > -0.02 ? look.glitterAmount * (1 - cloud) : 0;
+    // Silta näkyy vain matalasta auringosta tai kuusta: korkealta paistaessa
+    // peilikuva olisi aivan kalastajan edessä ja näyttäisi tikkailta.
+    this.glitter.amount =
+      bodyDir.y > -0.02
+        ? look.glitterAmount * (1 - cloud) * (1 - smoothstep(0.4, 0.6, bodyDir.y))
+        : 0;
 
     // Salama valaisee hetkeksi koko maiseman: sävytys palaa kohti neutraalia.
     const g = this.grade;
