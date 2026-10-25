@@ -148,6 +148,9 @@ export interface StateSchema {
     lightningPenalty: string;
     capsizePenalty: string;
     species: Iterable<string>;
+    customStart: boolean;
+    startX: number;
+    startY: number;
   };
   players: Map<string, PlayerSchema>;
   clock: number;
@@ -278,6 +281,7 @@ export class NetSession {
         lightningPenalty: s.settings.lightningPenalty as Penalty,
         capsizePenalty: s.settings.capsizePenalty as Penalty,
         species: [...s.settings.species].filter(isSpeciesId),
+        start: s.settings.customStart ? { x: s.settings.startX, y: s.settings.startY } : null,
       },
       amHost: s.hostId === me,
       allReady: players.every((p) => p.host || p.ready),

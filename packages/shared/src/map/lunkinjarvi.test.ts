@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { findLaunchPoint, findOpenWaterPoint, signedArea } from './geometry';
+import {
+  START_SHORE_CLEARANCE,
+  findLaunchPoint,
+  findOpenWaterPoint,
+  findStartNear,
+  isValidStart,
+  signedArea,
+} from './geometry';
 import { LUNKINJARVI } from './lunkinjarvi';
 import { WaterBody } from './waterBody';
 
@@ -61,6 +68,23 @@ describe('Lunkinjärven kartta', () => {
       p = hit?.position ?? next;
       expect(water.isWater(p)).toBe(true);
       if (hit) angle += Math.PI * rand();
+    }
+  });
+
+  it('valittu aloituspaikka: vedessä ja irti rannasta, muut lähelle', () => {
+    const open = findOpenWaterPoint(water, LUNKINJARVI.bounds);
+    expect(isValidStart(water, open)).toBe(true);
+    expect(isValidStart(water, { x: LUNKINJARVI.bounds.maxX + 50, y: 0 })).toBe(false);
+    const shore = LUNKINJARVI.shore[0]!;
+    expect(isValidStart(water, shore)).toBe(false);
+    expect(isValidStart(water, { x: NaN, y: 0 })).toBe(false);
+    let seed = 3;
+    const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 10; i++) {
+      const p = findStartNear(water, open, 60, random);
+      expect(Math.hypot(p.x - open.x, p.y - open.y)).toBeLessThanOrEqual(60);
+      expect(isValidStart(water, p)).toBe(true);
+      expect(water.closestShorePoint(p)!.distance).toBeGreaterThanOrEqual(START_SHORE_CLEARANCE);
     }
   });
 });

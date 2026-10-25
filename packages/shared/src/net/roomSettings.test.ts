@@ -51,4 +51,17 @@ describe('validateSettingsPatch', () => {
     expect(validateSettingsPatch({ species: [] }, 1)).toEqual({});
     expect(validateSettingsPatch({ species: ['toString'] }, 1)).toEqual({});
   });
+
+  it('aloituspaikka: null = satunnainen, piste vain tarkistettuna', () => {
+    const wet = (p: { x: number }) => p.x > 0;
+    expect(validateSettingsPatch({ start: null }, 1)).toEqual({ start: null });
+    expect(validateSettingsPatch({ start: { x: 12.345, y: -3.21 } }, 1, wet)).toEqual({
+      start: { x: 12.3, y: -3.2 },
+    });
+    expect(validateSettingsPatch({ start: { x: -5, y: 0 } }, 1, wet)).toEqual({});
+    expect(validateSettingsPatch({ start: { x: 'a', y: 0 } }, 1, wet)).toEqual({});
+    expect(validateSettingsPatch({ start: { x: Infinity, y: 0 } }, 1, wet)).toEqual({});
+    // Ilman tarkistinta pistettä ei hyväksytä.
+    expect(validateSettingsPatch({ start: { x: 5, y: 0 } }, 1)).toEqual({});
+  });
 });

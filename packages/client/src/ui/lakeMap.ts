@@ -4,6 +4,7 @@ import {
   LUNKINJARVI_SURROUNDINGS,
   WaterBody,
   distance,
+  isValidStart,
   pierRing,
   type BottomFeature,
   type LakeBottom,
@@ -52,6 +53,24 @@ const lunkiData = (): LakeData => {
   }
   return lunki;
 };
+
+const featureAt = (d: LakeData, p: Vec2): (BottomFeature & { name: string }) | null => {
+  for (const f of d.features) {
+    if (!f.name || !FEATURE_NAMES[f.type]) continue;
+    const reach = f.type === 'tree' ? f.length : f.type === 'rocks' ? f.radius : f.radius * 0.6;
+    if (distance(p, f) <= reach + 4) return f as BottomFeature & { name: string };
+  }
+  return null;
+};
+
+/** Kohdan syvyys ja pohjan muoto tekstinä, esim. "Syvyys 3,2 m · Lahden kivikko (kivikko)"; maalla null. */
+export function describeSpot(p: Vec2): string | null {
+  const d = lunkiData();
+  if (!d.water.isWater(p)) return null;
+  const feature = featureAt(d, p);
+  const what = feature ? ` · ${feature.name} (${FEATURE_NAMES[feature.type]})` : '';
+  return `Syvyys ${fi(d.bottom.depthAt(p))} m${what}`;
+}
 
 interface BaseImage {
   canvas: HTMLCanvasElement;
@@ -346,10 +365,9 @@ export class LakeMapView {
   }
 
   private onTap(p: Vec2): void {
-    const wet = this.data.water.isWater(p);
     if (this.options.onPick) {
-      if (!wet) {
-        this.info.textContent = 'Valitse kohta vedestä.';
+      if (!isValidStart(this.data.water, p)) {
+        this.info.textContent = 'Valitse kohta vedestä, vähän irti rannasta.';
         return;
       }
       this.marker = p;
@@ -362,25 +380,10 @@ export class LakeMapView {
 
   /** Syvyys ja lähin pohjan muoto tekstinä kartan alle. */
   private showInfo(p: Vec2, picked: boolean): void {
-    if (!this.data.water.isWater(p)) {
-      this.info.textContent = 'Maata';
-      return;
-    }
-    const depth = `Syvyys ${fi(this.data.bottom.depthAt(p))} m`;
-    const feature = this.featureAt(p);
-    const what = feature ? ` · ${feature.name} (${FEATURE_NAMES[feature.type]})` : '';
+    const spot = describeSpot(p);
     const prefix =
-      picked && this.options.onPick ? `${this.options.markerLabel ?? 'Valittu'}: ` : '';
-    this.info.textContent = prefix + depth + what;
-  }
-
-  private featureAt(p: Vec2): (BottomFeature & { name: string }) | null {
-    for (const f of this.data.features) {
-      if (!f.name || !FEATURE_NAMES[f.type]) continue;
-      const reach = f.type === 'tree' ? f.length : f.type === 'rocks' ? f.radius : f.radius * 0.6;
-      if (distance(p, f) <= reach + 4) return f as BottomFeature & { name: string };
-    }
-    return null;
+      picked && spot && this.options.onPick ? `${this.options.markerLabel ?? 'Valittu'}: ` : '';
+    this.info.textContent = spot ? prefix + spot : 'Maata';
   }
 
   private draw(): void {
