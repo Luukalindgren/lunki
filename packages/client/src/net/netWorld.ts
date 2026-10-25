@@ -5,7 +5,10 @@ import {
   TubePredictor,
   encodeInputs,
   lerpAngle,
+  SPOUT,
   type BigWaveMessage,
+  type SpoutFlight,
+  type SpoutMessage,
   type Catch,
   type CatchRecord,
   type LightningMessage,
@@ -21,6 +24,7 @@ import {
   type Vec2,
   type WaterBody,
 } from '@lunki/shared';
+import { flightPose } from '../game/spoutView';
 import { playerAppearance, type NetSession, type PlayerSchema, type StateSchema } from './session';
 
 /** Muut pelaajat piirretään näin paljon menneisyydestä (s), jotta liike on pehmeää. */
@@ -35,6 +39,9 @@ export interface RemotePlayer {
   lure: Vec2 | null;
   lureStage: number;
   appearance: Appearance;
+  /** Trombin lennättämänä korkeus ilmassa (m) ja kieppuminen (rad). */
+  lift?: number;
+  tumble?: number;
 }
 
 interface RemoteSnap {
@@ -98,7 +105,9 @@ export class NetWorld {
   /** Iso aalto osui. */
   onBigWave: ((msg: BigWaveMessage) => void) | null = null;
   /** Trombi nappasi renkaita. */
-  onSpout: ((msg: BigWaveMessage) => void) | null = null;
+  onSpout: ((msg: SpoutMessage) => void) | null = null;
+  /** Muiden lennot trombin mukana: lento ja sen alku (paikallinen kello, s). */
+  private readonly flights = new Map<string, { flight: SpoutFlight; start: number }>();
   /** Siimasotku selvisi. */
   onUntangled: ((msg: UntangledMessage) => void) | null = null;
   onRecord: ((msg: RecordMessage) => void) | null = null;
@@ -120,7 +129,14 @@ export class NetWorld {
     session.onCatchRejected = () => this.onCatchRejected?.();
     session.onLightning = (m) => this.onLightning?.(m);
     session.onBigWave = (m) => this.onBigWave?.(m);
-    session.onSpout = (m) => this.onSpout?.(m);
+    session.onSpout = (m) => {
+      for (const f of m.flights ?? [])
+        this.flights.set(f.id, {
+          flight: { from: { x: f.fromX, y: f.fromY }, to: { x: f.toX, y: f.toY } },
+          start: this.clock(),
+        });
+      this.onSpout?.(m);
+    };
     session.onUntangled = (m) => this.onUntangled?.(m);
     session.onRecord = (m) => this.onRecord?.(m);
   }
@@ -295,11 +311,14 @@ export class NetWorld {
     for (const [id, r] of this.remotes) {
       const s = r.buf.sample(t);
       if (!s) continue;
+      const air = this.inFlight(id, t, s.pos);
       out.push({
         id,
         name: r.name,
-        pos: s.pos,
-        heading: s.heading,
+        pos: air?.pos ?? s.pos,
+        lift: air?.height,
+        tumble: air?.tumble,
+        heading: s.heading + (air?.spin ?? 0),
         kickPhase: s.kickPhase,
         lure: s.lureStage !== LureStage.none ? s.lure : null,
         lureStage: s.lureStage,
@@ -307,6 +326,24 @@ export class NetWorld {
       });
     }
     return out;
+  }
+
+  /**
+   * Toisen pelaajan lento trombin mukana hetkellä t (piirron kello): palvelin
+   * siirsi renkaan heti perille, joten kaari piirretään lähtöpaikasta sinne.
+   */
+  private inFlight(id: string, t: number, now: Vec2) {
+    const f = this.flights.get(id);
+    if (!f) return null;
+    // Lento alkaa viestistä; palvelimen siirto näkyy vasta myöhemmin tiloissa,
+    // joten loppua kohti kaari kääntyy kohti piirrettävää paikkaa.
+    const k = (t + INTERPOLATION_DELAY - f.start) / SPOUT.flight;
+    if (k >= 1) {
+      this.flights.delete(id);
+      return null;
+    }
+    if (k < 0) return null;
+    return flightPose(f.flight, k, now);
   }
 
   dispose(): void {

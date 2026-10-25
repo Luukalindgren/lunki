@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LUNKINJARVI } from '../map/lunkinjarvi';
 import { WaterBody } from '../map/waterBody';
-import { BIG_WAVE, bigWaveHeight, capsizes, planBigWaves } from './bigWaves';
+import { BIG_WAVE, bigWaveDir, bigWaveHeight, capsizes, planBigWaves } from './bigWaves';
 import { planWeather, weatherAt } from './weather';
 
 const rings = [LUNKINJARVI.shore, ...LUNKINJARVI.islands];
@@ -19,6 +19,15 @@ describe('isot aallot', () => {
       expect(weatherAt(plan, w.t).sky).not.toBe('calm');
     }
     expect(planBigWaves(planWeather(9, 'calm', 900), 9, 900)).toEqual([]);
+  });
+
+  it('myrskyssä aallot tulevat eri suunnista tuulen ympäriltä', () => {
+    const plan = planWeather(9, 'chaos', 900);
+    const waves = planBigWaves(plan, 9, 900);
+    const offsets = waves.map((w) => w.offset);
+    expect(Math.max(...offsets) - Math.min(...offsets)).toBeGreaterThan(0.8);
+    for (const o of offsets) expect(Math.abs(o)).toBeLessThanOrEqual(BIG_WAVE.maxSpread);
+    expect(bigWaveDir({ t: 0, offset: 0.5 }, 1)).toBeCloseTo(1.5);
   });
 
   it('kaatavat selällä myrskyssä, mutta eivät suojaisessa poukamassa', () => {

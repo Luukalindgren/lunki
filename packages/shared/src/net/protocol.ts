@@ -136,7 +136,7 @@ export const ServerMsg = {
   lightning: 'lightning',
   /** Iso aalto osui, ks. BigWaveMessage. */
   bigWave: 'bigWave',
-  /** Trombi nappasi renkaita (sama muoto kuin BigWaveMessage). */
+  /** Trombi nappasi renkaita, ks. SpoutMessage. */
   spout: 'spout',
   /** Sotku selvisi, ks. UntangledMessage. */
   untangled: 'untangled',
@@ -171,6 +171,12 @@ export interface UntangledMessage {
 export interface BigWaveMessage {
   /** Kaatuneiden sessionId:t. */
   victims: string[];
+}
+
+/** Trombi nappasi renkaita ja lennätti ne muualle järvelle. */
+export interface SpoutMessage extends BigWaveMessage {
+  /** Lennot: kuka, mistä ja minne (palvelin on jo siirtänyt renkaan perille). */
+  flights: { id: string; fromX: number; fromY: number; toX: number; toY: number }[];
 }
 
 export interface LightningMessage {

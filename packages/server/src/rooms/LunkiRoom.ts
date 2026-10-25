@@ -21,13 +21,17 @@ import {
   TANGLE,
   findTangles,
   rodTip,
+  bigWaveDir,
   bigWaveHeight,
   capsizes,
   isPenalty,
   planBigWaves,
   planWaterspouts,
+  SPOUT,
+  activeSpouts,
   spoutAffects,
   spoutCapture,
+  spoutLanding,
   spoutWind,
   isWeatherLevel,
   penaltyOutcome,
@@ -63,6 +67,7 @@ import {
   type JoinOptions,
   type BigWave,
   type BigWaveMessage,
+  type SpoutMessage,
   type UntangledMessage,
   CHAT_HISTORY,
   ChatLimiter,
@@ -758,23 +763,36 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     this.broadcast(ServerMsg.untangled, msg);
   }
 
-  /** Trombi nappaa liian lähelle tulleen: kaataa ja sinkoaa ulospäin. */
+  /**
+   * Trombi nappaa liian lähelle tulleen ja lennättää sen muualle järvelle:
+   * rengas siirretään heti perille, ja asiakkaat näyttävät lennon. Lennon
+   * ja kumossa olon ajan rengas ei liiku eikä kalastaa voi.
+   */
   private catchInSpouts() {
     const st = this.state;
     const victims: string[] = [];
+    const flights: SpoutMessage['flights'] = [];
+    const spots = activeSpouts(this.spouts, st.clock);
     for (const [id, sim] of this.sims) {
       const p = st.players.get(id);
       if (!p || !spoutAffects(p.capsizedUntil, st.clock)) continue;
       const fling = spoutCapture(this.spouts, st.clock, sim.tube.pos);
       if (!fling) continue;
       victims.push(id);
-      sim.tube = { ...sim.tube, vel: fling };
+      const from = { ...sim.tube.pos };
+      const to = spoutLanding(from, fling, water, Math.random, spots);
+      if (to) {
+        sim.tube = { ...sim.tube, pos: to, vel: { x: 0, y: 0 }, angVel: 0 };
+        flights.push({ id, fromX: from.x, fromY: from.y, toX: to.x, toY: to.y });
+      } else {
+        sim.tube = { ...sim.tube, vel: fling };
+      }
       writeTube(p, sim.tube, sim.inputs.lastSeq);
-      p.capsizedUntil = st.clock + BIG_WAVE.recover;
+      p.capsizedUntil = st.clock + (to ? SPOUT.flight : 0) + BIG_WAVE.recover;
       this.punish(id, isPenalty(st.settings.capsizePenalty) ? st.settings.capsizePenalty : 'none');
     }
     if (victims.length > 0) {
-      const msg: BigWaveMessage = { victims };
+      const msg: SpoutMessage = { victims, flights };
       this.broadcast(ServerMsg.spout, msg);
     }
   }
@@ -810,13 +828,14 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   private breakBigWaves(windSpeed: number, windDir: number) {
     const st = this.state;
     while (this.nextWave < this.bigWaves.length && this.bigWaves[this.nextWave]!.t <= st.clock) {
-      this.nextWave++;
+      // Jokainen aalto tulee omasta suunnastaan tuulen ympäriltä.
+      const waveDir = bigWaveDir(this.bigWaves[this.nextWave++]!, windDir);
       const victims: string[] = [];
       for (const [id, sim] of this.sims) {
         const p = st.players.get(id);
         if (!p || this.capsized(id)) continue;
-        const h = bigWaveHeight(rings, sim.tube.pos, windSpeed, windDir);
-        if (!capsizes(sim.tube.heading, windDir, h)) continue;
+        const h = bigWaveHeight(rings, sim.tube.pos, windSpeed, waveDir);
+        if (!capsizes(sim.tube.heading, waveDir, h)) continue;
         victims.push(id);
         p.capsizedUntil = st.clock + BIG_WAVE.recover;
         this.punish(
