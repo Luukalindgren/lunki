@@ -1,4 +1,5 @@
 import type { Sky } from '@lunki/shared';
+import { loonCall, loonCallLength } from './loon';
 
 /** Ympäristöäänten lähtötiedot: sää kuulijan kohdalla. */
 export interface AmbienceInput {
@@ -14,7 +15,8 @@ export const MENU_AMBIENCE: AmbienceInput = { sky: 'calm', windSpeed: 2, rain: 0
 /**
  * Tuuli, sade ja linnut. Tuuli ja sade ovat suodatettua silmukkakohinaa,
  * jonka voimakkuus seuraa säätä; linnut sirkuttavat satunnaisesti
- * poutasäällä ja hiljenevät tuulen ja sateen yltyessä.
+ * poutasäällä ja hiljenevät tuulen ja sateen yltyessä. Kuikat huutavat
+ * kauempana järvellä, ja huuto kaikuu rannoista.
  */
 export class Ambience {
   private readonly wind: GainNode;
@@ -24,6 +26,10 @@ export class Ambience {
   private gustTarget = 0;
   private gustTimer = 0;
   private birdTimer = 2;
+  /** Ensimmäinen kuikka kuuluu pian, sitten harvemmin. */
+  private loonTimer = 5 + Math.random() * 8;
+  /** Kuikkien väylä: suora ääni ja rannoista palaava kaiku. */
+  private readonly loons: GainNode;
 
   constructor(
     private readonly ctx: AudioContext,
@@ -53,6 +59,18 @@ export class Ambience {
     this.rain = ctx.createGain();
     this.rain.gain.value = 0;
     loop(rainFilter, this.rain);
+
+    this.loons = ctx.createGain();
+    this.loons.connect(out);
+    const echo = ctx.createDelay(1);
+    echo.delayTime.value = 0.42;
+    const feedback = ctx.createGain();
+    feedback.gain.value = 0.32;
+    const dull = ctx.createBiquadFilter();
+    dull.type = 'lowpass';
+    dull.frequency.value = 1400;
+    this.loons.connect(echo).connect(dull).connect(feedback).connect(echo);
+    dull.connect(out);
   }
 
   update(dt: number, w: AmbienceInput): void {
@@ -75,6 +93,62 @@ export class Ambience {
       if (quiet) this.chirp();
       this.birdTimer = 2.5 + Math.random() * 6;
     }
+
+    this.loonTimer -= dt;
+    if (this.loonTimer <= 0) {
+      // Kuikka huutaa myös sateella, mutta ei myrskyssä eikä kovassa tuulessa.
+      const ok = w.windSpeed < 10 && w.rain < 0.6 && w.sky !== 'thunder' && w.sky !== 'storm';
+      const length = ok ? this.loon() : 0;
+      // Toinen kuikka vastaa joskus heti perään.
+      this.loonTimer = ok && Math.random() < 0.3 ? length + 0.8 : 18 + Math.random() * 40;
+    }
+  }
+
+  /** Kuikan huuto tai laulu jostain päin järveä. Palauttaa kutsun keston (s). */
+  private loon(): number {
+    const notes = loonCall(Math.random() < 0.55 ? 'wail' : 'song');
+    const ctx = this.ctx;
+    const pan = ctx.createStereoPanner();
+    pan.pan.value = Math.random() * 1.8 - 0.9;
+    // Kaukainen ääni on vaimeampi ja tummempi.
+    const far = Math.random();
+    const tone = ctx.createBiquadFilter();
+    tone.type = 'lowpass';
+    tone.frequency.value = 3200 - far * 1600;
+    const level = ctx.createGain();
+    level.gain.value = 0.11 - far * 0.06;
+    tone.connect(level).connect(pan).connect(this.loons);
+    const t0 = ctx.currentTime + 0.05;
+    for (const n of notes) {
+      const t = t0 + n.at;
+      const end = t + n.dur;
+      const osc = ctx.createOscillator();
+      // Kolmioaalto: pehmeä, huilumainen sävy, jossa on hieman yläsäveliä.
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(n.pitch[0]![1], t);
+      for (const [at, f] of n.pitch.slice(1)) osc.frequency.linearRampToValueAtTime(f, t + at);
+      if (n.vibrato > 0) {
+        const lfo = ctx.createOscillator();
+        lfo.frequency.value = 5 + Math.random();
+        const depth = ctx.createGain();
+        // Vibrato voimistuu sävelen edetessä.
+        depth.gain.setValueAtTime(0, t);
+        depth.gain.linearRampToValueAtTime(n.vibrato, t + n.dur * 0.7);
+        lfo.connect(depth).connect(osc.frequency);
+        lfo.start(t);
+        lfo.stop(end);
+      }
+      const gain = ctx.createGain();
+      const attack = Math.min(0.12, n.dur * 0.3);
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(n.peak, t + attack);
+      gain.gain.setValueAtTime(n.peak, end - Math.min(0.3, n.dur * 0.4));
+      gain.gain.exponentialRampToValueAtTime(0.0001, end);
+      osc.connect(gain).connect(tone);
+      osc.start(t);
+      osc.stop(end + 0.02);
+    }
+    return loonCallLength(notes);
   }
 
   /** Lintu: muutama nopea, nouseva tai laskeva vihellys. */
