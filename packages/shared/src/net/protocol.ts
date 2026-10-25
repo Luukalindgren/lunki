@@ -12,11 +12,13 @@ export const ROOM_NAME = 'lunki';
  * uudelleen: asiakas ei lähetä vanhemmalle palvelimelle viestejä, joita se
  * ei tunne. Vanha palvelin ilman kenttää = 1.
  */
-export const PROTOCOL_VERSION = 3;
+export const PROTOCOL_VERSION = 4;
 /** Chat tuli versiossa 2. */
 export const CHAT_PROTOCOL = 2;
 /** Maalle juuttuneen vieheen siiman katkaisu (ClientMsg.landCut) tuli versiossa 3. */
 export const LAND_CUT_PROTOCOL = 3;
+/** Katsojat (JoinOptions.spectate, ClientMsg.spectate) tulivat versiossa 4. */
+export const SPECTATE_PROTOCOL = 4;
 
 /** Oletuspelaajamäärä huoneessa. Rakenne sallii isomman. */
 export const DEFAULT_MAX_PLAYERS = 8;
@@ -69,6 +71,11 @@ export interface JoinOptions {
   name: string;
   /** Selaimen muistiin tallennettu satunnainen tunniste. */
   playerId: string;
+  /**
+   * Kisan aikana: jos kisaan ei pääse mukaan (huoneen asetus), liitytään
+   * katsojaksi. Vanha palvelin ei tunne valintaa ja hylkää liittymisen.
+   */
+  spectate?: boolean;
 }
 
 /** Palvelimen syyt hylätä liittyminen; asiakas näyttää ne sellaisenaan. */
@@ -106,6 +113,8 @@ export const ClientMsg = {
   appearance: 'appearance',
   /** Pelaaja katkaisi siiman maalle juuttuneen vieheen takia: aikasakko. */
   landCut: 'landCut',
+  /** Aulassa: seuraava kisa katsojana (true) tai kalastajana (false). */
+  spectate: 'spectate',
 } as const;
 
 /** Vieheen tila muille näytettäväksi. */

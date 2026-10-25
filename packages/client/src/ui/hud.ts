@@ -39,6 +39,7 @@ export class Hud {
   private messageTimer = 0;
   private weighTimer = 0;
   private multiplayer = false;
+  private spectator = false;
   /** Kosketusohjaus: ohjeessa napit näppäinten sijaan. */
   private touch = false;
 
@@ -198,42 +199,52 @@ export class Hud {
     if (touch) this.topLeft.appendChild(this.status);
     else this.root.insertBefore(this.status, this.root.firstChild!.nextSibling);
     this.help.hidden = touch;
-    this.setHelpMode(this.multiplayer);
+    this.setHelpMode(this.multiplayer, this.spectator);
   }
 
-  /** Ohjeen rivit: lyhyet, jotta paneeli ei peitä tilapaneelia. */
-  setHelpMode(multiplayer: boolean): void {
+  /** Ohjeen rivit: lyhyet, jotta paneeli ei peitä tilapaneelia. Katsojalle omat. */
+  setHelpMode(multiplayer: boolean, spectator = false): void {
     this.multiplayer = multiplayer;
-    const lines = this.touch
-      ? [
-          'Tatti ylös = kohti räpylöitä · alas = selkä edellä (nopein)',
-          'Tatti sivuille = käänny · reunaan asti = pikapotku (vie kuntoa)',
-          'Kosketa järveä: tähtää, pidä ja päästä = heitto',
-          'Sormi järvellä tai KELAA = kelaa',
-          'NOP kelausnopeus · JAR−/JAR+ jarru',
-          'VIEHE vaihda · LUOT kaikuluotain · SYV vieheen syvyys',
-          'KAM kalastajan silmin',
-          '+/− zoom · ? ohje · II tauko',
-          'Ukkosella kelaa viehe sisään ja pysy rannan lähellä',
-          'Viehe maalla tai laiturilla: KATKO katkaisee siiman',
-          ...(multiplayer
-            ? ['Sotkussa kelatkaa yhdessä · KATKO katkaisee', 'VIESTI = kirjoita muille']
-            : []),
-        ]
-      : [
-          'W eteen · S selkä edellä (nopein) · A/D käänny · Shift pikapotku',
-          'Hiiri: tähtää, pidä pohjassa ja päästä = heitto',
-          'Hiiri pohjassa tai välilyönti = kelaa',
-          '1/2/3 kelausnopeus · Q/E jarru löysemmälle/kireämmälle',
-          'R vaihda viehe · K kaikuluotain · L vieheen syvyys',
-          'V kalastajan silmin',
-          'Rulla = zoom · H = ohje · Esc = tauko',
-          'Ukkosella kelaa viehe sisään ja pysy rannan lähellä',
-          'Viehe maalla tai laiturilla: C katkaisee siiman',
-          ...(multiplayer
-            ? ['Sotkussa kelatkaa yhdessä · C katkaisee siiman', 'Enter = viesti muille']
-            : []),
-        ];
+    this.spectator = spectator;
+    const lines = spectator
+      ? this.touch
+        ? ['Napauta: seuraava kalastaja', 'KAM kalastajan silmin', '+/− zoom · ? ohje · II tauko']
+        : [
+            '←/→, A/D tai klikkaus: seuraava kalastaja',
+            'V kalastajan silmin · K kaikuluotain',
+            'Rulla = zoom · H = ohje · Esc = tauko',
+            'Enter = viesti muille',
+          ]
+      : this.touch
+        ? [
+            'Tatti ylös = kohti räpylöitä · alas = selkä edellä (nopein)',
+            'Tatti sivuille = käänny · reunaan asti = pikapotku (vie kuntoa)',
+            'Kosketa järveä: tähtää, pidä ja päästä = heitto',
+            'Sormi järvellä tai KELAA = kelaa',
+            'NOP kelausnopeus · JAR−/JAR+ jarru',
+            'VIEHE vaihda · LUOT kaikuluotain · SYV vieheen syvyys',
+            'KAM kalastajan silmin',
+            '+/− zoom · ? ohje · II tauko',
+            'Ukkosella kelaa viehe sisään ja pysy rannan lähellä',
+            'Viehe maalla tai laiturilla: KATKO katkaisee siiman',
+            ...(multiplayer
+              ? ['Sotkussa kelatkaa yhdessä · KATKO katkaisee', 'VIESTI = kirjoita muille']
+              : []),
+          ]
+        : [
+            'W eteen · S selkä edellä (nopein) · A/D käänny · Shift pikapotku',
+            'Hiiri: tähtää, pidä pohjassa ja päästä = heitto',
+            'Hiiri pohjassa tai välilyönti = kelaa',
+            '1/2/3 kelausnopeus · Q/E jarru löysemmälle/kireämmälle',
+            'R vaihda viehe · K kaikuluotain · L vieheen syvyys',
+            'V kalastajan silmin',
+            'Rulla = zoom · H = ohje · Esc = tauko',
+            'Ukkosella kelaa viehe sisään ja pysy rannan lähellä',
+            'Viehe maalla tai laiturilla: C katkaisee siiman',
+            ...(multiplayer
+              ? ['Sotkussa kelatkaa yhdessä · C katkaisee siiman', 'Enter = viesti muille']
+              : []),
+          ];
     this.help.textContent = lines.join('\n');
   }
 

@@ -1115,6 +1115,68 @@ describe('liittyminen kesken kisan', () => {
     await host.leave();
   });
 
+  type Spectating = P & { spectator: boolean; ack: number };
+
+  it('suljettuun kisaan pääsee katsojaksi, ja uudessa kisassa katsoja kalastaa', async () => {
+    const host = await sdk().create(ROOM_NAME, {
+      name: 'A',
+      playerId: 'a',
+      testTiming: { countdown: 0.1, duration: 1.5 },
+    });
+    host.send(ClientMsg.settings, { lateJoin: 'closed' });
+    await until(() => host.state?.settings?.lateJoin === 'closed');
+    host.send(ClientMsg.start);
+    await until(() => host.state.phase === 'playing');
+    const late = { name: 'C', playerId: 'c' };
+    expect(await refusal(sdk().joinById(host.roomId, late))).toBe(JoinRefusal.closed);
+    const spec = await sdk().joinById(host.roomId, { ...late, spectate: true });
+    await until(() => players(host).length === 2);
+    const c = host.state.players.get(spec.sessionId) as Spectating;
+    expect(c.spectator).toBe(true);
+    // Ei rengasta palvelimen simuloinnissa: syötteet eivät liikuta mitään.
+    const predictor = new TubePredictor(createTube({ x: 0, y: 0 }, 0), water);
+    for (let j = 0; j < 3; j++) predictor.step({ kick: 1, turn: 0, sprint: false });
+    spec.send(ClientMsg.input, { i: encodeInputs(predictor.takeOutgoing()!), l: [0, 0, 0] });
+    await until(() => host.state.phase === 'finished', 4000);
+    expect(c.x).toBe(0);
+    expect(c.ack).toBe(0);
+    host.send(ClientMsg.restart);
+    await until(() => host.state.phase === 'lobby');
+    expect((host.state.players.get(spec.sessionId) as Spectating).spectator).toBe(false);
+
+    await host.leave();
+    await spec.leave();
+  });
+
+  it('aulassa katsojaksi valinnut ei saa rengasta, ja kisaan tarvitaan kalastaja', async () => {
+    const host = await sdk().create(ROOM_NAME, {
+      name: 'A',
+      playerId: 'a',
+      testTiming: { countdown: 0.1, duration: 60 },
+    });
+    const guest = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
+    await until(() => players(host).length === 2);
+    const errors: string[] = [];
+    host.onMessage(ServerMsg.error, (m: string) => errors.push(m));
+    host.send(ClientMsg.spectate, true);
+    guest.send(ClientMsg.spectate, true);
+    await until(() => players(host).every((p) => (p as unknown as Spectating).spectator));
+    host.send(ClientMsg.start);
+    await until(() => errors.length === 1);
+    expect(errors[0]).toBe('Kisaan tarvitaan ainakin yksi kalastaja');
+    // Katsoja ei tarvitse valmis-merkintää.
+    host.send(ClientMsg.spectate, false);
+    await until(() => !(me(host) as Spectating).spectator);
+    host.send(ClientMsg.start);
+    await until(() => guest.state.phase === 'playing');
+    expect(water.isWater({ x: me(host).x, y: me(host).y })).toBe(true);
+    expect(me(guest).x).toBe(0);
+    expect(me(guest).y).toBe(0);
+
+    await host.leave();
+    await guest.leave();
+  });
+
   it('lähteneen paikka pysyy vapaana täydessä huoneessa', async () => {
     const { host, guest } = await race({ maxPlayers: 2 });
     await guest.leave();

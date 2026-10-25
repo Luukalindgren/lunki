@@ -178,6 +178,8 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   private readonly playerIds = new Map<string, string>();
   /** Kesken kisan lähteneiden paikat (playerId); tyhjenee uuden kisan alkaessa. */
   private readonly seats = new Map<string, Seat>();
+  /** Kesken kisan katsojiksi tulleet: uudessa kisassa he ovat kalastajia. */
+  private readonly lateSpectators = new Set<string>();
   /** Kisan ensimmäinen aloituspaikka: myöhästyneet aloittavat sen läheltä. */
   private spawnOrigin: Vec2 | null = null;
   /** Kehitystä varten: LUNKI_RACE_SECONDS lyhentää kaikki kisat. */
@@ -346,6 +348,13 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       });
       this.seats.clear();
       this.spawnOrigin = null;
+      // Kesken kisan tulleet katsojat pääsevät nyt mukaan; aulassa itse katsojaksi
+      // valinneet katsovat edelleen.
+      for (const id of this.lateSpectators) {
+        const p = this.state.players.get(id);
+        if (p) p.spectator = false;
+      }
+      this.lateSpectators.clear();
       this.state.phase = 'lobby';
     });
 
@@ -419,6 +428,14 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       if (changed) this.state.players.forEach((p) => (p.ready = false));
     });
 
+    this.onMessage(ClientMsg.spectate, (client, on: unknown) => {
+      const p = this.state.players.get(client.sessionId);
+      if (!p || this.state.phase !== 'lobby') return;
+      p.spectator = on === true;
+      p.ready = false;
+      this.lateSpectators.delete(client.sessionId);
+    });
+
     this.onMessage(ClientMsg.name, (client, name: unknown) => {
       const p = this.state.players.get(client.sessionId);
       if (p) p.name = sanitizeName(name);
@@ -430,7 +447,12 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         return;
       }
       if (this.state.phase !== 'lobby') return;
-      const notReady = [...this.state.players.entries()]
+      const anglers = [...this.state.players.entries()].filter(([, p]) => !p.spectator);
+      if (anglers.length === 0) {
+        client.send(ServerMsg.error, 'Kisaan tarvitaan ainakin yksi kalastaja');
+        return;
+      }
+      const notReady = anglers
         .filter(([id, p]) => !p.ready && id !== this.state.hostId)
         .map(([, p]) => p);
       if (notReady.length > 0) {
@@ -483,25 +505,47 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     });
   }
 
-  /** Aulaan pääsee aina; kisan alettua asetus lateJoin päättää. */
+  /**
+   * Aulaan pääsee aina; kisan alettua asetus lateJoin päättää. Jos kisaan ei
+   * pääse ja asiakas pyysi (JoinOptions.spectate), liitytään katsojaksi.
+   */
   override onAuth(_client: Client, options: Partial<JoinOptions> = {}) {
     if (this.state.phase === 'lobby') return true;
+    const refusal = this.lateJoinRefusal(options);
+    if (!refusal) return true;
+    if (options.spectate === true) return { spectator: true };
+    throw new ServerError(4403, refusal);
+  }
+
+  /** Syy, miksi kisaan ei pääse kesken kaiken; null = pääsee. */
+  private lateJoinRefusal(options: Partial<JoinOptions>): string | null {
     const id = playerIdOf(options);
     const returning = id !== '' && (this.seats.has(id) || this.droppedSession(id) !== undefined);
     const rule = isLateJoin(this.state.settings.lateJoin) ? this.state.settings.lateJoin : 'open';
-    if (rule === 'closed') throw new ServerError(4403, JoinRefusal.closed);
-    if (returning) return true;
-    if (rule === 'return') throw new ServerError(4403, JoinRefusal.returnOnly);
+    if (rule === 'closed') return JoinRefusal.closed;
+    if (returning) return null;
+    if (rule === 'return') return JoinRefusal.returnOnly;
     // Lähteneiden paikat pidetään vapaana paluuta varten.
     if (this.state.players.size + this.seats.size >= this.state.settings.maxPlayers)
-      throw new ServerError(4403, JoinRefusal.full);
-    return true;
+      return JoinRefusal.full;
+    return null;
   }
 
-  override onJoin(client: Client, options: Partial<JoinOptions> = {}) {
+  override onJoin(client: Client, options: Partial<JoinOptions> = {}, auth?: unknown) {
     const id = playerIdOf(options);
     const racing = this.state.phase !== 'lobby';
     if (id) this.playerIds.set(client.sessionId, id);
+    if (racing && (auth as { spectator?: boolean } | undefined)?.spectator) {
+      // Katsoja ei saa rengasta eikä vie lähteneen paikkaa.
+      const p = new PlayerState();
+      p.name = this.uniqueName(sanitizeName(options.name));
+      p.spectator = true;
+      this.state.players.set(client.sessionId, p);
+      this.lateSpectators.add(client.sessionId);
+      if (!this.state.hostId) this.state.hostId = client.sessionId;
+      client.send(ServerMsg.chatHistory, this.chatLog);
+      return;
+    }
     // Sama selain uudesta välilehdestä: katkennut yhteys luovuttaa paikkansa.
     const dropped = racing && id ? this.droppedSession(id) : undefined;
     if (dropped) this.vacate(dropped);
@@ -596,7 +640,9 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     // Siima sotkussa lähtevän kanssa: toinen pääsee jatkamaan heti.
     if (p.tangledWith) this.untangle(id, p.tangledWith, 'cut', id);
     const playerId = this.playerIds.get(id);
-    if (playerId && this.state.phase !== 'lobby')
+    this.lateSpectators.delete(id);
+    // Katsojalla ei ole paikkaa, jota pitää vapaana.
+    if (playerId && this.state.phase !== 'lobby' && !p.spectator)
       this.seats.set(playerId, {
         sessionId: id,
         name: p.name,
@@ -637,6 +683,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         : findLaunchPoint(water, LUNKINJARVI.bounds, () => rng.next());
     const taken: Vec2[] = [];
     this.state.players.forEach((p, id) => {
+      if (p.spectator) return;
       let pos = taken.length === 0 && chosen ? { ...chosen } : launch();
       if (taken.length > 0) {
         const fits = (q: Vec2) =>

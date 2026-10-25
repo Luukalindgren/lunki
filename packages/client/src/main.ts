@@ -121,7 +121,7 @@ function startGame(s: CompetitionSettings, seed = devSeed) {
         if (!g.competition.finished) hud.showMessage(note, 3.5);
       });
   }
-  hud.setHelpMode(session !== null);
+  hud.setHelpMode(session !== null, game.spectating);
   if (session) chat?.mount(hud.root, 'hud');
   touch?.setMultiplayer(session !== null);
   if (import.meta.env.DEV) Object.assign(window, { lunki: game });
@@ -294,6 +294,7 @@ function enterLobby(s: NetSession) {
           s.setReady(r);
         },
         onStart: () => s.start(),
+        onSpectate: (on) => s.setSpectator(on),
         onLeave: leaveRoom,
         onSettings: (patch) => s.changeSettings(patch),
         onTackle: (t) => {
@@ -333,7 +334,14 @@ function enterLobby(s: NetSession) {
       startGame(v.settings, s.room.state.seed);
       // Kesken kisan mukaan (uutena, paluuna tai sivun uudelleenlatauksen jälkeen).
       const left = v.settings.durationMinutes * 60 - s.room.state.clock;
-      if (v.phase === 'playing' && s.room.state.clock > 1)
+      if (s.spectating)
+        hud.showMessage(
+          v.players.find((p) => p.me)?.spectator && s.room.state.clock > 1
+            ? `Kisa oli jo alkanut, joten katsot sitä. Aikaa jäljellä ${formatTime(left)}`
+            : 'Katsot kisaa',
+          5,
+        );
+      else if (v.phase === 'playing' && s.room.state.clock > 1)
         hud.showMessage(`Mukana kisassa: aikaa jäljellä ${formatTime(left)}`, 4);
       return;
     }
