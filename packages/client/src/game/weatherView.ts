@@ -39,6 +39,23 @@ const FROM_NAMES = [
   'kaakosta',
 ];
 
+const IN_NAMES = [
+  'idässä',
+  'koillisessa',
+  'pohjoisessa',
+  'luoteessa',
+  'lännessä',
+  'lounaassa',
+  'etelässä',
+  'kaakossa',
+];
+
+/** Ilmansuunta, jossa kulma `angle` osoittaa (esim. "lounaassa"). */
+export function compassIn(angle: number): string {
+  const k = Math.round(angle / (Math.PI / 4));
+  return IN_NAMES[((k % 8) + 8) % 8]!;
+}
+
 /** Mistä tuulee (ja aallot tulevat), esim. "lounaasta". */
 export function windFrom(windDir: number): string {
   const k = Math.round((windDir + Math.PI) / (Math.PI / 4));

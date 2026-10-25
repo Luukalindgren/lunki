@@ -19,6 +19,10 @@ import {
   capsizes,
   isPenalty,
   planBigWaves,
+  planWaterspouts,
+  spoutAffects,
+  spoutCapture,
+  spoutWind,
   isWeatherLevel,
   penaltyOutcome,
   planLightning,
@@ -36,6 +40,7 @@ import {
   type JoinOptions,
   type BigWave,
   type BigWaveMessage,
+  type Waterspout,
   type LightningMessage,
   type Penalty,
   type Strike,
@@ -84,6 +89,8 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   /** Kisan isot aallot ja seuraavan indeksi. */
   private bigWaves: BigWave[] = [];
   private nextWave = 0;
+  /** Kisan trombit. */
+  private spouts: Waterspout[] = [];
   /** Kehitystä varten: LUNKI_RACE_SECONDS lyhentää kaikki kisat. */
   private durationOverride: number | null = Number(process.env.LUNKI_RACE_SECONDS) || null;
 
@@ -254,6 +261,14 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         this.durationOverride ?? this.state.settings.durationMinutes * 60,
       );
       this.nextWave = 0;
+      this.spouts = planWaterspouts(
+        this.weather,
+        this.state.seed,
+        this.durationOverride ?? this.state.settings.durationMinutes * 60,
+        water,
+        LUNKINJARVI.bounds,
+      );
+
       this.state.clock = 0;
       this.state.countdown = this.countdownSeconds;
       this.state.phase = 'countdown';
@@ -351,14 +366,39 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     if (weather) this.breakBigWaves(weather.windSpeed, weather.windDir);
     const ids = [...this.sims.keys()];
     const sims = ids.map((id) => this.sims.get(id)!);
-    for (const i of stepSims(
-      sims,
-      water,
-      st.phase === 'countdown',
-      weather ? windVector(weather) : undefined,
-    )) {
+    const base = weather ? windVector(weather) : undefined;
+    // Trombi lisää tuuleen imun ja pyörteen renkaan kohdalla.
+    const wind = (sim: Sim, i: number) => {
+      const until = st.players.get(ids[i]!)?.capsizedUntil ?? 0;
+      if (!base || !spoutAffects(until, st.clock)) return base ?? { x: 0, y: 0 };
+      const s = spoutWind(this.spouts, st.clock, sim.tube.pos);
+      return { x: base.x + s.x, y: base.y + s.y };
+    };
+    for (const i of stepSims(sims, water, st.phase === 'countdown', base && wind)) {
       const p = this.state.players.get(ids[i]!);
       if (p) writeTube(p, sims[i]!.tube, sims[i]!.inputs.lastSeq);
+    }
+    if (st.phase === 'playing') this.catchInSpouts();
+  }
+
+  /** Trombi nappaa liian lähelle tulleen: kaataa ja sinkoaa ulospäin. */
+  private catchInSpouts() {
+    const st = this.state;
+    const victims: string[] = [];
+    for (const [id, sim] of this.sims) {
+      const p = st.players.get(id);
+      if (!p || !spoutAffects(p.capsizedUntil, st.clock)) continue;
+      const fling = spoutCapture(this.spouts, st.clock, sim.tube.pos);
+      if (!fling) continue;
+      victims.push(id);
+      sim.tube = { ...sim.tube, vel: fling };
+      writeTube(p, sim.tube, sim.inputs.lastSeq);
+      p.capsizedUntil = st.clock + BIG_WAVE.recover;
+      this.punish(id, isPenalty(st.settings.capsizePenalty) ? st.settings.capsizePenalty : 'none');
+    }
+    if (victims.length > 0) {
+      const msg: BigWaveMessage = { victims };
+      this.broadcast(ServerMsg.spout, msg);
     }
   }
 

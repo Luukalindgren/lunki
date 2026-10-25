@@ -82,6 +82,8 @@ export class NetWorld {
   onLightning: ((msg: LightningMessage) => void) | null = null;
   /** Iso aalto osui. */
   onBigWave: ((msg: BigWaveMessage) => void) | null = null;
+  /** Trombi nappasi renkaita. */
+  onSpout: ((msg: BigWaveMessage) => void) | null = null;
 
   constructor(
     private readonly session: NetSession,
@@ -97,6 +99,7 @@ export class NetWorld {
     session.onCatchRejected = () => this.onCatchRejected?.();
     session.onLightning = (m) => this.onLightning?.(m);
     session.onBigWave = (m) => this.onBigWave?.(m);
+    session.onSpout = (m) => this.onSpout?.(m);
   }
 
   sendSplash(p: Vec2): void {
@@ -221,5 +224,6 @@ export class NetWorld {
     this.session.onCatchRejected = null;
     this.session.onLightning = null;
     this.session.onBigWave = null;
+    this.session.onSpout = null;
   }
 }

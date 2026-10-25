@@ -141,6 +141,32 @@ itsessään menetys.
 Moninpelissä palvelin ratkaisee kaatumiset (`ServerMsg.bigWave`) ja jättää
 kumossa olevan renkaan potkut huomiotta.
 
+## Trombi
+
+Trombi on harvinainen, liikkuva pyörre
+(`planWaterspouts` kansiossa `packages/shared/src/weather/waterspout.ts`).
+
+- **Milloin:** trombi voi syntyä ukkos- tai myrskyjakson aikana. Todennäköisyys
+  jaksoa kohden on säätasolla "Vähän sääilmiöitä" 25 %, "Paljon
+  sääilmiöitä" 50 % ja "Täysi kaaos" 80 %. Tasoilla "Aina tyyni" ja
+  "Realistinen" trombeja ei ole.
+- **Liike:** trombi syntyy selälle, kulkee tuulen mukana 0,6 m/s ja
+  mutkittelee sivuttain. Se kestää 70–110 s tai häviää, kun se osuu rantaan.
+- **Imu:** 70 m säteellä trombi vaikuttaa renkaaseen kuin kova tuuli, joka
+  imee keskustaa kohti ja pyörittää vastapäivään. Paikallaan oleva
+  ajautuu spiraalina keskelle, mutta pikapotkuilla (Shift) pääsee karkuun.
+  Heittoon trombi ei vaikuta.
+- **Nappaus:** alle 6 m päässä keskustasta trombi kaataa renkaan ja sinkoaa
+  sen ulospäin. Rengas on kumossa 6 s, ja kaatumisen rangaistus seuraa.
+  Kumossa ja 3 s sen jälkeen trombi ei vaikuta renkaaseen, joten siitä ehtii
+  potkia pois.
+- **Näkyvyys:** trombi näkyy kaukaa harmaana, pyörivänä suppilona. Ylhäältä
+  se näkyy spiraalina. Säärivillä lukee lähimmän trombin etäisyys ja suunta,
+  esim. "trombi 320 m lounaassa". Imualueella HUD muistuttaa pakenemaan.
+
+Moninpelissä palvelin laskee imun samoin kuin tuulen ja ratkaisee
+nappaukset (`ServerMsg.spout`).
+
 Säätaso valitaan alkuvalikosta tai moninpelin aulasta. Kehitystä varten
 osoitteeseen voi lisätä `?difficulty=easy&weather=chaos`. `?bench=1` käyttää
 aina tyyntä säätä, jotta mittaukset ovat vertailukelpoisia.

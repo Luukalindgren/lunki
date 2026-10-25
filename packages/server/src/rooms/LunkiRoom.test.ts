@@ -424,6 +424,49 @@ describe('LunkiRoom', () => {
     await guest.leave();
   });
 
+  it('trombi nappaa liian lähelle tulleen ja sinkoaa sen', async () => {
+    const host = await sdk().create(ROOM_NAME, {
+      name: 'A',
+      playerId: 'a',
+      testTiming: { countdown: 0.1, duration: 30 },
+    });
+    await until(() => players(host).length === 1);
+    host.send(ClientMsg.settings, { capsizePenalty: 'lose-catch' });
+    await until(() => host.state.settings.capsizePenalty === 'lose-catch');
+    host.send(ClientMsg.start);
+    await until(() => host.state.phase === 'playing');
+    type P = { x: number; y: number; capsizedUntil: number; vx: number; vy: number };
+    const me = () => host.state.players.get(host.sessionId) as P;
+    host.send(ClientMsg.splash, { x: me().x + 10, y: me().y });
+    host.send(ClientMsg.catch, { species: 'perch', name: 'Ahven', weight: 0.3 });
+    await until(() => host.state.catches.length === 1);
+
+    const room = matchMaker.getLocalRoomById(host.roomId) as unknown as {
+      spouts: { t0: number; t1: number; start: { x: number; y: number }; dir: number }[];
+      state: { clock: number };
+    };
+    const spouts: BigWaveMessage[] = [];
+    host.onMessage(ServerMsg.spout, (m: BigWaveMessage) => spouts.push(m));
+    // Trombi syntyy 2 m renkaasta länteen.
+    room.spouts = [
+      {
+        t0: room.state.clock,
+        t1: room.state.clock + 60,
+        start: { x: me().x - 2, y: me().y },
+        dir: 0,
+      },
+    ];
+    await until(() => spouts.length === 1);
+    expect(spouts[0]!.victims).toEqual([host.sessionId]);
+    await until(() => me().capsizedUntil > 0 && host.state.catches.length === 0);
+    // Sinkoutuu poispäin (itään).
+    await until(() => me().vx > 0);
+    await new Promise((r) => setTimeout(r, 300));
+    // Kumossa ja vielä hetken sen jälkeen trombi ei nappaa uudelleen.
+    expect(spouts.length).toBe(1);
+    await host.leave();
+  });
+
   it('katkennut pelaaja palaa samaan renkaaseen ja saaliisiin', async () => {
     const host = await sdk().create(ROOM_NAME, {
       name: 'A',
