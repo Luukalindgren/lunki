@@ -50,7 +50,8 @@ export class Hud {
       'Hiiri pohjassa / välilyönti = kelaa · 1/2/3 kelausnopeus · R vaihda viehe<br>' +
       'K kaikuluotain · V kalastajan silmin · ' +
       'Q/E jarru löysemmälle/kireämmälle · rulla = zoom · H = ohje · Esc = tauko<br>' +
-      'Ukkosella salama voi iskeä vapaan: kelaa viehe sisään, ja pysy lähellä rantaa';
+      'Ukkosella salama voi iskeä vapaan: kelaa viehe sisään, ja pysy lähellä rantaa<br>' +
+      'Moninpeli: sotkeutuneet siimat selviävät kelaamalla yhdessä · C katkaisee oman siiman';
     this.timer = el('div', 'hud-timer hud-panel');
     this.weather = el('div', 'hud-weather hud-panel');
     this.catches = el('div', 'hud-catches hud-panel');

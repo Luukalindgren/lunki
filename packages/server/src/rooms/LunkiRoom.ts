@@ -15,6 +15,10 @@ import {
   distance,
   findLaunchPoint,
   BIG_WAVE,
+  LureStage,
+  TANGLE,
+  findTangles,
+  rodTip,
   bigWaveHeight,
   capsizes,
   isPenalty,
@@ -40,6 +44,7 @@ import {
   type JoinOptions,
   type BigWave,
   type BigWaveMessage,
+  type UntangledMessage,
   type Waterspout,
   type LightningMessage,
   type Penalty,
@@ -91,6 +96,10 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   private nextWave = 0;
   /** Kisan trombit. */
   private spouts: Waterspout[] = [];
+  /** Kelaako pelaaja juuri nyt (siimojen sotkeutumiseen). */
+  private readonly reeling = new Map<string, boolean>();
+  /** Selvityksen jälkeen siima ei sotkeudu heti uudelleen (kisa-aika, s). */
+  private readonly tangleFree = new Map<string, number>();
   /** Kehitystä varten: LUNKI_RACE_SECONDS lyhentää kaikki kisat. */
   private durationOverride: number | null = Number(process.env.LUNKI_RACE_SECONDS) || null;
 
@@ -125,6 +134,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         const lure = { x: l[0]!, y: l[1]! };
         const ok = distance(lure, sim.tube.pos) < 200;
         p.lureStage = ok ? Math.max(0, Math.min(3, Math.round(l[2]!))) : 0;
+        this.reeling.set(client.sessionId, l[3] === 1);
         if (ok) {
           p.lureX = lure.x;
           p.lureY = lure.y;
@@ -153,6 +163,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         !sim ||
         this.state.phase !== 'playing' ||
         this.timedOut(client.sessionId) ||
+        this.state.players.get(client.sessionId)?.tangledWith ||
         !isPlausibleCatch(msg, {
           splashedSinceLastCatch: sim.splashed,
           now,
@@ -175,10 +186,16 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       this.state.catches.push(c);
     });
 
+    this.onMessage(ClientMsg.cutLine, (client) => {
+      const p = this.state.players.get(client.sessionId);
+      if (p?.tangledWith) this.untangle(client.sessionId, p.tangledWith, 'cut', client.sessionId);
+    });
+
     this.onMessage(ClientMsg.restart, (client) => {
       if (client.sessionId !== this.state.hostId || this.state.phase !== 'finished') return;
       this.setTimestep();
       this.sims.clear();
+      this.tangleFree.clear();
       this.state.catches.clear();
       this.state.clock = 0;
       this.state.countdown = 0;
@@ -187,6 +204,8 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         p.lureStage = 0;
         p.outUntil = 0;
         p.capsizedUntil = 0;
+        p.tangledWith = '';
+        p.untangle = 0;
       });
       this.state.phase = 'lobby';
       void this.unlock();
@@ -378,7 +397,74 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       const p = this.state.players.get(ids[i]!);
       if (p) writeTube(p, sims[i]!.tube, sims[i]!.inputs.lastSeq);
     }
-    if (st.phase === 'playing') this.catchInSpouts();
+    if (st.phase === 'playing') {
+      this.catchInSpouts();
+      this.updateTangles();
+    }
+  }
+
+  /**
+   * Siimojen sotkeutuminen: vedessä olevat siimat (vavan kärjestä
+   * vieheeseen) sotkeutuvat, kun ne ovat ristissä ja jompikumpi kelaa.
+   * Sotku selviää, kun pelaajat kelaavat yhteensä TANGLE.untangleSeconds,
+   * tai kun toinen katkaisee siimansa.
+   */
+  private updateTangles() {
+    const st = this.state;
+    for (const [id, p] of st.players) {
+      if (!p.tangledWith || id > p.tangledWith) continue;
+      const other = st.players.get(p.tangledWith);
+      if (!other) {
+        p.tangledWith = '';
+        continue;
+      }
+      const holders =
+        Number(this.reeling.get(id) ?? false) + Number(this.reeling.get(p.tangledWith) ?? false);
+      p.untangle = other.untangle = Math.min(
+        1,
+        p.untangle + (holders * NET_DT) / TANGLE.untangleSeconds,
+      );
+      if (p.untangle >= 1) this.untangle(id, p.tangledWith, 'untangled', id);
+    }
+    const lines = [...this.sims.entries()].flatMap(([id, sim]) => {
+      const p = st.players.get(id);
+      if (!p || p.tangledWith || p.lureStage < LureStage.water) return [];
+      // Asiakas kelaa siiman sisään vasta viestin saatuaan.
+      if (st.clock < (this.tangleFree.get(id) ?? 0)) return [];
+      return [
+        {
+          id,
+          tip: rodTip(sim.tube.pos, sim.tube.heading),
+          lure: { x: p.lureX, y: p.lureY },
+          reeling: this.reeling.get(id) ?? false,
+        },
+      ];
+    });
+    for (const t of findTangles(lines)) {
+      for (const [id, other] of [
+        [t.a, t.b],
+        [t.b, t.a],
+      ] as const) {
+        const p = st.players.get(id)!;
+        p.tangledWith = other;
+        p.tangleX = t.at.x;
+        p.tangleY = t.at.y;
+        p.untangle = 0;
+      }
+    }
+  }
+
+  private untangle(a: string, b: string, how: UntangledMessage['how'], by: string) {
+    for (const id of [a, b]) {
+      const p = this.state.players.get(id);
+      if (p) {
+        p.tangledWith = '';
+        p.untangle = 0;
+      }
+      this.tangleFree.set(id, this.state.clock + 2);
+    }
+    const msg: UntangledMessage = { players: [a, b], how, by };
+    this.broadcast(ServerMsg.untangled, msg);
   }
 
   /** Trombi nappaa liian lähelle tulleen: kaataa ja sinkoaa ulospäin. */

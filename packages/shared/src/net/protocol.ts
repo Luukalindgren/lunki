@@ -74,6 +74,8 @@ export const ClientMsg = {
   catch: 'catch',
   /** Isäntä palauttaa huoneen aulaan uutta kisaa varten. */
   restart: 'restart',
+  /** Sotkeutunut pelaaja katkaisee oman siimansa. */
+  cutLine: 'cutLine',
 } as const;
 
 /** Vieheen tila muille näytettäväksi. */
@@ -83,8 +85,8 @@ export type LureStage = (typeof LureStage)[keyof typeof LureStage];
 export interface InputMessage {
   /** encodeInputs()-muodossa. */
   i: number[];
-  /** Viehe: [x, y, LureStage]. */
-  l?: [number, number, number];
+  /** Viehe: [x, y, LureStage, kelaa (1/0)]. */
+  l?: [number, number, number, number?];
 }
 
 export interface SplashMessage {
@@ -106,7 +108,17 @@ export const ServerMsg = {
   bigWave: 'bigWave',
   /** Trombi nappasi renkaita (sama muoto kuin BigWaveMessage). */
   spout: 'spout',
+  /** Sotku selvisi, ks. UntangledMessage. */
+  untangled: 'untangled',
 } as const;
+
+export interface UntangledMessage {
+  /** Sotkussa olleet sessionId:t. */
+  players: [string, string];
+  /** Selvitettiin yhdessä kelaamalla, tai `by` katkaisi siimansa. */
+  how: 'untangled' | 'cut';
+  by: string;
+}
 
 export interface BigWaveMessage {
   /** Kaatuneiden sessionId:t. */
