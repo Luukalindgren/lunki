@@ -334,10 +334,15 @@ export class SoloGame {
         if (m.victims.includes(net.world.myId)) this.onCapsize('spout');
       };
       net.world.onCastRejected = () => {
-        resetFishing(this.fishing);
+        resetFishing(this.fishing, this.fishCtx);
         this.hud.showMessage('Palvelin hylkäsi heiton', 2);
       };
     }
+  }
+
+  /** Kalakanta kalastuksen nollaukseen: kiinni ollut kala pääsee vapaaksi. */
+  private get fishCtx() {
+    return { pop: this.fish, rng: this.rng };
   }
 
   private fishingContext(strike?: number): FishingContext {
@@ -416,7 +421,7 @@ export class SoloGame {
 
   /** Rangaistus omasta osumasta. Moninpelissä palvelin pitää jäähyn ja saaliit. */
   private punish(penalty: Penalty, label: string): string {
-    resetFishing(this.fishing);
+    resetFishing(this.fishing, this.fishCtx);
     this.sfx.lost();
     const outcome = penaltyOutcome(penalty, this.competition.elapsed);
     if (outcome.outUntil > 0) this.outLabel = label;
@@ -535,13 +540,13 @@ export class SoloGame {
     if (!m.players.includes(me)) return;
     const hooked = this.fishing.hookedId !== null;
     if (m.how === 'untangled') {
-      resetFishing(this.fishing);
+      resetFishing(this.fishing, this.fishCtx);
       this.hud.showMessage(
         hooked ? 'Sotku selvisi, mutta kala karkasi' : 'Sotku selvisi – siimat kelattu sisään',
         2.5,
       );
     } else if (m.by === me) {
-      resetFishing(this.fishing);
+      resetFishing(this.fishing, this.fishCtx);
       this.sfx.lost();
       this.hud.showMessage('Katkaisit siimasi', 2);
     } else {

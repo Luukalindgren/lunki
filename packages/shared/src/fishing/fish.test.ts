@@ -16,6 +16,7 @@ import {
   createFishing,
   lureInfo,
   removeCaughtFish,
+  resetFishing,
   stepFishing,
   type FishingContext,
   type FishingEvents,
@@ -141,6 +142,19 @@ describe('kalat', () => {
     expect(sim.s.stage).toBe('idle');
     expect(sim.pop.fish[0]!.gen).toBe(1);
     expect(sim.pop.fish[0]!.id).not.toBe(hooked);
+  });
+
+  it('kesken väsytyksen katkennut siima (salama, kaatuminen) vapauttaa kalan', () => {
+    const sim = setup('easy', 0.42, 2);
+    expect(fishUntil(sim, 120, (e) => !!e.hooked)).toBe(true);
+    const fish = sim.pop.fish.find((f) => f.id === sim.s.hookedId)!;
+    resetFishing(sim.s, sim.ctx.fish);
+    expect(sim.s.hookedId).toBeNull();
+    // Kala ui taas vapaana eikä jää jumiin "kiinni"-tilaan.
+    expect(fish.mode).toBe('roam');
+    const before = { ...fish.pos };
+    for (let i = 0; i < 3 / DT; i++) step(sim, {});
+    expect(fish.pos).not.toEqual(before);
   });
 
   it('realistisella isku menee ohi ilman vastaiskua', () => {
