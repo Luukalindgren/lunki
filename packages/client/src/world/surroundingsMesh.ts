@@ -9,7 +9,7 @@ import {
 } from '@lunki/shared';
 
 /** Maankäytön värit (palettisävyjä). */
-const AREA_COLORS: Record<AreaKind, number> = {
+export const AREA_COLORS: Record<AreaKind, number> = {
   forest: 0x24502c,
   field: 0x6a9a3e,
   residential: 0x5f6b78,
@@ -23,7 +23,7 @@ const AREA_COLORS: Record<AreaKind, number> = {
   pier: 0x8a6a42,
 };
 
-const LINE_COLORS: Record<LineKind, number> = {
+export const LINE_COLORS: Record<LineKind, number> = {
   road: 0xb99a68,
   track: 0x8a6a42,
   path: 0xe0cf9c,
@@ -32,7 +32,7 @@ const LINE_COLORS: Record<LineKind, number> = {
 };
 
 /** Maaston oletusväri, kun maankäyttöä ei tiedetä. */
-const DEFAULT_GROUND = 0x3b7337;
+export const DEFAULT_GROUND = 0x3b7337;
 
 /**
  * Ylhäältä-näkymän ympäristö: maankäyttöalueet ja rakennukset litteinä

@@ -45,8 +45,6 @@ import {
   stepFishPopulation,
   lerpAngle,
   LureStage,
-  LakeBottom,
-  LUNKINJARVI_BOTTOM,
   LUNKINJARVI_SURROUNDINGS,
   resetFishing,
   rodTip,
@@ -54,6 +52,7 @@ import {
   stepFishing,
   stepTube,
   type CompetitionSettings,
+  type LakeBottom,
   type CompetitionState,
   type FishPopulation,
   type FishingContext,
@@ -96,6 +95,7 @@ import { loadTackle, nextLure, saveTackle } from './tackle';
 import { TopDownCamera } from './topDownCamera';
 import { QuietSpot } from './quietSpot';
 import { animateFins, createTubeMesh } from './tubeMesh';
+import { bottomFor } from '../world/lakeData';
 
 /** Kalojen määrä järvessä. Saatujen tilalle syntyy uusia. */
 const FISH_COUNT = 1800;
@@ -110,18 +110,6 @@ const CLOUDY_SKIES: [number, number][] = [
   [0.2, 0x8e99a4],
   [0, SKY_COLOR],
 ];
-
-/** Pohja lasketaan kerran karttaa kohden (valikon taustajärvi ja kisa jakavat sen). */
-const bottoms = new WeakMap<LakeMap, LakeBottom>();
-function bottomFor(map: LakeMap, water: WaterBody): LakeBottom {
-  let b = bottoms.get(map);
-  if (!b) {
-    const features = map === LUNKINJARVI ? LUNKINJARVI_BOTTOM : { maxDepth: 6, features: [] };
-    b = new LakeBottom(water, map.bounds, features);
-    bottoms.set(map, b);
-  }
-  return b;
-}
 
 /** Näppäinasettelu: WASD tai nuolet. */
 export function readTubeInput(input: Input): TubeInput {
