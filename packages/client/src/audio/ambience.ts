@@ -1,5 +1,6 @@
 import type { Sky } from '@lunki/shared';
 import { loonCall, loonCallLength } from './loon';
+import { rainPatter } from './rain';
 
 /** Ympäristöäänten lähtötiedot: sää kuulijan kohdalla. */
 export interface AmbienceInput {
@@ -13,15 +14,20 @@ export interface AmbienceInput {
 export const MENU_AMBIENCE: AmbienceInput = { sky: 'calm', windSpeed: 2, rain: 0 };
 
 /**
- * Tuuli, sade ja linnut. Tuuli ja sade ovat suodatettua silmukkakohinaa,
- * jonka voimakkuus seuraa säätä; linnut sirkuttavat satunnaisesti
+ * Tuuli, sade ja linnut. Tuuli on suodatettua silmukkakohinaa; sade on
+ * pehmeää, tummaa kohinaa ja sen päällä erillisten pisaroiden ropinaa
+ * (harva kerros heikolle ja tiheä kovalle sateelle). Voimakkuudet seuraavat
+ * säätä; linnut sirkuttavat satunnaisesti
  * poutasäällä ja hiljenevät tuulen ja sateen yltyessä. Kuikat huutavat
  * kauempana järvellä, ja huuto kaikuu rannoista.
  */
 export class Ambience {
   private readonly wind: GainNode;
   private readonly windFilter: BiquadFilterNode;
-  private readonly rain: GainNode;
+  /** Sateen pohjakohina sekä harva ja tiheä pisarakerros. */
+  private readonly rainBed: GainNode;
+  private readonly rainLight: GainNode;
+  private readonly rainHeavy: GainNode;
   private gust = 0;
   private gustTarget = 0;
   private gustTimer = 0;
@@ -54,11 +60,15 @@ export class Ambience {
     this.wind.gain.value = 0;
     loop(this.windFilter, this.wind);
     const rainFilter = ctx.createBiquadFilter();
-    rainFilter.type = 'highpass';
-    rainFilter.frequency.value = 2500;
-    this.rain = ctx.createGain();
-    this.rain.gain.value = 0;
-    loop(rainFilter, this.rain);
+    rainFilter.type = 'lowpass';
+    rainFilter.frequency.value = 1200;
+    rainFilter.Q.value = 0.3;
+    this.rainBed = ctx.createGain();
+    this.rainBed.gain.value = 0;
+    loop(rainFilter, this.rainBed);
+    // Eripituiset silmukat, jotta kerrosten yhdistelmä ei toistu korvin kuultavasti.
+    this.rainLight = this.patterLayer(3.7, 30);
+    this.rainHeavy = this.patterLayer(5.3, 120);
 
     this.loons = ctx.createGain();
     this.loons.connect(out);
@@ -85,7 +95,9 @@ export class Ambience {
     const t = this.ctx.currentTime;
     this.wind.gain.setTargetAtTime(0.04 + strength * (0.45 + 0.35 * this.gust) * strength, t, 0.3);
     this.windFilter.frequency.setTargetAtTime(300 + strength * 500 + this.gust * 300, t, 0.3);
-    this.rain.gain.setTargetAtTime(w.rain * 0.4, t, 0.5);
+    this.rainBed.gain.setTargetAtTime(w.rain * 0.25, t, 0.5);
+    this.rainLight.gain.setTargetAtTime(Math.min(1, w.rain / 0.3) * 0.18, t, 0.5);
+    this.rainHeavy.gain.setTargetAtTime(w.rain ** 1.5 * 0.15, t, 0.5);
 
     this.birdTimer -= dt;
     if (this.birdTimer <= 0) {
@@ -102,6 +114,22 @@ export class Ambience {
       // Toinen kuikka vastaa joskus heti perään.
       this.loonTimer = ok && Math.random() < 0.3 ? length + 0.8 : 18 + Math.random() * 40;
     }
+  }
+
+  /** Silmukoituva pisarakerros; kanavilla omat pisarat, jolloin sade kuuluu laajana. */
+  private patterLayer(seconds: number, dropsPerSecond: number): GainNode {
+    const ctx = this.ctx;
+    const buffer = ctx.createBuffer(2, Math.floor(ctx.sampleRate * seconds), ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++)
+      buffer.copyToChannel(rainPatter(ctx.sampleRate, seconds, dropsPerSecond), ch);
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.loop = true;
+    src.start(0, Math.random() * seconds);
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    src.connect(gain).connect(this.out);
+    return gain;
   }
 
   /** Kuikan huuto tai laulu jostain päin järveä. Palauttaa kutsun keston (s). */

@@ -169,7 +169,8 @@ export class Hud {
     this.multiplayer = multiplayer;
     const lines = this.touch
       ? [
-          'Tatti: potki ja käänny · reunaan asti = pikapotku (vie kuntoa)',
+          'Tatti ylös = kohti räpylöitä · alas = selkä edellä (nopein)',
+          'Tatti sivuille = käänny · reunaan asti = pikapotku (vie kuntoa)',
           'Kosketa järveä: tähtää, pidä ja päästä = heitto',
           'Sormi järvellä tai KELAA = kelaa',
           'NOP kelausnopeus · JAR−/JAR+ jarru',
