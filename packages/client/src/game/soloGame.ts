@@ -88,13 +88,7 @@ import { LightningView } from './lightningView';
 import { BigWaveView } from './bigWaveView';
 import { SpoutView } from './spoutView';
 import { KnotView } from './knotView';
-import {
-  REED_PATCHES,
-  createLakeMesh,
-  createWaterWaves,
-  toWorld,
-  waterTime,
-} from '../world/lakeMesh';
+import { createLakeMesh, createWaterWaves, toWorld, waterTime } from '../world/lakeMesh';
 import { WAVE_FACTOR_SCALE, WaveField } from '../world/waveField';
 import { createBuildings, createPiers } from '../world/buildings';
 import { createVegetation } from '../world/vegetation';
@@ -185,8 +179,12 @@ export class SoloGame {
   private readonly mist: MistView;
   readonly waves: WaveField;
   private readonly waterWaves = createWaterWaves();
-  /** Ylhäältä-näkymän kaislikkokuviot; POV-näkymässä kaislat ovat spritejä. */
-  private readonly reedPatches: THREE.Object3D | null;
+  /**
+   * Ylhäältä katsottavat järven osat: kaislikkokuviot ja saarten litteät
+   * kannet. POV-näkymässä ne näkyivät isoina vaaleina laattoina; siellä
+   * kaislat ovat spritejä ja saaret maastoa.
+   */
+  private readonly topViewOnly: THREE.Object3D[];
   private readonly lightning = new LightningView();
   /** Ruudun välähdyksen voimakkuus viimeisimmästä salamasta: lähellä kirkkaampi. */
   private flashStrength = 0;
@@ -288,7 +286,7 @@ export class SoloGame {
     this.waterWaves.uWaveTex.value = this.waves.texture;
     this.waterWaves.uWaveBounds.value.copy(this.waves.bounds);
     const lake = createLakeMesh(map, this.waterWaves);
-    this.reedPatches = lake.getObjectByName(REED_PATCHES) ?? null;
+    this.topViewOnly = lake.children.filter((c) => c.name === 'reeds' || c.name === 'island');
     this.scene.add(lake);
     this.updateSky(0);
     this.applyWeatherLight();
@@ -299,7 +297,7 @@ export class SoloGame {
     this.scenery.add(createShoreScenery(map, surroundings, ground));
     this.scenery.add(createVegetation(map, surroundings, ground));
     if (surroundings) {
-      const terrain = createTerrainMesh(ground, surroundings);
+      const terrain = createTerrainMesh(ground, surroundings, map.islands);
       if (terrain) this.scenery.add(terrain);
       const buildings = createBuildings(surroundings, ground);
       if (buildings) this.scenery.add(buildings);
@@ -412,7 +410,7 @@ export class SoloGame {
     this.mapOverlay.visible = !pov;
     this.povRod.visible = pov;
     this.tubeMesh.visible = !pov;
-    if (this.reedPatches) this.reedPatches.visible = !pov;
+    for (const o of this.topViewOnly) o.visible = !pov;
     this.sky.dome.visible = pov;
     this.scene.background = new THREE.Color(LAND_COLOR);
     this.scene.fog = pov ? new THREE.Fog(this.sky.lighting.horizon, 500, 2600) : null;

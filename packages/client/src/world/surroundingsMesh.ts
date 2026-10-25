@@ -1,5 +1,11 @@
 import * as THREE from 'three';
-import { LandCover, type AreaKind, type LakeSurroundings, type LineKind } from '@lunki/shared';
+import {
+  LandCover,
+  type AreaKind,
+  type LakeSurroundings,
+  type LineKind,
+  type Vec2,
+} from '@lunki/shared';
 import type { Ground } from './ground';
 
 /** Maankäytön värit (palettisävyjä). */
@@ -62,6 +68,8 @@ export function createMapOverlay(s: LakeSurroundings): THREE.Group {
 
 /** Maaston ruohokuvion yhden toiston koko (m). */
 const GRASS_TEXTURE_METERS = 8;
+/** Saarten kannen korkeus vedenpinnasta (m) POV-näkymässä. */
+const ISLAND_CAP = 0.1;
 
 /**
  * POV-näkymän maasto: maanpinnasta (ks. Ground) matalapolygoninen pinta,
@@ -69,7 +77,11 @@ const GRASS_TEXTURE_METERS = 8;
  * näyttävät maalta eivätkä tasaisilta seiniltä. Järven kohdalla pinta on
  * veden alla.
  */
-export function createTerrainMesh(ground: Ground, s: LakeSurroundings): THREE.Mesh | null {
+export function createTerrainMesh(
+  ground: Ground,
+  s: LakeSurroundings,
+  islands: readonly (readonly Vec2[])[] = [],
+): THREE.Mesh | null {
   if (!ground.terrain) return null;
   const { cols, rows, cell } = ground;
   const cover = new LandCover(s);
@@ -109,15 +121,31 @@ export function createTerrainMesh(ground: Ground, s: LakeSurroundings): THREE.Me
   g.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
   g.setIndex(index);
   g.computeVertexNormals();
-  const mesh = new THREE.Mesh(
-    g,
-    new THREE.MeshLambertMaterial({
-      vertexColors: true,
-      flatShading: true,
-      map: createGrassTexture(),
-    }),
-  );
+  const material = new THREE.MeshLambertMaterial({
+    vertexColors: true,
+    flatShading: true,
+    map: createGrassTexture(),
+  });
+  const mesh = new THREE.Mesh(g, material);
   mesh.name = 'terrain';
+  // Pienet saaret eivät mahdu maastoverkon ruutuihin: matala, samalla
+  // ruoholla kuvioitu kansi pitää ne näkyvissä. Rannasta sisämaahan maasto
+  // nousee kannen yli.
+  color.setHex(DEFAULT_GROUND).multiplyScalar(0.85);
+  for (const island of islands) {
+    const cap = new THREE.ShapeGeometry(
+      new THREE.Shape(island.map((p) => new THREE.Vector2(p.x, p.y))),
+    );
+    cap.rotateX(-Math.PI / 2);
+    cap.translate(0, ISLAND_CAP, 0);
+    const uv = cap.getAttribute('uv');
+    for (let i = 0; i < uv.count; i++)
+      uv.setXY(i, uv.getX(i) / GRASS_TEXTURE_METERS, uv.getY(i) / GRASS_TEXTURE_METERS);
+    const capColors = new Float32Array(uv.count * 3);
+    for (let i = 0; i < uv.count; i++) capColors.set([color.r, color.g, color.b], i * 3);
+    cap.setAttribute('color', new THREE.BufferAttribute(capColors, 3));
+    mesh.add(new THREE.Mesh(cap, material));
+  }
   return mesh;
 }
 

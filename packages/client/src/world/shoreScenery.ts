@@ -73,6 +73,7 @@ function treeLine(
   const dark = new THREE.Color(0x1f3d22);
   const mid = new THREE.Color(0x2d5a2c);
   const birch = new THREE.Color(0x4d7a3a);
+  const c = new THREE.Color();
   for (let i = 0; i < n; i++) {
     const prev = ring[(i - 1 + n) % n]!;
     const next = ring[(i + 1) % n]!;
@@ -83,16 +84,17 @@ function treeLine(
     const len = Math.hypot(tx, ty) || 1;
     const nx = ty / len;
     const ny = -tx / len;
-    // Kapealla niemellä siluetti ei saa ylittää vastarantaa: muuten se
-    // seisoo vedessä tasaisena vihreänä seinänä. Etsitään, kuinka pitkälle
-    // maata riittää, ja pysytään selvästi sen sisäpuolella.
-    let reach = inland;
-    for (let d = 2; d <= inland; d += 2) {
+    // Kapealla niemellä metsänreunaa ei ole: siluetti seisoisi vastarannan
+    // vedessä tai aivan katsojan edessä tasaisena vihreänä seinänä. Niemen
+    // puut ovat puuvyöhykkeen spritejä, ja niiden välistä näkyy vesi.
+    let narrow = false;
+    for (let d = 2; d <= inland * 1.4; d += 2) {
       if (isWater({ x: p.x + nx * d, y: p.y + ny * d })) {
-        reach = (d - 2) * 0.6;
+        narrow = true;
         break;
       }
     }
+    const reach = narrow ? 1 : inland;
     const x = p.x + nx * reach;
     const y = p.y + ny * reach;
     // Latvojen korkeus: laaja vaihtelu (metsikkö) + terävä (yksittäiset puut).
@@ -101,14 +103,16 @@ function treeLine(
     // Korostettu korkeus, jotta metsänreuna erottuu kilometrin päästä.
     // Pelloilla, pihoilla ja rannoilla ei ole metsänreunaa.
     const kind = cover?.kindAt({ x, y }) ?? null;
-    const open = (kind !== null && OPEN_LAND.has(kind)) || reach < 3;
+    const open = kind !== null && OPEN_LAND.has(kind);
     const base = Math.max(0, ground.heightAt({ x, y })) - 0.5;
-    const h = open ? 0.5 : (15 + broad * 6 + spike * 7) * heightScale;
+    const h = narrow ? 0 : open ? 0.5 : (15 + broad * 6 + spike * 7) * heightScale;
     positions.push(x, base, -y, x, base + h, -y);
     if (last) along += Math.hypot(x - last.x, y - last.y);
     last = { x, y };
     uvs.push(along / FOREST_TEXTURE_METERS, 0, along / FOREST_TEXTURE_METERS, 1);
-    const c = spike > 0.6 ? dark : broad > 0.3 ? birch : mid;
+    // Sävy vaihtuu metsiköittäin pehmeästi: näytteittäin vaihtuva väri
+    // näkyi läheltä pystyraitoina.
+    c.lerpColors(mid, broad > 0 ? birch : dark, Math.min(1, Math.abs(broad) * 1.5));
     colors.push(c.r * 0.7, c.g * 0.7, c.b * 0.7, c.r, c.g, c.b);
     const a = i * 2;
     const b = ((i + 1) % n) * 2;
