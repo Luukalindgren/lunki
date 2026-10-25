@@ -13,51 +13,35 @@ const BANK_TILE = 500;
 const NEAR_FADE: [number, number] = [8, 35];
 
 /**
- * Läpinäkyvyys tehdään rasterina (osa pikseleistä jää pois), koska
- * puoliläpinäkyvä valkoinen vaihtaisi veden palettivärin harmaaksi.
+ * Usva ei piirrä värejä: se kirjoittaa tiheytensä kuvan alfakanavaan, ja
+ * jälkikäsittely sekoittaa usvan värin vasta palettiin pyöristämisen
+ * jälkeen (ks. RetroRenderer). Näin usva on pehmeä verho eikä vaihda
+ * veden palettiväriä harmaaksi.
  */
-const BAYER = /* glsl */ `
-  float bayer4(vec2 p) {
-    int x = int(mod(p.x, 4.0));
-    int y = int(mod(p.y, 4.0));
-    int m[16] = int[16](0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5);
-    return (float(m[x + y * 4]) + 0.5) / 16.0;
-  }
-`;
-
 const PATCH_VERT = /* glsl */ `
-  #include <fog_pars_vertex>
   uniform vec2 uOffset;
   varying vec2 vUv;
   void main() {
     vec4 world = modelMatrix * vec4(position, 1.0);
     vUv = world.xz / ${PATCH_METERS.toFixed(1)} + uOffset;
-    vec4 mvPosition = viewMatrix * world;
-    gl_Position = projectionMatrix * mvPosition;
-    #include <fog_vertex>
+    gl_Position = projectionMatrix * viewMatrix * world;
   }
 `;
 
-/** Ylhäältä: ajelehtivia usvalauttoja, joiden reunat on rasteroitu. */
+/** Ylhäältä: ajelehtivia usvalauttoja. */
 const PATCH_FRAG = /* glsl */ `
-  #include <fog_pars_fragment>
   uniform sampler2D uMap;
   uniform float uAmount;
-  uniform vec3 uColor;
   varying vec2 vUv;
-  ${BAYER}
   void main() {
     float n = texture2D(uMap, vUv).r * 0.7 + texture2D(uMap, vUv * 0.43 + vec2(0.31, 0.77)).r * 0.5;
-    float edge = 1.2 - 0.4 * uAmount;
-    float a = smoothstep(edge, edge + 0.2, n) * 0.7;
-    if (a < bayer4(gl_FragCoord.xy)) discard;
-    gl_FragColor = vec4(uColor, 1.0);
-    #include <fog_fragment>
+    float edge = 1.15 - 0.45 * uAmount;
+    float a = smoothstep(edge, edge + 0.3, n) * 0.6;
+    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0 - 0.8 * a);
   }
 `;
 
 const BANK_VERT = /* glsl */ `
-  #include <fog_pars_vertex>
   attribute float aSeed;
   varying vec2 vUv;
   varying float vSeed;
@@ -68,7 +52,6 @@ const BANK_VERT = /* glsl */ `
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
     vDist = -mvPosition.z;
     gl_Position = projectionMatrix * mvPosition;
-    #include <fog_vertex>
   }
 `;
 
@@ -78,23 +61,18 @@ const BANK_VERT = /* glsl */ `
  * jottei kuva peity.
  */
 const BANK_FRAG = /* glsl */ `
-  #include <fog_pars_fragment>
   uniform sampler2D uMap;
   uniform float uAmount;
-  uniform vec3 uColor;
   varying vec2 vUv;
   varying float vSeed;
   varying float vDist;
-  ${BAYER}
   void main() {
     float n = texture2D(uMap, vec2(vUv.x * 0.6 + vSeed, vUv.y * 0.25 + vSeed * 0.37)).r;
     float a = uAmount * (1.0 - smoothstep(0.25, 1.0, vUv.y));
     a *= smoothstep(0.0, 0.3, vUv.x) * (1.0 - smoothstep(0.7, 1.0, vUv.x));
     a *= 0.65 + 0.9 * n;
     a *= smoothstep(${NEAR_FADE[0].toFixed(1)}, ${NEAR_FADE[1].toFixed(1)}, vDist);
-    if (a < bayer4(gl_FragCoord.xy)) discard;
-    gl_FragColor = vec4(uColor, 1.0);
-    #include <fog_fragment>
+    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0 - 0.8 * clamp(a * 0.7, 0.0, 0.85));
   }
 `;
 
@@ -133,21 +111,23 @@ function mistMaterial(vertexShader: string, fragmentShader: string, map: THREE.T
   const material = new THREE.ShaderMaterial({
     vertexShader,
     fragmentShader,
-    uniforms: THREE.UniformsUtils.merge([
-      THREE.UniformsLib.fog,
-      {
-        uMap: { value: null },
-        uOffset: { value: new THREE.Vector2() },
-        uAmount: { value: 0 },
-        uColor: { value: new THREE.Color(0xc3cbd2) },
-      },
-    ]),
+    uniforms: {
+      uMap: { value: map },
+      uOffset: { value: new THREE.Vector2() },
+      uAmount: { value: 0 },
+    },
     depthWrite: false,
-    fog: true,
+    transparent: true,
     side: THREE.DoubleSide,
+    // Värit jäävät ennalleen; alfaan jää paksuimman usvan arvo (1 - 0,8 × tiheys).
+    blending: THREE.CustomBlending,
+    blendEquation: THREE.AddEquation,
+    blendSrc: THREE.ZeroFactor,
+    blendDst: THREE.OneFactor,
+    blendEquationAlpha: THREE.MinEquation,
+    blendSrcAlpha: THREE.OneFactor,
+    blendDstAlpha: THREE.OneFactor,
   });
-  // UniformsUtils.merge kloonaisi kuvion, joten asetetaan se erikseen.
-  material.uniforms.uMap!.value = map;
   return material;
 }
 

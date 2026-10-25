@@ -1002,7 +1002,7 @@ export class SoloGame {
   private updateSky(dt: number): void {
     const now = this.weather.now;
     const wind = windVector(now);
-    this.sky.update(this.dayProgress, now.darkness, this.lightning.flash, wind);
+    this.sky.update(this.dayProgress, now.darkness, this.lightning.flash, wind, dt);
     this.mist.update(dt, this.sky.mist, wind, this.viewMode === 'pov');
     const g = this.sky.glitter;
     this.waterWaves.uGlitterDir.value.copy(g.dir);
