@@ -4,6 +4,7 @@ import {
   ClientMsg,
   LUNKINJARVI,
   ROOM_NAME,
+  RECORDS_PATH,
   ServerMsg,
   TubePredictor,
   WaterBody,
@@ -21,6 +22,8 @@ import {
   weatherAt,
   type CatchRecord,
   type BigWaveMessage,
+  type RecordBoard,
+  type RecordMessage,
   type UntangledMessage,
   type LightningMessage,
   type TubeState,
@@ -28,6 +31,7 @@ import {
   type Strike,
 } from '@lunki/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { RecordStore } from '../records/store';
 import { createServer } from '../server';
 
 const PORT = 25000 + Math.floor(Math.random() * 5000);
@@ -50,7 +54,7 @@ const players = (room: Room): PlayerView[] => [
 ];
 
 beforeAll(async () => {
-  server = createServer();
+  server = createServer(new RecordStore(':memory:'));
   await server.listen(PORT);
 });
 
@@ -280,6 +284,8 @@ describe('LunkiRoom', () => {
       room.send(ClientMsg.splash, { x: p.x + 10, y: p.y });
       room.send(ClientMsg.catch, { species: 'perch', name: 'Ahven', weight });
     };
+    const records: RecordMessage[] = [];
+    guests[2]!.onMessage(ServerMsg.record, (m: RecordMessage) => records.push(m));
     // Ilman heittoa saalis hylätään.
     host.send(ClientMsg.catch, { species: 'perch', name: 'Ahven', weight: 0.4 });
     await until(() => rejected === 2);
@@ -303,6 +309,21 @@ describe('LunkiRoom', () => {
       'total',
     );
     expect(results.map((r) => r.name)).toEqual(['Bertta', 'Luuka', 'Cecilia']);
+    // Punnitut saaliit päätyvät järven ennätyslistalle.
+    await until(() => records.length === 3);
+    expect(records.map((r) => [r.angler, r.place])).toEqual([
+      ['Luuka', 1],
+      ['Bertta', 1],
+      ['Cecilia', 3],
+    ]);
+    const board = (await (
+      await fetch(`http://localhost:${PORT}${RECORDS_PATH}`)
+    ).json()) as RecordBoard;
+    expect(board.normal?.perch?.map((r) => [r.angler, r.weight])).toEqual([
+      ['Bertta', 0.9],
+      ['Luuka', 0.4],
+      ['Cecilia', 0.35],
+    ]);
     // Kisan jälkeen saaliita ei enää punnita.
     await land(host, 0.5);
     await until(() => rejected === 3);

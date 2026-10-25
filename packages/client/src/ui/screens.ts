@@ -31,6 +31,7 @@ import {
   type RoomSettings,
   type SpeciesId,
   type Tackle,
+  type RecordBoard,
   type WeatherLevel,
   type WinRule,
 } from '@lunki/shared';
@@ -92,6 +93,7 @@ export class Screens {
     initial: CompetitionSettings,
     onStart: (s: CompetitionSettings) => void,
     onMultiplayer: () => void,
+    onRecords: () => void,
   ): void {
     const settings = { ...initial };
     const panel = this.panel();
@@ -148,6 +150,7 @@ export class Screens {
           },
         ],
         ['Moninpeli', onMultiplayer],
+        ['Ennätykset', onRecords],
       ]),
       h(
         'p',
@@ -277,6 +280,51 @@ export class Screens {
       ]);
     buttons.push(['Poistu', actions.onLeave]);
     panel.append(this.buttons(buttons));
+    this.show(panel);
+  }
+
+  /** Järven ennätyslista vaikeustasoittain; null = palvelinta ei tavoitettu. */
+  showRecords(board: RecordBoard | null, initial: Difficulty, onBack: () => void): void {
+    const panel = this.panel();
+    panel.append(h('h2', 'Lunkinjärven ennätykset'));
+    if (!board) {
+      panel.append(
+        h('p', 'Pelipalvelimeen ei saatu yhteyttä, joten ennätyksiä ei voitu hakea.', 'error'),
+        this.buttons([['Takaisin', onBack]]),
+      );
+      this.show(panel);
+      return;
+    }
+    const lists = document.createElement('div');
+    const render = (d: Difficulty) => {
+      lists.replaceChildren();
+      for (const o of SPECIES_OPTIONS) {
+        const rows = board[d]?.[o.value] ?? [];
+        if (rows.length === 0 && !o.native) continue;
+        lists.append(h('p', o.label, 'choice-label'));
+        const ol = document.createElement('ol');
+        ol.className = 'catch-list records';
+        for (const r of rows) {
+          const li = document.createElement('li');
+          li.textContent = `${formatWeight(r.weight).padStart(8)}  ${r.angler.padEnd(16)} ${formatDate(r.date)}`;
+          ol.appendChild(li);
+        }
+        if (rows.length === 0) ol.append(h('li', 'Ei vielä saaliita', 'hint'));
+        lists.append(ol);
+      }
+    };
+    render(initial);
+    panel.append(
+      this.choice(
+        'Vaikeus',
+        (Object.keys(DIFFICULTY_NAMES) as Difficulty[]).map((d) => [d, DIFFICULTY_NAMES[d]]),
+        initial,
+        (v) => render(v as Difficulty),
+      ),
+      lists,
+      h('p', 'Listalle pääsevät moninpelikisoissa palvelimella punnitut kalat.', 'hint'),
+      this.buttons([['Takaisin', onBack]]),
+    );
     this.show(panel);
   }
 
@@ -652,3 +700,9 @@ function h(tag: string, text: string, className?: string): HTMLElement {
   if (className) e.className = className;
   return e;
 }
+
+/** 2026-10-25 → 25.10.2026 */
+const formatDate = (iso: string) => {
+  const [y, m, d] = iso.split('-');
+  return y && m && d ? `${Number(d)}.${Number(m)}.${y}` : iso;
+};

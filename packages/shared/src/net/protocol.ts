@@ -1,3 +1,5 @@
+import type { SpeciesId } from '../fishing/fish';
+
 /** Yhteiset määrittelyt asiakkaan ja palvelimen välille. */
 
 /** Colyseus-huonetyypin nimi. */
@@ -112,7 +114,19 @@ export const ServerMsg = {
   spout: 'spout',
   /** Sotku selvisi, ks. UntangledMessage. */
   untangled: 'untangled',
+  /** Saalis pääsi järven ennätyslistalle, ks. RecordMessage. */
+  record: 'record',
 } as const;
+
+export interface RecordMessage {
+  /** Saajan sessionId. */
+  player: string;
+  angler: string;
+  species: SpeciesId;
+  weight: number;
+  /** Sija lajin listalla samalla vaikeustasolla (1 = järven ennätys). */
+  place: number;
+}
 
 export interface UntangledMessage {
   /** Sotkussa olleet sessionId:t. */

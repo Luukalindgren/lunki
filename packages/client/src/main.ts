@@ -19,7 +19,13 @@ import { Hud } from './ui/hud';
 import { Screens, loadSettings } from './ui/screens';
 import { Bench } from './dev/bench';
 import { loadIdentity, saveName } from './net/identity';
-import { NetSession, checkServer, describeJoinError, inviteLink } from './net/session';
+import {
+  NetSession,
+  checkServer,
+  describeJoinError,
+  fetchRecords,
+  inviteLink,
+} from './net/session';
 import { NetWorld } from './net/netWorld';
 
 const app = document.querySelector<HTMLDivElement>('#app');
@@ -85,7 +91,18 @@ function showMenu() {
     settings,
     (s) => startGame(s),
     () => showMultiplayer(),
+    () => void showRecords(),
   );
+}
+
+async function showRecords() {
+  let cancelled = false;
+  screens.showMessage('Ennätykset', 'Haetaan ennätyksiä…', () => {
+    cancelled = true;
+    showMenu();
+  });
+  const board = await fetchRecords();
+  if (!cancelled && !game) screens.showRecords(board, settings.difficulty, showMenu);
 }
 
 function showResults() {
