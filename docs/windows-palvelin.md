@@ -101,24 +101,32 @@ _Asetukset → Järjestelmä → Virta → Näyttö ja lepotila → Lepotila: Ei
    ```sh
    ssh "Käyttäjä Nimi"@pelikone
    ```
-3. Avainkirjautuminen, jotta salasanaa ei tarvita. Luo avain, jos sitä ei ole
-   (`ls ~/.ssh/id_ed25519.pub`):
+3. Avainkirjautuminen, jotta salasanaa ei tarvita. Oma nimetty avain pitää
+   sen erillään muista avaimista:
    ```sh
-   ssh-keygen -t ed25519
+   ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_lunki -C "macbook-pelikone"
    ```
-   Järjestelmänvalvojakäyttäjän avaimet Windows lukee tiedostosta
-   `C:\ProgramData\ssh\administrators_authorized_keys`, ei kotikansiosta.
-   Lisää avain sinne Macilta yhdellä komennolla:
-   ```sh
-   ssh "Käyttäjä Nimi"@pelikone "Add-Content -Path C:\ProgramData\ssh\administrators_authorized_keys -Value '$(cat ~/.ssh/id_ed25519.pub)'; icacls.exe C:\ProgramData\ssh\administrators_authorized_keys /inheritance:r /grant '*S-1-5-32-544:F' /grant '*S-1-5-18:F'"
-   ```
-4. Oikotie `~/.ssh/config`-tiedostoon:
+4. Oikotie `~/.ssh/config`-tiedoston loppuun. `IdentitiesOnly yes` estää
+   SSH:ta kokeilemasta muita avaimia tähän koneeseen:
    ```
    Host lunki
      HostName pelikone
      User "Käyttäjä Nimi"
+     IdentityFile ~/.ssh/id_ed25519_lunki
+     IdentitiesOnly yes
+     AddKeysToAgent yes
+     UseKeychain yes
    ```
-   Tämän jälkeen palvelin käynnistyy läppäriltä:
+   Kaksi viimeistä riviä tallentavat avaimen salasanan macOS:n Avainnippuun.
+   Jos nimi `pelikone` ei ratkea, käytä `HostName`-rivillä koneen
+   Tailscale-osoitetta (`100.x.y.z`, näkyy komennolla `tailscale status`).
+5. Järjestelmänvalvojakäyttäjän avaimet Windows lukee tiedostosta
+   `C:\ProgramData\ssh\administrators_authorized_keys`, ei kotikansiosta.
+   Lisää julkinen avain sinne Macilta (kysyy kerran salasanan):
+   ```sh
+   ssh lunki "Add-Content -Path C:\ProgramData\ssh\administrators_authorized_keys -Value '$(cat ~/.ssh/id_ed25519_lunki.pub)'; icacls.exe C:\ProgramData\ssh\administrators_authorized_keys /inheritance:r /grant '*S-1-5-32-544:F' /grant '*S-1-5-18:F'"
+   ```
+   Tämän jälkeen palvelin käynnistyy läppäriltä ilman salasanaa:
    ```sh
    ssh lunki 'cd ~\Projektit\lunki; .\scripts\windows\lunki.ps1 kaynnista'
    ```
@@ -129,6 +137,6 @@ _Asetukset → Järjestelmä → Virta → Näyttö ja lepotila → Lepotila: Ei
 | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ssh` jää odottamaan eikä yhdistä | Onko pelikone hereillä ja Tailscale päällä molemmissa? `tailscale ping pelikone`.                                                                                             |
 | `Permission denied` salasanalla   | Microsoft-tilillä salasana on tilin salasana. Jos tili on salasanaton, käytä avainta (avain lisätään silloin pelikoneella suoraan tiedostoon).                                |
-| Avain ei kelpaa                   | Avain on väärässä tiedostossa tai tiedoston oikeudet ovat väärin: aja kohdan 5 `icacls`-osa uudelleen pelikoneella järjestelmänvalvojana.                                     |
+| Avain ei kelpaa                   | Avain on väärässä tiedostossa tai tiedoston oikeudet ovat väärin: aja läppärin kohdan 5 `icacls`-osa uudelleen pelikoneella järjestelmänvalvojana.                            |
 | `lunki.ps1 cannot be loaded`      | Suoritus estetty: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned -Force`.                                                                                               |
 | `kaynnista` sanoo "ei vastannut"  | Komento näyttää lokin lopun. Yleisimmät: `pnpm`-komentoa ei löydy (asenna `npm install -g pnpm@10.28.0`), Node on liian vanha tai portti 2567 on jo toisen ohjelman käytössä. |
