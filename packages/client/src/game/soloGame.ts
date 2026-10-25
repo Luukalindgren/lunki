@@ -15,6 +15,12 @@ import {
   createFishPopulation,
   formatTime,
   planWeather,
+  planLightning,
+  penaltyOutcome,
+  resolveStrike,
+  distance,
+  LIGHTNING,
+  OUT_OF_RACE,
   windVector,
   waveLength,
   wavePeriod,
@@ -42,6 +48,8 @@ import {
   type FishingContext,
   type FishingState,
   type PlayerResult,
+  type Penalty,
+  type Strike,
   type LakeMap,
   type Tackle,
   type Vec2,
@@ -54,6 +62,7 @@ import { createShoreScenery } from '../world/shoreScenery';
 import { createMapOverlay, createTerrainMesh } from '../world/surroundingsMesh';
 import type { RetroResolution } from '../engine/resolution';
 import { PovCamera } from './povCamera';
+import { LightningView } from './lightningView';
 import { createLakeMesh, createWaterWaves, toWorld, waterTime } from '../world/lakeMesh';
 import { WAVE_FACTOR_SCALE, WaveField } from '../world/waveField';
 import { createBuildings, createPiers, planPiers } from '../world/buildings';
@@ -149,6 +158,12 @@ export class SoloGame {
   readonly weather: WeatherView;
   readonly waves: WaveField;
   private readonly waterWaves = createWaterWaves();
+  private readonly lightning = new LightningView();
+  /** Yksinpelin salamat (moninpelissä palvelin ilmoittaa iskut). */
+  private readonly strikes: Strike[];
+  private nextStrike = 0;
+  /** Yksinpelin salaman jäähy (kisa-aika, s). */
+  private outUntil = 0;
   /** Aaltojen näkyvä aaltoluku (rad/m) ja kulmataajuus (rad/s). */
   private waveK = 1;
   private waveOmega = 1;
@@ -194,10 +209,10 @@ export class SoloGame {
     this.scene.add(this.hemi);
     this.sun.position.set(-50, 100, -30);
     this.scene.add(this.sun);
-    this.weather = new WeatherView(
-      planWeather(seed, settings.weather ?? 'realistic', settings.durationMinutes * 60),
-    );
-    this.scene.add(this.weather.group);
+    const plan = planWeather(seed, settings.weather ?? 'realistic', settings.durationMinutes * 60);
+    this.weather = new WeatherView(plan);
+    this.strikes = net ? [] : planLightning(plan, seed, settings.durationMinutes * 60);
+    this.scene.add(this.weather.group, this.lightning.group);
     this.waves = new WaveField(map);
     this.waterWaves.uWaveTex.value = this.waves.texture;
     this.waterWaves.uWaveBounds.value.copy(this.waves.bounds);
@@ -239,6 +254,8 @@ export class SoloGame {
       net.world.onPeerLeft = (name) => this.hud.showMessage(`${name} poistui kisasta`, 3);
       net.world.onCatchRejected = () =>
         this.hud.showMessage('Palvelin ei hyväksynyt saalista punnitukseen', 2.5);
+      net.world.onLightning = (m) =>
+        this.onStrike({ x: m.x, y: m.y }, m.victims.includes(net.world.myId));
       net.world.onCastRejected = () => {
         resetFishing(this.fishing);
         this.hud.showMessage('Palvelin hylkäsi heiton', 2);
@@ -304,6 +321,60 @@ export class SoloGame {
     return this.settings.difficulty;
   }
 
+  private get penalty(): Penalty {
+    return this.settings.lightningPenalty ?? 'none';
+  }
+
+  /** Jäähyä jäljellä (s); pudonneella Infinity. */
+  private get timeOutLeft(): number {
+    const until = this.net ? this.net.world.outUntil : this.outUntil;
+    if (until >= OUT_OF_RACE) return Infinity;
+    return Math.max(0, until - this.competition.elapsed);
+  }
+
+  /** Yksinpeli: salamat kisan kellon mukaan, kuten palvelimella. */
+  private strikeLightning(): void {
+    const f = this.fishing;
+    while (
+      this.nextStrike < this.strikes.length &&
+      this.strikes[this.nextStrike]!.t <= this.competition.elapsed
+    ) {
+      const strike = this.strikes[this.nextStrike++]!;
+      const rodUp =
+        (f.hookedId !== null || f.stage === 'flight' || f.stage === 'water') &&
+        this.timeOutLeft === 0;
+      const result = resolveStrike(
+        strike,
+        [{ id: 'me', pos: this.tube.pos, rodUp }],
+        this.water,
+        this.map.bounds,
+      );
+      this.onStrike(result.pos, result.victims.length > 0);
+    }
+  }
+
+  /** Salama iski kohtaan `pos`; `hitMe` = osui omaan vapaan. */
+  private onStrike(pos: Vec2, hitMe: boolean): void {
+    const d = distance(pos, this.tube.pos);
+    this.lightning.strike(pos);
+    this.hud.flash(d < 300 ? 0.8 : d < 1000 ? 0.5 : 0.3);
+    this.sfx.thunder(d, d / LIGHTNING.soundSpeed);
+    if (!hitMe) return;
+    resetFishing(this.fishing);
+    this.sfx.lost();
+    const outcome = penaltyOutcome(this.penalty, this.competition.elapsed);
+    // Moninpelissä palvelin pitää jäähyn ja saaliit; paikallinen lista vain näytölle.
+    if (!this.net) this.outUntil = outcome.outUntil;
+    if (outcome.loseCatch) this.competition.catches.length = 0;
+    const what: Record<Penalty, string> = {
+      none: 'Siima paloi poikki – laske vapa ukkosella',
+      'time-out': `Jäähy ${LIGHTNING.timeOut} s`,
+      'lose-catch': 'Menetit saaliisi',
+      out: 'Putosit kisasta',
+    };
+    this.hud.showWeighIn('Salama iski!', what[this.penalty], 4);
+  }
+
   update(dt: number): void {
     const input = this.input;
     waterTime.value += dt;
@@ -321,6 +392,9 @@ export class SoloGame {
     if (input.wasPressed('KeyV')) this.setViewMode(this.viewMode === 'top' ? 'pov' : 'top');
     if (input.wasPressed('KeyR'))
       this.setTackle(nextLure(this.pendingTackle ?? this.fishing.tackle));
+    if (!this.net) this.strikeLightning();
+    this.lightning.update(dt);
+    const timeOut = this.timeOutLeft;
 
     this.prevTube = this.tube;
     if (this.net) {
@@ -364,7 +438,7 @@ export class SoloGame {
       f,
       {
         aim: this.aim,
-        castHeld: !frozen && input.isDown('Mouse0'),
+        castHeld: !frozen && timeOut === 0 && input.isDown('Mouse0'),
         reel: reeling,
         cancel: input.isDown('Mouse2'),
         dragDelta: (input.wasPressed('KeyE') ? 1 : 0) - (input.wasPressed('KeyQ') ? 1 : 0),
@@ -396,6 +470,11 @@ export class SoloGame {
     this.hud.setPower(f.stage === 'charging' ? chargePower(f.charge) : null);
     this.hud.setTension(f.tension, f.drag, LINES[f.tackle.line].strength);
     this.hud.setStatus([
+      ...(timeOut === Infinity
+        ? ['Salama pudotti sinut kisasta']
+        : timeOut > 0
+          ? [`Salaman jäähy ${Math.ceil(timeOut)} s`]
+          : []),
       describeTackle(f.tackle),
       `Siimaa ${f.lineLength.toFixed(1)} m`,
       `Jarru ${f.drag.toFixed(2)} kg · kela ${f.gear + 1}`,
@@ -444,7 +523,8 @@ export class SoloGame {
     const hs = this.waves.heightAt(this.tube.pos, w.windSpeed);
     this.hud.setWeather(
       `${SKY_NAMES[w.sky]} · ${windName(w.windDir)} ${Math.round(w.windSpeed)} m/s` +
-        (hs >= 0.05 ? ` · aallot ${hs.toFixed(1).replace('.', ',')} m` : ''),
+        (hs >= 0.05 ? ` · aallot ${hs.toFixed(1).replace('.', ',')} m` : '') +
+        (w.sky === 'thunder' || w.sky === 'storm' ? ' · salamavaara!' : ''),
     );
   }
 
@@ -479,7 +559,8 @@ export class SoloGame {
     const dark = this.weather.now.darkness;
     // Valoa himmennetään vain vähän: paletissa tummat sinisävyt kääntyisivät vihreiksi.
     const light = 1 - 0.25 * dark;
-    this.hemi.intensity = 1.5 * light;
+    // Salaman välähdys valaisee koko maiseman hetkeksi.
+    this.hemi.intensity = 1.5 * light * (1 + 1.5 * this.lightning.flash);
     this.sun.intensity = 1.5 * light * light;
     const bg = this.scene.background;
     if (!(bg instanceof THREE.Color)) return;

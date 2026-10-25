@@ -1,6 +1,7 @@
 import type { Difficulty } from '../fishing/difficulty';
 import { NATIVE_SPECIES, type SpeciesId } from '../fishing/fish';
 import type { Catch } from '../fishing/fishing';
+import type { Penalty } from '../weather/lightning';
 import type { WeatherLevel } from '../weather/weather';
 
 /** Kilpailun kesto minuutteina. */
@@ -23,6 +24,8 @@ export interface CompetitionSettings {
   species?: SpeciesId[];
   /** Säätaso; oletuksena realistinen. */
   weather?: WeatherLevel;
+  /** Salaman rangaistus; oletuksena jäähy. */
+  lightningPenalty?: Penalty;
 }
 
 export const DEFAULT_SETTINGS: CompetitionSettings = {
@@ -31,6 +34,7 @@ export const DEFAULT_SETTINGS: CompetitionSettings = {
   winRule: 'total',
   species: [...NATIVE_SPECIES],
   weather: 'realistic',
+  lightningPenalty: 'time-out',
 };
 
 export interface CatchRecord extends Catch {

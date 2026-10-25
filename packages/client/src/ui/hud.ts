@@ -20,6 +20,8 @@ export class Hud {
   private readonly catches: HTMLDivElement;
   private readonly weigh: HTMLDivElement;
   private readonly countdown: HTMLDivElement;
+  private readonly flashEl: HTMLDivElement;
+  private flashLevel = 0;
   readonly sonar: SonarDisplay;
   private messageTimer = 0;
   private weighTimer = 0;
@@ -27,6 +29,9 @@ export class Hud {
   constructor(parent: HTMLElement) {
     this.root = el('div', 'hud');
     parent.appendChild(this.root);
+    // Salaman välähdys pelikuvan päällä, HUD-paneelien alla.
+    this.flashEl = el('div', 'hud-flash');
+    this.root.appendChild(this.flashEl);
     this.status = el('div', 'hud-status hud-panel');
     this.power = el('div', 'hud-power hud-panel');
     this.powerFill = el('div', 'hud-power-fill');
@@ -44,7 +49,8 @@ export class Hud {
       'Hiiri: tähtää, pidä pohjassa ja päästä = heitto<br>' +
       'Hiiri pohjassa / välilyönti = kelaa · 1/2/3 kelausnopeus · R vaihda viehe<br>' +
       'K kaikuluotain · V kalastajan silmin · ' +
-      'Q/E jarru löysemmälle/kireämmälle · rulla = zoom · H = ohje · Esc = tauko';
+      'Q/E jarru löysemmälle/kireämmälle · rulla = zoom · H = ohje · Esc = tauko<br>' +
+      'Ukkosella salama voi iskeä vapaan: kelaa viehe sisään, ja pysy lähellä rantaa';
     this.timer = el('div', 'hud-timer hud-panel');
     this.weather = el('div', 'hud-weather hud-panel');
     this.catches = el('div', 'hud-catches hud-panel');
@@ -138,7 +144,17 @@ export class Hud {
     this.messageTimer = seconds;
   }
 
+  /** Salaman välähdys: koko ruutu vaalenee hetkeksi (0–1). */
+  flash(strength: number): void {
+    this.flashLevel = Math.max(this.flashLevel, strength);
+  }
+
   update(dt: number): void {
+    if (this.flashLevel > 0 || this.flashEl.style.opacity !== '0') {
+      this.flashLevel = Math.max(0, this.flashLevel - dt * 2.5);
+      // Portaittain, kuten muukin retrografiikka.
+      this.flashEl.style.opacity = String(Math.round(this.flashLevel * 4) / 5);
+    }
     if (this.weighTimer > 0) {
       this.weighTimer -= dt;
       if (this.weighTimer <= 0) this.weigh.hidden = true;

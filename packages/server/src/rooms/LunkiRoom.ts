@@ -14,8 +14,12 @@ import {
   decodeInputs,
   distance,
   findLaunchPoint,
+  isPenalty,
   isWeatherLevel,
+  penaltyOutcome,
+  planLightning,
   planWeather,
+  resolveStrike,
   weatherAt,
   windVector,
   isPlausibleCatch,
@@ -26,6 +30,8 @@ import {
   validateSettingsPatch,
   type InputMessage,
   type JoinOptions,
+  type LightningMessage,
+  type Strike,
   type SplashMessage,
   type TubeState,
   type Vec2,
@@ -64,6 +70,9 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   private countdownSeconds = COUNTDOWN_SECONDS;
   /** Kisan sää; sama suunnitelma lasketaan asiakkailla siemenestä. */
   private weather: WeatherPlan | null = null;
+  /** Kisan salamat ja seuraavan indeksi. */
+  private strikes: Strike[] = [];
+  private nextStrike = 0;
   /** Kehitystä varten: LUNKI_RACE_SECONDS lyhentää kaikki kisat. */
   private durationOverride: number | null = Number(process.env.LUNKI_RACE_SECONDS) || null;
 
@@ -106,6 +115,10 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     this.onMessage(ClientMsg.splash, (client, msg: SplashMessage) => {
       const sim = this.sims.get(client.sessionId);
       if (!sim || this.state.phase !== 'playing') return;
+      if (this.timedOut(client.sessionId)) {
+        client.send(ServerMsg.castRejected);
+        return;
+      }
       if (isPlausibleSplash(sim.tube.pos, { x: Number(msg?.x), y: Number(msg?.y) }))
         sim.splashed = true;
       else client.send(ServerMsg.castRejected);
@@ -117,6 +130,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       if (
         !sim ||
         this.state.phase !== 'playing' ||
+        this.timedOut(client.sessionId) ||
         !isPlausibleCatch(msg, {
           splashedSinceLastCatch: sim.splashed,
           now,
@@ -149,6 +163,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       this.state.players.forEach((p) => {
         p.ready = false;
         p.lureStage = 0;
+        p.outUntil = 0;
       });
       this.state.phase = 'lobby';
       void this.unlock();
@@ -211,6 +226,12 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         this.durationOverride ?? this.state.settings.durationMinutes * 60,
       );
       this.state.sky = this.weather.segments[0]!.sky;
+      this.strikes = planLightning(
+        this.weather,
+        this.state.seed,
+        this.durationOverride ?? this.state.settings.durationMinutes * 60,
+      );
+      this.nextStrike = 0;
       this.state.clock = 0;
       this.state.countdown = this.countdownSeconds;
       this.state.phase = 'countdown';
@@ -304,6 +325,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     const weather =
       this.weather && st.phase === 'playing' ? weatherAt(this.weather, st.clock) : null;
     if (weather) st.sky = weather.sky;
+    if (st.phase === 'playing') this.strikeLightning();
     const ids = [...this.sims.keys()];
     const sims = ids.map((id) => this.sims.get(id)!);
     for (const i of stepSims(
@@ -314,6 +336,45 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     )) {
       const p = this.state.players.get(ids[i]!);
       if (p) writeTube(p, sims[i]!.tube, sims[i]!.inputs.lastSeq);
+    }
+  }
+
+  private timedOut(id: string): boolean {
+    return this.state.clock < (this.state.players.get(id)?.outUntil ?? 0);
+  }
+
+  /**
+   * Salamat kisan kellon mukaan. Osuma on mahdollinen vain, jos vapa on
+   * ylhäällä (viehe heitossa, vedessä tai kala kiinni); siima palaa aina
+   * poikki, ja valittu rangaistus seuraa.
+   */
+  private strikeLightning() {
+    const st = this.state;
+    while (this.nextStrike < this.strikes.length && this.strikes[this.nextStrike]!.t <= st.clock) {
+      const strike = this.strikes[this.nextStrike++]!;
+      const targets = [...this.sims.entries()].map(([id, sim]) => ({
+        id,
+        pos: sim.tube.pos,
+        rodUp: (st.players.get(id)?.lureStage ?? 0) !== 0 && !this.timedOut(id),
+      }));
+      const result = resolveStrike(strike, targets, water, LUNKINJARVI.bounds);
+      const penalty = isPenalty(st.settings.lightningPenalty)
+        ? st.settings.lightningPenalty
+        : 'none';
+      for (const id of result.victims) {
+        const p = st.players.get(id);
+        const sim = this.sims.get(id);
+        if (!p || !sim) continue;
+        const outcome = penaltyOutcome(penalty, st.clock);
+        p.outUntil = outcome.outUntil;
+        p.lureStage = 0;
+        sim.splashed = false;
+        if (outcome.loseCatch)
+          for (let i = st.catches.length - 1; i >= 0; i--)
+            if (st.catches[i]!.player === id) st.catches.splice(i, 1);
+      }
+      const msg: LightningMessage = { x: result.pos.x, y: result.pos.y, victims: result.victims };
+      this.broadcast(ServerMsg.lightning, msg);
     }
   }
 

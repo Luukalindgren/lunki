@@ -30,6 +30,15 @@ describe('validateSettingsPatch', () => {
     expect(validateSettingsPatch(null, 1)).toEqual({});
   });
 
+  it('salaman rangaistukset kelpaavat, kaatumisen vasta myöhemmin', () => {
+    expect(validateSettingsPatch({ lightningPenalty: 'out' }, 1)).toEqual({
+      lightningPenalty: 'out',
+    });
+    expect(validateSettingsPatch({ lightningPenalty: 'zap', capsizePenalty: 'out' }, 1)).toEqual(
+      {},
+    );
+  });
+
   it('pelaajamäärä ei voi laskea alle nykyisten', () => {
     expect(validateSettingsPatch({ maxPlayers: 2 }, 3)).toEqual({});
     expect(validateSettingsPatch({ maxPlayers: 16 }, 3)).toEqual({ maxPlayers: 16 });

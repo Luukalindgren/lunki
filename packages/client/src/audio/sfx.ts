@@ -57,6 +57,16 @@ export class Sfx {
     this.noise(2.8, 0.9, 160, 0.4);
   }
 
+  /**
+   * Salaman ääni: lähellä terävä räsähdys ja jyrinä, kaukana pelkkä
+   * hiljaisempi jyrinä. Ääni kulkee 343 m/s, joten se tulee viiveellä.
+   */
+  thunder(distance: number, delay: number): void {
+    if (distance < 250) this.noise(0.35, 1.2, 5000, 0, delay);
+    const volume = Math.max(0.3, 1 - distance / 2000);
+    this.noise(3.2, volume, 140, 0.15, delay + 0.1);
+  }
+
   caught(): void {
     [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.1, 'square', 0.5, i * 0.09));
   }
@@ -87,7 +97,7 @@ export class Sfx {
     osc.stop(t + duration + 0.02);
   }
 
-  private noise(duration: number, volume: number, cutoff = 1800, attack = 0): void {
+  private noise(duration: number, volume: number, cutoff = 1800, attack = 0, delay = 0): void {
     if (this.muted || !this.ctx || !this.master) return;
     const len = Math.floor(this.ctx.sampleRate * duration);
     const buffer = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
@@ -103,6 +113,6 @@ export class Sfx {
     filter.type = 'lowpass';
     filter.frequency.value = cutoff;
     src.connect(filter).connect(gain).connect(this.master);
-    src.start();
+    src.start(this.ctx.currentTime + delay);
   }
 }
