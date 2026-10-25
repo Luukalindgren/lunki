@@ -12,10 +12,11 @@
   .\scripts\windows\lunki.ps1 tila            Kertoo, onko palvelin ja tunneli päällä
   .\scripts\windows\lunki.ps1 loki [-Seuraa]  Näyttää palvelimen lokin lopun
   .\scripts\windows\lunki.ps1 poista          Poistaa tehtävän
+  .\scripts\windows\lunki.ps1 palauteavain    Tulostaa avaimen, jolla GitHub hakee palautteet
 #>
 param(
   [Parameter(Position = 0)]
-  [ValidateSet('asenna', 'kaynnista', 'pysayta', 'tila', 'loki', 'poista', 'aja')]
+  [ValidateSet('asenna', 'kaynnista', 'pysayta', 'tila', 'loki', 'poista', 'aja', 'palauteavain')]
   [string]$Komento = 'tila',
   # asenna: käynnistä palvelin myös aina, kun kone käynnistyy.
   [switch]$Kaynnistyksessa,
@@ -172,6 +173,13 @@ switch ($Komento) {
       return
     }
     if ($Seuraa) { Get-Content $Log -Tail 40 -Wait -Encoding UTF8 } else { Get-Content $Log -Tail 40 -Encoding UTF8 }
+  }
+
+  'palauteavain' {
+    # Palvelin luo avaimen ensimmäisellä käynnistyksellä (packages/server/src/feedback/token.ts).
+    $key = Join-Path $Repo 'packages\server\data\palauteavain.txt'
+    if (-not (Test-Path $key)) { throw 'Avainta ei vielä ole. Käynnistä palvelin kerran: .\scripts\windows\lunki.ps1 kaynnista' }
+    (Get-Content $key -Encoding UTF8 | Select-Object -First 1).Trim()
   }
 
   'poista' {
