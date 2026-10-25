@@ -1,5 +1,10 @@
 import type { DatabaseSync } from 'node:sqlite';
-import { RECORDS_PER_SPECIES, type RecordBoard, type RecordEntry } from '@lunki/shared';
+import {
+  RECORDS_PER_SPECIES,
+  type RecordBoard,
+  type RecordEntry,
+  type RecordMode,
+} from '@lunki/shared';
 
 /** Saaliin lisätiedot: RecordEntryn kenttä ja sarake, johon se tallennetaan. */
 const DETAILS = [
@@ -37,6 +42,7 @@ function toEntry(r: Row): RecordEntry {
 /**
  * Ennätykset SQLite-tiedostossa pelikoneella. Kaikki punnitut saaliit
  * tallennetaan; listat lasketaan kyselyllä, joten rajaa voi muuttaa myöhemmin.
+ * Moninpelin (race) ja yksinpelin (solo) listat ovat erilliset.
  */
 export class RecordStore {
   private readonly db: DatabaseSync;
@@ -61,15 +67,27 @@ export class RecordStore {
     );
     for (const [, col, type] of DETAILS)
       if (!columns.has(col)) db.exec(`ALTER TABLE catches ADD COLUMN ${col} ${type}`);
+    // Yksinpelin lista tuli myöhemmin: vanhat rivit ovat moninpelin saaliita.
+    if (!columns.has('mode'))
+      db.exec("ALTER TABLE catches ADD COLUMN mode TEXT NOT NULL DEFAULT 'race'");
+    db.exec(
+      'CREATE INDEX IF NOT EXISTS catches_mode_board ON catches (mode, difficulty, species, weight DESC)',
+    );
+  }
+
+  /** Sija, jolle saalis tulisi lajin listalla (1 = ennätys); tasapainossa aiempi edellä. */
+  place(e: RecordEntry, mode: RecordMode = 'race'): number {
+    const above = this.db
+      .prepare(
+        'SELECT COUNT(*) AS n FROM catches WHERE mode = ? AND difficulty = ? AND species = ? AND weight >= ?',
+      )
+      .get(mode, e.difficulty, e.species, e.weight) as { n: number };
+    return above.n + 1;
   }
 
   /** Tallentaa saaliin ja palauttaa sen sijan lajin listalla (1 = ennätys). */
-  add(e: RecordEntry): number {
-    const above = this.db
-      .prepare(
-        'SELECT COUNT(*) AS n FROM catches WHERE difficulty = ? AND species = ? AND weight >= ?',
-      )
-      .get(e.difficulty, e.species, e.weight) as { n: number };
+  add(e: RecordEntry, mode: RecordMode = 'race'): number {
+    const place = this.place(e, mode);
     const cols = DETAILS.map(([, col]) => col);
     const details = DETAILS.map(([key]) => {
       const v = e[key];
@@ -77,24 +95,24 @@ export class RecordStore {
     });
     this.db
       .prepare(
-        `INSERT INTO catches (species, weight, angler, difficulty, date, ${cols.join(', ')})
-         VALUES (?, ?, ?, ?, ?, ${cols.map(() => '?').join(', ')})`,
+        `INSERT INTO catches (mode, species, weight, angler, difficulty, date, ${cols.join(', ')})
+         VALUES (?, ?, ?, ?, ?, ?, ${cols.map(() => '?').join(', ')})`,
       )
-      .run(e.species, e.weight, e.angler, e.difficulty, e.date, ...details);
-    return above.n + 1;
+      .run(mode, e.species, e.weight, e.angler, e.difficulty, e.date, ...details);
+    return place;
   }
 
   /** Suurimmat kalat vaikeustasoittain ja lajeittain. Tasapelissä aiempi saalis ensin. */
-  board(limit = RECORDS_PER_SPECIES): RecordBoard {
+  board(limit = RECORDS_PER_SPECIES, mode: RecordMode = 'race'): RecordBoard {
     const rows = this.db
       .prepare(
         `SELECT * FROM (
            SELECT *, ROW_NUMBER() OVER (
              PARTITION BY difficulty, species ORDER BY weight DESC, id ASC
-           ) AS place FROM catches
+           ) AS place FROM catches WHERE mode = ?
          ) WHERE place <= ? ORDER BY difficulty, species, place`,
       )
-      .all(limit) as Row[];
+      .all(mode, limit) as Row[];
     const board: RecordBoard = {};
     for (const row of rows) {
       const r = toEntry(row);

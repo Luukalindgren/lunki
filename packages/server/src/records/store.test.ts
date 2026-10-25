@@ -97,4 +97,18 @@ describe('ennätykset', () => {
     ]);
     s.close();
   });
+
+  it('yksinpelin lista on erillään moninpelin listasta', () => {
+    const s = new RecordStore(openDatabase(':memory:'));
+    s.add(entry(0.5));
+    expect(s.place(entry(0.4), 'solo')).toBe(1);
+    expect(s.add(entry(0.4), 'solo')).toBe(1);
+    expect(s.add(entry(0.6), 'solo')).toBe(1);
+    expect(s.place(entry(0.45), 'solo')).toBe(2);
+    expect(s.board().normal?.perch?.map((r) => r.weight)).toEqual([0.5]);
+    expect(s.board(RECORDS_PER_SPECIES, 'solo').normal?.perch?.map((r) => r.weight)).toEqual([
+      0.6, 0.4,
+    ]);
+    s.close();
+  });
 });

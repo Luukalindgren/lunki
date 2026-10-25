@@ -31,7 +31,11 @@ import {
   LAND_CUT_PROTOCOL,
   type UntangledMessage,
   RECORDS_PATH,
+  SOLO_RECORDS_PATH,
   type RecordBoard,
+  type RecordEntry,
+  type RecordMode,
+  type SoloRecordReply,
   type RecordMessage,
   type JoinOptions,
   type LightningMessage,
@@ -87,14 +91,49 @@ export async function checkServer(timeoutMs = 4000): Promise<boolean> {
   }
 }
 
-/** Järven ennätyslista palvelimelta; null, jos palvelinta ei tavoiteta. */
-export async function fetchRecords(timeoutMs = 4000): Promise<RecordBoard | null> {
+/**
+ * Järven ennätyslista palvelimelta (moninpelin tai yksinpelin); null, jos
+ * palvelinta ei tavoiteta tai se ei vielä tunne listaa.
+ */
+export async function fetchRecords(
+  mode: RecordMode = 'race',
+  timeoutMs = 4000,
+): Promise<RecordBoard | null> {
   const http = serverUrl().replace(/^ws/, 'http').replace(/\/$/, '');
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetch(`${http}${RECORDS_PATH}`, { signal: ctrl.signal });
+    const path = mode === 'solo' ? SOLO_RECORDS_PATH : RECORDS_PATH;
+    const res = await fetch(`${http}${path}`, { signal: ctrl.signal });
     return res.ok ? ((await res.json()) as RecordBoard) : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Lähettää yksinpelin saaliin yksinpelin ennätyslistalle. Palauttaa sijan
+ * lajin listalla, tai null, jos kala ei mahtunut listalle tai palvelinta ei
+ * tavoitettu.
+ */
+export async function submitSoloRecord(
+  entry: Omit<RecordEntry, 'date' | 'at'>,
+  timeoutMs = 6000,
+): Promise<number | null> {
+  const http = serverUrl().replace(/^ws/, 'http').replace(/\/$/, '');
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    // Teksti rungoksi, ettei selain tee CORS-esikyselyä (kuten palautteessa).
+    const res = await fetch(`${http}${SOLO_RECORDS_PATH}`, {
+      method: 'POST',
+      headers: { 'content-type': 'text/plain' },
+      body: JSON.stringify(entry),
+      signal: ctrl.signal,
+    });
+    return res.ok ? ((await res.json()) as SoloRecordReply).place : null;
   } catch {
     return null;
   } finally {

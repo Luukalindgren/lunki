@@ -41,6 +41,7 @@ export const IP_RULES: IpRule[] = [
   { path: /^\/feedback$/, perMinute: 5 },
   { path: /^\/feedback\/exported$/, perMinute: 60 },
   { path: /^\/errors$/, perMinute: 20 },
+  { path: /^\/records\/solo$/, perMinute: 30 },
 ];
 
 /** Hylkää (429) liian tiheät POST-pyynnöt samasta osoitteesta ennen muita käsittelijöitä. */
