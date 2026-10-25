@@ -701,5 +701,6 @@ function writeTube(p: PlayerState, t: TubeState, ack: number) {
   p.heading = t.heading;
   p.angVel = t.angVel;
   p.kickPhase = t.kickPhase;
+  p.stamina = t.stamina;
   p.ack = ack;
 }

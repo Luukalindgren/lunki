@@ -3,6 +3,7 @@ import { WaterBody } from '../map/waterBody';
 import type { LakeMap } from '../map/types';
 import {
   collideTubeWithShore,
+  STAMINA,
   createTube,
   stepTube,
   wrapAngle,
@@ -39,7 +40,8 @@ describe('stepTube', () => {
     const cruise = speed(run(createTube({ x: 0, y: 0 }), kick, 30));
     expect(cruise).toBeGreaterThan(1.2);
     expect(cruise).toBeLessThan(2.5);
-    const sprint = speed(run(createTube({ x: 0, y: 0 }), { ...kick, sprint: true }, 30));
+    // Pikapotkuja jaksaa n. 20 s; huippunopeus saavutetaan sitä ennen.
+    const sprint = speed(run(createTube({ x: 0, y: 0 }), { ...kick, sprint: true }, 10));
     expect(sprint).toBeGreaterThan(cruise * 1.3);
     expect(sprint).toBeLessThan(4);
   });
@@ -64,6 +66,32 @@ describe('stepTube', () => {
       expect(w).toBeGreaterThan(-Math.PI - 1e-9);
       expect(w).toBeLessThanOrEqual(Math.PI + 1e-9);
     }
+  });
+});
+
+describe('kunto', () => {
+  const sprint: TubeInput = { ...kick, sprint: true };
+
+  it('pikapotkut kuluttavat kuntoa paljon nopeammin kuin tavalliset', () => {
+    const normal = run(createTube({ x: 0, y: 0 }), kick, 10).stamina;
+    const fast = run(createTube({ x: 0, y: 0 }), sprint, 10).stamina;
+    expect(normal).toBeGreaterThan(0.9);
+    expect(fast).toBeLessThan(0.6);
+    expect(1 - fast).toBeGreaterThan((1 - normal) * 5);
+  });
+
+  it('tyhjällä kunnolla pikapotkut eivät auta ja potkut heikkenevät', () => {
+    const spent = run(createTube({ x: 0, y: 0 }), sprint, 30);
+    expect(spent.stamina).toBe(0);
+    const tired = speed(run(spent, sprint, 10));
+    const fresh = speed(run(createTube({ x: 0, y: 0 }), kick, 10));
+    expect(tired).toBeLessThan(fresh * 0.8);
+  });
+
+  it('palautuu levossa, myös kääntyessä', () => {
+    const spent = run(createTube({ x: 0, y: 0 }), sprint, 30);
+    expect(run(spent, idle, 5).stamina).toBeCloseTo(5 * STAMINA.restRegen, 5);
+    expect(run(spent, { kick: 0, turn: 1, sprint: true }, 20).stamina).toBe(1);
   });
 });
 

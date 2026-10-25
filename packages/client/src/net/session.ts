@@ -125,6 +125,8 @@ export interface PlayerSchema {
   heading: number;
   angVel: number;
   kickPhase: number;
+  /** Puuttuu vanhalta palvelimelta. */
+  stamina?: number;
   ack: number;
   lureX: number;
   lureY: number;
