@@ -26,6 +26,7 @@ import {
   resolveStrike,
   weatherAt,
   CHAT_MAX_LENGTH,
+  DEFAULT_TACKLE,
   PROTOCOL_VERSION,
   CHAT_RATE,
   JoinRefusal,
@@ -601,6 +602,16 @@ describe('LunkiRoom', () => {
     expect(listed.map((r) => [r.angler, r.weight]).sort()).toEqual(
       names.map((n, i) => [n, weights[i]]).sort(),
     );
+    // Ennätykseen tallentuvat saantipaikka, varusteet ja olosuhteet.
+    for (const r of listed) {
+      expect(r).toMatchObject({ lure: DEFAULT_TACKLE.lure, timeOfDay: expect.any(String) });
+      expect([r.x, r.y, r.raceTime]).toEqual([
+        expect.any(Number),
+        expect.any(Number),
+        expect.any(Number),
+      ]);
+      expect(r.at?.slice(0, 10)).toBe(r.date);
+    }
     // Kisan jälkeen saaliita ei enää punnita.
     landNear(host);
     await until(() => rejected === 3);

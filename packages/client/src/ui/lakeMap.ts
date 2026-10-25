@@ -21,6 +21,8 @@ const RES = 2;
 const MARGIN = 250;
 /** Näin pieni liike (px) lasketaan napautukseksi eikä vedoksi. */
 const TAP_SLOP = 8;
+/** Napautus osuu merkkiin näin läheltä (px). */
+const PIN_REACH = 14;
 
 const FEATURE_NAMES: Partial<Record<BottomFeature['type'], string>> = {
   hole: 'syvänne',
@@ -227,6 +229,17 @@ export interface LakeMapOptions {
   /** Valittu piste (esim. aloituspaikka) merkkinä kartalla. */
   marker?: Vec2 | null;
   markerLabel?: string;
+  /** Merkit (esim. ennätyskalat); napautus merkin kohdalla valitsee sen. */
+  pins?: MapPin[];
+  onPin?: (index: number) => void;
+}
+
+export interface MapPin {
+  pos: Vec2;
+  /** CSS-väri. */
+  color: string;
+  /** Näytetään valitun merkin vieressä. */
+  label: string;
 }
 
 /**
@@ -247,11 +260,14 @@ export class LakeMapView {
   private touched = false;
   private marker: Vec2 | null;
   private probe: Vec2 | null = null;
+  private pins: MapPin[];
+  private selectedPin = -1;
 
   constructor(private readonly options: LakeMapOptions = {}) {
     this.base = buildBase(this.data, LUNKINJARVI_SURROUNDINGS);
     this.view = new MapViewport(this.base.extent);
     this.marker = options.marker ?? null;
+    this.pins = options.pins ?? [];
 
     this.element = document.createElement('div');
     this.element.className = 'lake-map';
@@ -285,7 +301,9 @@ export class LakeMapView {
     this.info.className = 'hint lake-map-info';
     this.info.textContent = options.onPick
       ? 'Napauta kohtaa vedessä.'
-      : 'Napauta kohtaa, niin näet syvyyden.';
+      : options.onPin
+        ? 'Napauta merkkiä, niin näet saaliin tiedot.'
+        : 'Napauta kohtaa, niin näet syvyyden.';
     this.element.append(frame, this.info, this.legend());
 
     this.resize = new ResizeObserver(() => this.layout());
@@ -299,6 +317,22 @@ export class LakeMapView {
 
   setMarker(p: Vec2 | null): void {
     this.marker = p;
+    this.draw();
+  }
+
+  /** Vaihtaa merkit; `selected` (indeksi) korostetaan ja keskitetään. */
+  setPins(pins: MapPin[], selected = -1): void {
+    this.pins = pins;
+    this.selectPin(selected);
+  }
+
+  selectPin(index: number): void {
+    const pin = this.pins[index];
+    this.selectedPin = pin ? index : -1;
+    if (pin) {
+      this.view.center = { ...pin.pos };
+      this.showInfo(pin.pos, false);
+    }
     this.draw();
   }
 
@@ -327,6 +361,8 @@ export class LakeMapView {
     if (!this.touched) {
       this.view.fit(this.data.map.bounds);
       if (this.marker && this.options.onPick) this.view.center = { ...this.marker };
+      const pin = this.pins[this.selectedPin];
+      if (pin) this.view.center = { ...pin.pos };
     }
     this.draw();
   }
@@ -396,6 +432,14 @@ export class LakeMapView {
   }
 
   private onTap(p: Vec2): void {
+    const hit = this.pinAt(this.view.toScreen(p));
+    if (hit >= 0) {
+      this.selectedPin = hit;
+      this.options.onPin?.(hit);
+      this.showInfo(this.pins[hit]!.pos, false);
+      this.draw();
+      return;
+    }
     if (this.options.onPick) {
       if (!isValidStart(this.data.water, p)) {
         this.info.textContent = 'Valitse kohta vedestä, vähän irti rannasta.';
@@ -407,6 +451,20 @@ export class LakeMapView {
     this.probe = p;
     this.showInfo(p, true);
     this.draw();
+  }
+
+  /** Lähin merkki napautuskohdan vieressä; -1 = ei osumaa. */
+  private pinAt(s: Vec2): number {
+    let best = -1;
+    let bestD = PIN_REACH;
+    this.pins.forEach((pin, i) => {
+      const d = distance(this.view.toScreen(pin.pos), s);
+      if (d <= bestD) {
+        best = i;
+        bestD = d;
+      }
+    });
+    return best;
   }
 
   /** Syvyys ja lähin pohjan muoto tekstinä kartan alle. */
@@ -466,8 +524,31 @@ export class LakeMapView {
       if (this.options.markerLabel)
         this.label(ctx, this.options.markerLabel, s.x + 12, s.y, '#f6d04d');
     }
+    this.drawPins(ctx);
     this.scaleBar(ctx);
     this.label(ctx, 'P ▲', v.width - 8, 14, '#eef2f3', 'right');
+  }
+
+  /** Merkit pisteinä; valittu isompana nimen kera ja muiden päällä. */
+  private drawPins(ctx: CanvasRenderingContext2D): void {
+    const order = this.pins.map((_, i) => i).filter((i) => i !== this.selectedPin);
+    if (this.pins[this.selectedPin]) order.push(this.selectedPin);
+    for (const i of order) {
+      const pin = this.pins[i]!;
+      const s = this.view.toScreen(pin.pos);
+      const selected = i === this.selectedPin;
+      const r = selected ? 7 : 5;
+      ctx.fillStyle = '#0b0f14';
+      ctx.fillRect(Math.round(s.x) - r - 1, Math.round(s.y) - r - 1, r * 2 + 2, r * 2 + 2);
+      ctx.fillStyle = pin.color;
+      ctx.fillRect(Math.round(s.x) - r, Math.round(s.y) - r, r * 2, r * 2);
+      if (selected) {
+        ctx.strokeStyle = '#fff3b0';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(Math.round(s.x) - r - 4, Math.round(s.y) - r - 4, r * 2 + 8, r * 2 + 8);
+        this.label(ctx, pin.label, s.x + r + 8, s.y, '#fff3b0');
+      }
+    }
   }
 
   private label(
