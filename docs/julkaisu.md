@@ -17,7 +17,7 @@ porttia ei tarvitse avata reitittimestä, ja tunneli hoitaa sertifikaatin.
 1. **GitHub Pages päälle:** repositorion _Settings → Pages → Build and
    deployment → Source: GitHub Actions_. Aja sitten _Actions → Julkaisu →
    Run workflow_ (tai yhdistä mikä tahansa PR).
-2. **Node.js ja pnpm pelikoneelle:** asenna [Node.js 22](https://nodejs.org/)
+2. **Node.js ja pnpm pelikoneelle:** asenna [Node.js 22](https://nodejs.org/) (vähintään 22.13)
    (LTS-asennin käy) ja aja PowerShellissä `corepack enable`.
 3. **Koodi pelikoneelle:**
    ```powershell
@@ -49,6 +49,9 @@ porttia ei tarvitse avata reitittimestä, ja tunneli hoitaa sertifikaatin.
    pnpm server
    ```
    Palvelin kertoo kuuntelevansa porttia 2567. Ikkuna pidetään auki pelin ajan.
+   Ennätyslista tallentuu tiedostoon `packages/server/data/lunki.sqlite`
+   (muutettavissa ympäristömuuttujalla `LUNKI_DB`), joten se säilyy
+   uudelleenkäynnistysten yli. Varmuuskopioksi riittää tiedoston kopio.
 2. Avaa <https://luukalindgren.github.io/lunki/> → **Moninpeli**. Rivi
    "Palvelin päällä" kertoo, että yhteys toimii.
 3. **Luo uusi huone** ja lähetä kavereille kutsulinkki (_Kopioi kutsulinkki_)

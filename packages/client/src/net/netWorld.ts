@@ -9,6 +9,7 @@ import {
   type Catch,
   type LightningMessage,
   type UntangledMessage,
+  type RecordMessage,
   type PlayerResult,
   type RoomPhase,
   type TubeInput,
@@ -88,6 +89,7 @@ export class NetWorld {
   onSpout: ((msg: BigWaveMessage) => void) | null = null;
   /** Siimasotku selvisi. */
   onUntangled: ((msg: UntangledMessage) => void) | null = null;
+  onRecord: ((msg: RecordMessage) => void) | null = null;
 
   constructor(
     private readonly session: NetSession,
@@ -105,6 +107,7 @@ export class NetWorld {
     session.onBigWave = (m) => this.onBigWave?.(m);
     session.onSpout = (m) => this.onSpout?.(m);
     session.onUntangled = (m) => this.onUntangled?.(m);
+    session.onRecord = (m) => this.onRecord?.(m);
   }
 
   cutLine(): void {
@@ -270,5 +273,6 @@ export class NetWorld {
     this.session.onBigWave = null;
     this.session.onSpout = null;
     this.session.onUntangled = null;
+    this.session.onRecord = null;
   }
 }

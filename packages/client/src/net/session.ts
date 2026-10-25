@@ -19,6 +19,9 @@ import {
   type SpeciesId,
   type BigWaveMessage,
   type UntangledMessage,
+  RECORDS_PATH,
+  type RecordBoard,
+  type RecordMessage,
   type JoinOptions,
   type LightningMessage,
   type Penalty,
@@ -52,6 +55,21 @@ export async function checkServer(timeoutMs = 4000): Promise<boolean> {
     return res.ok;
   } catch {
     return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Järven ennätyslista palvelimelta; null, jos palvelinta ei tavoiteta. */
+export async function fetchRecords(timeoutMs = 4000): Promise<RecordBoard | null> {
+  const http = serverUrl().replace(/^ws/, 'http').replace(/\/$/, '');
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${http}${RECORDS_PATH}`, { signal: ctrl.signal });
+    return res.ok ? ((await res.json()) as RecordBoard) : null;
+  } catch {
+    return null;
   } finally {
     clearTimeout(timer);
   }
@@ -157,6 +175,7 @@ export class NetSession {
   onBigWave: ((msg: BigWaveMessage) => void) | null = null;
   onSpout: ((msg: BigWaveMessage) => void) | null = null;
   onUntangled: ((msg: UntangledMessage) => void) | null = null;
+  onRecord: ((msg: RecordMessage) => void) | null = null;
   onStarted: ((msg: StartedMessage, view: LobbyView) => void) | null = null;
   onError: ((message: string) => void) | null = null;
   /** Yhteys katkesi muusta syystä kuin omasta lähdöstä. */
@@ -186,6 +205,7 @@ export class NetSession {
     room.onMessage(ServerMsg.bigWave, (m: BigWaveMessage) => this.onBigWave?.(m));
     room.onMessage(ServerMsg.spout, (m: BigWaveMessage) => this.onSpout?.(m));
     room.onMessage(ServerMsg.untangled, (m: UntangledMessage) => this.onUntangled?.(m));
+    room.onMessage(ServerMsg.record, (m: RecordMessage) => this.onRecord?.(m));
     room.onLeave(() => {
       clearResume();
       if (!this.leaving) this.onDisconnect?.();

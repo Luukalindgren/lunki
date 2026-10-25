@@ -41,6 +41,10 @@ import {
   sanitizeName,
   validateSettingsPatch,
   parseTackle,
+  RECORDS_PER_SPECIES,
+  type Difficulty,
+  type RecordMessage,
+  type SpeciesId,
   type InputMessage,
   type JoinOptions,
   type BigWave,
@@ -55,6 +59,7 @@ import {
   type Vec2,
   type WeatherPlan,
 } from '@lunki/shared';
+import { recordStore } from '../records';
 import { releaseCode, reserveCode } from './codes';
 import { FROZEN, stepSims, type Sim } from './simulation';
 import { CatchState, LunkiState, PlayerState } from './state';
@@ -185,6 +190,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       c.weight = Math.round(msg.weight * 1000) / 1000;
       c.time = now;
       this.state.catches.push(c);
+      this.recordCatch(client.sessionId, c);
     });
 
     this.onMessage(ClientMsg.cutLine, (client) => {
@@ -463,6 +469,23 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         p.untangle = 0;
       }
     }
+  }
+
+  /** Tallentaa punnitun saaliin ennätyksiin ja kertoo kaikille, jos se pääsi listalle. */
+  private recordCatch(player: string, c: CatchState): void {
+    const store = recordStore();
+    if (!store) return;
+    const species = c.species as SpeciesId;
+    const place = store.add({
+      species,
+      weight: c.weight,
+      angler: c.angler,
+      difficulty: this.state.settings.difficulty as Difficulty,
+      date: new Date().toISOString().slice(0, 10),
+    });
+    if (place > RECORDS_PER_SPECIES) return;
+    const msg: RecordMessage = { player, angler: c.angler, species, weight: c.weight, place };
+    this.broadcast(ServerMsg.record, msg);
   }
 
   private untangle(a: string, b: string, how: UntangledMessage['how'], by: string) {

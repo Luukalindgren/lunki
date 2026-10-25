@@ -3,6 +3,7 @@ import {
   breakingStrength,
   LUNKINJARVI,
   LURES,
+  SPECIES,
   chargePower,
   describeTackle,
   WaterBody,
@@ -63,6 +64,7 @@ import {
   type BigWave,
   type Waterspout,
   type UntangledMessage,
+  type RecordMessage,
   type LakeMap,
   type Tackle,
   type Vec2,
@@ -304,6 +306,7 @@ export class SoloGame {
         if (m.victims.includes(net.world.myId)) this.onCapsize('wave');
       };
       net.world.onUntangled = (m) => this.onUntangled(m, net.world.myId);
+      net.world.onRecord = (m) => this.onRecord(m, net.world.myId);
       net.world.onSpout = (m) => {
         if (m.victims.includes(net.world.myId)) this.onCapsize('spout');
       };
@@ -519,6 +522,15 @@ export class SoloGame {
     } else {
       this.hud.showMessage(`${this.net!.world.playerName(m.by)} katkaisi siimansa – jatka`, 2.5);
     }
+  }
+
+  /** Saalis pääsi järven ennätyslistalle. */
+  private onRecord(m: RecordMessage, me: string): void {
+    const fish = `${SPECIES[m.species].name} ${formatWeight(m.weight)} (${m.player === me ? 'sinä' : m.angler})`;
+    this.hud.showMessage(
+      m.place === 1 ? `Järven ennätys! ${fish}` : `${fish} on järven ${m.place}. suurin`,
+      3.5,
+    );
   }
 
   /** Oma rengas kaatui ison aallon tai trombin takia. */
