@@ -24,6 +24,9 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# SSH:n yli Windows PowerShell tulostaa muuten vanhalla koodisivulla, ja ääkköset
+# sotkeutuvat Macin terminaalissa.
+try { [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false } catch { }
 $TaskName = 'Lunki-palvelin'
 $Port = 2567
 $Repo = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
