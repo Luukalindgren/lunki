@@ -56,6 +56,20 @@ export function serverUrl(): string {
   return `${proto}://${location.hostname || 'localhost'}:2567`;
 }
 
+/**
+ * Muu kuin pelin oma palvelin (?palvelin=…): sen nimi näytetään valikossa,
+ * koska vieras palvelin näkee nimimerkin ja voi esittää omaa peliään.
+ */
+export function customServer(): string | null {
+  const param = new URLSearchParams(location.search).get('palvelin');
+  if (!param) return null;
+  try {
+    return new URL(param).host || param;
+  } catch {
+    return param;
+  }
+}
+
 /** Onko pelipalvelin tavoitettavissa? (Colyseuksen /__healthcheck) */
 export async function checkServer(timeoutMs = 4000): Promise<boolean> {
   const http = serverUrl().replace(/^ws/, 'http').replace(/\/$/, '');
