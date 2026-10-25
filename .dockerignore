@@ -1,0 +1,8 @@
+**/node_modules
+**/dist
+**/data
+**/*.sqlite
+.git
+packages/client
+packages/map-pipeline
+docs
