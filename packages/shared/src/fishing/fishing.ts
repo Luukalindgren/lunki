@@ -466,8 +466,14 @@ function pullSnag(
   }
 }
 
-/** Viehe takaisin kelalle (esim. kun palvelin hylkää heiton). */
-export function resetFishing(s: FishingState): void {
+/**
+ * Viehe takaisin kelalle (esim. kun palvelin hylkää heiton). Jos kala oli
+ * kiinni, `fish` vapauttaa sen: muuten se jäisi jumiin väsytystilaan.
+ */
+export function resetFishing(s: FishingState, fish?: { pop: FishPopulation; rng: Rng }): void {
+  const hooked =
+    fish && s.hookedId !== null ? fish.pop.fish.find((f) => f.id === s.hookedId) : null;
+  if (hooked?.mode === 'hooked') release(hooked, fish!.rng);
   s.snag = null;
   s.onLand = false;
   s.stage = 'idle';
