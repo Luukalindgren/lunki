@@ -11,7 +11,12 @@ export function watchErrors(page: Page) {
     errors.push(e);
     console.log(e);
   };
-  page.on('pageerror', (e) => add(`pageerror: ${e.message}`));
+  page.on('pageerror', (e) => {
+    // Colyseus kokeilee ensin Node-tyylistä WebSocket-kutsua ja ottaa virheen
+    // kiinni; WebKit raportoi sen silti. Yhteys toimii, joten ohitetaan.
+    if (e.message.startsWith('Wrong protocol for WebSocket')) return;
+    add(`pageerror: ${e.message}`);
+  });
   page.on('console', (m) => {
     if (m.type() === 'error') add(`console: ${m.text()}`);
   });
