@@ -303,14 +303,33 @@ float waterBayer(vec2 p) {
         outgoingLight = mix(outgoingLight, bottomShade.rgb, bottomShade.a * (1.0 - waterTrough));
       }
       outgoingLight = mix(outgoingLight, vec3(0.9, 0.95, 1.0), waterFoam);
+      // Auringon tai kuun silta pikselitaiteen tapaan: joka toinen pikselirivi
+      // on vaakasuora viiva, joka on leveimmillään auringon peilikuvan kohdalla
+      // ja kapenee lähemmäs tultaessa. Viivojen pituus vaihtuu nykäyksittäin,
+      // jolloin silta välkehtii.
       if (uGlitter > 0.0) {
         vec3 toEye = normalize(cameraPosition - vGlitterPos);
         vec3 refl = vec3(-toEye.x, toEye.y, -toEye.z);
-        float across = dot(normalize(refl.xz), normalize(uGlitterDir.xz));
-        float path = smoothstep(0.99, 0.999, across) * (1.0 - smoothstep(0.04, 0.3, abs(refl.y - uGlitterDir.y)));
-        float sparkle = waterHash(floor(gl_FragCoord.xy) + floor(uWaterTime * 5.0) * vec2(7.0, 3.0));
-        float glint = step(1.0 - path * 0.75, sparkle) * uGlitter;
-        outgoingLight = mix(outgoingLight, uGlitterColor, glint);
+        vec2 sunXZ = normalize(uGlitterDir.xz);
+        vec2 rXZ = normalize(refl.xz);
+        float ax = atan(rXZ.x * sunXZ.y - rXZ.y * sunXZ.x, dot(rXZ, sunXZ));
+        float below = refl.y - uGlitterDir.y;
+        float reach = 1.0 - smoothstep(0.0, 0.2, max(below, 0.0));
+        // Horisontin puolella silta jatkuu rantaan asti kapeampana.
+        float far = below < 0.0 ? clamp(-below / max(uGlitterDir.y, 0.02), 0.0, 1.0) : 0.0;
+        float halfWidth = mix(0.005, 0.028, reach) * (1.0 - 0.45 * far);
+        float row = floor(gl_FragCoord.y);
+        if (reach > 0.0 && abs(ax) < halfWidth && mod(row, 2.0) < 1.0) {
+          float tick = floor(uWaterTime * 3.0);
+          float h1 = waterHash(vec2(row, tick));
+          float h2 = waterHash(vec2(row + 17.0, tick));
+          // Osa riveistä jää pimeiksi, sitä useammin mitä kauempana peilikuvasta.
+          float rowOn = step(0.15 + 0.6 * (1.0 - reach) + 0.25 * far, h1);
+          float len = mix(0.35, 1.0, h2);
+          float shift = (h1 - 0.5) * 0.5;
+          float lit = step(abs(ax / halfWidth - shift), len);
+          outgoingLight = mix(outgoingLight, uGlitterColor, rowOn * lit * uGlitter);
+        }
       }
       #include <opaque_fragment>`,
     );
