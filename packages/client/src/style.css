@@ -86,6 +86,7 @@ body {
 .hud-help {
   right: calc(var(--u) * 4);
   bottom: calc(var(--u) * 4);
+  white-space: pre;
   font-size: calc(var(--u) * 8);
   color: #c3cbd2;
 }

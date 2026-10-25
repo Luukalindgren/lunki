@@ -82,6 +82,7 @@ function startGame(s: CompetitionSettings, seed = devSeed) {
   );
   game.setResolution(retro.resolution);
   game.onFinished = () => showResults();
+  hud.setHelpMode(session !== null);
   if (import.meta.env.DEV) Object.assign(window, { lunki: game });
   paused = false;
   screens.hide();
