@@ -1,6 +1,4 @@
-import { mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import type { DatabaseSync } from 'node:sqlite';
 import { RECORDS_PER_SPECIES, type RecordBoard, type RecordEntry } from '@lunki/shared';
 
 /**
@@ -10,10 +8,9 @@ import { RECORDS_PER_SPECIES, type RecordBoard, type RecordEntry } from '@lunki/
 export class RecordStore {
   private readonly db: DatabaseSync;
 
-  /** `path` ':memory:' pitää tiedot vain muistissa (testit). */
-  constructor(path: string) {
-    if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
-    this.db = new DatabaseSync(path);
+  /** `db` on yhteinen palvelimen tietokanta, ks. openDatabase. */
+  constructor(db: DatabaseSync) {
+    this.db = db;
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS catches (
         id INTEGER PRIMARY KEY,

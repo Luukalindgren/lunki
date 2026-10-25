@@ -28,6 +28,7 @@ import {
   inviteLink,
 } from './net/session';
 import { NetWorld } from './net/netWorld';
+import { installErrorReporting, reportContext, sendFeedback } from './net/report';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) throw new Error('#app puuttuu');
@@ -42,6 +43,7 @@ const input = new Input(canvas);
 const fps = new FpsMeter(app, import.meta.env.DEV);
 const hud = new Hud(app);
 hud.setVisible(false);
+installErrorReporting();
 const sfx = new Sfx();
 window.addEventListener('pointerdown', () => sfx.unlock());
 window.addEventListener('keydown', () => sfx.unlock());
@@ -95,6 +97,12 @@ function showMenu() {
     () => void showRecords(),
     () => screens.showCredits(showMenu),
     () => screens.showAudio(sfx.audioSettings, (a) => sfx.setAudioSettings(a), showMenu),
+    () =>
+      screens.showFeedback(
+        loadIdentity().name,
+        (f) => sendFeedback({ ...f, context: reportContext() }),
+        showMenu,
+      ),
   );
 }
 

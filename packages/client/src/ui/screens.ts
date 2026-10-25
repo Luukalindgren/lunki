@@ -31,6 +31,7 @@ import {
   type RoomSettings,
   type SpeciesId,
   type Tackle,
+  FEEDBACK_LIMITS,
   mapCredits,
   type RecordBoard,
   type WeatherLevel,
@@ -99,6 +100,7 @@ export class Screens {
     onRecords: () => void,
     onCredits: () => void,
     onAudio: () => void,
+    onFeedback: () => void,
   ): void {
     const settings = { ...initial };
     const panel = this.panel();
@@ -157,6 +159,7 @@ export class Screens {
         ['Moninpeli', onMultiplayer],
         ['Ennätykset', onRecords],
         ['Äänet', onAudio],
+        ['Palaute', onFeedback],
         ['Tekijät ja lähteet', onCredits],
       ]),
       h(
@@ -289,6 +292,49 @@ export class Screens {
     buttons.push(['Poistu', actions.onLeave]);
     panel.append(this.buttons(buttons));
     this.show(panel);
+  }
+
+  /** Testaajan palaute: teksti lähetetään pelipalvelimelle. */
+  showFeedback(
+    name: string,
+    onSend: (f: { name: string; text: string }) => Promise<boolean>,
+    onBack: () => void,
+  ): void {
+    const panel = this.panel();
+    const nameRow = this.input('Nimimerkki', name, FEEDBACK_LIMITS.name, 'valinnainen');
+    const nameInput = nameRow.querySelector('input')!;
+    const text = document.createElement('textarea');
+    text.maxLength = FEEDBACK_LIMITS.text;
+    text.rows = 6;
+    text.placeholder = 'Mikä toimi, mikä ei? Bugit, toiveet, kalajutut…';
+    const status = h('p', '', 'hint');
+    const send = async () => {
+      if (!text.value.trim()) {
+        status.textContent = 'Kirjoita ensin jotain.';
+        return;
+      }
+      status.textContent = 'Lähetetään…';
+      const ok = await onSend({ name: nameInput.value, text: text.value });
+      if (ok) {
+        text.value = '';
+        status.textContent = 'Kiitos! Palaute tallentui.';
+      } else {
+        status.textContent = 'Lähetys epäonnistui: pelipalvelin ei vastaa. Yritä myöhemmin.';
+      }
+    };
+    panel.append(
+      h('h2', 'Palaute'),
+      h('p', 'Palaute menee pelipalvelimelle Luukan luettavaksi.', 'hint'),
+      nameRow,
+      text,
+      status,
+      this.buttons([
+        ['Lähetä', () => void send()],
+        ['Takaisin', onBack],
+      ]),
+    );
+    this.show(panel);
+    text.focus();
   }
 
   /** Äänenvoimakkuudet alkuvalikosta. */

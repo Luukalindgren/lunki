@@ -3,3 +3,4 @@ export * from './tubeSync';
 export * from './castCheck';
 export * from './roomSettings';
 export * from './tangle';
+export * from './feedback';
