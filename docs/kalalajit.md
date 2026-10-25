@@ -2,7 +2,7 @@
 
 Lajien parametrit ovat tiedostossa `packages/shared/src/fishing/fish.ts` (`SPECIES`).
 Oletuksena järvessä ovat Lunkinjärven oikeat lajit: ahven, hauki ja särki. Kuhan ja
-taimenen voi lisätä asetuksista (yksinpelin alkuvalikko, moninpelissä isännän aula).
+taimenen voi lisätä asetuksista (yksinpelin asetusnäkymä, moninpelissä isännän aula).
 
 | Laji   | Oma laji | Parvi | Elinalue (pohjan syvyys)   | Paino, mediaani | Iso yksilö             | Käytös                                                  |
 | ------ | -------- | ----- | -------------------------- | --------------- | ---------------------- | ------------------------------------------------------- |
