@@ -137,10 +137,16 @@ function land(
   return fishWeight(stock.seed!, stock.fish[slot]!.species, slot, gen);
 }
 
-/** Mikä tahansa kelpaava saalis renkaan läheltä. */
-const landNear = (room: Room) => {
+/**
+ * Mikä tahansa kelpaava saalis renkaan läheltä. Samassa kisassa nostetut
+ * paikat annetaan `taken`-listassa: lähin kala voi olla kahdelle sama, ja
+ * jälkimmäinen saalis hylättäisiin.
+ */
+const landNear = (room: Room, taken: number[] = []) => {
   const stock = stockOf(room);
-  return land(room, stock, nearSlot(stock, [mine(room)]));
+  const slot = nearSlot(stock, [mine(room)], [0], taken);
+  taken.push(slot);
+  return land(room, stock, slot);
 };
 
 beforeAll(async () => {
@@ -621,7 +627,8 @@ describe('LunkiRoom', () => {
 
     type P = { x: number; y: number; lureStage: number; outUntil: number };
     const me = (room: Room) => room.state.players.get(room.sessionId) as P;
-    for (const room of [host, guest]) landNear(room);
+    const taken: number[] = [];
+    for (const room of [host, guest]) landNear(room, taken);
     await until(() => host.state.catches.length === 2);
     // Isännän viehe vedessä, vieraan vapa alhaalla.
     host.send(ClientMsg.input, { i: [], l: [me(host).x + 10, me(host).y, 2] });
