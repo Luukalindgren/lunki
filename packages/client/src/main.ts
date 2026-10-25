@@ -71,6 +71,8 @@ let chat: ChatBox | null = null;
 if (touch) touch.onChat = () => chat?.open();
 let updateTime = 0;
 let updateCount = 0;
+/** Moninpelin tulossivu näkyy: oliko pelaaja silloin isäntä (null = ei tulossivua). */
+let resultsAsHost: boolean | null = null;
 
 function startGame(s: CompetitionSettings, seed = devSeed) {
   if (!session) settings = s;
@@ -89,6 +91,7 @@ function startGame(s: CompetitionSettings, seed = devSeed) {
     net,
   );
   game.setResolution(retro.resolution);
+  resultsAsHost = null;
   game.onFinished = () => showResults();
   hud.setHelpMode(session !== null);
   if (session) chat?.mount(hud.root, 'hud');
@@ -148,6 +151,7 @@ function showResults() {
   if (session) {
     const s = session;
     const v = s.view();
+    resultsAsHost = v.amHost;
     screens.showRaceResults(
       s.results(),
       v.settings,
@@ -269,7 +273,11 @@ function enterLobby(s: NetSession) {
       picking = false;
       return startGame(v.settings, s.room.state.seed);
     }
+    // Isäntä lähti tulossivulta: uudelle isännälle uuden kisan nappi.
+    if (v.phase === 'finished' && resultsAsHost !== null && resultsAsHost !== v.amHost)
+      showResults();
     if (v.phase !== 'lobby') return;
+    resultsAsHost = null;
     if (game) {
       // Isäntä palautti huoneen aulaan uutta kisaa varten.
       game.dispose();
