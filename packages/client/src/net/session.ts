@@ -18,6 +18,8 @@ import {
   type PlayerResult,
   type SpeciesId,
   type BigWaveMessage,
+  type ChatMessage,
+  CHAT_HISTORY,
   type UntangledMessage,
   RECORDS_PATH,
   type RecordBoard,
@@ -181,6 +183,12 @@ export class NetSession {
   onSpout: ((msg: BigWaveMessage) => void) | null = null;
   onUntangled: ((msg: UntangledMessage) => void) | null = null;
   onRecord: ((msg: RecordMessage) => void) | null = null;
+  /** Chat muuttui (uusi viesti tai historia palvelimelta). */
+  onChat: (() => void) | null = null;
+  /** Palvelin hylkäsi viestin (liian tiheään). */
+  onChatRejected: (() => void) | null = null;
+  /** Viimeisimmät chat-viestit, vanhin ensin. */
+  chat: ChatMessage[] = [];
   onStarted: ((msg: StartedMessage, view: LobbyView) => void) | null = null;
   onError: ((message: string) => void) | null = null;
   /** Yhteys katkesi muusta syystä kuin omasta lähdöstä. */
@@ -211,6 +219,15 @@ export class NetSession {
     room.onMessage(ServerMsg.spout, (m: BigWaveMessage) => this.onSpout?.(m));
     room.onMessage(ServerMsg.untangled, (m: UntangledMessage) => this.onUntangled?.(m));
     room.onMessage(ServerMsg.record, (m: RecordMessage) => this.onRecord?.(m));
+    room.onMessage(ServerMsg.chat, (m: ChatMessage) => {
+      this.chat = [...this.chat, m].slice(-CHAT_HISTORY);
+      this.onChat?.();
+    });
+    room.onMessage(ServerMsg.chatHistory, (m: ChatMessage[]) => {
+      this.chat = Array.isArray(m) ? m.slice(-CHAT_HISTORY) : [];
+      this.onChat?.();
+    });
+    room.onMessage(ServerMsg.chatRejected, () => this.onChatRejected?.());
     room.onLeave(() => {
       clearResume();
       if (!this.leaving) this.onDisconnect?.();
@@ -323,6 +340,10 @@ export class NetSession {
 
   sendTackle(t: Tackle): void {
     this.room.send(ClientMsg.tackle, t);
+  }
+
+  sendChat(text: string): void {
+    this.room.send(ClientMsg.chat, text);
   }
 
   /** Isäntä: takaisin aulaan uutta kisaa varten. */

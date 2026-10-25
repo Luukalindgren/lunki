@@ -23,6 +23,9 @@ import {
   rankPlayers,
   resolveStrike,
   weatherAt,
+  CHAT_MAX_LENGTH,
+  CHAT_RATE,
+  type ChatMessage,
   type CatchRecord,
   type BigWaveMessage,
   type RecordBoard,
@@ -229,6 +232,43 @@ describe('LunkiRoom', () => {
     await post(ERRORS_PATH, err);
     await post(ERRORS_PATH, { ...err, stack: 's2' });
     expect(feedback.errors()).toMatchObject([{ message: err.message, count: 2, stack: 's2' }]);
+  });
+
+  it('chat-viestit kaikille, nopeusrajoitus ja historia uusille', async () => {
+    const host = await sdk().create(ROOM_NAME, { name: 'A', playerId: 'a' });
+    const guest = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
+    await until(() => players(host).length === 2);
+    const seen: ChatMessage[] = [];
+    guest.onMessage(ServerMsg.chat, (m: ChatMessage) => seen.push(m));
+    let rejected = 0;
+    host.onMessage(ServerMsg.chatRejected, () => rejected++);
+    host.onMessage(ServerMsg.chat, () => undefined);
+
+    // Tyhjä ja väärän tyyppinen ohitetaan, pitkä katkaistaan.
+    host.send(ClientMsg.chat, '   ');
+    host.send(ClientMsg.chat, { text: 'x' });
+    host.send(ClientMsg.chat, ' moi\n kaikki ');
+    host.send(ClientMsg.chat, 'k'.repeat(CHAT_MAX_LENGTH + 50));
+    await until(() => seen.length === 2);
+    expect(seen[0]).toMatchObject({ from: host.sessionId, name: 'A', text: 'moi kaikki' });
+    expect(seen[1]!.text).toHaveLength(CHAT_MAX_LENGTH);
+
+    // Purske täyttyy: loput hylätään.
+    for (let i = 0; i < CHAT_RATE.burst; i++) host.send(ClientMsg.chat, `viesti ${i}`);
+    await until(() => rejected >= 2);
+    expect(seen.length).toBe(CHAT_RATE.burst);
+
+    // Myöhemmin liittyvä saa aiemmat viestit.
+    let history: ChatMessage[] = [];
+    const late = await sdk().joinById(host.roomId, { name: 'C', playerId: 'c' });
+    late.onMessage(ServerMsg.chatHistory, (m: ChatMessage[]) => (history = m));
+    late.onMessage(ServerMsg.chat, () => undefined);
+    await until(() => history.length === CHAT_RATE.burst);
+    expect(history.map((m) => m.text)).toEqual(seen.map((m) => m.text));
+
+    await host.leave();
+    await guest.leave();
+    await late.leave();
   });
 
   it('tuntematon koodi ei kelpaa', async () => {

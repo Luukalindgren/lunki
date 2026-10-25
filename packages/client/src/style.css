@@ -710,3 +710,102 @@ body {
     font-size: 22px;
   }
 }
+
+/* Moninpelin chat: aulassa ja tulossivulla paneelin osana, kisan aikana HUD:ssa. */
+.chat-line {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.chat-name {
+  color: #83c2db;
+}
+
+.chat-line.me .chat-name {
+  color: #f6d04d;
+}
+
+.chat-notice {
+  color: #8e99a4;
+  font-style: italic;
+}
+
+.chat-form {
+  display: flex;
+  gap: 8px;
+}
+
+.chat-panel .chat-log {
+  max-height: 150px;
+  overflow-y: auto;
+  font-size: 20px;
+  background: #0b0f14;
+  border: 3px solid #39424d;
+  padding: 4px 10px;
+  margin-bottom: 6px;
+}
+
+.screen .chat-form button {
+  flex: none;
+}
+
+.chat-hud {
+  position: absolute;
+  /* Vasemmalle tilapaneelin yläpuolelle: oikealla alhaalla on ohje. */
+  left: calc(var(--u) * 4);
+  bottom: calc(var(--u) * 66);
+  width: min(calc(var(--u) * 130), 45%);
+  font-size: calc(var(--u) * 8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--u);
+}
+
+.chat-hud .chat-log {
+  background: rgb(11 15 20 / 55%);
+  padding: var(--u) calc(var(--u) * 3);
+}
+
+.chat-hud.typing .chat-log {
+  background: rgb(11 15 20 / 80%);
+}
+
+.chat-hud .chat-form {
+  pointer-events: auto;
+}
+
+.chat-hud input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  /* Alle 16 px kenttä saa iPhonen zoomaamaan. */
+  font-size: max(16px, calc(var(--u) * 8));
+  color: #eef2f3;
+  background: #0b0f14;
+  border: var(--u) solid #f6d04d;
+  padding: 0 calc(var(--u) * 2);
+  outline: none;
+}
+
+.chat-hud button {
+  font: inherit;
+  font-size: max(16px, calc(var(--u) * 8));
+  color: #eef2f3;
+  background: #39424d;
+  border: var(--u) solid #5f6b78;
+  padding: 0 calc(var(--u) * 3);
+}
+
+/* Kosketusnäytöllä yläreunaan: alhaalla ovat ohjaimet ja näppäimistö nousee alta. */
+.hud.touch .chat-hud {
+  left: 50%;
+  bottom: auto;
+  top: calc(var(--u) * 36);
+  transform: translateX(-50%);
+  width: min(360px, 50%);
+  font-size: max(14px, calc(var(--u) * 7));
+}
+
+.touch-controls .touch-chat {
+  font-size: 18px;
+}

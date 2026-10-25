@@ -151,7 +151,9 @@ export class Hud {
           'VIEHE vaihda · LUOT kaikuluotain · KAM silmin',
           '+/− zoom · ? ohje · II tauko',
           'Ukkosella kelaa viehe sisään ja pysy rannan lähellä',
-          ...(multiplayer ? ['Sotkussa kelatkaa yhdessä · KATKO katkaisee'] : []),
+          ...(multiplayer
+            ? ['Sotkussa kelatkaa yhdessä · KATKO katkaisee', 'VIESTI = kirjoita muille']
+            : []),
         ]
       : [
           'W/S potki taakse/eteen · A/D käänny · Shift pika',
@@ -161,7 +163,9 @@ export class Hud {
           'R vaihda viehe · K kaikuluotain · V kalastajan silmin',
           'Rulla = zoom · H = ohje · Esc = tauko',
           'Ukkosella kelaa viehe sisään ja pysy rannan lähellä',
-          ...(multiplayer ? ['Sotkussa kelatkaa yhdessä · C katkaisee siiman'] : []),
+          ...(multiplayer
+            ? ['Sotkussa kelatkaa yhdessä · C katkaisee siiman', 'Enter = viesti muille']
+            : []),
         ];
     this.help.textContent = lines.join('\n');
   }

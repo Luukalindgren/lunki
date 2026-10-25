@@ -24,6 +24,9 @@ export class TouchControls {
   private readonly knob: HTMLDivElement;
   private readonly gearButton: HTMLButtonElement;
   private readonly cutButton: HTMLButtonElement;
+  private readonly chatButton: HTMLButtonElement;
+  /** VIESTI-nappi: avaa moninpelin chatin. */
+  onChat: (() => void) | null = null;
   private stickPointer: number | null = null;
   private gear = 1;
 
@@ -53,12 +56,21 @@ export class TouchControls {
     stick.addEventListener('pointerup', release);
     stick.addEventListener('pointercancel', release);
 
+    // Napautus (click), jotta puhelin avaa näppäimistön kenttään siirryttäessä.
+    this.chatButton = document.createElement('button');
+    this.chatButton.type = 'button';
+    this.chatButton.className = 'touch-chat';
+    this.chatButton.textContent = 'VIESTI';
+    this.chatButton.title = 'Kirjoita viesti muille';
+    this.chatButton.hidden = true;
+    this.chatButton.addEventListener('click', () => this.onChat?.());
     const tools = div('touch-tools');
     tools.append(
       this.tap('II', 'Escape', 'Tauko'),
       this.tap('?', 'KeyH', 'Ohje'),
       this.button('+', 'Lähemmäs', () => input.scroll(-1)),
       this.button('−', 'Kauemmas', () => input.scroll(1)),
+      this.chatButton,
     );
 
     this.gearButton = this.button('NOP 2', 'Kelausnopeus', () =>
@@ -89,6 +101,7 @@ export class TouchControls {
   /** Sotkun katkaisu on vain moninpelissä. */
   setMultiplayer(multiplayer: boolean): void {
     this.cutButton.hidden = !multiplayer;
+    this.chatButton.hidden = !multiplayer;
   }
 
   /** Kelan vaihde napin tekstiin (0-pohjainen). */

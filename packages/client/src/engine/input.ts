@@ -91,10 +91,13 @@ export class Input {
 
   private onKeyUp = (e: KeyboardEvent) => this.release(e.code);
 
-  private onBlur = () => {
+  /** Kaikki napit irti (ikkunasta poistuttaessa tai tekstikenttään siirryttäessä). */
+  releaseAll(): void {
     this.aimPointer = null;
     for (const code of [...this.down]) this.release(code);
-  };
+  }
+
+  private onBlur = () => this.releaseAll();
 
   private onPointerMove = (e: PointerEvent) => {
     if (e.pointerType !== 'mouse' && e.pointerId !== this.aimPointer) return;

@@ -53,6 +53,10 @@ import {
   type BigWave,
   type BigWaveMessage,
   type UntangledMessage,
+  CHAT_HISTORY,
+  ChatLimiter,
+  sanitizeChat,
+  type ChatMessage,
   type Waterspout,
   type LightningMessage,
   type Penalty,
@@ -111,6 +115,11 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   private readonly tangleFree = new Map<string, number>();
   /** Kisassa nostetut kalat "paikka:sukupolvi" (FishTag). */
   private readonly caughtFish = new Set<string>();
+  /** Viimeisimmät chat-viestit uusille tulijoille. */
+  private readonly chatLog: ChatMessage[] = [];
+  private chatId = 0;
+  /** Chatin nopeusrajoitus pelaajittain (sessionId). */
+  private readonly chatLimits = new Map<string, ChatLimiter>();
   /** Kehitystä varten: LUNKI_RACE_SECONDS lyhentää kaikki kisat. */
   private durationOverride: number | null = Number(process.env.LUNKI_RACE_SECONDS) || null;
 
@@ -243,6 +252,27 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       void this.unlock();
     });
 
+    this.onMessage(ClientMsg.chat, (client, text: unknown) => {
+      const p = this.state.players.get(client.sessionId);
+      const clean = sanitizeChat(text);
+      if (!p || !clean) return;
+      let limiter = this.chatLimits.get(client.sessionId);
+      if (!limiter) this.chatLimits.set(client.sessionId, (limiter = new ChatLimiter()));
+      if (!limiter.take(Date.now())) {
+        client.send(ServerMsg.chatRejected);
+        return;
+      }
+      const msg: ChatMessage = {
+        id: ++this.chatId,
+        from: client.sessionId,
+        name: p.name,
+        text: clean,
+      };
+      this.chatLog.push(msg);
+      if (this.chatLog.length > CHAT_HISTORY) this.chatLog.shift();
+      this.broadcast(ServerMsg.chat, msg);
+    });
+
     this.onMessage(ClientMsg.ready, (client, ready: unknown) => {
       const p = this.state.players.get(client.sessionId);
       if (p && this.state.phase === 'lobby') p.ready = ready === true;
@@ -350,6 +380,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     p.name = this.uniqueName(sanitizeName(options.name));
     this.state.players.set(client.sessionId, p);
     if (!this.state.hostId) this.state.hostId = client.sessionId;
+    client.send(ServerMsg.chatHistory, this.chatLog);
   }
 
   /** Yhteys katkesi ilman lähtöä: paikka pidetään hetken. */
@@ -370,10 +401,13 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   override onReconnect(client: Client) {
     const p = this.state.players.get(client.sessionId);
     if (p) p.connected = true;
+    // Katkon aikana tulleet viestit.
+    client.send(ServerMsg.chatHistory, this.chatLog);
   }
 
   override onLeave(client: Client) {
     this.state.players.delete(client.sessionId);
+    this.chatLimits.delete(client.sessionId);
     if (this.state.hostId === client.sessionId) {
       // Isännyys siirtyy seuraavaksi liittyneelle.
       this.state.hostId = this.state.players.keys().next().value ?? '';

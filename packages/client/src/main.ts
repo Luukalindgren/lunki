@@ -17,6 +17,7 @@ import { Sfx } from './audio/sfx';
 import { SoloGame } from './game/soloGame';
 import { loadTackle, saveTackle } from './game/tackle';
 import { Hud } from './ui/hud';
+import { ChatBox } from './ui/chat';
 import { TouchControls, isTouchDevice } from './ui/touchControls';
 import { Screens, loadSettings } from './ui/screens';
 import { Bench } from './dev/bench';
@@ -64,6 +65,9 @@ let paused = false;
 let bench: Bench | null = null;
 /** Moninpelihuone, jos pelaaja on sellaisessa. */
 let session: NetSession | null = null;
+/** Moninpelin chat (aulassa, kisan aikana ja tulossivulla). */
+let chat: ChatBox | null = null;
+if (touch) touch.onChat = () => chat?.open();
 let updateTime = 0;
 let updateCount = 0;
 
@@ -86,6 +90,7 @@ function startGame(s: CompetitionSettings, seed = devSeed) {
   game.setResolution(retro.resolution);
   game.onFinished = () => showResults();
   hud.setHelpMode(session !== null);
+  if (session) chat?.mount(hud.root, 'hud');
   touch?.setMultiplayer(session !== null);
   if (import.meta.env.DEV) Object.assign(window, { lunki: game });
   paused = false;
@@ -149,6 +154,7 @@ function showResults() {
       () => s.restart(),
       leaveRoom,
       new Map(v.players.map((p) => [p.sessionId, p.tackle])),
+      (parent) => chat?.mount(parent, 'panel'),
     );
     return;
   }
@@ -201,6 +207,10 @@ async function connect(name: string, code: string | null) {
 
 function enterLobby(s: NetSession) {
   session = s;
+  chat?.dispose();
+  chat = new ChatBox(s);
+  // Kirjoittaessa rengas ei jää potkimaan eikä kela kelaamaan.
+  chat.onOpen = () => input.releaseAll();
   // Viimeksi käytetyt varusteet muiden nähtäväksi.
   s.sendTackle(loadTackle());
   let notice: string | undefined;
@@ -242,6 +252,7 @@ function enterLobby(s: NetSession) {
         },
       },
       notice,
+      (parent) => chat?.mount(parent, 'panel'),
     );
   };
   let wasReady = false;
@@ -273,6 +284,8 @@ function enterLobby(s: NetSession) {
   };
   s.onDisconnect = () => {
     session = null;
+    chat?.dispose();
+    chat = null;
     game?.dispose();
     game = null;
     showMultiplayer('', 'Yhteys palvelimeen katkesi.');
@@ -299,6 +312,8 @@ async function tryResume(): Promise<boolean> {
 function leaveRoom() {
   const s = session;
   session = null;
+  chat?.dispose();
+  chat = null;
   void s?.leave();
   game?.dispose();
   game = null;
