@@ -9,6 +9,7 @@ import {
   type LakeSurroundings,
   type Vec2,
 } from '@lunki/shared';
+import { spriteMipmaps } from '../engine/pixelMipmaps';
 
 /** Spritet kuvakartassa vasemmalta oikealle. */
 type SpriteKind = 'spruce' | 'pine' | 'birch' | 'reeds';
@@ -299,7 +300,13 @@ function createAtlas(): THREE.Texture {
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.magFilter = THREE.NearestFilter;
-  texture.minFilter = THREE.NearestFilter;
+  // Kaukaiset puut pienennetyistä kuvista: ilman mipmappeja pikselit
+  // välkkyvät, kun kamera liikkuu vähänkin. Pienennös pitää ääriviivat
+  // terävinä (ks. halveSprite), joten puut eivät haalistu läpinäkyviksi.
+  texture.minFilter = THREE.NearestMipmapNearestFilter;
+  texture.generateMipmaps = false;
+  const level0 = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  texture.mipmaps = [level0, ...spriteMipmaps(level0).map((l) => new ImageData(l.data, l.width))];
   texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
 }

@@ -181,6 +181,10 @@ export class SoloGame {
   readonly waves: WaveField;
   private readonly waterWaves = createWaterWaves();
   private readonly lightning = new LightningView();
+  /** Ruudun välähdyksen voimakkuus viimeisimmästä salamasta: lähellä kirkkaampi. */
+  private flashStrength = 0;
+  /** Sisäisen resoluution korkeus (px). */
+  private heightPx = 1;
   /** Yksinpelin salamat (moninpelissä palvelin ilmoittaa iskut). */
   private readonly strikes: Strike[];
   private nextStrike = 0;
@@ -374,6 +378,7 @@ export class SoloGame {
   }
 
   setResolution(r: RetroResolution): void {
+    this.heightPx = r.height;
     this.view.setResolution(r);
     this.pov.setResolution(r);
   }
@@ -599,7 +604,7 @@ export class SoloGame {
   private onStrike(pos: Vec2, hitMe: boolean): void {
     const d = distance(pos, this.tube.pos);
     this.lightning.strike(pos);
-    this.hud.flash(d < 300 ? 0.8 : d < 1000 ? 0.5 : 0.3);
+    this.flashStrength = d < 300 ? 0.85 : d < 1000 ? 0.6 : 0.4;
     this.sfx.thunder(d, d / LIGHTNING.soundSpeed);
     if (!hitMe) return;
     const penalty = this.punish(this.settings.lightningPenalty ?? 'none', 'Salaman jäähy');
@@ -625,6 +630,7 @@ export class SoloGame {
       this.setTackle(nextLure(this.pendingTackle ?? this.fishing.tackle));
     if (!this.net) this.strikeLightning();
     this.lightning.update(dt);
+    this.hud.flash(this.lightning.flash * this.flashStrength);
     this.updateBigWaves();
     this.updateSpouts(dt);
     const timeOut = this.timeOutLeft;
@@ -804,8 +810,8 @@ export class SoloGame {
   }
 
   /**
-   * Aallot vesishaderille. Aallonpituutta liioitellaan näkyvyyden vuoksi:
-   * oikeat 2–4 m aallot hukkuisivat pikseleihin.
+   * Aallot vesishaderille ja POV-kameran keinunnalle. Aallonpituutta
+   * liioitellaan, jotta keinunta tuntuu: oikeat 2–4 m aallot olisivat liian tiheitä.
    */
   private updateWaves(windSpeed: number, windDir: number): void {
     this.waves.update(windDir);
@@ -814,11 +820,9 @@ export class SoloGame {
     this.waveOmega = (2 * Math.PI) / period;
     this.waterWaves.uWaveScale.value = WAVE_FACTOR_SCALE * windSpeed;
     this.waterWaves.uWaveDir.value.set(Math.cos(windDir), Math.sin(windDir));
-    this.waterWaves.uWaveK.value = this.waveK;
-    this.waterWaves.uWaveOmega.value = this.waveOmega;
   }
 
-  /** Aallon pystysiirtymä (m) pisteessä: sama vaihe kuin vesishaderissa. */
+  /** Aallon pystysiirtymä (m) ja kallistus pisteessä POV-kameran keinuntaan. */
   private swellAt(p: Vec2): { lift: number; roll: number } {
     const w = this.weather.now;
     const hs = this.waves.heightAt(p, w.windSpeed);
@@ -1040,6 +1044,7 @@ export class SoloGame {
       attr.setXYZ(1, h1.x, h1.y, h1.z);
       attr.needsUpdate = true;
     }
+    this.lightning.orient(this.camera, this.heightPx);
     if (this.net && this.remoteView)
       this.remoteView.update(this.net.world.others(), this.camera, this.net.canvas);
   }

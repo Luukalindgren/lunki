@@ -129,7 +129,7 @@ export const waterTime = { value: 0 };
 
 /**
  * Tuulen aallot vesishaderille: aallonkorkeuskerroin tekstuurina (ks.
- * WaveField), tuulen nopeus ja suunta sekä aallon aaltoluku ja kulmataajuus.
+ * WaveField) sekä tuulen nopeus ja suunta.
  * Jokaisella pelillä omansa: valikon taustapeli ei saa sotkea kisan vettä.
  */
 export function createWaterWaves() {
@@ -138,8 +138,6 @@ export function createWaterWaves() {
     uWaveBounds: { value: new THREE.Vector4(0, 0, 1, 1) },
     uWaveScale: { value: 0 },
     uWaveDir: { value: new THREE.Vector2(1, 0) },
-    uWaveK: { value: 1 },
-    uWaveOmega: { value: 1 },
   };
 }
 export type WaterWaves = ReturnType<typeof createWaterWaves>;
@@ -147,6 +145,7 @@ export type WaterWaves = ReturnType<typeof createWaterWaves>;
 /**
  * Vesi aaltoilee: kuviota luetaan hitaasti vaeltavilla siniaalloilla
  * vääristettynä, jolloin aallonharjat kiemurtelevat ja välkehtivät.
+ * Tuulella pintaan nousee vaahtopäitä.
  */
 function createWaterMaterial(waves: WaterWaves): THREE.MeshLambertMaterial {
   const material = new THREE.MeshLambertMaterial({ color: 0xffffff, map: createWaterTexture() });
@@ -158,8 +157,9 @@ uniform sampler2D uWaveTex;
 uniform vec4 uWaveBounds;
 uniform float uWaveScale;
 uniform vec2 uWaveDir;
-uniform float uWaveK;
-uniform float uWaveOmega;
+float waterHash(vec2 p) {
+  return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+}
 `;
     // onBeforeCompile näkee vielä include-rivit, joten korvataan koko map_fragment.
     shader.fragmentShader = (header + shader.fragmentShader).replace(
@@ -168,23 +168,45 @@ uniform float uWaveOmega;
       waveUv.x += sin(vMapUv.y * 40.0 + uWaterTime * 1.3) * 0.01;
       waveUv.y += sin(vMapUv.x * 33.0 - uWaterTime * 1.1) * 0.008;
       vec4 sampledDiffuseColor = texture2D( map, waveUv );
-      // Tuulen aallot: vaaleat harjat kulkevat myötätuuleen (värit lineaarisina);
-      // korkeus tulee pyyhkäisymatkasta, ja isoissa aalloissa harjat vaahtoavat.
+      // Tuulen aallot: lyhyitä vaahtopäitä, jotka syntyvät, ajelehtivat
+      // myötätuuleen ja sammuvat. Kaari kaartuu tuulen suuntaan, ja sen
+      // takana on tumma aallonpohja. Vaahtopäitä on sitä enemmän, mitä
+      // korkeampi aalto (pyyhkäisymatka × tuuli).
+      float waterFoam = 0.0;
       if (uWaveScale > 0.0) {
         vec2 wp = vMapUv * ${WATER_TEXTURE_METERS.toFixed(1)};
         float hs = texture2D(uWaveTex, (wp - uWaveBounds.xy) / uWaveBounds.zw).r * uWaveScale;
-        float across = dot(wp, vec2(-uWaveDir.y, uWaveDir.x));
-        float phase = dot(wp, uWaveDir) * uWaveK - uWaterTime * uWaveOmega + sin(across * 0.05) * 2.0;
-        float crest = sin(phase);
-        // Harjat katkoviivoina: pätkät porrastuvat aallosta toiseen. Isompi aalto = leveämpi harja.
-        float dash = step(0.3, fract(across / 7.0 + floor(phase / 6.2832) * 0.37));
-        float band = step(1.0 - clamp(hs, 0.0, 0.3), crest) * dash * step(0.04, hs);
-        sampledDiffuseColor.rgb = mix(sampledDiffuseColor.rgb, vec3(0.024, 0.195, 0.381), band);
-        float speck = fract(sin(dot(floor(wp * 2.0), vec2(12.9898, 78.233))) * 43758.5453);
-        float foam = step(0.9, crest) * step(0.15, hs) * step(speck, hs * 2.5);
-        sampledDiffuseColor.rgb = mix(sampledDiffuseColor.rgb, vec3(0.23, 0.54, 0.71), foam);
+        vec2 q = vec2(dot(wp, uWaveDir) - uWaterTime * 0.8, dot(wp, vec2(-uWaveDir.y, uWaveDir.x)));
+        // Pikselin koko (m) kumpaankin suuntaan: viiva on aina vähintään
+        // pikselin paksuinen, ja kaukana vaahtopäät jätetään pois, jotteivät
+        // alle pikselin kokoiset kuviot välky.
+        vec2 px = max(fwidth(q), vec2(1e-4));
+        float far = 1.0 - smoothstep(0.4, 0.9, min(px.x, px.y));
+        float density = smoothstep(0.015, 0.12, hs) * 0.8 * far;
+        vec2 cellSize = vec2(4.0, 3.0);
+        vec2 cell = floor(q / cellSize);
+        float cycle = uWaterTime / 2.6 + waterHash(cell);
+        float n = floor(cycle);
+        float life = fract(cycle);
+        float h1 = waterHash(cell + n * vec2(17.0, 31.0));
+        float h2 = waterHash(cell.yx + n * vec2(5.0, 13.0) + 0.37);
+        vec2 local = q - cell * cellSize - cellSize * vec2(0.3 + 0.4 * h2, 0.25 + 0.5 * fract(h1 * 7.0));
+        float len = (0.4 + 0.8 * fract(h2 * 13.0) + 2.0 * hs) * sin(3.1416 * life);
+        float du = local.x + 0.15 * local.y * local.y;
+        float t = clamp(px.x * 0.6, 0.12, 0.6);
+        float cap = step(h1, density) * step(abs(local.y), len);
+        float foam = cap * step(abs(du), t);
+        float trough = cap * step(abs(du + 2.5 * t), t) * step(abs(local.y), len * 0.8);
+        sampledDiffuseColor.rgb = mix(sampledDiffuseColor.rgb, vec3(0.006, 0.042, 0.107), trough);
+        waterFoam = foam;
       }
       diffuseColor *= sampledDiffuseColor;`,
+    );
+    // Vaahto on valkoista myös varjossa ja pilvisellä säällä.
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <opaque_fragment>',
+      /* glsl */ `outgoingLight = mix(outgoingLight, vec3(0.9, 0.95, 1.0), waterFoam);
+      #include <opaque_fragment>`,
     );
   };
   return material;
