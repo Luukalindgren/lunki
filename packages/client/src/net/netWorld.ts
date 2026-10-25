@@ -7,6 +7,7 @@ import {
   lerpAngle,
   type BigWaveMessage,
   type Catch,
+  type CatchRecord,
   type LightningMessage,
   type UntangledMessage,
   type RecordMessage,
@@ -83,6 +84,10 @@ export class NetWorld {
   onCastRejected: (() => void) | null = null;
   /** Toinen pelaaja poistui kisasta. */
   onPeerLeft: ((name: string) => void) | null = null;
+  /** Uusi pelaaja (tai kisasta pudonnut) tuli mukaan kesken kisan. */
+  onPeerJoined: ((name: string) => void) | null = null;
+  /** Ensimmäinen tila käsitelty: siinä olleet eivät ole "tulleet mukaan". */
+  private primed = false;
   /** Toisen pelaajan yhteys katkesi tai palasi. */
   onPeerConnection: ((name: string, connected: boolean) => void) | null = null;
   private readonly peerConnected = new Map<string, boolean>();
@@ -197,6 +202,18 @@ export class NetWorld {
     return this.session.results();
   }
 
+  /** Omat jo punnitut saaliit (kisaan palatessa). */
+  ownCatches(): CatchRecord[] {
+    return [...this.session.room.state.catches]
+      .filter((c) => c.player === this.session.sessionId)
+      .map((c) => ({
+        species: c.species as CatchRecord['species'],
+        name: c.name,
+        weight: c.weight,
+        time: c.time,
+      }));
+  }
+
   /** Oma askel: ennakoidaan heti ja lähetetään syötteet erissä. */
   stepOwn(
     input: TubeInput,
@@ -238,6 +255,7 @@ export class NetWorld {
         r = { name: p.name, appearance: playerAppearance(p), buf: new SnapshotBuffer(lerpSnap) };
         this.peerConnected.set(id, p.connected);
         this.remotes.set(id, r);
+        if (this.primed) this.onPeerJoined?.(p.name);
       }
       r.name = p.connected ? p.name : `${p.name} (katkos)`;
       r.appearance = playerAppearance(p);
@@ -259,6 +277,7 @@ export class NetWorld {
         this.onPeerLeft?.(r.name.replace(/ \(katkos\)$/, ''));
       }
     this.latestOthers = others;
+    this.primed = true;
     const catches = [...s.catches];
     if (catches.length < this.seenCatches) this.seenCatches = 0;
     // Myös omat: sivun uudelleenlatauksen jälkeen kalakanta on luotu alusta, ja

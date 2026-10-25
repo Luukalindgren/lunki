@@ -3,6 +3,7 @@ import {
   GAME_NAME,
   LUNKINJARVI,
   WaterBody,
+  formatTime,
   isWeatherLevel,
   parseRoomCode,
   type CompetitionSettings,
@@ -22,7 +23,7 @@ import { ChatBox } from './ui/chat';
 import { TouchControls, isTouchDevice } from './ui/touchControls';
 import { Screens, loadSettings } from './ui/screens';
 import { Bench } from './dev/bench';
-import { loadIdentity, saveName } from './net/identity';
+import { clearLastRoom, loadIdentity, loadLastRoom, saveLastRoom, saveName } from './net/identity';
 import {
   NetSession,
   checkServer,
@@ -104,7 +105,11 @@ function startGame(s: CompetitionSettings, seed = devSeed) {
 
 function showMenu() {
   hud.setVisible(false);
+  const lastRoom = loadLastRoom();
   screens.showStart({
+    rejoin: lastRoom
+      ? { code: lastRoom, run: () => void connect(loadIdentity().name, lastRoom, true) }
+      : undefined,
     onSolo: () => showSoloSetup(settings),
     onMultiplayer: () => showMultiplayer(),
     onLakeMap: () => screens.showLakeMap(showMenu),
@@ -194,7 +199,8 @@ function showMultiplayer(code = '', error?: string) {
   void checkServer().then((ok) => screens.setServerStatus(ok));
 }
 
-async function connect(name: string, code: string | null) {
+/** `rejoin`: päävalikon "Palaa kisaan"; epäonnistuessa huonetta ei enää tarjota. */
+async function connect(name: string, code: string | null, rejoin = false) {
   const options = { name: saveName(name), playerId: loadIdentity().playerId };
   let cancelled = false;
   screens.showMessage(code ? 'Liitytään…' : 'Luodaan huonetta…', 'Yhdistetään palvelimeen.', () => {
@@ -207,12 +213,14 @@ async function connect(name: string, code: string | null) {
     enterLobby(s);
   } catch (err) {
     console.warn('Liittyminen epäonnistui', err);
+    if (rejoin) clearLastRoom();
     if (!cancelled) showMultiplayer(code ?? '', describeJoinError(err));
   }
 }
 
 function enterLobby(s: NetSession) {
   session = s;
+  if (s.ready) saveLastRoom(s.view().code);
   chat?.dispose();
   chat = new ChatBox(s);
   // Kirjoittaessa rengas ei jää potkimaan eikä kela kelaamaan.
@@ -271,7 +279,13 @@ function enterLobby(s: NetSession) {
     // Kisa alkaa, kun tila aloituspaikkoineen on saapunut.
     if (v.phase !== 'lobby' && !game) {
       picking = false;
-      return startGame(v.settings, s.room.state.seed);
+      saveLastRoom(v.code);
+      startGame(v.settings, s.room.state.seed);
+      // Kesken kisan mukaan (uutena, paluuna tai sivun uudelleenlatauksen jälkeen).
+      const left = v.settings.durationMinutes * 60 - s.room.state.clock;
+      if (v.phase === 'playing' && s.room.state.clock > 1)
+        hud.showMessage(`Mukana kisassa: aikaa jäljellä ${formatTime(left)}`, 4);
+      return;
     }
     // Isäntä lähti tulossivulta: uudelle isännälle uuden kisan nappi.
     if (v.phase === 'finished' && resultsAsHost !== null && resultsAsHost !== v.amHost)
@@ -327,6 +341,7 @@ async function tryResume(): Promise<boolean> {
 function leaveRoom() {
   const s = session;
   session = null;
+  clearLastRoom();
   chat?.dispose();
   chat = null;
   void s?.leave();
