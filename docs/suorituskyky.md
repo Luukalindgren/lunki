@@ -53,7 +53,7 @@ läppärillä (`?bench=1`, tulos issueen #11).
    46 → 59 fps, p95 50 → 16,8 ms.
 2. **Kalojen tekoäly.** 1800 kalaa maksaisi joka askel, joten yli 60 m päässä
    vieheestä olevat kalat päivitetään vain joka 20. askel. Koko populaatio
-   ≈ 0,3 ms/askel.
+   parvineen ≈ 0,3 ms/askel.
 3. **Paletti-shader** tekee 32 värin haun, mutta vain sisäisessä
    resoluutiossa (n. 130 000 pikseliä), joten se on kevyt.
 4. **HUD** on DOM-elementtejä; tekstit päivitetään vain kun ne muuttuvat, ettei

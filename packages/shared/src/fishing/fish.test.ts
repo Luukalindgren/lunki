@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Rng } from '../rng';
+import { distance } from '../vec2';
 import { replaceFish } from './fishing';
 import { DIFFICULTIES, type Difficulty } from './difficulty';
 import {
@@ -10,11 +11,17 @@ import {
   randomWeight,
   spawnFish,
   stepFishPopulation,
+  type FishConditions,
   type FishPopulation,
   type SpeciesId,
+  DAYTIME,
+  fishConditions,
   fishHome,
   fishWeight,
+  speciesActivity,
 } from './fish';
+import { catchRadius } from '../net/castCheck';
+import type { WeatherNow } from '../weather/weather';
 import {
   createFishing,
   lureInfo,
@@ -332,5 +339,202 @@ describe('kalakanta palvelimen tarkistettavissa', () => {
   it('sukupolvet saavat eri painot', () => {
     const ws = Array.from({ length: 50 }, (_, g) => fishWeight(1, 'pike', 3, g));
     expect(new Set(ws).size).toBeGreaterThan(40);
+  });
+});
+
+describe('käytös', () => {
+  // Kaistale, jonka pohja syvenee rannasta (y = ±150) keskelle 6,5 m:iin.
+  const lake = {
+    isWater: (p: { x: number; y: number }) => Math.abs(p.x) < 400 && Math.abs(p.y) < 150,
+    depthAt: (p: { x: number; y: number }) =>
+      Math.max(0.2, Math.min(6.5, (150 - Math.abs(p.y)) * 0.05)),
+  };
+  const bounds = { minX: -400, minY: -150, maxX: 400, maxY: 150 };
+  const NIGHT: FishConditions = { ...DAYTIME, light: 0.1 };
+  const DUSK: FishConditions = { ...DAYTIME, light: 0.55, twilight: 1 };
+  const run = (pop: FishPopulation, seconds: number, cond = DAYTIME, dt = 0.1, seed = 1) => {
+    const rng = new Rng(seed);
+    for (let i = 0; i < seconds / dt; i++)
+      stepFishPopulation(pop, null, lake, DIFFICULTIES.normal, rng, dt, cond);
+  };
+  const centroid = (fish: FishPopulation['fish']) => ({
+    x: fish.reduce((s, f) => s + f.pos.x, 0) / fish.length,
+    y: fish.reduce((s, f) => s + f.pos.y, 0) / fish.length,
+  });
+
+  it('ahvenet ja särjet uivat parvena yhdessä, hauki elää yksin', () => {
+    const pop = createFishPopulation(lake, bounds, new Rng(11), 600);
+    expect(pop.fish.filter((f) => f.species === 'pike').every((f) => f.school === -1)).toBe(true);
+    const members = pop.fish.filter((f) => f.school === 0);
+    expect(members.length).toBeGreaterThan(5);
+    const start = centroid(members);
+    run(pop, 180);
+    const end = centroid(members);
+    // Koko parvi on siirtynyt yhdessä, eikä se ole hajonnut.
+    expect(Math.hypot(end.x - start.x, end.y - start.y)).toBeGreaterThan(5);
+    const sp = SPECIES[members[0]!.species];
+    const spread = members.reduce((s, f) => s + Math.hypot(f.pos.x - end.x, f.pos.y - end.y), 0);
+    expect(spread / members.length).toBeLessThan(sp.schoolSpread * 2);
+  });
+
+  it('kalat pysyvät palvelimen hyväksymällä etäisyydellä kotipaikastaan', () => {
+    const pop = createFishPopulation(lake, bounds, new Rng(12), 600, SPECIES_IDS);
+    const windy = fishConditions({
+      sky: 'windy',
+      next: null,
+      untilChange: Infinity,
+      warnings: [],
+      windSpeed: 8,
+      windDir: 1,
+      rain: 0,
+      darkness: 0.1,
+    });
+    run(pop, 300, windy, 0.2);
+    run(pop, 300, NIGHT, 0.2);
+    for (const [i, f] of pop.fish.entries()) {
+      expect(distance(f.pos, fishHome(pop, i, f.gen)!)).toBeLessThan(catchRadius(f.species));
+    }
+  });
+
+  it('hauki väijyy paikallaan eikä vaella kauas', () => {
+    const pop = createFishPopulation(lake, bounds, new Rng(13), 600);
+    const pikes = pop.fish.filter((f) => f.species === 'pike');
+    const before = pikes.map((f) => ({ ...f.pos }));
+    run(pop, 120);
+    const moved = pikes.map((f, i) => distance(f.pos, before[i]!)).sort((a, b) => a - b);
+    // Suurin osa hauista on samalla paikalla, eikä yksikään lähde kotipaikaltaan.
+    expect(moved[Math.floor(moved.length / 2)]!).toBeLessThan(0.5);
+    for (const f of pikes) expect(distance(f.pos, f.home)).toBeLessThan(SPECIES.pike.homeRange + 1);
+  });
+
+  it('särkiparvi tiivistyy ja pakenee lähelle tullutta haukea', () => {
+    const pop = createFishPopulation(lake, bounds, new Rng(14), 600);
+    const i = pop.schools!.findIndex((s) => s.species === 'roach');
+    const school = pop.schools![i]!;
+    const pike = pop.fish.find((f) => f.species === 'pike')!;
+    pike.pos = { x: school.center.x + 3, y: school.center.y };
+    const rng = new Rng(2);
+    for (let t = 0; t < 30 && school.flee <= 0; t++)
+      stepFishPopulation(pop, null, lake, DIFFICULTIES.normal, rng, 0.1);
+    expect(school.flee).toBeGreaterThan(0);
+    // Pako suuntautuu poispäin hauesta.
+    expect(Math.cos(school.heading)).toBeLessThan(0);
+    run(pop, 2);
+    expect(school.spread).toBeLessThan(1);
+  });
+
+  it('ahvenparvi kilpailee vieheestä: yhden seuratessa muutkin innostuvat', () => {
+    const follows = (excited: boolean) => {
+      let n = 0;
+      for (let seed = 1; seed <= 20; seed++) {
+        const rng = new Rng(seed);
+        const pop = createFishPopulation(lake, bounds, new Rng(15), 400, ['perch']);
+        const school = pop.schools![0]!;
+        school.excitement = excited ? 1 : 0;
+        const members = pop.fish.filter((f) => f.school === 0);
+        for (const f of members) f.depth = 1.5;
+        const lure = {
+          pos: { ...school.center },
+          depth: 1.5,
+          speed: SPECIES.perch.preferredSpeed,
+          fishable: true,
+          tip: { x: school.center.x - 25, y: school.center.y },
+        };
+        for (let i = 0; i < 2 / DT; i++) {
+          stepFishPopulation(pop, lure, lake, DIFFICULTIES.normal, rng, DT);
+          if (!excited) school.excitement = 0;
+        }
+        n += members.filter((f) => f.mode !== 'roam').length;
+      }
+      return n;
+    };
+    expect(follows(true)).toBeGreaterThan(follows(false) * 1.5);
+  });
+
+  it('vuorokaudenaika ja sää muuttavat lajien syöntiä', () => {
+    // Ahven ja hauki ovat päiväsaalistajia, parhaimmillaan hämärässä.
+    for (const id of ['perch', 'pike'] as const) {
+      expect(speciesActivity(id, NIGHT)).toBeLessThan(speciesActivity(id, DAYTIME) / 2);
+      expect(speciesActivity(id, DUSK)).toBeGreaterThan(speciesActivity(id, DAYTIME));
+    }
+    // Kuha syö pimeällä, kirkkaana päivänä huonosti.
+    expect(speciesActivity('zander', NIGHT)).toBeGreaterThan(speciesActivity('zander', DAYTIME));
+    // Pilvinen ja tuulinen sää on hauen ilma.
+    const grey = { ...DAYTIME, cloud: 0.8, wind: { x: 6, y: 0 } };
+    expect(speciesActivity('pike', grey)).toBeGreaterThan(speciesActivity('pike', DAYTIME) * 1.3);
+    // Ennen ukkosta syönti kiihtyy, ukkosella lähes loppuu.
+    expect(speciesActivity('perch', { ...DAYTIME, preStorm: true })).toBeGreaterThan(1.2);
+    expect(speciesActivity('perch', { ...DAYTIME, storm: true })).toBeLessThan(0.5);
+  });
+
+  it('sää muuntuu kalojen olosuhteiksi', () => {
+    const w: WeatherNow = {
+      sky: 'rain',
+      next: 'thunder',
+      untilChange: 120,
+      warnings: [],
+      windSpeed: 5,
+      windDir: 0,
+      rain: 0.6,
+      darkness: 0.35,
+    };
+    const c = fishConditions(w);
+    expect(c.preStorm).toBe(true);
+    expect(c.storm).toBe(false);
+    expect(c.light).toBeLessThan(1);
+    expect(c.cloud).toBeGreaterThan(0.5);
+    expect(c.wind.x).toBeCloseTo(5);
+    expect(fishConditions({ ...w, sky: 'thunder', next: null }).storm).toBe(true);
+    expect(fishConditions(null, { light: 0.1, twilight: 0 }).light).toBe(0.1);
+  });
+
+  it('ahven syö yöllä selvästi huonommin kuin päivällä', () => {
+    const strikes = (cond: FishConditions) => {
+      let n = 0;
+      for (let seed = 1; seed <= 40; seed++) {
+        const rng = new Rng(seed);
+        const pop: FishPopulation = { fish: [], nextId: 1, tick: 0 };
+        const f = spawnFish(pop, 'perch', { x: 3, y: 0 }, world, rng);
+        f.depth = 1.5;
+        pop.fish.push(f);
+        const lure = {
+          pos: { x: 4, y: 0 },
+          depth: 1.5,
+          speed: SPECIES.perch.preferredSpeed,
+          fishable: true,
+          tip: { x: -20, y: 0 },
+        };
+        for (let i = 0; i < 6 / DT; i++) {
+          if (stepFishPopulation(pop, lure, world, DIFFICULTIES.normal, rng, DT, cond).strike) {
+            n++;
+            break;
+          }
+        }
+      }
+      return n;
+    };
+    expect(strikes(NIGHT)).toBeLessThan(strikes(DAYTIME) * 0.6);
+  });
+
+  it('hämärässä särkiparvet nousevat matalikoille', () => {
+    const depthOfSchools = (cond: FishConditions) => {
+      const pop = createFishPopulation(lake, bounds, new Rng(16), 900, ['roach']);
+      run(pop, 600, cond, 0.25);
+      const ds = pop.schools!.map((s) => lake.depthAt(s.center));
+      return ds.reduce((a, b) => a + b, 0) / ds.length;
+    };
+    expect(depthOfSchools(DUSK)).toBeLessThan(depthOfSchools(DAYTIME) - 0.3);
+  });
+
+  it('saadun tilalle syntyvä kala liittyy kotipaikkansa parveen', () => {
+    const pop = createFishPopulation(lake, bounds, new Rng(17), 300);
+    const slot = pop.fish.findIndex((f) => f.school >= 0);
+    replaceFish(pop, slot, lake, new Rng(1));
+    const f = pop.fish[slot]!;
+    const home = fishHome(pop, slot, 1)!;
+    const host = pop.homes!.findIndex((h) => h === home);
+    expect(f.school).toBe(pop.schoolOf![host]);
+    const s = pop.schools![f.school]!;
+    expect(s.home.x + f.offset.x).toBeCloseTo(home.x);
   });
 });

@@ -15,6 +15,7 @@ import {
   Rng,
   createCompetition,
   createFishPopulation,
+  fishConditions,
   FISH_COUNT,
   formatTime,
   planWeather,
@@ -703,6 +704,7 @@ export class SoloGame {
       DIFFICULTIES[this.settings.difficulty],
       this.rng,
       dt,
+      fishConditions(this.competition.finished ? null : this.weather.now),
     );
     const events: ReturnType<typeof stepFishing> = tangle
       ? {}
