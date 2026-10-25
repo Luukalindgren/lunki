@@ -24,19 +24,22 @@ export function createBottomMesh(bottom: LakeBottom, waves?: WaterWaves): THREE.
   const group = new THREE.Group();
   group.name = 'bottom';
   const shade = createDepthShade(bottom, bottom.bounds);
-  group.add(shade);
   const structures = createStructures(bottom);
-  if (structures) group.add(structures);
   if (waves) {
-    // POV-näkymän aaltoileva lähivesi piirtää syvyyssävyn itse.
+    // Vesishaderi piirtää syvyyssävyn itse: erillinen kerros veden päällä
+    // vihertyi paletissa vaahtopäiden tummien aallonpohjien kohdalla.
     const material = shade.material as THREE.MeshBasicMaterial;
     const w = Math.ceil((bottom.bounds.maxX - bottom.bounds.minX) / SHADE_CELL) * SHADE_CELL;
     const h = Math.ceil((bottom.bounds.maxY - bottom.bounds.minY) / SHADE_CELL) * SHADE_CELL;
     waves.uBottomShade.value = material.map;
     waves.uBottomShadeBounds.value.set(bottom.bounds.minX, bottom.bounds.maxY - h, w, h);
-    clipToSwellPatch(material, waves);
+    waves.uBottomShadeOn.value = 1;
+    shade.geometry.dispose();
     if (structures) clipToSwellPatch(structures.material as THREE.Material, waves);
+  } else {
+    group.add(shade);
   }
+  if (structures) group.add(structures);
   return group;
 }
 

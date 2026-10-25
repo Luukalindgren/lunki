@@ -1199,6 +1199,7 @@ export class SoloGame {
     this.remoteView?.dispose();
     this.net?.world.dispose();
     this.waterWaves.uWaterMask.value?.dispose();
+    this.waterWaves.uBottomShade.value?.dispose();
     this.scene.traverse((o) => {
       const mesh = o as THREE.Mesh;
       mesh.geometry?.dispose();
