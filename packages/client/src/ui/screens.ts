@@ -339,7 +339,12 @@ export class Screens {
     const copy = document.createElement('button');
     copy.textContent = 'Kopioi kutsulinkki';
     copy.addEventListener('click', () => {
-      void navigator.clipboard?.writeText(link).then(
+      // Leikepöytää ei ole suojaamattomalla http-sivulla (LAN-peli): näytetään linkki.
+      if (!navigator.clipboard) {
+        copy.textContent = link;
+        return;
+      }
+      void navigator.clipboard.writeText(link).then(
         () => (copy.textContent = 'Linkki kopioitu!'),
         () => (copy.textContent = link),
       );

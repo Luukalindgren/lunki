@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:lan": "vite build --mode lan --outDir dist-lan",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json"
   },

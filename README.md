@@ -25,6 +25,8 @@ Valikosta "Moninpeli" luodaan huone, ja kaverit liittyvät koodilla
 
 Peli kavereille: asiakas on GitHub Pagesissa ja palvelin pyörii omalla
 koneella tunnelin kautta. Ohje: [docs/julkaisu.md](docs/julkaisu.md).
+Ilman nettiä samassa wifissä: `pnpm lan` tekee läppäristä palvelimen, joka
+jakaa myös pelisivun. Ohje: [docs/lan.md](docs/lan.md).
 Verkkokoodin rakenne: [docs/moninpeli.md](docs/moninpeli.md).
 Kalalajit, vieheet ja varusteet: [docs/kalalajit.md](docs/kalalajit.md).
 Järven pohja ja erikoismuodot: [docs/pohja.md](docs/pohja.md).
@@ -32,17 +34,18 @@ Sää ja säätasot: [docs/saa.md](docs/saa.md).
 
 Muut komennot:
 
-| Komento           | Mitä tekee                                     |
-| ----------------- | ---------------------------------------------- |
-| `pnpm dev`        | Asiakkaan kehityspalvelin (Vite)               |
-| `pnpm dev:server` | Pelipalvelin kehitystilassa                    |
-| `pnpm run server` | Pelipalvelin pelikäyttöön (portti 2567)        |
-| `pnpm test`       | Kaikkien pakettien testit (Vitest)             |
-| `pnpm lint`       | ESLint                                         |
-| `pnpm typecheck`  | TypeScript-tarkistus kaikille paketeille       |
-| `pnpm format`     | Muotoilee koodin Prettierillä                  |
-| `pnpm check`      | Lint, muotoilu, tyypitys ja testit kerralla    |
-| `pnpm build`      | Tuotantobuild (asiakas `packages/client/dist`) |
+| Komento           | Mitä tekee                                      |
+| ----------------- | ----------------------------------------------- |
+| `pnpm dev`        | Asiakkaan kehityspalvelin (Vite)                |
+| `pnpm dev:server` | Pelipalvelin kehitystilassa                     |
+| `pnpm run server` | Pelipalvelin pelikäyttöön (portti 2567)         |
+| `pnpm lan`        | LAN-peli: palvelin ja pelisivu samasta koneesta |
+| `pnpm test`       | Kaikkien pakettien testit (Vitest)              |
+| `pnpm lint`       | ESLint                                          |
+| `pnpm typecheck`  | TypeScript-tarkistus kaikille paketeille        |
+| `pnpm format`     | Muotoilee koodin Prettierillä                   |
+| `pnpm check`      | Lint, muotoilu, tyypitys ja testit kerralla     |
+| `pnpm build`      | Tuotantobuild (asiakas `packages/client/dist`)  |
 
 ## Rakenne
 

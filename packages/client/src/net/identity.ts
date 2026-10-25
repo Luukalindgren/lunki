@@ -27,10 +27,17 @@ function write(key: string, value: string): void {
 
 let fallbackId: string | null = null;
 
+/** crypto.randomUUID puuttuu suojaamattomalta http-sivulta (LAN-peli), getRandomValues ei. */
+function randomId(): string {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  return Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+}
+
 export function loadIdentity(): Identity {
   let playerId = read(ID_KEY) ?? fallbackId;
   if (!playerId) {
-    playerId = crypto.randomUUID();
+    playerId = randomId();
     fallbackId = playerId;
     write(ID_KEY, playerId);
   }

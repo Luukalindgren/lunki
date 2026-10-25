@@ -40,15 +40,17 @@ import {
 } from '@lunki/shared';
 
 /**
- * Palvelimen osoite: ?palvelin=wss://… ohittaa, sitten koontiaikainen
- * VITE_LUNKI_SERVER, muuten sama kone portissa 2567 (kehitys).
+ * Palvelimen osoite: ?palvelin=wss://… ohittaa. LAN-tilassa (pnpm lan) sivun
+ * jakava palvelin on itse pelipalvelin, joten yhteys samaan osoitteeseen.
+ * Muuten koontiaikainen VITE_LUNKI_SERVER tai sama kone portissa 2567 (kehitys).
  */
 export function serverUrl(): string {
   const param = new URLSearchParams(location.search).get('palvelin');
   if (param) return param;
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  if (import.meta.env.MODE === 'lan') return `${proto}://${location.host}`;
   const env = import.meta.env.VITE_LUNKI_SERVER as string | undefined;
   if (env) return env;
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   return `${proto}://${location.hostname || 'localhost'}:2567`;
 }
 

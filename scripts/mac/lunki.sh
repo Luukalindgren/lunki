@@ -7,6 +7,7 @@
 #   lunki uudelleen        pysäyttää ja käynnistää (hakee samalla uuden koodin)
 #   lunki loki [seuraa]    palvelimen lokin loppu (seuraa: Ctrl+C lopettaa)
 #   lunki ssh              tavallinen SSH-istunto pelikoneelle
+#   lunki lan              LAN-peli: tämä Mac on palvelin (ks. docs/lan.md)
 #
 # Oletuksena käytetään ~/.ssh/config-oikotietä "lunki" ja pelikoneen kansiota
 # ~\Projektit\lunki. Muutettavissa: LUNKI_SSH_HOST ja LUNKI_PC_DIR.
@@ -23,6 +24,12 @@ case "${1:-tila}" in
   uudelleen | restart) run="$ps1 pysayta; $ps1 kaynnista" ;;
   seuraa) run="$ps1 loki -Seuraa" ;;
   ssh) exec ssh "$host" ;;
+  lan)
+    # Ajetaan tällä koneella, ei pelikoneella.
+    cd "$(dirname "$0")/../.."
+    pnpm install --frozen-lockfile --prefer-offline >/dev/null
+    exec pnpm lan
+    ;;
   loki | log)
     case "${2:-}" in
       seuraa | -f | -Seuraa) run="$ps1 loki -Seuraa" ;;
@@ -30,7 +37,7 @@ case "${1:-tila}" in
     esac
     ;;
   *)
-    sed -n '4,9p' "$0" | sed 's/^# //' >&2
+    sed -n '4,10p' "$0" | sed 's/^# //' >&2
     exit 2
     ;;
 esac
