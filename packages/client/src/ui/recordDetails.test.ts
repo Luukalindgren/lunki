@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import type { RecordEntry } from '@lunki/shared';
+import { setLangForTest } from '../i18n';
 import { formatDate, recordDetails, recordTitle } from './recordDetails';
 
 const old: RecordEntry = {
@@ -11,6 +12,8 @@ const old: RecordEntry = {
 };
 
 describe('ennätyskalan tiedot', () => {
+  afterEach(() => setLangForTest('fi'));
+
   it('vanhasta saaliista näytetään se, mikä on tallessa', () => {
     expect(recordTitle(old)).toBe('Ahven 520 g');
     expect(recordDetails(old)).toEqual([
@@ -53,5 +56,35 @@ describe('ennätyskalan tiedot', () => {
 
   it('päivämäärä suomalaisittain', () => {
     expect(formatDate('2026-01-05')).toBe('5.1.2026');
+  });
+
+  it('englanniksi samat tiedot englanninkielisinä', () => {
+    setLangForTest('en');
+    const r: RecordEntry = {
+      ...old,
+      species: 'pike',
+      weight: 3.2,
+      x: 1,
+      y: 2,
+      timeOfDay: 'evening',
+      sky: 'rain',
+      wind: 5.3,
+      lure: 'wobbler',
+      line: 'thick',
+    };
+    expect(recordTitle(r)).toBe('Pike 3.20 kg');
+    expect(recordDetails(r, 'Depth 3.2 m')).toEqual([
+      ['Angler', 'Luuka'],
+      ['Caught', '20 Oct 2026'],
+      ['Race', 'Evening'],
+      ['Weather', 'Rain, wind 5.3 m/s'],
+      ['Lure', 'Crankbait'],
+      ['Tackle', 'line 0.30 mm'],
+      ['Spot', 'Depth 3.2 m'],
+    ]);
+  });
+
+  it('tuntematon tallennettu arvo näytetään sellaisenaan', () => {
+    expect(recordDetails({ ...old, lure: 'dynamite' as never })[2]).toEqual(['Viehe', 'dynamite']);
   });
 });

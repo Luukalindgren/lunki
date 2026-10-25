@@ -4,6 +4,7 @@ import { CompassDisplay } from './compass';
 import { fishImage } from './fishArt';
 import { LureSonarDisplay } from './lureSonar';
 import { SonarDisplay } from './sonar';
+import { onLangChange, t, type MsgKey } from '../i18n';
 
 /**
  * Pelin HUD DOM-elementteinä VT323-pikselifontilla. Koko skaalautuu samalla
@@ -21,6 +22,8 @@ export class Hud {
   private readonly tension: HTMLDivElement;
   private readonly tensionFill: HTMLDivElement;
   private readonly tensionDrag: HTMLDivElement;
+  private readonly tensionLabel: HTMLDivElement;
+  private readonly staminaLabel: HTMLDivElement;
   private readonly help: HTMLDivElement;
   private readonly stamina: HTMLDivElement;
   private readonly staminaFill: HTMLDivElement;
@@ -64,19 +67,16 @@ export class Hud {
     this.tension = el('div', 'hud-tension hud-panel');
     this.tensionFill = el('div', 'hud-tension-fill');
     this.tensionDrag = el('div', 'hud-tension-drag');
-    const label = el('div', 'hud-tension-label');
-    label.textContent = 'KIREYS';
-    this.tension.append(this.tensionFill, this.tensionDrag, label);
+    this.tensionLabel = el('div', 'hud-tension-label');
+    this.tension.append(this.tensionFill, this.tensionDrag, this.tensionLabel);
     this.stamina = el('div', 'hud-stamina');
     this.staminaFill = el('div', 'hud-stamina-fill');
     const bar = el('div', 'hud-stamina-bar hud-panel');
     bar.appendChild(this.staminaFill);
-    const staminaLabel = el('div', 'hud-stamina-label');
-    staminaLabel.textContent = 'KUNTO';
-    this.stamina.append(staminaLabel, bar);
+    this.staminaLabel = el('div', 'hud-stamina-label');
+    this.stamina.append(this.staminaLabel, bar);
     this.stamina.hidden = true;
     this.help = el('div', 'hud-help hud-panel');
-    this.setHelpMode(false);
     this.timer = el('div', 'hud-timer hud-panel');
     this.weather = el('div', 'hud-weather hud-panel');
     this.catches = el('div', 'hud-catches hud-panel');
@@ -111,6 +111,16 @@ export class Hud {
     this.lureSonar = new LureSonarDisplay(gauges);
     // Ilmoitus ja punnitus kaiken muun päällä.
     this.root.append(this.message, this.weigh);
+    this.relabel();
+    onLangChange(() => this.relabel());
+  }
+
+  /** Kiinteät tekstit pelaajan kielellä (kieli voi vaihtua päävalikossa). */
+  private relabel(): void {
+    this.tensionLabel.textContent = t('hud.tension');
+    this.staminaLabel.textContent = t('hud.stamina');
+    this.compass.relabel();
+    this.setHelpMode(this.multiplayer, this.spectator);
   }
 
   /** Sisäisen pikselin koko CSS-pikseleinä. */
@@ -206,46 +216,37 @@ export class Hud {
   setHelpMode(multiplayer: boolean, spectator = false): void {
     this.multiplayer = multiplayer;
     this.spectator = spectator;
-    const lines = spectator
+    const lines: MsgKey[] = spectator
       ? this.touch
-        ? ['Napauta: seuraava kalastaja', 'KAM kalastajan silmin', '+/− zoom · ? ohje · II tauko']
-        : [
-            '←/→, A/D tai klikkaus: seuraava kalastaja',
-            'V kalastajan silmin · K kaikuluotain',
-            'Rulla = zoom · H = ohje · Esc = tauko',
-            'Enter = viesti muille',
-          ]
+        ? ['help.spectatorTouch1', 'help.spectatorTouch2', 'help.touchTools']
+        : ['help.spectator1', 'help.spectator2', 'help.keysTools', 'help.chatKey']
       : this.touch
         ? [
-            'Tatti ylös = kohti räpylöitä · alas = selkä edellä (nopein)',
-            'Tatti sivuille = käänny · reunaan asti = pikapotku (vie kuntoa)',
-            'Kosketa järveä: tähtää, pidä ja päästä = heitto',
-            'Sormi järvellä tai KELAA = kelaa',
-            'NOP kelausnopeus · JAR−/JAR+ jarru',
-            'VIEHE vaihda · LUOT kaikuluotain · SYV vieheen syvyys',
-            'KAM kalastajan silmin',
-            '+/− zoom · ? ohje · II tauko',
-            'Ukkosella kelaa viehe sisään ja pysy rannan lähellä',
-            'Viehe maalla tai laiturilla: KATKO katkaisee siiman',
-            ...(multiplayer
-              ? ['Sotkussa kelatkaa yhdessä · KATKO katkaisee', 'VIESTI = kirjoita muille']
-              : []),
+            'help.touch1',
+            'help.touch2',
+            'help.touch3',
+            'help.touch4',
+            'help.touch5',
+            'help.touch6',
+            'help.touch7',
+            'help.touchTools',
+            'help.thunder',
+            'help.touchLand',
+            ...(multiplayer ? (['help.touchTangle', 'help.touchChat'] as const) : []),
           ]
         : [
-            'W eteen · S selkä edellä (nopein) · A/D käänny · Shift pikapotku',
-            'Hiiri: tähtää, pidä pohjassa ja päästä = heitto',
-            'Hiiri pohjassa tai välilyönti = kelaa',
-            '1/2/3 kelausnopeus · Q/E jarru löysemmälle/kireämmälle',
-            'R vaihda viehe · K kaikuluotain · L vieheen syvyys',
-            'V kalastajan silmin',
-            'Rulla = zoom · H = ohje · Esc = tauko',
-            'Ukkosella kelaa viehe sisään ja pysy rannan lähellä',
-            'Viehe maalla tai laiturilla: C katkaisee siiman',
-            ...(multiplayer
-              ? ['Sotkussa kelatkaa yhdessä · C katkaisee siiman', 'Enter = viesti muille']
-              : []),
+            'help.keys1',
+            'help.keys2',
+            'help.keys3',
+            'help.keys4',
+            'help.keys5',
+            'help.keys6',
+            'help.keysTools',
+            'help.thunder',
+            'help.keysLand',
+            ...(multiplayer ? (['help.keysTangle', 'help.chatKey'] as const) : []),
           ];
-    this.help.textContent = lines.join('\n');
+    this.help.textContent = lines.map((k) => t(k)).join('\n');
   }
 
   toggleHelp(): void {

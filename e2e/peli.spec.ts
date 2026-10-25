@@ -68,6 +68,44 @@ test.describe('yksinpeli', () => {
   });
 });
 
+test('kieli vaihtuu päävalikosta heti ja säilyy uudelleenlatauksen jälkeen', async ({
+  page,
+  isMobile,
+}) => {
+  const errors = watchErrors(page);
+  await page.goto('/');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'fi');
+  await page.getByRole('button', { name: 'English' }).click();
+  await expect(page.getByRole('button', { name: 'Single player' })).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Single player' })).toBeVisible();
+
+  // Kisan HUD englanniksi.
+  await page.getByRole('button', { name: 'Single player' }).click();
+  await page.getByRole('button', { name: 'Start the race' }).click();
+  await expect(page.locator('.hud-timer')).toBeVisible();
+  await expect(page.locator('.hud-tension-label')).toHaveText('TENSION');
+  await expect(page.locator('.hud-compass')).toContainText('N');
+  if (!isMobile) {
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'End the race' }).click();
+    await page.getByRole('button', { name: 'Main menu' }).click();
+    await page.getByRole('button', { name: 'Suomi' }).click();
+    await expect(page.getByRole('button', { name: 'Yksinpeli' })).toBeVisible();
+    await expect(page.locator('html')).toHaveAttribute('lang', 'fi');
+  }
+  errors.check();
+});
+
+test('englanninkielinen selain saa pelin englanniksi', async ({ browser }) => {
+  const ctx = await browser.newContext({ locale: 'en-US' });
+  const page = await ctx.newPage();
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Multiplayer' })).toBeVisible();
+  await ctx.close();
+});
+
 test('ilman WebGL:ää näytetään selitys tyhjän ruudun sijaan', async ({ page }) => {
   await page.addInitScript(() => {
     const original = HTMLCanvasElement.prototype.getContext;

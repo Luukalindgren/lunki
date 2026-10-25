@@ -69,6 +69,7 @@ import {
   type SpeciesId,
   type InputMessage,
   type JoinOptions,
+  type RoomError,
   type BigWave,
   type BigWaveMessage,
   type SpoutMessage,
@@ -443,20 +444,23 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
 
     this.onMessage(ClientMsg.start, (client) => {
       if (client.sessionId !== this.state.hostId) {
-        client.send(ServerMsg.error, 'Vain huoneen luoja voi aloittaa kisan');
+        client.send(ServerMsg.error, { code: 'host-only' } satisfies RoomError);
         return;
       }
       if (this.state.phase !== 'lobby') return;
       const anglers = [...this.state.players.entries()].filter(([, p]) => !p.spectator);
       if (anglers.length === 0) {
-        client.send(ServerMsg.error, 'Kisaan tarvitaan ainakin yksi kalastaja');
+        client.send(ServerMsg.error, { code: 'need-angler' } satisfies RoomError);
         return;
       }
       const notReady = anglers
         .filter(([id, p]) => !p.ready && id !== this.state.hostId)
         .map(([, p]) => p);
       if (notReady.length > 0) {
-        client.send(ServerMsg.error, `Odotetaan: ${notReady.map((p) => p.name).join(', ')}`);
+        client.send(ServerMsg.error, {
+          code: 'not-ready',
+          names: notReady.map((p) => p.name),
+        } satisfies RoomError);
         return;
       }
       this.state.seed = (Math.random() * 2 ** 32) >>> 0;

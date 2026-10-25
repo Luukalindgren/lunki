@@ -2,10 +2,8 @@ import {
   DEFAULT_SETTINGS,
   GAME_NAME,
   LUNKINJARVI,
-  SPECIES,
   WaterBody,
   formatTime,
-  formatWeight,
   isTimeOfDay,
   isWeatherLevel,
   parseRoomCode,
@@ -42,6 +40,8 @@ import {
 } from './net/session';
 import { NetWorld } from './net/netWorld';
 import { installErrorReporting, reportContext, sendFeedback } from './net/report';
+import { formatWeight, ordinal, t } from './i18n';
+import { speciesName } from './i18n/names';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) throw new Error('#app puuttuu');
@@ -114,9 +114,11 @@ function startGame(s: CompetitionSettings, seed = devSeed) {
     g.onSoloCatch = (entry) =>
       void submitSoloRecord({ ...entry, angler: loadIdentity().name }).then((place) => {
         if (place === null || game !== g) return;
-        const fish = `${SPECIES[entry.species].name} ${formatWeight(entry.weight)}`;
+        const fish = `${speciesName(entry.species)} ${formatWeight(entry.weight)}`;
         const note =
-          place === 1 ? `Yksinpelin ennätys! ${fish}` : `${fish} on yksinpelin ${place}. suurin`;
+          place === 1
+            ? t('records.soloFirst', { fish })
+            : t('records.soloPlace', { fish, place: ordinal(place) });
         soloRecordNotes.push(note);
         if (!g.competition.finished) hud.showMessage(note, 3.5);
       });
@@ -149,6 +151,7 @@ function showMenu() {
         showMenu,
       ),
     onCredits: () => screens.showCredits(showMenu),
+    onLanguage: showMenu,
   });
 }
 
@@ -169,7 +172,7 @@ function showSoloSetup(s: CompetitionSettings) {
 
 async function showRecords() {
   let cancelled = false;
-  screens.showMessage('Ennätykset', 'Haetaan ennätyksiä…', () => {
+  screens.showMessage(t('menu.records'), t('records.loading'), () => {
     cancelled = true;
     showMenu();
   });
@@ -238,7 +241,7 @@ function showMultiplayer(code = '', error?: string) {
     (n, c) => {
       const parsed = parseRoomCode(c);
       if (parsed) void connect(n, parsed);
-      else showMultiplayer(c, 'Tarkista koodi. Sen muoto on LUNKI-XXXX.');
+      else showMultiplayer(c, t('mp.badCode'));
     },
     () => {
       history.replaceState(null, '', location.pathname);
@@ -253,7 +256,7 @@ function showMultiplayer(code = '', error?: string) {
 async function connect(name: string, code: string | null, rejoin = false) {
   const options = { name: saveName(name), playerId: loadIdentity().playerId };
   let cancelled = false;
-  screens.showMessage(code ? 'Liitytään…' : 'Luodaan huonetta…', 'Yhdistetään palvelimeen.', () => {
+  screens.showMessage(code ? t('mp.joining') : t('mp.creating'), t('mp.connecting'), () => {
     cancelled = true;
     showMultiplayer(code ?? '');
   });
@@ -337,12 +340,12 @@ function enterLobby(s: NetSession) {
       if (s.spectating)
         hud.showMessage(
           v.players.find((p) => p.me)?.spectator && s.room.state.clock > 1
-            ? `Kisa oli jo alkanut, joten katsot sitä. Aikaa jäljellä ${formatTime(left)}`
-            : 'Katsot kisaa',
+            ? t('mp.lateSpectator', { time: formatTime(left) })
+            : t('mp.spectating'),
           5,
         );
       else if (v.phase === 'playing' && s.room.state.clock > 1)
-        hud.showMessage(`Mukana kisassa: aikaa jäljellä ${formatTime(left)}`, 4);
+        hud.showMessage(t('mp.lateJoined', { time: formatTime(left) }), 4);
       return;
     }
     // Isäntä lähti tulossivulta: uudelle isännälle uuden kisan nappi.
@@ -358,10 +361,7 @@ function enterLobby(s: NetSession) {
       hud.setVisible(false);
     }
     const ready = v.players.find((p) => p.me)?.ready ?? false;
-    notice =
-      wasReady && !ready && !v.amHost
-        ? 'Asetukset muuttuivat: tarkista ne ja kuittaa valmius uudelleen.'
-        : undefined;
+    notice = wasReady && !ready && !v.amHost ? t('mp.settingsChanged') : undefined;
     wasReady = ready;
     render();
   };
@@ -375,10 +375,10 @@ function enterLobby(s: NetSession) {
     chat = null;
     game?.dispose();
     game = null;
-    showMultiplayer('', 'Yhteys palvelimeen katkesi.');
+    showMultiplayer('', t('mp.disconnected'));
   };
   s.onConnection = (connected) =>
-    hud.showMessage(connected ? 'Yhteys palautui' : 'Yhteys katkesi – yhdistetään uudelleen…', 3);
+    hud.showMessage(connected ? t('mp.reconnected') : t('mp.reconnecting'), 3);
   // Uudelleenyhdistäessä kisa voi olla jo käynnissä.
   if (s.ready) s.onChange(s.view());
   else render();
@@ -387,7 +387,7 @@ function enterLobby(s: NetSession) {
 /** Sivun uudelleenlataus kesken kisan: palataan samaan renkaaseen. */
 async function tryResume(): Promise<boolean> {
   if (!NetSession.canResume()) return false;
-  screens.showMessage('Palataan kisaan…', 'Yhdistetään palvelimeen.');
+  screens.showMessage(t('mp.resuming'), t('mp.connecting'));
   const s = await NetSession.resume();
   if (!s) return false;
   // Odotetaan ensimmäistä tilaa.
@@ -474,10 +474,9 @@ function createRenderer(c: HTMLCanvasElement, parent: HTMLElement): RetroRendere
     const panel = document.createElement('div');
     panel.className = 'screen-panel';
     const title = document.createElement('h2');
-    title.textContent = 'Grafiikka ei käynnisty';
+    title.textContent = t('error.webglTitle');
     const text = document.createElement('p');
-    text.textContent =
-      'Peli tarvitsee WebGL-grafiikkaa, jota selain ei nyt tarjoa. Ota laitteistokiihdytys käyttöön selaimen asetuksista tai kokeile toista selainta.';
+    text.textContent = t('error.webgl');
     panel.append(title, text);
     screen.appendChild(panel);
     parent.replaceChildren(screen);

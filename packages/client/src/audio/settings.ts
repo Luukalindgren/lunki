@@ -1,12 +1,8 @@
 /** Äänenvoimakkuus portaittain: pois, hiljainen, normaali, kova. */
 export type VolumeLevel = 0 | 1 | 2 | 3;
 
-export const VOLUME_LEVELS: { value: VolumeLevel; label: string }[] = [
-  { value: 0, label: 'Pois' },
-  { value: 1, label: 'Hiljainen' },
-  { value: 2, label: 'Normaali' },
-  { value: 3, label: 'Kova' },
-];
+/** Tasot hiljaisimmasta kovimpaan; nimet ovat sanakirjassa (volume.N). */
+export const VOLUME_LEVELS: readonly VolumeLevel[] = [0, 1, 2, 3];
 
 const GAINS: Record<VolumeLevel, number> = { 0: 0, 1: 0.35, 2: 0.7, 3: 1 };
 export const volumeGain = (v: VolumeLevel) => GAINS[v];

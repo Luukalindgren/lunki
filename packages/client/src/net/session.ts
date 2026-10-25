@@ -38,6 +38,8 @@ import {
   type RecordMode,
   type SoloRecordReply,
   type RecordMessage,
+  type JoinRefusalCode,
+  type RoomError,
   type JoinOptions,
   type LightningMessage,
   type Penalty,
@@ -47,6 +49,7 @@ import {
   type StartedMessage,
   type WinRule,
 } from '@lunki/shared';
+import { t, type MsgKey } from '../i18n';
 
 /**
  * Palvelimen osoite: ?palvelin=wss://… ohittaa. LAN-tilassa (pnpm lan) sivun
@@ -297,7 +300,9 @@ export class NetSession {
       this.onChange?.(this.view());
     });
     room.onMessage(ServerMsg.started, (m: StartedMessage) => this.onStarted?.(m, this.view()));
-    room.onMessage(ServerMsg.error, (m: string) => this.onError?.(m));
+    room.onMessage(ServerMsg.error, (m: RoomError | string) =>
+      this.onError?.(describeRoomError(m)),
+    );
     room.onMessage(ServerMsg.castRejected, () => this.onCastRejected?.());
     room.onMessage(ServerMsg.catchRejected, () => this.onCatchRejected?.());
     room.onMessage(ServerMsg.lightning, (m: LightningMessage) => this.onLightning?.(m));
@@ -534,15 +539,51 @@ function clearResume(): void {
   }
 }
 
+const REFUSAL_KEYS: Record<JoinRefusalCode, MsgKey> = {
+  [JoinRefusal.closed]: 'join.closed',
+  [JoinRefusal.returnOnly]: 'join.returnOnly',
+  [JoinRefusal.full]: 'join.full',
+  [JoinRefusal.serverFull]: 'join.serverFull',
+};
+
+/**
+ * Vanhan palvelimen valmiit suomenkieliset lauseet koodeiksi, jotta
+ * käynnistämätön palvelin näkyy englanniksikin oikein.
+ */
+const LEGACY_REFUSALS: Record<string, JoinRefusalCode> = {
+  'Kisa on jo käynnissä, eikä huoneen luoja salli liittymistä kesken kisan.': JoinRefusal.closed,
+  'Kisa on jo käynnissä. Kesken kisan pääsee vain takaisin omalle paikalleen.':
+    JoinRefusal.returnOnly,
+  'Huone on täynnä.': JoinRefusal.full,
+  'Palvelin on täynnä, yritä hetken päästä uudelleen': JoinRefusal.serverFull,
+};
+
 /** Selkokielinen virheilmoitus liittymisongelmille. */
 export function describeJoinError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
-  if ((Object.values(JoinRefusal) as string[]).includes(msg)) return msg;
-  if (/not found|invalid|locked|full/i.test(msg))
-    return 'Huonetta ei löytynyt, se on täynnä tai kisa on jo alkanut.';
-  if (/fetch|network|ECONNREFUSED|failed/i.test(msg))
-    return 'Palvelimeen ei saada yhteyttä. Onko palvelin käynnissä?';
-  return `Liittyminen epäonnistui: ${msg}`;
+  const code = Object.hasOwn(REFUSAL_KEYS, msg) ? (msg as JoinRefusalCode) : LEGACY_REFUSALS[msg];
+  if (code) return t(REFUSAL_KEYS[code]);
+  if (/not found|invalid|locked|full/i.test(msg)) return t('join.notFound');
+  if (/fetch|network|ECONNREFUSED|failed/i.test(msg)) return t('join.noServer');
+  return t('join.failed', { msg });
+}
+
+/** Aulan virheilmoitus pelaajan kielellä; vanhan palvelimen lauseet tunnistetaan. */
+export function describeRoomError(m: RoomError | string): string {
+  const e: RoomError | null =
+    typeof m !== 'string'
+      ? m
+      : m === 'Vain huoneen luoja voi aloittaa kisan'
+        ? { code: 'host-only' }
+        : m === 'Kisaan tarvitaan ainakin yksi kalastaja'
+          ? { code: 'need-angler' }
+          : m.startsWith('Odotetaan: ')
+            ? { code: 'not-ready', names: m.slice('Odotetaan: '.length).split(', ') }
+            : null;
+  if (!e) return String(m);
+  if (e.code === 'host-only') return t('roomError.hostOnly');
+  if (e.code === 'need-angler') return t('roomError.needAngler');
+  return t('roomError.notReady', { names: (e.names ?? []).join(', ') });
 }
 
 /** Pelaajan varusteet tilasta; tuntemattomat arvot korvautuvat oletuksilla. */

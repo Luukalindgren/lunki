@@ -32,6 +32,7 @@ import {
   CHAT_RATE,
   JoinRefusal,
   type ChatMessage,
+  type RoomError,
   type CatchRecord,
   type BigWaveMessage,
   type SpoutMessage,
@@ -190,20 +191,21 @@ describe('LunkiRoom', () => {
     const guest = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
     await until(() => players(host).length === 2);
 
-    const errors: string[] = [];
-    host.onMessage(ServerMsg.error, (m: string) => errors.push(m));
+    const errors: RoomError[] = [];
+    host.onMessage(ServerMsg.error, (m: RoomError) => errors.push(m));
     let seed = -1;
     guest.onMessage(ServerMsg.started, (m: { seed: number }) => (seed = m.seed));
 
     host.send(ClientMsg.start);
     await until(() => errors.length === 1);
-    expect(errors[0]).toContain('B');
+    expect(errors[0]).toEqual({ code: 'not-ready', names: ['B'] });
 
     // Vieras ei voi aloittaa.
-    const guestErrors: string[] = [];
-    guest.onMessage(ServerMsg.error, (m: string) => guestErrors.push(m));
+    const guestErrors: RoomError[] = [];
+    guest.onMessage(ServerMsg.error, (m: RoomError) => guestErrors.push(m));
     guest.send(ClientMsg.start);
     await until(() => guestErrors.length === 1);
+    expect(guestErrors[0]).toEqual({ code: 'host-only' });
 
     guest.send(ClientMsg.ready, true);
     await until(() => players(host).every((p, i) => i === 0 || p.ready));
@@ -1156,14 +1158,14 @@ describe('liittyminen kesken kisan', () => {
     });
     const guest = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
     await until(() => players(host).length === 2);
-    const errors: string[] = [];
-    host.onMessage(ServerMsg.error, (m: string) => errors.push(m));
+    const errors: RoomError[] = [];
+    host.onMessage(ServerMsg.error, (m: RoomError) => errors.push(m));
     host.send(ClientMsg.spectate, true);
     guest.send(ClientMsg.spectate, true);
     await until(() => players(host).every((p) => (p as unknown as Spectating).spectator));
     host.send(ClientMsg.start);
     await until(() => errors.length === 1);
-    expect(errors[0]).toBe('Kisaan tarvitaan ainakin yksi kalastaja');
+    expect(errors[0]).toEqual({ code: 'need-angler' });
     // Katsoja ei tarvitse valmis-merkintää.
     host.send(ClientMsg.spectate, false);
     await until(() => !(me(host) as Spectating).spectator);

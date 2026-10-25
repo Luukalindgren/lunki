@@ -32,6 +32,8 @@ export default defineConfig({
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: 'http://localhost:4173',
+    // Testit etsivät suomenkielisiä nappeja; englanti testataan erikseen.
+    locale: 'fi-FI',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },

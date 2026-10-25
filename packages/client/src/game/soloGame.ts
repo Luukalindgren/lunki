@@ -2,10 +2,7 @@ import * as THREE from 'three';
 import {
   breakingStrength,
   LUNKINJARVI,
-  LURES,
-  SPECIES,
   chargePower,
-  describeTackle,
   WaterBody,
   collideTubeWithShore,
   createTube,
@@ -38,13 +35,11 @@ import {
   SPOUT,
   OUT_OF_RACE,
   windVector,
-  SKY_NAMES,
   recordCatch,
   stepCompetition,
   timeLeft,
   createFishing,
   daylight,
-  formatWeight,
   lureInfo,
   stepFishPopulation,
   lerpAngle,
@@ -122,6 +117,8 @@ import { YouMarker } from './youMarker';
 import { loadAppearance } from './appearance';
 import { RaceLog, type RaceMapData } from './raceLog';
 import { bottomFor } from '../world/lakeData';
+import { decimal, formatWeight, ordinal, t } from '../i18n';
+import { describeTackle, lureName, skyName, speciesName } from '../i18n/names';
 
 const LAND_COLOR = 0x24502c;
 /** Yksinpelin pelaajan tunniste kisan kulussa. */
@@ -225,7 +222,7 @@ export class SoloGame {
   /** Yksinpelin salaman jäähy (kisa-aika, s). */
   private outUntil = 0;
   /** Mistä jäähy tuli (tilarivin teksti). */
-  private outLabel = 'Jäähy';
+  private outLabel = t('game.timeOut');
   private readonly bigWaveView = new BigWaveView();
   /** Isot aallot: varoitukset ja näkymä molemmissa, osumat yksinpelissä. */
   private readonly bigWaves: BigWave[];
@@ -383,13 +380,12 @@ export class SoloGame {
       this.scene.add(this.remoteView.group);
       net.world.onPeerConnection = (name, connected) =>
         this.hud.showMessage(
-          connected ? `${name} palasi kisaan` : `${name}: yhteys katkesi, odotetaan…`,
+          connected ? t('game.peerBack', { name }) : t('game.peerLost', { name }),
           3,
         );
-      net.world.onPeerLeft = (name) => this.hud.showMessage(`${name} poistui kisasta`, 3);
-      net.world.onPeerJoined = (name) => this.hud.showMessage(`${name} tuli mukaan kisaan`, 3);
-      net.world.onCatchRejected = () =>
-        this.hud.showMessage('Palvelin ei hyväksynyt saalista punnitukseen', 2.5);
+      net.world.onPeerLeft = (name) => this.hud.showMessage(t('game.peerLeft', { name }), 3);
+      net.world.onPeerJoined = (name) => this.hud.showMessage(t('game.peerJoined', { name }), 3);
+      net.world.onCatchRejected = () => this.hud.showMessage(t('game.catchRejected'), 2.5);
       net.world.onLightning = (m) =>
         this.onStrike({ x: m.x, y: m.y }, m.victims.includes(net.world.myId));
       net.world.onBigWave = (m) => {
@@ -405,7 +401,7 @@ export class SoloGame {
           depthAt: (p: Vec2) => this.bottom.depthAt(p),
         };
         if (removeCaughtFish(this.fishing, this.fish, tag, world, this.rng))
-          this.hud.showMessage(`${angler} ehti nostaa saman kalan – se karkasi sinulta`, 3);
+          this.hud.showMessage(t('game.stolen', { name: angler }), 3);
       };
       net.world.onSpout = (m) => {
         for (const id of m.victims) {
@@ -420,7 +416,7 @@ export class SoloGame {
       };
       net.world.onCastRejected = () => {
         resetFishing(this.fishing, this.fishCtx);
-        this.hud.showMessage('Palvelin hylkäsi heiton', 2);
+        this.hud.showMessage(t('game.castRejected'), 2);
       };
     }
   }
@@ -486,15 +482,15 @@ export class SoloGame {
     this.scene.fog = pov ? new THREE.Fog(this.sky.lighting.horizon, 500, 2600) : null;
     this.applyWeatherLight();
     this.fishingView.pov = pov;
-    this.hud.showMessage(pov ? 'Kalastajan silmin (V)' : 'Ylhäältä (V)', 1.2);
+    this.hud.showMessage(pov ? t('game.viewPov') : t('game.viewTop'), 1.2);
   }
 
   /** Vaihtaa varusteet heti, tai kun viehe seuraavan kerran on kelalla. */
-  setTackle(t: Tackle): void {
-    this.pendingTackle = { ...t };
+  setTackle(tk: Tackle): void {
+    this.pendingTackle = { ...tk };
     const f = this.fishing.stage;
     if (f !== 'idle' && f !== 'charging')
-      this.hud.showMessage(`${LURES[t.lure].name} vaihtuu, kun viehe on kelalla`, 1.5);
+      this.hud.showMessage(t('game.lureLater', { lure: lureName(tk.lure) }), 1.5);
   }
 
   /** Varusteet sellaisina kuin ne ovat seuraavassa heitossa. */
@@ -516,9 +512,9 @@ export class SoloGame {
     if (outcome.loseCatch) this.competition.catches.length = 0;
     return {
       none: '',
-      'time-out': `Jäähy ${LIGHTNING.timeOut} s`,
-      'lose-catch': 'Menetit saaliisi',
-      out: 'Putosit kisasta',
+      'time-out': t('game.penaltyTimeOut', { s: LIGHTNING.timeOut }),
+      'lose-catch': t('game.penaltyLoseCatch'),
+      out: t('game.penaltyOut'),
     }[penalty];
   }
 
@@ -539,7 +535,7 @@ export class SoloGame {
     if (born > this.spoutsSeen) {
       this.spoutsSeen = born;
       if (spots.length > 0) {
-        this.hud.showMessage('Trombi järvellä! Pysy kaukana siitä', 3);
+        this.hud.showMessage(t('game.spoutSeen'), 3);
         this.sfx.rumble();
       }
     }
@@ -561,7 +557,7 @@ export class SoloGame {
     this.spoutWarnTimer -= dt;
     const near = spots.some((p) => distance(p, this.tube.pos) < SPOUT.radius);
     if (near && this.capsizeLeft === 0 && this.spoutWarnTimer <= 0) {
-      this.hud.showMessage('Trombi imee! Potki karkuun (Shift)', 2);
+      this.hud.showMessage(t('game.spoutPull'), 2);
       this.spoutWarnTimer = 4;
     }
   }
@@ -602,10 +598,7 @@ export class SoloGame {
     if (!next || next.t - now > BIG_WAVE.warning || this.warnedWave === this.nextWave) return;
     this.warnedWave = this.nextWave;
     if (height(next) >= BIG_WAVE.capsizeHeight)
-      this.hud.showMessage(
-        `Iso aalto ${windFrom(bigWaveDir(next, w.windDir))}! Käänny aaltoa kohti`,
-        3,
-      );
+      this.hud.showMessage(t('game.bigWave', { from: windFrom(bigWaveDir(next, w.windDir)) }), 3);
   }
 
   /** Lähimmän trombin etäisyys ja suunta säärivillä, esim. " · trombi 320 m lounaassa". */
@@ -616,7 +609,7 @@ export class SoloGame {
       if (!best || distance(c, p) < distance(best, p)) best = c;
     if (!best) return '';
     const d = Math.round(distance(best, p) / 10) * 10;
-    return ` · trombi ${d} m ${compassIn(Math.atan2(best.y - p.y, best.x - p.x))}`;
+    return t('game.spoutNear', { d, dir: compassIn(Math.atan2(best.y - p.y, best.x - p.x)) });
   }
 
   private wasTangled = false;
@@ -632,7 +625,7 @@ export class SoloGame {
     const tangle = w.tangle;
     if (tangle && !this.wasTangled) {
       this.sfx.strike();
-      this.hud.showMessage(`Siimasi sotkeutui: ${tangle.with}! Kelaa selvittääksesi`, 3);
+      this.hud.showMessage(t('game.tangled', { name: tangle.with }), 3);
     }
     this.wasTangled = tangle !== null;
     this.knots.update(w.tangles());
@@ -646,24 +639,23 @@ export class SoloGame {
     const hooked = this.fishing.hookedId !== null;
     if (m.how === 'untangled') {
       resetFishing(this.fishing, this.fishCtx);
-      this.hud.showMessage(
-        hooked ? 'Sotku selvisi, mutta kala karkasi' : 'Sotku selvisi – siimat kelattu sisään',
-        2.5,
-      );
+      this.hud.showMessage(hooked ? t('game.untangledLost') : t('game.untangled'), 2.5);
     } else if (m.by === me) {
       resetFishing(this.fishing, this.fishCtx);
       this.sfx.lost();
-      this.hud.showMessage('Katkaisit siimasi', 2);
+      this.hud.showMessage(t('game.youCut'), 2);
     } else {
-      this.hud.showMessage(`${this.net!.world.playerName(m.by)} katkaisi siimansa – jatka`, 2.5);
+      this.hud.showMessage(t('game.otherCut', { name: this.net!.world.playerName(m.by) }), 2.5);
     }
   }
 
   /** Saalis pääsi järven ennätyslistalle. */
   private onRecord(m: RecordMessage, me: string): void {
-    const fish = `${SPECIES[m.species].name} ${formatWeight(m.weight)} (${m.player === me ? 'sinä' : m.angler})`;
+    const fish = `${speciesName(m.species)} ${formatWeight(m.weight)} (${m.player === me ? t('common.you') : m.angler})`;
     this.hud.showMessage(
-      m.place === 1 ? `Järven ennätys! ${fish}` : `${fish} on järven ${m.place}. suurin`,
+      m.place === 1
+        ? t('records.lakeFirst', { fish })
+        : t('records.lakePlace', { fish, place: ordinal(m.place) }),
       3.5,
     );
   }
@@ -699,19 +691,19 @@ export class SoloGame {
     // Moninpelissä kaatumiset kirjataan palvelimen viesteistä kaikille.
     if (!this.net) this.logCapsize(this.flight?.from ?? this.tube.pos);
     if (cause === 'spout') this.sfx.wave();
-    const penalty = this.punish(this.settings.capsizePenalty ?? 'none', 'Kaatumisen jäähy');
+    const penalty = this.punish(this.settings.capsizePenalty ?? 'none', t('game.capsizeTimeOut'));
     this.hud.showWeighIn(
-      cause === 'wave'
-        ? 'Kaaduit!'
-        : this.flight
-          ? 'Trombi nappasi sinut!'
-          : 'Trombi kaatoi sinut!',
+      t(
+        cause === 'wave' ? 'game.capsized' : this.flight ? 'game.spoutGrabbed' : 'game.spoutTipped',
+      ),
       penalty ||
-        (cause === 'wave'
-          ? 'Käänny aaltoa kohti, niin pysyt pystyssä'
-          : this.flight
-            ? 'Lennät järven yli – pysy kaukana trombeista'
-            : 'Pysy kaukana trombista'),
+        t(
+          cause === 'wave'
+            ? 'game.capsizeHint'
+            : this.flight
+              ? 'game.flightHint'
+              : 'game.spoutHint',
+        ),
       4,
     );
   }
@@ -757,8 +749,11 @@ export class SoloGame {
     this.flashInvert = d < 60;
     this.sfx.thunder(d, d / LIGHTNING.soundSpeed);
     if (!hitMe) return;
-    const penalty = this.punish(this.settings.lightningPenalty ?? 'none', 'Salaman jäähy');
-    this.hud.showWeighIn('Salama iski!', penalty || 'Siima paloi poikki – laske vapa ukkosella', 4);
+    const penalty = this.punish(
+      this.settings.lightningPenalty ?? 'none',
+      t('game.lightningTimeOut'),
+    );
+    this.hud.showWeighIn(t('game.lightningHit'), penalty || t('game.lightningHint'), 4);
   }
 
   update(dt: number): void {
@@ -777,7 +772,7 @@ export class SoloGame {
     if (input.wasPressed('KeyK')) this.hud.sonar.toggle();
     if (input.wasPressed('KeyL'))
       this.hud.showMessage(
-        this.hud.lureSonar.toggle() ? 'Vieheen syvyysnäkymä päällä' : 'Vieheen syvyysnäkymä pois',
+        this.hud.lureSonar.toggle() ? t('game.lureSonarOn') : t('game.lureSonarOff'),
         1.5,
       );
     if (input.wasPressed('KeyV')) this.setViewMode(this.viewMode === 'top' ? 'pov' : 'top');
@@ -882,7 +877,7 @@ export class SoloGame {
     this.handleEvents(events, fishEvents.follow !== undefined, reeling, dt);
     if (f.onLand && f.stage === 'water')
       this.hud.showMessage(
-        `Viehe jäi kiinni maalle\nKatkaise siima: ${this.hud.touchMode ? 'KATKO' : 'C'}`,
+        t('game.stuckOnLand', { key: this.hud.touchMode ? t('touch.cut') : 'C' }),
         0.2,
       );
 
@@ -906,31 +901,34 @@ export class SoloGame {
     }
     this.hud.setStamina(this.tube.stamina, STAMINA.tired);
     if (this.tube.stamina <= 0 && this.prevTube.stamina > 0)
-      this.hud.showMessage('Puuskutat! Lepää hetki, niin jaksat taas', 2.5);
+      this.hud.showMessage(t('game.tired'), 2.5);
     this.hud.setPower(f.stage === 'charging' ? chargePower(f.charge) : null);
     this.hud.setTension(f.tension, f.drag, breakingStrength(f.tackle));
     this.hud.setStatus([
       ...(this.flight
-        ? ['Lennät trombin mukana!']
+        ? [t('game.flying')]
         : capsized
-          ? [`Kumossa! Pystyyn ${Math.ceil(this.capsizeLeft)} s`]
+          ? [t('game.capsizedLeft', { s: Math.ceil(this.capsizeLeft) })]
           : []),
       ...(tangle
         ? [
-            `Sotkussa: ${tangle.with} · ${Math.round(tangle.progress * 100)} %`,
-            'Kelatkaa yhdessä · C katkaisee',
+            t('game.tangleStatus', {
+              name: tangle.with,
+              pct: Math.round(tangle.progress * 100),
+            }),
+            t('game.tangleHint'),
           ]
         : []),
       ...(timeOut === Infinity
-        ? ['Putosit kisasta']
+        ? [t('game.penaltyOut')]
         : timeOut > 0
-          ? [`${this.outLabel} ${Math.ceil(timeOut)} s`]
+          ? [t('game.outLeft', { label: this.outLabel, s: Math.ceil(timeOut) })]
           : []),
       describeTackle(f.tackle),
-      `Siimaa ${fi(f.lineLength, 1)} m`,
-      `Jarru ${fi(f.drag, 2)} kg · kela ${f.gear + 1}`,
-      `Viehe ${fi(f.stage === 'water' && !f.onLand ? f.depth : 0, 1)} m`,
-      `Pohja ${fi(this.bottom.depthAt(lureOut ? f.lure : this.tube.pos), 1)} m`,
+      t('game.line', { m: decimal(f.lineLength, 1) }),
+      t('game.drag', { kg: decimal(f.drag, 2), gear: f.gear + 1 }),
+      t('game.lureDepth', { m: decimal(f.stage === 'water' && !f.onLand ? f.depth : 0, 1) }),
+      t('game.bottom', { m: decimal(this.bottom.depthAt(lureOut ? f.lure : this.tube.pos), 1) }),
     ]);
     this.hud.sonar.update(dt, () =>
       sonarPing(this.tube.pos, this.fish.fish, this.bottom.depthAt(this.tube.pos)),
@@ -970,11 +968,13 @@ export class SoloGame {
       catches.length === 0
         ? []
         : [
-            `Saalis ${catches.length} kpl  ${formatWeight(total)}`,
+            t('game.catches', { n: catches.length, total: formatWeight(total) }),
             ...catches
               .slice(-5)
               .reverse()
-              .map((c) => `${formatTime(c.time)} ${c.name} ${formatWeight(c.weight)}`),
+              .map(
+                (c) => `${formatTime(c.time)} ${speciesName(c.species)} ${formatWeight(c.weight)}`,
+              ),
           ],
     );
     this.hud.update(dt);
@@ -995,9 +995,9 @@ export class SoloGame {
     this.updateWaves(dt, w.windSpeed, w.windDir);
     const hs = this.waves.heightAt(this.tube.pos, w.windSpeed);
     this.hud.setWeather(
-      `${SKY_NAMES[w.sky]} · ${windName(w.windDir)} ${Math.round(w.windSpeed)} m/s` +
-        (hs >= 0.05 ? ` · aallot ${fi(hs, 1)} m` : '') +
-        (w.sky === 'thunder' || w.sky === 'storm' ? ' · salamavaara!' : '') +
+      `${skyName(w.sky)} · ${windName(w.windDir)} ${Math.round(w.windSpeed)} m/s` +
+        (hs >= 0.05 ? t('game.waves', { m: decimal(hs, 1) }) : '') +
+        (w.sky === 'thunder' || w.sky === 'storm' ? t('game.lightningRisk') : '') +
         this.spoutText(),
     );
   }
@@ -1089,8 +1089,7 @@ export class SoloGame {
       this.quietSpot.cast(this.tube.pos);
     }
     if (follow || events.strike) this.quietSpot.noticed();
-    if (events.home && this.quietSpot.home())
-      hud.showMessage('Hiljaista – potki muualle, K näyttää kalat', 4);
+    if (events.home && this.quietSpot.home()) hud.showMessage(t('game.quiet'), 4);
     if (events.splash) {
       this.fishingView.startSplash(events.splash);
       sfx.splash();
@@ -1099,51 +1098,51 @@ export class SoloGame {
     if (follow) sfx.tick();
     if (events.strike) {
       sfx.strike();
-      hud.showMessage('Tärppi!', 1.2);
+      hud.showMessage(t('game.strike'), 1.2);
     }
     if (events.hooked) {
       sfx.hooked();
-      hud.showMessage('Kala kiinni!', 1.5);
+      hud.showMessage(t('game.hooked'), 1.5);
     }
-    if (events.missed) hud.showMessage('Ohi meni – kelaa heti tärpin jälkeen', 2);
+    if (events.missed) hud.showMessage(t('game.missed'), 2);
     if (events.escaped) {
       sfx.lost();
-      hud.showMessage('Kala irtosi – pidä siima kireällä', 2.5);
+      hud.showMessage(t('game.escaped'), 2.5);
     }
     if (events.tackleChanged) {
       this.pendingTackle = null;
       saveTackle(this.fishing.tackle);
       this.net?.world.sendTackle(this.fishing.tackle);
-      hud.showMessage(`Viehe: ${LURES[this.fishing.tackle.lure].name}`, 1.5);
+      hud.showMessage(t('game.lureChanged', { lure: lureName(this.fishing.tackle.lure) }), 1.5);
     }
     if (events.snagged) {
       sfx.strike();
-      hud.showMessage('Pohjatartunta! Kelaa irrottaaksesi', 2);
+      hud.showMessage(t('game.snagged'), 2);
     }
-    if (events.unsnagged) hud.showMessage('Viehe irtosi pohjasta', 1.5);
+    if (events.unsnagged) hud.showMessage(t('game.unsnagged'), 1.5);
     if (events.stuck) sfx.strike();
     if (events.lineCut) {
       sfx.lost();
       const wait = this.settings.landPenalty ?? 0;
       if (wait > 0) {
         this.outUntil = Math.max(this.outUntil, this.competition.elapsed + wait);
-        this.outLabel = 'Uusi viehe';
+        this.outLabel = t('game.newLure');
       }
       this.net?.world.landCut();
       hud.showWeighIn(
-        'Siima poikki',
-        wait > 0 ? `Viehe jäi maalle · uuden solmiminen ${wait} s` : 'Viehe jäi maalle',
+        t('game.lineCut'),
+        wait > 0 ? t('game.lureOnLandWait', { s: wait }) : t('game.lureOnLand'),
         3,
       );
     } else if (events.bitOff) {
       sfx.lost();
-      hud.showMessage('Hauki katkaisi siiman hampaillaan – kokeile teräsperuketta', 3.5);
+      hud.showMessage(t('game.bitOff'), 3.5);
     } else if (events.lureLost) {
       sfx.lost();
-      hud.showMessage('Siima katkesi – viehe jäi pohjaan', 3);
+      hud.showMessage(t('game.lureLost'), 3);
     } else if (events.lineBroken) {
       sfx.lost();
-      hud.showMessage('Siima katkesi! Löysää jarrua (Q) tai vaihda paksumpaan siimaan', 3);
+      hud.showMessage(t('game.lineBroken'), 3);
     }
     if (events.caught) {
       sfx.caught();
@@ -1175,8 +1174,8 @@ export class SoloGame {
       const biggest = catches.every((c) => c === record || c.weight < events.caught!.weight);
       const length = `${Math.round(fishLengthCm(events.caught.species, events.caught.weight))} cm`;
       hud.showWeighIn(
-        `${events.caught.name} ${formatWeight(events.caught.weight)}`,
-        `${length} · ${catches.length > 1 && biggest ? 'kisan suurin tähän asti!' : `${catches.length}. kala`}`,
+        `${speciesName(events.caught.species)} ${formatWeight(events.caught.weight)}`,
+        `${length} · ${catches.length > 1 && biggest ? t('game.biggestSoFar') : t('game.nthFish', { n: ordinal(catches.length) })}`,
         3.5,
         events.caught,
       );
@@ -1199,7 +1198,7 @@ export class SoloGame {
     const now = this.competition.elapsed;
     const w = this.net?.world;
     if (!w) {
-      this.raceLog.sample(now, [{ id: SOLO_ID, name: 'Sinä', pos: this.tube.pos }]);
+      this.raceLog.sample(now, [{ id: SOLO_ID, name: t('common.youCapital'), pos: this.tube.pos }]);
       return;
     }
     this.raceLog.sample(now, w.racePlayers());
@@ -1245,7 +1244,7 @@ export class SoloGame {
     );
     if (step !== 0) {
       i = (i + step + others.length) % others.length;
-      this.hud.showMessage(`Seuraat: ${others[i]!.name}`, 1.5);
+      this.hud.showMessage(t('game.following', { name: others[i]!.name }), 1.5);
     }
     const f = others[i]!;
     // Ensimmäinen seurattava: kamera hyppää heti paikalle.
@@ -1266,10 +1265,10 @@ export class SoloGame {
     const name = this.followed ? this.net!.world.playerName(this.followed) : null;
     this.hud.setPower(null);
     this.hud.setStatus([
-      'Katsot kisaa',
-      name ? `Seuraat: ${name}` : 'Järvellä ei ole ketään',
-      this.hud.touchMode ? 'Napauta: seuraava kalastaja' : '←/→ tai klikkaus: seuraava',
-      'V: kalastajan silmin / ylhäältä',
+      t('mp.spectating'),
+      name ? t('game.following', { name }) : t('game.nobody'),
+      this.hud.touchMode ? t('game.nextTouch') : t('game.nextKeys'),
+      t('game.viewToggle'),
     ]);
     const left = timeLeft(this.competition);
     this.hud.setTimer(formatTime(left), left < 60);
@@ -1285,7 +1284,7 @@ export class SoloGame {
       w.phase === 'countdown'
         ? String(Math.max(1, cd))
         : this.competition.elapsed < 1.2
-          ? 'Kalastamaan!'
+          ? t('game.go')
           : null,
     );
     if ((this.raceHudTimer = (this.raceHudTimer + 1) % 15) !== 1) return;
@@ -1294,7 +1293,7 @@ export class SoloGame {
     const me = results.find((r) => r.id === w.myId);
     if (me && me.rank > 5 && !results.slice(0, 5).includes(me))
       lines.push('…', scoreLine(me, true));
-    this.hud.setCatches(['Tulostaulu', ...lines]);
+    this.hud.setCatches([t('game.scoreboard'), ...lines]);
   }
 
   /**
@@ -1452,6 +1451,3 @@ function scoreLine(r: PlayerResult, me: boolean): string {
   const name = r.name.length > 10 ? `${r.name.slice(0, 9)}…` : r.name;
   return `${me ? '>' : ' '}${r.rank}. ${name.padEnd(10)} ${formatWeight(r.summary.score).padStart(7)}`;
 }
-
-/** Desimaaliluku suomalaisittain pilkulla. */
-const fi = (v: number, digits: number) => v.toFixed(digits).replace('.', ',');

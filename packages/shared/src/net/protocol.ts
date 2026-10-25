@@ -78,12 +78,30 @@ export interface JoinOptions {
   spectate?: boolean;
 }
 
-/** Palvelimen syyt hylätä liittyminen; asiakas näyttää ne sellaisenaan. */
+/**
+ * Palvelimen syyt hylätä liittyminen koodeina (virheen viesti); asiakas
+ * kääntää ne pelaajan kielelle.
+ */
 export const JoinRefusal = {
-  closed: 'Kisa on jo käynnissä, eikä huoneen luoja salli liittymistä kesken kisan.',
-  returnOnly: 'Kisa on jo käynnissä. Kesken kisan pääsee vain takaisin omalle paikalleen.',
-  full: 'Huone on täynnä.',
+  closed: 'late-join-closed',
+  returnOnly: 'late-join-return-only',
+  full: 'room-full',
+  /** Palvelimella on jo enimmäismäärä huoneita. */
+  serverFull: 'server-full',
 } as const;
+export type JoinRefusalCode = (typeof JoinRefusal)[keyof typeof JoinRefusal];
+
+/**
+ * Palvelimen virheilmoitus aulassa (ServerMsg.error): koodi ja tarvittaessa
+ * pelaajien nimet. Asiakas kääntää koodin; vanha palvelin lähetti valmiin
+ * suomenkielisen lauseen.
+ */
+export type RoomErrorCode = 'host-only' | 'need-angler' | 'not-ready';
+export interface RoomError {
+  code: RoomErrorCode;
+  /** not-ready: pelaajat, joita odotetaan. */
+  names?: string[];
+}
 
 /** Huoneen vaiheet. */
 export type RoomPhase = 'lobby' | 'countdown' | 'playing' | 'finished';

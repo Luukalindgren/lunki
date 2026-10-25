@@ -732,6 +732,18 @@ body {
   padding: 6px 14px;
 }
 
+/* Kielivalitsin valikon alla: otsikko ja FI/EN-napit samalla rivillä. */
+.language-choice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.language-choice .choice-label {
+  margin-bottom: 0;
+}
+
 /* Retrovalikon osoitin valitun napin edessä. */
 .main-menu button:hover::before,
 .main-menu button:focus-visible::before {

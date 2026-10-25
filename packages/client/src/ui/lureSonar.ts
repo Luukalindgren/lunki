@@ -1,5 +1,6 @@
 import { distance, sonarRange, type Structure, type Vec2 } from '@lunki/shared';
 import { lureColor } from '../game/lureColor';
+import { decimal, t } from '../i18n';
 
 /** Näytön koko sisäisinä pikseleinä (yksi pikseli = HUD:n --u). */
 const WIDTH = 96;
@@ -261,10 +262,10 @@ export class LureSonarDisplay {
 }
 
 function labelFor(frame: LureSonarFrame, bottom: number, blink: number): string {
-  if (frame.bite) return Math.floor(blink / 0.3) % 2 === 0 ? 'TÄRPPI! KELAA!' : 'TÄRPPI!';
-  if (frame.snag) return 'Pohjassa kiinni!';
-  return `Viehe ${fi(frame.depth)} / pohja ${fi(bottom)} m`;
+  if (frame.bite)
+    return t(Math.floor(blink / 0.3) % 2 === 0 ? 'lureSonar.biteReel' : 'lureSonar.bite');
+  if (frame.snag) return t('lureSonar.snag');
+  return t('lureSonar.depth', { lure: decimal(frame.depth, 1), bottom: decimal(bottom, 1) });
 }
 
-const fi = (v: number) => v.toFixed(1).replace('.', ',');
 const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;

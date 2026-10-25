@@ -1,8 +1,6 @@
 import { CHAT_MAX_LENGTH, ChatLimiter, sanitizeChat } from '@lunki/shared';
 import type { NetSession } from '../net/session';
-
-const OLD_SERVER =
-  'Palvelin on vanhempaa versiota: chat toimii, kun palvelin käynnistetään uudelleen.';
+import { t } from '../i18n';
 
 /** Kisan aikana viesti näkyy näin kauan (ms). */
 const HUD_SHOW_MS = 12_000;
@@ -40,13 +38,13 @@ export class ChatBox {
     this.field = document.createElement('input');
     this.field.type = 'text';
     this.field.maxLength = CHAT_MAX_LENGTH;
-    this.field.placeholder = 'Kirjoita viesti muille…';
+    this.field.placeholder = t('chat.placeholder');
     this.field.autocomplete = 'off';
     this.field.enterKeyHint = 'send';
-    this.field.setAttribute('aria-label', 'Chat-viesti');
+    this.field.setAttribute('aria-label', t('chat.fieldLabel'));
     const send = document.createElement('button');
     send.type = 'submit';
-    send.textContent = 'Lähetä';
+    send.textContent = t('common.send');
     this.form.append(this.field, send);
     this.root.append(this.log, this.form);
 
@@ -66,7 +64,7 @@ export class ChatBox {
     });
     window.addEventListener('keydown', this.onKey);
     session.onChat = () => this.render();
-    session.onChatRejected = () => this.say('Liian monta viestiä – odota hetki.');
+    session.onChatRejected = () => this.say(t('chat.tooMany'));
     this.timer = setInterval(() => {
       if (this.mode === 'hud') this.render();
     }, 1000);
@@ -96,7 +94,7 @@ export class ChatBox {
   open(): void {
     if (this.mode !== 'hud' || this.typing) return;
     if (!this.session.chatAvailable) {
-      this.say(OLD_SERVER);
+      this.say(t('chat.oldServer'));
       return;
     }
     this.form.hidden = false;
@@ -137,11 +135,11 @@ export class ChatBox {
       return;
     }
     if (!this.session.chatAvailable) {
-      this.say(OLD_SERVER);
+      this.say(t('chat.oldServer'));
       return;
     }
     if (!this.limiter.take(Date.now())) {
-      this.say('Liian monta viestiä – odota hetki.');
+      this.say(t('chat.tooMany'));
       return;
     }
     this.session.sendChat(text);
@@ -196,12 +194,12 @@ export class ChatBox {
     if (!available && this.mode === 'panel') {
       const old = document.createElement('div');
       old.className = 'chat-line chat-notice';
-      old.textContent = OLD_SERVER;
+      old.textContent = t('chat.oldServer');
       lines.push(old);
     } else if (lines.length === 0 && this.mode === 'panel') {
       const empty = document.createElement('div');
       empty.className = 'chat-line chat-notice';
-      empty.textContent = 'Ei viestejä vielä.';
+      empty.textContent = t('chat.empty');
       lines.push(empty);
     }
     // Ei turhaa uudelleenpiirtoa joka sekunti.

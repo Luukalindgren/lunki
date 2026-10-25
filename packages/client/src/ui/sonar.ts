@@ -1,4 +1,5 @@
 import { sonarRange, type SonarPing } from '@lunki/shared';
+import { decimal, t } from '../i18n';
 
 /** Näytön koko sisäisinä pikseleinä (yksi pikseli = HUD:n --u). */
 const WIDTH = 64;
@@ -55,9 +56,9 @@ export class SonarDisplay {
     const p = ping();
     this.columns.push(p);
     if (this.columns.length > WIDTH) this.columns.shift();
-    const fish =
-      p.echoes.length > 0 ? ` · ${p.echoes.length} kala${p.echoes.length > 1 ? 'a' : ''}` : '';
-    this.label.textContent = `${p.bottom.toFixed(1).replace('.', ',')} m${fish}`;
+    const n = p.echoes.length;
+    const fish = n === 0 ? '' : n === 1 ? t('sonar.fishOne') : t('sonar.fishMany', { n });
+    this.label.textContent = t('sonar.depth', { depth: decimal(p.bottom, 1) }) + fish;
     this.draw();
   }
 

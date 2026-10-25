@@ -1,14 +1,13 @@
 import {
-  SPECIES,
-  TIME_OF_DAY_NAMES,
   formatTime,
-  formatWeight,
   type Appearance,
   type CatchRecord,
   type SpeciesId,
   type TimeOfDay,
 } from '@lunki/shared';
 import { fishLengthCm, fishPixels, type FishPixels } from './fishArt';
+import { formatDay, formatWeight, t } from '../i18n';
+import { speciesName, timeOfDayName } from '../i18n/names';
 
 /**
  * Punnituskortti: pikselikuva, jossa kalastaja pitelee saalista renkaassaan,
@@ -260,15 +259,20 @@ export const CARD_HEIGHT = SCENE_HEIGHT * CARD_SCALE + FRAME * 2;
 
 const css = (hex: number) => `#${hex.toString(16).padStart(6, '0')}`;
 
-export const formatCardDate = (d: Date) => `${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}`;
+export const formatCardDate = (d: Date) =>
+  formatDay(d.getDate(), d.getMonth() + 1, d.getFullYear());
 
 /** Lyhyt jaettava teksti saaliista. */
 export function weighCardText(info: WeighCardInfo, url?: string): string {
   const f = info.fish;
-  const name = SPECIES[f.species].name.toLowerCase();
   const length = Math.round(fishLengthCm(f.species, f.weight));
-  const who = info.angler ? `${info.angler}: ` : '';
-  return `${who}${name} ${formatWeight(f.weight)} (${length} cm) Lunkinjärveltä!${url ? ` ${url}` : ''}`;
+  const text = t('card.shareText', {
+    who: info.angler ? `${info.angler}: ` : '',
+    fish: speciesName(f.species).toLowerCase(),
+    weight: formatWeight(f.weight),
+    length,
+  });
+  return `${text}${url ? ` ${url}` : ''}`;
 }
 
 /** Piirtää kortin kankaalle. Fontin latauduttua kortti piirretään uudelleen. */
@@ -326,15 +330,19 @@ function paintCard(canvas: HTMLCanvasElement, info: WeighCardInfo): void {
     ctx.fillText(text, left, y);
     y += s + gap;
   };
-  line('PUNNITUSKORTTI', 26, 0x8e99a4, 10);
-  line(SPECIES[f.species].name, 56, 0xfff3b0, 0);
+  line(t('card.heading'), 26, 0x8e99a4, 10);
+  line(speciesName(f.species), 56, 0xfff3b0, 0);
   line(formatWeight(f.weight), 76, 0xf6d04d, 2);
   line(`${Math.round(fishLengthCm(f.species, f.weight))} cm`, 36, 0xeef2f3, 14);
-  line(`Kisa-aika ${formatTime(f.time)} · ${TIME_OF_DAY_NAMES[info.timeOfDay]}`, 26, 0xc3cbd2);
+  line(
+    t('card.raceTime', { time: formatTime(f.time), timeOfDay: timeOfDayName(info.timeOfDay) }),
+    26,
+    0xc3cbd2,
+  );
   if (info.spot) line(info.spot, 26, 0xc3cbd2);
-  if (info.angler) line(`Kalastaja: ${info.angler}`, 26, 0xc3cbd2);
+  if (info.angler) line(t('card.angler', { name: info.angler }), 26, 0xc3cbd2);
   y = CARD_HEIGHT - FRAME - 38;
-  line(`Lunkinjärvi, Tammela · ${formatCardDate(info.date)}`, 24, 0x8e99a4);
+  line(t('card.place', { date: formatCardDate(info.date) }), 24, 0x8e99a4);
 }
 
 /** Kortti PNG-kuvana. */
