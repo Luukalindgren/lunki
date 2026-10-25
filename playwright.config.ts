@@ -10,6 +10,8 @@ import { defineConfig, devices } from '@playwright/test';
 const SWIFTSHADER = {
   args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
 };
+/** Firefox estää WebGL2:n ohjelmistorenderöinnillä ("AllowWebgl2:false") ilman tätä. */
+export const FIREFOX_WEBGL = { firefoxUserPrefs: { 'webgl.force-enabled': true } };
 
 export default defineConfig({
   testDir: 'e2e',
@@ -28,7 +30,7 @@ export default defineConfig({
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'], launchOptions: SWIFTSHADER } },
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'], launchOptions: FIREFOX_WEBGL } },
     { name: 'webkit', use: { ...devices['Desktop Safari'] } },
     { name: 'iphone', use: { ...devices['iPhone 15'] } },
     { name: 'android', use: { ...devices['Pixel 7'], launchOptions: SWIFTSHADER } },

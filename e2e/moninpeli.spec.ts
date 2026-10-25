@@ -8,6 +8,7 @@ import {
   type BrowserContextOptions,
   type Page,
 } from '@playwright/test';
+import { FIREFOX_WEBGL } from '../playwright.config';
 import { watchErrors } from './apu';
 
 /**
@@ -31,7 +32,10 @@ test('moninpeli: Chromium, Firefox ja iPhone samassa huoneessa', async ({
       name: string,
     ): Promise<Page> => {
       // Ei chromium-projektin käynnistysvalitsimia (SwiftShader) muille selaimille.
-      const browser = await launcher.launch({ args: [] });
+      const browser = await launcher.launch({
+        args: [],
+        ...(launcher === firefox ? FIREFOX_WEBGL : {}),
+      });
       others.push(browser);
       const ctx = await browser.newContext({ ...options, baseURL: 'http://localhost:4173' });
       const page = await ctx.newPage();
