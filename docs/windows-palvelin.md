@@ -18,14 +18,17 @@ winget install -e --id tailscale.tailscale
 Sulje ja avaa PowerShell uudelleen, jotta uudet komennot löytyvät:
 
 ```powershell
-npm install -g pnpm@10
+npm install -g pnpm@10.28.0
 Set-ExecutionPolicy -Scope CurrentUser RemoteSigned -Force
 git clone https://github.com/Luukalindgren/lunki.git
 cd lunki
 pnpm install
 ```
 
-Node.js:n pitää olla vähintään 22.13 (`node -v`).
+Node.js:n pitää olla vähintään 22.13 (`node -v`); vanhempi päivittyy samalla
+`winget`-komennolla. pnpm asennetaan samana versiona kuin `package.json`in
+`packageManager`, koska muuten pnpm yrittää vaihtaa versiota itse ja kaatuu
+Windowsilla.
 
 ## 2. Tunneli (kerran)
 
@@ -73,10 +76,15 @@ Set-Service sshd -StartupType Automatic
 Start-Service sshd
 New-ItemProperty -Path HKLM:\SOFTWARE\OpenSSH -Name DefaultShell `
   -Value C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -PropertyType String -Force
-Set-NetFirewallRule -Name OpenSSH-Server-In-TCP -RemoteAddress 100.64.0.0/10
+if (Get-NetFirewallRule -Name OpenSSH-Server-In-TCP -ErrorAction SilentlyContinue) {
+  Set-NetFirewallRule -Name OpenSSH-Server-In-TCP -RemoteAddress 100.64.0.0/10
+} else {
+  New-NetFirewallRule -Name OpenSSH-Server-In-TCP -DisplayName 'OpenSSH Server (sshd)' `
+    -Direction Inbound -Protocol TCP -LocalPort 22 -Action Allow -RemoteAddress 100.64.0.0/10
+}
 ```
 
-Viimeinen rivi sallii SSH-yhteydet vain Tailscale-verkosta (osoitteet
+Palomuurisääntö sallii SSH-yhteydet vain Tailscale-verkosta (osoitteet
 `100.64.0.0/10`), joten kone ei näy SSH:lla edes kotiverkkoon. Komento
 `whoami` kertoo käyttäjänimen; SSH:ssa käytetään osaa kenoviivan jälkeen.
 
@@ -117,10 +125,10 @@ _Asetukset → Järjestelmä → Virta → Näyttö ja lepotila → Lepotila: Ei
 
 ## Vianetsintä
 
-| Oire                              | Syy ja korjaus                                                                                                                                      |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ssh` jää odottamaan eikä yhdistä | Onko pelikone hereillä ja Tailscale päällä molemmissa? `tailscale ping pelikone`.                                                                   |
-| `Permission denied` salasanalla   | Microsoft-tilillä salasana on tilin salasana. Jos tili on salasanaton, käytä avainta (avain lisätään silloin pelikoneella suoraan tiedostoon).      |
-| Avain ei kelpaa                   | Avain on väärässä tiedostossa tai tiedoston oikeudet ovat väärin: aja kohdan 5 `icacls`-osa uudelleen pelikoneella järjestelmänvalvojana.           |
-| `lunki.ps1 cannot be loaded`      | Suoritus estetty: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned -Force`.                                                                     |
-| `kaynnista` sanoo "ei vastannut"  | Komento näyttää lokin lopun. Yleisimmät: `pnpm`-komentoa ei löydy (asenna `npm install -g pnpm@10`) tai portti 2567 on jo toisen ohjelman käytössä. |
+| Oire                              | Syy ja korjaus                                                                                                                                                                |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ssh` jää odottamaan eikä yhdistä | Onko pelikone hereillä ja Tailscale päällä molemmissa? `tailscale ping pelikone`.                                                                                             |
+| `Permission denied` salasanalla   | Microsoft-tilillä salasana on tilin salasana. Jos tili on salasanaton, käytä avainta (avain lisätään silloin pelikoneella suoraan tiedostoon).                                |
+| Avain ei kelpaa                   | Avain on väärässä tiedostossa tai tiedoston oikeudet ovat väärin: aja kohdan 5 `icacls`-osa uudelleen pelikoneella järjestelmänvalvojana.                                     |
+| `lunki.ps1 cannot be loaded`      | Suoritus estetty: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned -Force`.                                                                                               |
+| `kaynnista` sanoo "ei vastannut"  | Komento näyttää lokin lopun. Yleisimmät: `pnpm`-komentoa ei löydy (asenna `npm install -g pnpm@10.28.0`), Node on liian vanha tai portti 2567 on jo toisen ohjelman käytössä. |

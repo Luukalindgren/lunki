@@ -52,6 +52,15 @@ function Write-Log([string]$text) {
   Add-Content -Path $Log -Value "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] $text" -Encoding UTF8
 }
 
+function Assert-Node {
+  # node:sqlite tarvitsee vähintään Node 22.13.
+  $version = (cmd.exe /d /c 'node -v 2>nul' | Out-String).Trim().TrimStart('v')
+  if (-not $version) { throw 'Node.js puuttuu. Asenna: winget install -e --id OpenJS.NodeJS.LTS' }
+  if ([version]$version -lt [version]'22.13.0') {
+    throw "Node.js $version on liian vanha (tarvitaan 22.13 tai uudempi). Päivitä: winget install -e --id OpenJS.NodeJS.LTS"
+  }
+}
+
 function Assert-Task {
   if (-not (Get-ServerTask)) {
     throw "Tehtävää '$TaskName' ei ole. Aja ensin järjestelmänvalvojana: .\scripts\windows\lunki.ps1 asenna"
@@ -109,6 +118,7 @@ switch ($Komento) {
 
   'kaynnista' {
     Assert-Task
+    Assert-Node
     if (Get-ListenerPid) {
       Write-Host "Palvelin on jo päällä (portti $Port)."
       return
