@@ -46,11 +46,10 @@ export function createLakeMesh(map: LakeMap, waves = createWaterWaves()): THREE.
     group.add(cap);
   }
 
-  // Kaislikot: vihertävä läikkä veden pinnassa (kaislaspritet ks. vegetation.ts).
+  // Kaislikot: harvoja kaislatupsuja, joiden välistä vesi näkyy (kaislaspritet ks. vegetation.ts).
   const reedMaterial = new THREE.MeshBasicMaterial({
-    color: 0x4f6b2a,
-    transparent: true,
-    opacity: 0.55,
+    map: createReedTexture(),
+    alphaTest: 0.5,
     depthWrite: false,
   });
   for (const bed of map.reeds ?? []) {
@@ -74,6 +73,52 @@ export function createLakeMesh(map: LakeMap, waves = createWaterWaves()): THREE.
     group.add(line);
   }
   return group;
+}
+
+/** Kaislikkokuvion yhden toiston koko (m) ja tupsujen määrä toistossa. */
+const REED_TEXTURE_METERS = 8;
+const REED_TUFTS = 56;
+
+/**
+ * Kaislikko ylhäältä: läpinäkyvä kuvio, jossa on pieniä kaislatupsuja
+ * (muutama pikselin mittainen korsi). Suurin osa kuvasta on tyhjää, jotta
+ * vesi näkyy alta ja kaislikko erottuu saaresta.
+ */
+function createReedTexture(): THREE.Texture {
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  const colors = ['#a3c45a', '#6a9a3e', '#3b7337', '#e0cf9c'];
+  let seed = 11;
+  const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const dot = (x: number, y: number) =>
+    ctx.fillRect(((x % size) + size) % size, ((y % size) + size) % size, 1, 1);
+  for (let i = 0; i < REED_TUFTS; i++) {
+    const cx = Math.floor(rand() * size);
+    const cy = Math.floor(rand() * size);
+    // Tupsu: korsia eri suuntiin keskeltä, latvat vaaleampia.
+    const stems = 3 + Math.floor(rand() * 3);
+    for (let k = 0; k < stems; k++) {
+      const dx = Math.round((rand() - 0.5) * 2.4);
+      const len = 2 + Math.floor(rand() * 3);
+      ctx.fillStyle = colors[rand() < 0.15 ? 3 : 1 + Math.floor(rand() * 2)]!;
+      for (let j = 0; j < len; j++) dot(cx + Math.round((dx * j) / 2), cy - j);
+      ctx.fillStyle = colors[0]!;
+      dot(cx + Math.round((dx * len) / 2), cy - len);
+    }
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(1 / REED_TEXTURE_METERS, 1 / REED_TEXTURE_METERS);
+  texture.magFilter = THREE.NearestFilter;
+  // Ilman mipmappeja: läpinäkyvyysraja pysyy terävänä myös kaukaa.
+  texture.minFilter = THREE.NearestFilter;
+  texture.generateMipmaps = false;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
 }
 
 /** Vesikuvion yhden toiston koko (m). */
