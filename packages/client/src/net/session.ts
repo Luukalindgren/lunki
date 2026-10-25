@@ -7,7 +7,10 @@ import {
   isSpeciesId,
   isWeatherLevel,
   parseTackle,
+  parseAppearance,
   DEFAULT_TACKLE,
+  DEFAULT_APPEARANCE,
+  type Appearance,
   type Tackle,
   type Difficulty,
   rankPlayers,
@@ -96,6 +99,7 @@ export interface LobbyPlayer {
   me: boolean;
   connected: boolean;
   tackle: Tackle;
+  appearance: Appearance;
 }
 
 export interface LobbyView {
@@ -134,6 +138,10 @@ export interface PlayerSchema {
   lure: string;
   line: string;
   leader: boolean;
+  tubeColor: number;
+  finColor: number;
+  shirtColor: number;
+  lineColor: number;
 }
 
 export interface StateSchema {
@@ -282,6 +290,7 @@ export class NetSession {
         me: id === me,
         connected: p.connected,
         tackle: playerTackle(p),
+        appearance: playerAppearance(p),
       }),
     );
     return {
@@ -344,6 +353,10 @@ export class NetSession {
 
   sendChat(text: string): void {
     this.room.send(ClientMsg.chat, text);
+  }
+
+  sendAppearance(a: Appearance): void {
+    this.room.send(ClientMsg.appearance, a);
   }
 
   /** Isäntä: takaisin aulaan uutta kisaa varten. */
@@ -420,4 +433,15 @@ export function describeJoinError(err: unknown): string {
 export const playerTackle = (p: PlayerSchema): Tackle =>
   parseTackle({ rod: p.rod, lure: p.lure, line: p.line, leader: p.leader }) ?? {
     ...DEFAULT_TACKLE,
+  };
+
+/** Pelaajan värit tilasta; tuntemattomat värit korvautuvat oletuksilla. */
+export const playerAppearance = (p: PlayerSchema): Appearance =>
+  parseAppearance({
+    tube: p.tubeColor,
+    fins: p.finColor,
+    shirt: p.shirtColor,
+    line: p.lineColor,
+  }) ?? {
+    ...DEFAULT_APPEARANCE,
   };

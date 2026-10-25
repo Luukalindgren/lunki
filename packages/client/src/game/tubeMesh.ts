@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { TUBE_RADIUS } from '@lunki/shared';
+import { DEFAULT_APPEARANCE, TUBE_RADIUS, type Appearance } from '@lunki/shared';
 
 /** Räpylöiden lepokohta renkaan etureunan edessä (paikallinen x). */
 const FIN_X = TUBE_RADIUS + 0.15;
@@ -11,13 +11,14 @@ const FIN_X = TUBE_RADIUS + 0.15;
  * kalastajan edessä samalla puolella kuin vapa ja heittosuunta: potkut
  * työntävät vettä eteen, joten rengas kulkee selkä edellä.
  */
-export function createTubeMesh(color = 0xd23a2a): THREE.Group {
+export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THREE.Group {
   const group = new THREE.Group();
 
   const ring = new THREE.Mesh(
     new THREE.TorusGeometry(TUBE_RADIUS * 0.72, TUBE_RADIUS * 0.28, 6, 14),
-    new THREE.MeshLambertMaterial({ color }),
+    new THREE.MeshLambertMaterial({ color: appearance.tube }),
   );
+  ring.name = 'tube';
   ring.rotation.x = -Math.PI / 2;
   ring.position.y = 0.15;
   group.add(ring);
@@ -25,8 +26,9 @@ export function createTubeMesh(color = 0xd23a2a): THREE.Group {
   // Hartiat poikittain katsesuuntaan nähden
   const shoulders = new THREE.Mesh(
     new THREE.BoxGeometry(0.3, 0.3, 0.75),
-    new THREE.MeshLambertMaterial({ color: 0x24502c }),
+    new THREE.MeshLambertMaterial({ color: appearance.shirt }),
   );
+  shoulders.name = 'shirt';
   shoulders.position.y = 0.6;
   group.add(shoulders);
 
@@ -47,7 +49,7 @@ export function createTubeMesh(color = 0xd23a2a): THREE.Group {
 
   // Sääret istuimelta eteen renkaan yli ja räpylät niiden päässä
   const legMat = new THREE.MeshLambertMaterial({ color: 0x3b4630 });
-  const finMat = new THREE.MeshLambertMaterial({ color: 0x1c232b });
+  const finMat = new THREE.MeshLambertMaterial({ color: appearance.fins });
   for (const z of [-0.2, 0.2]) {
     const leg = new THREE.Mesh(new THREE.BoxGeometry(TUBE_RADIUS - 0.1, 0.14, 0.14), legMat);
     leg.position.set((TUBE_RADIUS + 0.2) / 2, 0.12, z);
@@ -79,5 +81,21 @@ export function animateFins(group: THREE.Group, kickPhase: number): void {
     const swing = Math.sin((kickPhase + i * 0.5) * Math.PI * 2) * 0.25;
     child.position.x = FIN_X + swing;
     i++;
+  }
+}
+
+/** Vaihtaa renkaan, räpylöiden ja paidan värit (räpylät jakavat materiaalin). */
+export function applyAppearance(group: THREE.Group, a: Appearance): void {
+  for (const child of group.children) {
+    const color =
+      child.name === 'tube'
+        ? a.tube
+        : child.name === 'fin'
+          ? a.fins
+          : child.name === 'shirt'
+            ? a.shirt
+            : null;
+    if (color !== null)
+      ((child as THREE.Mesh).material as THREE.MeshLambertMaterial).color.setHex(color);
   }
 }

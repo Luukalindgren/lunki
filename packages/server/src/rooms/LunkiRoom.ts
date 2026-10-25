@@ -43,6 +43,7 @@ import {
   sanitizeName,
   validateSettingsPatch,
   parseTackle,
+  parseAppearance,
   isFishTag,
   RECORDS_PER_SPECIES,
   type Difficulty,
@@ -229,6 +230,16 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       p.lure = t.lure;
       p.line = t.line;
       p.leader = t.leader;
+    });
+
+    this.onMessage(ClientMsg.appearance, (client, msg: unknown) => {
+      const p = this.state.players.get(client.sessionId);
+      const a = parseAppearance(msg);
+      if (!p || !a) return;
+      p.tubeColor = a.tube;
+      p.finColor = a.fins;
+      p.shirtColor = a.shirt;
+      p.lineColor = a.line;
     });
 
     this.onMessage(ClientMsg.restart, (client) => {

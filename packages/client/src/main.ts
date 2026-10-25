@@ -16,6 +16,7 @@ import { MENU_AMBIENCE } from './audio/ambience';
 import { Sfx } from './audio/sfx';
 import { SoloGame } from './game/soloGame';
 import { loadTackle, saveTackle } from './game/tackle';
+import { loadAppearance, saveAppearance } from './game/appearance';
 import { Hud } from './ui/hud';
 import { ChatBox } from './ui/chat';
 import { TouchControls, isTouchDevice } from './ui/touchControls';
@@ -127,6 +128,7 @@ function showSoloSetup(s: CompetitionSettings) {
         (start) => showSoloSetup({ ...current, start }),
         () => showSoloSetup(current),
       ),
+    { current: loadAppearance(), onChange: saveAppearance },
   );
 }
 
@@ -213,6 +215,7 @@ function enterLobby(s: NetSession) {
   chat.onOpen = () => input.releaseAll();
   // Viimeksi käytetyt varusteet muiden nähtäväksi.
   s.sendTackle(loadTackle());
+  s.sendAppearance(loadAppearance());
   let notice: string | undefined;
   /** Isäntä valitsee aloituspaikkaa: aula ei piirry kartan päälle. */
   let picking = false;
@@ -234,6 +237,10 @@ function enterLobby(s: NetSession) {
         onTackle: (t) => {
           saveTackle(t);
           s.sendTackle(t);
+        },
+        onAppearance: (a) => {
+          saveAppearance(a);
+          s.sendAppearance(a);
         },
         onPickStart: () => {
           picking = true;

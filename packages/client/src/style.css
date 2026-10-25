@@ -809,3 +809,66 @@ body {
 .touch-controls .touch-chat {
   font-size: 18px;
 }
+
+/* Värivalinnat: esikatselu vasemmalla, värinapit oikealla. */
+.settings.appearance {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.tube-preview {
+  flex: none;
+  width: 80px;
+  height: 80px;
+  margin-top: 8px;
+  image-rendering: pixelated;
+  border: 2px solid #39424d;
+}
+
+.appearance-rows {
+  flex: 1;
+  min-width: 0;
+}
+
+.screen-panel .settings .swatches {
+  gap: 6px;
+}
+
+.screen-panel .settings button.swatch {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 2px solid #39424d;
+}
+
+.screen-panel .settings button.swatch.selected {
+  border-color: #fff3b0;
+  box-shadow: 0 0 0 2px #0b0f14;
+}
+
+.player-color {
+  display: inline-block;
+  width: 0.7em;
+  height: 0.7em;
+  margin-right: 6px;
+  border: 1px solid #0b0f14;
+}
+
+@media (max-width: 600px) {
+  .settings.appearance {
+    flex-direction: column;
+  }
+
+  .tube-preview {
+    width: 60px;
+    height: 60px;
+  }
+}
+
+@media (pointer: coarse) {
+  .screen-panel .settings button.swatch {
+    width: 38px;
+    height: 38px;
+  }
+}

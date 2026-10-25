@@ -1,12 +1,11 @@
 import * as THREE from 'three';
-import { LureStage, rodTip } from '@lunki/shared';
+import { LureStage, rodTip, type Appearance } from '@lunki/shared';
 import type { RemotePlayer } from '../net/netWorld';
 import { toWorld } from '../world/lakeMesh';
 import { AIR_SAMPLES, ROD_TIP_Y, flightLine, hangLine, rodSideOffset, writeLine } from './lineHang';
-import { animateFins, createTubeMesh } from './tubeMesh';
+import { animateFins, applyAppearance, createTubeMesh } from './tubeMesh';
 
-/** Muiden renkaiden värit: oma on punainen. */
-const COLORS = [0x1b5a84, 0x8fd16a, 0xf6d04d, 0x9b59b6, 0xf08a2c, 0x83c2db, 0xeef2f3];
+const cssColor = (hex: number) => `#${hex.toString(16).padStart(6, '0')}`;
 /** Muiden siiman kireyttä ei tiedetä: piirretään puolikireänä. */
 const REMOTE_TAUT = 0.5;
 /** Siiman kärkivälit: ilmassa roikkuva osuus ja suora pätkä vieheelle. */
@@ -17,6 +16,8 @@ interface Entry {
   lure: THREE.Mesh;
   line: THREE.Line;
   tag: HTMLDivElement;
+  /** Viimeksi käytetyt värit: vaihdetaan vain muuttuessa. */
+  appearance: Appearance;
 }
 
 /** Piirtää muut pelaajat, heidän vieheensä ja nimilaput. */
@@ -24,7 +25,6 @@ export class RemotePlayersView {
   readonly group = new THREE.Group();
   private readonly entries = new Map<string, Entry>();
   private readonly tags: HTMLDivElement;
-  private colorIndex = 0;
   private readonly v = new THREE.Vector3();
 
   constructor(parent: HTMLElement) {
@@ -38,7 +38,8 @@ export class RemotePlayersView {
     const rect = canvas.getBoundingClientRect();
     for (const p of players) {
       seen.add(p.id);
-      const e = this.entries.get(p.id) ?? this.add(p.id);
+      const e = this.entries.get(p.id) ?? this.add(p.id, p.appearance);
+      if (!sameAppearance(e.appearance, p.appearance)) this.recolor(e, p.appearance);
       e.tube.position.copy(toWorld(p.pos));
       e.tube.rotation.y = p.heading;
       animateFins(e.tube, p.kickPhase);
@@ -78,9 +79,8 @@ export class RemotePlayersView {
     for (const [id, e] of this.entries) if (!seen.has(id)) this.remove(id, e);
   }
 
-  private add(id: string): Entry {
-    const color = COLORS[this.colorIndex++ % COLORS.length]!;
-    const tube = createTubeMesh(color);
+  private add(id: string, appearance: Appearance): Entry {
+    const tube = createTubeMesh(appearance);
     const lure = new THREE.Mesh(
       new THREE.BoxGeometry(0.5, 0.5, 0.5),
       new THREE.MeshBasicMaterial({ color: 0xf08a2c }),
@@ -89,17 +89,24 @@ export class RemotePlayersView {
       new THREE.BufferGeometry().setFromPoints(
         Array.from({ length: LINE_VERTS }, () => new THREE.Vector3()),
       ),
-      new THREE.LineBasicMaterial({ color: 0xc3cbd2 }),
+      new THREE.LineBasicMaterial({ color: appearance.line }),
     );
     line.frustumCulled = false;
     this.group.add(tube, lure, line);
     const tag = document.createElement('div');
     tag.className = 'name-tag';
-    tag.style.borderColor = `#${color.toString(16).padStart(6, '0')}`;
+    tag.style.borderColor = cssColor(appearance.tube);
     this.tags.appendChild(tag);
-    const e = { tube, lure, line, tag };
+    const e = { tube, lure, line, tag, appearance };
     this.entries.set(id, e);
     return e;
+  }
+
+  private recolor(e: Entry, a: Appearance): void {
+    applyAppearance(e.tube, a);
+    (e.line.material as THREE.LineBasicMaterial).color.setHex(a.line);
+    e.tag.style.borderColor = cssColor(a.tube);
+    e.appearance = a;
   }
 
   private remove(id: string, e: Entry): void {
@@ -113,3 +120,6 @@ export class RemotePlayersView {
     this.tags.remove();
   }
 }
+
+const sameAppearance = (a: Appearance, b: Appearance) =>
+  a.tube === b.tube && a.fins === b.fins && a.shirt === b.shirt && a.line === b.line;

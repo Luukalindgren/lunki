@@ -1,4 +1,8 @@
 import {
+  APPEARANCE_PARTS,
+  colorOptions,
+  type Appearance,
+  type AppearancePart,
   DIFFICULTY_NAMES,
   LINES,
   LINE_IDS,
@@ -41,9 +45,19 @@ import {
 import type { LobbyView } from '../net/session';
 import { LIBRARIES } from './credits';
 import { LakeMapView, describeSpot } from './lakeMap';
+import { drawTubePreview } from './tubePreview';
 import { VOLUME_LEVELS, type AudioSettings, type VolumeLevel } from '../audio/settings';
 
 const SETTINGS_KEY = 'lunki.soloSettings';
+
+const PART_NAMES: Record<AppearancePart, string> = {
+  tube: 'Kelluntarengas',
+  fins: 'Räpylät',
+  shirt: 'Paita',
+  line: 'Siima',
+};
+
+const cssColor = (hex: number) => `#${hex.toString(16).padStart(6, '0')}`;
 
 export function loadSettings(defaults: CompetitionSettings): CompetitionSettings {
   try {
@@ -162,6 +176,7 @@ export class Screens {
     onBack: () => void,
     /** Avaa kartan aloituspaikan valintaan; saa asetukset sellaisinaan. */
     onPickStart: (s: CompetitionSettings) => void,
+    appearance: { current: Appearance; onChange: (a: Appearance) => void },
   ): void {
     const settings = { ...initial };
     const panel = this.panel();
@@ -213,6 +228,8 @@ export class Screens {
         'Ukkosella salama voi iskeä, jos vapa on ylhäällä: kelaa viehe sisään. Iso aalto kaataa renkaan sivulta: käänny aaltoa kohti.',
         'hint',
       ),
+      h('p', 'Omat värit', 'choice-label'),
+      this.appearanceEditor(appearance.current, appearance.onChange),
       this.buttons([
         [
           'Aloita kisa',
@@ -289,6 +306,7 @@ export class Screens {
       onLeave: () => void;
       onSettings: (patch: Partial<RoomSettings>) => void;
       onTackle: (t: Tackle) => void;
+      onAppearance: (a: Appearance) => void;
       /** Isäntä avaa kartan aloituspaikan valintaan. */
       onPickStart: () => void;
     },
@@ -319,8 +337,12 @@ export class Screens {
           : p.ready
             ? 'valmis'
             : 'odottaa';
-      li.textContent = `${p.name}${p.me ? ' (sinä)' : ''}`;
+      const swatch = h('span', '', 'player-color');
+      swatch.style.background = cssColor(p.appearance.tube);
+      const name = h('span', `${p.name}${p.me ? ' (sinä)' : ''}`);
+      name.prepend(swatch);
       li.append(
+        name,
         h('span', state, `player-state ${p.host || p.ready ? 'ok' : ''}`),
         h('span', describeFullTackle(p.tackle), 'player-gear'),
       );
@@ -344,6 +366,8 @@ export class Screens {
         : this.settingsSummary(v.settings),
       h('p', 'Omat varusteet', 'choice-label'),
       this.tackleEditor(me?.tackle ?? DEFAULT_TACKLE, actions.onTackle),
+      h('p', 'Omat värit', 'choice-label'),
+      this.appearanceEditor(me?.appearance ?? null, actions.onAppearance),
     );
     if (notice) panel.append(h('p', notice, 'error'));
     const buttons: [string, () => void][] = [];
@@ -826,6 +850,51 @@ export class Screens {
       ),
       beginner,
     );
+    return box;
+  }
+
+  /** Värit: rengas, räpylät, paita ja siima. Esikatselu päivittyy heti. */
+  private appearanceEditor(
+    initial: Appearance | null,
+    onChange: (a: Appearance) => void,
+  ): HTMLElement {
+    const box = document.createElement('div');
+    box.className = 'settings appearance';
+    if (!initial) return box;
+    const a = { ...initial };
+    const preview = document.createElement('canvas');
+    preview.className = 'tube-preview';
+    preview.width = preview.height = 40;
+    preview.setAttribute('aria-label', 'Esikatselu');
+    drawTubePreview(preview, a);
+    const rows = document.createElement('div');
+    rows.className = 'appearance-rows';
+    for (const part of APPEARANCE_PARTS) {
+      const row = document.createElement('div');
+      row.className = 'choice';
+      row.append(h('span', PART_NAMES[part], 'choice-label'));
+      const group = document.createElement('div');
+      group.className = 'choice-options swatches';
+      for (const c of colorOptions(part)) {
+        const b = document.createElement('button');
+        b.className = 'swatch';
+        b.style.background = cssColor(c.hex);
+        b.title = c.name;
+        b.setAttribute('aria-label', `${PART_NAMES[part]}: ${c.name}`);
+        b.classList.toggle('selected', c.hex === a[part]);
+        b.addEventListener('click', () => {
+          group.querySelectorAll('button').forEach((x) => x.classList.remove('selected'));
+          b.classList.add('selected');
+          a[part] = c.hex;
+          drawTubePreview(preview, a);
+          onChange({ ...a });
+        });
+        group.appendChild(b);
+      }
+      row.append(group);
+      rows.append(row);
+    }
+    box.append(preview, rows);
     return box;
   }
 
