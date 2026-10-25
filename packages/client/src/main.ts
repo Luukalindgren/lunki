@@ -193,6 +193,7 @@ function showResults() {
       new Map(v.players.map((p) => [p.sessionId, p.tackle])),
       (parent) => chat?.mount(parent, 'panel'),
       card,
+      game.raceMap(),
     );
     return;
   }
@@ -201,6 +202,7 @@ function showResults() {
     () => startGame(settings),
     () => showMenu(),
     card,
+    game.raceMap(),
   );
 }
 

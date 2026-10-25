@@ -59,7 +59,8 @@ import {
   weighCardText,
   type WeighCardInfo,
 } from './weighCard';
-import { LakeMapView, describeSpot } from './lakeMap';
+import { LakeMapView, RACE_EVENT_STYLE, describeSpot } from './lakeMap';
+import type { RaceEventKind, RaceMapData } from '../game/raceLog';
 import { SPECIES_PIN_COLORS, formatDate, recordDetails, recordTitle } from './recordDetails';
 import { drawTubePreview } from './tubePreview';
 import { VOLUME_LEVELS, type AudioSettings, type VolumeLevel } from '../audio/settings';
@@ -124,6 +125,8 @@ export class Screens {
   private readonly root: HTMLDivElement;
   /** Näkymän siivous ennen seuraavaa (esim. kartan koon seuranta). */
   private cleanup: (() => void) | null = null;
+  /** Tulossivulla valittuna saaliskartta (säilyy saman näkymän uudelleenpiirrossa). */
+  private resultsOnMap = false;
 
   constructor(parent: HTMLElement) {
     this.root = document.createElement('div');
@@ -762,7 +765,10 @@ export class Screens {
     tackles?: ReadonlyMap<string, Tackle>,
     chat?: (parent: HTMLElement) => void,
     card?: WeighCardInfo | null,
+    race?: RaceMapData | null,
   ): void {
+    // Uudelleenpiirto (esim. isäntä vaihtui) säilyttää valitun näkymän.
+    if (this.scrollOf('race-results') === null) this.resultsOnMap = false;
     const panel = this.panel();
     panel.dataset.screen = 'race-results';
     const winner = results[0];
@@ -790,8 +796,9 @@ export class Screens {
       if (gear) li.append(h('span', describeFullTackle(gear), 'player-gear'));
       table.appendChild(li);
     }
+    const map = race ? this.raceMap(race) : null;
     panel.append(
-      table,
+      ...this.resultsWithMap(panel, table, map),
       h(
         'p',
         `${WIN_RULE_NAMES[settings.winRule]} · ${DIFFICULTY_NAMES[settings.difficulty]} · ${settings.durationMinutes} min`,
@@ -811,7 +818,7 @@ export class Screens {
       ),
     );
     if (!amHost) panel.append(h('p', 'Huoneen luoja voi aloittaa uuden kisan.', 'hint'));
-    this.show(panel);
+    this.show(panel, map?.dispose);
   }
 
   showResults(
@@ -819,9 +826,12 @@ export class Screens {
     onAgain: () => void,
     onMenu: () => void,
     card?: WeighCardInfo | null,
+    race?: RaceMapData | null,
   ): void {
+    this.resultsOnMap = false;
     const panel = this.panel();
     const sum = summarize(c.catches, c.settings.winRule);
+    const map = race ? this.raceMap(race) : null;
     panel.append(
       h('h2', c.elapsed >= c.settings.durationMinutes * 60 ? 'Aika loppui!' : 'Kisa päättyi'),
     );
@@ -832,6 +842,8 @@ export class Screens {
           'Ei saalista tällä kertaa. Jos tärppejä ei tule, potki uuteen paikkaan: kaikuluotain (K) näyttää kalat.',
         ),
       );
+      // Reitistä näkee silti, missä tuli käytyä.
+      if (map) panel.append(...this.resultsWithMap(panel, h('div', ''), map));
     } else {
       const list = document.createElement('ol');
       list.className = 'catch-list';
@@ -842,7 +854,7 @@ export class Screens {
         list.appendChild(li);
       }
       panel.append(
-        list,
+        ...this.resultsWithMap(panel, list, map),
         h(
           'p',
           `Kaloja ${sum.count} · yhteensä ${formatWeight(sum.total)} · suurin ${formatWeight(sum.biggest!.weight)}`,
@@ -862,7 +874,78 @@ export class Screens {
         ['Valikkoon', onMenu],
       ]),
     );
-    this.show(panel);
+    this.show(panel, map?.dispose);
+  }
+
+  /**
+   * Tulosten näkymävalinta: taulukko tai saaliskartta. Palauttaa paneeliin
+   * lisättävät osat; ilman karttaa pelkän taulukon.
+   */
+  private resultsWithMap(
+    panel: HTMLElement,
+    table: HTMLElement,
+    map: { element: HTMLElement } | null,
+  ): HTMLElement[] {
+    if (!map) return [table];
+    const content = document.createElement('div');
+    const setView = (onMap: boolean) => {
+      this.resultsOnMap = onMap;
+      panel.classList.toggle('map-panel', onMap);
+      content.replaceChildren(onMap ? map.element : table);
+    };
+    setView(this.resultsOnMap);
+    const toggle = this.choice(
+      'Näkymä',
+      [
+        ['list', 'Tulokset'],
+        ['map', 'Saaliskartta'],
+      ],
+      this.resultsOnMap ? 'map' : 'list',
+      (v) => setView(v === 'map'),
+    );
+    return [toggle, content];
+  }
+
+  /**
+   * Kisan kulku järvikartalla: jokaisen reitti omalla värillään, saaliit
+   * merkkeinä nostopaikassa ja salamat, kaatumiset ja sotkut pieninä
+   * merkkeinä. Null, jos kisasta ei ole mitään näytettävää.
+   */
+  private raceMap(race: RaceMapData): { element: HTMLElement; dispose: () => void } | null {
+    if (race.tracks.length === 0 && race.catches.length === 0) return null;
+    const tracks = new Map(race.tracks.map((t) => [t.id, t]));
+    const solo = race.tracks.length <= 1;
+    const pins = race.catches.map((c) => ({
+      pos: c.pos,
+      color: tracks.get(c.id)?.color ?? '#eef2f3',
+      label: `${solo ? '' : `${tracks.get(c.id)?.name ?? c.id}: `}${c.name} ${formatWeight(c.weight)} · ${formatTime(c.time)}`,
+    }));
+    const map = new LakeMapView({ pins, race, onPin: () => {} });
+    const legend = document.createElement('div');
+    legend.className = 'lake-map-legend race-legend';
+    for (const t of race.tracks) {
+      const n = race.catches.filter((c) => c.id === t.id).length;
+      const item = h('span', `${t.name} (${n} kpl)`);
+      const swatch = document.createElement('i');
+      swatch.style.background = t.color;
+      item.prepend(swatch);
+      legend.append(item);
+    }
+    legend.append(h('span', '■ saalis'));
+    const kinds = new Set(race.events.map((e) => e.kind));
+    for (const kind of Object.keys(RACE_EVENT_STYLE) as RaceEventKind[]) {
+      if (!kinds.has(kind)) continue;
+      const style = RACE_EVENT_STYLE[kind];
+      const glyph = h('b', style.glyph);
+      glyph.style.color = style.color;
+      const item = h('span', ` ${style.name}`);
+      item.prepend(glyph);
+      legend.append(item);
+    }
+    const element = document.createElement('div');
+    element.className = 'race-map';
+    element.append(map.element, legend);
+    return { element, dispose: () => map.dispose() };
   }
 
   /** Kisan suurimman kalan punnituskortti: tallennus kuvana ja jakaminen. */
