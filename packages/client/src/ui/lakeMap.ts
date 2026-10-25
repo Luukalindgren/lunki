@@ -170,19 +170,31 @@ function buildBase(d: LakeData, s: LakeSurroundings): BaseImage {
   lake.getContext('2d')!.putImageData(img, 0, 0);
   ctx.drawImage(lake, x0, y0);
 
-  // Saaret metsää, kaislikot vihertävänä läikkänä veden päällä.
+  // Saaret ovat metsää.
   ctx.fillStyle = css(AREA_COLORS.forest);
   for (const island of d.map.islands) {
     ringPath([island]);
     ctx.fill();
   }
-  ctx.fillStyle = css(AREA_COLORS.reeds);
-  ctx.globalAlpha = 0.6;
+  // Kaislikko pisteityksenä: syvyysväri näkyy pisteiden välistä.
   for (const bed of d.map.reeds ?? []) {
+    ctx.save();
     ringPath([bed.ring]);
-    ctx.fill();
+    ctx.clip();
+    const xs = bed.ring.map((p) => px(p)[0]);
+    const ys = bed.ring.map((p) => px(p)[1]);
+    for (let y = Math.floor(Math.min(...ys)); y <= Math.max(...ys); y += 2) {
+      for (
+        let x = Math.floor(Math.min(...xs)) + (y % 4 === 0 ? 0 : 1);
+        x <= Math.max(...xs);
+        x += 2
+      ) {
+        ctx.fillStyle = css((x + y) % 3 === 0 ? AREA_COLORS.field : AREA_COLORS.reeds);
+        ctx.fillRect(x, y, 1, 1);
+      }
+    }
+    ctx.restore();
   }
-  ctx.globalAlpha = 1;
 
   ctx.fillStyle = css(AREA_COLORS.building);
   for (const a of s.areas) {

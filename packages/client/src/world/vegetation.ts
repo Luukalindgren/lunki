@@ -31,16 +31,16 @@ const TREE_DENSITY: Partial<Record<AreaKind, number>> = {
 const UNKNOWN_DENSITY = 0.6;
 /** Rakennusten ympärille jätetty piha (m). */
 const YARD = 9;
-/** Kaislojen väli kaislikossa (m) ja osuus, joka jää aukoiksi. */
-const REED_SPACING = 1.6;
-const REED_GAPS = 0.25;
+/** Kaislojen väli kaislikossa (m) ja osuus, joka jää aukoiksi: vesi näkyy tupsujen välistä. */
+const REED_SPACING = 2.6;
+const REED_GAPS = 0.45;
 
 /** Kuusen, männyn ja koivun korkeus (m) ja leveys suhteessa korkeuteen. */
 const SIZES: Record<SpriteKind, { min: number; max: number; aspect: number }> = {
   spruce: { min: 14, max: 22, aspect: 0.45 },
   pine: { min: 16, max: 24, aspect: 0.5 },
   birch: { min: 10, max: 17, aspect: 0.55 },
-  reeds: { min: 1.4, max: 2.2, aspect: 1.3 },
+  reeds: { min: 1.2, max: 2, aspect: 0.8 },
 };
 
 export interface Plant {
@@ -149,7 +149,7 @@ export function planVegetation(map: LakeMap, surroundings?: LakeSurroundings): P
     }
   }
 
-  // Kaislikot: tiheinä tuppaina kaislikon sisällä, välissä aukkoja.
+  // Kaislikot: harvoina tuppaina kaislikon sisällä, välissä avovettä.
   for (const bed of map.reeds ?? []) {
     const xs = bed.ring.map((p) => p.x);
     const ys = bed.ring.map((p) => p.y);
