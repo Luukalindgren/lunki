@@ -14,6 +14,9 @@ porttia ei tarvitse avata reitittimestä, ja tunneli hoitaa sertifikaatin.
 
 ## Kertaluonteiset asetukset
 
+Windows-pelikoneen tarkat komennot, palvelin taustatehtäväksi ja etäkäynnistys
+läppäriltä SSH:n yli: [windows-palvelin.md](windows-palvelin.md).
+
 1. **GitHub Pages päälle:** repositorion _Settings → Pages → Build and
    deployment → Source: GitHub Actions_. Aja sitten _Actions → Julkaisu →
    Run workflow_ (tai yhdistä mikä tahansa PR).
