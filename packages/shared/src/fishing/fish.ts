@@ -1,6 +1,6 @@
 import type { Structure } from '../map/bottom';
 import { wrapAngle } from '../physics/tube';
-import type { Rng } from '../rng';
+import { Rng } from '../rng';
 import { distance, type Vec2 } from '../vec2';
 import type { DifficultyParams } from './difficulty';
 import { LURES, tackleAppeal, type Tackle } from './gear';
@@ -258,6 +258,47 @@ export interface FishPopulation {
   nextId: number;
   /** Askellaskuri kaukaisten kalojen harvennettua päivitystä varten. */
   tick: number;
+  /**
+   * Kalakannan siemen: kalan paino ja uuden kalan kotipaikka lasketaan siitä,
+   * paikasta ja sukupolvesta. Palvelin laskee samat arvot, joten asiakas ei
+   * voi keksiä saaliin painoa. Puuttuu käsin kootuista kannoista (testit).
+   */
+  seed?: number;
+  /** Ensimmäisen sukupolven kotipaikat paikoittain (parvien paikat). */
+  homes?: Vec2[];
+}
+
+/** Kalojen määrä järvessä (sama asiakkaalla ja palvelimella). Saatujen tilalle syntyy uusia. */
+export const FISH_COUNT = 1800;
+
+/** Siemen paikalle ja sukupolvelle. */
+const fishSeed = (seed: number, slot: number, gen: number, salt: number) =>
+  (Math.imul(seed ^ salt, 0x85ebca6b) ^
+    Math.imul(slot + 1, 0xc2b2ae35) ^
+    Math.imul(gen + 1, 0x27d4eb2f)) |
+  0;
+
+/** Kalan paino paikasta ja sukupolvesta: sama kaikilla koneilla ja palvelimella. */
+export function fishWeight(seed: number, species: SpeciesId, slot: number, gen: number): number {
+  return randomWeight(SPECIES[species], new Rng(fishSeed(seed, slot, gen, 0x3c6ef372)));
+}
+
+/**
+ * Kalan kotipaikka: ensimmäinen sukupolvi parvessaan, myöhemmät saman lajin
+ * toisen paikan parven luona (valinta siemenestä). Null, jos paikkaa ei ole.
+ */
+export function fishHome(pop: FishPopulation, slot: number, gen: number): Vec2 | null {
+  const homes = pop.homes;
+  const species = pop.fish[slot]?.species;
+  if (!homes || pop.seed === undefined || !species || !homes[slot]) return null;
+  if (gen === 0) return homes[slot];
+  const same: number[] = [];
+  pop.fish.forEach((f, i) => {
+    if (i !== slot && f.species === species && homes[i]) same.push(i);
+  });
+  if (same.length === 0) return homes[slot];
+  const pick = new Rng(fishSeed(pop.seed, slot, gen, 0x5bd1e995)).next();
+  return homes[same[Math.floor(pick * same.length)]!]!;
 }
 
 /** Kauempana kuin tämä vieheestä olevat kalat päivitetään harvemmin. */
@@ -310,7 +351,13 @@ export function createFishPopulation(
   count: number,
   species: readonly SpeciesId[] = NATIVE_SPECIES,
 ): FishPopulation {
-  const pop: FishPopulation = { fish: [], nextId: 1, tick: 0 };
+  const pop: FishPopulation = {
+    fish: [],
+    nextId: 1,
+    tick: 0,
+    seed: (rng.next() * 2 ** 32) >>> 0,
+    homes: [],
+  };
   const list = species.filter(isSpeciesId);
   const ids = list.length > 0 ? [...new Set(list)] : NATIVE_SPECIES;
   const total = ids.reduce((sum, id) => sum + SPECIES[id].abundance, 0);
@@ -327,7 +374,8 @@ export function createFishPopulation(
           y: center.y + rng.normal(0, sp.schoolSpread),
         };
         if (!world.isWater(p)) continue;
-        pop.fish.push(spawnFish(pop, id, p, world, rng));
+        pop.homes!.push(p);
+        pop.fish.push(spawnFish(pop, id, p, world, rng, pop.fish.length));
         placed++;
       }
     }
@@ -341,13 +389,19 @@ export function spawnFish(
   pos: Vec2,
   world: FishWorld,
   rng: Rng,
+  /** Paikka kalakannassa: paino lasketaan kannan siemenestä, jos se on. */
+  slot?: number,
+  gen = 0,
 ): Fish {
   const sp = SPECIES[species];
   return {
     id: pop.nextId++,
-    gen: 0,
+    gen,
     species,
-    weight: randomWeight(sp, rng),
+    weight:
+      pop.seed !== undefined && slot !== undefined
+        ? fishWeight(pop.seed, species, slot, gen)
+        : randomWeight(sp, rng),
     pos,
     home: { ...pos },
     depth: Math.max(0.3, world.depthAt(pos) - sp.bottomOffset),

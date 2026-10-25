@@ -17,6 +17,8 @@ export interface Sim {
   splashed: boolean;
   /** Edellisen saaliin kisa-aika (s). */
   lastCatchAt: number;
+  /** Vieheen paikka, kun kala viimeksi tarttui (saaliin tarkistukseen). */
+  hookAt?: Vec2 | null;
 }
 
 export const FROZEN = { kick: 0, turn: 0, sprint: false };

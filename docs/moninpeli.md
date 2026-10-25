@@ -30,9 +30,17 @@ muut pelaajat: SnapshotBuffer, piirretään 120 ms menneisyydestä
   (`FishTag`): saatu kala korvautuu saman paikan seuraavalla sukupolvella.
   Palvelin hyväksyy saman kalan vain ensimmäiseltä nostajalta, ja muiden
   kopioista se katoaa heti, myös kesken väsytyksen.
+- **Saaliin laji ja paino palvelimelta.** Kalan paino ja uuden kalan
+  kotipaikka lasketaan kalakannan siemenestä, paikasta ja sukupolvesta
+  (`fishWeight`, `fishHome`), joten ne ovat samat kaikilla koneilla. Palvelin
+  laskee kisan alkaessa saman kalakannan ja ottaa saaliin lajin ja painon
+  siitä; asiakas kertoo vain, mikä kala nousi. Saalis hyväksytään, jos kala on
+  paikan nykyinen sukupolvi ja viehe tarttui kalan kotipaikan lähellä
+  (`catchRadius`: vaellusalue, vieheen seuraaminen ja heiton mitta). Itse
+  väsytys lasketaan edelleen asiakkaalla, jotta se tuntuu viiveettömältä.
 - **Kisan kulku palvelimella.** Aula → lähtölaskenta (3 s, renkaat paikallaan)
   → kisa palvelimen kellolla → loppu. Nostettu kala punnitaan palvelimella
-  (`isPlausibleCatch`): laji ja paino lajin rajoissa, heitto veteen edellisen
+  (`isPlausibleCatch`): laji järvessä, heitto veteen edellisen
   saaliin jälkeen ja vähintään 4 s saaliiden välillä. Hyväksytyt saaliit ovat
   kaikkien nähtävissä, ja tulostaulu lasketaan niistä voittoehdon mukaan
   (`rankPlayers`, sama funktio kuin yksinpelin tuloksissa). Isäntä voi

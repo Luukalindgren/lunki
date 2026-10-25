@@ -45,6 +45,14 @@ import {
   parseTackle,
   parseAppearance,
   isFishTag,
+  FISH_COUNT,
+  LUNKINJARVI_BOTTOM,
+  LakeBottom,
+  catchRadius,
+  createFishPopulation,
+  fishHome,
+  fishWeight,
+  type FishPopulation,
   RECORDS_PER_SPECIES,
   type Difficulty,
   type RecordMessage,
@@ -85,6 +93,18 @@ export const RECONNECT_SECONDS = Number(process.env.LUNKI_RECONNECT_SECONDS) || 
 const water = new WaterBody(LUNKINJARVI);
 const rings = [LUNKINJARVI.shore, ...LUNKINJARVI.islands];
 
+/** Järven pohja kalojen sijoittelua varten; lasketaan ensimmäisen kisan alkaessa. */
+let bottom: LakeBottom | null = null;
+const fishWorld = () => {
+  bottom ??= new LakeBottom(water, LUNKINJARVI.bounds, LUNKINJARVI_BOTTOM, LUNKINJARVI.reeds);
+  const b = bottom;
+  return {
+    isWater: (p: Vec2) => water.isWater(p),
+    depthAt: (p: Vec2) => b.depthAt(p),
+    structures: b.structures,
+  };
+};
+
 /** Pelaajat aloittavat vähintään näin kaukana toisistaan (m), jos mahdollista. */
 const SPAWN_SPACING = 15;
 /** …ja samalta rannalta, korkeintaan näin kaukana ensimmäisestä (m). */
@@ -114,8 +134,13 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   private readonly reeling = new Map<string, boolean>();
   /** Selvityksen jälkeen siima ei sotkeudu heti uudelleen (kisa-aika, s). */
   private readonly tangleFree = new Map<string, number>();
-  /** Kisassa nostetut kalat "paikka:sukupolvi" (FishTag). */
-  private readonly caughtFish = new Set<string>();
+  /**
+   * Kisan kalakanta sellaisena kuin se alkoi: samat kalat kuin pelaajien
+   * koneilla. Palvelin ottaa saaliin lajin, painon ja kotipaikan tästä.
+   */
+  private stock: FishPopulation | null = null;
+  /** Montako kertaa kunkin paikan kala on nostettu (= nykyinen sukupolvi). */
+  private readonly fishGens = new Map<number, number>();
   /** Viimeisimmät chat-viestit uusille tulijoille. */
   private readonly chatLog: ChatMessage[] = [];
   private chatId = 0;
@@ -154,7 +179,10 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         // Vieheen sijainti on vain näytettävä; rajataan järkevälle alueelle.
         const lure = { x: l[0]!, y: l[1]! };
         const ok = distance(lure, sim.tube.pos) < 200;
-        p.lureStage = ok ? Math.max(0, Math.min(3, Math.round(l[2]!))) : 0;
+        const stage = ok ? Math.max(0, Math.min(3, Math.round(l[2]!))) : 0;
+        // Kala tarttui: paikka talteen saaliin tarkistusta varten.
+        if (stage === LureStage.hooked && p.lureStage !== LureStage.hooked) sim.hookAt = lure;
+        p.lureStage = stage;
         this.reeling.set(client.sessionId, l[3] === 1);
         if (ok) {
           p.lureX = lure.x;
@@ -180,16 +208,30 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     this.onMessage(ClientMsg.catch, (client, msg: Partial<Catch>) => {
       const sim = this.sims.get(client.sessionId);
       const now = this.state.clock;
+      // Asiakas kertoo vain, mikä kala nousi; laji ja paino tulevat kalakannasta.
       // Sama kala (paikka ja sukupolvi) voidaan nostaa vain kerran: ensimmäinen voittaa.
       const tag = isFishTag(msg?.fish) ? msg.fish : null;
-      const fish = tag ? `${tag.slot}:${tag.gen}` : null;
+      const stock = this.stock;
+      const fish = tag && stock ? stock.fish[tag.slot] : undefined;
+      const current = tag && tag.gen === (this.fishGens.get(tag.slot) ?? 0);
+      const home = fish && current ? fishHome(stock!, tag.slot, tag.gen) : null;
+      const landed = fish && {
+        species: fish.species,
+        name: SPECIES[fish.species].name,
+        weight: fishWeight(stock!.seed!, fish.species, tag!.slot, tag!.gen),
+      };
+      const hookAt = sim?.hookAt;
+      if (sim) sim.hookAt = null;
       if (
         !sim ||
         this.state.phase !== 'playing' ||
         this.timedOut(client.sessionId) ||
         this.state.players.get(client.sessionId)?.tangledWith ||
-        (fish && this.caughtFish.has(fish)) ||
-        !isPlausibleCatch(msg, {
+        !landed ||
+        !home ||
+        !hookAt ||
+        distance(hookAt, home) > catchRadius(landed.species) ||
+        !isPlausibleCatch(landed, {
           splashedSinceLastCatch: sim.splashed,
           now,
           lastCatchAt: sim.lastCatchAt,
@@ -204,15 +246,13 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       const c = new CatchState();
       c.player = client.sessionId;
       c.angler = this.state.players.get(client.sessionId)?.name ?? '';
-      c.species = msg.species;
-      c.name = SPECIES[msg.species].name;
-      c.weight = Math.round(msg.weight * 1000) / 1000;
+      c.species = landed.species;
+      c.name = landed.name;
+      c.weight = landed.weight;
       c.time = now;
-      if (tag) {
-        c.fishSlot = tag.slot;
-        c.fishGen = tag.gen;
-        this.caughtFish.add(fish!);
-      }
+      c.fishSlot = tag!.slot;
+      c.fishGen = tag!.gen;
+      this.fishGens.set(tag!.slot, tag!.gen + 1);
       this.state.catches.push(c);
       this.recordCatch(client.sessionId, c);
     });
@@ -257,7 +297,8 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       this.setTimestep();
       this.sims.clear();
       this.tangleFree.clear();
-      this.caughtFish.clear();
+      this.stock = null;
+      this.fishGens.clear();
       this.state.catches.clear();
       this.state.clock = 0;
       this.state.countdown = 0;
@@ -363,6 +404,15 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       }
       this.state.seed = (Math.random() * 2 ** 32) >>> 0;
       this.spawnPlayers(this.state.seed);
+      // Sama kalakanta kuin pelaajilla (SoloGame: Rng(seed) ja huoneen lajisto).
+      this.stock = createFishPopulation(
+        fishWorld(),
+        LUNKINJARVI.bounds,
+        new Rng(this.state.seed),
+        FISH_COUNT,
+        [...this.state.settings.species] as SpeciesId[],
+      );
+      this.fishGens.clear();
       const level = this.state.settings.weather;
       this.weather = planWeather(
         this.state.seed,

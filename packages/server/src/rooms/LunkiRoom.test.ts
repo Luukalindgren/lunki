@@ -37,6 +37,17 @@ import {
   type TubeState,
   type WeatherPlan,
   type Strike,
+  FISH_COUNT,
+  LUNKINJARVI_BOTTOM,
+  LakeBottom,
+  Rng,
+  createFishPopulation,
+  distance,
+  fishHome,
+  fishWeight,
+  type FishPopulation,
+  type SpeciesId,
+  type Vec2,
 } from '@lunki/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { openDatabase } from '../db/open';
@@ -63,6 +74,73 @@ type PlayerView = { name: string; ready: boolean };
 const players = (room: Room): PlayerView[] => [
   ...((room.state as { players?: Map<string, PlayerView> } | undefined)?.players?.values() ?? []),
 ];
+
+type Pos = { x: number; y: number };
+const mine = (room: Room) => room.state.players.get(room.sessionId) as Pos;
+
+let lake: Parameters<typeof createFishPopulation>[0] | null = null;
+/** Kisan kalakanta samoin kuin pelaajan koneella. */
+function stockOf(room: Room): FishPopulation {
+  if (!lake) {
+    const water = new WaterBody(LUNKINJARVI);
+    const bottom = new LakeBottom(water, LUNKINJARVI.bounds, LUNKINJARVI_BOTTOM, LUNKINJARVI.reeds);
+    lake = {
+      isWater: (p) => water.isWater(p),
+      depthAt: (p) => bottom.depthAt(p),
+      structures: bottom.structures,
+    };
+  }
+  return createFishPopulation(
+    lake,
+    LUNKINJARVI.bounds,
+    new Rng(room.state.seed as number),
+    FISH_COUNT,
+    [...room.state.settings.species] as SpeciesId[],
+  );
+}
+
+/** Kala, jonka kotipaikka (kaikissa annetuissa sukupolvissa) on lähimpänä renkaasta. */
+function nearSlot(stock: FishPopulation, at: Vec2[], gens = [0], taken: number[] = []): number {
+  let best = -1;
+  let bestD = Infinity;
+  stock.fish.forEach((_, i) => {
+    if (taken.includes(i)) return;
+    const d = Math.max(...gens.flatMap((g) => at.map((p) => distance(fishHome(stock, i, g)!, p))));
+    if (d < bestD) [best, bestD] = [i, d];
+  });
+  if (bestD > 150) throw new Error('kalaa ei ole heittomatkan päässä');
+  return best;
+}
+
+/**
+ * Nostaa kalan kuten asiakas: heitto, kala tarttuu kotipaikallaan (tai
+ * kohdassa `at`) ja punnitus. Asiakkaan ilmoittamalla painolla ei ole väliä.
+ * Palauttaa painon, jonka palvelin laskee.
+ */
+function land(
+  room: Room,
+  stock: FishPopulation,
+  slot: number,
+  gen = 0,
+  at?: Vec2,
+  /** Renkaan paikka, jos se on siirretty palvelimella (tila ei ole vielä päivittynyt). */
+  from: Pos = mine(room),
+): number {
+  const hook = at ?? fishHome(stock, slot, gen)!;
+  room.send(ClientMsg.splash, { x: from.x + 10, y: from.y });
+  room.send(ClientMsg.input, { i: [], l: [hook.x, hook.y, 2] });
+  room.send(ClientMsg.input, { i: [], l: [hook.x, hook.y, 3] });
+  room.send(ClientMsg.catch, { species: 'perch', name: 'Ahven', weight: 0.3, fish: { slot, gen } });
+  // Nostettu kala: viehe takaisin kelalla.
+  room.send(ClientMsg.input, { i: [], l: [hook.x, hook.y, 0] });
+  return fishWeight(stock.seed!, stock.fish[slot]!.species, slot, gen);
+}
+
+/** Mikä tahansa kelpaava saalis renkaan läheltä. */
+const landNear = (room: Room) => {
+  const stock = stockOf(room);
+  return land(room, stock, nearSlot(stock, [mine(room)]));
+};
 
 beforeAll(async () => {
   const db = openDatabase(':memory:');
@@ -232,18 +310,28 @@ describe('LunkiRoom', () => {
     await until(() => host.state.phase === 'playing');
     let rejected = 0;
     guest.onMessage(ServerMsg.catchRejected, () => rejected++);
-    const land = (room: Room, fish: { slot: number; gen: number }) => {
-      const p = room.state.players.get(room.sessionId) as { x: number; y: number };
-      room.send(ClientMsg.splash, { x: p.x + 10, y: p.y });
-      room.send(ClientMsg.catch, { species: 'perch', name: 'Ahven', weight: 0.3, fish });
-    };
-    land(host, { slot: 7, gen: 0 });
+    const stock = stockOf(host);
+    const slot = nearSlot(stock, [mine(host), mine(guest)]);
+    const weight = land(host, stock, slot);
     await until(() => host.state.catches.length === 1);
-    expect(host.state.catches[0].fishSlot).toBe(7);
-    land(guest, { slot: 7, gen: 0 });
+    expect(host.state.catches[0]).toMatchObject({
+      fishSlot: slot,
+      species: stock.fish[slot]!.species,
+      weight: Math.fround(weight),
+    });
+    land(guest, stock, slot, 0);
     await until(() => rejected === 1);
-    // Paikan seuraava sukupolvi on eri kala.
-    land(guest, { slot: 7, gen: 1 });
+    // Sukupolvea ei voi hypätä yli (paino arvottaisiin uudelleen).
+    land(guest, stock, slot, 2);
+    await until(() => rejected === 2);
+    // Paikan seuraava sukupolvi on eri kala toisen parven luona: vieras soutaa sinne.
+    const next = fishHome(stock, slot, 1)!;
+    const room = matchMaker.getLocalRoomById(host.roomId) as unknown as {
+      sims: Map<string, { tube: { pos: Vec2; vel: Vec2 } }>;
+    };
+    const sim = room.sims.get(guest.sessionId)!;
+    sim.tube = { ...sim.tube, pos: { ...next }, vel: { x: 0, y: 0 } };
+    land(guest, stock, slot, 1, next, next);
     await until(() => host.state.catches.length === 2);
     await host.leave();
     await guest.leave();
@@ -428,8 +516,11 @@ describe('LunkiRoom', () => {
     const host = await sdk().create(ROOM_NAME, {
       name: 'Luuka',
       playerId: 'a',
-      testTiming: { countdown: 0.2, duration: 1.5 },
+      testTiming: { countdown: 0.2, duration: 3 },
     });
+    await until(() => players(host).length === 1);
+    host.send(ClientMsg.settings, { difficulty: 'easy' });
+    await until(() => host.state.settings.difficulty === 'easy');
     const guests = await Promise.all(
       ['Bertta', 'Cecilia', 'Daniel'].map((name, i) =>
         sdk().joinById(host.roomId, { name, playerId: `g${i}` }),
@@ -450,27 +541,38 @@ describe('LunkiRoom', () => {
     await until(() => rejected === 1);
     await until(() => host.state.phase === 'playing');
 
-    const me = (room: Room) => room.state.players.get(room.sessionId) as { x: number; y: number };
-    const land = async (room: Room, weight: number) => {
-      const p = me(room);
-      room.send(ClientMsg.splash, { x: p.x + 10, y: p.y });
-      room.send(ClientMsg.catch, { species: 'perch', name: 'Ahven', weight });
+    const stock = stockOf(host);
+    const taken: number[] = [];
+    const catchFor = (room: Room) => {
+      const slot = nearSlot(stock, [mine(room)], [0], taken);
+      taken.push(slot);
+      return land(room, stock, slot);
     };
     const records: RecordMessage[] = [];
     guests[2]!.onMessage(ServerMsg.record, (m: RecordMessage) => records.push(m));
     // Ilman heittoa saalis hylätään.
-    host.send(ClientMsg.catch, { species: 'perch', name: 'Ahven', weight: 0.4 });
+    host.send(ClientMsg.catch, {
+      species: 'perch',
+      name: 'Ahven',
+      weight: 0.4,
+      fish: { slot: 0, gen: 0 },
+    });
     await until(() => rejected === 2);
-    await land(host, 0.4);
-    await land(guests[0]!, 0.9);
-    await land(guests[1]!, 0.35);
-    // Liian painava ahven hylätään.
-    await land(guests[2]!, 3);
+    const weights = [catchFor(host), catchFor(guests[0]!), catchFor(guests[1]!)];
+    // Viehe ei ollut kalan luona: saalis hylätään.
+    const far = nearSlot(stock, [mine(guests[2]!)], [0], taken);
+    const home = fishHome(stock, far, 0)!;
+    land(guests[2]!, stock, far, 0, {
+      x: home.x + Math.sign(mine(guests[2]!).x - home.x) * 200,
+      y: home.y,
+    });
     await until(() => host.state.catches.length === 3);
 
     await until(() => all.every((r) => r.state.phase === 'finished'), 4000);
     type C = { player: string; angler: string } & CatchRecord;
     const catches = [...(host.state.catches as Iterable<C>)].map((c) => ({ ...c }));
+    // Paino tulee palvelimen kalakannasta, ei asiakkaan ilmoituksesta.
+    expect(catches.map((c) => c.weight)).toEqual(weights.map(Math.fround));
     const ids = [...new Set(catches.map((c) => c.player))];
     const results = rankPlayers(
       ids.map((id) => ({
@@ -480,24 +582,21 @@ describe('LunkiRoom', () => {
       })),
       'total',
     );
-    expect(results.map((r) => r.name)).toEqual(['Bertta', 'Luuka', 'Cecilia']);
-    // Punnitut saaliit päätyvät järven ennätyslistalle.
+    const names = ['Luuka', 'Bertta', 'Cecilia'];
+    const order = [0, 1, 2].sort((a, b) => weights[b]! - weights[a]! || a - b);
+    expect(results.map((r) => r.name)).toEqual(order.map((i) => names[i]));
+    expect(rejected).toBe(2);
+    // Punnitut saaliit päätyvät järven ennätyslistalle (oma vaikeustaso: muut testit eivät sotke).
     await until(() => records.length === 3);
-    expect(records.map((r) => [r.angler, r.place])).toEqual([
-      ['Luuka', 1],
-      ['Bertta', 1],
-      ['Cecilia', 3],
-    ]);
     const board = (await (
       await fetch(`http://localhost:${PORT}${RECORDS_PATH}`)
     ).json()) as RecordBoard;
-    expect(board.normal?.perch?.slice(0, 3).map((r) => [r.angler, r.weight])).toEqual([
-      ['Bertta', 0.9],
-      ['Luuka', 0.4],
-      ['Cecilia', 0.35],
-    ]);
+    const listed = Object.values(board.easy ?? {}).flat();
+    expect(listed.map((r) => [r.angler, r.weight]).sort()).toEqual(
+      names.map((n, i) => [n, weights[i]]).sort(),
+    );
     // Kisan jälkeen saaliita ei enää punnita.
-    await land(host, 0.5);
+    landNear(host);
     await until(() => rejected === 3);
 
     // Isäntä palauttaa aulaan.
@@ -524,10 +623,7 @@ describe('LunkiRoom', () => {
 
     type P = { x: number; y: number; lureStage: number; outUntil: number };
     const me = (room: Room) => room.state.players.get(room.sessionId) as P;
-    for (const room of [host, guest]) {
-      room.send(ClientMsg.splash, { x: me(room).x + 10, y: me(room).y });
-      room.send(ClientMsg.catch, { species: 'perch', name: 'Ahven', weight: 0.3 });
-    }
+    for (const room of [host, guest]) landNear(room);
     await until(() => host.state.catches.length === 2);
     // Isännän viehe vedessä, vieraan vapa alhaalla.
     host.send(ClientMsg.input, { i: [], l: [me(host).x + 10, me(host).y, 2] });
@@ -681,8 +777,7 @@ describe('LunkiRoom', () => {
     await until(() => host.state.phase === 'playing');
     type P = { x: number; y: number; capsizedUntil: number; vx: number; vy: number };
     const me = () => host.state.players.get(host.sessionId) as P;
-    host.send(ClientMsg.splash, { x: me().x + 10, y: me().y });
-    host.send(ClientMsg.catch, { species: 'perch', name: 'Ahven', weight: 0.3 });
+    landNear(host);
     await until(() => host.state.catches.length === 1);
 
     const room = matchMaker.getLocalRoomById(host.roomId) as unknown as {
@@ -783,8 +878,7 @@ describe('LunkiRoom', () => {
     type P = { x: number; y: number; ack: number; connected: boolean };
     const gp = () => host.state.players.get(guest.sessionId) as P;
     const pos = { x: gp().x, y: gp().y };
-    guest.send(ClientMsg.splash, { x: pos.x + 5, y: pos.y });
-    guest.send(ClientMsg.catch, { species: 'perch', name: 'Ahven', weight: 0.5 });
+    landNear(guest);
     await until(() => host.state.catches.length === 1);
 
     // Yhteys katkeaa (esim. sivun uudelleenlataus).
