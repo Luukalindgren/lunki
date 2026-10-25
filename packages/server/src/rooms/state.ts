@@ -26,6 +26,8 @@ export const PlayerState = schema(
     heading: t.float64().default(0),
     angVel: t.float64().default(0),
     kickPhase: t.float64().default(0),
+    /** Kalastajan kunto 0–1 (ks. STAMINA). */
+    stamina: t.float64().default(1),
     /** Viimeisin käsitelty syötteen numero. */
     ack: t.uint32().default(0),
     /** Viehe muiden nähtäväksi (ei vaikuta peliin). */

@@ -17,6 +17,8 @@ export interface TubeState {
   angVel: number;
   /** Potkurytmin vaihe 0–1. */
   kickPhase: number;
+  /** Kalastajan kunto 0–1: potkiminen kuluttaa, lepo palauttaa (STAMINA). */
+  stamina: number;
 }
 
 export interface TubeInput {
@@ -57,12 +59,36 @@ export const TUBE_PHYSICS = {
   shoreBounce: 0.2,
 } as const;
 
+/**
+ * Kalastajan kunto. Tavallinen potkiminen kuluttaa hitaasti ja pikapotkut
+ * nopeasti; levossa (ei potkuja) kunto palautuu. Väsyneenä potkut heikkenevät,
+ * ja tyhjällä kunnolla pikapotkut eivät onnistu.
+ */
+export const STAMINA = {
+  /** Kulutus sekunnissa: tavallisilla potkuilla täysi kunto riittää n. 4 min, pikapotkuilla n. 20 s. */
+  kickDrain: 1 / 240,
+  sprintDrain: 1 / 20,
+  /** Palautuminen sekunnissa levossa: tyhjästä täyteen n. 15 s. */
+  restRegen: 1 / 15,
+  /** Tätä väsyneempänä potkujen teho laskee… */
+  tired: 0.25,
+  /** …tähän osuuteen, kun kunto on lopussa. */
+  minThrust: 0.4,
+} as const;
+
+/** Potkujen tehon kerroin kunnon mukaan. */
+export function staminaThrust(stamina: number): number {
+  if (stamina >= STAMINA.tired) return 1;
+  return STAMINA.minThrust + ((1 - STAMINA.minThrust) * Math.max(0, stamina)) / STAMINA.tired;
+}
+
 export const createTube = (pos: Vec2, heading = Math.PI / 2): TubeState => ({
   pos: { ...pos },
   vel: { x: 0, y: 0 },
   heading,
   angVel: 0,
   kickPhase: 0,
+  stamina: 1,
 });
 
 const clamp1 = (v: number) => Math.max(-1, Math.min(1, v));
@@ -83,11 +109,19 @@ export function stepTube(
   const kick = clamp1(input.kick);
   const turn = clamp1(input.turn);
 
+  // Uupunut ei jaksa pikapotkuja.
+  const sprint = input.sprint && kick !== 0 && s.stamina > 0;
+  const stamina =
+    kick === 0
+      ? Math.min(1, s.stamina + STAMINA.restRegen * dt)
+      : Math.max(0, s.stamina - (sprint ? STAMINA.sprintDrain : STAMINA.kickDrain) * dt);
+
   // Potkurytmi: työntö sykkii, mutta keskiarvo pysyy samana.
-  const rate = input.sprint ? P.sprintKickRate : P.kickRate;
+  const rate = sprint ? P.sprintKickRate : P.kickRate;
   const kickPhase = kick !== 0 ? (s.kickPhase + rate * dt) % 1 : 0;
   const pulse = 1 + P.kickPulse * Math.sin(kickPhase * Math.PI * 2);
-  let thrust = kick * P.kickAccel * pulse * (input.sprint ? P.sprintFactor : 1);
+  let thrust =
+    kick * P.kickAccel * pulse * (sprint ? P.sprintFactor : 1) * staminaThrust(s.stamina);
   if (kick < 0) thrust *= P.forwardFactor;
 
   // Selkä menosuuntaan: positiivinen potku vie vastakkaiseen suuntaan kuin katse.
@@ -108,7 +142,7 @@ export function stepTube(
   const angVel = s.angVel + angAcc * dt;
   const heading = wrapAngle(s.heading + angVel * dt);
 
-  return { pos, vel, heading, angVel, kickPhase };
+  return { pos, vel, heading, angVel, kickPhase, stamina };
 }
 
 /** Rantakorjaus: siirtää renkaan veteen ja poistaa rantaan päin olevan nopeuden. */

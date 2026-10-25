@@ -112,6 +112,7 @@ export const cloneTube = (t: TubeState): TubeState => ({
   heading: t.heading,
   angVel: t.angVel,
   kickPhase: t.kickPhase,
+  stamina: t.stamina,
 });
 
 /**

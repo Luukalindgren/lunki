@@ -58,6 +58,7 @@ const toTube = (p: PlayerSchema): TubeState => ({
   heading: p.heading,
   angVel: p.angVel,
   kickPhase: p.kickPhase,
+  stamina: p.stamina ?? 1,
 });
 
 /**

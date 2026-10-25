@@ -53,6 +53,7 @@ import {
   stepFishing,
   stepTube,
   REEDS,
+  STAMINA,
   type CompetitionSettings,
   type LakeBottom,
   type CompetitionState,
@@ -715,6 +716,9 @@ export class SoloGame {
       this.view.fitSpan(0, 0);
     }
 
+    this.hud.setStamina(this.tube.stamina, STAMINA.tired);
+    if (this.tube.stamina <= 0 && this.prevTube.stamina > 0)
+      this.hud.showMessage('Puuskutat! Lepää hetki, niin jaksat taas', 2.5);
     this.hud.setPower(f.stage === 'charging' ? chargePower(f.charge) : null);
     this.hud.setTension(f.tension, f.drag, breakingStrength(f.tackle));
     this.hud.setStatus([

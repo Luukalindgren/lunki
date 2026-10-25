@@ -15,6 +15,8 @@ export class Hud {
   private readonly tensionFill: HTMLDivElement;
   private readonly tensionDrag: HTMLDivElement;
   private readonly help: HTMLDivElement;
+  private readonly stamina: HTMLDivElement;
+  private readonly staminaFill: HTMLDivElement;
   private readonly timer: HTMLDivElement;
   private readonly weather: HTMLDivElement;
   private readonly catches: HTMLDivElement;
@@ -46,6 +48,14 @@ export class Hud {
     const label = el('div', 'hud-tension-label');
     label.textContent = 'KIREYS';
     this.tension.append(this.tensionFill, this.tensionDrag, label);
+    this.stamina = el('div', 'hud-stamina');
+    this.staminaFill = el('div', 'hud-stamina-fill');
+    const bar = el('div', 'hud-stamina-bar hud-panel');
+    bar.appendChild(this.staminaFill);
+    const staminaLabel = el('div', 'hud-stamina-label');
+    staminaLabel.textContent = 'KUNTO';
+    this.stamina.append(staminaLabel, bar);
+    this.stamina.hidden = true;
     this.help = el('div', 'hud-help hud-panel');
     this.setHelpMode(false);
     this.timer = el('div', 'hud-timer hud-panel');
@@ -60,6 +70,7 @@ export class Hud {
       this.status,
       this.power,
       this.tension,
+      this.stamina,
       this.message,
       this.help,
       this.timer,
@@ -92,6 +103,16 @@ export class Hud {
     this.tensionFill.style.height = pct(tension);
     this.tensionFill.classList.toggle('slip', tension >= drag * 0.95 && tension > 0);
     this.tensionDrag.style.bottom = pct(drag);
+  }
+
+  /** Kuntopalkki: piilossa täysissä voimissa, väri vaihtuu väsyessä. */
+  setStamina(stamina: number, tired: number): void {
+    this.stamina.hidden = stamina >= 1;
+    if (this.stamina.hidden) return;
+    // Portaittain kuten muukin HUD.
+    this.staminaFill.style.width = `${Math.round(stamina * 20) * 5}%`;
+    this.staminaFill.classList.toggle('tired', stamina < tired);
+    this.staminaFill.classList.toggle('spent', stamina <= 0);
   }
 
   setTimer(text: string, low: boolean): void {
@@ -144,7 +165,7 @@ export class Hud {
     this.multiplayer = multiplayer;
     const lines = this.touch
       ? [
-          'Tatti: potki ja käänny · reunaan asti = pikapotku',
+          'Tatti: potki ja käänny · reunaan asti = pikapotku (vie kuntoa)',
           'Kosketa järveä: tähtää, pidä ja päästä = heitto',
           'Sormi järvellä tai KELAA = kelaa',
           'NOP kelausnopeus · JAR−/JAR+ jarru',
@@ -156,7 +177,7 @@ export class Hud {
             : []),
         ]
       : [
-          'W/S potki taakse/eteen · A/D käänny · Shift pika',
+          'W/S potki · A/D käänny · Shift pikapotku (vie kuntoa)',
           'Hiiri: tähtää, pidä pohjassa ja päästä = heitto',
           'Hiiri pohjassa tai välilyönti = kelaa',
           '1/2/3 kelausnopeus · Q/E jarru löysemmälle/kireämmälle',
