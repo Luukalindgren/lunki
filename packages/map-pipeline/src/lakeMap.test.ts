@@ -51,6 +51,31 @@ describe('toLakeMap', () => {
   it('poistaa toistetun päätepisteen', () => {
     expect(map.shore).toHaveLength(4);
   });
+
+  it('lisää ilmakuvista tulkitut saaret origon suhteen myötäpäivään', () => {
+    const { e, n } = map.origin;
+    const withAerial = toLakeMap(
+      { source: 'testi', lakeId: 'way/1', name: 'Testijärvi', outer: [outer], islands: [] },
+      {
+        source: 'ilmakuva',
+        islands: [
+          {
+            ring: [
+              [e + 10, n + 10],
+              [e + 20, n + 10],
+              [e + 20, n + 20],
+              [e + 10, n + 20],
+            ],
+          },
+        ],
+      },
+    );
+    expect(withAerial.islands).toHaveLength(1);
+    const ring = withAerial.islands[0]!;
+    expect(signedArea(ring)).toBeLessThan(0);
+    expect(Math.min(...ring.map((p) => p.x))).toBe(10);
+    expect(Math.max(...ring.map((p) => p.y))).toBe(20);
+  });
 });
 
 describe('assembleRings', () => {

@@ -69,9 +69,16 @@ const clamp1 = (v: number) => Math.max(-1, Math.min(1, v));
 
 /**
  * Etenee yhden kiinteän askeleen. Ei käsittele rantaa (ks. collideTubeWithShore).
- * `wind` = tuulen nopeusvektori (m/s); tuuli ajattaa rengasta.
+ * `wind` = tuulen nopeusvektori (m/s); tuuli ajattaa rengasta. `dragFactor`
+ * kertoo vedenvastuksen, esim. kaislikossa (REEDS.drag).
  */
-export function stepTube(s: TubeState, input: TubeInput, dt: number, wind?: Vec2): TubeState {
+export function stepTube(
+  s: TubeState,
+  input: TubeInput,
+  dt: number,
+  wind?: Vec2,
+  dragFactor = 1,
+): TubeState {
   const P = TUBE_PHYSICS;
   const kick = clamp1(input.kick);
   const turn = clamp1(input.turn);
@@ -88,7 +95,7 @@ export function stepTube(s: TubeState, input: TubeInput, dt: number, wind?: Vec2
   const dirY = -Math.sin(s.heading);
 
   const speed = Math.hypot(s.vel.x, s.vel.y);
-  const drag = P.linearDrag + P.quadraticDrag * speed;
+  const drag = (P.linearDrag + P.quadraticDrag * speed) * dragFactor;
   const windK = wind ? P.windPush * Math.hypot(wind.x, wind.y) : 0;
   const ax = dirX * thrust - s.vel.x * drag + (wind ? wind.x * windK : 0);
   const ay = dirY * thrust - s.vel.y * drag + (wind ? wind.y * windK : 0);

@@ -1,5 +1,7 @@
 import { distance, type Vec2 } from '../vec2';
 import { closestPointOnSegment } from './geometry';
+import { REEDS, ReedIndex, type ReedBed } from './reeds';
+import { pointInRing } from './surroundings';
 
 /**
  * Pohjan erikoismuodot. Muodot kuvataan käsin muokattavassa JSON-tiedostossa
@@ -27,12 +29,14 @@ export interface BottomFeatures {
 
 /** Rakenne, johon viehe voi tarttua ja jonka lähellä kalat viihtyvät. */
 export interface Structure {
-  kind: 'rocks' | 'tree' | 'dropoff';
-  /** Keskipiste (puulla rungon puoliväli). */
+  kind: 'rocks' | 'tree' | 'dropoff' | 'reeds';
+  /** Keskipiste (puulla rungon puoliväli, kaislikolla rajauslaatikon keskipiste). */
   pos: Vec2;
   radius: number;
   /** Puun runko janana tyvestä latvaan. */
   trunk?: [Vec2, Vec2];
+  /** Kaislikon reuna: kalat viihtyvät reunalla, viehe tarttuu sisällä. */
+  ring?: Vec2[];
 }
 
 /** Rungon ympäriltä viehe voi tarttua oksiin (m). */
@@ -64,12 +68,15 @@ export class LakeBottom {
   private readonly depth: Float32Array;
   readonly structures: Structure[];
   readonly maxDepth: number;
+  private readonly reeds: ReedIndex;
 
   constructor(
     private readonly water: { isWater(p: Vec2): boolean },
     readonly bounds: { minX: number; minY: number; maxX: number; maxY: number },
     readonly features: BottomFeatures,
+    reeds: readonly ReedBed[] = [],
   ) {
+    this.reeds = new ReedIndex(reeds);
     const c = BOTTOM.cell;
     this.cols = Math.ceil((bounds.maxX - bounds.minX) / c) + 3;
     this.rows = Math.ceil((bounds.maxY - bounds.minY) / c) + 3;
@@ -104,6 +111,7 @@ export class LakeBottom {
       }
       return [];
     });
+    for (const r of reeds) this.structures.push(reedStructure(r));
   }
 
   /** Pohjan syvyys (m, positiivinen alaspäin). Maalla 0. */
@@ -127,7 +135,9 @@ export class LakeBottom {
   /** Rakenne, jonka alueella piste on (kivikko, puun oksat, jyrkänteen reuna), tai null. */
   structureAt(p: Vec2): Structure | null {
     for (const s of this.structures) {
-      if (s.trunk) {
+      if (s.ring) {
+        if (distance(s.pos, p) <= s.radius && pointInRing(p, s.ring)) return s;
+      } else if (s.trunk) {
         if (distance(closestPointOnSegment(p, s.trunk[0], s.trunk[1]), p) <= TREE_REACH) return s;
       } else if (distance(s.pos, p) <= s.radius) return s;
     }
@@ -166,12 +176,26 @@ export class LakeBottom {
         d = lerp(d, Math.min(d, f.depth), w);
       }
     }
+    // Kaislikko kasvaa matalassa: pohja nousee reunalta kohti kaislikon syvyyttä.
+    const inReeds = this.reeds.insideDistance(p);
+    if (inReeds > 0) d = lerp(d, Math.min(d, REEDS.depth), Math.min(1, inReeds / REEDS.edge));
     // Rannan lähellä pohja ei voi olla mielivaltaisen syvä.
     return Math.max(0.2, Math.min(d, BOTTOM.shoreDepth + shoreDist * 0.5));
   }
 }
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+function reedStructure(r: ReedBed): Structure {
+  const xs = r.ring.map((p) => p.x);
+  const ys = r.ring.map((p) => p.y);
+  const pos = {
+    x: (Math.min(...xs) + Math.max(...xs)) / 2,
+    y: (Math.min(...ys) + Math.max(...ys)) / 2,
+  };
+  const radius = Math.max(...r.ring.map((p) => distance(pos, p)));
+  return { kind: 'reeds', pos, radius, ring: r.ring };
+}
 
 /** 1 keskellä, pehmeästi 0:aan säteen kohdalla. */
 function smoothFalloff(r: number, radius: number): number {

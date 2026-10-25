@@ -13,6 +13,7 @@ import {
   tackleCastFactor,
   type Tackle,
 } from './gear';
+import type { Structure } from '../map/bottom';
 
 const DT = 1 / 60;
 const world = { isWater: (p: { x: number }) => Math.abs(p.x) < 500, depthAt: () => 6 };
@@ -169,27 +170,45 @@ describe('vieheet ja siimat', () => {
 });
 
 describe('pohjatartunta', () => {
-  const rocks = { kind: 'rocks' as const, pos: { x: 30, y: 0 }, radius: 12 };
-  /** Viehe kivikon kohdalla pohjassa, kelataan kunnes jotain tapahtuu. */
-  function snagRun(seed: number, drag = 1, line: Tackle['line'] = 'medium') {
+  const rocks: Structure = { kind: 'rocks', pos: { x: 30, y: 0 }, radius: 12 };
+  const reeds: Structure = {
+    kind: 'reeds',
+    pos: { x: 30, y: 0 },
+    radius: 12,
+    ring: [
+      { x: 18, y: -8 },
+      { x: 42, y: -8 },
+      { x: 42, y: 8 },
+      { x: 18, y: 8 },
+    ],
+  };
+  /** Viehe rakenteen kohdalla, kelataan kunnes jotain tapahtuu. */
+  function snagRun(
+    seed: number,
+    drag = 1,
+    line: Tackle['line'] = 'medium',
+    structure = rocks,
+    lure: Tackle['lure'] = 'jig',
+    jigging = true,
+  ) {
     const rng = new Rng(seed);
-    const s = createFishing(tackle({ lure: 'jig', line }));
+    const s = createFishing(tackle({ lure, line }));
     s.stage = 'water';
     s.lure = { x: 32, y: 0 };
     s.lineLength = 30;
-    s.depth = 6;
+    s.depth = jigging ? 6 : 0;
     s.drag = drag;
     const ctx: FishingContext = {
       tubePos: { x: 0, y: 0 },
       heading: 0,
       ...world,
-      structureAt: (p) => (distance(p, rocks.pos) <= rocks.radius ? rocks : null),
+      structureAt: (p) => (distance(p, structure.pos) <= structure.radius ? structure : null),
       fish: { pop: { fish: [], nextId: 1, tick: 0 }, diff: DIFFICULTIES.normal, rng },
     };
     const log: FishingEvents[] = [];
     for (let i = 0; i < 30 / DT && s.stage === 'water'; i++) {
       // Nykäisyjigaus: kelataan ja tauotetaan, jolloin jigi painuu pohjaan.
-      const reel = s.snag !== null || Math.floor(i / 40) % 2 === 0;
+      const reel = s.snag !== null || !jigging || Math.floor(i / 40) % 2 === 0;
       log.push(
         stepFishing(s, { aim: { x: 30, y: 0 }, castHeld: false, reel, cancel: false }, ctx, DT),
       );
@@ -210,6 +229,17 @@ describe('pohjatartunta', () => {
     expect(snagged).toBeGreaterThan(10);
     expect(freed).toBeGreaterThan(0);
     expect(lost).toBeGreaterThan(0);
+  });
+
+  it('pinnassa kelattu lippa tarttuu kaislikkoon mutta ei pohjan kivikkoon', () => {
+    let inReeds = 0;
+    let onRocks = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+      if (snagRun(seed, 1, 'medium', reeds, 'spinner', false).some((e) => e.snagged)) inReeds++;
+      if (snagRun(seed, 1, 'medium', rocks, 'spinner', false).some((e) => e.snagged)) onRocks++;
+    }
+    expect(inReeds).toBeGreaterThan(5);
+    expect(onRocks).toBe(0);
   });
 
   it('liian kireä jarru katkaisee ohuen siiman tartunnassa heti', () => {

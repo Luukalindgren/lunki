@@ -1,5 +1,6 @@
 import { collideTubeWithShore, stepTube, type TubeInput, type TubeState } from '../physics/tube';
 import { collideTubePair } from '../physics/tubeCollision';
+import { REEDS } from '../map/reeds';
 import type { WaterBody } from '../map/waterBody';
 import type { Vec2 } from '../vec2';
 
@@ -56,7 +57,7 @@ export function decodeInputs(data: unknown): NetInput[] {
   return out;
 }
 
-/** Yksi askel: fysiikka ja rantatörmäys. Sama asiakkaalla ja palvelimella. */
+/** Yksi askel: fysiikka, kaislikon vastus ja rantatörmäys. Sama asiakkaalla ja palvelimella. */
 export function stepPlayerTube(
   tube: TubeState,
   input: TubeInput,
@@ -64,7 +65,8 @@ export function stepPlayerTube(
   dt = NET_DT,
   wind?: Vec2,
 ): TubeState {
-  return collideTubeWithShore(tube, stepTube(tube, input, dt, wind), water);
+  const drag = water.reedsAt(tube.pos) ? REEDS.drag : 1;
+  return collideTubeWithShore(tube, stepTube(tube, input, dt, wind, drag), water);
 }
 
 /**

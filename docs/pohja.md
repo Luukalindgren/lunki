@@ -43,3 +43,20 @@ Jos liikkuva viehe hipoo pohjaa (alle 0,35 m pohjasta) kivikon tai puun kohdalla
 tarttua. Kelaaminen kiristää siiman jarrun voimalla. Noin 1,2 s vedon jälkeen viehe irtoaa
 (60 %) tai siima katkeaa ja viehe jää pohjaan. Jos jarru on kireämmällä kuin siima kestää,
 siima katkeaa heti.
+
+## Saaret ja kaislikot
+
+OpenStreetMapissa Lunkinjärvellä ei ole saaria eikä kaislikoita, eikä Maanmittauslaitoksen
+maastotietokantaa saa haettua ilman API-avainta. Ne on siksi rajattu ilmakuvista (Esri
+World Imagery, Microsoft Bing Maps; haettu GitHub Actionsissa ja sovitettu OSM-rantaviivaan,
+ks. #99).
+
+- **Saaret** (`packages/map-pipeline/data/islands-aerial.json`, ETRS-TM35FIN): 9 luotoa,
+  rajattu automaattisesti kesäkuvan kasvillisuudesta (puiden latvukset + 1 m). Karttaputki
+  (`build-map`) lisää ne `lunkinjarvi.json`in `islands`-kenttään. Saaret ovat maata:
+  este renkaalle ja vieheelle, pohja madaltuu niiden ympärillä kuten rannassa.
+- **Kaislikot ja lumpeikot** (`packages/shared/src/map/lunkinjarvi-reeds.json`, pelin
+  metrit): 14 laikkua, rajattu käsin suurpiirteisesti. Tiedostoa saa muokata. Kaislikossa
+  pohja nousee reunalta 8 m matkalla 1,2 metriin, rengas kulkee noin puolta hitaammin
+  (vastus × 3,5), viehe voi tarttua varsiin missä syvyydessä tahansa, ja osa hauista ja
+  särjistä asettuu kaislikon reunalle (`packages/shared/src/map/reeds.ts`).

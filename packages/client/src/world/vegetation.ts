@@ -5,7 +5,6 @@ import {
   terrainHeightAt,
   valueNoise,
   type AreaKind,
-  type LakeBottom,
   type LakeMap,
   type LakeSurroundings,
   type Vec2,
@@ -32,8 +31,9 @@ const TREE_DENSITY: Partial<Record<AreaKind, number>> = {
 const UNKNOWN_DENSITY = 0.6;
 /** Rakennusten ympärille jätetty piha (m). */
 const YARD = 9;
-/** Kaislikko kasvaa matalassa, enintään tämän syvyisessä vedessä (m). */
-const REED_MAX_DEPTH = 1.3;
+/** Kaislojen väli kaislikossa (m) ja osuus, joka jää aukoiksi. */
+const REED_SPACING = 1.6;
+const REED_GAPS = 0.25;
 
 /** Kuusen, männyn ja koivun korkeus (m) ja leveys suhteessa korkeuteen. */
 const SIZES: Record<SpriteKind, { min: number; max: number; aspect: number }> = {
@@ -56,16 +56,12 @@ export interface Plant {
 /**
  * Rannan puut ja kaislikot ristikkäisinä spritelevyinä (yksi piirtokutsu
  * lajia kohden). Puut sijoitetaan rantaviivalta maalle maankäytön mukaan,
- * kaislat matalaan rantaveteen.
+ * kaislat kartan kaislikoihin (ilmakuvista rajatut, ks. lunkinjarvi-reeds.json).
  */
-export function createVegetation(
-  map: LakeMap,
-  surroundings?: LakeSurroundings,
-  bottom?: LakeBottom,
-): THREE.Group {
+export function createVegetation(map: LakeMap, surroundings?: LakeSurroundings): THREE.Group {
   const group = new THREE.Group();
   group.name = 'vegetation';
-  const plants = planVegetation(map, surroundings, bottom);
+  const plants = planVegetation(map, surroundings);
   const texture = createAtlas();
   const material = new THREE.MeshBasicMaterial({
     map: texture,
@@ -106,11 +102,7 @@ export function createVegetation(
 }
 
 /** Kasvien paikat; erillään piirrosta, jotta sijoittelua voi testata. */
-export function planVegetation(
-  map: LakeMap,
-  surroundings?: LakeSurroundings,
-  bottom?: LakeBottom,
-): Plant[] {
+export function planVegetation(map: LakeMap, surroundings?: LakeSurroundings): Plant[] {
   // Kiinteä siemen: sama järvi näyttää aina samalta.
   let seed = 23;
   const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -157,17 +149,20 @@ export function planVegetation(
     }
   }
 
-  // Kaislikot: laikkuina suojaisessa matalassa rantavedessä.
-  for (const { p, n, t } of shoreSamples(map.shore, 2)) {
-    const patch = valueNoise(p.x / 35, p.y / 35, 31);
-    if (patch < 0.15) continue;
-    const reach = 2 + patch * 10;
-    for (let d = 0.5 + rand(); d < reach; d += 1.3 + rand() * 0.8) {
-      const side = (rand() - 0.5) * 1.6;
-      const pos = { x: p.x - n.x * d + t.x * side, y: p.y - n.y * d + t.y * side };
-      if (!isWater(pos)) continue;
-      if (bottom && bottom.depthAt(pos) > REED_MAX_DEPTH) break;
-      add('reeds', pos, -0.4);
+  // Kaislikot: tiheinä tuppaina kaislikon sisällä, välissä aukkoja.
+  for (const bed of map.reeds ?? []) {
+    const xs = bed.ring.map((p) => p.x);
+    const ys = bed.ring.map((p) => p.y);
+    for (let y = Math.min(...ys); y < Math.max(...ys); y += REED_SPACING) {
+      for (let x = Math.min(...xs); x < Math.max(...xs); x += REED_SPACING) {
+        const pos = {
+          x: x + (rand() - 0.5) * REED_SPACING,
+          y: y + (rand() - 0.5) * REED_SPACING,
+        };
+        if (!pointInRing(pos, bed.ring) || !isWater(pos)) continue;
+        if (valueNoise(pos.x / 6, pos.y / 6, 31) < REED_GAPS * 2 - 1) continue;
+        add('reeds', pos, -0.4);
+      }
     }
   }
   return plants;

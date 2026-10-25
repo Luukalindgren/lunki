@@ -33,6 +33,37 @@ export function createLakeMesh(map: LakeMap, waves = createWaterWaves()): THREE.
   water.name = 'water';
   group.add(water);
 
+  // Saaret: matala maakansi, jotta POV-näkymän karkea maasto ei näy veden alta.
+  const islandMaterial = new THREE.MeshLambertMaterial({ color: 0x2d5a30 });
+  for (const island of map.islands) {
+    const cap = new THREE.Mesh(
+      new THREE.ShapeGeometry(new THREE.Shape(toShapePoints(island))),
+      islandMaterial,
+    );
+    cap.rotation.x = -Math.PI / 2;
+    cap.position.y = 0.25;
+    cap.name = 'island';
+    group.add(cap);
+  }
+
+  // Kaislikot: vihertävä läikkä veden pinnassa (kaislaspritet ks. vegetation.ts).
+  const reedMaterial = new THREE.MeshBasicMaterial({
+    color: 0x4f6b2a,
+    transparent: true,
+    opacity: 0.55,
+    depthWrite: false,
+  });
+  for (const bed of map.reeds ?? []) {
+    const patch = new THREE.Mesh(
+      new THREE.ShapeGeometry(new THREE.Shape(toShapePoints(bed.ring))),
+      reedMaterial,
+    );
+    patch.rotation.x = -Math.PI / 2;
+    patch.position.y = 0.015;
+    patch.name = 'reeds';
+    group.add(patch);
+  }
+
   const shoreMaterial = new THREE.LineBasicMaterial({ color: 0xb99a68 });
   for (const ring of [map.shore, ...map.islands]) {
     const points = ring.map((p) => toWorld(p, 0.02));

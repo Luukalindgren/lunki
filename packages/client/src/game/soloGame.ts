@@ -52,6 +52,7 @@ import {
   sonarPing,
   stepFishing,
   stepTube,
+  REEDS,
   type CompetitionSettings,
   type LakeBottom,
   type CompetitionState,
@@ -267,7 +268,7 @@ export class SoloGame {
     this.scene.add(this.tubeMesh);
     const surroundings = map === LUNKINJARVI ? LUNKINJARVI_SURROUNDINGS : undefined;
     this.scenery.add(createShoreScenery(map, surroundings));
-    this.scenery.add(createVegetation(map, surroundings, this.bottom));
+    this.scenery.add(createVegetation(map, surroundings));
     if (surroundings) {
       const terrain = createTerrainMesh(map, surroundings);
       if (terrain) this.scenery.add(terrain);
@@ -640,7 +641,14 @@ export class SoloGame {
         !frozen && reelHeld,
       );
     } else {
-      const next = stepTube(this.tube, capsized ? still : readTubeInput(input), dt, this.tubeWind);
+      const drag = this.water.reedsAt(this.tube.pos) ? REEDS.drag : 1;
+      const next = stepTube(
+        this.tube,
+        capsized ? still : readTubeInput(input),
+        dt,
+        this.tubeWind,
+        drag,
+      );
       this.tube = collideTubeWithShore(this.tube, next, this.water);
     }
 

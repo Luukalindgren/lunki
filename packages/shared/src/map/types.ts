@@ -1,4 +1,5 @@
 import type { Pier } from './piers';
+import type { ReedBed } from './reeds';
 import type { Vec2 } from '../vec2';
 
 /**
@@ -18,6 +19,8 @@ export interface LakeMap {
   bounds: { minX: number; minY: number; maxX: number; maxY: number };
   /** Laiturit: este renkaalle ja vieheelle (ks. piers.ts). */
   piers?: Pier[];
+  /** Kaislikot ja lumpeikot: hidastavat rengasta, viehe voi tarttua (ks. reeds.ts). */
+  reeds?: ReedBed[];
 }
 
 /** Ympäristön aluetyypit (maankäyttö ja rakennukset). */

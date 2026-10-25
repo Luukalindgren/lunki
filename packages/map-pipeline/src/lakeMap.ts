@@ -20,11 +20,20 @@ function ringToLocal(ring: LonLatRing, origin: { e: number; n: number }): Vec2[]
   return pts;
 }
 
+/**
+ * Ilmakuvista tulkitut saaret (ETRS-TM35FIN), kun OSM:ssä niitä ei ole.
+ * Ks. data/islands-aerial.json.
+ */
+export interface AerialIslands {
+  source: string;
+  islands: { ring: [number, number][] }[];
+}
+
 function orient(ring: Vec2[], ccw: boolean): Vec2[] {
   return signedArea(ring) > 0 === ccw ? ring : [...ring].reverse();
 }
 
-export function toLakeMap(osm: OsmLake): LakeMap {
+export function toLakeMap(osm: OsmLake, aerial?: AerialIslands | null): LakeMap {
   if (osm.outer.length === 0) throw new Error('Järvellä ei ole ulkoreunaa');
   // Origo: ulkoreunan rajauslaatikon keskipiste, pyöristettynä metriin.
   const tm = osm.outer.flat().map(([lon, lat]) => toTm35fin(lon, lat));
@@ -44,8 +53,12 @@ export function toLakeMap(osm: OsmLake): LakeMap {
     }));
 
   const shore = finish(shoreRaw, true);
-  const islands = osm.islands
-    .map((s) => ringToLocal(s.ring, origin))
+  const islands = [
+    ...osm.islands.map((s) => ringToLocal(s.ring, origin)),
+    ...(aerial?.islands ?? []).map((s) =>
+      s.ring.map(([e, n]) => ({ x: e - origin.e, y: n - origin.n })),
+    ),
+  ]
     .filter((r) => r.length >= 3 && Math.abs(signedArea(r)) >= MIN_ISLAND_AREA)
     .map((r) => finish(r, false));
 

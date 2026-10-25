@@ -1,22 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import {
-  LUNKINJARVI,
-  LUNKINJARVI_BOTTOM,
-  LUNKINJARVI_SURROUNDINGS,
-  LakeBottom,
-  WaterBody,
-  pointInRing,
-} from '@lunki/shared';
+import { LUNKINJARVI, LUNKINJARVI_SURROUNDINGS, pointInRing } from '@lunki/shared';
 import { planVegetation } from './vegetation';
 
 const map = LUNKINJARVI;
-const bottom = new LakeBottom(new WaterBody(map), map.bounds, LUNKINJARVI_BOTTOM);
-const inLake = (p: { x: number; y: number }) => pointInRing(p, map.shore);
+const onIsland = (p: { x: number; y: number }) => map.islands.some((i) => pointInRing(p, i));
+const inLake = (p: { x: number; y: number }) => pointInRing(p, map.shore) && !onIsland(p);
+const inReeds = (p: { x: number; y: number }) =>
+  (map.reeds ?? []).some((r) => pointInRing(p, r.ring));
 
 describe('rantamaisema', () => {
-  const plants = planVegetation(map, LUNKINJARVI_SURROUNDINGS, bottom);
+  const plants = planVegetation(map, LUNKINJARVI_SURROUNDINGS);
 
-  it('puut kasvavat maalla ja kaislat matalassa vedessä', () => {
+  it('puut kasvavat maalla ja saarilla, kaislat kartan kaislikoissa', () => {
     const trees = plants.filter((p) => p.kind !== 'reeds');
     const reeds = plants.filter((p) => p.kind === 'reeds');
     expect(trees.length).toBeGreaterThan(5000);
@@ -24,14 +19,17 @@ describe('rantamaisema', () => {
     expect(reeds.length).toBeGreaterThan(200);
     expect(trees.every((t) => !inLake(t.pos))).toBe(true);
     expect(reeds.every((r) => inLake(r.pos))).toBe(true);
-    expect(reeds.every((r) => bottom.depthAt(r.pos) <= 1.3)).toBe(true);
+    expect(reeds.every((r) => inReeds(r.pos))).toBe(true);
+    // Jokaisella saarella kasvaa puita.
+    for (const island of map.islands)
+      expect(trees.some((t) => pointInRing(t.pos, island))).toBe(true);
     // Kaikkia kolmea puulajia.
     for (const kind of ['spruce', 'pine', 'birch'])
       expect(trees.some((t) => t.kind === kind)).toBe(true);
   });
 
   it('sijoittelu on aina sama', () => {
-    const again = planVegetation(map, LUNKINJARVI_SURROUNDINGS, bottom);
+    const again = planVegetation(map, LUNKINJARVI_SURROUNDINGS);
     expect(again.length).toBe(plants.length);
     expect(again[123]).toEqual(plants[123]);
   });

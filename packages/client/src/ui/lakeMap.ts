@@ -68,7 +68,12 @@ export function describeSpot(p: Vec2): string | null {
   const d = lunkiData();
   if (!d.water.isWater(p)) return null;
   const feature = featureAt(d, p);
-  const what = feature ? ` · ${feature.name} (${FEATURE_NAMES[feature.type]})` : '';
+  const reeds = d.water.reedsAt(p);
+  const what = feature
+    ? ` · ${feature.name} (${FEATURE_NAMES[feature.type]})`
+    : reeds
+      ? ` · ${reeds.name ?? 'kaislikko'}`
+      : '';
   return `Syvyys ${fi(d.bottom.depthAt(p))} m${what}`;
 }
 
@@ -81,7 +86,7 @@ let baseCache: BaseImage | null = null;
 
 /**
  * Kartan pohjakuva kerran: maankäyttö, tiet, järven syvyysvyöhykkeet
- * käyrineen, rakennukset ja laiturit. Pikselit ovat isoja kuten pelissä.
+ * käyrineen, saaret, kaislikot, rakennukset ja laiturit. Pikselit ovat isoja kuten pelissä.
  */
 function buildBase(d: LakeData, s: LakeSurroundings): BaseImage {
   if (baseCache) return baseCache;
@@ -164,6 +169,20 @@ function buildBase(d: LakeData, s: LakeSurroundings): BaseImage {
   lake.height = lh;
   lake.getContext('2d')!.putImageData(img, 0, 0);
   ctx.drawImage(lake, x0, y0);
+
+  // Saaret metsää, kaislikot vihertävänä läikkänä veden päällä.
+  ctx.fillStyle = css(AREA_COLORS.forest);
+  for (const island of d.map.islands) {
+    ringPath([island]);
+    ctx.fill();
+  }
+  ctx.fillStyle = css(AREA_COLORS.reeds);
+  ctx.globalAlpha = 0.6;
+  for (const bed of d.map.reeds ?? []) {
+    ringPath([bed.ring]);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
 
   ctx.fillStyle = css(AREA_COLORS.building);
   for (const a of s.areas) {
