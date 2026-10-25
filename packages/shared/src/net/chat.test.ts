@@ -5,6 +5,7 @@ describe('sanitizeChat', () => {
   it('siistii välilyönnit ja ohjausmerkit', () => {
     expect(sanitizeChat('  moi\n\tkaikki  ')).toBe('moi kaikki');
     expect(sanitizeChat('a\u0000b\u007fc')).toBe('a b c');
+    expect(sanitizeChat('a\u009bb\u200bc\u2066d')).toBe('a bcd');
   });
 
   it('tyhjä tai muu kuin teksti ei kelpaa', () => {

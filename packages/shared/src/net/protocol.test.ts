@@ -29,5 +29,9 @@ describe('nimimerkki', () => {
     expect(sanitizeName('a'.repeat(40))).toHaveLength(16);
     expect(sanitizeName('\u0007')).toBe('Kalastaja');
     expect(sanitizeName(42)).toBe('Kalastaja');
+    // Suunnanvaihto naamioisi nimen; ESC ja C1 ohjaisivat päätettä.
+    expect(sanitizeName('Luuka\u202eakuuL')).toBe('LuukaakuuL');
+    expect(sanitizeName('\u001b[31mA\u009bB')).toBe('[31mAB');
+    expect(sanitizeName('x'.repeat(10_000_000))).toHaveLength(16);
   });
 });

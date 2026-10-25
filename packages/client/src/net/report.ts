@@ -47,7 +47,13 @@ export function installErrorReporting(): void {
   const report = (e: ErrorReport) => {
     if (sent.size >= MAX_REPORTS || sent.has(e.message)) return;
     sent.add(e.message);
-    void post(ERRORS_PATH, e);
+    // Palvelin katkaisee kentät joka tapauksessa; pitkää pinoa ei kannata lähettää.
+    void post(ERRORS_PATH, {
+      message: e.message.slice(0, FEEDBACK_LIMITS.message),
+      source: e.source.slice(0, FEEDBACK_LIMITS.context),
+      stack: e.stack.slice(0, FEEDBACK_LIMITS.stack),
+      context: e.context,
+    });
   };
   addEventListener('error', (ev) => {
     if (!ev.message) return;
