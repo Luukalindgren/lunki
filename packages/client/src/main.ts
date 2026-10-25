@@ -17,6 +17,7 @@ import { Sfx } from './audio/sfx';
 import { SoloGame } from './game/soloGame';
 import { loadTackle, saveTackle } from './game/tackle';
 import { Hud } from './ui/hud';
+import { TouchControls, isTouchDevice } from './ui/touchControls';
 import { Screens, loadSettings } from './ui/screens';
 import { Bench } from './dev/bench';
 import { loadIdentity, saveName } from './net/identity';
@@ -43,6 +44,8 @@ const input = new Input(canvas);
 const fps = new FpsMeter(app, import.meta.env.DEV);
 const hud = new Hud(app);
 hud.setVisible(false);
+const touch = isTouchDevice() ? new TouchControls(hud.root, input) : null;
+hud.setTouch(touch !== null);
 installErrorReporting();
 const sfx = new Sfx();
 window.addEventListener('pointerdown', () => sfx.unlock());
@@ -83,6 +86,7 @@ function startGame(s: CompetitionSettings, seed = devSeed) {
   game.setResolution(retro.resolution);
   game.onFinished = () => showResults();
   hud.setHelpMode(session !== null);
+  touch?.setMultiplayer(session !== null);
   if (import.meta.env.DEV) Object.assign(window, { lunki: game });
   paused = false;
   screens.hide();
@@ -343,6 +347,7 @@ startLoop({
     const t0 = performance.now();
     // Moninpelissä kisa jatkuu valikon ollessa auki.
     if (game && ((!paused && !screens.open) || (session && paused))) game.update(dt);
+    if (game) touch?.setGear(game.fishing.gear);
     else if (!game) sfx.updateAmbience(dt, MENU_AMBIENCE);
     updateTime += performance.now() - t0;
     updateCount++;

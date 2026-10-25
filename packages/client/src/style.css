@@ -491,3 +491,132 @@ body {
   align-items: stretch;
   max-width: 360px;
 }
+
+/* Kosketusohjaimet (puhelin, tabletti). Koot CSS-pikseleinä sormea varten. */
+.game-canvas {
+  touch-action: none;
+}
+
+.touch-controls {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  font-size: 22px;
+  text-shadow: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.touch-controls button {
+  pointer-events: auto;
+  touch-action: none;
+  font: inherit;
+  color: #eef2f3;
+  background: rgb(57 66 77 / 75%);
+  border: 3px solid #5f6b78;
+  padding: 0;
+  min-width: 48px;
+  height: 44px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.touch-controls button:active,
+.touch-controls button.down {
+  background: #1b5a84;
+  border-color: #83c2db;
+}
+
+.touch-stick {
+  position: absolute;
+  left: calc(16px + env(safe-area-inset-left, 0px));
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  width: 124px;
+  height: 124px;
+  border-radius: 50%;
+  border: 3px solid #5f6b78;
+  background: rgb(11 15 20 / 45%);
+  pointer-events: auto;
+  touch-action: none;
+  display: grid;
+  place-items: center;
+}
+
+.touch-stick-knob {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #5f6b78;
+  border: 3px solid #c3cbd2;
+  pointer-events: none;
+}
+
+.touch-tools {
+  position: absolute;
+  left: calc(8px + env(safe-area-inset-left, 0px));
+  top: calc(8px + env(safe-area-inset-top, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.touch-actions {
+  position: absolute;
+  right: calc(12px + env(safe-area-inset-right, 0px));
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.touch-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 56px);
+  gap: 6px;
+}
+
+.touch-grid button {
+  font-size: 18px;
+}
+
+.touch-controls .touch-reel {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: rgb(140 28 28 / 80%);
+  border-color: #d23a2a;
+}
+
+/* Pystyasennossa napit allekkain, jotta tatille jää tilaa. */
+@media (orientation: portrait) {
+  .touch-actions {
+    flex-direction: column;
+  }
+}
+
+/* HUD väistää ohjaimia. */
+.hud.touch .hud-catches {
+  left: 64px;
+}
+
+.hud.touch .hud-status {
+  left: 64px;
+  bottom: 160px;
+}
+
+.hud.touch .hud-help {
+  right: auto;
+  bottom: auto;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Pystyssä tila ylös: alhaalla ovat ohjaimet ja keskellä oma rengas. */
+@media (orientation: portrait) {
+  .hud.touch .hud-status {
+    bottom: auto;
+    top: calc(var(--u) * 40);
+    font-size: calc(var(--u) * 7);
+  }
+}

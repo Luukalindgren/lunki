@@ -25,6 +25,9 @@ export class Hud {
   readonly sonar: SonarDisplay;
   private messageTimer = 0;
   private weighTimer = 0;
+  private multiplayer = false;
+  /** Kosketusohjaus: ohjeessa napit näppäinten sijaan. */
+  private touch = false;
 
   constructor(parent: HTMLElement) {
     this.root = el('div', 'hud');
@@ -128,18 +131,39 @@ export class Hud {
     this.root.hidden = !visible;
   }
 
+  /** Kosketusohjaimet näkyvissä: HUD väistää ne ja ohje on aluksi piilossa. */
+  setTouch(touch: boolean): void {
+    this.touch = touch;
+    this.root.classList.toggle('touch', touch);
+    this.help.hidden = touch;
+    this.setHelpMode(this.multiplayer);
+  }
+
   /** Ohjeen rivit: lyhyet, jotta paneeli ei peitä tilapaneelia. */
   setHelpMode(multiplayer: boolean): void {
-    this.help.textContent = [
-      'W/S potki · A/D käänny · Shift pikapotku',
-      'Hiiri: tähtää, pidä pohjassa ja päästä = heitto',
-      'Hiiri pohjassa tai välilyönti = kelaa',
-      '1/2/3 kelausnopeus · Q/E jarru löysälle/kireälle',
-      'R vaihda viehe · K kaikuluotain · V kalastajan silmin',
-      'Rulla = zoom · H = ohje · Esc = tauko',
-      'Ukkosella kelaa viehe sisään ja pysy rannan lähellä',
-      ...(multiplayer ? ['Sotkussa kelatkaa yhdessä · C katkaisee siiman'] : []),
-    ].join('\n');
+    this.multiplayer = multiplayer;
+    const lines = this.touch
+      ? [
+          'Tatti: potki ja käänny · reunaan asti = pikapotku',
+          'Kosketa järveä: tähtää, pidä ja päästä = heitto',
+          'Sormi järvellä tai KELAA = kelaa',
+          'NOP kelausnopeus · JAR−/JAR+ jarru',
+          'VIEHE vaihda · LUOT kaikuluotain · KAM silmin',
+          '+/− zoom · ? ohje · II tauko',
+          'Ukkosella kelaa viehe sisään ja pysy rannan lähellä',
+          ...(multiplayer ? ['Sotkussa kelatkaa yhdessä · KATKO katkaisee'] : []),
+        ]
+      : [
+          'W/S potki · A/D käänny · Shift pikapotku',
+          'Hiiri: tähtää, pidä pohjassa ja päästä = heitto',
+          'Hiiri pohjassa tai välilyönti = kelaa',
+          '1/2/3 kelausnopeus · Q/E jarru löysälle/kireälle',
+          'R vaihda viehe · K kaikuluotain · V kalastajan silmin',
+          'Rulla = zoom · H = ohje · Esc = tauko',
+          'Ukkosella kelaa viehe sisään ja pysy rannan lähellä',
+          ...(multiplayer ? ['Sotkussa kelatkaa yhdessä · C katkaisee siiman'] : []),
+        ];
+    this.help.textContent = lines.join('\n');
   }
 
   toggleHelp(): void {
