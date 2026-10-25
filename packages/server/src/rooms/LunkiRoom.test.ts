@@ -27,6 +27,7 @@ import {
   CHAT_MAX_LENGTH,
   PROTOCOL_VERSION,
   CHAT_RATE,
+  JoinRefusal,
   type ChatMessage,
   type CatchRecord,
   type BigWaveMessage,
@@ -123,9 +124,6 @@ describe('LunkiRoom', () => {
     // Sää lasketaan samasta siemenestä kuin asiakkailla.
     const plan = planWeather(seed, 'realistic', guest.state.settings.durationMinutes * 60);
     expect(guest.state.sky).toBe(weatherAt(plan, 0).sky);
-
-    // Alkaneeseen kisaan ei pääse mukaan.
-    await expect(sdk().joinById(host.roomId, { name: 'C', playerId: 'c' })).rejects.toThrow();
 
     await host.leave();
     await guest.leave();
@@ -835,5 +833,144 @@ describe('LunkiRoom', () => {
     await until(() => (host.state.players.get(host.sessionId) as P).tangledWith === '');
 
     await host.leave();
+  });
+});
+
+describe('liittyminen kesken kisan', () => {
+  type P = { name: string; x: number; y: number; connected: boolean };
+  const water = new WaterBody(LUNKINJARVI);
+  const me = (room: Room) => room.state.players.get(room.sessionId) as P;
+
+  /** Isäntä ja vieras kisassa; vieras on saanut yhden kalan. */
+  async function race(settings: Record<string, unknown> = {}) {
+    const host = await sdk().create(ROOM_NAME, {
+      name: 'A',
+      playerId: 'a',
+      testTiming: { countdown: 0.1, duration: 60 },
+    });
+    if (Object.keys(settings).length > 0) {
+      host.send(ClientMsg.settings, settings);
+      await until(() =>
+        Object.entries(settings).every(
+          ([k, v]) => (host.state?.settings as Record<string, unknown> | undefined)?.[k] === v,
+        ),
+      );
+    }
+    const guest = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
+    await until(() => players(host).length === 2);
+    guest.send(ClientMsg.ready, true);
+    await until(() => players(host).some((p) => p.ready));
+    host.send(ClientMsg.start);
+    await until(() => guest.state.phase === 'playing');
+    const pos = { x: me(guest).x, y: me(guest).y };
+    guest.send(ClientMsg.splash, { x: pos.x + 5, y: pos.y });
+    guest.send(ClientMsg.catch, { species: 'perch', name: 'Ahven', weight: 0.5 });
+    await until(() => host.state.catches.length === 1);
+    return { host, guest, pos };
+  }
+
+  const refusal = (p: Promise<unknown>) =>
+    p.then(
+      () => 'liittyi',
+      (e: unknown) => (e instanceof Error ? e.message : String(e)),
+    );
+
+  it('uusi pelaaja pääsee käynnissä olevaan kisaan rannan tuntumaan', async () => {
+    const { host, guest } = await race();
+    const late = await sdk().joinById(host.roomId, { name: 'C', playerId: 'c' });
+    await until(() => players(host).length === 3 && late.state.phase === 'playing');
+    const c = me(late);
+    expect(c.name).toBe('C');
+    expect(water.isWater({ x: c.x, y: c.y })).toBe(true);
+    // Rengas on palvelimen simuloinnissa: potku liikuttaa sitä.
+    const predictor = new TubePredictor(createTube({ x: c.x, y: c.y }, 0), water);
+    for (let k = 0; k < 10; k++) {
+      for (let j = 0; j < 3; j++) predictor.step({ kick: 1, turn: 0, sprint: false });
+      late.send(ClientMsg.input, { i: encodeInputs(predictor.takeOutgoing()!), l: [0, 0, 0] });
+    }
+    await until(() => (me(late) as P & { ack: number }).ack === 30, 4000);
+
+    for (const r of [host, guest, late]) await r.leave();
+  });
+
+  it('lähtenyt palaa koodilla samaan paikkaan ja saaliisiin', async () => {
+    const { host, guest, pos } = await race();
+    const oldId = guest.sessionId;
+    await guest.leave();
+    await until(() => players(host).length === 1);
+    // Saalis jää tulostauluun lähteneellekin.
+    expect(host.state.catches[0].player).toBe(oldId);
+
+    const back = await sdk().joinById(host.roomId, { name: 'Uusi nimi', playerId: 'b' });
+    await until(() => players(host).length === 2 && back.state.catches?.length === 1);
+    const b = me(back);
+    expect(b.name).toBe('B');
+    expect(Math.hypot(b.x - pos.x, b.y - pos.y)).toBeLessThan(1);
+    await until(() => host.state.catches[0].player === back.sessionId);
+
+    await host.leave();
+    await back.leave();
+  });
+
+  it('uusi välilehti ottaa katkenneen yhteyden paikan heti', async () => {
+    const { host, guest } = await race();
+    const token = guest.reconnectionToken;
+    guest.reconnection.enabled = false;
+    guest.connection.close(4010);
+    await until(
+      () => (host.state.players.get(guest.sessionId) as P | undefined)?.connected === false,
+    );
+
+    const tab = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
+    await until(() => players(host).length === 2 && host.state.players.has(tab.sessionId));
+    expect(host.state.players.has(guest.sessionId)).toBe(false);
+    await until(() => host.state.catches[0].player === tab.sessionId);
+    // Vanha yhteys ei enää pääse samaan paikkaan.
+    await expect(sdk().reconnect(token)).rejects.toThrow();
+
+    await host.leave();
+    await tab.leave();
+  });
+
+  it('"Vain paluu" päästää vain lähteneen takaisin', async () => {
+    const { host, guest } = await race({ lateJoin: 'return' });
+    expect(await refusal(sdk().joinById(host.roomId, { name: 'C', playerId: 'c' }))).toBe(
+      JoinRefusal.returnOnly,
+    );
+    await guest.leave();
+    await until(() => players(host).length === 1);
+    const back = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
+    await until(() => players(host).length === 2);
+
+    await host.leave();
+    await back.leave();
+  });
+
+  it('"Ei" estää liittymisen kesken kisan', async () => {
+    const { host, guest } = await race({ lateJoin: 'closed' });
+    expect(await refusal(sdk().joinById(host.roomId, { name: 'C', playerId: 'c' }))).toBe(
+      JoinRefusal.closed,
+    );
+    await guest.leave();
+    await until(() => players(host).length === 1);
+    expect(await refusal(sdk().joinById(host.roomId, { name: 'B', playerId: 'b' }))).toBe(
+      JoinRefusal.closed,
+    );
+
+    await host.leave();
+  });
+
+  it('lähteneen paikka pysyy vapaana täydessä huoneessa', async () => {
+    const { host, guest } = await race({ maxPlayers: 2 });
+    await guest.leave();
+    await until(() => players(host).length === 1);
+    expect(await refusal(sdk().joinById(host.roomId, { name: 'C', playerId: 'c' }))).toBe(
+      JoinRefusal.full,
+    );
+    const back = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
+    await until(() => players(host).length === 2);
+
+    await host.leave();
+    await back.leave();
   });
 });

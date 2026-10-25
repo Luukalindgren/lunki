@@ -45,6 +45,16 @@ muut pelaajat: SnapshotBuffer, piirretään 120 ms menneisyydestä
   tunnisteella samaan renkaaseen ja saaliisiin, ja syötteiden numerointi
   jatkuu palvelimen kuittauksesta.
 
+- **Liittyminen kesken kisan.** Huonetta ei lukita kisan alkaessa. Kisan
+  aikana lähteneen paikka (rengas, jäähyt, nimi) jää odottamaan selaimen
+  pysyvän tunnisteen (`playerId`, ei jaeta muille) mukaan. Samalla selaimella
+  huonekoodilla tai päävalikon "Palaa kisaan" -napista liittyvä palaa
+  paikalleen, ja hänen saaliinsa siirtyvät uudelle yhteydelle. Uusi välilehti
+  ottaa katkenneen yhteyden paikan heti. Uusi pelaaja aloittaa rannalta
+  kisan ensimmäisen aloituspaikan läheltä ja kalastaa jäljellä olevan ajan.
+  Isäntä valitsee aulassa: Sallittu / Vain paluu / Ei (`lateJoin`, tarkistus
+  `onAuth`issa). Lähteneiden paikat lasketaan mukaan pelaajarajaan.
+
 - **Siimojen sotkeutuminen.** Asiakas lähettää syötteen mukana vavan kärjen,
   vieheen paikan ja tiedon kelaamisesta (`l`). Palvelin etsii joka
   verkkoaskeleella vedessä olevat siimat, jotka ovat ristissä, kun jompikumpi

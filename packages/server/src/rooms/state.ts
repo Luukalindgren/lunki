@@ -14,8 +14,6 @@ import {
  */
 export const PlayerState = schema(
   {
-    /** Selaimen muistissa pysyvä tunniste (uudelleenyhdistämistä varten). */
-    playerId: t.string(),
     name: t.string(),
     ready: t.boolean(),
     connected: t.boolean().default(true),
@@ -70,6 +68,8 @@ export const SettingsState = schema(
     lightningPenalty: t.string().default(DEFAULT_SETTINGS.lightningPenalty!),
     capsizePenalty: t.string().default(DEFAULT_SETTINGS.capsizePenalty!),
     landPenalty: t.uint8().default(DEFAULT_SETTINGS.landPenalty!),
+    /** LateJoin: liittyminen kesken kisan. */
+    lateJoin: t.string().default('open'),
     species: t.array('string').default(() => new ArraySchema<string>(...NATIVE_SPECIES)),
     /** Kartalta valittu aloituspaikka; false = satunnainen. */
     customStart: t.boolean().default(false),
