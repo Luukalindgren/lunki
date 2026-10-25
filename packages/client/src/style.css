@@ -566,6 +566,35 @@ body {
   margin-left: 12px;
 }
 
+/* Ennätyslistan Tiedot-nappi ja avautuva tietorivi. */
+.catch-list .record-row {
+  cursor: pointer;
+}
+
+.screen .catch-list button.record-info {
+  margin-left: 12px;
+  padding: 0 8px;
+  font-size: 18px;
+  vertical-align: middle;
+}
+
+/* Tietorivi pysyy näkyvissä, vaikka lista vieritetään sivuttain. */
+.catch-list .record-more {
+  list-style: none;
+  position: sticky;
+  left: 0;
+  white-space: normal;
+  margin: 4px 0 10px;
+}
+
+.record-more .buttons {
+  margin: 6px 0 0;
+}
+
+.record-details span:last-child {
+  text-align: right;
+}
+
 .hud-weigh .fish-art {
   display: block;
   margin: 0 auto calc(var(--u) * 2);

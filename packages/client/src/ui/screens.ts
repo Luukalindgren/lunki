@@ -44,6 +44,7 @@ import {
   FEEDBACK_LIMITS,
   mapCredits,
   type RecordBoard,
+  type RecordEntry,
   type TimeOfDay,
   type WeatherLevel,
   type WinRule,
@@ -59,6 +60,7 @@ import {
   type WeighCardInfo,
 } from './weighCard';
 import { LakeMapView, describeSpot } from './lakeMap';
+import { SPECIES_PIN_COLORS, formatDate, recordDetails, recordTitle } from './recordDetails';
 import { drawTubePreview } from './tubePreview';
 import { VOLUME_LEVELS, type AudioSettings, type VolumeLevel } from '../audio/settings';
 
@@ -567,7 +569,11 @@ export class Screens {
     this.show(panel);
   }
 
-  /** Järven ennätyslista vaikeustasoittain; null = palvelinta ei tavoitettu. */
+  /**
+   * Järven ennätyslista vaikeustasoittain; null = palvelinta ei tavoitettu.
+   * Kartalla näkyy, mistä kukin ennätyskala saatiin, ja Tiedot-napin takana
+   * saaliin aika, sää ja varusteet.
+   */
   showRecords(board: RecordBoard | null, initial: Difficulty, onBack: () => void): void {
     const panel = this.panel();
     panel.append(h('h2', 'Lunkinjärven ennätykset'));
@@ -579,38 +585,149 @@ export class Screens {
       this.show(panel);
       return;
     }
+    let difficulty = initial;
+    /** Kartalla näkyvät ennätykset (vain ne, joiden paikka on tallessa). */
+    let placed: RecordEntry[] = [];
+    const detailsBox = (r: RecordEntry) => {
+      const box = document.createElement('div');
+      box.className = 'settings-summary record-details';
+      const spot = r.x !== undefined && r.y !== undefined ? describeSpot({ x: r.x, y: r.y }) : null;
+      for (const [k, v] of recordDetails(r, spot)) {
+        const row = document.createElement('div');
+        row.append(h('span', k, 'choice-label'), h('span', v));
+        box.append(row);
+      }
+      return box;
+    };
+    const selected = document.createElement('div');
+    const showSelected = (i: number) => {
+      const r = placed[i];
+      selected.replaceChildren(
+        ...(r ? [h('p', recordTitle(r), 'choice-label'), detailsBox(r)] : []),
+      );
+    };
+    const map = new LakeMapView({ onPin: showSelected });
+    const legend = document.createElement('div');
+    legend.className = 'lake-map-legend';
+    const mapView = document.createElement('div');
+    mapView.append(map.element, selected, legend);
+
     const lists = document.createElement('div');
-    const render = (d: Difficulty) => {
+    const content = document.createElement('div');
+    const toggle = document.createElement('div');
+    const setView = (showMap: boolean) => {
+      panel.classList.toggle('map-panel', showMap);
+      content.replaceChildren(showMap ? mapView : lists);
+      toggle.replaceChildren(
+        this.choice(
+          'Näkymä',
+          [
+            ['list', 'Lista'],
+            ['map', 'Kartta'],
+          ],
+          showMap ? 'map' : 'list',
+          (v) => setView(v === 'map'),
+        ),
+      );
+    };
+    const openOnMap = (r: RecordEntry) => {
+      setView(true);
+      const i = placed.indexOf(r);
+      map.selectPin(i);
+      showSelected(i);
+    };
+
+    const render = () => {
       lists.replaceChildren();
+      placed = [];
+      const species = new Set<SpeciesId>();
       for (const o of SPECIES_OPTIONS) {
-        const rows = board[d]?.[o.value] ?? [];
+        const rows = board[difficulty]?.[o.value] ?? [];
         if (rows.length === 0 && !o.native) continue;
         lists.append(h('p', o.label, 'choice-label'));
         const ol = document.createElement('ol');
         ol.className = 'catch-list records';
         for (const r of rows) {
+          if (r.x !== undefined && r.y !== undefined) {
+            placed.push(r);
+            species.add(r.species);
+          }
           const li = document.createElement('li');
           li.textContent = `${formatWeight(r.weight).padStart(8)}  ${r.angler.padEnd(16)} ${formatDate(r.date)}`;
-          li.append(fishImage(r.species, r.weight, LIST_FISH_SCALE));
+          const info = document.createElement('button');
+          info.type = 'button';
+          info.className = 'record-info';
+          info.textContent = 'Tiedot';
+          info.setAttribute('aria-expanded', 'false');
+          // Tiedot avautuvat omalle rivilleen; koko rivin napautus käy myös puhelimella.
+          let open: HTMLElement | null = null;
+          const toggleInfo = (e: Event) => {
+            e.stopPropagation();
+            if (open) {
+              open.remove();
+              open = null;
+            } else {
+              open = document.createElement('li');
+              open.className = 'record-more';
+              open.append(detailsBox(r));
+              if (r.x !== undefined)
+                open.append(this.buttons([['Näytä kartalla', () => openOnMap(r)]]));
+              li.after(open);
+            }
+            info.setAttribute('aria-expanded', String(open !== null));
+          };
+          info.addEventListener('click', toggleInfo);
+          li.addEventListener('click', toggleInfo);
+          li.className = 'record-row';
+          li.append(info, fishImage(r.species, r.weight, LIST_FISH_SCALE));
           ol.appendChild(li);
         }
         if (rows.length === 0) ol.append(h('li', 'Ei vielä saaliita', 'hint'));
         lists.append(ol);
       }
+      map.setPins(
+        placed.map((r) => ({
+          pos: { x: r.x!, y: r.y! },
+          color: SPECIES_PIN_COLORS[r.species] ?? '#eef2f3',
+          label: `${recordTitle(r)} · ${r.angler}`,
+        })),
+      );
+      showSelected(-1);
+      legend.replaceChildren(
+        ...(placed.length === 0
+          ? [
+              h(
+                'span',
+                'Tällä vaikeustasolla ei vielä ole ennätyksiä, joiden saantipaikka on tallessa.',
+              ),
+            ]
+          : SPECIES_OPTIONS.filter((o) => species.has(o.value)).map((o) => {
+              const item = h('span', o.label);
+              const swatch = document.createElement('i');
+              swatch.style.background = SPECIES_PIN_COLORS[o.value];
+              item.prepend(swatch);
+              return item;
+            })),
+      );
     };
-    render(initial);
+    render();
+    setView(false);
     panel.append(
       this.choice(
         'Vaikeus',
         (Object.keys(DIFFICULTY_NAMES) as Difficulty[]).map((d) => [d, DIFFICULTY_NAMES[d]]),
         initial,
-        (v) => render(v as Difficulty),
+        (v) => {
+          difficulty = v as Difficulty;
+          render();
+        },
       ),
-      lists,
+      toggle,
+      content,
       h('p', 'Listalle pääsevät moninpelikisoissa palvelimella punnitut kalat.', 'hint'),
       this.buttons([['Takaisin', onBack]]),
     );
-    this.show(panel);
+    this.show(panel, () => map.dispose());
   }
 
   showPause(
@@ -1245,9 +1362,3 @@ function h(tag: string, text: string, className?: string): HTMLElement {
   if (className) e.className = className;
   return e;
 }
-
-/** 2026-10-25 → 25.10.2026 */
-const formatDate = (iso: string) => {
-  const [y, m, d] = iso.split('-');
-  return y && m && d ? `${Number(d)}.${Number(m)}.${y}` : iso;
-};

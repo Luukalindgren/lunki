@@ -50,4 +50,51 @@ describe('ennätykset', () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it('tallentaa saantipaikan, varusteet ja olosuhteet', () => {
+    const s = new RecordStore(openDatabase(':memory:'));
+    const full = entry(1.5, {
+      species: 'pike',
+      at: '2026-10-25T17:40:12.000Z',
+      x: 120.5,
+      y: -40.2,
+      raceTime: 312,
+      timeOfDay: 'evening',
+      sky: 'rain',
+      wind: 5.3,
+      lure: 'wobbler',
+      rod: 'heavy',
+      line: 'thick',
+      leader: true,
+    });
+    s.add(full);
+    s.add(entry(0.2, { leader: false }));
+    const b = s.board();
+    expect(b.normal?.pike).toEqual([full]);
+    expect(b.normal?.perch?.[0]).toEqual(entry(0.2, { leader: false }));
+    s.close();
+  });
+
+  it('lisää sarakkeet vanhaan tietokantaan ja säilyttää vanhat saaliit', () => {
+    const db = openDatabase(':memory:');
+    db.exec(`
+      CREATE TABLE catches (
+        id INTEGER PRIMARY KEY,
+        species TEXT NOT NULL,
+        weight REAL NOT NULL,
+        angler TEXT NOT NULL,
+        difficulty TEXT NOT NULL,
+        date TEXT NOT NULL
+      );
+      INSERT INTO catches (species, weight, angler, difficulty, date)
+        VALUES ('perch', 0.7, 'Vanha', 'normal', '2026-10-20');
+    `);
+    const s = new RecordStore(db);
+    s.add(entry(0.5, { x: 1, y: 2 }));
+    expect(s.board().normal?.perch).toEqual([
+      entry(0.7, { angler: 'Vanha', date: '2026-10-20' }),
+      entry(0.5, { x: 1, y: 2 }),
+    ]);
+    s.close();
+  });
 });

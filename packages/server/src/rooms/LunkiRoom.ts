@@ -61,6 +61,10 @@ import {
   JoinRefusal,
   RECORDS_PER_SPECIES,
   type Difficulty,
+  type LineId,
+  type LureId,
+  type RodId,
+  type TimeOfDay,
   type RecordMessage,
   type SpeciesId,
   type InputMessage,
@@ -284,7 +288,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       c.fishGen = tag!.gen;
       this.fishGens.set(tag!.slot, tag!.gen + 1);
       this.state.catches.push(c);
-      this.recordCatch(client.sessionId, c);
+      this.recordCatch(client.sessionId, c, hookAt);
     });
 
     this.onMessage(ClientMsg.cutLine, (client) => {
@@ -733,17 +737,36 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     }
   }
 
-  /** Tallentaa punnitun saaliin ennätyksiin ja kertoo kaikille, jos se pääsi listalle. */
-  private recordCatch(player: string, c: CatchState): void {
+  /**
+   * Tallentaa punnitun saaliin ennätyksiin saantipaikan, varusteiden ja
+   * olosuhteiden kera ja kertoo kaikille, jos se pääsi listalle.
+   */
+  private recordCatch(player: string, c: CatchState, at: Vec2): void {
     const store = recordStore();
     if (!store) return;
+    const st = this.state;
     const species = c.species as SpeciesId;
+    const p = st.players.get(player);
+    const weather = this.weather ? weatherAt(this.weather, c.time) : null;
+    const now = new Date().toISOString();
     const place = store.add({
       species,
       weight: c.weight,
       angler: c.angler,
-      difficulty: this.state.settings.difficulty as Difficulty,
-      date: new Date().toISOString().slice(0, 10),
+      difficulty: st.settings.difficulty as Difficulty,
+      date: now.slice(0, 10),
+      at: now,
+      x: Math.round(at.x * 10) / 10,
+      y: Math.round(at.y * 10) / 10,
+      raceTime: Math.round(c.time),
+      timeOfDay: st.settings.timeOfDay as TimeOfDay,
+      ...(weather && { sky: weather.sky, wind: Math.round(weather.windSpeed * 10) / 10 }),
+      ...(p && {
+        lure: p.lure as LureId,
+        rod: p.rod as RodId,
+        line: p.line as LineId,
+        leader: p.leader,
+      }),
     });
     if (place > RECORDS_PER_SPECIES) return;
     const msg: RecordMessage = { player, angler: c.angler, species, weight: c.weight, place };
