@@ -1,4 +1,5 @@
 import { Rng } from '../rng';
+import type { Vec2 } from '../vec2';
 
 /** Säätila: tyynestä myrskyyn. Trombi on erillinen tapahtuma (vaihe 4). */
 export type Sky = 'calm' | 'windy' | 'rain' | 'thunder' | 'storm';
@@ -151,7 +152,9 @@ export function planWeather(seed: number, level: WeatherLevel, durationS: number
   // Varaa hieman yli kisan keston, jotta viimeinen siirtymä on määritelty.
   while (t < durationS + WEATHER.warning) {
     const [lo, hi] = SKY_EFFECTS[sky].wind;
-    segments.push({ start: t, sky, windSpeed: round2(rng.range(lo, hi)), windDir: round2(dir) });
+    // Aina tyyni = ei tuulta lainkaan (renkaat eivät ajelehdi).
+    const windSpeed = level === 'calm' ? 0 : round2(rng.range(lo, hi));
+    segments.push({ start: t, sky, windSpeed, windDir: round2(dir) });
     const mean = spec.meanMinutes[sky] * 60;
     if (!Number.isFinite(mean)) break;
     // Eksponenttijakauma: muutos voi tulla milloin vain, keskimäärin `mean` välein.
@@ -233,3 +236,8 @@ const smooth = (k: number) => k * k * (3 - 2 * k);
 const round2 = (v: number) => Math.round(v * 100) / 100;
 const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 const lerpAngle = (a: number, b: number, k: number) => wrap(a + wrap(b - a) * k);
+
+/** Tuuli nopeusvektorina (m/s, x itään, y pohjoiseen). */
+export function windVector(w: Pick<WeatherNow, 'windSpeed' | 'windDir'>): Vec2 {
+  return { x: Math.cos(w.windDir) * w.windSpeed, y: Math.sin(w.windDir) * w.windSpeed };
+}

@@ -17,6 +17,7 @@ import {
   isWeatherLevel,
   planWeather,
   weatherAt,
+  windVector,
   isPlausibleCatch,
   isPlausibleSplash,
   SPECIES,
@@ -299,11 +300,18 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       const end = this.durationOverride ?? st.settings.durationMinutes * 60;
       st.clock = Math.min(end, st.clock + NET_DT);
       if (st.clock >= end) st.phase = 'finished';
-      if (this.weather) st.sky = weatherAt(this.weather, st.clock).sky;
     }
+    const weather =
+      this.weather && st.phase === 'playing' ? weatherAt(this.weather, st.clock) : null;
+    if (weather) st.sky = weather.sky;
     const ids = [...this.sims.keys()];
     const sims = ids.map((id) => this.sims.get(id)!);
-    for (const i of stepSims(sims, water, st.phase === 'countdown')) {
+    for (const i of stepSims(
+      sims,
+      water,
+      st.phase === 'countdown',
+      weather ? windVector(weather) : undefined,
+    )) {
       const p = this.state.players.get(ids[i]!);
       if (p) writeTube(p, sims[i]!.tube, sims[i]!.inputs.lastSeq);
     }

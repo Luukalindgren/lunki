@@ -1,9 +1,11 @@
 import {
+  NET_DT,
   collideTubeWithShore,
   collideTubes,
   stepPlayerTube,
   type InputQueue,
   type TubeState,
+  type Vec2,
   type WaterBody,
 } from '@lunki/shared';
 
@@ -24,13 +26,15 @@ const FROZEN = { kick: 0, turn: 0, sprint: false };
  * (tyhjällä jonolla odottaa; `frozen` = lähtölaskenta), sitten ratkaistaan renkaiden väliset
  * törmäykset. Palauttaa muuttuneiden indeksit.
  */
-export function stepSims(sims: Sim[], water: WaterBody, frozen = false): Set<number> {
+export function stepSims(sims: Sim[], water: WaterBody, frozen = false, wind?: Vec2): Set<number> {
   const moved = new Set<number>();
   sims.forEach((sim, i) => {
     const input = sim.inputs.next();
     if (!input) return;
     // Lähtölaskennan aikana syötteet kuitataan, mutta rengas ei liiku.
-    sim.tube = stepPlayerTube(sim.tube, frozen ? FROZEN : input, water);
+    sim.tube = frozen
+      ? stepPlayerTube(sim.tube, FROZEN, water)
+      : stepPlayerTube(sim.tube, input, water, NET_DT, wind);
     moved.add(i);
   });
   const before = sims.map((s) => s.tube);

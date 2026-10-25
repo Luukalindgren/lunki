@@ -91,6 +91,8 @@ export interface FishingContext {
   heading: number;
   isWater(p: Vec2): boolean;
   depthAt(p: Vec2): number;
+  /** Tuulen nopeusvektori (m/s): kaartaa heittoa. */
+  wind?: Vec2;
   /** Rakenne (kivikko, puu) vieheen kohdalla: viehe voi tarttua pohjaan. */
   structureAt?(p: Vec2): Structure | null;
   /** Kalat: ilman tätä kalastetaan tyhjää järveä (testit, harjoittelu). */
@@ -276,7 +278,7 @@ export function stepFishing(
 
     case 'flight': {
       const f = s.flight!;
-      const landed = stepFlight(f, dt);
+      const landed = stepFlight(f, dt, ctx.wind);
       s.lure = { ...f.pos };
       s.lineLength = Math.min(REEL.spool, f.travelled);
       straightenLine(s.line, tip, s.lure);

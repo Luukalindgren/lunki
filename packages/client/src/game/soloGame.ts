@@ -15,6 +15,9 @@ import {
   createFishPopulation,
   formatTime,
   planWeather,
+  windVector,
+  waveLength,
+  wavePeriod,
   SKY_NAMES,
   recordCatch,
   stepCompetition,
@@ -51,7 +54,8 @@ import { createShoreScenery } from '../world/shoreScenery';
 import { createMapOverlay, createTerrainMesh } from '../world/surroundingsMesh';
 import type { RetroResolution } from '../engine/resolution';
 import { PovCamera } from './povCamera';
-import { createLakeMesh, toWorld, waterTime } from '../world/lakeMesh';
+import { createLakeMesh, createWaterWaves, toWorld, waterTime } from '../world/lakeMesh';
+import { WAVE_FACTOR_SCALE, WaveField } from '../world/waveField';
 import { createBuildings, createPiers, planPiers } from '../world/buildings';
 import { createVegetation } from '../world/vegetation';
 import { WeatherView, windName } from './weatherView';
@@ -67,6 +71,8 @@ import { animateFins, createTubeMesh } from './tubeMesh';
 /** Kalojen määrä järvessä. Saatujen tilalle syntyy uusia. */
 const FISH_COUNT = 1800;
 const LAND_COLOR = 0x24502c;
+/** Tyypillinen pyyhkäisymatka aallon jaksoon (m). */
+const TYPICAL_FETCH = 800;
 const SKY_COLOR = 0x83c2db;
 /** Taivas pilvistyy palettisävyinä portaittain: [tummuus vähintään, väri]. */
 const CLOUDY_SKIES: [number, number][] = [
@@ -141,6 +147,11 @@ export class SoloGame {
   private readonly hemi = new THREE.HemisphereLight(0xeef2f3, 0x24502c, 1.5);
   private readonly sun = new THREE.DirectionalLight(0xfff3b0, 1.5);
   readonly weather: WeatherView;
+  readonly waves: WaveField;
+  private readonly waterWaves = createWaterWaves();
+  /** Aaltojen näkyvä aaltoluku (rad/m) ja kulmataajuus (rad/s). */
+  private waveK = 1;
+  private waveOmega = 1;
 
   constructor(
     private readonly input: Input,
@@ -187,7 +198,10 @@ export class SoloGame {
       planWeather(seed, settings.weather ?? 'realistic', settings.durationMinutes * 60),
     );
     this.scene.add(this.weather.group);
-    this.scene.add(createLakeMesh(map));
+    this.waves = new WaveField(map);
+    this.waterWaves.uWaveTex.value = this.waves.texture;
+    this.waterWaves.uWaveBounds.value.copy(this.waves.bounds);
+    this.scene.add(createLakeMesh(map, this.waterWaves));
     this.scene.add(createBottomMesh(this.bottom));
     this.scene.add(this.tubeMesh);
     const surroundings = map === LUNKINJARVI ? LUNKINJARVI_SURROUNDINGS : undefined;
@@ -239,8 +253,14 @@ export class SoloGame {
       isWater: (p) => this.water.isWater(p),
       depthAt: (p) => this.bottom.depthAt(p),
       structureAt: (p) => this.bottom.structureAt(p),
+      wind: this.wind,
       fish: { pop: this.fish, diff: DIFFICULTIES[this.settings.difficulty], rng: this.rng, strike },
     };
+  }
+
+  /** Tuuli nyt (m/s); kisan päätyttyä tyyntä. */
+  get wind(): Vec2 {
+    return this.competition.finished ? { x: 0, y: 0 } : windVector(this.weather.now);
   }
 
   /** Aktiivinen kamera piirtoa varten. */
@@ -314,9 +334,9 @@ export class SoloGame {
               ? LureStage.water
               : LureStage.none;
       const tubeInput = frozen ? { kick: 0, turn: 0, sprint: false } : readTubeInput(input);
-      this.tube = this.net.world.stepOwn(tubeInput, f.lure, stage);
+      this.tube = this.net.world.stepOwn(tubeInput, f.lure, stage, frozen ? undefined : this.wind);
     } else {
-      const next = stepTube(this.tube, readTubeInput(input), dt);
+      const next = stepTube(this.tube, readTubeInput(input), dt, this.wind);
       this.tube = collideTubeWithShore(this.tube, next, this.water);
     }
 
@@ -420,9 +440,38 @@ export class SoloGame {
       { message: (text) => this.hud.showMessage(text, 3), rumble: () => this.sfx.rumble() },
     );
     this.applyWeatherLight();
+    this.updateWaves(w.windSpeed, w.windDir);
+    const hs = this.waves.heightAt(this.tube.pos, w.windSpeed);
     this.hud.setWeather(
-      `${SKY_NAMES[w.sky]} · ${windName(w.windDir)} ${Math.round(w.windSpeed)} m/s`,
+      `${SKY_NAMES[w.sky]} · ${windName(w.windDir)} ${Math.round(w.windSpeed)} m/s` +
+        (hs >= 0.05 ? ` · aallot ${hs.toFixed(1).replace('.', ',')} m` : ''),
     );
+  }
+
+  /**
+   * Aallot vesishaderille. Aallonpituutta liioitellaan näkyvyyden vuoksi:
+   * oikeat 2–4 m aallot hukkuisivat pikseleihin.
+   */
+  private updateWaves(windSpeed: number, windDir: number): void {
+    this.waves.update(windDir);
+    const period = wavePeriod(windSpeed, TYPICAL_FETCH);
+    this.waveK = (2 * Math.PI) / Math.max(6, waveLength(period) * 3);
+    this.waveOmega = (2 * Math.PI) / period;
+    this.waterWaves.uWaveScale.value = WAVE_FACTOR_SCALE * windSpeed;
+    this.waterWaves.uWaveDir.value.set(Math.cos(windDir), Math.sin(windDir));
+    this.waterWaves.uWaveK.value = this.waveK;
+    this.waterWaves.uWaveOmega.value = this.waveOmega;
+  }
+
+  /** Aallon pystysiirtymä (m) pisteessä: sama vaihe kuin vesishaderissa. */
+  private swellAt(p: Vec2): { lift: number; roll: number } {
+    const w = this.weather.now;
+    const hs = this.waves.heightAt(p, w.windSpeed);
+    const along = p.x * Math.cos(w.windDir) + p.y * Math.sin(w.windDir);
+    const across = -p.x * Math.sin(w.windDir) + p.y * Math.cos(w.windDir);
+    const phase =
+      along * this.waveK - waterTime.value * this.waveOmega + Math.sin(across * 0.05) * 2;
+    return { lift: (hs / 2) * Math.sin(phase), roll: hs * 0.12 * Math.cos(phase) };
   }
 
   /** Pilvinen taivas himmentää valon ja tummentaa taivaan ja sumun. */
@@ -575,7 +624,7 @@ export class SoloGame {
     this.fishingView.update(this.fishing, this.fishingContext(), this.aim, 1 / 60, hooked);
     this.view.apply();
     if (this.viewMode === 'pov') {
-      this.pov.apply(pos, heading, b.kickPhase);
+      this.pov.apply(pos, heading, b.kickPhase, this.swellAt(pos));
       // Vapa oikeasta kädestä kärkeen; kärki on siiman alkupiste.
       const tip = rodTip(pos, heading);
       const hand = {

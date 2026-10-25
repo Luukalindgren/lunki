@@ -121,11 +121,11 @@ export class NetWorld {
   }
 
   /** Oma askel: ennakoidaan heti ja lähetetään syötteet erissä. */
-  stepOwn(input: TubeInput, lure: Vec2 | null, lureStage: number): TubeState {
+  stepOwn(input: TubeInput, lure: Vec2 | null, lureStage: number, wind?: Vec2): TubeState {
     const decay = Math.exp(-NET_DT * 10);
     this.renderOffset.x *= decay;
     this.renderOffset.y *= decay;
-    const tube = this.predictor.step(input);
+    const tube = this.predictor.step(input, wind);
     this.lure = lure ? [lure.x, lure.y, lureStage] : [0, 0, LureStage.none];
     const out = this.predictor.takeOutgoing();
     if (out) this.session.sendInput({ i: encodeInputs(out), l: this.lure });

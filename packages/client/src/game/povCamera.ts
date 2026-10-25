@@ -26,8 +26,9 @@ export class PovCamera {
     this.camera.updateProjectionMatrix();
   }
 
-  apply(pos: Vec2, heading: number, kickPhase: number): void {
-    const bob = Math.sin(kickPhase * Math.PI * 2) * 0.03;
+  /** `swell` = aallon nosto (m) ja kallistus (rad) renkaan kohdalla. */
+  apply(pos: Vec2, heading: number, kickPhase: number, swell = { lift: 0, roll: 0 }): void {
+    const bob = Math.sin(kickPhase * Math.PI * 2) * 0.03 + swell.lift;
     const eye = toWorld(pos, EYE_HEIGHT + bob);
     this.camera.position.copy(eye);
     const dir = new THREE.Vector3(
@@ -36,7 +37,7 @@ export class PovCamera {
       -Math.sin(heading) * Math.cos(PITCH),
     );
     this.camera.lookAt(eye.add(dir));
-    this.camera.rotateZ(Math.sin(kickPhase * Math.PI * 2 + 1) * 0.008);
+    this.camera.rotateZ(Math.sin(kickPhase * Math.PI * 2 + 1) * 0.008 + swell.roll);
     this.camera.updateMatrixWorld();
   }
 

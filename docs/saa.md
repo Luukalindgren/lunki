@@ -55,6 +55,30 @@ omana ominaisuutenaan (#28).
   himmenee hieman. Valoa ei himmennetä enempää, koska paletissa tummat
   vesisävyt kääntyisivät vihreiksi.
 
+## Tuuli
+
+Tuuli vaikuttaa peliin kolmella tavalla:
+
+- **Rengas ajelehtii** myötätuuleen. Työntövoima kasvaa tuulen nopeuden
+  neliönä (`TUBE_PHYSICS.windPush`): 5 m/s tuulessa ajelehdit noin 0,1 m/s,
+  16 m/s myrskyssä noin 0,6 m/s. Potkimalla pääsee yhä vastatuuleen.
+  Palvelin laskee ajelehtimisen samalla tavalla, ja ennustus toistaa
+  kunkin syötteen tuulen, joten oma rengas ei nyi.
+- **Heitto kaartuu**: vieheen ilmanvastus lasketaan suhteessa ilmaan, joten
+  myötätuuli pidentää ja vastatuuli lyhentää heittoa, ja sivutuuli siirtää
+  sitä sivulle. Heiton ennuste ottaa tuulen huomioon.
+- **Aallot**: merkitsevä aallonkorkeus lasketaan JONSWAP-kaavalla
+  Hs = 0,0016 · U · √(F / g), jossa F on pyyhkäisymatka eli matka
+  vastatuuleen rantaan tai saareen. Selällä aallot ovat siis isompia kuin
+  suojaisessa poukamassa. Järvi jaetaan 20 m ruutuihin, ja pyyhkäisymatkat
+  lasketaan uudelleen vain tuulen kääntyessä.
+
+Aallot näkyvät vedessä myötätuuleen kulkevina harjoina, jotka levenevät
+aallonkorkeuden kasvaessa. Isoissa aalloissa harjat vaahtoavat. POV-kamera
+keinuu aaltojen mukana, ja HUD näyttää aallonkorkeuden, kun se on yli
+5 cm. Aallot ovat toistaiseksi vain näkyviä; kaatuminen tulee omana
+ominaisuutenaan (#29).
+
 Säätaso valitaan alkuvalikosta tai moninpelin aulasta. Kehitystä varten
 osoitteeseen voi lisätä `?difficulty=easy&weather=chaos`. `?bench=1` käyttää
 aina tyyntä säätä, jotta mittaukset ovat vertailukelpoisia.

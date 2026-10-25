@@ -1,6 +1,7 @@
 import { collideTubeWithShore, stepTube, type TubeInput, type TubeState } from '../physics/tube';
 import { collideTubePair } from '../physics/tubeCollision';
 import type { WaterBody } from '../map/waterBody';
+import type { Vec2 } from '../vec2';
 
 /**
  * Renkaan liikkeen verkkosynkronointi. Palvelin on totuus: se ajaa jokaisen
@@ -61,8 +62,9 @@ export function stepPlayerTube(
   input: TubeInput,
   water: WaterBody,
   dt = NET_DT,
+  wind?: Vec2,
 ): TubeState {
-  return collideTubeWithShore(tube, stepTube(tube, input, dt), water);
+  return collideTubeWithShore(tube, stepTube(tube, input, dt, wind), water);
 }
 
 /**
@@ -135,7 +137,8 @@ export function collideWithOthers(
  */
 export class TubePredictor {
   tube: TubeState;
-  private pending: NetInput[] = [];
+  /** Kuittaamattomat syötteet ja tuuli, jolla kukin ennakoitiin. */
+  private pending: (NetInput & { wind?: Vec2 })[] = [];
   private outbox: NetInput[] = [];
   private seq = 0;
   /** Viimeisimmän korjauksen suuruus (m), seurantaa varten. */
@@ -153,16 +156,23 @@ export class TubePredictor {
     this.seq = startSeq;
   }
 
-  private advance(t: TubeState, input: TubeInput): TubeState {
-    return collideWithOthers(stepPlayerTube(t, input, this.water), this.others(), this.water);
+  private advance(t: TubeState, input: TubeInput, wind?: Vec2): TubeState {
+    return collideWithOthers(
+      stepPlayerTube(t, input, this.water, NET_DT, wind),
+      this.others(),
+      this.water,
+    );
   }
 
-  /** Oma askel: ennakoi ja jonottaa syötteen lähetettäväksi. */
-  step(input: TubeInput): TubeState {
+  /**
+   * Oma askel: ennakoi ja jonottaa syötteen lähetettäväksi. Tuuli lasketaan
+   * palvelimella sen kellosta; ennakoinnin pieni ero korjautuu täsmäytyksessä.
+   */
+  step(input: TubeInput, wind?: Vec2): TubeState {
     const net: NetInput = { seq: ++this.seq, ...input };
-    this.pending.push(net);
+    this.pending.push(wind ? { ...net, wind } : net);
     this.outbox.push(net);
-    this.tube = this.advance(this.tube, net);
+    this.tube = this.advance(this.tube, net, wind);
     return this.tube;
   }
 
@@ -178,7 +188,7 @@ export class TubePredictor {
   reconcile(server: TubeState, ackSeq: number): void {
     while (this.pending.length > 0 && this.pending[0]!.seq <= ackSeq) this.pending.shift();
     let t = cloneTube(server);
-    for (const i of this.pending) t = this.advance(t, i);
+    for (const i of this.pending) t = this.advance(t, i, i.wind);
     this.lastCorrection = Math.hypot(t.pos.x - this.tube.pos.x, t.pos.y - this.tube.pos.y);
     this.tube = t;
   }
