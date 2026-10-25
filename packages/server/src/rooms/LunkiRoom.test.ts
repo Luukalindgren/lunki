@@ -11,6 +11,7 @@ import {
   TubePredictor,
   WaterBody,
   createTube,
+  findOpenWaterPoint,
   encodeInputs,
   formatRoomCode,
   BIG_WAVE,
@@ -120,6 +121,34 @@ describe('LunkiRoom', () => {
 
     // Alkaneeseen kisaan ei pääse mukaan.
     await expect(sdk().joinById(host.roomId, { name: 'C', playerId: 'c' })).rejects.toThrow();
+
+    await host.leave();
+    await guest.leave();
+  });
+
+  it('isännän kartalta valitsema aloituspaikka', async () => {
+    const host = await sdk().create(ROOM_NAME, { name: 'A', playerId: 'a' });
+    const guest = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
+    await until(() => players(host).length === 2);
+    const water = new WaterBody(LUNKINJARVI);
+    const spot = findOpenWaterPoint(water, LUNKINJARVI.bounds);
+
+    // Maalla oleva piste hylätään, vedessä oleva näkyy kaikille.
+    host.send(ClientMsg.settings, { start: { x: LUNKINJARVI.bounds.maxX + 100, y: 0 } });
+    host.send(ClientMsg.settings, { start: spot });
+    await until(() => guest.state.settings.customStart === true);
+    expect(guest.state.settings.startX).toBeCloseTo(spot.x, 0);
+    expect(guest.state.settings.startY).toBeCloseTo(spot.y, 0);
+
+    guest.send(ClientMsg.ready, true);
+    await until(() => players(host).every((p, i) => i === 0 || p.ready));
+    host.send(ClientMsg.start);
+    await until(() => guest.state.phase === 'countdown');
+    const spawned = [...guest.state.players.values()] as { x: number; y: number }[];
+    for (const p of spawned) {
+      expect(Math.hypot(p.x - spot.x, p.y - spot.y)).toBeLessThanOrEqual(61);
+      expect(water.isWater(p)).toBe(true);
+    }
 
     await host.leave();
     await guest.leave();

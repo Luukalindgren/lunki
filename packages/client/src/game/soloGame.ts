@@ -10,6 +10,7 @@ import {
   collideTubeWithShore,
   createTube,
   findLaunchPoint,
+  isValidStart,
   DIFFICULTIES,
   Rng,
   createCompetition,
@@ -223,7 +224,11 @@ export class SoloGame {
       // Palvelin arpoi aloituspaikan.
       this.tube = net.world.predictor.tube;
     } else {
-      const start = findLaunchPoint(this.water, map.bounds, () => this.rng.next());
+      const chosen = settings.start;
+      const start =
+        chosen && isValidStart(this.water, chosen)
+          ? { ...chosen }
+          : findLaunchPoint(this.water, map.bounds, () => this.rng.next());
       // Selkä rantaan päin, katse järvelle.
       const shore = this.water.closestShorePoint(start)?.point ?? start;
       this.tube = createTube(start, Math.atan2(start.y - shore.y, start.x - shore.x));

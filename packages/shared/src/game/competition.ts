@@ -1,6 +1,7 @@
 import type { Difficulty } from '../fishing/difficulty';
 import { NATIVE_SPECIES, type SpeciesId } from '../fishing/fish';
 import type { Catch } from '../fishing/fishing';
+import type { Vec2 } from '../vec2';
 import type { Penalty } from '../weather/lightning';
 import type { WeatherLevel } from '../weather/weather';
 
@@ -28,6 +29,8 @@ export interface CompetitionSettings {
   lightningPenalty?: Penalty;
   /** Kaatumisen rangaistus; oletuksena ei muuta kuin kaatuminen itse. */
   capsizePenalty?: Penalty;
+  /** Kartalta valittu aloituspaikka; puuttuu tai null = satunnainen rannan tuntumassa. */
+  start?: Vec2 | null;
 }
 
 export const DEFAULT_SETTINGS: CompetitionSettings = {

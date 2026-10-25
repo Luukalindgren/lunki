@@ -3,6 +3,7 @@ import { SPECIES, SPECIES_IDS, type SpeciesId } from '../fishing/fish';
 import { DURATIONS, type CompetitionSettings, type WinRule } from '../game/competition';
 import { PENALTY_IDS, PENALTY_NAMES, type Penalty } from '../weather/lightning';
 import { WEATHER_LEVELS, WEATHER_LEVEL_IDS, type WeatherLevel } from '../weather/weather';
+import type { Vec2 } from '../vec2';
 import { MAX_PLAYERS_LIMIT } from './protocol';
 
 /**
@@ -39,11 +40,19 @@ export const SPECIES_OPTIONS: { value: SpeciesId; label: string; native: boolean
 const readyValues = <T>(list: { value: T; ready: boolean }[]) =>
   list.filter((o) => o.ready).map((o) => o.value);
 
+const isPoint = (v: unknown): v is Vec2 =>
+  !!v && typeof v === 'object' && Number.isFinite((v as Vec2).x) && Number.isFinite((v as Vec2).y);
+
 /**
  * Tarkistaa isännän lähettämän muutoksen. Palauttaa vain kelvolliset kentät;
- * tuntemattomat ja toteuttamattomat arvot jätetään pois.
+ * tuntemattomat ja toteuttamattomat arvot jätetään pois. Aloituspaikka
+ * hyväksytään vain, jos `isValidStart` hyväksyy sen (vesi, irti rannasta).
  */
-export function validateSettingsPatch(patch: unknown, playerCount: number): Partial<RoomSettings> {
+export function validateSettingsPatch(
+  patch: unknown,
+  playerCount: number,
+  isValidStart: (p: Vec2) => boolean = () => false,
+): Partial<RoomSettings> {
   if (!patch || typeof patch !== 'object') return {};
   const p = patch as Record<string, unknown>;
   const out: Partial<RoomSettings> = {};
@@ -70,6 +79,12 @@ export function validateSettingsPatch(patch: unknown, playerCount: number): Part
     const wanted = new Set<unknown>(p.species);
     const species = SPECIES_IDS.filter((id) => wanted.has(id));
     if (species.length > 0) out.species = species;
+  }
+  if (p.start === null) out.start = null;
+  else if (isPoint(p.start)) {
+    // Desimetrin tarkkuus riittää ja pitää arvon samana kaikilla.
+    const start = { x: Math.round(p.start.x * 10) / 10, y: Math.round(p.start.y * 10) / 10 };
+    if (isValidStart(start)) out.start = start;
   }
   return out;
 }

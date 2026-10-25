@@ -96,7 +96,7 @@ function startGame(s: CompetitionSettings, seed = devSeed) {
 function showMenu() {
   hud.setVisible(false);
   screens.showStart({
-    onSolo: () => screens.showSoloSetup(settings, (s) => startGame(s), showMenu),
+    onSolo: () => showSoloSetup(settings),
     onMultiplayer: () => showMultiplayer(),
     onLakeMap: () => screens.showLakeMap(showMenu),
     onRecords: () => void showRecords(),
@@ -109,6 +109,20 @@ function showMenu() {
       ),
     onCredits: () => screens.showCredits(showMenu),
   });
+}
+
+function showSoloSetup(s: CompetitionSettings) {
+  screens.showSoloSetup(
+    s,
+    (x) => startGame(x),
+    showMenu,
+    (current) =>
+      screens.showStartPicker(
+        current.start ?? null,
+        (start) => showSoloSetup({ ...current, start }),
+        () => showSoloSetup(current),
+      ),
+  );
 }
 
 async function showRecords() {
@@ -190,8 +204,10 @@ function enterLobby(s: NetSession) {
   // Viimeksi käytetyt varusteet muiden nähtäväksi.
   s.sendTackle(loadTackle());
   let notice: string | undefined;
+  /** Isäntä valitsee aloituspaikkaa: aula ei piirry kartan päälle. */
+  let picking = false;
   const render = () => {
-    if (session !== s || game || !s.ready) return;
+    if (session !== s || game || !s.ready || picking) return;
     const v = s.view();
     history.replaceState(null, '', inviteLink(v.code));
     screens.showLobby(
@@ -209,6 +225,21 @@ function enterLobby(s: NetSession) {
           saveTackle(t);
           s.sendTackle(t);
         },
+        onPickStart: () => {
+          picking = true;
+          const done = () => {
+            picking = false;
+            render();
+          };
+          screens.showStartPicker(
+            v.settings.start ?? null,
+            (start) => {
+              s.changeSettings({ start });
+              done();
+            },
+            done,
+          );
+        },
       },
       notice,
     );
@@ -216,7 +247,10 @@ function enterLobby(s: NetSession) {
   let wasReady = false;
   s.onChange = (v) => {
     // Kisa alkaa, kun tila aloituspaikkoineen on saapunut.
-    if (v.phase !== 'lobby' && !game) return startGame(v.settings, s.room.state.seed);
+    if (v.phase !== 'lobby' && !game) {
+      picking = false;
+      return startGame(v.settings, s.room.state.seed);
+    }
     if (v.phase !== 'lobby') return;
     if (game) {
       // Isäntä palautti huoneen aulaan uutta kisaa varten.

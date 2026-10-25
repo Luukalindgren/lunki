@@ -61,6 +61,10 @@ export const SettingsState = schema(
     lightningPenalty: t.string().default(DEFAULT_SETTINGS.lightningPenalty!),
     capsizePenalty: t.string().default(DEFAULT_SETTINGS.capsizePenalty!),
     species: t.array('string').default(() => new ArraySchema<string>(...NATIVE_SPECIES)),
+    /** Kartalta valittu aloituspaikka; false = satunnainen. */
+    customStart: t.boolean().default(false),
+    startX: t.float32().default(0),
+    startY: t.float32().default(0),
   },
   'SettingsState',
 );

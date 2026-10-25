@@ -14,6 +14,8 @@ import {
   decodeInputs,
   distance,
   findLaunchPoint,
+  findStartNear,
+  isValidStart,
   BIG_WAVE,
   LureStage,
   TANGLE,
@@ -248,11 +250,26 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
 
     this.onMessage(ClientMsg.settings, (client, patch: unknown) => {
       if (client.sessionId !== this.state.hostId || this.state.phase !== 'lobby') return;
-      const valid = validateSettingsPatch(patch, this.state.players.size);
+      const valid = validateSettingsPatch(patch, this.state.players.size, (p) =>
+        isValidStart(water, p),
+      );
       const s = this.state.settings;
       let changed = false;
       for (const [key, value] of Object.entries(valid)) {
-        if (key === 'species') {
+        if (key === 'start') {
+          const start = value as Vec2 | null;
+          const same = start
+            ? s.customStart &&
+              s.startX === Math.fround(start.x) &&
+              s.startY === Math.fround(start.y)
+            : !s.customStart;
+          if (!same) {
+            s.customStart = start !== null;
+            s.startX = start?.x ?? 0;
+            s.startY = start?.y ?? 0;
+            changed = true;
+          }
+        } else if (key === 'species') {
           const list = value as string[];
           if (list.join() !== [...s.species].join()) {
             s.species.splice(0, s.species.length, ...list);
@@ -370,13 +387,20 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   /**
    * Arpoo aloituspaikat rannan tuntumasta: kaikki samalle rannalle
    * (korkeintaan SPAWN_RADIUS päähän ensimmäisestä), toisistaan erilleen.
+   * Jos isäntä valitsi paikan kartalta, ensimmäinen aloittaa siitä ja muut
+   * sen ympäriltä.
    */
   private spawnPlayers(seed: number) {
     const rng = new Rng(seed ^ 0x5bd1e995);
-    const launch = () => findLaunchPoint(water, LUNKINJARVI.bounds, () => rng.next());
+    const set = this.state.settings;
+    const chosen = set.customStart ? { x: set.startX, y: set.startY } : null;
+    const launch = () =>
+      chosen
+        ? findStartNear(water, chosen, SPAWN_RADIUS / 2, () => rng.next())
+        : findLaunchPoint(water, LUNKINJARVI.bounds, () => rng.next());
     const taken: Vec2[] = [];
     this.state.players.forEach((p, id) => {
-      let pos = launch();
+      let pos = taken.length === 0 && chosen ? { ...chosen } : launch();
       if (taken.length > 0) {
         const fits = (q: Vec2) =>
           distance(q, taken[0]!) < SPAWN_RADIUS &&

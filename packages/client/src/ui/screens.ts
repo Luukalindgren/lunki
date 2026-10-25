@@ -31,6 +31,7 @@ import {
   type RoomSettings,
   type SpeciesId,
   type Tackle,
+  type Vec2,
   FEEDBACK_LIMITS,
   mapCredits,
   type RecordBoard,
@@ -39,7 +40,7 @@ import {
 } from '@lunki/shared';
 import type { LobbyView } from '../net/session';
 import { LIBRARIES } from './credits';
-import { LakeMapView } from './lakeMap';
+import { LakeMapView, describeSpot } from './lakeMap';
 import { VOLUME_LEVELS, type AudioSettings, type VolumeLevel } from '../audio/settings';
 
 const SETTINGS_KEY = 'lunki.soloSettings';
@@ -58,6 +59,7 @@ export function loadSettings(defaults: CompetitionSettings): CompetitionSettings
           ? s.lightningPenalty
           : defaults.lightningPenalty,
         capsizePenalty: isPenalty(s.capsizePenalty) ? s.capsizePenalty : defaults.capsizePenalty,
+        start: isPoint(s.start) ? { x: s.start.x, y: s.start.y } : null,
       };
     }
   } catch {
@@ -65,6 +67,9 @@ export function loadSettings(defaults: CompetitionSettings): CompetitionSettings
   }
   return { ...defaults };
 }
+
+const isPoint = (v: unknown): v is Vec2 =>
+  !!v && Number.isFinite((v as Vec2).x) && Number.isFinite((v as Vec2).y);
 
 function saveSettings(s: CompetitionSettings): void {
   try {
@@ -155,6 +160,8 @@ export class Screens {
     initial: CompetitionSettings,
     onStart: (s: CompetitionSettings) => void,
     onBack: () => void,
+    /** Avaa kartan aloituspaikan valintaan; saa asetukset sellaisinaan. */
+    onPickStart: (s: CompetitionSettings) => void,
   ): void {
     const settings = { ...initial };
     const panel = this.panel();
@@ -165,6 +172,11 @@ export class Screens {
         DURATIONS.map((d) => [String(d), `${d} min`]),
         String(settings.durationMinutes),
         (v) => (settings.durationMinutes = Number(v)),
+      ),
+      this.startChoice(
+        settings.start ?? null,
+        () => (settings.start = null),
+        () => onPickStart({ ...settings }),
       ),
       this.choice(
         'Kalastuksen vaikeus',
@@ -277,6 +289,8 @@ export class Screens {
       onLeave: () => void;
       onSettings: (patch: Partial<RoomSettings>) => void;
       onTackle: (t: Tackle) => void;
+      /** Isäntä avaa kartan aloituspaikan valintaan. */
+      onPickStart: () => void;
     },
     notice?: string,
   ): void {
@@ -318,7 +332,7 @@ export class Screens {
       h('p', `Pelaajat ${v.players.length}/${v.maxPlayers}`, 'choice-label'),
       list,
       v.amHost
-        ? this.settingsEditor(v.settings, v.players.length, actions.onSettings)
+        ? this.settingsEditor(v.settings, v.players.length, actions.onSettings, actions.onPickStart)
         : this.settingsSummary(v.settings),
       h('p', 'Omat varusteet', 'choice-label'),
       this.tackleEditor(me?.tackle ?? DEFAULT_TACKLE, actions.onTackle),
@@ -687,6 +701,7 @@ export class Screens {
     s: RoomSettings,
     playerCount: number,
     change: (patch: Partial<RoomSettings>) => void,
+    pickStart: () => void,
   ): HTMLElement {
     const box = document.createElement('div');
     box.className = 'settings';
@@ -697,6 +712,7 @@ export class Screens {
         String(s.durationMinutes),
         (v) => change({ durationMinutes: Number(v) }),
       ),
+      this.startChoice(s.start ?? null, () => change({ start: null }), pickStart),
       this.choice(
         'Voittaja',
         (Object.keys(WIN_RULE_NAMES) as WinRule[]).map((w) => [w, WIN_RULE_NAMES[w]]),
@@ -831,6 +847,72 @@ export class Screens {
     return row;
   }
 
+  /** Aloituspaikka: satunnainen tai kartalta valittu. */
+  private startChoice(start: Vec2 | null, onRandom: () => void, onPick: () => void): HTMLElement {
+    const row = document.createElement('div');
+    row.className = 'choice';
+    row.append(h('span', 'Aloituspaikka', 'choice-label'));
+    const group = document.createElement('div');
+    group.className = 'choice-options';
+    const random = document.createElement('button');
+    random.textContent = 'Satunnainen';
+    const pick = document.createElement('button');
+    pick.textContent = start ? 'Kartalta (vaihda)' : 'Valitse kartalta';
+    const hint = h('p', startText(start), 'hint');
+    const select = (chosen: boolean) => {
+      random.classList.toggle('selected', !chosen);
+      pick.classList.toggle('selected', chosen);
+    };
+    select(start !== null);
+    random.addEventListener('click', () => {
+      select(false);
+      pick.textContent = 'Valitse kartalta';
+      hint.textContent = startText(null);
+      onRandom();
+    });
+    pick.addEventListener('click', onPick);
+    group.append(random, pick);
+    row.append(group, hint);
+    return row;
+  }
+
+  /** Aloituspaikan valinta kartalta: napautus vedessä, sitten vahvistus. */
+  showStartPicker(
+    current: Vec2 | null,
+    onDone: (start: Vec2 | null) => void,
+    onCancel: () => void,
+  ): void {
+    const panel = this.panel();
+    panel.classList.add('map-panel');
+    let chosen = current;
+    const buttons = this.buttons([
+      ['Valitse tämä', () => onDone(chosen)],
+      ['Satunnainen', () => onDone(null)],
+      ['Peruuta', onCancel],
+    ]);
+    const confirm = buttons.querySelector('button')!;
+    confirm.disabled = chosen === null;
+    const map = new LakeMapView({
+      marker: current,
+      markerLabel: 'Aloitus',
+      onPick: (p) => {
+        chosen = p;
+        confirm.disabled = false;
+      },
+    });
+    panel.append(
+      h('h2', 'Aloituspaikka'),
+      map.element,
+      h(
+        'p',
+        'Napauta kohtaa vedessä. Moninpelissä muut aloittavat sen ympäriltä. Järvellä voi liikkua vapaasti kisan aikana.',
+        'hint',
+      ),
+      buttons,
+    );
+    this.show(panel, () => map.dispose());
+  }
+
   /** Muut pelaajat näkevät asetukset tekstinä. */
   private settingsSummary(s: RoomSettings): HTMLElement {
     const label = <T>(list: { value: T; label: string }[], v: T) =>
@@ -848,6 +930,7 @@ export class Screens {
         `${label(LIGHTNING_PENALTY_OPTIONS, s.lightningPenalty)} / ${label(CAPSIZE_PENALTY_OPTIONS, s.capsizePenalty)}`,
       ],
       ['Kalalajit', s.species.map((v) => label(SPECIES_OPTIONS, v)).join(', ')],
+      ['Aloituspaikka', startText(s.start ?? null)],
     ];
     for (const [k, v] of rows) {
       const row = document.createElement('div');
@@ -884,6 +967,13 @@ export class Screens {
     });
     return row;
   }
+}
+
+/** Aloituspaikan kuvaus asetuksiin. */
+function startText(start: Vec2 | null): string {
+  if (!start) return 'Satunnainen kohta rannan tuntumassa.';
+  const spot = describeSpot(start);
+  return `Kartalta valittu kohta${spot ? `: ${spot.charAt(0).toLowerCase()}${spot.slice(1)}` : ''}.`;
 }
 
 function h(tag: string, text: string, className?: string): HTMLElement {

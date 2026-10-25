@@ -110,3 +110,37 @@ export function findLaunchPoint(
   }
   return findOpenWaterPoint(water, bounds);
 }
+
+interface StartWater {
+  isWater(p: Vec2): boolean;
+  closestShorePoint(p: Vec2, maxDistance?: number): { distance: number } | null;
+}
+
+/** Valitun aloituspaikan pienin etäisyys rantaan ja laitureihin (m). */
+export const START_SHORE_CLEARANCE = 3;
+
+/** Kelpaako piste aloituspaikaksi: vedessä ja vähän irti rannasta. */
+export function isValidStart(water: StartWater, p: Vec2): boolean {
+  return (
+    Number.isFinite(p.x) &&
+    Number.isFinite(p.y) &&
+    water.isWater(p) &&
+    water.closestShorePoint(p, START_SHORE_CLEARANCE) === null
+  );
+}
+
+/** Satunnainen kelvollinen aloituspaikka enintään `radius` metrin päästä pisteestä. */
+export function findStartNear(
+  water: StartWater,
+  center: Vec2,
+  radius: number,
+  random: () => number,
+): Vec2 {
+  for (let i = 0; i < 400; i++) {
+    const a = random() * Math.PI * 2;
+    const r = Math.sqrt(random()) * radius;
+    const p = { x: center.x + Math.cos(a) * r, y: center.y + Math.sin(a) * r };
+    if (isValidStart(water, p)) return p;
+  }
+  return { ...center };
+}
