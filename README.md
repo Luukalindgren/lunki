@@ -36,7 +36,7 @@ Muut komennot:
 | ----------------- | ---------------------------------------------- |
 | `pnpm dev`        | Asiakkaan kehityspalvelin (Vite)               |
 | `pnpm dev:server` | Pelipalvelin kehitystilassa                    |
-| `pnpm server`     | Pelipalvelin pelikäyttöön (portti 2567)        |
+| `pnpm run server` | Pelipalvelin pelikäyttöön (portti 2567)        |
 | `pnpm test`       | Kaikkien pakettien testit (Vitest)             |
 | `pnpm lint`       | ESLint                                         |
 | `pnpm typecheck`  | TypeScript-tarkistus kaikille paketeille       |
