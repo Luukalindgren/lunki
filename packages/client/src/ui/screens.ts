@@ -6,29 +6,23 @@ import {
   DIFFICULTY_NAMES,
   LINES,
   LINE_IDS,
-  LURES,
   LURE_IDS,
-  RODS,
   ROD_IDS,
   DEFAULT_TACKLE,
-  describeFullTackle,
   NAME_MAX_LENGTH,
-  CAPSIZE_PENALTY_OPTIONS,
   LAND_PENALTIES,
-  LAND_PENALTY_OPTIONS,
   LATE_JOIN_OPTIONS,
-  LIGHTNING_PENALTY_OPTIONS,
+  PENALTY_IDS,
   isPenalty,
   type Penalty,
   PLAYER_COUNTS,
   SPECIES_OPTIONS,
-  TIME_OF_DAY_OPTIONS,
-  WEATHER_OPTIONS,
+  TIME_OF_DAY_IDS,
+  WEATHER_LEVEL_IDS,
   WIN_RULE_NAMES,
   formatRoomCode,
   DURATIONS,
   formatTime,
-  formatWeight,
   isSpeciesId,
   isTimeOfDay,
   isWeatherLevel,
@@ -51,7 +45,7 @@ import {
   type WinRule,
 } from '@lunki/shared';
 import type { LobbyView } from '../net/session';
-import { LIBRARIES } from './credits';
+import { LIBRARIES, creditText } from './credits';
 import { fishImage } from './fishArt';
 import {
   cardBlob,
@@ -65,22 +59,59 @@ import type { RaceEventKind, RaceMapData } from '../game/raceLog';
 import { SPECIES_PIN_COLORS, formatDate, recordDetails, recordTitle } from './recordDetails';
 import { drawTubePreview } from './tubePreview';
 import { VOLUME_LEVELS, type AudioSettings, type VolumeLevel } from '../audio/settings';
+import {
+  LANGS,
+  formatWeight,
+  getLang,
+  setLang,
+  shortDecimal,
+  t,
+  type Lang,
+  type MsgKey,
+} from '../i18n';
+import {
+  colorName,
+  describeFullTackle,
+  difficultyName,
+  landPenaltyName,
+  lateJoinName,
+  lineName,
+  lureHint,
+  lureName,
+  penaltyName,
+  rodHint,
+  rodName,
+  speciesName,
+  timeOfDayName,
+  weatherLevelName,
+  winRuleName,
+} from '../i18n/names';
 
 const SETTINGS_KEY = 'lunki.soloSettings';
 
-const MODE_HINTS: Record<RecordMode, string> = {
-  race: 'Listalle pääsevät moninpelikisoissa palvelimella punnitut kalat.',
-  solo: 'Yksinpelin saaliit ilmoittaa pelaajan oma selain, joten lista on erillään moninpelin ennätyksistä.',
+const MODE_HINTS: Record<RecordMode, MsgKey> = {
+  race: 'records.raceHint',
+  solo: 'records.soloHint',
 };
+/** Kielivalitsimen nimet kunkin kielen omalla kielellä. */
+const LANG_NAMES: Record<Lang, string> = { fi: 'Suomi', en: 'English' };
 /** Kalojen kuvat listoissa: kapealla näytöllä pienempinä (ks. style.css). */
 const LIST_FISH_SCALE = 'var(--fish-px, 2px)';
 
-const PART_NAMES: Record<AppearancePart, string> = {
-  tube: 'Kelluntarengas',
-  fins: 'Räpylät',
-  shirt: 'Paita',
-  line: 'Siima',
-};
+const partName = (part: AppearancePart) => t(`part.${part}`);
+
+/** Asetusten vaihtoehdot valintariveiksi pelaajan kielellä. */
+const durationOptions = (): [string, string][] =>
+  DURATIONS.map((d) => [String(d), t('common.minutes', { n: d })]);
+const difficultyOptions = (): [string, string][] =>
+  (Object.keys(DIFFICULTY_NAMES) as Difficulty[]).map((d) => [d, difficultyName(d)]);
+const timeOfDayOptions = (): [string, string][] =>
+  TIME_OF_DAY_IDS.map((v) => [v, timeOfDayName(v)]);
+const weatherOptions = (): [string, string][] =>
+  WEATHER_LEVEL_IDS.map((v) => [v, weatherLevelName(v)]);
+const penaltyOptions = (): [string, string][] => PENALTY_IDS.map((p) => [p, penaltyName(p)]);
+const landOptions = (): [string, string][] =>
+  LAND_PENALTIES.map((s) => [String(s), landPenaltyName(s)]);
 
 const cssColor = (hex: number) => `#${hex.toString(16).padStart(6, '0')}`;
 
@@ -162,35 +193,43 @@ export class Screens {
     onAudio: () => void;
     onFeedback: () => void;
     onCredits: () => void;
+    /** Kieli vaihtui: valikko piirretään uudelleen. */
+    onLanguage: () => void;
   }): void {
     const panel = this.panel();
     const menu = this.buttons([
       ...(actions.rejoin
-        ? ([[`Palaa kisaan ${formatRoomCode(actions.rejoin.code)}`, actions.rejoin.run]] as [
-            string,
-            () => void,
-          ][])
+        ? ([
+            [t('menu.rejoin', { code: formatRoomCode(actions.rejoin.code) }), actions.rejoin.run],
+          ] as [string, () => void][])
         : []),
-      ['Yksinpeli', actions.onSolo],
-      ['Moninpeli', actions.onMultiplayer],
-      ['Järvikartta', actions.onLakeMap],
-      ['Ennätykset', actions.onRecords],
-      ['Äänet', actions.onAudio],
-      ['Palaute', actions.onFeedback],
-      ['Tekijät ja lähteet', actions.onCredits],
+      [t('menu.solo'), actions.onSolo],
+      [t('menu.multiplayer'), actions.onMultiplayer],
+      [t('menu.lakeMap'), actions.onLakeMap],
+      [t('menu.records'), actions.onRecords],
+      [t('menu.audio'), actions.onAudio],
+      [t('menu.feedback'), actions.onFeedback],
+      [t('menu.credits'), actions.onCredits],
     ]);
+    const language = this.choice(
+      t('menu.language'),
+      LANGS.map((l) => [l, LANG_NAMES[l]]),
+      getLang(),
+      (v) => {
+        setLang(v as Lang);
+        actions.onLanguage();
+      },
+    );
+    language.classList.add('language-choice');
     menu.classList.add('main-menu');
     panel.classList.add('start-panel');
     panel.append(
       waveTitle('LUNKINJÄRVI'),
-      h('p', 'Kelluntarengaskalastusta Tammelassa', 'subtitle'),
+      h('p', t('menu.subtitle'), 'subtitle'),
       menu,
-      h(
-        'p',
-        'W kohti räpylöitä · S selkä edellä (nopein) · A/D käänny · hiiri tähtää ja heittää · kelaa hiirellä tai välilyönnillä · Q/E jarru · Esc tauko',
-        'hint',
-      ),
-      h('p', 'Kartta © OpenStreetMapin tekijät, Copernicus DEM, Syke', 'hint credit-line'),
+      language,
+      h('p', t('menu.controls'), 'hint'),
+      h('p', t('menu.mapCredit'), 'hint credit-line'),
     );
     this.show(panel);
   }
@@ -203,12 +242,8 @@ export class Screens {
     panel.append(
       h('h2', 'Lunkinjärvi'),
       map.element,
-      h(
-        'p',
-        'Vedä siirtääksesi, zoomaa rullalla, nipistämällä tai napeilla. Syvyydet ovat arvioita: järvestä ei ole julkista luotausta.',
-        'hint',
-      ),
-      this.buttons([['Takaisin', onBack]]),
+      h('p', t('lakeMap.hint'), 'hint'),
+      this.buttons([[t('common.back'), onBack]]),
     );
     this.show(panel, () => map.dispose());
   }
@@ -225,10 +260,10 @@ export class Screens {
     const settings = { ...initial };
     const panel = this.panel();
     panel.append(
-      h('h2', 'Yksinpeli'),
+      h('h2', t('solo.title')),
       this.choice(
-        'Kilpailuaika',
-        DURATIONS.map((d) => [String(d), `${d} min`]),
+        t('settings.duration'),
+        durationOptions(),
         String(settings.durationMinutes),
         (v) => (settings.durationMinutes = Number(v)),
       ),
@@ -238,63 +273,55 @@ export class Screens {
         () => onPickStart({ ...settings }),
       ),
       this.choice(
-        'Kalastuksen vaikeus',
-        (Object.keys(DIFFICULTY_NAMES) as Difficulty[]).map((d) => [d, DIFFICULTY_NAMES[d]]),
+        t('settings.difficulty'),
+        difficultyOptions(),
         settings.difficulty,
         (v) => (settings.difficulty = v as Difficulty),
       ),
-      h(
-        'p',
-        'Helppo: kala tarttuu aina ja tulee ylös kelaamalla. Realistinen: vastaisku, jarru ja siiman kireys ratkaisevat.',
-        'hint',
-      ),
+      h('p', t('settings.difficultyHint'), 'hint'),
       this.speciesChoice(settings.species ?? [], (list) => (settings.species = list)),
       this.choice(
-        'Vuorokaudenaika',
-        TIME_OF_DAY_OPTIONS.map((o) => [o.value, o.label]),
+        t('settings.timeOfDay'),
+        timeOfDayOptions(),
         settings.timeOfDay ?? 'day',
         (v) => (settings.timeOfDay = v as TimeOfDay),
       ),
       this.choice(
-        'Sää',
-        WEATHER_OPTIONS.map((o) => [o.value, o.label]),
+        t('settings.weather'),
+        weatherOptions(),
         settings.weather ?? 'realistic',
         (v) => (settings.weather = v as WeatherLevel),
       ),
       this.choice(
-        'Salama',
-        LIGHTNING_PENALTY_OPTIONS.map((o) => [o.value, o.label]),
+        t('settings.lightning'),
+        penaltyOptions(),
         settings.lightningPenalty ?? 'time-out',
         (v) => (settings.lightningPenalty = v as Penalty),
       ),
       this.choice(
-        'Kaatuminen',
-        CAPSIZE_PENALTY_OPTIONS.map((o) => [o.value, o.label]),
+        t('settings.capsize'),
+        penaltyOptions(),
         settings.capsizePenalty ?? 'none',
         (v) => (settings.capsizePenalty = v as Penalty),
       ),
       this.choice(
-        'Heitto maalle',
-        LAND_PENALTY_OPTIONS.map((o) => [String(o.value), o.label]),
+        t('settings.land'),
+        landOptions(),
         String(settings.landPenalty ?? 30),
         (v) => (settings.landPenalty = Number(v)),
       ),
-      h(
-        'p',
-        'Ukkosella salama voi iskeä, jos vapa on ylhäällä: kelaa viehe sisään. Iso aalto kaataa renkaan sivulta: käänny aaltoa kohti. Maalle tai laiturille heitetty viehe juuttuu, ja siima on katkaistava.',
-        'hint',
-      ),
-      h('p', 'Omat värit', 'choice-label'),
+      h('p', t('settings.hazardHint'), 'hint'),
+      h('p', t('settings.colors'), 'choice-label'),
       this.appearanceEditor(appearance.current, appearance.onChange),
       this.buttons([
         [
-          'Aloita kisa',
+          t('settings.startRace'),
           () => {
             saveSettings(settings);
             onStart(settings);
           },
         ],
-        ['Takaisin', onBack],
+        [t('common.back'), onBack],
       ]),
     );
     this.show(panel);
@@ -310,21 +337,21 @@ export class Screens {
     error?: string,
   ): void {
     const panel = this.panel();
-    const nameInput = this.input('Nimimerkki', name, NAME_MAX_LENGTH, 'Kalastaja');
-    const codeInput = this.input('Huonekoodi', code, 40, 'LUNKI-XXXX');
+    const nameInput = this.input(t('common.nickname'), name, NAME_MAX_LENGTH, t('common.angler'));
+    const codeInput = this.input(t('mp.roomCode'), code, 40, 'LUNKI-XXXX');
     const nameValue = () => (nameInput.querySelector('input') as HTMLInputElement).value;
     const codeValue = () => (codeInput.querySelector('input') as HTMLInputElement).value;
-    const status = h('p', 'Tarkistetaan palvelinta…', 'hint server-status');
-    panel.append(h('h2', 'Moninpeli'), status, nameInput);
+    const status = h('p', t('mp.checkingServer'), 'hint server-status');
+    panel.append(h('h2', t('mp.title')), status, nameInput);
     if (error) panel.append(h('p', error, 'error'));
     panel.append(
-      this.buttons([['Luo uusi huone', () => onCreate(nameValue())]]),
+      this.buttons([[t('mp.create'), () => onCreate(nameValue())]]),
       codeInput,
       this.buttons([
-        ['Liity koodilla', () => onJoin(nameValue(), codeValue())],
-        ['Takaisin', onBack],
+        [t('mp.join'), () => onJoin(nameValue(), codeValue())],
+        [t('common.back'), onBack],
       ]),
-      h('p', 'Luo huone ja lähetä koodi tai linkki kavereille. Kirjautumista ei tarvita.', 'hint'),
+      h('p', t('mp.hint'), 'hint'),
     );
     codeInput.querySelector('input')!.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') onJoin(nameValue(), codeValue());
@@ -338,11 +365,9 @@ export class Screens {
   setServerStatus(ok: boolean, custom: string | null = null): void {
     const el = this.root.querySelector<HTMLElement>('.server-status');
     if (!el) return;
-    el.textContent = ok
-      ? 'Palvelin päällä'
-      : 'Palvelimeen ei saada yhteyttä. Yksinpeli toimii silti, mutta moninpeliin palvelimen pitää olla päällä.';
+    el.textContent = ok ? t('mp.serverOk') : t('mp.serverDown');
     // Linkki voi ohjata vieraalle palvelimelle: kerrotaan, minne yhdistetään.
-    if (custom) el.textContent += ` · Muu kuin pelin oma palvelin: ${custom}`;
+    if (custom) el.textContent += t('mp.customServer', { url: custom });
     el.classList.toggle('error', !ok);
     el.classList.toggle('ok', ok);
   }
@@ -350,7 +375,7 @@ export class Screens {
   showMessage(title: string, text: string, onCancel?: () => void): void {
     const panel = this.panel();
     panel.append(h('h2', title), h('p', text));
-    if (onCancel) panel.append(this.buttons([['Peruuta', onCancel]]));
+    if (onCancel) panel.append(this.buttons([[t('common.cancel'), onCancel]]));
     this.show(panel);
   }
 
@@ -382,7 +407,7 @@ export class Screens {
     const me = v.players.find((p) => p.me);
     const code = h('p', formatRoomCode(v.code), 'room-code');
     const copy = document.createElement('button');
-    copy.textContent = 'Kopioi kutsulinkki';
+    copy.textContent = t('lobby.copyLink');
     copy.addEventListener('click', () => {
       // Leikepöytää ei ole suojaamattomalla http-sivulla (LAN-peli): näytetään linkki.
       if (!navigator.clipboard) {
@@ -390,7 +415,7 @@ export class Screens {
         return;
       }
       void navigator.clipboard.writeText(link).then(
-        () => (copy.textContent = 'Linkki kopioitu!'),
+        () => (copy.textContent = t('lobby.linkCopied')),
         () => (copy.textContent = link),
       );
     });
@@ -398,20 +423,22 @@ export class Screens {
     list.className = 'player-list';
     for (const p of v.players) {
       const li = document.createElement('li');
-      const state = !p.connected
-        ? 'yhteys poikki'
-        : p.spectator
-          ? p.host
-            ? 'luoja, katsoja'
-            : 'katsoja'
-          : p.host
-            ? 'luoja'
-            : p.ready
-              ? 'valmis'
-              : 'odottaa';
+      const state = t(
+        !p.connected
+          ? 'lobby.disconnected'
+          : p.spectator
+            ? p.host
+              ? 'lobby.hostSpectator'
+              : 'lobby.spectator'
+            : p.host
+              ? 'lobby.host'
+              : p.ready
+                ? 'lobby.ready'
+                : 'lobby.waiting',
+      );
       const swatch = h('span', '', 'player-color');
       swatch.style.background = cssColor(p.appearance.tube);
-      const name = h('span', `${p.name}${p.me ? ' (sinä)' : ''}`);
+      const name = h('span', `${p.name}${p.me ? t('lobby.you') : ''}`);
       name.prepend(swatch);
       li.append(
         name,
@@ -421,52 +448,53 @@ export class Screens {
       list.appendChild(li);
     }
     panel.append(
-      h('h2', 'Aula'),
-      h('p', 'Huonekoodi', 'hint'),
+      h('h2', t('lobby.title')),
+      h('p', t('mp.roomCode'), 'hint'),
       code,
       copy,
-      h('p', `Pelaajat ${v.players.length}/${v.maxPlayers}`, 'choice-label'),
+      h('p', t('lobby.players', { n: v.players.length, max: v.maxPlayers }), 'choice-label'),
       list,
     );
     // Esim. turnauksessa karsitut voivat katsoa seuraavaa kisaa.
     if (v.canSpectate && me)
       panel.append(
         this.choice(
-          'Seuraava kisa',
+          t('lobby.nextRace'),
           [
-            ['play', 'Kalastan'],
-            ['watch', 'Katson'],
+            ['play', t('lobby.play')],
+            ['watch', t('lobby.watch')],
           ],
           me.spectator ? 'watch' : 'play',
           (c) => actions.onSpectate(c === 'watch'),
         ),
-        ...(me.spectator
-          ? [h('p', 'Katsojana näet kaikki renkaat ja tulostaulun, ja voit chatata.', 'hint')]
-          : []),
+        ...(me.spectator ? [h('p', t('lobby.spectatorHint'), 'hint')] : []),
       );
     if (chat) {
-      panel.append(h('p', 'Chat', 'choice-label'));
+      panel.append(h('p', t('lobby.chat'), 'choice-label'));
       chat(panel);
     }
     panel.append(
       v.amHost
         ? this.settingsEditor(v.settings, v.players.length, actions.onSettings, actions.onPickStart)
         : this.settingsSummary(v.settings),
-      h('p', 'Omat varusteet', 'choice-label'),
+      h('p', t('settings.tackle'), 'choice-label'),
       this.tackleEditor(me?.tackle ?? DEFAULT_TACKLE, actions.onTackle),
-      h('p', 'Omat värit', 'choice-label'),
+      h('p', t('settings.colors'), 'choice-label'),
       this.appearanceEditor(me?.appearance ?? null, actions.onAppearance),
     );
     if (notice) panel.append(h('p', notice, 'error'));
     const buttons: [string, () => void][] = [];
     if (v.amHost)
-      buttons.push([v.allReady ? 'Aloita kisa' : 'Aloita (odotetaan muita)', actions.onStart]);
+      buttons.push([
+        v.allReady ? t('settings.startRace') : t('lobby.startWaiting'),
+        actions.onStart,
+      ]);
     else if (!me?.spectator)
       buttons.push([
-        me?.ready ? 'En olekaan valmis' : 'Valmis!',
+        me?.ready ? t('lobby.notReady') : t('lobby.setReady'),
         () => actions.onReady(!me?.ready),
       ]);
-    buttons.push(['Poistu', actions.onLeave]);
+    buttons.push([t('common.leave'), actions.onLeave]);
     panel.append(this.buttons(buttons));
     this.show(panel, undefined, scroll);
   }
@@ -478,40 +506,41 @@ export class Screens {
     onBack: () => void,
   ): void {
     const panel = this.panel();
-    const nameRow = this.input('Nimimerkki', name, FEEDBACK_LIMITS.name, 'valinnainen');
+    const nameRow = this.input(
+      t('common.nickname'),
+      name,
+      FEEDBACK_LIMITS.name,
+      t('feedback.optional'),
+    );
     const nameInput = nameRow.querySelector('input')!;
     const text = document.createElement('textarea');
     text.maxLength = FEEDBACK_LIMITS.text;
     text.rows = 6;
-    text.placeholder = 'Mikä toimi, mikä ei? Bugit, toiveet, kalajutut…';
+    text.placeholder = t('feedback.placeholder');
     const status = h('p', '', 'hint');
     const send = async () => {
       if (!text.value.trim()) {
-        status.textContent = 'Kirjoita ensin jotain.';
+        status.textContent = t('feedback.empty');
         return;
       }
-      status.textContent = 'Lähetetään…';
+      status.textContent = t('feedback.sending');
       const ok = await onSend({ name: nameInput.value, text: text.value });
       if (ok) {
         text.value = '';
-        status.textContent = 'Kiitos! Palaute tallentui.';
+        status.textContent = t('feedback.thanks');
       } else {
-        status.textContent = 'Lähetys epäonnistui: pelipalvelin ei vastaa. Yritä myöhemmin.';
+        status.textContent = t('feedback.failed');
       }
     };
     panel.append(
-      h('h2', 'Palaute'),
-      h(
-        'p',
-        'Palaute menee Luukan luettavaksi ja julkaistaan nimimerkin kanssa pelin GitHubissa.',
-        'hint',
-      ),
+      h('h2', t('feedback.title')),
+      h('p', t('feedback.hint'), 'hint'),
       nameRow,
       text,
       status,
       this.buttons([
-        ['Lähetä', () => void send()],
-        ['Takaisin', onBack],
+        [t('common.send'), () => void send()],
+        [t('common.back'), onBack],
       ]),
     );
     this.show(panel);
@@ -526,9 +555,9 @@ export class Screens {
   ): void {
     const panel = this.panel();
     panel.append(
-      h('h2', 'Äänet'),
+      h('h2', t('audio.title')),
       this.audioEditor(current, onChange),
-      this.buttons([['Takaisin', onBack]]),
+      this.buttons([[t('common.back'), onBack]]),
     );
     this.show(panel);
   }
@@ -540,7 +569,7 @@ export class Screens {
     const row = (label: string, key: keyof AudioSettings) =>
       this.choice(
         label,
-        VOLUME_LEVELS.map((o) => [String(o.value), o.label]),
+        VOLUME_LEVELS.map((v) => [String(v), t(`volume.${v}`)]),
         String(a[key]),
         (v) => {
           a[key] = Number(v) as VolumeLevel;
@@ -548,9 +577,9 @@ export class Screens {
         },
       );
     box.append(
-      row('Tehosteet', 'effects'),
-      row('Tuuli, sade ja linnut', 'ambience'),
-      row('Musiikki', 'music'),
+      row(t('audio.effects'), 'effects'),
+      row(t('audio.ambience'), 'ambience'),
+      row(t('audio.music'), 'music'),
     );
     return box;
   }
@@ -577,25 +606,21 @@ export class Screens {
       return a;
     };
     panel.append(
-      h('h2', 'Tekijät ja lähteet'),
-      h('p', 'Lunkinjärvi: Luuka Lindgren ja Claude Code. Äänet syntetisoidaan selaimessa.'),
-      h('p', 'Kartta-aineistot', 'choice-label'),
-      list(mapCredits()),
-      h(
-        'p',
-        'Lunkinjärvestä ei ole julkista luotausaineistoa, joten pohja on laskettu rantaviivasta ja syvänteet ja karikot ovat keksittyjä.',
-        'hint',
-      ),
-      h('p', 'Kirjastot', 'choice-label'),
+      h('h2', t('credits.title')),
+      h('p', t('credits.authors')),
+      h('p', t('credits.mapData'), 'choice-label'),
+      list(mapCredits().map(creditText)),
+      h('p', t('credits.depthNote'), 'hint'),
+      h('p', t('credits.libraries'), 'choice-label'),
       list(
         LIBRARIES.map((l) => {
           const span = document.createElement('span');
-          span.append(link(l.name, l.url), ` – ${l.license}`);
+          span.append(link(l.nameKey ? t(l.nameKey) : l.name, l.url), ` – ${l.license}`);
           return span;
         }),
       ),
-      list([link('OpenStreetMapin tekijänoikeudet', 'https://www.openstreetmap.org/copyright')]),
-      this.buttons([['Takaisin', onBack]]),
+      list([link(t('credits.osmCopyright'), 'https://www.openstreetmap.org/copyright')]),
+      this.buttons([[t('common.back'), onBack]]),
     );
     this.show(panel);
   }
@@ -613,11 +638,11 @@ export class Screens {
     onBack: () => void,
   ): void {
     const panel = this.panel();
-    panel.append(h('h2', 'Lunkinjärven ennätykset'));
+    panel.append(h('h2', t('records.title')));
     if (!raceBoard && !soloBoard) {
       panel.append(
-        h('p', 'Pelipalvelimeen ei saatu yhteyttä, joten ennätyksiä ei voitu hakea.', 'error'),
-        this.buttons([['Takaisin', onBack]]),
+        h('p', t('records.noServer'), 'error'),
+        this.buttons([[t('common.back'), onBack]]),
       );
       this.show(panel);
       return;
@@ -659,10 +684,10 @@ export class Screens {
       content.replaceChildren(showMap ? mapView : lists);
       toggle.replaceChildren(
         this.choice(
-          'Näkymä',
+          t('common.view'),
           [
-            ['list', 'Lista'],
-            ['map', 'Kartta'],
+            ['list', t('records.list')],
+            ['map', t('records.map')],
           ],
           showMap ? 'map' : 'list',
           (v) => setView(v === 'map'),
@@ -682,21 +707,15 @@ export class Screens {
       const missing = mode === 'solo' ? !soloBoard : !raceBoard;
       if (missing)
         lists.append(
-          h(
-            'p',
-            mode === 'solo'
-              ? 'Pelipalvelin ei vielä tunne yksinpelin ennätyslistaa.'
-              : 'Moninpelin ennätyksiä ei saatu haettua.',
-            'error',
-          ),
+          h('p', mode === 'solo' ? t('records.soloMissing') : t('records.raceMissing'), 'error'),
         );
       board = (mode === 'solo' ? soloBoard : raceBoard) ?? {};
-      modeHint.textContent = MODE_HINTS[mode];
+      modeHint.textContent = t(MODE_HINTS[mode]);
       const species = new Set<SpeciesId>();
       for (const o of SPECIES_OPTIONS) {
         const rows = board[difficulty]?.[o.value] ?? [];
         if (missing || (rows.length === 0 && !o.native)) continue;
-        lists.append(h('p', o.label, 'choice-label'));
+        lists.append(h('p', speciesName(o.value), 'choice-label'));
         const ol = document.createElement('ol');
         ol.className = 'catch-list records';
         for (const r of rows) {
@@ -709,7 +728,7 @@ export class Screens {
           const info = document.createElement('button');
           info.type = 'button';
           info.className = 'record-info';
-          info.textContent = 'Tiedot';
+          info.textContent = t('records.details');
           info.setAttribute('aria-expanded', 'false');
           // Tiedot avautuvat omalle rivilleen; koko rivin napautus käy myös puhelimella.
           let open: HTMLElement | null = null;
@@ -723,7 +742,7 @@ export class Screens {
               open.className = 'record-more';
               open.append(detailsBox(r));
               if (r.x !== undefined)
-                open.append(this.buttons([['Näytä kartalla', () => openOnMap(r)]]));
+                open.append(this.buttons([[t('records.showOnMap'), () => openOnMap(r)]]));
               li.after(open);
             }
             info.setAttribute('aria-expanded', String(open !== null));
@@ -734,7 +753,7 @@ export class Screens {
           li.append(info, fishImage(r.species, r.weight, LIST_FISH_SCALE));
           ol.appendChild(li);
         }
-        if (rows.length === 0) ol.append(h('li', 'Ei vielä saaliita', 'hint'));
+        if (rows.length === 0) ol.append(h('li', t('records.none'), 'hint'));
         lists.append(ol);
       }
       map.setPins(
@@ -747,14 +766,9 @@ export class Screens {
       showSelected(-1);
       legend.replaceChildren(
         ...(placed.length === 0
-          ? [
-              h(
-                'span',
-                'Tällä vaikeustasolla ei vielä ole ennätyksiä, joiden saantipaikka on tallessa.',
-              ),
-            ]
+          ? [h('span', t('records.noPlaced'))]
           : SPECIES_OPTIONS.filter((o) => species.has(o.value)).map((o) => {
-              const item = h('span', o.label);
+              const item = h('span', speciesName(o.value));
               const swatch = document.createElement('i');
               swatch.style.background = SPECIES_PIN_COLORS[o.value];
               item.prepend(swatch);
@@ -767,10 +781,10 @@ export class Screens {
     setView(false);
     panel.append(
       this.choice(
-        'Lista',
+        t('records.board'),
         [
-          ['race', 'Moninpeli'],
-          ['solo', 'Yksinpeli'],
+          ['race', t('menu.multiplayer')],
+          ['solo', t('menu.solo')],
         ],
         mode,
         (v) => {
@@ -778,19 +792,14 @@ export class Screens {
           render();
         },
       ),
-      this.choice(
-        'Vaikeus',
-        (Object.keys(DIFFICULTY_NAMES) as Difficulty[]).map((d) => [d, DIFFICULTY_NAMES[d]]),
-        initial,
-        (v) => {
-          difficulty = v as Difficulty;
-          render();
-        },
-      ),
+      this.choice(t('settings.difficultyShort'), difficultyOptions(), initial, (v) => {
+        difficulty = v as Difficulty;
+        render();
+      }),
       toggle,
       content,
       modeHint,
-      this.buttons([['Takaisin', onBack]]),
+      this.buttons([[t('common.back'), onBack]]),
     );
     this.show(panel, () => map.dispose());
   }
@@ -804,13 +813,13 @@ export class Screens {
   ): void {
     const panel = this.panel();
     panel.append(
-      h('h2', multiplayer ? 'Valikko' : 'Tauko'),
-      ...(multiplayer ? [h('p', 'Kisa jatkuu muilla taustalla.', 'hint')] : []),
+      h('h2', multiplayer ? t('pause.menu') : t('pause.title')),
+      ...(multiplayer ? [h('p', t('pause.continues'), 'hint')] : []),
       ...(tackle ? [this.tackleEditor(tackle.current, tackle.onChange)] : []),
       ...(audio ? [this.audioEditor(audio.current, audio.onChange)] : []),
       this.buttons([
-        ['Jatka', onResume],
-        [multiplayer ? 'Poistu kisasta' : 'Lopeta kisa', onQuit],
+        [t('pause.resume'), onResume],
+        [multiplayer ? t('pause.leaveRace') : t('pause.endRace'), onQuit],
       ]),
     );
     this.show(panel);
@@ -835,12 +844,12 @@ export class Screens {
     panel.dataset.screen = 'race-results';
     const winner = results[0];
     panel.append(
-      h('h2', 'Kisa päättyi!'),
+      h('h2', t('results.raceOver')),
       h(
         'p',
         winner && winner.summary.score > 0
-          ? `Voittaja: ${winner.name} (${formatWeight(winner.summary.score)})`
-          : 'Kukaan ei saanut kalaa.',
+          ? t('results.winner', { name: winner.name, weight: formatWeight(winner.summary.score) })
+          : t('results.noFish'),
         'total',
       ),
     );
@@ -851,7 +860,12 @@ export class Screens {
       li.value = r.rank;
       li.classList.toggle('me', r.id === myId);
       const biggest = r.summary.biggest ? formatWeight(r.summary.biggest.weight) : '–';
-      li.textContent = `${r.name.padEnd(12)} ${String(r.summary.count).padStart(2)} kpl  ${formatWeight(r.summary.total).padStart(8)}  suurin ${biggest}`;
+      li.textContent = t('results.row', {
+        name: r.name.padEnd(12),
+        count: String(r.summary.count).padStart(2),
+        total: formatWeight(r.summary.total).padStart(8),
+        biggest,
+      });
       const gear = tackles?.get(r.id);
       const big = r.summary.biggest;
       if (big) li.append(fishImage(big.species, big.weight, LIST_FISH_SCALE));
@@ -863,7 +877,7 @@ export class Screens {
       ...this.resultsWithMap(panel, table, map),
       h(
         'p',
-        `${WIN_RULE_NAMES[settings.winRule]} · ${DIFFICULTY_NAMES[settings.difficulty]} · ${settings.durationMinutes} min`,
+        `${winRuleName(settings.winRule)} · ${difficultyName(settings.difficulty)} · ${t('common.minutes', { n: settings.durationMinutes })}`,
         'hint',
       ),
     );
@@ -873,13 +887,13 @@ export class Screens {
       this.buttons(
         amHost
           ? [
-              ['Uusi kisa samalla porukalla', onRestart],
-              ['Poistu', onLeave],
+              [t('results.newRace'), onRestart],
+              [t('common.leave'), onLeave],
             ]
-          : [['Poistu', onLeave]],
+          : [[t('common.leave'), onLeave]],
       ),
     );
-    if (!amHost) panel.append(h('p', 'Huoneen luoja voi aloittaa uuden kisan.', 'hint'));
+    if (!amHost) panel.append(h('p', t('results.hostRestarts'), 'hint'));
     this.show(panel, map?.dispose);
   }
 
@@ -896,15 +910,13 @@ export class Screens {
     const sum = summarize(c.catches, c.settings.winRule);
     const map = race ? this.raceMap(race) : null;
     panel.append(
-      h('h2', c.elapsed >= c.settings.durationMinutes * 60 ? 'Aika loppui!' : 'Kisa päättyi'),
+      h(
+        'h2',
+        c.elapsed >= c.settings.durationMinutes * 60 ? t('results.timeUp') : t('results.ended'),
+      ),
     );
     if (sum.count === 0) {
-      panel.append(
-        h(
-          'p',
-          'Ei saalista tällä kertaa. Jos tärppejä ei tule, potki uuteen paikkaan: kaikuluotain (K) näyttää kalat.',
-        ),
-      );
+      panel.append(h('p', t('results.empty')));
       // Reitistä näkee silti, missä tuli käytyä.
       if (map) panel.append(...this.resultsWithMap(panel, h('div', ''), map));
     } else {
@@ -912,7 +924,7 @@ export class Screens {
       list.className = 'catch-list';
       for (const ct of [...c.catches].sort((a, b) => b.weight - a.weight)) {
         const li = document.createElement('li');
-        li.textContent = `${ct.name.padEnd(8)} ${formatWeight(ct.weight).padStart(8)}   ${formatTime(ct.time)}`;
+        li.textContent = `${speciesName(ct.species).padEnd(8)} ${formatWeight(ct.weight).padStart(8)}   ${formatTime(ct.time)}`;
         li.append(fishImage(ct.species, ct.weight, LIST_FISH_SCALE));
         list.appendChild(li);
       }
@@ -920,7 +932,11 @@ export class Screens {
         ...this.resultsWithMap(panel, list, map),
         h(
           'p',
-          `Kaloja ${sum.count} · yhteensä ${formatWeight(sum.total)} · suurin ${formatWeight(sum.biggest!.weight)}`,
+          t('results.summary', {
+            count: sum.count,
+            total: formatWeight(sum.total),
+            biggest: formatWeight(sum.biggest!.weight),
+          }),
           'total',
         ),
         ...recordNotes.map((n) => h('p', n, 'total')),
@@ -930,12 +946,12 @@ export class Screens {
     panel.append(
       h(
         'p',
-        `${DIFFICULTY_NAMES[c.settings.difficulty]} · ${c.settings.durationMinutes} min`,
+        `${difficultyName(c.settings.difficulty)} · ${t('common.minutes', { n: c.settings.durationMinutes })}`,
         'hint',
       ),
       this.buttons([
-        ['Uusi kisa', onAgain],
-        ['Valikkoon', onMenu],
+        [t('results.again'), onAgain],
+        [t('results.toMenu'), onMenu],
       ]),
     );
     this.show(panel, map?.dispose);
@@ -959,10 +975,10 @@ export class Screens {
     };
     setView(this.resultsOnMap);
     const toggle = this.choice(
-      'Näkymä',
+      t('common.view'),
       [
-        ['list', 'Tulokset'],
-        ['map', 'Saaliskartta'],
+        ['list', t('results.table')],
+        ['map', t('results.catchMap')],
       ],
       this.resultsOnMap ? 'map' : 'list',
       (v) => setView(v === 'map'),
@@ -977,32 +993,32 @@ export class Screens {
    */
   private raceMap(race: RaceMapData): { element: HTMLElement; dispose: () => void } | null {
     if (race.tracks.length === 0 && race.catches.length === 0) return null;
-    const tracks = new Map(race.tracks.map((t) => [t.id, t]));
+    const tracks = new Map(race.tracks.map((track) => [track.id, track]));
     const solo = race.tracks.length <= 1;
     const pins = race.catches.map((c) => ({
       pos: c.pos,
       color: tracks.get(c.id)?.color ?? '#eef2f3',
-      label: `${solo ? '' : `${tracks.get(c.id)?.name ?? c.id}: `}${c.name} ${formatWeight(c.weight)} · ${formatTime(c.time)}`,
+      label: `${solo ? '' : `${tracks.get(c.id)?.name ?? c.id}: `}${speciesName(c.species)} ${formatWeight(c.weight)} · ${formatTime(c.time)}`,
     }));
     const map = new LakeMapView({ pins, race, onPin: () => {} });
     const legend = document.createElement('div');
     legend.className = 'lake-map-legend race-legend';
-    for (const t of race.tracks) {
-      const n = race.catches.filter((c) => c.id === t.id).length;
-      const item = h('span', `${t.name} (${n} kpl)`);
+    for (const track of race.tracks) {
+      const n = race.catches.filter((c) => c.id === track.id).length;
+      const item = h('span', t('results.trackCount', { name: track.name, n }));
       const swatch = document.createElement('i');
-      swatch.style.background = t.color;
+      swatch.style.background = track.color;
       item.prepend(swatch);
       legend.append(item);
     }
-    legend.append(h('span', '■ saalis'));
+    legend.append(h('span', t('results.catchLegend')));
     const kinds = new Set(race.events.map((e) => e.kind));
     for (const kind of Object.keys(RACE_EVENT_STYLE) as RaceEventKind[]) {
       if (!kinds.has(kind)) continue;
       const style = RACE_EVENT_STYLE[kind];
       const glyph = h('b', style.glyph);
       glyph.style.color = style.color;
-      const item = h('span', ` ${style.name}`);
+      const item = h('span', ` ${t(`raceEvent.${kind}`)}`);
       item.prepend(glyph);
       legend.append(item);
     }
@@ -1027,7 +1043,7 @@ export class Screens {
       a.download = cardFileName(info);
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-      status.textContent = 'Kuva tallennettu';
+      status.textContent = t('card.saved');
     };
     const share = async () => {
       const text = weighCardText(info, url);
@@ -1040,24 +1056,24 @@ export class Screens {
         }
         if (blob && typeof ClipboardItem !== 'undefined') {
           await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-          status.textContent = 'Kuva kopioitu – liitä se viestiin kavereille';
+          status.textContent = t('card.imageCopied');
           return;
         }
         await navigator.clipboard.writeText(text);
-        status.textContent = 'Teksti kopioitu – liitä se viestiin kavereille';
+        status.textContent = t('card.textCopied');
       } catch (err) {
         // Käyttäjä perui jakamisen tai selain esti leikepöydän.
         if ((err as Error).name !== 'AbortError') {
-          status.textContent = 'Jakaminen ei onnistunut – tallenna kuva';
+          status.textContent = t('card.shareFailed');
         }
       }
     };
     box.append(
-      h('p', 'Punnituskortti: kisan suurin kalasi', 'choice-label'),
+      h('p', t('card.label'), 'choice-label'),
       canvas,
       this.buttons([
-        ['Jaa', () => void share()],
-        ['Tallenna kuva', () => void save()],
+        [t('card.share'), () => void share()],
+        [t('card.save'), () => void save()],
       ]),
       status,
     );
@@ -1138,92 +1154,67 @@ export class Screens {
     const box = document.createElement('div');
     box.className = 'settings';
     box.append(
-      this.choice(
-        'Kilpailuaika',
-        DURATIONS.map((d) => [String(d), `${d} min`]),
-        String(s.durationMinutes),
-        (v) => change({ durationMinutes: Number(v) }),
+      this.choice(t('settings.duration'), durationOptions(), String(s.durationMinutes), (v) =>
+        change({ durationMinutes: Number(v) }),
       ),
       this.startChoice(s.start ?? null, () => change({ start: null }), pickStart),
       this.choice(
-        'Voittaja',
-        (Object.keys(WIN_RULE_NAMES) as WinRule[]).map((w) => [w, WIN_RULE_NAMES[w]]),
+        t('settings.winRule'),
+        (Object.keys(WIN_RULE_NAMES) as WinRule[]).map((w) => [w, winRuleName(w)]),
         s.winRule,
         (v) => change({ winRule: v as WinRule }),
       ),
-      this.choice(
-        'Kalastuksen vaikeus',
-        (Object.keys(DIFFICULTY_NAMES) as Difficulty[]).map((d) => [d, DIFFICULTY_NAMES[d]]),
-        s.difficulty,
-        (v) => change({ difficulty: v as Difficulty }),
+      this.choice(t('settings.difficulty'), difficultyOptions(), s.difficulty, (v) =>
+        change({ difficulty: v as Difficulty }),
       ),
       this.choice(
-        'Pelaajia enintään',
+        t('settings.maxPlayers'),
         PLAYER_COUNTS.map((n) => [String(n), String(n), n < playerCount]),
         String(s.maxPlayers),
         (v) => change({ maxPlayers: Number(v) }),
       ),
       this.speciesChoice(s.species, (species) => change({ species })),
-      this.choice(
-        'Vuorokaudenaika',
-        TIME_OF_DAY_OPTIONS.map((o) => [o.value, o.label]),
-        s.timeOfDay,
-        (v) => change({ timeOfDay: v as TimeOfDay }),
+      this.choice(t('settings.timeOfDay'), timeOfDayOptions(), s.timeOfDay, (v) =>
+        change({ timeOfDay: v as TimeOfDay }),
+      ),
+      this.choice(t('settings.weather'), weatherOptions(), s.weather, (v) =>
+        change({ weather: v as WeatherLevel }),
+      ),
+      this.choice(t('settings.lightning'), penaltyOptions(), s.lightningPenalty, (v) =>
+        change({ lightningPenalty: v as Penalty }),
+      ),
+      this.choice(t('settings.capsize'), penaltyOptions(), s.capsizePenalty, (v) =>
+        change({ capsizePenalty: v as Penalty }),
+      ),
+      this.choice(t('settings.land'), landOptions(), String(s.landPenalty), (v) =>
+        change({ landPenalty: Number(v) }),
       ),
       this.choice(
-        'Sää',
-        WEATHER_OPTIONS.map((o) => [o.value, o.label]),
-        s.weather,
-        (v) => change({ weather: v as WeatherLevel }),
-      ),
-      this.choice(
-        'Salama',
-        LIGHTNING_PENALTY_OPTIONS.map((o) => [o.value, o.label]),
-        s.lightningPenalty,
-        (v) => change({ lightningPenalty: v as Penalty }),
-      ),
-      this.choice(
-        'Kaatuminen',
-        CAPSIZE_PENALTY_OPTIONS.map((o) => [o.value, o.label]),
-        s.capsizePenalty,
-        (v) => change({ capsizePenalty: v as Penalty }),
-      ),
-      this.choice(
-        'Heitto maalle',
-        LAND_PENALTY_OPTIONS.map((o) => [String(o.value), o.label]),
-        String(s.landPenalty),
-        (v) => change({ landPenalty: Number(v) }),
-      ),
-      this.choice(
-        'Liittyminen kesken kisan',
-        LATE_JOIN_OPTIONS.map((o) => [o.value, o.label]),
+        t('settings.lateJoin'),
+        LATE_JOIN_OPTIONS.map((o) => [o.value, lateJoinName(o.value)]),
         s.lateJoin,
         (v) => change({ lateJoin: v as RoomSettings['lateJoin'] }),
       ),
-      h(
-        'p',
-        'Sallittu: kaverit pääsevät mukaan vielä kisan alettua, ja yhteyden katkettua pääsee takaisin omalle paikalleen. Vain paluu: vain takaisin. Ei: kumpikaan. Kisaan pääsemättömät voivat silti katsoa kisaa.',
-        'hint',
-      ),
+      h('p', t('settings.lateJoinHint'), 'hint'),
     );
     return box;
   }
 
   /** Varusteet: vapa, viehe, siima ja teräsperuke. */
   private tackleEditor(initial: Tackle, onChange: (t: Tackle) => void): HTMLElement {
-    const t = { ...initial };
+    const tk = { ...initial };
     const box = document.createElement('div');
     box.className = 'settings';
-    const rodHint = h('p', RODS[t.rod].hint, 'hint');
-    const hint = h('p', LURES[t.lure].hint, 'hint');
+    const rodText = h('p', rodHint(tk.rod), 'hint');
+    const hint = h('p', lureHint(tk.lure), 'hint');
     const set = (patch: Partial<Tackle>) => {
-      Object.assign(t, patch);
-      rodHint.textContent = RODS[t.rod].hint;
-      hint.textContent = LURES[t.lure].hint;
-      onChange({ ...t });
+      Object.assign(tk, patch);
+      rodText.textContent = rodHint(tk.rod);
+      hint.textContent = lureHint(tk.lure);
+      onChange({ ...tk });
     };
     const beginner = document.createElement('button');
-    beginner.textContent = 'Aloittelijan varusteet';
+    beginner.textContent = t('tackle.beginner');
     beginner.title = describeFullTackle(DEFAULT_TACKLE);
     beginner.addEventListener('click', () => {
       onChange({ ...DEFAULT_TACKLE });
@@ -1231,42 +1222,38 @@ export class Screens {
     });
     box.append(
       this.choice(
-        'Vapa',
-        ROD_IDS.map((id) => [id, RODS[id].name]),
-        t.rod,
+        t('tackle.rod'),
+        ROD_IDS.map((id) => [id, rodName(id)]),
+        tk.rod,
         (v) => set({ rod: v as Tackle['rod'] }),
       ),
-      rodHint,
+      rodText,
       this.choice(
-        'Viehe (R)',
-        LURE_IDS.map((id) => [id, LURES[id].name]),
-        t.lure,
+        t('tackle.lure'),
+        LURE_IDS.map((id) => [id, lureName(id)]),
+        tk.lure,
         (v) => set({ lure: v as Tackle['lure'] }),
       ),
       hint,
       this.choice(
-        'Siima',
+        t('tackle.line'),
         LINE_IDS.map((id) => [
           id,
-          `${LINES[id].name} (${String(LINES[id].strength).replace('.', ',')} kg)`,
+          t('tackle.lineOption', { name: lineName(id), kg: shortDecimal(LINES[id].strength) }),
         ]),
-        t.line,
+        tk.line,
         (v) => set({ line: v as Tackle['line'] }),
       ),
       this.choice(
-        'Teräsperuke',
+        t('tackle.leader'),
         [
-          ['no', 'Ei'],
-          ['yes', 'Kyllä'],
+          ['no', t('common.no')],
+          ['yes', t('common.yes')],
         ],
-        t.leader ? 'yes' : 'no',
+        tk.leader ? 'yes' : 'no',
         (v) => set({ leader: v === 'yes' }),
       ),
-      h(
-        'p',
-        'Ohut siima heittyy pidemmälle mutta katkeaa helpommin. Hauki voi purra siiman poikki ilman peruketta.',
-        'hint',
-      ),
+      h('p', t('tackle.hint'), 'hint'),
       beginner,
     );
     return box;
@@ -1284,14 +1271,14 @@ export class Screens {
     const preview = document.createElement('canvas');
     preview.className = 'tube-preview';
     preview.width = preview.height = 40;
-    preview.setAttribute('aria-label', 'Esikatselu');
+    preview.setAttribute('aria-label', t('appearance.preview'));
     drawTubePreview(preview, a);
     const rows = document.createElement('div');
     rows.className = 'appearance-rows';
     for (const part of APPEARANCE_PARTS) {
       const row = document.createElement('div');
       row.className = 'choice';
-      row.append(h('span', PART_NAMES[part], 'choice-label'));
+      row.append(h('span', partName(part), 'choice-label'));
       const group = document.createElement('div');
       group.className = 'choice-options swatches';
       for (const c of colorOptions(part)) {
@@ -1300,8 +1287,9 @@ export class Screens {
         // Ruksi tummana vaaleilla väreillä ja vaaleana tummilla.
         if (isLight(c.hex)) b.classList.add('light');
         b.style.background = cssColor(c.hex);
-        b.title = c.name;
-        b.setAttribute('aria-label', `${PART_NAMES[part]}: ${c.name}`);
+        const color = colorName(c.hex, c.name);
+        b.title = color;
+        b.setAttribute('aria-label', `${partName(part)}: ${color}`);
         const select = (on: boolean) => {
           b.classList.toggle('selected', on);
           b.setAttribute('aria-pressed', String(on));
@@ -1334,13 +1322,13 @@ export class Screens {
     const selected = new Set(initial);
     const row = document.createElement('div');
     row.className = 'choice';
-    row.append(h('span', 'Kalalajit', 'choice-label'));
+    row.append(h('span', t('settings.species'), 'choice-label'));
     const group = document.createElement('div');
     group.className = 'choice-options';
     for (const o of SPECIES_OPTIONS) {
       const b = document.createElement('button');
-      b.textContent = o.native ? o.label : `${o.label}*`;
-      if (!o.native) b.title = 'Ei elä Lunkinjärvessä';
+      b.textContent = o.native ? speciesName(o.value) : `${speciesName(o.value)}*`;
+      if (!o.native) b.title = t('settings.notNative');
       b.classList.toggle('selected', selected.has(o.value));
       b.addEventListener('click', () => {
         if (selected.has(o.value)) {
@@ -1352,7 +1340,7 @@ export class Screens {
       });
       group.appendChild(b);
     }
-    row.append(group, h('p', '* Ei Lunkinjärven oma laji, lisätään huvin vuoksi.', 'hint'));
+    row.append(group, h('p', t('settings.notNativeHint'), 'hint'));
     return row;
   }
 
@@ -1360,13 +1348,13 @@ export class Screens {
   private startChoice(start: Vec2 | null, onRandom: () => void, onPick: () => void): HTMLElement {
     const row = document.createElement('div');
     row.className = 'choice';
-    row.append(h('span', 'Aloituspaikka', 'choice-label'));
+    row.append(h('span', t('settings.start'), 'choice-label'));
     const group = document.createElement('div');
     group.className = 'choice-options';
     const random = document.createElement('button');
-    random.textContent = 'Satunnainen';
+    random.textContent = t('settings.startRandom');
     const pick = document.createElement('button');
-    pick.textContent = start ? 'Kartalta (vaihda)' : 'Valitse kartalta';
+    pick.textContent = start ? t('settings.startChange') : t('settings.startPick');
     const hint = h('p', startText(start), 'hint');
     const select = (chosen: boolean) => {
       random.classList.toggle('selected', !chosen);
@@ -1375,7 +1363,7 @@ export class Screens {
     select(start !== null);
     random.addEventListener('click', () => {
       select(false);
-      pick.textContent = 'Valitse kartalta';
+      pick.textContent = t('settings.startPick');
       hint.textContent = startText(null);
       onRandom();
     });
@@ -1395,28 +1383,24 @@ export class Screens {
     panel.classList.add('map-panel');
     let chosen = current;
     const buttons = this.buttons([
-      ['Valitse tämä', () => onDone(chosen)],
-      ['Satunnainen', () => onDone(null)],
-      ['Peruuta', onCancel],
+      [t('startPicker.choose'), () => onDone(chosen)],
+      [t('settings.startRandom'), () => onDone(null)],
+      [t('common.cancel'), onCancel],
     ]);
     const confirm = buttons.querySelector('button')!;
     confirm.disabled = chosen === null;
     const map = new LakeMapView({
       marker: current,
-      markerLabel: 'Aloitus',
+      markerLabel: t('startPicker.marker'),
       onPick: (p) => {
         chosen = p;
         confirm.disabled = false;
       },
     });
     panel.append(
-      h('h2', 'Aloituspaikka'),
+      h('h2', t('settings.start')),
       map.element,
-      h(
-        'p',
-        'Napauta kohtaa vedessä. Moninpelissä muut aloittavat sen läheltä. Järvellä voi liikkua vapaasti kisan aikana.',
-        'hint',
-      ),
+      h('p', t('startPicker.hint'), 'hint'),
       buttons,
     );
     this.show(panel, () => map.dispose());
@@ -1424,25 +1408,23 @@ export class Screens {
 
   /** Muut pelaajat näkevät asetukset tekstinä. */
   private settingsSummary(s: RoomSettings): HTMLElement {
-    const label = <T>(list: { value: T; label: string }[], v: T) =>
-      list.find((o) => o.value === v)?.label ?? String(v);
     const box = document.createElement('div');
     box.className = 'settings-summary';
     const rows: [string, string][] = [
-      ['Kilpailuaika', `${s.durationMinutes} min`],
-      ['Voittaja', WIN_RULE_NAMES[s.winRule]],
-      ['Vaikeus', DIFFICULTY_NAMES[s.difficulty]],
-      ['Pelaajia enintään', String(s.maxPlayers)],
-      ['Vuorokaudenaika', label(TIME_OF_DAY_OPTIONS, s.timeOfDay)],
-      ['Sää', label(WEATHER_OPTIONS, s.weather)],
+      [t('settings.duration'), t('common.minutes', { n: s.durationMinutes })],
+      [t('settings.winRule'), winRuleName(s.winRule)],
+      [t('settings.difficultyShort'), difficultyName(s.difficulty)],
+      [t('settings.maxPlayers'), String(s.maxPlayers)],
+      [t('settings.timeOfDay'), timeOfDayName(s.timeOfDay)],
+      [t('settings.weather'), weatherLevelName(s.weather)],
       [
-        'Salama / kaatuminen',
-        `${label(LIGHTNING_PENALTY_OPTIONS, s.lightningPenalty)} / ${label(CAPSIZE_PENALTY_OPTIONS, s.capsizePenalty)}`,
+        t('settings.lightningCapsize'),
+        `${penaltyName(s.lightningPenalty)} / ${penaltyName(s.capsizePenalty)}`,
       ],
-      ['Heitto maalle', label(LAND_PENALTY_OPTIONS, s.landPenalty)],
-      ['Liittyminen kesken kisan', label(LATE_JOIN_OPTIONS, s.lateJoin)],
-      ['Kalalajit', s.species.map((v) => label(SPECIES_OPTIONS, v)).join(', ')],
-      ['Aloituspaikka', startText(s.start ?? null)],
+      [t('settings.land'), landPenaltyName(s.landPenalty)],
+      [t('settings.lateJoin'), lateJoinName(s.lateJoin)],
+      [t('settings.species'), s.species.map(speciesName).join(', ')],
+      [t('settings.start'), startText(s.start ?? null)],
     ];
     for (const [k, v] of rows) {
       const row = document.createElement('div');
@@ -1485,9 +1467,11 @@ export class Screens {
 
 /** Aloituspaikan kuvaus asetuksiin. */
 function startText(start: Vec2 | null): string {
-  if (!start) return 'Satunnainen kohta rannan tuntumassa.';
+  if (!start) return t('settings.startRandomText');
   const spot = describeSpot(start);
-  return `Kartalta valittu kohta${spot ? `: ${spot.charAt(0).toLowerCase()}${spot.slice(1)}` : ''}.`;
+  return spot
+    ? t('settings.startPickedAt', { spot: `${spot.charAt(0).toLowerCase()}${spot.slice(1)}` })
+    : t('settings.startPicked');
 }
 
 /** Otsikko, jonka kirjaimet keinuvat vuorotellen kuin laineilla. */

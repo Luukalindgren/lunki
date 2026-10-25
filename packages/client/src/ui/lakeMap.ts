@@ -16,6 +16,7 @@ import type { RaceEventKind, RaceMapData } from '../game/raceLog';
 import { bottomFor } from '../world/lakeData';
 import { AREA_COLORS, DEFAULT_GROUND, LINE_COLORS } from '../world/surroundingsMesh';
 import { DEPTH_BANDS, MapViewport, depthBand, scaleBarMeters, type Bounds } from './mapViewport';
+import { decimal, hasKey, t } from '../i18n';
 
 /** Pohjakuvan tarkkuus (m pikselille) ja maareunus järven ympärillä (m). */
 const RES = 2;
@@ -25,16 +26,11 @@ const TAP_SLOP = 8;
 /** Napautus osuu merkkiin näin läheltä (px). */
 const PIN_REACH = 14;
 
-const FEATURE_NAMES: Partial<Record<BottomFeature['type'], string>> = {
-  hole: 'syvänne',
-  shoal: 'matalikko',
-  dropoff: 'jyrkkä pudotus',
-  rocks: 'kivikko',
-  tree: 'kaatunut puu',
-};
+/** Kartalla nimetyt pohjan muodot (jyrkkää rantaa ei nimetä); nimet sanakirjassa. */
+type NamedFeature = Exclude<BottomFeature['type'], 'steep'>;
+const isNamed = (type: BottomFeature['type']): type is NamedFeature => type !== 'steep';
 
 const css = (hex: number) => `#${hex.toString(16).padStart(6, '0')}`;
-const fi = (v: number, digits = 1) => v.toFixed(digits).replace('.', ',');
 
 interface LakeData {
   map: LakeMap;
@@ -59,7 +55,7 @@ const lunkiData = (): LakeData => {
 
 const featureAt = (d: LakeData, p: Vec2): (BottomFeature & { name: string }) | null => {
   for (const f of d.features) {
-    if (!f.name || !FEATURE_NAMES[f.type]) continue;
+    if (!f.name || !isNamed(f.type)) continue;
     const reach = f.type === 'tree' ? f.length : f.type === 'rocks' ? f.radius : f.radius * 0.6;
     if (distance(p, f) <= reach + 4) return f as BottomFeature & { name: string };
   }
@@ -73,11 +69,11 @@ export function describeSpot(p: Vec2): string | null {
   const feature = featureAt(d, p);
   const reeds = d.water.reedsAt(p);
   const what = feature
-    ? ` · ${feature.name} (${FEATURE_NAMES[feature.type]})`
+    ? ` · ${feature.name} (${t(`feature.${feature.type as NamedFeature}`)})`
     : reeds
-      ? ` · ${reeds.name ?? 'kaislikko'}`
+      ? ` · ${reeds.name ?? t('map.reeds')}`
       : '';
-  return `Syvyys ${fi(d.bottom.depthAt(p))} m${what}`;
+  return t('map.depth', { depth: decimal(d.bottom.depthAt(p)) }) + what;
 }
 
 interface BaseImage {
@@ -238,13 +234,10 @@ export interface LakeMapOptions {
 }
 
 /** Kisan tapahtumien merkkien värit (myös selitteeseen). */
-export const RACE_EVENT_STYLE: Record<
-  RaceEventKind,
-  { color: string; glyph: string; name: string }
-> = {
-  lightning: { color: '#fff36b', glyph: 'ϟ', name: 'salama' },
-  capsize: { color: '#ff8a3d', glyph: '○', name: 'kaatuminen' },
-  tangle: { color: '#eef2f3', glyph: '×', name: 'siimasotku' },
+export const RACE_EVENT_STYLE: Record<RaceEventKind, { color: string; glyph: string }> = {
+  lightning: { color: '#fff36b', glyph: 'ϟ' },
+  capsize: { color: '#ff8a3d', glyph: '○' },
+  tangle: { color: '#eef2f3', glyph: '×' },
 };
 
 export interface MapPin {
@@ -302,21 +295,19 @@ export class LakeMapView {
       });
       zoom.append(b);
     };
-    zoomButton('+', 'Lähemmäs', () =>
+    zoomButton('+', t('common.closer'), () =>
       this.view.zoomAt(this.view.width / 2, this.view.height / 2, 2),
     );
-    zoomButton('−', 'Kauemmas', () =>
+    zoomButton('−', t('common.farther'), () =>
       this.view.zoomAt(this.view.width / 2, this.view.height / 2, 0.5),
     );
-    zoomButton('⌂', 'Koko järvi', () => this.view.fit(this.data.map.bounds));
+    zoomButton('⌂', t('map.wholeLake'), () => this.view.fit(this.data.map.bounds));
     frame.append(this.canvas, zoom);
     this.info = document.createElement('p');
     this.info.className = 'hint lake-map-info';
-    this.info.textContent = options.onPick
-      ? 'Napauta kohtaa vedessä.'
-      : options.onPin
-        ? 'Napauta merkkiä, niin näet saaliin tiedot.'
-        : 'Napauta kohtaa, niin näet syvyyden.';
+    this.info.textContent = t(
+      options.onPick ? 'map.tapWater' : options.onPin ? 'map.tapPin' : 'map.tapDepth',
+    );
     this.element.append(frame, this.info, this.legend());
 
     this.resize = new ResizeObserver(() => this.layout());
@@ -356,7 +347,7 @@ export class LakeMapView {
       const item = document.createElement('span');
       const swatch = document.createElement('i');
       swatch.style.background = b.color;
-      item.append(swatch, b.label);
+      item.append(swatch, hasKey(b.label) ? t(b.label) : b.label);
       box.append(item);
     }
     return box;
@@ -455,7 +446,7 @@ export class LakeMapView {
     }
     if (this.options.onPick) {
       if (!isValidStart(this.data.water, p)) {
-        this.info.textContent = 'Valitse kohta vedestä, vähän irti rannasta.';
+        this.info.textContent = t('map.pickWater');
         return;
       }
       this.marker = p;
@@ -484,8 +475,10 @@ export class LakeMapView {
   private showInfo(p: Vec2, picked: boolean): void {
     const spot = describeSpot(p);
     const prefix =
-      picked && spot && this.options.onPick ? `${this.options.markerLabel ?? 'Valittu'}: ` : '';
-    this.info.textContent = spot ? prefix + spot : 'Maata';
+      picked && spot && this.options.onPick
+        ? `${this.options.markerLabel ?? t('map.selected')}: `
+        : '';
+    this.info.textContent = spot ? prefix + spot : t('map.land');
   }
 
   private draw(): void {
@@ -507,7 +500,7 @@ export class LakeMapView {
     ctx.textBaseline = 'middle';
     const labels = v.scale >= 0.45;
     for (const f of this.data.features) {
-      if (!f.name || !FEATURE_NAMES[f.type] || f.type === 'tree') continue;
+      if (!f.name || !isNamed(f.type) || f.type === 'tree') continue;
       const s = v.toScreen(f);
       if (f.type === 'rocks') {
         ctx.fillStyle = '#c3cbd2';
@@ -540,7 +533,7 @@ export class LakeMapView {
     }
     this.drawPins(ctx);
     this.scaleBar(ctx);
-    this.label(ctx, 'P ▲', v.width - 8, 14, '#eef2f3', 'right');
+    this.label(ctx, t('map.north'), v.width - 8, 14, '#eef2f3', 'right');
   }
 
   /** Reitit viivoina pelaajan värillä ja tapahtumat pieninä merkkeinä. */

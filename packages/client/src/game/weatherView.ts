@@ -1,12 +1,7 @@
 import * as THREE from 'three';
-import {
-  SKY_NAMES,
-  WARNING_TEXTS,
-  weatherAt,
-  type Vec2,
-  type WeatherNow,
-  type WeatherPlan,
-} from '@lunki/shared';
+import { weatherAt, type Vec2, type WeatherNow, type WeatherPlan } from '@lunki/shared';
+import { t as tr } from '../i18n';
+import { skyName, warningText } from '../i18n/names';
 
 /** Sadepisaroiden enimmäismäärä ja putoamisnopeus (m/s). */
 const DROPS = 900;
@@ -16,57 +11,26 @@ const DROP_LENGTH = 0.7;
 const POV_RADIUS = 25;
 const TOP = 22;
 
-/** Ilmansuunnat, joista tuuli tulee, alkaen idästä vastapäivään. */
-const WIND_NAMES = [
-  'itätuuli',
-  'koillistuuli',
-  'pohjoistuuli',
-  'luoteistuuli',
-  'länsituuli',
-  'lounaistuuli',
-  'etelätuuli',
-  'kaakkoistuuli',
-];
-
-const FROM_NAMES = [
-  'idästä',
-  'koillisesta',
-  'pohjoisesta',
-  'luoteesta',
-  'lännestä',
-  'lounaasta',
-  'etelästä',
-  'kaakosta',
-];
-
-const IN_NAMES = [
-  'idässä',
-  'koillisessa',
-  'pohjoisessa',
-  'luoteessa',
-  'lännessä',
-  'lounaassa',
-  'etelässä',
-  'kaakossa',
-];
+/** Kahdeksasta ilmansuunnasta (0 = itä, vastapäivään) se, johon kulma osoittaa. */
+const octant = (angle: number): Octant => {
+  const k = Math.round(angle / (Math.PI / 4));
+  return (((k % 8) + 8) % 8) as Octant;
+};
+type Octant = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 /** Ilmansuunta, jossa kulma `angle` osoittaa (esim. "lounaassa"). */
 export function compassIn(angle: number): string {
-  const k = Math.round(angle / (Math.PI / 4));
-  return IN_NAMES[((k % 8) + 8) % 8]!;
+  return tr(`in.${octant(angle)}`);
 }
 
 /** Mistä tuulee (ja aallot tulevat), esim. "lounaasta". */
 export function windFrom(windDir: number): string {
-  const k = Math.round((windDir + Math.PI) / (Math.PI / 4));
-  return FROM_NAMES[((k % 8) + 8) % 8]!;
+  return tr(`from.${octant(windDir + Math.PI)}`);
 }
 
-/** Tuulen nimi suomeksi: tuuli nimetään suunnasta, josta se tulee. */
+/** Tuulen nimi: tuuli nimetään suunnasta, josta se tulee. */
 export function windName(windDir: number): string {
-  const from = windDir + Math.PI;
-  const k = Math.round(from / (Math.PI / 4));
-  return WIND_NAMES[((k % 8) + 8) % 8]!;
+  return tr(`wind.${octant(windDir + Math.PI)}`);
 }
 
 export interface WeatherEvents {
@@ -122,7 +86,8 @@ export class WeatherView {
   ): WeatherNow {
     const prev = this.now;
     const now = (this.now = weatherAt(this.plan, t));
-    if (now.sky !== prev.sky && t > 0.5) events.message(`Sää muuttuu: ${SKY_NAMES[now.sky]}`);
+    if (now.sky !== prev.sky && t > 0.5)
+      events.message(tr('weather.change', { sky: skyName(now.sky) }));
     // Kukin varoitus kerran kutakin tulevaa muutosta kohden; samanaikaiset yhdessä.
     const fresh = now.warnings.filter((w) => {
       const key = `${Math.round(t + now.untilChange)}:${w}`;
@@ -130,7 +95,7 @@ export class WeatherView {
       this.warned.add(key);
       return true;
     });
-    if (fresh.length > 0) events.message(fresh.map((w) => WARNING_TEXTS[w]).join('\n'));
+    if (fresh.length > 0) events.message(fresh.map(warningText).join('\n'));
     if (fresh.includes('rumble')) events.rumble();
     // Ukkosella jyrisee silloin tällöin (salamat tulevat omana ominaisuutenaan).
     if (now.sky === 'thunder' || now.sky === 'storm') {

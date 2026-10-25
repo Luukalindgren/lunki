@@ -1,4 +1,5 @@
 import type { Input } from '../engine/input';
+import { hasKey, onLangChange, t, type MsgKey } from '../i18n';
 
 /** Tatin säde CSS-pikseleinä: näin pitkä työntö on täysi potku. */
 const STICK_RADIUS = 52;
@@ -29,6 +30,8 @@ export class TouchControls {
   onChat: (() => void) | null = null;
   private stickPointer: number | null = null;
   private gear = 1;
+  /** Nappien tekstit ja vihjeet sanakirjasta; symbolinapeilla (+, II) vain vihje. */
+  private readonly texts: { b: HTMLButtonElement; label?: MsgKey; title: MsgKey }[] = [];
 
   constructor(
     parent: HTMLElement,
@@ -60,42 +63,52 @@ export class TouchControls {
     this.chatButton = document.createElement('button');
     this.chatButton.type = 'button';
     this.chatButton.className = 'touch-chat';
-    this.chatButton.textContent = 'VIESTI';
-    this.chatButton.title = 'Kirjoita viesti muille';
+    this.texts.push({ b: this.chatButton, label: 'touch.chat', title: 'touch.chatTitle' });
     this.chatButton.hidden = true;
     this.chatButton.addEventListener('click', () => this.onChat?.());
     const tools = div('touch-tools');
     tools.append(
-      this.tap('II', 'Escape', 'Tauko'),
-      this.tap('?', 'KeyH', 'Ohje'),
-      this.button('+', 'Lähemmäs', () => input.scroll(-1)),
-      this.button('−', 'Kauemmas', () => input.scroll(1)),
+      this.tap('II', 'Escape', 'touch.pauseTitle'),
+      this.tap('?', 'KeyH', 'touch.helpTitle'),
+      this.button('+', 'common.closer', () => input.scroll(-1)),
+      this.button('−', 'common.farther', () => input.scroll(1)),
       this.chatButton,
     );
 
-    this.gearButton = this.button('NOP 2', 'Kelausnopeus', () =>
+    this.gearButton = this.button(null, 'touch.gearTitle', () =>
       this.tapKey(`Digit${((this.gear + 1) % GEARS) + 1}`),
     );
-    this.cutButton = this.tap('KATKO', 'KeyC', 'Katkaise siima');
+    this.cutButton = this.tap('touch.cut', 'KeyC', 'touch.cutTitle');
     const grid = div('touch-grid');
     grid.append(
-      this.tap('VIEHE', 'KeyR', 'Vaihda viehe'),
-      this.tap('LUOT', 'KeyK', 'Kaikuluotain'),
-      this.tap('SYV', 'KeyL', 'Vieheen syvyys'),
-      this.tap('KAM', 'KeyV', 'Kalastajan silmin'),
-      this.tap('JAR−', 'KeyQ', 'Jarru löysemmälle'),
-      this.tap('JAR+', 'KeyE', 'Jarru kireämmälle'),
+      this.tap('touch.lure', 'KeyR', 'touch.lureTitle'),
+      this.tap('touch.sonar', 'KeyK', 'touch.sonarTitle'),
+      this.tap('touch.depth', 'KeyL', 'touch.depthTitle'),
+      this.tap('touch.cam', 'KeyV', 'touch.camTitle'),
+      this.tap('touch.dragLess', 'KeyQ', 'touch.dragLessTitle'),
+      this.tap('touch.dragMore', 'KeyE', 'touch.dragMoreTitle'),
       this.gearButton,
-      this.hold('PERU', 'Mouse2', 'Peru heitto'),
+      this.hold('touch.cancel', 'Mouse2', 'touch.cancelTitle'),
       this.cutButton,
     );
-    const reel = this.hold('KELAA', 'Space', 'Kelaa');
+    const reel = this.hold('touch.reel', 'Space', 'touch.reelTitle');
     reel.classList.add('touch-reel');
     const actions = div('touch-actions');
     actions.append(grid, reel);
 
     this.root.append(stick, tools, actions);
     parent.appendChild(this.root);
+    this.relabel();
+    onLangChange(() => this.relabel());
+  }
+
+  /** Nappien tekstit pelaajan kielellä. */
+  private relabel(): void {
+    for (const { b, label, title } of this.texts) {
+      if (label) b.textContent = t(label);
+      b.title = t(title);
+    }
+    this.gearButton.textContent = t('touch.gear', { n: this.gear + 1 });
   }
 
   /** Chat on vain moninpelissä. */
@@ -107,7 +120,7 @@ export class TouchControls {
   setGear(gear: number): void {
     if (gear === this.gear) return;
     this.gear = gear;
-    this.gearButton.textContent = `NOP ${gear + 1}`;
+    this.gearButton.textContent = t('touch.gear', { n: gear + 1 });
   }
 
   private moveStick(stick: HTMLElement, e: PointerEvent) {
@@ -142,15 +155,26 @@ export class TouchControls {
     this.input.simulate(code, false);
   }
 
-  private tap(label: string, code: string, title: string): HTMLButtonElement {
+  private tap(label: MsgKey | string, code: string, title: MsgKey): HTMLButtonElement {
     return this.button(label, title, () => this.tapKey(code));
   }
 
-  private button(label: string, title: string, onPress: () => void): HTMLButtonElement {
+  /** `label`: sanakirjan avain tai symboli (+, II); null = teksti asetetaan muualla. */
+  private labelled(label: MsgKey | string | null, title: MsgKey): HTMLButtonElement {
     const b = document.createElement('button');
     b.type = 'button';
-    b.textContent = label;
-    b.title = title;
+    const key = label !== null && hasKey(label) ? label : undefined;
+    if (!key && label !== null) b.textContent = label;
+    this.texts.push({ b, label: key, title });
+    return b;
+  }
+
+  private button(
+    label: MsgKey | string | null,
+    title: MsgKey,
+    onPress: () => void,
+  ): HTMLButtonElement {
+    const b = this.labelled(label, title);
     b.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       onPress();
@@ -159,11 +183,8 @@ export class TouchControls {
   }
 
   /** Nappi, joka pysyy pohjassa niin kauan kuin sormi on päällä. */
-  private hold(label: string, code: string, title: string): HTMLButtonElement {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.textContent = label;
-    b.title = title;
+  private hold(label: MsgKey, code: string, title: MsgKey): HTMLButtonElement {
+    const b = this.labelled(label, title);
     b.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       b.setPointerCapture(e.pointerId);

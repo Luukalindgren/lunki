@@ -60,6 +60,11 @@ packages/
 Pelin fysiikka ja säännöt ovat `shared`-paketissa, jotta asiakas ja palvelin
 laskevat ne samalla koodilla.
 
+Peli on suomeksi ja englanniksi (päävalikon kielivalitsin). Pelaajan näkemät
+tekstit ovat sanakirjoissa `packages/client/src/i18n/` (`fi.ts` on lähdekieli,
+`en.ts`:stä puuttuva avain on käännösvirhe). Palvelin lähettää virheet koodeina,
+ja kukin selain kääntää ne pelaajan kielelle.
+
 ## Kartta-aineisto
 
 - Rantaviiva ja ympäristö (metsät, pellot, tiet, rakennukset):

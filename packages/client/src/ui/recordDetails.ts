@@ -6,10 +6,16 @@ import {
   SPECIES,
   TIME_OF_DAY_NAMES,
   formatTime,
-  formatWeight,
+  type LineId,
+  type LureId,
   type RecordEntry,
+  type RodId,
+  type Sky,
   type SpeciesId,
+  type TimeOfDay,
 } from '@lunki/shared';
+import { formatClock, formatDay, formatWeight, shortDecimal, t } from '../i18n';
+import { lineName, lureName, rodName, skyName, speciesName, timeOfDayName } from '../i18n/names';
 
 /** Ennätyskartan merkin väri lajin mukaan. */
 export const SPECIES_PIN_COLORS: Record<SpeciesId, string> = {
@@ -20,25 +26,26 @@ export const SPECIES_PIN_COLORS: Record<SpeciesId, string> = {
   trout: '#d98ee6',
 };
 
-const fi = (v: number) => String(v).replace('.', ',');
-const two = (n: number) => String(n).padStart(2, '0');
-
-/** 2026-10-25 → 25.10.2026 */
+/** 2026-10-25 → 25.10.2026 (englanniksi 25 Oct 2026) */
 export const formatDate = (iso: string) => {
   const [y, m, d] = iso.split('-');
-  return y && m && d ? `${Number(d)}.${Number(m)}.${y}` : iso;
+  return y && m && d ? formatDay(Number(d), Number(m), y) : iso;
 };
 
 /** Saantihetki pelaajan omassa ajassa, esim. "25.10.2026 klo 19.40". */
 function when(r: RecordEntry): string {
   const d = r.at ? new Date(r.at) : null;
   if (!d || Number.isNaN(d.getTime())) return formatDate(r.date);
-  return `${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()} klo ${d.getHours()}.${two(d.getMinutes())}`;
+  return `${formatDay(d.getDate(), d.getMonth() + 1, d.getFullYear())} ${formatClock(d.getHours(), d.getMinutes())}`;
 }
+
+/** Tallennetun arvon nimi, jos se tunnetaan; muuten arvo sellaisenaan. */
+const known = <T extends string>(table: object, v: T, name: (v: T) => string) =>
+  Object.hasOwn(table, v) ? name(v) : v;
 
 /** Otsikko, esim. "Hauki 3,20 kg". */
 export const recordTitle = (r: RecordEntry) =>
-  `${SPECIES[r.species]?.name ?? r.species} ${formatWeight(r.weight)}`;
+  `${known<SpeciesId>(SPECIES, r.species, speciesName)} ${formatWeight(r.weight)}`;
 
 /**
  * Ennätyskalan tiedot riveinä [otsikko, arvo]. `spot` on saantipaikan
@@ -46,29 +53,33 @@ export const recordTitle = (r: RecordEntry) =>
  */
 export function recordDetails(r: RecordEntry, spot?: string | null): [string, string][] {
   const rows: [string, string][] = [
-    ['Kalastaja', r.angler],
-    ['Saatu', when(r)],
+    [t('common.angler'), r.angler],
+    [t('records.caught'), when(r)],
   ];
   if (r.timeOfDay) {
-    const race = r.raceTime !== undefined ? `, ${formatTime(r.raceTime)} kisan alusta` : '';
-    rows.push(['Kisa', `${TIME_OF_DAY_NAMES[r.timeOfDay] ?? r.timeOfDay}${race}`]);
+    const race =
+      r.raceTime !== undefined ? t('records.raceTime', { time: formatTime(r.raceTime) }) : '';
+    rows.push([
+      t('records.race'),
+      `${known<TimeOfDay>(TIME_OF_DAY_NAMES, r.timeOfDay, timeOfDayName)}${race}`,
+    ]);
   }
   if (r.sky) {
-    const wind = r.wind !== undefined ? `, tuuli ${fi(r.wind)} m/s` : '';
-    rows.push(['Sää', `${SKY_NAMES[r.sky] ?? r.sky}${wind}`]);
+    const wind = r.wind !== undefined ? t('records.wind', { wind: shortDecimal(r.wind) }) : '';
+    rows.push([t('settings.weather'), `${known<Sky>(SKY_NAMES, r.sky, skyName)}${wind}`]);
   }
-  if (r.lure) rows.push(['Viehe', LURES[r.lure]?.name ?? r.lure]);
+  if (r.lure) rows.push([t('records.lure'), known<LureId>(LURES, r.lure, lureName)]);
   const gear = [
-    r.rod && (RODS[r.rod]?.name ?? r.rod),
-    r.line && `siima ${LINES[r.line]?.name ?? r.line}`,
-    r.leader && 'teräsperuke',
+    r.rod && known<RodId>(RODS, r.rod, rodName),
+    r.line && t('records.line', { name: known<LineId>(LINES, r.line, lineName) }),
+    r.leader && t('records.leader'),
   ].filter(Boolean);
-  if (gear.length > 0) rows.push(['Varusteet', gear.join(', ')]);
+  if (gear.length > 0) rows.push([t('records.gear'), gear.join(', ')]);
   rows.push([
-    'Paikka',
+    t('records.place'),
     r.x !== undefined && r.y !== undefined
-      ? (spot ?? 'Tallessa')
-      : 'Ei tallessa: saalis on ajalta ennen paikkojen tallennusta',
+      ? (spot ?? t('records.placeKept'))
+      : t('records.placeMissing'),
   ]);
   return rows;
 }

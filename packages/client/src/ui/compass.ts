@@ -1,3 +1,5 @@
+import { t } from '../i18n';
+
 /**
  * Näkyvän kaistaleen leveys HUD-pikseleinä (--u) ja montako astetta yksi
  * pikseli on: 200° näkyy kerralla ja jokainen viiva osuu kokonaiseen pikseliin.
@@ -7,17 +9,8 @@ const DEG_PER_U = 2.5;
 /** Pieni väliviiva näin monen asteen välein. */
 const TICK_DEG = 15;
 
-/** Ilmansuunnat lyhenteinä: pää- ja väli-ilmansuunnat. */
-const POINTS: [number, string][] = [
-  [0, 'P'],
-  [45, 'KO'],
-  [90, 'I'],
-  [135, 'KA'],
-  [180, 'E'],
-  [225, 'LO'],
-  [270, 'L'],
-  [315, 'LU'],
-];
+/** Pää- ja väli-ilmansuuntien asteet; lyhenteet sanakirjassa (hud.compass) samassa järjestyksessä. */
+const POINTS = [0, 45, 90, 135, 180, 225, 270, 315];
 
 /** Katsesuunta (rad, 0 = itä, π/2 = pohjoinen) kompassisuunnaksi asteina 0–360, myötäpäivään pohjoisesta. */
 export function bearingDeg(heading: number): number {
@@ -42,6 +35,7 @@ export class CompassDisplay {
   readonly root: HTMLDivElement;
   private readonly strip: HTMLDivElement;
   private offset = NaN;
+  private readonly labels: HTMLDivElement[] = [];
 
   constructor(parent: HTMLElement) {
     this.root = div('hud-compass hud-panel');
@@ -49,20 +43,29 @@ export class CompassDisplay {
     this.strip = div('hud-compass-strip');
     for (let deg = -180; deg <= 540; deg += TICK_DEG) {
       const x = (deg + 180) / DEG_PER_U;
-      const name = POINTS.find(([d]) => d === ((deg % 360) + 360) % 360)?.[1];
-      const tick = div(name ? 'hud-compass-tick major' : 'hud-compass-tick');
+      const point = POINTS.indexOf(((deg % 360) + 360) % 360);
+      const tick = div(point >= 0 ? 'hud-compass-tick major' : 'hud-compass-tick');
       tick.style.left = `calc(var(--u) * ${x})`;
       this.strip.appendChild(tick);
-      if (name) {
-        const label = div(name.length === 1 ? 'hud-compass-label main' : 'hud-compass-label');
-        label.textContent = name;
+      if (point >= 0) {
+        // Pääilmansuunnat (joka toinen) isommalla.
+        const label = div(point % 2 === 0 ? 'hud-compass-label main' : 'hud-compass-label');
+        label.dataset.point = String(point);
         // Viivan keskelle (viiva on pikselin levyinen).
         label.style.left = `calc(var(--u) * ${x + 0.5})`;
         this.strip.appendChild(label);
+        this.labels.push(label);
       }
     }
     this.root.append(this.strip, div('hud-compass-needle'));
     parent.appendChild(this.root);
+    this.relabel();
+  }
+
+  /** Ilmansuuntien lyhenteet pelaajan kielellä. */
+  relabel(): void {
+    const names = t('hud.compass').split(',');
+    for (const label of this.labels) label.textContent = names[Number(label.dataset.point)] ?? '';
   }
 
   /** `heading` = katsesuunta radiaaneina (TubeState.heading). */

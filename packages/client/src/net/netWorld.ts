@@ -26,6 +26,7 @@ import {
 } from '@lunki/shared';
 import type { RaceCatchMark, RacePlayerSpot } from '../game/raceLog';
 import { flightPose } from '../game/spoutView';
+import { t } from '../i18n';
 import { playerAppearance, type NetSession, type PlayerSchema, type StateSchema } from './session';
 
 /** Muut pelaajat piirretään näin paljon menneisyydestä (s), jotta liike on pehmeää. */
@@ -308,7 +309,7 @@ export class NetWorld {
         this.remotes.set(id, r);
         if (this.primed) this.onPeerJoined?.(p.name);
       }
-      r.name = p.connected ? p.name : `${p.name} (katkos)`;
+      r.name = p.connected ? p.name : t('game.peerOffline', { name: p.name });
       r.appearance = playerAppearance(p);
       const was = this.peerConnected.get(id);
       if (was !== undefined && was !== p.connected) this.onPeerConnection?.(p.name, p.connected);

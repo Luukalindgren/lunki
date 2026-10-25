@@ -4,5 +4,6 @@ export default defineProject({
   test: {
     name: 'client',
     environment: 'node',
+    setupFiles: ['./src/i18n/testSetup.ts'],
   },
 });

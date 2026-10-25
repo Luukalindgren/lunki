@@ -9,12 +9,12 @@ export interface Bounds {
 
 /** Syvyysvyöhykkeet kartalla: [alaraja (m), väri, selite]. */
 export const DEPTH_BANDS: readonly { below: number; color: string; label: string }[] = [
-  { below: 1, color: '#83c2db', label: 'alle 1 m' },
+  { below: 1, color: '#83c2db', label: 'map.depthUnder' },
   { below: 2, color: '#4d9cc2', label: '1–2 m' },
   { below: 4, color: '#2b7aa6', label: '2–4 m' },
   { below: 6, color: '#1b5a84', label: '4–6 m' },
   { below: 8, color: '#123a5c', label: '6–8 m' },
-  { below: Infinity, color: '#0d2238', label: 'yli 8 m' },
+  { below: Infinity, color: '#0d2238', label: 'map.depthOver' },
 ];
 
 /** Syvyyden vyöhyke DEPTH_BANDS-listassa. */

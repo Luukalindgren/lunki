@@ -13,9 +13,30 @@ import { watchErrors } from './apu';
 
 /**
  * Sama huone kolmella selainmoottorilla: Chromium luo huoneen, Firefox ja
- * iPhone-Safari (WebKit) liittyvät koodilla. Ajetaan vain chromium-projektissa,
- * koska testi käynnistää muut selaimet itse.
+ * iPhone-Safari (WebKit) liittyvät koodilla. iPhone pelaa englanniksi, muut
+ * suomeksi. Ajetaan vain chromium-projektissa, koska testi käynnistää muut
+ * selaimet itse.
  */
+
+/** Liittyjän napit ja tekstit kielen mukaan. */
+const GUEST_TEXT = {
+  fi: {
+    multiplayer: 'Moninpeli',
+    serverOk: 'Palvelin päällä',
+    nickname: 'Nimimerkki',
+    roomCode: 'Huonekoodi',
+    join: 'Liity koodilla',
+    ready: 'Valmis!',
+  },
+  en: {
+    multiplayer: 'Multiplayer',
+    serverOk: 'Server is up',
+    nickname: 'Nickname',
+    roomCode: 'Room code',
+    join: 'Join with a code',
+    ready: 'Ready!',
+  },
+};
 test('moninpeli: Chromium, Firefox ja iPhone samassa huoneessa', async ({
   page: host,
   browserName,
@@ -54,8 +75,8 @@ test('moninpeli: Chromium, Firefox ja iPhone samassa huoneessa', async ({
     let guests: [Page, boolean][];
     try {
       guests = [
-        [await join(firefox, devices['Desktop Firefox'], 'firefox'), false],
-        [await join(webkit, devices['iPhone 15'], 'iphone'), true],
+        [await join(firefox, { ...devices['Desktop Firefox'], locale: 'fi-FI' }, 'firefox'), false],
+        [await join(webkit, { ...devices['iPhone 15'], locale: 'en-US' }, 'iphone'), true],
       ];
     } catch (e) {
       // CI asentaa kaikki selaimet: siellä puuttuva selain on virhe.
@@ -64,18 +85,19 @@ test('moninpeli: Chromium, Firefox ja iPhone samassa huoneessa', async ({
       return;
     }
     for (const [[guest, touch], name] of guests.map((g, i) => [g, `Vieras${i + 1}`] as const)) {
+      const text = GUEST_TEXT[touch ? 'en' : 'fi'];
       const press = (label: string) =>
         touch
           ? guest.getByRole('button', { name: label }).tap()
           : guest.getByRole('button', { name: label }).click();
       await guest.goto('/');
-      await press('Moninpeli');
-      await expect(guest.getByText('Palvelin päällä')).toBeVisible();
-      await guest.getByLabel('Nimimerkki').fill(name);
-      await guest.getByLabel('Huonekoodi').fill(code.toLowerCase());
-      await press('Liity koodilla');
+      await press(text.multiplayer);
+      await expect(guest.getByText(text.serverOk)).toBeVisible();
+      await guest.getByLabel(text.nickname).fill(name);
+      await guest.getByLabel(text.roomCode).fill(code.toLowerCase());
+      await press(text.join);
       await expect(guest.locator('.room-code')).toHaveText(code);
-      await press('Valmis!');
+      await press(text.ready);
     }
     await expect(host.locator('.player-list li')).toHaveCount(3);
 

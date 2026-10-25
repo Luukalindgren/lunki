@@ -1,4 +1,4 @@
-import { randomRoomCode } from '@lunki/shared';
+import { JoinRefusal, randomRoomCode } from '@lunki/shared';
 
 /**
  * Yhtä aikaa auki olevien huoneiden yläraja. Huoneen luonti ei vaadi mitään,
@@ -10,8 +10,7 @@ export const MAX_ROOMS = Number(process.env.LUNKI_MAX_ROOMS) || 100;
 const active = new Set<string>();
 
 export function reserveCode(random: () => number = Math.random): string {
-  if (active.size >= MAX_ROOMS)
-    throw new Error('Palvelin on täynnä, yritä hetken päästä uudelleen');
+  if (active.size >= MAX_ROOMS) throw new Error(JoinRefusal.serverFull);
   for (let i = 0; i < 1000; i++) {
     const code = randomRoomCode(random);
     if (!active.has(code)) {
@@ -19,7 +18,7 @@ export function reserveCode(random: () => number = Math.random): string {
       return code;
     }
   }
-  throw new Error('Huonekoodit loppuivat');
+  throw new Error(JoinRefusal.serverFull);
 }
 
 export const releaseCode = (code: string) => active.delete(code);
