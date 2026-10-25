@@ -147,7 +147,7 @@ export class Screens {
       map.element,
       h(
         'p',
-        'Vedä siirtääksesi, zoomaa rullalla, nipistämällä tai napeilla. Syvyydet ovat arvio: järvestä ei ole julkista luotausta.',
+        'Vedä siirtääksesi, zoomaa rullalla, nipistämällä tai napeilla. Syvyydet ovat arvioita: järvestä ei ole julkista luotausta.',
         'hint',
       ),
       this.buttons([['Takaisin', onBack]]),
@@ -267,7 +267,7 @@ export class Screens {
     if (!el) return;
     el.textContent = ok
       ? 'Palvelin päällä'
-      : 'Palvelimeen ei saada yhteyttä. Yksinpeli toimii silti; moninpeliin tarvitaan palvelin päälle.';
+      : 'Palvelimeen ei saada yhteyttä. Yksinpeli toimii silti, mutta moninpeliin palvelimen pitää olla päällä.';
     el.classList.toggle('error', !ok);
     el.classList.toggle('ok', ok);
   }
@@ -754,7 +754,7 @@ export class Screens {
     return box;
   }
 
-  /** Varusteet: vapa, viehe, siima ja teräsperukka. */
+  /** Varusteet: vapa, viehe, siima ja teräsperuke. */
   private tackleEditor(initial: Tackle, onChange: (t: Tackle) => void): HTMLElement {
     const t = { ...initial };
     const box = document.createElement('div');
@@ -799,7 +799,7 @@ export class Screens {
         (v) => set({ line: v as Tackle['line'] }),
       ),
       this.choice(
-        'Teräsperukka',
+        'Teräsperuke',
         [
           ['no', 'Ei'],
           ['yes', 'Kyllä'],
@@ -809,7 +809,7 @@ export class Screens {
       ),
       h(
         'p',
-        'Ohut siima heittyy pidemmälle mutta katkeaa helpommin. Hauki voi purra siiman poikki ilman perukkaa.',
+        'Ohut siima heittyy pidemmälle mutta katkeaa helpommin. Hauki voi purra siiman poikki ilman peruketta.',
         'hint',
       ),
       beginner,
@@ -905,7 +905,7 @@ export class Screens {
       map.element,
       h(
         'p',
-        'Napauta kohtaa vedessä. Moninpelissä muut aloittavat sen ympäriltä. Järvellä voi liikkua vapaasti kisan aikana.',
+        'Napauta kohtaa vedessä. Moninpelissä muut aloittavat sen läheltä. Järvellä voi liikkua vapaasti kisan aikana.',
         'hint',
       ),
       buttons,

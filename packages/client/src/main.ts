@@ -171,7 +171,7 @@ function showMultiplayer(code = '', error?: string) {
     (n, c) => {
       const parsed = parseRoomCode(c);
       if (parsed) void connect(n, parsed);
-      else showMultiplayer(c, 'Tarkista koodi: muotoa LUNKI-XXXX.');
+      else showMultiplayer(c, 'Tarkista koodi. Sen muoto on LUNKI-XXXX.');
     },
     () => {
       history.replaceState(null, '', location.pathname);

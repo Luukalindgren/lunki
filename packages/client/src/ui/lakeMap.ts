@@ -25,7 +25,7 @@ const TAP_SLOP = 8;
 const FEATURE_NAMES: Partial<Record<BottomFeature['type'], string>> = {
   hole: 'syvänne',
   shoal: 'matalikko',
-  dropoff: 'jyrkänne',
+  dropoff: 'jyrkkä pudotus',
   rocks: 'kivikko',
   tree: 'kaatunut puu',
 };

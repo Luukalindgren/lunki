@@ -702,7 +702,7 @@ export class SoloGame {
     this.hud.setPower(f.stage === 'charging' ? chargePower(f.charge) : null);
     this.hud.setTension(f.tension, f.drag, breakingStrength(f.tackle));
     this.hud.setStatus([
-      ...(capsized ? [`Kumossa! Pystyssä ${Math.ceil(this.capsizeLeft)} s`] : []),
+      ...(capsized ? [`Kumossa! Pystyyn ${Math.ceil(this.capsizeLeft)} s`] : []),
       ...(tangle
         ? [
             `Sotkussa: ${tangle.with} · ${Math.round(tangle.progress * 100)} %`,
@@ -865,13 +865,13 @@ export class SoloGame {
     if (events.unsnagged) hud.showMessage('Viehe irtosi pohjasta', 1.5);
     if (events.bitOff) {
       sfx.lost();
-      hud.showMessage('Hauki katkaisi siiman hampaillaan – kokeile teräsperukkaa', 3.5);
+      hud.showMessage('Hauki katkaisi siiman hampaillaan – kokeile teräsperuketta', 3.5);
     } else if (events.lureLost) {
       sfx.lost();
       hud.showMessage('Siima katkesi – viehe jäi pohjaan', 3);
     } else if (events.lineBroken) {
       sfx.lost();
-      hud.showMessage('Siima katkesi! Löysää jarrua (Q) tai vaihda paksumpi siima', 3);
+      hud.showMessage('Siima katkesi! Löysää jarrua (Q) tai vaihda paksumpaan siimaan', 3);
     }
     if (events.caught) {
       sfx.caught();

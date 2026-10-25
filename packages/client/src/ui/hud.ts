@@ -44,7 +44,7 @@ export class Hud {
     this.tensionFill = el('div', 'hud-tension-fill');
     this.tensionDrag = el('div', 'hud-tension-drag');
     const label = el('div', 'hud-tension-label');
-    label.textContent = 'VETO';
+    label.textContent = 'KIREYS';
     this.tension.append(this.tensionFill, this.tensionDrag, label);
     this.help = el('div', 'hud-help hud-panel');
     this.setHelpMode(false);
@@ -157,7 +157,7 @@ export class Hud {
           'W/S potki taakse/eteen · A/D käänny · Shift pika',
           'Hiiri: tähtää, pidä pohjassa ja päästä = heitto',
           'Hiiri pohjassa tai välilyönti = kelaa',
-          '1/2/3 kelausnopeus · Q/E jarru löysälle/kireälle',
+          '1/2/3 kelausnopeus · Q/E jarru löysemmälle/kireämmälle',
           'R vaihda viehe · K kaikuluotain · V kalastajan silmin',
           'Rulla = zoom · H = ohje · Esc = tauko',
           'Ukkosella kelaa viehe sisään ja pysy rannan lähellä',

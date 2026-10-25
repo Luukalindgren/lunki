@@ -65,7 +65,7 @@ export const LURES: Record<LureId, Lure> = {
     castFactor: 0.9,
     appeal: { perch: 1.3, pike: 0.7, roach: 0.9, zander: 0.4, trout: 1.3 },
     stillAppeal: 0.1,
-    hint: 'Pieni pyörivä lippa, ahvenen ja särjen suosikki',
+    hint: 'Pieni lippa, ahvenen ja särjen suosikki',
   },
 };
 
@@ -116,7 +116,7 @@ export const RODS: Record<RodId, Rod> = {
     castFactor: 1.05,
     flex: 1.15,
     power: 0.8,
-    hint: 'Pitkä heitto ja armollinen siimalle, mutta väsytys kestää',
+    hint: 'Pitkä heitto ja armollinen siimalle, mutta väsytys kestää kauan',
   },
   medium: {
     id: 'medium',
@@ -143,7 +143,7 @@ export interface Tackle {
   rod: RodId;
   lure: LureId;
   line: LineId;
-  /** Teräsperukka: hauki ei katkaise siimaa, mutta muut lajit arkailevat. */
+  /** Teräsperuke: hauki ei katkaise siimaa, mutta muut lajit arkailevat. */
   leader: boolean;
 }
 
@@ -158,11 +158,11 @@ export const DEFAULT_TACKLE: Tackle = {
 /** Siiman todellinen kestävyys (kg) vavan jousto huomioiden. */
 export const breakingStrength = (t: Tackle) => LINES[t.line].strength * RODS[t.rod].flex;
 
-/** Teräsperukka karkottaa muita kuin haukea hieman. */
+/** Teräsperuke karkottaa muita kuin haukea hieman. */
 export const LEADER_SHYNESS = 0.85;
 
 /**
- * Hauen hampaat: ilman perukkaa siima katkeaa väsytyksessä tällä
+ * Hauen hampaat: ilman peruketta siima katkeaa väsytyksessä tällä
  * todennäköisyydellä sekunnissa (kun siima voi katketa).
  */
 export const PIKE_BITE_OFF_RATE = 0.03;
@@ -209,7 +209,7 @@ export function parseTackle(v: unknown): Tackle | null {
 
 /** Varusteet lyhyesti HUD:iin. */
 export function describeTackle(t: Tackle): string {
-  return `${LURES[t.lure].name} · ${LINES[t.line].name}${t.leader ? ' · perukka' : ''}`;
+  return `${LURES[t.lure].name} · ${LINES[t.line].name}${t.leader ? ' · peruke' : ''}`;
 }
 
 /** Varusteet kokonaan, vapa mukaan lukien (aula ja tulostaulu). */

@@ -56,7 +56,7 @@ describe('vieheet ja siimat', () => {
     expect(jig).toBeGreaterThan(spinner * 2);
   });
 
-  it('vieheen sopivuus riippuu lajista ja perukka arkailuttaa ahventa', () => {
+  it('vieheen sopivuus riippuu lajista ja peruke arkailuttaa ahventa', () => {
     const rng = new Rng(1);
     const pop: FishPopulation = { fish: [], nextId: 1, tick: 0 };
     const pike = spawnFish(pop, 'pike', { x: 0, y: 0 }, world, rng);
@@ -86,7 +86,7 @@ describe('vieheet ja siimat', () => {
     );
   });
 
-  it('hauki purkaa siiman poikki ilman teräsperukkaa', () => {
+  it('hauki puree siiman poikki ilman teräsperuketta', () => {
     const bitOffs = (leader: boolean) => {
       let n = 0;
       for (let seed = 1; seed <= 20; seed++) {
