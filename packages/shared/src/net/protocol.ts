@@ -1,4 +1,5 @@
 import type { SpeciesId } from '../fishing/fish';
+import { CONTROL_CHARS, INVISIBLE_CHARS } from './text';
 
 /** Yhteiset määrittelyt asiakkaan ja palvelimen välille. */
 
@@ -57,8 +58,8 @@ export function parseRoomCode(input: string): string | null {
 
 /** Siistii nimimerkin: ei ohjausmerkkejä, korkeintaan 16 merkkiä. */
 export function sanitizeName(name: unknown): string {
-  const s = typeof name === 'string' ? name : '';
-  const printable = [...s].filter((ch) => ch.charCodeAt(0) >= 0x20 && ch !== '\u007f').join('');
+  const s = typeof name === 'string' ? name.slice(0, NAME_MAX_LENGTH * 4) : '';
+  const printable = s.replace(CONTROL_CHARS, '').replace(INVISIBLE_CHARS, '');
   const clean = printable.trim().replace(/\s+/g, ' ');
   return [...clean].slice(0, NAME_MAX_LENGTH).join('') || 'Kalastaja';
 }

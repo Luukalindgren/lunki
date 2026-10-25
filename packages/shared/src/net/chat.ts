@@ -1,4 +1,5 @@
 /** Kilpailun sisäinen chat: yhteiset rajat ja tarkistukset. */
+import { CONTROL_CHARS, INVISIBLE_CHARS } from './text';
 
 /** Viestin enimmäispituus merkkeinä. */
 export const CHAT_MAX_LENGTH = 140;
@@ -24,9 +25,10 @@ export interface ChatMessage {
  */
 export function sanitizeChat(text: unknown): string | null {
   if (typeof text !== 'string') return null;
-  const printable = [...text.slice(0, CHAT_MAX_LENGTH * 4)]
-    .map((ch) => (ch.charCodeAt(0) < 0x20 || ch === '\u007f' ? ' ' : ch))
-    .join('');
+  const printable = text
+    .slice(0, CHAT_MAX_LENGTH * 4)
+    .replace(CONTROL_CHARS, ' ')
+    .replace(INVISIBLE_CHARS, '');
   const clean = printable.trim().replace(/\s+/g, ' ');
   const cut = [...clean].slice(0, CHAT_MAX_LENGTH).join('').trimEnd();
   return cut || null;

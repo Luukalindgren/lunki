@@ -1,3 +1,5 @@
+import { cleanMultiline } from './text';
+
 /** Testaajan palaute pelin valikosta. */
 export interface FeedbackMessage {
   /** Nimimerkki (voi olla tyhjä). */
@@ -22,7 +24,8 @@ export const ERRORS_PATH = '/errors';
 /** Kenttien enimmäispituudet: pidemmät katkaistaan. */
 export const FEEDBACK_LIMITS = { name: 32, text: 2000, context: 300, message: 300, stack: 2000 };
 
-const str = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max).trim() : '');
+const str = (v: unknown, max: number) =>
+  typeof v === 'string' ? cleanMultiline(v.slice(0, max)).trim() : '';
 
 /** Siistii palautteen; tyhjä teksti ei kelpaa. */
 export function parseFeedback(v: unknown): FeedbackMessage | null {

@@ -1,6 +1,12 @@
 import type { DatabaseSync } from 'node:sqlite';
 import type { ErrorReport, FeedbackMessage } from '@lunki/shared';
 
+/**
+ * Palautteita ja erilaisia virheitä säilytetään enintään näin monta; vanhimmat
+ * poistetaan. Muuten toistuvat lähetykset voisivat täyttää pelikoneen levyn.
+ */
+export const MAX_STORED = 2000;
+
 export interface StoredFeedback extends FeedbackMessage {
   id: number;
   at: string;
@@ -17,7 +23,10 @@ export interface StoredError extends ErrorReport {
  * ennätykset. Sama virhe tallennetaan kerran ja sen toistot lasketaan.
  */
 export class FeedbackStore {
-  constructor(private readonly db: DatabaseSync) {
+  constructor(
+    private readonly db: DatabaseSync,
+    private readonly max = MAX_STORED,
+  ) {
     db.exec(`
       CREATE TABLE IF NOT EXISTS feedback (
         id INTEGER PRIMARY KEY,
@@ -43,6 +52,9 @@ export class FeedbackStore {
     this.db
       .prepare('INSERT INTO feedback (name, text, context, at) VALUES (?, ?, ?, ?)')
       .run(f.name, f.text, f.context, at.toISOString());
+    this.db
+      .prepare('DELETE FROM feedback WHERE id <= (SELECT MAX(id) FROM feedback) - ?')
+      .run(this.max);
   }
 
   addError(e: ErrorReport, at = new Date()): void {
@@ -55,6 +67,13 @@ export class FeedbackStore {
            stack = excluded.stack, context = excluded.context`,
       )
       .run(e.message, e.source, e.stack, e.context, now, now);
+    this.db
+      .prepare(
+        `DELETE FROM errors WHERE rowid NOT IN (
+           SELECT rowid FROM errors ORDER BY last DESC LIMIT ?
+         )`,
+      )
+      .run(this.max);
   }
 
   feedback(limit = 50): StoredFeedback[] {

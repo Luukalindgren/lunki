@@ -1,3 +1,4 @@
+import { limitRequestBodies } from './bodyLimit';
 import { openDatabase } from './db/open';
 import { FeedbackStore } from './feedback/store';
 import { RecordStore } from './records/store';
@@ -15,6 +16,8 @@ export async function startServer(opts: { staticDir?: string } = {}) {
     feedback: new FeedbackStore(db),
   });
   await server.listen(port);
-  if (opts.staticDir) serveStatic(server.transport.server!, opts.staticDir);
+  const http = server.transport.server!;
+  if (opts.staticDir) serveStatic(http, opts.staticDir);
+  limitRequestBodies(http);
   return { server, port, dbPath };
 }
