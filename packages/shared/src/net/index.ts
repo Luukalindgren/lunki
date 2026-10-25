@@ -4,3 +4,4 @@ export * from './castCheck';
 export * from './roomSettings';
 export * from './tangle';
 export * from './feedback';
+export * from './chat';

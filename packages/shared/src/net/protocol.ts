@@ -80,6 +80,8 @@ export const ClientMsg = {
   cutLine: 'cutLine',
   /** Pelaajan varusteet (Tackle): aulassa ja kisan aikana vieheen vaihtuessa. */
   tackle: 'tackle',
+  /** Chat-viesti muille (teksti), ks. ChatMessage. */
+  chat: 'chat',
 } as const;
 
 /** Vieheen tila muille näytettäväksi. */
@@ -116,6 +118,12 @@ export const ServerMsg = {
   untangled: 'untangled',
   /** Saalis pääsi järven ennätyslistalle, ks. RecordMessage. */
   record: 'record',
+  /** Uusi chat-viesti (ChatMessage). */
+  chat: 'chat',
+  /** Viimeisimmät viestit liittyvälle tai palaavalle (ChatMessage[]). */
+  chatHistory: 'chatHistory',
+  /** Viestiä ei välitetty: liian tiheään. */
+  chatRejected: 'chatRejected',
 } as const;
 
 export interface RecordMessage {

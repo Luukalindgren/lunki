@@ -293,6 +293,8 @@ export class Screens {
       onPickStart: () => void;
     },
     notice?: string,
+    /** Liittää chatin paneeliin (sama elementti säilyy uudelleenpiirroissa). */
+    chat?: (parent: HTMLElement) => void,
   ): void {
     const panel = this.panel();
     panel.dataset.screen = 'lobby';
@@ -331,6 +333,12 @@ export class Screens {
       copy,
       h('p', `Pelaajat ${v.players.length}/${v.maxPlayers}`, 'choice-label'),
       list,
+    );
+    if (chat) {
+      panel.append(h('p', 'Chat', 'choice-label'));
+      chat(panel);
+    }
+    panel.append(
       v.amHost
         ? this.settingsEditor(v.settings, v.players.length, actions.onSettings, actions.onPickStart)
         : this.settingsSummary(v.settings),
@@ -551,6 +559,7 @@ export class Screens {
     onRestart: () => void,
     onLeave: () => void,
     tackles?: ReadonlyMap<string, Tackle>,
+    chat?: (parent: HTMLElement) => void,
   ): void {
     const panel = this.panel();
     const winner = results[0];
@@ -583,6 +592,9 @@ export class Screens {
         `${WIN_RULE_NAMES[settings.winRule]} · ${DIFFICULTY_NAMES[settings.difficulty]} · ${settings.durationMinutes} min`,
         'hint',
       ),
+    );
+    if (chat) chat(panel);
+    panel.append(
       this.buttons(
         amHost
           ? [
