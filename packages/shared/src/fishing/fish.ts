@@ -227,6 +227,12 @@ export type FishMode = 'roam' | 'follow' | 'struck' | 'hooked' | 'gone';
 
 export interface Fish {
   id: number;
+  /**
+   * Sukupolvi paikallaan kalakannassa: kasvaa, kun saatu kala korvautuu
+   * uudella. Paikka ja sukupolvi yksilöivät kalan moninpelissä, jossa
+   * jokaisella on oma kopio samasta kalakannasta.
+   */
+  gen: number;
   species: SpeciesId;
   weight: number;
   pos: Vec2;
@@ -339,6 +345,7 @@ export function spawnFish(
   const sp = SPECIES[species];
   return {
     id: pop.nextId++,
+    gen: 0,
     species,
     weight: randomWeight(sp, rng),
     pos,

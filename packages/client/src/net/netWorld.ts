@@ -10,6 +10,7 @@ import {
   type LightningMessage,
   type UntangledMessage,
   type RecordMessage,
+  type FishTag,
   type PlayerResult,
   type RoomPhase,
   type TubeInput,
@@ -90,6 +91,9 @@ export class NetWorld {
   /** Siimasotku selvisi. */
   onUntangled: ((msg: UntangledMessage) => void) | null = null;
   onRecord: ((msg: RecordMessage) => void) | null = null;
+  /** Toinen pelaaja nosti kalan: sama kala pois omasta kalakannasta. */
+  onRemoteCatch: ((fish: FishTag, angler: string) => void) | null = null;
+  private seenCatches = 0;
 
   constructor(
     private readonly session: NetSession,
@@ -243,6 +247,12 @@ export class NetWorld {
         this.onPeerLeft?.(r.name.replace(/ \(katkos\)$/, ''));
       }
     this.latestOthers = others;
+    const catches = [...s.catches];
+    if (catches.length < this.seenCatches) this.seenCatches = 0;
+    for (const c of catches.slice(this.seenCatches))
+      if (c.player !== this.session.sessionId && c.fishSlot >= 0)
+        this.onRemoteCatch?.({ slot: c.fishSlot, gen: c.fishGen }, c.angler);
+    this.seenCatches = catches.length;
   }
 
   /** Muiden pelaajien sijainnit piirtohetkellä. */

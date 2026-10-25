@@ -162,6 +162,8 @@ export interface CatchSchema {
   name: string;
   weight: number;
   time: number;
+  fishSlot: number;
+  fishGen: number;
 }
 
 /** Yhteys yhteen huoneeseen. */

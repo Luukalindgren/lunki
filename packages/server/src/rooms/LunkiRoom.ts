@@ -41,6 +41,7 @@ import {
   sanitizeName,
   validateSettingsPatch,
   parseTackle,
+  isFishTag,
   RECORDS_PER_SPECIES,
   type Difficulty,
   type RecordMessage,
@@ -106,6 +107,8 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   private readonly reeling = new Map<string, boolean>();
   /** Selvityksen jälkeen siima ei sotkeudu heti uudelleen (kisa-aika, s). */
   private readonly tangleFree = new Map<string, number>();
+  /** Kisassa nostetut kalat "paikka:sukupolvi" (FishTag). */
+  private readonly caughtFish = new Set<string>();
   /** Kehitystä varten: LUNKI_RACE_SECONDS lyhentää kaikki kisat. */
   private durationOverride: number | null = Number(process.env.LUNKI_RACE_SECONDS) || null;
 
@@ -165,11 +168,15 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     this.onMessage(ClientMsg.catch, (client, msg: Partial<Catch>) => {
       const sim = this.sims.get(client.sessionId);
       const now = this.state.clock;
+      // Sama kala (paikka ja sukupolvi) voidaan nostaa vain kerran: ensimmäinen voittaa.
+      const tag = isFishTag(msg?.fish) ? msg.fish : null;
+      const fish = tag ? `${tag.slot}:${tag.gen}` : null;
       if (
         !sim ||
         this.state.phase !== 'playing' ||
         this.timedOut(client.sessionId) ||
         this.state.players.get(client.sessionId)?.tangledWith ||
+        (fish && this.caughtFish.has(fish)) ||
         !isPlausibleCatch(msg, {
           splashedSinceLastCatch: sim.splashed,
           now,
@@ -189,6 +196,11 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       c.name = SPECIES[msg.species].name;
       c.weight = Math.round(msg.weight * 1000) / 1000;
       c.time = now;
+      if (tag) {
+        c.fishSlot = tag.slot;
+        c.fishGen = tag.gen;
+        this.caughtFish.add(fish!);
+      }
       this.state.catches.push(c);
       this.recordCatch(client.sessionId, c);
     });
@@ -213,6 +225,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       this.setTimestep();
       this.sims.clear();
       this.tangleFree.clear();
+      this.caughtFish.clear();
       this.state.catches.clear();
       this.state.clock = 0;
       this.state.countdown = 0;
