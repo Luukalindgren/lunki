@@ -37,8 +37,8 @@ export const SettingsState = schema(
     difficulty: t.string().default(DEFAULT_SETTINGS.difficulty),
     winRule: t.string().default(DEFAULT_SETTINGS.winRule),
     maxPlayers: t.uint8().default(DEFAULT_MAX_PLAYERS),
-    // Paikat tuleville asetuksille (vaiheet 3–4).
-    weather: t.string().default('calm'),
+    weather: t.string().default(DEFAULT_SETTINGS.weather!),
+    // Paikat tuleville asetuksille (vaihe 4).
     lightningPenalty: t.string().default('none'),
     capsizePenalty: t.string().default('none'),
     species: t.array('string').default(() => new ArraySchema<string>(...NATIVE_SPECIES)),
@@ -79,6 +79,8 @@ export const LunkiState = schema(
     catches: t.array(CatchState),
     /** Kalojen ja aloituspaikkojen siemen, arvotaan kisan alkaessa. */
     seed: t.uint32().default(0),
+    /** Säätila palvelimen kellon mukaan (tuuli ja sade lasketaan siemenestä). */
+    sky: t.string().default('calm'),
   },
   'LunkiState',
 );

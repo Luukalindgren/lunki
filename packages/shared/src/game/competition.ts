@@ -1,6 +1,7 @@
 import type { Difficulty } from '../fishing/difficulty';
 import { NATIVE_SPECIES, type SpeciesId } from '../fishing/fish';
 import type { Catch } from '../fishing/fishing';
+import type { WeatherLevel } from '../weather/weather';
 
 /** Kilpailun kesto minuutteina. */
 export const DURATIONS = [10, 15, 30] as const;
@@ -20,6 +21,8 @@ export interface CompetitionSettings {
   winRule: WinRule;
   /** Järven kalalajit; oletuksena Lunkinjärven oikeat lajit. */
   species?: SpeciesId[];
+  /** Säätaso; oletuksena realistinen. */
+  weather?: WeatherLevel;
 }
 
 export const DEFAULT_SETTINGS: CompetitionSettings = {
@@ -27,6 +30,7 @@ export const DEFAULT_SETTINGS: CompetitionSettings = {
   difficulty: 'normal',
   winRule: 'total',
   species: [...NATIVE_SPECIES],
+  weather: 'realistic',
 };
 
 export interface CatchRecord extends Catch {

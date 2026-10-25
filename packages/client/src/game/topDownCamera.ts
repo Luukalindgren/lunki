@@ -22,6 +22,11 @@ export class TopDownCamera {
     this.camera.up.set(0, 0, -1);
   }
 
+  /** Näkymän leveys sisäisinä pikseleinä. */
+  get width(): number {
+    return this.resolution.width;
+  }
+
   get metersPerPixel(): number {
     return ZOOM_LEVELS[Math.max(this.zoomIndex, this.autoZoomIndex)]!;
   }

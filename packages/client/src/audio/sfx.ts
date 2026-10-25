@@ -52,6 +52,11 @@ export class Sfx {
     this.noise(0.18, 0.5);
   }
 
+  /** Ukkosen jyrinä: matala, hitaasti voimistuva ja vaimeneva kohina. */
+  rumble(): void {
+    this.noise(2.8, 0.9, 160, 0.4);
+  }
+
   caught(): void {
     [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.1, 'square', 0.5, i * 0.09));
   }
@@ -82,19 +87,21 @@ export class Sfx {
     osc.stop(t + duration + 0.02);
   }
 
-  private noise(duration: number, volume: number): void {
+  private noise(duration: number, volume: number, cutoff = 1800, attack = 0): void {
     if (this.muted || !this.ctx || !this.master) return;
     const len = Math.floor(this.ctx.sampleRate * duration);
     const buffer = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
     const data = buffer.getChannelData(0);
-    for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const rise = Math.max(1, attack * this.ctx.sampleRate);
+    for (let i = 0; i < len; i++)
+      data[i] = (Math.random() * 2 - 1) * Math.min(1, i / rise) * (1 - i / len);
     const src = this.ctx.createBufferSource();
     src.buffer = buffer;
     const gain = this.ctx.createGain();
     gain.gain.value = volume;
     const filter = this.ctx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.value = 1800;
+    filter.frequency.value = cutoff;
     src.connect(filter).connect(gain).connect(this.master);
     src.start();
   }

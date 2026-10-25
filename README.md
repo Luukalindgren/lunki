@@ -28,6 +28,7 @@ koneella tunnelin kautta. Ohje: [docs/julkaisu.md](docs/julkaisu.md).
 Verkkokoodin rakenne: [docs/moninpeli.md](docs/moninpeli.md).
 Kalalajit, vieheet ja varusteet: [docs/kalalajit.md](docs/kalalajit.md).
 Järven pohja ja erikoismuodot: [docs/pohja.md](docs/pohja.md).
+Sää ja säätasot: [docs/saa.md](docs/saa.md).
 
 Muut komennot:
 

@@ -15,6 +15,7 @@ import {
   formatTime,
   formatWeight,
   isSpeciesId,
+  isWeatherLevel,
   summarize,
   type CompetitionSettings,
   type CompetitionState,
@@ -23,6 +24,7 @@ import {
   type RoomSettings,
   type SpeciesId,
   type Tackle,
+  type WeatherLevel,
   type WinRule,
 } from '@lunki/shared';
 import type { LobbyView } from '../net/session';
@@ -35,7 +37,11 @@ export function loadSettings(defaults: CompetitionSettings): CompetitionSettings
     if (raw) {
       const s = { ...defaults, ...(JSON.parse(raw) as Partial<CompetitionSettings>) };
       const species = Array.isArray(s.species) ? s.species.filter(isSpeciesId) : [];
-      return { ...s, species: species.length > 0 ? species : defaults.species };
+      return {
+        ...s,
+        species: species.length > 0 ? species : defaults.species,
+        weather: isWeatherLevel(s.weather) ? s.weather : defaults.weather,
+      };
     }
   } catch {
     // Selaimen muisti ei käytössä: oletukset kelpaavat.
@@ -99,6 +105,12 @@ export class Screens {
         'hint',
       ),
       this.speciesChoice(settings.species ?? [], (list) => (settings.species = list)),
+      this.choice(
+        'Sää',
+        WEATHER_OPTIONS.map((o) => [o.value, o.label]),
+        settings.weather ?? 'realistic',
+        (v) => (settings.weather = v as WeatherLevel),
+      ),
       this.buttons([
         [
           'Aloita kisa',
@@ -417,13 +429,13 @@ export class Screens {
         (v) => change({ maxPlayers: Number(v) }),
       ),
       this.speciesChoice(s.species, (species) => change({ species })),
-      h('p', 'Tulossa myöhemmin:', 'hint'),
       this.choice(
         'Sää',
-        WEATHER_OPTIONS.map((o) => [o.value, o.label, !o.ready]),
+        WEATHER_OPTIONS.map((o) => [o.value, o.label]),
         s.weather,
-        () => undefined,
+        (v) => change({ weather: v as WeatherLevel }),
       ),
+      h('p', 'Tulossa myöhemmin:', 'hint'),
       this.choice(
         'Salama',
         PENALTY_OPTIONS.map((o) => [o.value, o.label, !o.ready]),

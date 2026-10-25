@@ -16,6 +16,7 @@ export class Hud {
   private readonly tensionDrag: HTMLDivElement;
   private readonly help: HTMLDivElement;
   private readonly timer: HTMLDivElement;
+  private readonly weather: HTMLDivElement;
   private readonly catches: HTMLDivElement;
   private readonly weigh: HTMLDivElement;
   private readonly countdown: HTMLDivElement;
@@ -45,6 +46,7 @@ export class Hud {
       'K kaikuluotain · V kalastajan silmin · ' +
       'Q/E jarru löysemmälle/kireämmälle · rulla = zoom · H = ohje · Esc = tauko';
     this.timer = el('div', 'hud-timer hud-panel');
+    this.weather = el('div', 'hud-weather hud-panel');
     this.catches = el('div', 'hud-catches hud-panel');
     this.catches.hidden = true;
     this.weigh = el('div', 'hud-weigh hud-panel');
@@ -58,6 +60,7 @@ export class Hud {
       this.message,
       this.help,
       this.timer,
+      this.weather,
       this.catches,
       this.weigh,
       this.countdown,
@@ -91,6 +94,11 @@ export class Hud {
   setTimer(text: string, low: boolean): void {
     if (this.timer.textContent !== text) this.timer.textContent = text;
     this.timer.classList.toggle('low', low);
+  }
+
+  /** Sää ajastimen alla. */
+  setWeather(text: string): void {
+    if (this.weather.textContent !== text) this.weather.textContent = text;
   }
 
   /** Viimeisimmät saaliit vasemmassa yläkulmassa. */

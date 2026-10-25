@@ -14,6 +14,9 @@ import {
   decodeInputs,
   distance,
   findLaunchPoint,
+  isWeatherLevel,
+  planWeather,
+  weatherAt,
   isPlausibleCatch,
   isPlausibleSplash,
   SPECIES,
@@ -25,6 +28,7 @@ import {
   type SplashMessage,
   type TubeState,
   type Vec2,
+  type WeatherPlan,
 } from '@lunki/shared';
 import { releaseCode, reserveCode } from './codes';
 import { stepSims, type Sim } from './simulation';
@@ -57,6 +61,8 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   /** Palvelimen sisäinen tila pelaajittain (sessionId). */
   private readonly sims = new Map<string, Sim>();
   private countdownSeconds = COUNTDOWN_SECONDS;
+  /** Kisan sää; sama suunnitelma lasketaan asiakkailla siemenestä. */
+  private weather: WeatherPlan | null = null;
   /** Kehitystä varten: LUNKI_RACE_SECONDS lyhentää kaikki kisat. */
   private durationOverride: number | null = Number(process.env.LUNKI_RACE_SECONDS) || null;
 
@@ -197,6 +203,13 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       }
       this.state.seed = (Math.random() * 2 ** 32) >>> 0;
       this.spawnPlayers(this.state.seed);
+      const level = this.state.settings.weather;
+      this.weather = planWeather(
+        this.state.seed,
+        isWeatherLevel(level) ? level : 'realistic',
+        this.durationOverride ?? this.state.settings.durationMinutes * 60,
+      );
+      this.state.sky = this.weather.segments[0]!.sky;
       this.state.clock = 0;
       this.state.countdown = this.countdownSeconds;
       this.state.phase = 'countdown';
@@ -286,6 +299,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       const end = this.durationOverride ?? st.settings.durationMinutes * 60;
       st.clock = Math.min(end, st.clock + NET_DT);
       if (st.clock >= end) st.phase = 'finished';
+      if (this.weather) st.sky = weatherAt(this.weather, st.clock).sky;
     }
     const ids = [...this.sims.keys()];
     const sims = ids.map((id) => this.sims.get(id)!);

@@ -12,7 +12,9 @@ import {
   formatRoomCode,
   maxCastDistance,
   parseRoomCode,
+  planWeather,
   rankPlayers,
+  weatherAt,
   type CatchRecord,
 } from '@lunki/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -91,6 +93,9 @@ describe('LunkiRoom', () => {
     host.send(ClientMsg.start);
     await until(() => seed >= 0 && guest.state.phase === 'countdown');
     expect(guest.state.seed).toBe(seed);
+    // Sää lasketaan samasta siemenestä kuin asiakkailla.
+    const plan = planWeather(seed, 'realistic', guest.state.settings.durationMinutes * 60);
+    expect(guest.state.sky).toBe(weatherAt(plan, 0).sky);
 
     // Alkaneeseen kisaan ei pääse mukaan.
     await expect(sdk().joinById(host.roomId, { name: 'C', playerId: 'c' })).rejects.toThrow();
@@ -187,7 +192,7 @@ describe('LunkiRoom', () => {
       winRule: 'biggest',
       difficulty: 'easy',
       maxPlayers: 4,
-      weather: 'stormy',
+      weather: 'chaos',
       species: ['perch', 'zander'],
     });
     await until(() => guest.state.settings.durationMinutes === 30);
@@ -196,7 +201,7 @@ describe('LunkiRoom', () => {
       'biggest',
       'easy',
       4,
-      'calm',
+      'chaos',
     ]);
     expect([...s.species]).toEqual(['perch', 'zander']);
     // Muutos nollaa valmiuden.
