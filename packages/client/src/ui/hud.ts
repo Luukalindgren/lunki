@@ -44,14 +44,7 @@ export class Hud {
     label.textContent = 'VETO';
     this.tension.append(this.tensionFill, this.tensionDrag, label);
     this.help = el('div', 'hud-help hud-panel');
-    this.help.innerHTML =
-      'W/S potki · A/D käänny · Shift pikapotku<br>' +
-      'Hiiri: tähtää, pidä pohjassa ja päästä = heitto<br>' +
-      'Hiiri pohjassa / välilyönti = kelaa · 1/2/3 kelausnopeus · R vaihda viehe<br>' +
-      'K kaikuluotain · V kalastajan silmin · ' +
-      'Q/E jarru löysemmälle/kireämmälle · rulla = zoom · H = ohje · Esc = tauko<br>' +
-      'Ukkosella salama voi iskeä vapaan: kelaa viehe sisään, ja pysy lähellä rantaa<br>' +
-      'Moninpeli: sotkeutuneet siimat selviävät kelaamalla yhdessä · C katkaisee oman siiman';
+    this.setHelpMode(false);
     this.timer = el('div', 'hud-timer hud-panel');
     this.weather = el('div', 'hud-weather hud-panel');
     this.catches = el('div', 'hud-catches hud-panel');
@@ -133,6 +126,20 @@ export class Hud {
 
   setVisible(visible: boolean): void {
     this.root.hidden = !visible;
+  }
+
+  /** Ohjeen rivit: lyhyet, jotta paneeli ei peitä tilapaneelia. */
+  setHelpMode(multiplayer: boolean): void {
+    this.help.textContent = [
+      'W/S potki · A/D käänny · Shift pikapotku',
+      'Hiiri: tähtää, pidä pohjassa ja päästä = heitto',
+      'Hiiri pohjassa tai välilyönti = kelaa',
+      '1/2/3 kelausnopeus · Q/E jarru löysälle/kireälle',
+      'R vaihda viehe · K kaikuluotain · V kalastajan silmin',
+      'Rulla = zoom · H = ohje · Esc = tauko',
+      'Ukkosella kelaa viehe sisään ja pysy rannan lähellä',
+      ...(multiplayer ? ['Sotkussa kelatkaa yhdessä · C katkaisee siiman'] : []),
+    ].join('\n');
   }
 
   toggleHelp(): void {
