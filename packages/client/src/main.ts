@@ -98,6 +98,7 @@ function showMenu() {
   screens.showStart({
     onSolo: () => screens.showSoloSetup(settings, (s) => startGame(s), showMenu),
     onMultiplayer: () => showMultiplayer(),
+    onLakeMap: () => screens.showLakeMap(showMenu),
     onRecords: () => void showRecords(),
     onAudio: () => screens.showAudio(sfx.audioSettings, (a) => sfx.setAudioSettings(a), showMenu),
     onFeedback: () =>

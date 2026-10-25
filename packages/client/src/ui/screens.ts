@@ -39,6 +39,7 @@ import {
 } from '@lunki/shared';
 import type { LobbyView } from '../net/session';
 import { LIBRARIES } from './credits';
+import { LakeMapView } from './lakeMap';
 import { VOLUME_LEVELS, type AudioSettings, type VolumeLevel } from '../audio/settings';
 
 const SETTINGS_KEY = 'lunki.soloSettings';
@@ -76,6 +77,8 @@ function saveSettings(s: CompetitionSettings): void {
 /** Valikot ja ruudut (aloitus, tauko, tulokset) HUD:n päällä. */
 export class Screens {
   private readonly root: HTMLDivElement;
+  /** Näkymän siivous ennen seuraavaa (esim. kartan koon seuranta). */
+  private cleanup: (() => void) | null = null;
 
   constructor(parent: HTMLElement) {
     this.root = document.createElement('div');
@@ -89,6 +92,7 @@ export class Screens {
   }
 
   hide(): void {
+    this.runCleanup();
     this.root.hidden = true;
     this.root.replaceChildren();
   }
@@ -97,6 +101,7 @@ export class Screens {
   showStart(actions: {
     onSolo: () => void;
     onMultiplayer: () => void;
+    onLakeMap: () => void;
     onRecords: () => void;
     onAudio: () => void;
     onFeedback: () => void;
@@ -106,6 +111,7 @@ export class Screens {
     const menu = this.buttons([
       ['Yksinpeli', actions.onSolo],
       ['Moninpeli', actions.onMultiplayer],
+      ['Järvikartta', actions.onLakeMap],
       ['Ennätykset', actions.onRecords],
       ['Äänet', actions.onAudio],
       ['Palaute', actions.onFeedback],
@@ -124,6 +130,24 @@ export class Screens {
       h('p', 'Kartta © OpenStreetMapin tekijät, Copernicus DEM, Syke', 'hint credit-line'),
     );
     this.show(panel);
+  }
+
+  /** Koko Lunkinjärvi karttana: syvyydet, pohjan muodot, laiturit ja rakennukset. */
+  showLakeMap(onBack: () => void): void {
+    const panel = this.panel();
+    panel.classList.add('map-panel');
+    const map = new LakeMapView();
+    panel.append(
+      h('h2', 'Lunkinjärvi'),
+      map.element,
+      h(
+        'p',
+        'Vedä siirtääksesi, zoomaa rullalla, nipistämällä tai napeilla. Syvyydet ovat arvio: järvestä ei ole julkista luotausta.',
+        'hint',
+      ),
+      this.buttons([['Takaisin', onBack]]),
+    );
+    this.show(panel, () => map.dispose());
   }
 
   /** Yksinpelin asetukset ennen kisaa. */
@@ -608,7 +632,14 @@ export class Screens {
     return p;
   }
 
-  private show(panel: HTMLElement): void {
+  private runCleanup(): void {
+    this.cleanup?.();
+    this.cleanup = null;
+  }
+
+  private show(panel: HTMLElement, cleanup?: () => void): void {
+    this.runCleanup();
+    this.cleanup = cleanup ?? null;
     // Saman näkymän uudelleenpiirto (aula) säilyttää vierityksen.
     const prev = this.root.firstElementChild as HTMLElement | null;
     const same = !!panel.dataset.screen && prev?.dataset.screen === panel.dataset.screen;

@@ -620,3 +620,93 @@ body {
     font-size: calc(var(--u) * 7);
   }
 }
+
+/* Järvikartta: leveämpi paneeli, kartta täyttää leveyden. */
+.screen-panel.map-panel {
+  max-width: 1100px;
+}
+
+.lake-map-frame {
+  position: relative;
+}
+
+.lake-map-canvas {
+  display: block;
+  width: 100%;
+  /* Järvi on leveä: korkeus leveyden mukaan, mutta ei yli puolen ruudun. */
+  aspect-ratio: 16 / 10;
+  max-height: 58vh;
+  min-height: 200px;
+  border: 3px solid #39424d;
+  box-sizing: border-box;
+  touch-action: none;
+  cursor: grab;
+  image-rendering: pixelated;
+}
+
+.lake-map-canvas:active {
+  cursor: grabbing;
+}
+
+.lake-map-zoom {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.screen .lake-map-zoom button {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  font-size: 26px;
+  line-height: 1;
+}
+
+.screen-panel .lake-map-info {
+  min-height: 1.2em;
+  margin: 6px 0;
+  color: #fff3b0;
+}
+
+.lake-map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 18px;
+  color: #c3cbd2;
+}
+
+.lake-map-legend i {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+  vertical-align: -1px;
+  border: 1px solid #0b0f14;
+}
+
+/* Puhelimella vaakasuunnassa kartalle enemmän tilaa. */
+@media (max-height: 500px) {
+  .lake-map-canvas {
+    max-height: 52vh;
+  }
+
+  .screen-panel.map-panel h2 {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .screen-panel.map-panel {
+    padding: 12px;
+  }
+
+  .screen .lake-map-zoom button {
+    width: 32px;
+    height: 32px;
+    font-size: 22px;
+  }
+}
