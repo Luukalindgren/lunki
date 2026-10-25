@@ -173,8 +173,8 @@ export class Screens {
     menu.classList.add('main-menu');
     panel.classList.add('start-panel');
     panel.append(
-      waveTitle('LUNKI'),
-      h('p', 'Kelluntarengaskalastusta Tammelan Lunkinjärvellä', 'subtitle'),
+      waveTitle('LUNKINJÄRVI'),
+      h('p', 'Kelluntarengaskalastusta Tammelassa', 'subtitle'),
       menu,
       h(
         'p',
@@ -547,7 +547,7 @@ export class Screens {
     };
     panel.append(
       h('h2', 'Tekijät ja lähteet'),
-      h('p', 'Lunki: Luuka Lindgren ja Claude Code. Äänet syntetisoidaan selaimessa.'),
+      h('p', 'Lunkinjärvi: Luuka Lindgren ja Claude Code. Äänet syntetisoidaan selaimessa.'),
       h('p', 'Kartta-aineistot', 'choice-label'),
       list(mapCredits()),
       h(
