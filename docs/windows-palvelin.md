@@ -114,7 +114,12 @@ _Asetukset → Järjestelmä → Virta → Näyttö ja lepotila → Lepotila: Ei
      User "Käyttäjä Nimi"
      IdentityFile ~/.ssh/id_ed25519_lunki
      IdentitiesOnly yes
+     AddKeysToAgent yes
+     UseKeychain yes
    ```
+   Kaksi viimeistä riviä tallentavat avaimen salasanan macOS:n Avainnippuun.
+   Jos nimi `pelikone` ei ratkea, käytä `HostName`-rivillä koneen
+   Tailscale-osoitetta (`100.x.y.z`, näkyy komennolla `tailscale status`).
 5. Järjestelmänvalvojakäyttäjän avaimet Windows lukee tiedostosta
    `C:\ProgramData\ssh\administrators_authorized_keys`, ei kotikansiosta.
    Lisää julkinen avain sinne Macilta (kysyy kerran salasanan):
