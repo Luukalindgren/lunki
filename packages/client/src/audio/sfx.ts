@@ -1,5 +1,6 @@
 import { Ambience, type AmbienceInput } from './ambience';
 import { Music } from './music';
+import { thunderClap } from './thunder';
 import { loadAudioSettings, saveAudioSettings, volumeGain, type AudioSettings } from './settings';
 
 /**
@@ -13,6 +14,8 @@ export class Sfx {
   private master: GainNode | null = null;
   private ambienceBus: GainNode | null = null;
   private musicBus: GainNode | null = null;
+  /** Ukkosen oma väylä: kovempi kuin muut tehosteet, rajoitin estää säröytymisen. */
+  private thunderBus: GainNode | null = null;
   private ambience: Ambience | null = null;
   private music: Music | null = null;
   private settings: AudioSettings = loadAudioSettings();
@@ -34,6 +37,15 @@ export class Sfx {
       this.master = bus();
       this.ambienceBus = bus();
       this.musicBus = bus();
+      const limiter = this.ctx.createDynamicsCompressor();
+      limiter.threshold.value = -3;
+      limiter.knee.value = 0;
+      limiter.ratio.value = 20;
+      limiter.attack.value = 0.001;
+      limiter.release.value = 0.2;
+      limiter.connect(this.ctx.destination);
+      this.thunderBus = this.ctx.createGain();
+      this.thunderBus.connect(limiter);
       this.ambience = new Ambience(this.ctx, this.ambienceBus);
       this.music = new Music(this.ctx, this.musicBus);
       this.applySettings();
@@ -53,9 +65,11 @@ export class Sfx {
   }
 
   private applySettings(): void {
-    if (!this.ctx || !this.master || !this.ambienceBus || !this.musicBus) return;
+    if (!this.ctx || !this.master || !this.ambienceBus || !this.musicBus || !this.thunderBus)
+      return;
     const t = this.ctx.currentTime;
     this.master.gain.setTargetAtTime(0.25 * volumeGain(this.settings.effects), t, 0.05);
+    this.thunderBus.gain.setTargetAtTime(0.9 * volumeGain(this.settings.effects), t, 0.05);
     this.ambienceBus.gain.setTargetAtTime(0.5 * volumeGain(this.settings.ambience), t, 0.2);
     this.musicBus.gain.setTargetAtTime(0.5 * volumeGain(this.settings.music), t, 0.2);
     if (this.settings.music > 0) this.music?.start();
@@ -111,19 +125,31 @@ export class Sfx {
     this.noise(0.18, 0.5);
   }
 
-  /** Ukkosen jyrinä: matala, hitaasti voimistuva ja vaimeneva kohina. */
+  /** Kaukainen ukkonen: pehmeästi alkava, pitkä jyrinä. */
   rumble(): void {
-    this.noise(2.8, 0.9, 160, 0.4);
+    this.playThunder(2500 + Math.random() * 2000, 0.35, 0);
   }
 
   /**
-   * Salaman ääni: lähellä terävä räsähdys ja jyrinä, kaukana pelkkä
+   * Salaman ääni: lähellä terävä räsähdys ja kova jyrähdys, kaukana
    * hiljaisempi jyrinä. Ääni kulkee 343 m/s, joten se tulee viiveellä.
    */
   thunder(distance: number, delay: number): void {
-    if (distance < 250) this.noise(0.35, 1.2, 5000, 0, delay);
-    const volume = Math.max(0.3, 1 - distance / 2000);
-    this.noise(3.2, volume, 140, 0.15, delay + 0.1);
+    const volume = distance < 250 ? 1 : Math.max(0.35, 1 - distance / 3000);
+    this.playThunder(distance, volume, delay);
+  }
+
+  private playThunder(distance: number, volume: number, delay: number): void {
+    if (this.muted || !this.ctx || !this.thunderBus) return;
+    const data = thunderClap(this.ctx.sampleRate, distance);
+    const buffer = this.ctx.createBuffer(1, data.length, this.ctx.sampleRate);
+    buffer.copyToChannel(data, 0);
+    const src = this.ctx.createBufferSource();
+    src.buffer = buffer;
+    const gain = this.ctx.createGain();
+    gain.gain.value = volume;
+    src.connect(gain).connect(this.thunderBus);
+    src.start(this.ctx.currentTime + delay);
   }
 
   caught(): void {

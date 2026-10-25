@@ -4,7 +4,7 @@ import type { Input } from '../engine/input';
 const STICK_RADIUS = 52;
 /** Tatin kuollut alue (osuus säteestä). */
 const DEAD_ZONE = 0.35;
-/** Tätä pidempi työntö eteenpäin = pikapotku. */
+/** Tätä pidempi työntö ylös tai alas = pikapotku. */
 const SPRINT_AT = 0.95;
 const GEARS = 3;
 
@@ -122,14 +122,18 @@ export class TouchControls {
     this.setStick(x, y);
   }
 
-  /** Tatin asento (-1…1, y alas) näppäimiksi. */
+  /**
+   * Tatin asento (-1…1, y alas) näppäimiksi. Ylös liikuttaa kohti räpylöitä
+   * eli katseen suuntaan (S), alas selkä edellä (W, nopeampi potku).
+   */
   private setStick(x: number, y: number) {
     this.knob.style.transform = `translate(${x * STICK_RADIUS}px, ${y * STICK_RADIUS}px)`;
-    this.input.simulate('KeyW', y < -DEAD_ZONE);
-    this.input.simulate('KeyS', y > DEAD_ZONE);
+    const kicking = Math.abs(y) > DEAD_ZONE;
+    this.input.simulate('KeyS', y < -DEAD_ZONE);
+    this.input.simulate('KeyW', y > DEAD_ZONE);
     this.input.simulate('KeyA', x < -DEAD_ZONE);
     this.input.simulate('KeyD', x > DEAD_ZONE);
-    this.input.simulate('ShiftLeft', y < 0 && Math.hypot(x, y) >= SPRINT_AT);
+    this.input.simulate('ShiftLeft', kicking && Math.hypot(x, y) >= SPRINT_AT);
   }
 
   private tapKey(code: string) {
