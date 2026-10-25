@@ -5,6 +5,16 @@ import type { SpeciesId } from '../fishing/fish';
 /** Colyseus-huonetyypin nimi. */
 export const ROOM_NAME = 'lunki';
 
+/**
+ * Palvelimen protokollaversio (LunkiState.protocol). Uusi asiakas voi
+ * olla jo julkaistu, vaikka pelikoneen palvelinta ei ole käynnistetty
+ * uudelleen: asiakas ei lähetä vanhemmalle palvelimelle viestejä, joita se
+ * ei tunne. Vanha palvelin ilman kenttää = 1.
+ */
+export const PROTOCOL_VERSION = 2;
+/** Chat tuli versiossa 2. */
+export const CHAT_PROTOCOL = 2;
+
 /** Oletuspelaajamäärä huoneessa. Rakenne sallii isomman. */
 export const DEFAULT_MAX_PLAYERS = 8;
 export const MAX_PLAYERS_LIMIT = 32;

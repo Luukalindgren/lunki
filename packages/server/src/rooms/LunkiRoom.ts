@@ -284,6 +284,10 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       this.broadcast(ServerMsg.chat, msg);
     });
 
+    // Uudemman asiakkaan tuntematon viesti ohitetaan: muuten Colyseus
+    // katkaisisi yhteyden (tuotantotilassa käsittelijätön viesti = potku).
+    this.onMessage('*', () => undefined);
+
     this.onMessage(ClientMsg.ready, (client, ready: unknown) => {
       const p = this.state.players.get(client.sessionId);
       if (p && this.state.phase === 'lobby') p.ready = ready === true;

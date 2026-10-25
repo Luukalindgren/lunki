@@ -23,6 +23,7 @@ import {
   type BigWaveMessage,
   type ChatMessage,
   CHAT_HISTORY,
+  CHAT_PROTOCOL,
   type UntangledMessage,
   RECORDS_PATH,
   type RecordBoard,
@@ -166,6 +167,8 @@ export interface StateSchema {
   clock: number;
   countdown: number;
   catches: Iterable<CatchSchema>;
+  /** Puuttuu palvelimelta, joka on vanhempi kuin PROTOCOL_VERSION 2. */
+  protocol?: number;
 }
 
 export interface CatchSchema {
@@ -351,8 +354,18 @@ export class NetSession {
     this.room.send(ClientMsg.tackle, t);
   }
 
+  /** Palvelimen protokollaversio; vanha palvelin ei kerro sitä (= 1). */
+  get serverProtocol(): number {
+    return this.room.state?.protocol ?? 1;
+  }
+
+  /** Vanha palvelin katkaisisi yhteyden tuntemattomasta viestistä. */
+  get chatAvailable(): boolean {
+    return this.serverProtocol >= CHAT_PROTOCOL;
+  }
+
   sendChat(text: string): void {
-    this.room.send(ClientMsg.chat, text);
+    if (this.chatAvailable) this.room.send(ClientMsg.chat, text);
   }
 
   sendAppearance(a: Appearance): void {
