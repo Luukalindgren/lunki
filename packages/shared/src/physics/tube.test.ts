@@ -91,3 +91,21 @@ describe('collideTubeWithShore', () => {
     expect(s.vel.y).toBeLessThan(0.1);
   });
 });
+
+describe('tuuli', () => {
+  it('rengas ajelehtii tuulen mukana sitä nopeammin mitä kovempi tuuli', () => {
+    const drift = (speed: number) => {
+      let t = createTube({ x: 0, y: 0 });
+      for (let i = 0; i < 60 * 30; i++)
+        t = stepTube(t, { kick: 0, turn: 0, sprint: false }, 1 / 60, { x: 0, y: speed });
+      return t.vel;
+    };
+    const breeze = drift(5);
+    const gale = drift(16);
+    expect(breeze.x).toBeCloseTo(0, 6);
+    expect(breeze.y).toBeGreaterThan(0.05);
+    expect(breeze.y).toBeLessThan(0.15);
+    expect(gale.y).toBeGreaterThan(0.45);
+    expect(gale.y).toBeLessThan(0.75);
+  });
+});

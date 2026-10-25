@@ -10,7 +10,7 @@ const toShapePoints = (ring: readonly Vec2[]) => ring.map((p) => new THREE.Vecto
  * Prototyypin järvi: tasainen maa, vesialue saarineen ja rantaviiva.
  * Muodot piirretään XY-tasoon ja käännetään vaakatasoon (y → -z).
  */
-export function createLakeMesh(map: LakeMap): THREE.Group {
+export function createLakeMesh(map: LakeMap, waves = createWaterWaves()): THREE.Group {
   const group = new THREE.Group();
   group.name = 'lake';
 
@@ -28,7 +28,7 @@ export function createLakeMesh(map: LakeMap): THREE.Group {
 
   const shape = new THREE.Shape(toShapePoints(map.shore));
   for (const island of map.islands) shape.holes.push(new THREE.Path(toShapePoints(island)));
-  const water = new THREE.Mesh(new THREE.ShapeGeometry(shape), createWaterMaterial());
+  const water = new THREE.Mesh(new THREE.ShapeGeometry(shape), createWaterMaterial(waves));
   water.rotation.x = -Math.PI / 2;
   water.name = 'water';
   group.add(water);
@@ -45,23 +45,70 @@ export function createLakeMesh(map: LakeMap): THREE.Group {
   return group;
 }
 
+/** Vesikuvion yhden toiston koko (m). */
+const WATER_TEXTURE_METERS = 32;
+
 /** Veden aaltoilun kello (s); päivitetään pelisilmukasta. */
 export const waterTime = { value: 0 };
+
+/**
+ * Tuulen aallot vesishaderille: aallonkorkeuskerroin tekstuurina (ks.
+ * WaveField), tuulen nopeus ja suunta sekä aallon aaltoluku ja kulmataajuus.
+ * Jokaisella pelillä omansa: valikon taustapeli ei saa sotkea kisan vettä.
+ */
+export function createWaterWaves() {
+  return {
+    uWaveTex: { value: null as THREE.Texture | null },
+    uWaveBounds: { value: new THREE.Vector4(0, 0, 1, 1) },
+    uWaveScale: { value: 0 },
+    uWaveDir: { value: new THREE.Vector2(1, 0) },
+    uWaveK: { value: 1 },
+    uWaveOmega: { value: 1 },
+  };
+}
+export type WaterWaves = ReturnType<typeof createWaterWaves>;
 
 /**
  * Vesi aaltoilee: kuviota luetaan hitaasti vaeltavilla siniaalloilla
  * vääristettynä, jolloin aallonharjat kiemurtelevat ja välkehtivät.
  */
-function createWaterMaterial(): THREE.MeshLambertMaterial {
+function createWaterMaterial(waves: WaterWaves): THREE.MeshLambertMaterial {
   const material = new THREE.MeshLambertMaterial({ color: 0xffffff, map: createWaterTexture() });
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uWaterTime = waterTime;
-    shader.fragmentShader = ('uniform float uWaterTime;\n' + shader.fragmentShader).replace(
-      'vec4 sampledDiffuseColor = texture2D( map, vMapUv );',
+    Object.assign(shader.uniforms, waves);
+    const header = /* glsl */ `uniform float uWaterTime;
+uniform sampler2D uWaveTex;
+uniform vec4 uWaveBounds;
+uniform float uWaveScale;
+uniform vec2 uWaveDir;
+uniform float uWaveK;
+uniform float uWaveOmega;
+`;
+    // onBeforeCompile näkee vielä include-rivit, joten korvataan koko map_fragment.
+    shader.fragmentShader = (header + shader.fragmentShader).replace(
+      '#include <map_fragment>',
       /* glsl */ `vec2 waveUv = vMapUv + vec2(uWaterTime * 0.004, uWaterTime * 0.0015);
       waveUv.x += sin(vMapUv.y * 40.0 + uWaterTime * 1.3) * 0.01;
       waveUv.y += sin(vMapUv.x * 33.0 - uWaterTime * 1.1) * 0.008;
-      vec4 sampledDiffuseColor = texture2D( map, waveUv );`,
+      vec4 sampledDiffuseColor = texture2D( map, waveUv );
+      // Tuulen aallot: vaaleat harjat kulkevat myötätuuleen (värit lineaarisina);
+      // korkeus tulee pyyhkäisymatkasta, ja isoissa aalloissa harjat vaahtoavat.
+      if (uWaveScale > 0.0) {
+        vec2 wp = vMapUv * ${WATER_TEXTURE_METERS.toFixed(1)};
+        float hs = texture2D(uWaveTex, (wp - uWaveBounds.xy) / uWaveBounds.zw).r * uWaveScale;
+        float across = dot(wp, vec2(-uWaveDir.y, uWaveDir.x));
+        float phase = dot(wp, uWaveDir) * uWaveK - uWaterTime * uWaveOmega + sin(across * 0.05) * 2.0;
+        float crest = sin(phase);
+        // Harjat katkoviivoina: pätkät porrastuvat aallosta toiseen. Isompi aalto = leveämpi harja.
+        float dash = step(0.3, fract(across / 7.0 + floor(phase / 6.2832) * 0.37));
+        float band = step(1.0 - clamp(hs, 0.0, 0.3), crest) * dash * step(0.04, hs);
+        sampledDiffuseColor.rgb = mix(sampledDiffuseColor.rgb, vec3(0.024, 0.195, 0.381), band);
+        float speck = fract(sin(dot(floor(wp * 2.0), vec2(12.9898, 78.233))) * 43758.5453);
+        float foam = step(0.9, crest) * step(0.15, hs) * step(speck, hs * 2.5);
+        sampledDiffuseColor.rgb = mix(sampledDiffuseColor.rgb, vec3(0.23, 0.54, 0.71), foam);
+      }
+      diffuseColor *= sampledDiffuseColor;`,
     );
   };
   return material;
@@ -92,7 +139,7 @@ function createWaterTexture(): THREE.Texture {
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(1 / 32, 1 / 32);
+  texture.repeat.set(1 / WATER_TEXTURE_METERS, 1 / WATER_TEXTURE_METERS);
   texture.magFilter = THREE.NearestFilter;
   // Kaukaa katsottuna kuvio sulautuu pohjaväriin eikä välky.
   texture.minFilter = THREE.NearestMipmapLinearFilter;

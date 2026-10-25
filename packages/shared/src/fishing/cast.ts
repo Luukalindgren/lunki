@@ -18,6 +18,11 @@ export const CAST = {
   gravity: 9.81,
   /** Kuinka laajalle katsesuunnasta voi heittää (rad, kumpaankin suuntaan). */
   maxSideAngle: (110 * Math.PI) / 180,
+  /**
+   * Tuulen vaikutus lentoon: ilmanvastus lasketaan suhteessa ilmaan, joka
+   * liikkuu tällä osuudella tuulen nopeudesta (viehe on painava, siima kevyt).
+   */
+  windEffect: 0.6,
   /** Voimamittarin täyttymisaika (s); täyden jälkeen mittari laskee takaisin. */
   chargeTime: 1.1,
 } as const;
@@ -68,12 +73,19 @@ export function launchLure(from: Vec2, angle: number, power: number, factor = 1)
   };
 }
 
-/** Etenee lennossa yhden askeleen. Palauttaa true, kun viehe osuu veteen. */
-export function stepFlight(f: LureFlight, dt: number): boolean {
-  const speed = Math.hypot(f.vel.x, f.vel.y, f.vz);
+/**
+ * Etenee lennossa yhden askeleen. Palauttaa true, kun viehe osuu veteen.
+ * Sivutuuli kaartaa heittoa, myötätuuli pidentää ja vastatuuli lyhentää sitä.
+ */
+export function stepFlight(f: LureFlight, dt: number, wind?: Vec2): boolean {
+  const wx = wind ? wind.x * CAST.windEffect : 0;
+  const wy = wind ? wind.y * CAST.windEffect : 0;
+  const rx = f.vel.x - wx;
+  const ry = f.vel.y - wy;
+  const speed = Math.hypot(rx, ry, f.vz);
   const k = CAST.airDrag * speed;
-  f.vel.x -= f.vel.x * k * dt;
-  f.vel.y -= f.vel.y * k * dt;
+  f.vel.x -= rx * k * dt;
+  f.vel.y -= ry * k * dt;
   f.vz -= (f.vz * k + CAST.gravity) * dt;
   const dx = f.vel.x * dt;
   const dy = f.vel.y * dt;
@@ -103,8 +115,9 @@ export function predictLanding(
   power: number,
   factor = 1,
   dt = 1 / 60,
+  wind?: Vec2,
 ): Vec2 {
   const f = launchLure(from, angle, power, factor);
-  for (let i = 0; i < 60 * 10 && !stepFlight(f, dt); i++);
+  for (let i = 0; i < 60 * 10 && !stepFlight(f, dt, wind); i++);
   return f.pos;
 }

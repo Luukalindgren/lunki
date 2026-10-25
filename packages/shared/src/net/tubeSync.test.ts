@@ -137,7 +137,8 @@ describe('heiton tarkistus', () => {
     const { isPlausibleSplash, maxCastDistance } = await import('./castCheck');
     const max = maxCastDistance();
     expect(max).toBeGreaterThan(40);
-    expect(max).toBeLessThan(70);
+    // Kovin myötätuuli pidentää heittoa.
+    expect(max).toBeLessThan(100);
     expect(isPlausibleSplash({ x: 0, y: 0 }, { x: max, y: 0 })).toBe(true);
     expect(isPlausibleSplash({ x: 0, y: 0 }, { x: 0, y: max + 20 })).toBe(false);
     expect(isPlausibleSplash({ x: 0, y: 0 }, { x: NaN, y: 0 })).toBe(false);

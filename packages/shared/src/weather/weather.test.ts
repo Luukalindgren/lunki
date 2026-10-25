@@ -42,7 +42,7 @@ describe('sää', () => {
     const plan = planWeather(7, 'calm', RACE);
     expect(plan.segments).toHaveLength(1);
     expect(weatherAt(plan, 1000).sky).toBe('calm');
-    expect(weatherAt(plan, 1000).windSpeed).toBeLessThan(2.5);
+    expect(weatherAt(plan, 1000).windSpeed).toBe(0);
   });
 
   it('tilat kestävät vähintään minimiajan ja tuuli on tilan rajoissa', () => {

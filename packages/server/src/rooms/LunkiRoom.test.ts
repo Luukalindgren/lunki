@@ -125,6 +125,9 @@ describe('LunkiRoom', () => {
     });
     const guest = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
     await until(() => players(host).length === 2);
+    // Tyynellä ei tuule: ennakointi osuu täsmälleen.
+    host.send(ClientMsg.settings, { weather: 'calm' });
+    await until(() => guest.state.settings.weather === 'calm');
     guest.send(ClientMsg.ready, true);
     await until(() => players(host).every((p) => p.name === 'A' || p.ready));
     host.send(ClientMsg.start);

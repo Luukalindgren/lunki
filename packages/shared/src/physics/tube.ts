@@ -48,6 +48,11 @@ export const TUBE_PHYSICS = {
   /** Kääntymisen kiihtyvyys ja vastus. */
   turnAccel: 5,
   turnDrag: 4.5,
+  /**
+   * Tuulen työntö kalastajaan ja renkaaseen, a = k·|w|·w (w = tuuli, m/s).
+   * 10 m/s tuulessa rengas ajelehtii n. 0,3 m/s, myrskyssä 0,6 m/s.
+   */
+  windPush: 0.00123,
   /** Paljonko nopeudesta jää rantaan osuessa kimmotessa. */
   shoreBounce: 0.2,
 } as const;
@@ -62,8 +67,11 @@ export const createTube = (pos: Vec2, heading = Math.PI / 2): TubeState => ({
 
 const clamp1 = (v: number) => Math.max(-1, Math.min(1, v));
 
-/** Etenee yhden kiinteän askeleen. Ei käsittele rantaa (ks. collideTubeWithShore). */
-export function stepTube(s: TubeState, input: TubeInput, dt: number): TubeState {
+/**
+ * Etenee yhden kiinteän askeleen. Ei käsittele rantaa (ks. collideTubeWithShore).
+ * `wind` = tuulen nopeusvektori (m/s); tuuli ajattaa rengasta.
+ */
+export function stepTube(s: TubeState, input: TubeInput, dt: number, wind?: Vec2): TubeState {
   const P = TUBE_PHYSICS;
   const kick = clamp1(input.kick);
   const turn = clamp1(input.turn);
@@ -81,8 +89,9 @@ export function stepTube(s: TubeState, input: TubeInput, dt: number): TubeState 
 
   const speed = Math.hypot(s.vel.x, s.vel.y);
   const drag = P.linearDrag + P.quadraticDrag * speed;
-  const ax = dirX * thrust - s.vel.x * drag;
-  const ay = dirY * thrust - s.vel.y * drag;
+  const windK = wind ? P.windPush * Math.hypot(wind.x, wind.y) : 0;
+  const ax = dirX * thrust - s.vel.x * drag + (wind ? wind.x * windK : 0);
+  const ay = dirY * thrust - s.vel.y * drag + (wind ? wind.y * windK : 0);
 
   // Semi-implisiittinen Euler: nopeus ensin, sitten sijainti.
   const vel = { x: s.vel.x + ax * dt, y: s.vel.y + ay * dt };
