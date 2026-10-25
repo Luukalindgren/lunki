@@ -10,7 +10,9 @@ import {
   createTube,
   encodeInputs,
   formatRoomCode,
+  BIG_WAVE,
   OUT_OF_RACE,
+  bigWaveHeight,
   maxCastDistance,
   parseRoomCode,
   planWeather,
@@ -18,7 +20,10 @@ import {
   resolveStrike,
   weatherAt,
   type CatchRecord,
+  type BigWaveMessage,
   type LightningMessage,
+  type TubeState,
+  type WeatherPlan,
   type Strike,
 } from '@lunki/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -346,6 +351,70 @@ describe('LunkiRoom', () => {
     await until(() => host.state.catches.length === 1);
     expect(host.state.catches[0].player).toBe(guest.sessionId);
     expect(me(host).outUntil).toBe(OUT_OF_RACE);
+    let rejected = 0;
+    host.onMessage(ServerMsg.castRejected, () => rejected++);
+    host.send(ClientMsg.splash, { x: me(host).x + 10, y: me(host).y });
+    await until(() => rejected === 1);
+
+    await host.leave();
+    await guest.leave();
+  });
+
+  it('iso aalto kaataa sivuttain olevan renkaan, aaltoa kohti katsova pysyy pystyssä', async () => {
+    const host = await sdk().create(ROOM_NAME, {
+      name: 'A',
+      playerId: 'a',
+      testTiming: { countdown: 0.1, duration: 30 },
+    });
+    const guest = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
+    await until(() => players(host).length === 2);
+    host.send(ClientMsg.settings, { capsizePenalty: 'time-out' });
+    await until(() => guest.state.settings.capsizePenalty === 'time-out');
+    guest.send(ClientMsg.ready, true);
+    await until(() => players(host).every((p) => p.name === 'A' || p.ready));
+    host.send(ClientMsg.start);
+    await until(() => host.state.phase === 'playing');
+
+    // Myrsky itään, ja molemmat selälle, jossa aalto on iso.
+    const rings = [LUNKINJARVI.shore, ...LUNKINJARVI.islands];
+    const water = new WaterBody(LUNKINJARVI);
+    let open = { x: 0, y: 0 };
+    let best = 0;
+    for (let x = LUNKINJARVI.bounds.minX; x < LUNKINJARVI.bounds.maxX; x += 40)
+      for (let y = LUNKINJARVI.bounds.minY; y < LUNKINJARVI.bounds.maxY; y += 40) {
+        const h = water.isWater({ x, y }) ? bigWaveHeight(rings, { x, y }, 16, 0) : 0;
+        if (h > best) [best, open] = [h, { x, y }];
+      }
+    expect(best).toBeGreaterThan(BIG_WAVE.capsizeHeight);
+    const room = matchMaker.getLocalRoomById(host.roomId) as unknown as {
+      weather: WeatherPlan;
+      bigWaves: { t: number }[];
+      nextWave: number;
+      sims: Map<string, { tube: TubeState }>;
+      state: { clock: number };
+    };
+    room.weather = {
+      level: 'chaos',
+      segments: [{ start: 0, sky: 'storm', windSpeed: 16, windDir: 0 }],
+    };
+    // Isäntä sivuttain aaltoon, vieras kohti aaltoa (aallot tulevat lännestä).
+    room.sims.get(host.sessionId)!.tube = createTube(open, Math.PI / 2);
+    room.sims.get(guest.sessionId)!.tube = createTube({ x: open.x, y: open.y + 3 }, Math.PI);
+    const waves: BigWaveMessage[] = [];
+    guest.onMessage(ServerMsg.bigWave, (m: BigWaveMessage) => waves.push(m));
+    room.bigWaves = [{ t: room.state.clock }];
+    room.nextWave = 0;
+    await until(() => waves.length === 1);
+    expect(waves[0]!.victims).toEqual([host.sessionId]);
+
+    type P = { x: number; y: number; capsizedUntil: number; outUntil: number };
+    const me = (r: Room) => r.state.players.get(r.sessionId) as P;
+    await until(() => me(host).capsizedUntil > 0);
+    expect(me(host).capsizedUntil).toBeCloseTo(room.state.clock + BIG_WAVE.recover, 0);
+    expect(me(host).outUntil).toBeGreaterThan(room.state.clock + 50);
+    expect(me(guest).capsizedUntil).toBe(0);
+
+    // Kumossa heitto ei kelpaa.
     let rejected = 0;
     host.onMessage(ServerMsg.castRejected, () => rejected++);
     host.send(ClientMsg.splash, { x: me(host).x + 10, y: me(host).y });

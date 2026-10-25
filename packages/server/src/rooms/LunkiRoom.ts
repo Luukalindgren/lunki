@@ -14,7 +14,11 @@ import {
   decodeInputs,
   distance,
   findLaunchPoint,
+  BIG_WAVE,
+  bigWaveHeight,
+  capsizes,
   isPenalty,
+  planBigWaves,
   isWeatherLevel,
   penaltyOutcome,
   planLightning,
@@ -30,7 +34,10 @@ import {
   validateSettingsPatch,
   type InputMessage,
   type JoinOptions,
+  type BigWave,
+  type BigWaveMessage,
   type LightningMessage,
+  type Penalty,
   type Strike,
   type SplashMessage,
   type TubeState,
@@ -38,7 +45,7 @@ import {
   type WeatherPlan,
 } from '@lunki/shared';
 import { releaseCode, reserveCode } from './codes';
-import { stepSims, type Sim } from './simulation';
+import { FROZEN, stepSims, type Sim } from './simulation';
 import { CatchState, LunkiState, PlayerState } from './state';
 
 export interface CreateOptions extends Partial<JoinOptions> {
@@ -52,6 +59,7 @@ export const RECONNECT_SECONDS = Number(process.env.LUNKI_RECONNECT_SECONDS) || 
 
 /** Järvi on sama kaikille huoneille. */
 const water = new WaterBody(LUNKINJARVI);
+const rings = [LUNKINJARVI.shore, ...LUNKINJARVI.islands];
 
 /** Pelaajat aloittavat vähintään näin kaukana toisistaan (m), jos mahdollista. */
 const SPAWN_SPACING = 15;
@@ -73,6 +81,9 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   /** Kisan salamat ja seuraavan indeksi. */
   private strikes: Strike[] = [];
   private nextStrike = 0;
+  /** Kisan isot aallot ja seuraavan indeksi. */
+  private bigWaves: BigWave[] = [];
+  private nextWave = 0;
   /** Kehitystä varten: LUNKI_RACE_SECONDS lyhentää kaikki kisat. */
   private durationOverride: number | null = Number(process.env.LUNKI_RACE_SECONDS) || null;
 
@@ -96,7 +107,11 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       const sim = this.sims.get(client.sessionId);
       const p = this.state.players.get(client.sessionId);
       if (!sim || !p || this.state.phase === 'lobby') return;
-      sim.inputs.push(decodeInputs(msg?.i));
+      // Kaatunut rengas ei liiku omin voimin (asiakas lähettää samoin nollia).
+      const inputs = decodeInputs(msg?.i);
+      sim.inputs.push(
+        this.capsized(client.sessionId) ? inputs.map((i) => ({ ...i, ...FROZEN })) : inputs,
+      );
       const l = msg?.l;
       if (Array.isArray(l) && l.every((v) => typeof v === 'number' && Number.isFinite(v))) {
         // Vieheen sijainti on vain näytettävä; rajataan järkevälle alueelle.
@@ -164,6 +179,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         p.ready = false;
         p.lureStage = 0;
         p.outUntil = 0;
+        p.capsizedUntil = 0;
       });
       this.state.phase = 'lobby';
       void this.unlock();
@@ -232,6 +248,12 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         this.durationOverride ?? this.state.settings.durationMinutes * 60,
       );
       this.nextStrike = 0;
+      this.bigWaves = planBigWaves(
+        this.weather,
+        this.state.seed,
+        this.durationOverride ?? this.state.settings.durationMinutes * 60,
+      );
+      this.nextWave = 0;
       this.state.clock = 0;
       this.state.countdown = this.countdownSeconds;
       this.state.phase = 'countdown';
@@ -326,6 +348,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       this.weather && st.phase === 'playing' ? weatherAt(this.weather, st.clock) : null;
     if (weather) st.sky = weather.sky;
     if (st.phase === 'playing') this.strikeLightning();
+    if (weather) this.breakBigWaves(weather.windSpeed, weather.windDir);
     const ids = [...this.sims.keys()];
     const sims = ids.map((id) => this.sims.get(id)!);
     for (const i of stepSims(
@@ -339,8 +362,54 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     }
   }
 
+  /** Kalastaa ei voi: salaman jäähy tai rengas kumollaan. */
   private timedOut(id: string): boolean {
-    return this.state.clock < (this.state.players.get(id)?.outUntil ?? 0);
+    return this.state.clock < (this.state.players.get(id)?.outUntil ?? 0) || this.capsized(id);
+  }
+
+  private capsized(id: string): boolean {
+    return this.state.clock < (this.state.players.get(id)?.capsizedUntil ?? 0);
+  }
+
+  /** Rangaistus osumasta: siima poikki, jäähy ja/tai saaliin menetys. */
+  private punish(id: string, penalty: Penalty) {
+    const st = this.state;
+    const p = st.players.get(id);
+    const sim = this.sims.get(id);
+    if (!p || !sim) return;
+    const outcome = penaltyOutcome(penalty, st.clock);
+    p.outUntil = Math.max(p.outUntil, outcome.outUntil);
+    p.lureStage = 0;
+    sim.splashed = false;
+    if (outcome.loseCatch)
+      for (let i = st.catches.length - 1; i >= 0; i--)
+        if (st.catches[i]!.player === id) st.catches.splice(i, 1);
+  }
+
+  /**
+   * Isot aallot: kaatavat renkaan, jos aalto on tarpeeksi korkea renkaan
+   * kohdalla ja tulee sivulta tai takaa (ks. capsizes).
+   */
+  private breakBigWaves(windSpeed: number, windDir: number) {
+    const st = this.state;
+    while (this.nextWave < this.bigWaves.length && this.bigWaves[this.nextWave]!.t <= st.clock) {
+      this.nextWave++;
+      const victims: string[] = [];
+      for (const [id, sim] of this.sims) {
+        const p = st.players.get(id);
+        if (!p || this.capsized(id)) continue;
+        const h = bigWaveHeight(rings, sim.tube.pos, windSpeed, windDir);
+        if (!capsizes(sim.tube.heading, windDir, h)) continue;
+        victims.push(id);
+        p.capsizedUntil = st.clock + BIG_WAVE.recover;
+        this.punish(
+          id,
+          isPenalty(st.settings.capsizePenalty) ? st.settings.capsizePenalty : 'none',
+        );
+      }
+      const msg: BigWaveMessage = { victims };
+      this.broadcast(ServerMsg.bigWave, msg);
+    }
   }
 
   /**
@@ -361,18 +430,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       const penalty = isPenalty(st.settings.lightningPenalty)
         ? st.settings.lightningPenalty
         : 'none';
-      for (const id of result.victims) {
-        const p = st.players.get(id);
-        const sim = this.sims.get(id);
-        if (!p || !sim) continue;
-        const outcome = penaltyOutcome(penalty, st.clock);
-        p.outUntil = outcome.outUntil;
-        p.lureStage = 0;
-        sim.splashed = false;
-        if (outcome.loseCatch)
-          for (let i = st.catches.length - 1; i >= 0; i--)
-            if (st.catches[i]!.player === id) st.catches.splice(i, 1);
-      }
+      for (const id of result.victims) this.punish(id, penalty);
       const msg: LightningMessage = { x: result.pos.x, y: result.pos.y, victims: result.victims };
       this.broadcast(ServerMsg.lightning, msg);
     }

@@ -15,7 +15,7 @@ export interface RoomSettings extends CompetitionSettings {
   weather: WeatherLevel;
   /** Salaman rangaistus. */
   lightningPenalty: Penalty;
-  /** Renkaan kaatumisen rangaistus (vaihe 4). */
+  /** Renkaan kaatumisen rangaistus. */
   capsizePenalty: Penalty;
   /** Järven kalalajit. */
   species: SpeciesId[];
@@ -30,9 +30,7 @@ export const WEATHER_OPTIONS: { value: WeatherLevel; label: string; ready: boole
 export const LIGHTNING_PENALTY_OPTIONS: { value: Penalty; label: string; ready: boolean }[] =
   PENALTY_IDS.map((id) => ({ value: id, label: PENALTY_NAMES[id], ready: true }));
 
-/** Kaatuminen tulee myöhemmin (#29): vain "ei rangaistusta" kelpaa vielä. */
-export const CAPSIZE_PENALTY_OPTIONS: { value: Penalty; label: string; ready: boolean }[] =
-  PENALTY_IDS.map((id) => ({ value: id, label: PENALTY_NAMES[id], ready: id === 'none' }));
+export const CAPSIZE_PENALTY_OPTIONS = LIGHTNING_PENALTY_OPTIONS;
 
 /** Lajit valintoina; `native` = elää oikeasti Lunkinjärvessä. */
 export const SPECIES_OPTIONS: { value: SpeciesId; label: string; native: boolean }[] =

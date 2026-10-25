@@ -19,7 +19,7 @@ export interface Sim {
   lastCatchAt: number;
 }
 
-const FROZEN = { kick: 0, turn: 0, sprint: false };
+export const FROZEN = { kick: 0, turn: 0, sprint: false };
 
 /**
  * Yksi palvelimen askel: jokainen rengas etenee yhdellä syötteellään

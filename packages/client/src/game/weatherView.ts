@@ -28,6 +28,23 @@ const WIND_NAMES = [
   'kaakkoistuuli',
 ];
 
+const FROM_NAMES = [
+  'idästä',
+  'koillisesta',
+  'pohjoisesta',
+  'luoteesta',
+  'lännestä',
+  'lounaasta',
+  'etelästä',
+  'kaakosta',
+];
+
+/** Mistä tuulee (ja aallot tulevat), esim. "lounaasta". */
+export function windFrom(windDir: number): string {
+  const k = Math.round((windDir + Math.PI) / (Math.PI / 4));
+  return FROM_NAMES[((k % 8) + 8) % 8]!;
+}
+
 /** Tuulen nimi suomeksi: tuuli nimetään suunnasta, josta se tulee. */
 export function windName(windDir: number): string {
   const from = windDir + Math.PI;

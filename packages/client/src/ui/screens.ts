@@ -47,6 +47,7 @@ export function loadSettings(defaults: CompetitionSettings): CompetitionSettings
         lightningPenalty: isPenalty(s.lightningPenalty)
           ? s.lightningPenalty
           : defaults.lightningPenalty,
+        capsizePenalty: isPenalty(s.capsizePenalty) ? s.capsizePenalty : defaults.capsizePenalty,
       };
     }
   } catch {
@@ -123,7 +124,17 @@ export class Screens {
         settings.lightningPenalty ?? 'time-out',
         (v) => (settings.lightningPenalty = v as Penalty),
       ),
-      h('p', 'Ukkosella salama voi iskeä, jos vapa on ylhäällä. Kelaa viehe sisään.', 'hint'),
+      this.choice(
+        'Kaatuminen',
+        CAPSIZE_PENALTY_OPTIONS.map((o) => [o.value, o.label]),
+        settings.capsizePenalty ?? 'none',
+        (v) => (settings.capsizePenalty = v as Penalty),
+      ),
+      h(
+        'p',
+        'Ukkosella salama voi iskeä, jos vapa on ylhäällä: kelaa viehe sisään. Iso aalto kaataa renkaan sivulta: käänny aaltoa kohti.',
+        'hint',
+      ),
       this.buttons([
         [
           'Aloita kisa',
@@ -454,12 +465,11 @@ export class Screens {
         s.lightningPenalty,
         (v) => change({ lightningPenalty: v as Penalty }),
       ),
-      h('p', 'Tulossa myöhemmin:', 'hint'),
       this.choice(
         'Kaatuminen',
-        CAPSIZE_PENALTY_OPTIONS.map((o) => [o.value, o.label, !o.ready]),
+        CAPSIZE_PENALTY_OPTIONS.map((o) => [o.value, o.label]),
         s.capsizePenalty,
-        () => undefined,
+        (v) => change({ capsizePenalty: v as Penalty }),
       ),
     );
     return box;

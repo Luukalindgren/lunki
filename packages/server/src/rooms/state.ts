@@ -27,6 +27,8 @@ export const PlayerState = schema(
     lureStage: t.uint8().default(0),
     /** Salaman jäähy: kalastaa ei voi ennen tätä kisa-aikaa (s); pudonneella iso luku. */
     outUntil: t.float32().default(0),
+    /** Iso aalto kaatoi renkaan: pystyssä taas tästä kisa-ajasta (s). */
+    capsizedUntil: t.float32().default(0),
   },
   'PlayerState',
 );
@@ -41,8 +43,7 @@ export const SettingsState = schema(
     maxPlayers: t.uint8().default(DEFAULT_MAX_PLAYERS),
     weather: t.string().default(DEFAULT_SETTINGS.weather!),
     lightningPenalty: t.string().default(DEFAULT_SETTINGS.lightningPenalty!),
-    // Paikka tulevalle asetukselle (#29).
-    capsizePenalty: t.string().default('none'),
+    capsizePenalty: t.string().default(DEFAULT_SETTINGS.capsizePenalty!),
     species: t.array('string').default(() => new ArraySchema<string>(...NATIVE_SPECIES)),
   },
   'SettingsState',

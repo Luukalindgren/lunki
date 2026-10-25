@@ -102,7 +102,14 @@ export const ServerMsg = {
   catchRejected: 'catchRejected',
   /** Salama iski, ks. LightningMessage. */
   lightning: 'lightning',
+  /** Iso aalto osui, ks. BigWaveMessage. */
+  bigWave: 'bigWave',
 } as const;
+
+export interface BigWaveMessage {
+  /** Kaatuneiden sessionId:t. */
+  victims: string[];
+}
 
 export interface LightningMessage {
   x: number;

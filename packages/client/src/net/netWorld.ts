@@ -5,6 +5,7 @@ import {
   TubePredictor,
   encodeInputs,
   lerpAngle,
+  type BigWaveMessage,
   type Catch,
   type LightningMessage,
   type PlayerResult,
@@ -79,6 +80,8 @@ export class NetWorld {
   onCatchRejected: (() => void) | null = null;
   /** Salama iski jonnekin järvelle. */
   onLightning: ((msg: LightningMessage) => void) | null = null;
+  /** Iso aalto osui. */
+  onBigWave: ((msg: BigWaveMessage) => void) | null = null;
 
   constructor(
     private readonly session: NetSession,
@@ -93,6 +96,7 @@ export class NetWorld {
     session.onCastRejected = () => this.onCastRejected?.();
     session.onCatchRejected = () => this.onCatchRejected?.();
     session.onLightning = (m) => this.onLightning?.(m);
+    session.onBigWave = (m) => this.onBigWave?.(m);
   }
 
   sendSplash(p: Vec2): void {
@@ -123,6 +127,11 @@ export class NetWorld {
   /** Oma salaman jäähy: kalastaa ei voi ennen tätä kisa-aikaa (s). */
   get outUntil(): number {
     return this.session.room.state.players.get(this.session.sessionId)?.outUntil ?? 0;
+  }
+
+  /** Oma rengas kumossa tähän kisa-aikaan asti (s). */
+  get capsizedUntil(): number {
+    return this.session.room.state.players.get(this.session.sessionId)?.capsizedUntil ?? 0;
   }
 
   results(): PlayerResult[] {
@@ -211,5 +220,6 @@ export class NetWorld {
     this.session.onCastRejected = null;
     this.session.onCatchRejected = null;
     this.session.onLightning = null;
+    this.session.onBigWave = null;
   }
 }
