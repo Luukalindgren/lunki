@@ -93,20 +93,49 @@ export class Screens {
     this.root.replaceChildren();
   }
 
-  showStart(
+  /** Päävalikko: pelimuodot ja muut näkymät allekkain. */
+  showStart(actions: {
+    onSolo: () => void;
+    onMultiplayer: () => void;
+    onRecords: () => void;
+    onAudio: () => void;
+    onFeedback: () => void;
+    onCredits: () => void;
+  }): void {
+    const panel = this.panel();
+    const menu = this.buttons([
+      ['Yksinpeli', actions.onSolo],
+      ['Moninpeli', actions.onMultiplayer],
+      ['Ennätykset', actions.onRecords],
+      ['Äänet', actions.onAudio],
+      ['Palaute', actions.onFeedback],
+      ['Tekijät ja lähteet', actions.onCredits],
+    ]);
+    menu.classList.add('main-menu');
+    panel.append(
+      h('h1', 'LUNKI'),
+      h('p', 'Kelluntarengaskalastusta Tammelan Lunkinjärvellä', 'subtitle'),
+      menu,
+      h(
+        'p',
+        'W/S potki · A/D käänny · hiiri tähtää ja heittää · kelaa hiirellä tai välilyönnillä · Q/E jarru · Esc tauko',
+        'hint',
+      ),
+      h('p', 'Kartta © OpenStreetMapin tekijät, Copernicus DEM, Syke', 'hint credit-line'),
+    );
+    this.show(panel);
+  }
+
+  /** Yksinpelin asetukset ennen kisaa. */
+  showSoloSetup(
     initial: CompetitionSettings,
     onStart: (s: CompetitionSettings) => void,
-    onMultiplayer: () => void,
-    onRecords: () => void,
-    onCredits: () => void,
-    onAudio: () => void,
-    onFeedback: () => void,
+    onBack: () => void,
   ): void {
     const settings = { ...initial };
     const panel = this.panel();
     panel.append(
-      h('h1', 'LUNKI'),
-      h('p', 'Kelluntarengaskalastusta Tammelan Lunkinjärvellä', 'subtitle'),
+      h('h2', 'Yksinpeli'),
       this.choice(
         'Kilpailuaika',
         DURATIONS.map((d) => [String(d), `${d} min`]),
@@ -156,18 +185,8 @@ export class Screens {
             onStart(settings);
           },
         ],
-        ['Moninpeli', onMultiplayer],
-        ['Ennätykset', onRecords],
-        ['Äänet', onAudio],
-        ['Palaute', onFeedback],
-        ['Tekijät ja lähteet', onCredits],
+        ['Takaisin', onBack],
       ]),
-      h(
-        'p',
-        'W/S potki · A/D käänny · hiiri tähtää ja heittää · kelaa hiirellä tai välilyönnillä · Q/E jarru · Esc tauko',
-        'hint',
-      ),
-      h('p', 'Kartta © OpenStreetMapin tekijät, Copernicus DEM, Syke', 'hint credit-line'),
     );
     this.show(panel);
   }
@@ -598,7 +617,8 @@ export class Screens {
       this.root.scrollTop = top[1]!;
       return;
     }
-    panel.querySelector<HTMLButtonElement>('button.primary')?.focus();
+    // Kohdistus ei saa vierittää pitkää näkymää alas.
+    panel.querySelector<HTMLButtonElement>('button.primary')?.focus({ preventScroll: true });
   }
 
   private choice(

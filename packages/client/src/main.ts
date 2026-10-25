@@ -90,20 +90,19 @@ function startGame(s: CompetitionSettings, seed = devSeed) {
 
 function showMenu() {
   hud.setVisible(false);
-  screens.showStart(
-    settings,
-    (s) => startGame(s),
-    () => showMultiplayer(),
-    () => void showRecords(),
-    () => screens.showCredits(showMenu),
-    () => screens.showAudio(sfx.audioSettings, (a) => sfx.setAudioSettings(a), showMenu),
-    () =>
+  screens.showStart({
+    onSolo: () => screens.showSoloSetup(settings, (s) => startGame(s), showMenu),
+    onMultiplayer: () => showMultiplayer(),
+    onRecords: () => void showRecords(),
+    onAudio: () => screens.showAudio(sfx.audioSettings, (a) => sfx.setAudioSettings(a), showMenu),
+    onFeedback: () =>
       screens.showFeedback(
         loadIdentity().name,
         (f) => sendFeedback({ ...f, context: reportContext() }),
         showMenu,
       ),
-  );
+    onCredits: () => screens.showCredits(showMenu),
+  });
 }
 
 async function showRecords() {

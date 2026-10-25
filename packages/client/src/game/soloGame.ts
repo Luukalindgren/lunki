@@ -719,10 +719,10 @@ export class SoloGame {
           ? [`Salaman jäähy ${Math.ceil(timeOut)} s`]
           : []),
       describeTackle(f.tackle),
-      `Siimaa ${f.lineLength.toFixed(1)} m`,
-      `Jarru ${f.drag.toFixed(2)} kg · kela ${f.gear + 1}`,
-      `Viehe ${f.stage === 'water' && !f.onLand ? f.depth.toFixed(1) : '0.0'} m`,
-      `Pohja ${this.bottom.depthAt(lureOut ? f.lure : this.tube.pos).toFixed(1)} m`,
+      `Siimaa ${fi(f.lineLength, 1)} m`,
+      `Jarru ${fi(f.drag, 2)} kg · kela ${f.gear + 1}`,
+      `Viehe ${fi(f.stage === 'water' && !f.onLand ? f.depth : 0, 1)} m`,
+      `Pohja ${fi(this.bottom.depthAt(lureOut ? f.lure : this.tube.pos), 1)} m`,
     ]);
     this.hud.sonar.update(dt, () =>
       sonarPing(this.tube.pos, this.fish.fish, this.bottom.depthAt(this.tube.pos)),
@@ -773,7 +773,7 @@ export class SoloGame {
     const hs = this.waves.heightAt(this.tube.pos, w.windSpeed);
     this.hud.setWeather(
       `${SKY_NAMES[w.sky]} · ${windName(w.windDir)} ${Math.round(w.windSpeed)} m/s` +
-        (hs >= 0.05 ? ` · aallot ${hs.toFixed(1).replace('.', ',')} m` : '') +
+        (hs >= 0.05 ? ` · aallot ${fi(hs, 1)} m` : '') +
         (w.sky === 'thunder' || w.sky === 'storm' ? ' · salamavaara!' : '') +
         this.spoutText(),
     );
@@ -1001,3 +1001,6 @@ function scoreLine(r: PlayerResult, me: boolean): string {
   const name = r.name.length > 10 ? `${r.name.slice(0, 9)}…` : r.name;
   return `${me ? '>' : ' '}${r.rank}. ${name.padEnd(10)} ${formatWeight(r.summary.score).padStart(7)}`;
 }
+
+/** Desimaaliluku suomalaisittain pilkulla. */
+const fi = (v: number, digits: number) => v.toFixed(digits).replace('.', ',');

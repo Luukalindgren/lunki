@@ -72,7 +72,7 @@ karkaa. Lisäksi seuraa valittu rangaistus:
 | Menetä saalis   | Kaikki tähän asti punnitut kalat menetetään.                  |
 | Putoat kisasta  | Saalis menetetään, eikä loppukisan aikana voi enää kalastaa.  |
 
-Rangaistus valitaan yksinpelin alkuvalikosta tai moninpelin aulasta.
+Rangaistus valitaan yksinpelin asetuksista tai moninpelin aulasta.
 Oletuksena on jäähy.
 
 Salama näkyy siksak-viivana taivaalta veteen, ja koko ruutu välähtää.
@@ -167,6 +167,6 @@ Trombi on harvinainen, liikkuva pyörre
 Moninpelissä palvelin laskee imun samoin kuin tuulen ja ratkaisee
 nappaukset (`ServerMsg.spout`).
 
-Säätaso valitaan alkuvalikosta tai moninpelin aulasta. Kehitystä varten
+Säätaso valitaan yksinpelin asetuksista tai moninpelin aulasta. Kehitystä varten
 osoitteeseen voi lisätä `?difficulty=easy&weather=chaos`. `?bench=1` käyttää
 aina tyyntä säätä, jotta mittaukset ovat vertailukelpoisia.
