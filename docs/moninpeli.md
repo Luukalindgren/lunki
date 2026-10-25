@@ -63,6 +63,16 @@ muut pelaajat: SnapshotBuffer, piirretään 120 ms menneisyydestä
   Isäntä valitsee aulassa: Sallittu / Vain paluu / Ei (`lateJoin`, tarkistus
   `onAuth`issa). Lähteneiden paikat lasketaan mukaan pelaajarajaan.
 
+- **Katsojat.** Pelaaja, jolla on `spectator`, on huoneessa ilman rengasta:
+  palvelin ei luo hänelle simulointia, joten syötteet, heitot ja saaliit
+  ohitetaan, eikä hän ole tulostaulussa. Aulassa voi valita "Seuraava kisa:
+  Kalastan / Katson" (`ClientMsg.spectate`), esim. turnauksessa karsituille.
+  Kisaan ilman tyhjää paikkaa tai `lateJoin`-asetuksen estäessä liittyvä
+  pääsee katsojaksi, jos asiakas pyytää sitä (`JoinOptions.spectate`, vanha
+  palvelin hylkää kuten ennen). Kesken kisan tulleet katsojat ovat uudessa
+  kisassa kalastajia. Katsojan kamera seuraa valittua kalastajaa (←/→,
+  klikkaus) ylhäältä tai kalastajan silmin.
+
 - **Siimojen sotkeutuminen.** Asiakas lähettää syötteen mukana vavan kärjen,
   vieheen paikan ja tiedon kelaamisesta (`l`). Palvelin etsii joka
   verkkoaskeleella vedessä olevat siimat, jotka ovat ristissä, kun jompikumpi

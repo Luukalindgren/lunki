@@ -191,9 +191,9 @@ export class NetWorld {
    */
   racePlayers(): RacePlayerSpot[] {
     const out: RacePlayerSpot[] = [];
-    this.session.room.state.players.forEach((p) =>
-      out.push({ id: p.name, name: p.name, pos: { x: p.x, y: p.y } }),
-    );
+    this.session.room.state.players.forEach((p) => {
+      if (!p.spectator) out.push({ id: p.name, name: p.name, pos: { x: p.x, y: p.y } });
+    });
     return out;
   }
 
@@ -201,6 +201,11 @@ export class NetWorld {
   playerPos(id: string): Vec2 | null {
     const p = this.session.room.state.players.get(id);
     return p ? { x: p.x, y: p.y } : null;
+  }
+
+  /** Oma pelaaja katsoo kisaa: ei omaa rengasta eikä vapaa. */
+  get spectating(): boolean {
+    return this.session.spectating;
   }
 
   playerName(id: string): string {
@@ -281,6 +286,8 @@ export class NetWorld {
     const seen = new Set<string>();
     const others: TubeState[] = [];
     s.players.forEach((p, id) => {
+      // Katsojalla ei ole rengasta järvellä.
+      if (p.spectator) return;
       if (id === this.session.sessionId) {
         const before = this.predictor.tube.pos;
         this.predictor.reconcile(toTube(p), p.ack);

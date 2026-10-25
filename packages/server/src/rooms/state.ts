@@ -47,6 +47,8 @@ export const PlayerState = schema(
     lure: t.string().default(DEFAULT_TACKLE.lure),
     line: t.string().default(DEFAULT_TACKLE.line),
     leader: t.boolean().default(DEFAULT_TACKLE.leader),
+    /** Katsoja: ei rengasta eikä saaliita, näkee kisan ja voi chatata. */
+    spectator: t.boolean().default(false),
     /** Värit muiden nähtäväksi (Appearance). */
     tubeColor: t.uint32().default(DEFAULT_APPEARANCE.tube),
     finColor: t.uint32().default(DEFAULT_APPEARANCE.fins),

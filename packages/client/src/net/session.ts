@@ -29,6 +29,7 @@ import {
   CHAT_HISTORY,
   CHAT_PROTOCOL,
   LAND_CUT_PROTOCOL,
+  SPECTATE_PROTOCOL,
   type UntangledMessage,
   RECORDS_PATH,
   SOLO_RECORDS_PATH,
@@ -159,6 +160,8 @@ export interface LobbyPlayer {
   host: boolean;
   me: boolean;
   connected: boolean;
+  /** Katsoo kisaa osallistumatta. */
+  spectator: boolean;
   tackle: Tackle;
   appearance: Appearance;
 }
@@ -170,8 +173,10 @@ export interface LobbyView {
   maxPlayers: number;
   settings: RoomSettings;
   amHost: boolean;
-  /** Kaikki muut kuin isäntä ovat valmiina. */
+  /** Kaikki muut kalastajat kuin isäntä ovat valmiina. */
   allReady: boolean;
+  /** Palvelin tuntee katsojat (vanha palvelin ei). */
+  canSpectate: boolean;
 }
 
 export interface PlayerSchema {
@@ -187,6 +192,8 @@ export interface PlayerSchema {
   kickPhase: number;
   /** Puuttuu vanhalta palvelimelta. */
   stamina?: number;
+  /** Katsoja; puuttuu vanhalta palvelimelta. */
+  spectator?: boolean;
   ack: number;
   lureX: number;
   lureY: number;
@@ -318,8 +325,12 @@ export class NetSession {
     return new NetSession(room);
   }
 
+  /** Jos kisaan ei pääse mukaan (huoneen asetus), liitytään katsojaksi. */
   static async join(code: string, options: JoinOptions): Promise<NetSession> {
-    const room = await new Client(serverUrl()).joinById<StateSchema>(code, options);
+    const room = await new Client(serverUrl()).joinById<StateSchema>(code, {
+      ...options,
+      spectate: true,
+    });
     return new NetSession(room);
   }
 
@@ -360,6 +371,7 @@ export class NetSession {
         host: id === s.hostId,
         me: id === me,
         connected: p.connected,
+        spectator: p.spectator === true,
         tackle: playerTackle(p),
         appearance: playerAppearance(p),
       }),
@@ -384,12 +396,23 @@ export class NetSession {
         start: s.settings.customStart ? { x: s.settings.startX, y: s.settings.startY } : null,
       },
       amHost: s.hostId === me,
-      allReady: players.every((p) => p.host || p.ready),
+      allReady: players.every((p) => p.host || p.ready || p.spectator),
+      canSpectate: this.serverProtocol >= SPECTATE_PROTOCOL,
     };
   }
 
   setReady(ready: boolean): void {
     this.room.send(ClientMsg.ready, ready);
+  }
+
+  /** Aulassa: seuraava kisa katsojana. Vanha palvelin ei tunne viestiä. */
+  setSpectator(on: boolean): void {
+    if (this.serverProtocol >= SPECTATE_PROTOCOL) this.room.send(ClientMsg.spectate, on);
+  }
+
+  /** Oma pelaaja katsoo kisaa osallistumatta. */
+  get spectating(): boolean {
+    return this.room.state?.players?.get(this.room.sessionId)?.spectator === true;
   }
 
   start(): void {
@@ -457,7 +480,10 @@ export class NetSession {
   results(): PlayerResult[] {
     const s = this.room.state;
     const rows = new Map<string, PlayerCatches & { catches: CatchRecord[] }>();
-    s.players.forEach((p, id) => rows.set(id, { id, name: p.name, catches: [] }));
+    // Katsojat eivät ole tulostaulussa (paitsi jos heillä on saaliita, ks. alla).
+    s.players.forEach((p, id) => {
+      if (!p.spectator) rows.set(id, { id, name: p.name, catches: [] });
+    });
     for (const c of s.catches) {
       let row = rows.get(c.player);
       if (!row) {

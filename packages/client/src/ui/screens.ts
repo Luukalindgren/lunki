@@ -361,6 +361,8 @@ export class Screens {
     actions: {
       onReady: (ready: boolean) => void;
       onStart: () => void;
+      /** Seuraava kisa katsojana (true) tai kalastajana. */
+      onSpectate: (on: boolean) => void;
       onLeave: () => void;
       onSettings: (patch: Partial<RoomSettings>) => void;
       onTackle: (t: Tackle) => void;
@@ -398,18 +400,22 @@ export class Screens {
       const li = document.createElement('li');
       const state = !p.connected
         ? 'yhteys poikki'
-        : p.host
-          ? 'luoja'
-          : p.ready
-            ? 'valmis'
-            : 'odottaa';
+        : p.spectator
+          ? p.host
+            ? 'luoja, katsoja'
+            : 'katsoja'
+          : p.host
+            ? 'luoja'
+            : p.ready
+              ? 'valmis'
+              : 'odottaa';
       const swatch = h('span', '', 'player-color');
       swatch.style.background = cssColor(p.appearance.tube);
       const name = h('span', `${p.name}${p.me ? ' (sinä)' : ''}`);
       name.prepend(swatch);
       li.append(
         name,
-        h('span', state, `player-state ${p.host || p.ready ? 'ok' : ''}`),
+        h('span', state, `player-state ${p.host || p.ready || p.spectator ? 'ok' : ''}`),
         h('span', describeFullTackle(p.tackle), 'player-gear'),
       );
       list.appendChild(li);
@@ -422,6 +428,22 @@ export class Screens {
       h('p', `Pelaajat ${v.players.length}/${v.maxPlayers}`, 'choice-label'),
       list,
     );
+    // Esim. turnauksessa karsitut voivat katsoa seuraavaa kisaa.
+    if (v.canSpectate && me)
+      panel.append(
+        this.choice(
+          'Seuraava kisa',
+          [
+            ['play', 'Kalastan'],
+            ['watch', 'Katson'],
+          ],
+          me.spectator ? 'watch' : 'play',
+          (c) => actions.onSpectate(c === 'watch'),
+        ),
+        ...(me.spectator
+          ? [h('p', 'Katsojana näet kaikki renkaat ja tulostaulun, ja voit chatata.', 'hint')]
+          : []),
+      );
     if (chat) {
       panel.append(h('p', 'Chat', 'choice-label'));
       chat(panel);
@@ -439,7 +461,7 @@ export class Screens {
     const buttons: [string, () => void][] = [];
     if (v.amHost)
       buttons.push([v.allReady ? 'Aloita kisa' : 'Aloita (odotetaan muita)', actions.onStart]);
-    else
+    else if (!me?.spectator)
       buttons.push([
         me?.ready ? 'En olekaan valmis' : 'Valmis!',
         () => actions.onReady(!me?.ready),
@@ -1180,7 +1202,7 @@ export class Screens {
       ),
       h(
         'p',
-        'Sallittu: kaverit pääsevät mukaan vielä kisan alettua, ja yhteyden katkettua pääsee takaisin omalle paikalleen. Vain paluu: vain takaisin. Ei: kumpikaan.',
+        'Sallittu: kaverit pääsevät mukaan vielä kisan alettua, ja yhteyden katkettua pääsee takaisin omalle paikalleen. Vain paluu: vain takaisin. Ei: kumpikaan. Kisaan pääsemättömät voivat silti katsoa kisaa.',
         'hint',
       ),
     );

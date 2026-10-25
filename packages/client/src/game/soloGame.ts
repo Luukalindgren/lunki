@@ -184,6 +184,10 @@ export class SoloGame {
   readonly competition: CompetitionState;
   /** Kisan kulku tulossivun karttaan. */
   private readonly raceLog = new RaceLog();
+  /** Moninpelin katsoja: ei omaa rengasta, kamera seuraa valittua kalastajaa. */
+  readonly spectating: boolean;
+  /** Seurattavan pelaajan sessionId. */
+  private followed: string | null = null;
   private reelClickTimer = 0;
   /** Potkuvaiheen puolikas edellisellä päivityksellä (räpylöiden äänet). */
   private strokes = 0;
@@ -263,6 +267,7 @@ export class SoloGame {
     private readonly net?: NetLink,
   ) {
     this.competition = createCompetition(settings);
+    this.spectating = net?.world.spectating ?? false;
     this.water = new WaterBody(map);
     this.bottom = bottomFor(map, this.water);
     this.rng = new Rng(seed);
@@ -364,6 +369,13 @@ export class SoloGame {
     this.scene.add(this.povRod);
     this.fishingView.lineColor = this.appearance.line;
     this.scene.add(this.fishingView.group, this.youMarker.group);
+    if (this.spectating) {
+      this.tubeMesh.visible = false;
+      this.fishingView.group.visible = false;
+      this.youMarker.group.visible = false;
+      this.tube = this.followTube(0) ?? this.tube;
+      this.prevTube = this.tube;
+    }
     this.view.snapTo(this.tube.pos);
     hud.setCountdown(null);
     if (net) {
@@ -466,8 +478,8 @@ export class SoloGame {
     const pov = mode === 'pov';
     this.scenery.visible = pov;
     this.mapOverlay.visible = !pov;
-    this.povRod.visible = pov;
-    this.tubeMesh.visible = !pov;
+    this.povRod.visible = pov && !this.spectating;
+    this.tubeMesh.visible = !pov && !this.spectating;
     for (const o of this.topViewOnly) o.visible = !pov;
     this.sky.dome.visible = pov;
     this.scene.background = new THREE.Color(LAND_COLOR);
@@ -769,7 +781,7 @@ export class SoloGame {
         1.5,
       );
     if (input.wasPressed('KeyV')) this.setViewMode(this.viewMode === 'top' ? 'pov' : 'top');
-    if (input.wasPressed('KeyR'))
+    if (input.wasPressed('KeyR') && !this.spectating)
       this.setTackle(nextLure(this.pendingTackle ?? this.fishing.tackle));
     if (!this.net) this.strikeLightning();
     this.lightning.update(dt);
@@ -787,7 +799,15 @@ export class SoloGame {
     if (!frozen) this.logRace();
 
     this.prevTube = this.tube;
-    if (this.net) {
+    if (this.spectating) {
+      const step =
+        input.wasPressed('ArrowRight') || input.wasPressed('KeyD') || input.wasPressed('Mouse0')
+          ? 1
+          : input.wasPressed('ArrowLeft') || input.wasPressed('KeyA')
+            ? -1
+            : 0;
+      this.tube = this.followTube(step) ?? this.tube;
+    } else if (this.net) {
       const f = this.fishing;
       const stage =
         f.hookedId !== null
@@ -839,25 +859,26 @@ export class SoloGame {
       dt,
       fishConditions(this.competition.finished ? null : this.weather.now, this.daylight),
     );
-    const events: ReturnType<typeof stepFishing> = tangle
-      ? {}
-      : stepFishing(
-          f,
-          {
-            aim: this.aim,
-            castHeld: !frozen && !capsized && timeOut === 0 && input.isDown('Mouse0'),
-            reel: reeling,
-            cancel: input.isDown('Mouse2'),
-            dragDelta: (input.wasPressed('KeyE') ? 1 : 0) - (input.wasPressed('KeyQ') ? 1 : 0),
-            ...(input.wasPressed('Digit1') ? { gear: 0 } : {}),
-            ...(input.wasPressed('Digit2') ? { gear: 1 } : {}),
-            ...(input.wasPressed('Digit3') ? { gear: 2 } : {}),
-            ...(this.pendingTackle ? { tackle: this.pendingTackle } : {}),
-            cut: input.wasPressed('KeyC'),
-          },
-          this.fishingContext(fishEvents.strike),
-          dt,
-        );
+    const events: ReturnType<typeof stepFishing> =
+      tangle || this.spectating
+        ? {}
+        : stepFishing(
+            f,
+            {
+              aim: this.aim,
+              castHeld: !frozen && !capsized && timeOut === 0 && input.isDown('Mouse0'),
+              reel: reeling,
+              cancel: input.isDown('Mouse2'),
+              dragDelta: (input.wasPressed('KeyE') ? 1 : 0) - (input.wasPressed('KeyQ') ? 1 : 0),
+              ...(input.wasPressed('Digit1') ? { gear: 0 } : {}),
+              ...(input.wasPressed('Digit2') ? { gear: 1 } : {}),
+              ...(input.wasPressed('Digit3') ? { gear: 2 } : {}),
+              ...(this.pendingTackle ? { tackle: this.pendingTackle } : {}),
+              cut: input.wasPressed('KeyC'),
+            },
+            this.fishingContext(fishEvents.strike),
+            dt,
+          );
     this.handleEvents(events, fishEvents.follow !== undefined, reeling, dt);
     if (f.onLand && f.stage === 'water')
       this.hud.showMessage(
@@ -879,6 +900,10 @@ export class SoloGame {
       this.view.fitSpan(0, 0);
     }
 
+    if (this.spectating) {
+      this.updateSpectatorHud(dt);
+      return;
+    }
     this.hud.setStamina(this.tube.stamina, STAMINA.tired);
     if (this.tube.stamina <= 0 && this.prevTube.stamina > 0)
       this.hud.showMessage('Puuskutat! Lepää hetki, niin jaksat taas', 2.5);
@@ -1207,6 +1232,52 @@ export class SoloGame {
   private raceHudTimer = 0;
 
   /** Lähtölaskenta ja tulostaulu (top 5 + oma sijoitus). */
+  /**
+   * Katsojan kamera: seurattavan kalastajan rengas. `step` vaihtaa seuraavaan
+   * (+1) tai edelliseen (-1). Null, jos järvellä ei ole ketään.
+   */
+  private followTube(step: number): TubeState | null {
+    const others = this.net!.world.others();
+    if (others.length === 0) return null;
+    let i = Math.max(
+      0,
+      others.findIndex((o) => o.id === this.followed),
+    );
+    if (step !== 0) {
+      i = (i + step + others.length) % others.length;
+      this.hud.showMessage(`Seuraat: ${others[i]!.name}`, 1.5);
+    }
+    const f = others[i]!;
+    // Ensimmäinen seurattava: kamera hyppää heti paikalle.
+    if (this.followed === null) this.view.snapTo(f.pos);
+    this.followed = f.id;
+    return {
+      pos: { ...f.pos },
+      vel: { x: 0, y: 0 },
+      heading: f.heading,
+      angVel: 0,
+      kickPhase: f.kickPhase,
+      stamina: 1,
+    };
+  }
+
+  /** Katsojan HUD: kenen kisaa seurataan, tulostaulu ja kello. */
+  private updateSpectatorHud(dt: number): void {
+    const name = this.followed ? this.net!.world.playerName(this.followed) : null;
+    this.hud.setPower(null);
+    this.hud.setStatus([
+      'Katsot kisaa',
+      name ? `Seuraat: ${name}` : 'Järvellä ei ole ketään',
+      this.hud.touchMode ? 'Napauta: seuraava kalastaja' : '←/→ tai klikkaus: seuraava',
+      'V: kalastajan silmin / ylhäältä',
+    ]);
+    const left = timeLeft(this.competition);
+    this.hud.setTimer(formatTime(left), left < 60);
+    this.updateWeather(dt);
+    this.updateRaceHud();
+    this.hud.update(dt);
+  }
+
   private updateRaceHud(): void {
     const w = this.net!.world;
     const cd = w.phase === 'countdown' ? Math.ceil(w.countdown) : 0;
@@ -1365,8 +1436,15 @@ export class SoloGame {
     }
     this.shakeCamera();
     this.lightning.orient(this.camera, this.heightPx);
-    if (this.net && this.remoteView)
-      this.remoteView.update(this.net.world.others(), this.camera, this.net.canvas);
+    if (this.net && this.remoteView) {
+      const others = this.net.world.others();
+      // Katsojan silmin seurattavan oma rengas ei peitä näkymää.
+      const shown =
+        this.spectating && this.viewMode === 'pov'
+          ? others.filter((o) => o.id !== this.followed)
+          : others;
+      this.remoteView.update(shown, this.camera, this.net.canvas);
+    }
   }
 }
 
