@@ -92,6 +92,7 @@ import { RemotePlayersView } from './remotePlayersView';
 import type { Sfx } from '../audio/sfx';
 import type { Hud } from '../ui/hud';
 import { FishingView } from './fishingView';
+import { ROD_TIP_Y, rodSideOffset } from './lineHang';
 import { loadTackle, nextLure, saveTackle } from './tackle';
 import { TopDownCamera } from './topDownCamera';
 import { QuietSpot } from './quietSpot';
@@ -982,14 +983,17 @@ export class SoloGame {
         roll: swell.roll + roll * 0.3,
       });
       // Vapa oikeasta kädestä kärkeen; kärki on siiman alkupiste.
+      const side = rodSideOffset(heading);
       const tip = rodTip(pos, heading);
+      tip.x += side.x;
+      tip.y += side.y;
       const hand = {
         x: pos.x + Math.cos(heading - 1.1) * 0.45,
         y: pos.y + Math.sin(heading - 1.1) * 0.45,
       };
       const attr = this.povRod.geometry.getAttribute('position') as THREE.BufferAttribute;
       const h0 = toWorld(hand, 0.3);
-      const h1 = toWorld(tip, 1.2);
+      const h1 = toWorld(tip, ROD_TIP_Y);
       attr.setXYZ(0, h0.x, h0.y, h0.z);
       attr.setXYZ(1, h1.x, h1.y, h1.z);
       attr.needsUpdate = true;

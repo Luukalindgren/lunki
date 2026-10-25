@@ -12,8 +12,21 @@ import {
   type Vec2,
 } from '@lunki/shared';
 import { toWorld } from '../world/lakeMesh';
+import {
+  AIR_SAMPLES,
+  ROD_TIP_Y,
+  flightLine,
+  hangLine,
+  rodSideOffset,
+  tautness,
+  writeLine,
+} from './lineHang';
 
 const SPLASH_TIME = 0.6;
+/** Siiman piirtokorkeus pinnalla. */
+const SURFACE_Y = 0.04;
+/** Siiman kärkivälit: ilmassa roikkuva osuus ja pinnalla lepäävät pisteet. */
+const LINE_VERTS = AIR_SAMPLES + LINE_POINTS;
 
 /** Heittoviiva, osumakohta, viehe, siima ja roiskeet. */
 export class FishingView {
@@ -28,6 +41,8 @@ export class FishingView {
   private readonly splash: THREE.Mesh;
   private readonly fishShadow: THREE.Mesh;
   private splashAge = Infinity;
+  /** Siiman kireys tasoitettuna, ettei roikkuma hypi jännityksen mukana. */
+  private taut = 0;
 
   constructor() {
     this.aimLine = new THREE.Line(
@@ -58,7 +73,7 @@ export class FishingView {
 
     this.line = new THREE.Line(
       new THREE.BufferGeometry().setFromPoints(
-        Array.from({ length: LINE_POINTS + 1 }, () => new THREE.Vector3()),
+        Array.from({ length: LINE_VERTS }, () => new THREE.Vector3()),
       ),
       new THREE.LineBasicMaterial({ color: 0xc3cbd2 }),
     );
@@ -105,6 +120,9 @@ export class FishingView {
       this.fishShadow.rotation.z = hooked.heading;
     }
     const tip = rodTip(ctx.tubePos, ctx.heading);
+    // Piirretty kärki on oikeassa kädessä pidetyn vavan päässä.
+    const side = rodSideOffset(ctx.heading);
+    const shownTip = { x: tip.x + side.x, y: tip.y + side.y };
 
     // Tähtäys näkyy aina, kun vapa on valmiina; latauksessa osumakohta seuraa voimaa.
     // Kalastajan silmin tähtäimenä on hiiri; osumakohta näkyy vasta latauksessa.
@@ -127,7 +145,7 @@ export class FishingView {
               x: tip.x + Math.cos(angle) * Math.hypot(aim.x - tip.x, aim.y - tip.y),
               y: tip.y + Math.sin(angle) * Math.hypot(aim.x - tip.x, aim.y - tip.y),
             };
-      setLine(this.aimLine, toWorld(tip, 1.2), toWorld(target, 0.05));
+      setLine(this.aimLine, toWorld(shownTip, ROD_TIP_Y), toWorld(target, 0.05));
       this.aimLine.computeLineDistances();
       this.aimMarker.position.copy(toWorld(target, 0.04));
       const mat = this.aimMarker.material as THREE.MeshBasicMaterial;
@@ -152,23 +170,19 @@ export class FishingView {
         s.onLand ? 0xf08a2c : depthFade > 0.6 ? 0x6b2d6e : depthFade > 0.1 ? 0xc05bb4 : 0xf08a2c,
       );
       this.lure.scale.setScalar(1 + height * 0.08);
-      // Ensimmäinen piste on vavan kärjessä ilmassa, loput siimasta lepää pinnalla.
+      // Siima roikkuu vavan kärjestä kaarena veteen ja jatkaa pinnalla fysiikan muotoa.
+      this.taut += (tautness(s.tension) - this.taut) * Math.min(1, dt * 4);
+      const pts =
+        s.stage === 'flight'
+          ? flightLine(
+              { x: shownTip.x, y: shownTip.y, h: ROD_TIP_Y },
+              { x: this.lure.position.x, y: -this.lure.position.z, h: this.lure.position.y },
+              LINE_VERTS,
+              SURFACE_Y,
+            )
+          : hangLine(s.line.points, ROD_TIP_Y, this.taut, SURFACE_Y, side);
       const pos = this.line.geometry.getAttribute('position') as THREE.BufferAttribute;
-      const top = toWorld(tip, 1.2);
-      pos.setXYZ(0, top.x, top.y, top.z);
-      if (s.stage === 'flight') {
-        for (let i = 1; i <= LINE_POINTS; i++) {
-          const t = i / LINE_POINTS;
-          pos.setXYZ(
-            i,
-            top.x + (this.lure.position.x - top.x) * t,
-            0.25,
-            top.z + (this.lure.position.z - top.z) * t,
-          );
-        }
-      } else {
-        s.line.points.forEach((p, i) => pos.setXYZ(i + 1, p.x, 0.04, -p.y));
-      }
+      writeLine(pos, pts);
       pos.needsUpdate = true;
       this.line.geometry.computeBoundingSphere();
       (this.line.material as THREE.LineBasicMaterial).color.setHex(
