@@ -207,17 +207,15 @@ export class Hud {
     this.messageTimer = seconds;
   }
 
-  /** Salaman välähdys: koko ruutu vaalenee hetkeksi (0–1). */
+  /** Salaman välähdys: koko ruudun vaaleus tällä hetkellä (0–1). */
   flash(strength: number): void {
-    this.flashLevel = Math.max(this.flashLevel, strength);
+    this.flashLevel = strength;
   }
 
   update(dt: number): void {
-    if (this.flashLevel > 0 || this.flashEl.style.opacity !== '0') {
-      this.flashLevel = Math.max(0, this.flashLevel - dt * 2.5);
-      // Portaittain, kuten muukin retrografiikka.
-      this.flashEl.style.opacity = String(Math.round(this.flashLevel * 4) / 5);
-    }
+    // Portaittain, kuten muukin retrografiikka.
+    const opacity = String(Math.round(this.flashLevel * 4) / 5);
+    if (this.flashEl.style.opacity !== opacity) this.flashEl.style.opacity = opacity;
     if (this.weighTimer > 0) {
       this.weighTimer -= dt;
       if (this.weighTimer <= 0) this.weigh.hidden = true;

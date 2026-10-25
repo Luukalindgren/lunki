@@ -8,22 +8,57 @@ const EYE_HEIGHT = 0.55;
 const PITCH = -0.12;
 /** Kauimmainen tähtäyspiste (m), kun hiiri osoittaa horisontin yläpuolelle. */
 const MAX_AIM = 90;
+const FOV = 72;
+/**
+ * Pienet kallistukset (rad) jätetään pois: kiertyvä pikselikuva välkkyy
+ * reunoilla, vaikka kulma muuttuisi vain vähän.
+ */
+const ROLL_DEADZONE = 0.015;
 
 /**
- * Kalastajan silmin: perspektiivikamera renkaasta katsesuuntaan. Potkut
- * keinuttavat kuvaa hieman.
+ * Kulma porrastettuna `step`-askeliin. Uusi porras otetaan vasta, kun kohde
+ * on edennyt selvästi yli puolen askeleen, joten rajalla huojuva kulma ei
+ * vaihda porrasta edestakaisin. `prev` = edellinen tulos (NaN = ei vielä).
+ */
+export function snapAngle(target: number, prev: number, step: number): number {
+  if (!Number.isFinite(prev)) return Math.round(target / step) * step;
+  const d = Math.atan2(Math.sin(target - prev), Math.cos(target - prev));
+  if (Math.abs(d) < step * 0.75) return prev;
+  return prev + Math.round(d / step) * step;
+}
+
+/** Kallistus, josta pienet keinahdukset on vaimennettu pois. */
+export function steadyRoll(roll: number): number {
+  return Math.sign(roll) * Math.max(0, Math.abs(roll) - ROLL_DEADZONE);
+}
+
+/**
+ * Kalastajan silmin: perspektiivikamera renkaasta katsesuuntaan.
+ *
+ * Pieneen resoluutioon piirretty kuva välkkyy, jos kamera kääntyy pikselin
+ * murto-osia: kaukaisten puiden ja rantojen pikselit hyppivät edestakaisin.
+ * Siksi suunta porrastetaan kokonaisiin pikseleihin ja pienet kallistukset
+ * jätetään pois. Potkut ja aallot keinuttavat vain silmien korkeutta, mikä
+ * näkyy lähiveden liikkeenä mutta ei liikuta kaukaisia maisemia.
  */
 export class PovCamera {
-  readonly camera = new THREE.PerspectiveCamera(72, 1, 0.1, 3000);
+  readonly camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 3000);
   private resolution: RetroResolution = { width: 1, height: 1, scale: 1 };
   private readonly raycaster = new THREE.Raycaster();
   private readonly water = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private readonly hit = new THREE.Vector3();
+  /** Yhden pikselin kulma kuvan keskellä (rad). */
+  private pixelAngle = 0.005;
+  private yaw = NaN;
+  private roll = NaN;
 
   setResolution(r: RetroResolution): void {
     this.resolution = r;
     this.camera.aspect = r.width / r.height;
     this.camera.updateProjectionMatrix();
+    this.pixelAngle = Math.atan((2 * Math.tan(THREE.MathUtils.degToRad(FOV / 2))) / r.height);
+    this.yaw = NaN;
+    this.roll = NaN;
   }
 
   /** `swell` = aallon nosto (m) ja kallistus (rad) renkaan kohdalla. */
@@ -31,13 +66,10 @@ export class PovCamera {
     const bob = Math.sin(kickPhase * Math.PI * 2) * 0.03 + swell.lift;
     const eye = toWorld(pos, EYE_HEIGHT + bob);
     this.camera.position.copy(eye);
-    const dir = new THREE.Vector3(
-      Math.cos(heading) * Math.cos(PITCH),
-      Math.sin(PITCH),
-      -Math.sin(heading) * Math.cos(PITCH),
-    );
-    this.camera.lookAt(eye.add(dir));
-    this.camera.rotateZ(Math.sin(kickPhase * Math.PI * 2 + 1) * 0.008 + swell.roll);
+    this.yaw = snapAngle(heading, this.yaw, this.pixelAngle);
+    // Kallistuksen porras siirtää kuvan reunaa noin pikselin.
+    this.roll = snapAngle(steadyRoll(swell.roll), this.roll, 2 / this.resolution.width);
+    this.camera.rotation.set(PITCH, this.yaw - Math.PI / 2, this.roll, 'YXZ');
     this.camera.updateMatrixWorld();
   }
 
