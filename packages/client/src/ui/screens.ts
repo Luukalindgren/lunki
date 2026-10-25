@@ -22,6 +22,7 @@ import {
   type Penalty,
   PLAYER_COUNTS,
   SPECIES_OPTIONS,
+  TIME_OF_DAY_OPTIONS,
   WEATHER_OPTIONS,
   WIN_RULE_NAMES,
   formatRoomCode,
@@ -29,6 +30,7 @@ import {
   formatTime,
   formatWeight,
   isSpeciesId,
+  isTimeOfDay,
   isWeatherLevel,
   summarize,
   type CompetitionSettings,
@@ -42,6 +44,7 @@ import {
   FEEDBACK_LIMITS,
   mapCredits,
   type RecordBoard,
+  type TimeOfDay,
   type WeatherLevel,
   type WinRule,
 } from '@lunki/shared';
@@ -76,6 +79,7 @@ export function loadSettings(defaults: CompetitionSettings): CompetitionSettings
         ...s,
         species: species.length > 0 ? species : defaults.species,
         weather: isWeatherLevel(s.weather) ? s.weather : defaults.weather,
+        timeOfDay: isTimeOfDay(s.timeOfDay) ? s.timeOfDay : defaults.timeOfDay,
         lightningPenalty: isPenalty(s.lightningPenalty)
           ? s.lightningPenalty
           : defaults.lightningPenalty,
@@ -223,6 +227,12 @@ export class Screens {
         'hint',
       ),
       this.speciesChoice(settings.species ?? [], (list) => (settings.species = list)),
+      this.choice(
+        'Vuorokaudenaika',
+        TIME_OF_DAY_OPTIONS.map((o) => [o.value, o.label]),
+        settings.timeOfDay ?? 'day',
+        (v) => (settings.timeOfDay = v as TimeOfDay),
+      ),
       this.choice(
         'Sää',
         WEATHER_OPTIONS.map((o) => [o.value, o.label]),
@@ -809,6 +819,12 @@ export class Screens {
       ),
       this.speciesChoice(s.species, (species) => change({ species })),
       this.choice(
+        'Vuorokaudenaika',
+        TIME_OF_DAY_OPTIONS.map((o) => [o.value, o.label]),
+        s.timeOfDay,
+        (v) => change({ timeOfDay: v as TimeOfDay }),
+      ),
+      this.choice(
         'Sää',
         WEATHER_OPTIONS.map((o) => [o.value, o.label]),
         s.weather,
@@ -1071,6 +1087,7 @@ export class Screens {
       ['Voittaja', WIN_RULE_NAMES[s.winRule]],
       ['Vaikeus', DIFFICULTY_NAMES[s.difficulty]],
       ['Pelaajia enintään', String(s.maxPlayers)],
+      ['Vuorokaudenaika', label(TIME_OF_DAY_OPTIONS, s.timeOfDay)],
       ['Sää', label(WEATHER_OPTIONS, s.weather)],
       [
         'Salama / kaatuminen',

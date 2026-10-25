@@ -8,6 +8,9 @@ export interface AmbienceInput {
   windSpeed: number;
   /** Sateen voimakkuus 0–1. */
   rain: number;
+  /** Päivänvalo 0–1 ja hämäryys 0–1 (ks. daylight); puuttuu = päivä. */
+  light?: number;
+  twilight?: number;
 }
 
 /** Valikon taustalla: tyyni kesäpäivä. */
@@ -120,7 +123,8 @@ export class Ambience {
     this.birdTimer -= dt;
     if (this.birdTimer <= 0) {
       const quiet = w.rain < 0.1 && w.windSpeed < 8 && (w.sky === 'calm' || w.sky === 'windy');
-      if (quiet) this.chirp();
+      // Yöllä linnut ovat hiljaa, aamulla ja illalla laulavat vielä.
+      if (quiet && Math.random() < Math.min(1, (w.light ?? 1) * 1.6)) this.chirp();
       this.birdTimer = 2.5 + Math.random() * 6;
     }
 
@@ -130,7 +134,12 @@ export class Ambience {
       const ok = w.windSpeed < 10 && w.rain < 0.6 && w.sky !== 'thunder' && w.sky !== 'storm';
       const length = ok ? this.loon() : 0;
       // Toinen kuikka vastaa joskus heti perään.
-      this.loonTimer = ok && Math.random() < 0.3 ? length + 0.8 : 18 + Math.random() * 40;
+      // Kuikat ääntelevät eniten hämärässä ja yöllä.
+      const dusk = Math.max(w.twilight ?? 0, 1 - (w.light ?? 1));
+      this.loonTimer =
+        ok && Math.random() < 0.3 + 0.2 * dusk
+          ? length + 0.8
+          : (18 + Math.random() * 40) * (1 - 0.5 * dusk);
     }
   }
 

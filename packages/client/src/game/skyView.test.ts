@@ -1,0 +1,54 @@
+import { describe, expect, it } from 'vitest';
+import { TIME_OF_DAY_IDS } from '@lunki/shared';
+import { LOOKS, SkyView, lookAt } from './skyView';
+
+describe('vuorokaudenajan ilme', () => {
+  it('jokaisella hetkellä on neljä taivaan kaistaa ja kolme hehkun väriä', () => {
+    for (const time of TIME_OF_DAY_IDS)
+      for (const [, look] of LOOKS[time]) {
+        expect(look.bands).toHaveLength(4);
+        expect(look.glow).toHaveLength(3);
+      }
+  });
+
+  it('ilme liukuu hetkestä toiseen', () => {
+    const start = lookAt('evening', 0);
+    const end = lookAt('evening', 1);
+    const mid = lookAt('evening', 0.3);
+    expect(mid.mul[2]).toBeLessThan(start.mul[2]);
+    expect(mid.mul[2]).toBeGreaterThan(end.mul[2]);
+    expect(lookAt('evening', 2)).toEqual(end);
+  });
+
+  it('päivällä paletti pysyy ennallaan', () => {
+    const sky = new SkyView('day');
+    sky.update(0.5, 0, 0, { x: 0, y: 0 });
+    expect(sky.grade.mul.toArray()).toEqual([1, 1, 1]);
+    expect(sky.grade.add.toArray()).toEqual([0, 0, 0]);
+    expect(sky.grade.sat).toBe(1);
+  });
+
+  it('yöllä paletti tummuu, mutta salama valaisee hetkeksi', () => {
+    const sky = new SkyView('night');
+    sky.update(0.5, 0, 0, { x: 0, y: 0 });
+    expect(sky.grade.mul.y).toBeLessThan(0.6);
+    sky.update(0.5, 0, 1, { x: 0, y: 0 });
+    expect(sky.grade.mul.y).toBe(1);
+  });
+
+  it('aamulla on usvaa, joka hälvenee tuulessa', () => {
+    const sky = new SkyView('morning');
+    sky.update(0, 0, 0, { x: 0, y: 0 });
+    expect(sky.mist).toBeGreaterThan(0.9);
+    sky.update(0, 0, 0, { x: 9, y: 0 });
+    expect(sky.mist).toBe(0);
+  });
+
+  it('paksu pilvi peittää auringon hehkun ja kimalluksen', () => {
+    const sky = new SkyView('evening');
+    sky.update(0.5, 0, 0, { x: 0, y: 0 });
+    expect(sky.glitter.amount).toBeGreaterThan(0);
+    sky.update(0.5, 0.75, 0, { x: 0, y: 0 });
+    expect(sky.glitter.amount).toBe(0);
+  });
+});

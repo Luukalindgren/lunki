@@ -3,6 +3,7 @@ import { NATIVE_SPECIES, type SpeciesId } from '../fishing/fish';
 import type { Catch } from '../fishing/fishing';
 import type { Vec2 } from '../vec2';
 import type { Penalty } from '../weather/lightning';
+import type { TimeOfDay } from '../weather/timeOfDay';
 import type { WeatherLevel } from '../weather/weather';
 
 /** Kilpailun kesto minuutteina. */
@@ -25,6 +26,8 @@ export interface CompetitionSettings {
   species?: SpeciesId[];
   /** Säätaso; oletuksena realistinen. */
   weather?: WeatherLevel;
+  /** Vuorokaudenaika; oletuksena päivä. */
+  timeOfDay?: TimeOfDay;
   /** Salaman rangaistus; oletuksena jäähy. */
   lightningPenalty?: Penalty;
   /** Kaatumisen rangaistus; oletuksena ei muuta kuin kaatuminen itse. */
@@ -41,6 +44,7 @@ export const DEFAULT_SETTINGS: CompetitionSettings = {
   winRule: 'total',
   species: [...NATIVE_SPECIES],
   weather: 'realistic',
+  timeOfDay: 'day',
   lightningPenalty: 'time-out',
   capsizePenalty: 'none',
   landPenalty: 30,
