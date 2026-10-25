@@ -4,6 +4,7 @@ import type { Rng } from '../rng';
 import type { DifficultyParams } from './difficulty';
 import {
   SPECIES,
+  fishHome,
   spawnFish,
   stepHookedFish,
   type FishPopulation,
@@ -618,7 +619,11 @@ function fight(
   }
 }
 
-/** Saatu kala poistuu ja järveen ilmestyy uusi saman lajin parven luo (seuraava sukupolvi). */
+/**
+ * Saatu kala poistuu ja järveen ilmestyy uusi saman lajin parven luo (seuraava
+ * sukupolvi). Paikka ja paino tulevat kannan siemenestä, joten ne ovat samat
+ * kaikilla pelaajilla ja palvelimella.
+ */
 export function replaceFish(
   pop: FishPopulation,
   slot: number,
@@ -627,9 +632,10 @@ export function replaceFish(
 ): void {
   const f = pop.fish[slot];
   if (!f) return;
-  const next = spawnFish(pop, f.species, respawnPoint(pop, f, rng), world, rng);
-  next.gen = f.gen + 1;
-  pop.fish[slot] = next;
+  const gen = f.gen + 1;
+  const home = fishHome(pop, slot, gen);
+  const pos = home ? { ...home } : respawnPoint(pop, f, rng);
+  pop.fish[slot] = spawnFish(pop, f.species, pos, world, rng, slot, gen);
 }
 
 /**

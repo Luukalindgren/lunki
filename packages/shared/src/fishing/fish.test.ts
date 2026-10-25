@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Rng } from '../rng';
+import { replaceFish } from './fishing';
 import { DIFFICULTIES, type Difficulty } from './difficulty';
 import {
   NATIVE_SPECIES,
@@ -11,6 +12,8 @@ import {
   stepFishPopulation,
   type FishPopulation,
   type SpeciesId,
+  fishHome,
+  fishWeight,
 } from './fish';
 import {
   createFishing,
@@ -293,5 +296,41 @@ describe('rakenteet', () => {
     const nearTree = pop.fish.filter((f) => Math.hypot(f.pos.x - 300, f.pos.y - 140) < 25);
     // Satunnaisesti alueelle osuisi alle 1 %; rakenteen luona on noin neljännes.
     expect(nearTree.length / pop.fish.length).toBeGreaterThan(0.15);
+  });
+});
+
+describe('kalakanta palvelimen tarkistettavissa', () => {
+  const lake = {
+    isWater: (p: { x: number; y: number }) => Math.abs(p.x) < 400 && Math.abs(p.y) < 150,
+    depthAt: () => 3,
+  };
+  const bounds = { minX: -400, minY: -150, maxX: 400, maxY: 150 };
+
+  it('sama siemen antaa samat kalat, painot ja uudet kalat', () => {
+    const a = createFishPopulation(lake, bounds, new Rng(9), 300);
+    const b = createFishPopulation(lake, bounds, new Rng(9), 300);
+    expect(a.fish.map((f) => [f.species, f.weight])).toEqual(
+      b.fish.map((f) => [f.species, f.weight]),
+    );
+    a.fish.forEach((f, i) => {
+      expect(f.weight).toBe(fishWeight(a.seed!, f.species, i, 0));
+      expect(f.home).toEqual(fishHome(a, i, 0));
+    });
+    // Saadun tilalle syntyvä kala on sama riippumatta muusta pelistä (eri rng).
+    replaceFish(a, 7, lake, new Rng(1));
+    replaceFish(b, 7, lake, new Rng(2));
+    expect(a.fish[7]).toMatchObject({
+      gen: 1,
+      species: b.fish[7]!.species,
+      weight: b.fish[7]!.weight,
+    });
+    expect(a.fish[7]!.weight).toBe(fishWeight(a.seed!, a.fish[7]!.species, 7, 1));
+    expect(a.fish[7]!.pos).toEqual(fishHome(a, 7, 1));
+    expect(fishHome(a, 7, 1)).toEqual(b.fish[7]!.pos);
+  });
+
+  it('sukupolvet saavat eri painot', () => {
+    const ws = Array.from({ length: 50 }, (_, g) => fishWeight(1, 'pike', 3, g));
+    expect(new Set(ws).size).toBeGreaterThan(40);
   });
 });

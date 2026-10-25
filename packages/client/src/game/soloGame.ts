@@ -15,6 +15,7 @@ import {
   Rng,
   createCompetition,
   createFishPopulation,
+  FISH_COUNT,
   formatTime,
   planWeather,
   planLightning,
@@ -103,8 +104,6 @@ import { YouMarker } from './youMarker';
 import { loadAppearance } from './appearance';
 import { bottomFor } from '../world/lakeData';
 
-/** Kalojen määrä järvessä. Saatujen tilalle syntyy uusia. */
-const FISH_COUNT = 1800;
 const LAND_COLOR = 0x24502c;
 /** Tyypillinen pyyhkäisymatka aallon jaksoon (m). */
 const TYPICAL_FETCH = 800;

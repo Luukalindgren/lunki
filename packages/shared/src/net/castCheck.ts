@@ -1,4 +1,5 @@
 import { CAST, predictLanding } from '../fishing/cast';
+import { SPECIES, type SpeciesId } from '../fishing/fish';
 import { MAX_CAST_FACTOR } from '../fishing/gear';
 import { distance, type Vec2 } from '../vec2';
 
@@ -29,4 +30,15 @@ export const CAST_TOLERANCE = 8;
 export function isPlausibleSplash(tubePos: Vec2, splash: Vec2): boolean {
   if (!Number.isFinite(splash.x) || !Number.isFinite(splash.y)) return false;
   return distance(tubePos, splash) <= maxCastDistance() + CAST_TOLERANCE;
+}
+
+/**
+ * Kuinka kaukana kotipaikastaan kala voi olla tarttuessaan (m): se vaeltaa
+ * kotipaikan ympärillä ja seuraa viehettä, ja karannut kala voi olla
+ * väsytyksen jäljiltä heiton päässä. Palvelin hylkää saaliin, jonka viehe
+ * tarttui tätä kauempana kalan kotipaikasta.
+ */
+export function catchRadius(species: SpeciesId): number {
+  const sp = SPECIES[species];
+  return sp.homeRange + sp.senseRadius * 1.5 + maxCastDistance() + 20;
 }
