@@ -112,8 +112,34 @@ Tuuli vaikuttaa peliin kolmella tavalla:
 Aallot näkyvät vedessä myötätuuleen kulkevina harjoina, jotka levenevät
 aallonkorkeuden kasvaessa. Isoissa aalloissa harjat vaahtoavat. POV-kamera
 keinuu aaltojen mukana, ja HUD näyttää aallonkorkeuden, kun se on yli
-5 cm. Aallot ovat toistaiseksi vain näkyviä; kaatuminen tulee omana
-ominaisuutenaan (#29).
+5 cm. Isot aallot voivat kaataa renkaan, ks. alla.
+
+## Isot aallot ja kaatuminen
+
+Tuulella (vähintään 6 m/s) tulee välillä iso aalto: myrskyllä keskimäärin
+20 s välein, ukkosella 35 s, tuulisella 50 s ja sateella 60 s välein
+(`planBigWaves` kansiossa `packages/shared/src/weather/bigWaves.ts`).
+Iskuhetket lasketaan kisan siemenestä.
+
+- **Korkeus:** iso aalto on 2,2 kertaa merkitsevä aallonkorkeus renkaan
+  kohdalla. Selällä myrskyssä se on noin 0,5 m, suojaisessa poukamassa
+  vain muutama sentti.
+- **Kaatuminen:** yli 0,35 m aalto kaataa renkaan, jos aalto tulee sivulta
+  tai takaa. Aaltoa kohti katsova (poikkeama alle noin 55°) pysyy pystyssä.
+  Aallot tulevat sieltä, mistä tuulee.
+- **Varoitus:** 4 s ennen aaltoa HUD varoittaa, jos aalto on omalla
+  kohdalla vaarallinen, esim. "Iso aalto lounaasta! Käänny aaltoa kohti".
+  Vaalea harja kulkee vastatuulesta kohti kalastajaa ja osuu aallon
+  hetkellä.
+
+Kaatunut rengas pyörähtää ympäri ja on kumossa 6 s. Sinä aikana rengas ei
+liiku omin voimin eikä kalastaa voi. Viehe palaa kelalle, ja kiinni ollut
+kala karkaa. Lisäksi seuraa kaatumisen rangaistus samoista vaihtoehdoista
+kuin salamalla. Oletuksena rangaistusta ei ole, koska kaatuminen on jo
+itsessään menetys.
+
+Moninpelissä palvelin ratkaisee kaatumiset (`ServerMsg.bigWave`) ja jättää
+kumossa olevan renkaan potkut huomiotta.
 
 Säätaso valitaan alkuvalikosta tai moninpelin aulasta. Kehitystä varten
 osoitteeseen voi lisätä `?difficulty=easy&weather=chaos`. `?bench=1` käyttää

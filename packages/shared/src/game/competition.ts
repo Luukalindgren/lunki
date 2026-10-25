@@ -26,6 +26,8 @@ export interface CompetitionSettings {
   weather?: WeatherLevel;
   /** Salaman rangaistus; oletuksena jäähy. */
   lightningPenalty?: Penalty;
+  /** Kaatumisen rangaistus; oletuksena ei muuta kuin kaatuminen itse. */
+  capsizePenalty?: Penalty;
 }
 
 export const DEFAULT_SETTINGS: CompetitionSettings = {
@@ -35,6 +37,7 @@ export const DEFAULT_SETTINGS: CompetitionSettings = {
   species: [...NATIVE_SPECIES],
   weather: 'realistic',
   lightningPenalty: 'time-out',
+  capsizePenalty: 'none',
 };
 
 export interface CatchRecord extends Catch {

@@ -48,6 +48,11 @@ export class Sfx {
     this.tone(3200 + Math.random() * 800, 0.03, 'sawtooth', 0.12);
   }
 
+  /** Iso aalto murtuu: pitkä, matala kohina. */
+  wave(): void {
+    this.noise(1.2, 0.8, 700, 0.3);
+  }
+
   splash(): void {
     this.noise(0.18, 0.5);
   }

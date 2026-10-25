@@ -20,7 +20,7 @@ describe('validateSettingsPatch', () => {
           difficulty: 'toString',
           maxPlayers: 1000,
           weather: 'tornado',
-          capsizePenalty: 'lose-catch',
+          capsizePenalty: 'drown',
           species: ['whale'],
           extra: 1,
         },
@@ -30,11 +30,11 @@ describe('validateSettingsPatch', () => {
     expect(validateSettingsPatch(null, 1)).toEqual({});
   });
 
-  it('salaman rangaistukset kelpaavat, kaatumisen vasta myöhemmin', () => {
-    expect(validateSettingsPatch({ lightningPenalty: 'out' }, 1)).toEqual({
-      lightningPenalty: 'out',
-    });
-    expect(validateSettingsPatch({ lightningPenalty: 'zap', capsizePenalty: 'out' }, 1)).toEqual(
+  it('salaman ja kaatumisen rangaistukset', () => {
+    expect(
+      validateSettingsPatch({ lightningPenalty: 'out', capsizePenalty: 'time-out' }, 1),
+    ).toEqual({ lightningPenalty: 'out', capsizePenalty: 'time-out' });
+    expect(validateSettingsPatch({ lightningPenalty: 'zap', capsizePenalty: 'flip' }, 1)).toEqual(
       {},
     );
   });

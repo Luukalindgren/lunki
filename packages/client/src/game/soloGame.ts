@@ -19,6 +19,10 @@ import {
   penaltyOutcome,
   resolveStrike,
   distance,
+  BIG_WAVE,
+  bigWaveHeight,
+  capsizes,
+  planBigWaves,
   LIGHTNING,
   OUT_OF_RACE,
   windVector,
@@ -50,6 +54,7 @@ import {
   type PlayerResult,
   type Penalty,
   type Strike,
+  type BigWave,
   type LakeMap,
   type Tackle,
   type Vec2,
@@ -63,11 +68,12 @@ import { createMapOverlay, createTerrainMesh } from '../world/surroundingsMesh';
 import type { RetroResolution } from '../engine/resolution';
 import { PovCamera } from './povCamera';
 import { LightningView } from './lightningView';
+import { BigWaveView } from './bigWaveView';
 import { createLakeMesh, createWaterWaves, toWorld, waterTime } from '../world/lakeMesh';
 import { WAVE_FACTOR_SCALE, WaveField } from '../world/waveField';
 import { createBuildings, createPiers, planPiers } from '../world/buildings';
 import { createVegetation } from '../world/vegetation';
-import { WeatherView, windName } from './weatherView';
+import { WeatherView, windFrom, windName } from './weatherView';
 import type { NetWorld } from '../net/netWorld';
 import { RemotePlayersView } from './remotePlayersView';
 import type { Sfx } from '../audio/sfx';
@@ -164,6 +170,15 @@ export class SoloGame {
   private nextStrike = 0;
   /** Yksinpelin salaman jäähy (kisa-aika, s). */
   private outUntil = 0;
+  private readonly bigWaveView = new BigWaveView();
+  /** Isot aallot: varoitukset ja näkymä molemmissa, osumat yksinpelissä. */
+  private readonly bigWaves: BigWave[];
+  private nextWave = 0;
+  private warnedWave = -1;
+  /** Yksinpelissä rengas kumossa tähän kisa-aikaan asti; kaatumishetki animaatioon. */
+  private capsizedUntil = 0;
+  private capsizedAt = -Infinity;
+  private readonly rings: Vec2[][];
   /** Aaltojen näkyvä aaltoluku (rad/m) ja kulmataajuus (rad/s). */
   private waveK = 1;
   private waveOmega = 1;
@@ -212,7 +227,9 @@ export class SoloGame {
     const plan = planWeather(seed, settings.weather ?? 'realistic', settings.durationMinutes * 60);
     this.weather = new WeatherView(plan);
     this.strikes = net ? [] : planLightning(plan, seed, settings.durationMinutes * 60);
-    this.scene.add(this.weather.group, this.lightning.group);
+    this.bigWaves = planBigWaves(plan, seed, settings.durationMinutes * 60);
+    this.rings = [map.shore, ...map.islands];
+    this.scene.add(this.weather.group, this.lightning.group, this.bigWaveView.group);
     this.waves = new WaveField(map);
     this.waterWaves.uWaveTex.value = this.waves.texture;
     this.waterWaves.uWaveBounds.value.copy(this.waves.bounds);
@@ -256,6 +273,7 @@ export class SoloGame {
         this.hud.showMessage('Palvelin ei hyväksynyt saalista punnitukseen', 2.5);
       net.world.onLightning = (m) =>
         this.onStrike({ x: m.x, y: m.y }, m.victims.includes(net.world.myId));
+      net.world.onBigWave = (m) => this.onBigWave(m.victims.includes(net.world.myId));
       net.world.onCastRejected = () => {
         resetFishing(this.fishing);
         this.hud.showMessage('Palvelin hylkäsi heiton', 2);
@@ -321,8 +339,62 @@ export class SoloGame {
     return this.settings.difficulty;
   }
 
-  private get penalty(): Penalty {
-    return this.settings.lightningPenalty ?? 'none';
+  /** Rangaistus omasta osumasta. Moninpelissä palvelin pitää jäähyn ja saaliit. */
+  private punish(penalty: Penalty): string {
+    resetFishing(this.fishing);
+    this.sfx.lost();
+    const outcome = penaltyOutcome(penalty, this.competition.elapsed);
+    if (!this.net) this.outUntil = Math.max(this.outUntil, outcome.outUntil);
+    if (outcome.loseCatch) this.competition.catches.length = 0;
+    return {
+      none: '',
+      'time-out': `Jäähy ${LIGHTNING.timeOut} s`,
+      'lose-catch': 'Menetit saaliisi',
+      out: 'Putosit kisasta',
+    }[penalty];
+  }
+
+  /** Kumossa jäljellä (s). */
+  private get capsizeLeft(): number {
+    const until = this.net ? this.net.world.capsizedUntil : this.capsizedUntil;
+    return Math.max(0, until - this.competition.elapsed);
+  }
+
+  /**
+   * Isot aallot: varoitus ennen aaltoa, jos se on vaarallinen omalla
+   * kohdalla, ja yksinpelissä osuman ratkaisu (moninpelissä palvelin).
+   */
+  private updateBigWaves(): void {
+    const now = this.competition.elapsed;
+    const w = this.weather.now;
+    const h = bigWaveHeight(this.rings, this.tube.pos, w.windSpeed, w.windDir);
+    // Pientä aaltoa (suojaisessa poukamassa tai heikossa tuulessa) ei huomaa.
+    const felt = h >= BIG_WAVE.capsizeHeight / 2;
+    while (this.nextWave < this.bigWaves.length && this.bigWaves[this.nextWave]!.t <= now) {
+      this.nextWave++;
+      if (felt) this.sfx.wave();
+      if (!this.net)
+        this.onBigWave(this.capsizeLeft === 0 && capsizes(this.tube.heading, w.windDir, h));
+    }
+    const next = this.bigWaves[this.nextWave];
+    const prev = this.bigWaves[this.nextWave - 1];
+    // Harja näkyy tulossa olevasta aallosta tai juuri ohi menneestä.
+    const until =
+      next && next.t - now <= BIG_WAVE.warning ? next.t - now : prev ? prev.t - now : null;
+    this.bigWaveView.update(felt ? until : null, w.windDir, this.tube.pos);
+    if (!next || next.t - now > BIG_WAVE.warning || this.warnedWave === this.nextWave) return;
+    this.warnedWave = this.nextWave;
+    if (h >= BIG_WAVE.capsizeHeight)
+      this.hud.showMessage(`Iso aalto ${windFrom(w.windDir)}! Käänny aaltoa kohti`, 3);
+  }
+
+  /** Iso aalto meni ohi; `hitMe` = kaatoi oman renkaan. */
+  private onBigWave(hitMe: boolean): void {
+    if (!hitMe) return;
+    if (!this.net) this.capsizedUntil = this.competition.elapsed + BIG_WAVE.recover;
+    this.capsizedAt = this.competition.elapsed;
+    const penalty = this.punish(this.settings.capsizePenalty ?? 'none');
+    this.hud.showWeighIn('Kaaduit!', penalty || 'Käänny aaltoa kohti, niin pysyt pystyssä', 4);
   }
 
   /** Jäähyä jäljellä (s); pudonneella Infinity. */
@@ -360,19 +432,8 @@ export class SoloGame {
     this.hud.flash(d < 300 ? 0.8 : d < 1000 ? 0.5 : 0.3);
     this.sfx.thunder(d, d / LIGHTNING.soundSpeed);
     if (!hitMe) return;
-    resetFishing(this.fishing);
-    this.sfx.lost();
-    const outcome = penaltyOutcome(this.penalty, this.competition.elapsed);
-    // Moninpelissä palvelin pitää jäähyn ja saaliit; paikallinen lista vain näytölle.
-    if (!this.net) this.outUntil = outcome.outUntil;
-    if (outcome.loseCatch) this.competition.catches.length = 0;
-    const what: Record<Penalty, string> = {
-      none: 'Siima paloi poikki – laske vapa ukkosella',
-      'time-out': `Jäähy ${LIGHTNING.timeOut} s`,
-      'lose-catch': 'Menetit saaliisi',
-      out: 'Putosit kisasta',
-    };
-    this.hud.showWeighIn('Salama iski!', what[this.penalty], 4);
+    const penalty = this.punish(this.settings.lightningPenalty ?? 'none');
+    this.hud.showWeighIn('Salama iski!', penalty || 'Siima paloi poikki – laske vapa ukkosella', 4);
   }
 
   update(dt: number): void {
@@ -394,7 +455,10 @@ export class SoloGame {
       this.setTackle(nextLure(this.pendingTackle ?? this.fishing.tackle));
     if (!this.net) this.strikeLightning();
     this.lightning.update(dt);
+    this.updateBigWaves();
     const timeOut = this.timeOutLeft;
+    const capsized = this.capsizeLeft > 0;
+    const still = { kick: 0, turn: 0, sprint: false };
 
     this.prevTube = this.tube;
     if (this.net) {
@@ -407,10 +471,10 @@ export class SoloGame {
             : f.stage === 'water'
               ? LureStage.water
               : LureStage.none;
-      const tubeInput = frozen ? { kick: 0, turn: 0, sprint: false } : readTubeInput(input);
+      const tubeInput = frozen || capsized ? still : readTubeInput(input);
       this.tube = this.net.world.stepOwn(tubeInput, f.lure, stage, frozen ? undefined : this.wind);
     } else {
-      const next = stepTube(this.tube, readTubeInput(input), dt, this.wind);
+      const next = stepTube(this.tube, capsized ? still : readTubeInput(input), dt, this.wind);
       this.tube = collideTubeWithShore(this.tube, next, this.water);
     }
 
@@ -438,7 +502,7 @@ export class SoloGame {
       f,
       {
         aim: this.aim,
-        castHeld: !frozen && timeOut === 0 && input.isDown('Mouse0'),
+        castHeld: !frozen && !capsized && timeOut === 0 && input.isDown('Mouse0'),
         reel: reeling,
         cancel: input.isDown('Mouse2'),
         dragDelta: (input.wasPressed('KeyE') ? 1 : 0) - (input.wasPressed('KeyQ') ? 1 : 0),
@@ -470,6 +534,7 @@ export class SoloGame {
     this.hud.setPower(f.stage === 'charging' ? chargePower(f.charge) : null);
     this.hud.setTension(f.tension, f.drag, LINES[f.tackle.line].strength);
     this.hud.setStatus([
+      ...(capsized ? [`Kumossa! Pystyssä ${Math.ceil(this.capsizeLeft)} s`] : []),
       ...(timeOut === Infinity
         ? ['Salama pudotti sinut kisasta']
         : timeOut > 0
@@ -669,6 +734,19 @@ export class SoloGame {
     this.hud.setCatches(['Tulostaulu', ...lines]);
   }
 
+  /**
+   * Kaatumisen kallistus (rad): rengas pyörähtää nopeasti ympäri, kelluu
+   * kumossa ja kääntyy lopuksi takaisin pystyyn.
+   */
+  private capsizeRoll(): number {
+    const t = this.competition.elapsed - this.capsizedAt;
+    if (t < 0 || t > BIG_WAVE.recover) return 0;
+    const over = Math.min(1, t / 0.5);
+    const back = Math.max(0, (t - (BIG_WAVE.recover - 1)) / 1);
+    const k = Math.min(over, 1 - back);
+    return Math.PI * k * k * (3 - 2 * k);
+  }
+
   /** Vapauttaa GPU-resurssit, kun kierros päättyy. */
   dispose(): void {
     this.remoteView?.dispose();
@@ -700,12 +778,19 @@ export class SoloGame {
     const heading = lerpAngle(a.heading, b.heading, alpha);
     this.tubeMesh.position.copy(toWorld(pos));
     this.tubeMesh.rotation.y = heading;
+    const roll = this.capsizeRoll();
+    this.tubeMesh.rotation.x = roll;
     animateFins(this.tubeMesh, b.kickPhase);
     const hooked = this.fish.fish.find((x) => x.id === this.fishing.hookedId) ?? null;
     this.fishingView.update(this.fishing, this.fishingContext(), this.aim, 1 / 60, hooked);
     this.view.apply();
     if (this.viewMode === 'pov') {
-      this.pov.apply(pos, heading, b.kickPhase, this.swellAt(pos));
+      const swell = this.swellAt(pos);
+      // Kumossa kamera kallistuu ja painuu veden rajaan.
+      this.pov.apply(pos, heading, b.kickPhase, {
+        lift: swell.lift - 0.7 * (roll / Math.PI),
+        roll: swell.roll + roll * 0.3,
+      });
       // Vapa oikeasta kädestä kärkeen; kärki on siiman alkupiste.
       const tip = rodTip(pos, heading);
       const hand = {

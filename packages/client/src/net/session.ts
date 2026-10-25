@@ -14,6 +14,7 @@ import {
   type PlayerCatches,
   type PlayerResult,
   type SpeciesId,
+  type BigWaveMessage,
   type JoinOptions,
   type LightningMessage,
   type Penalty,
@@ -99,6 +100,7 @@ export interface PlayerSchema {
   lureY: number;
   lureStage: number;
   outUntil: number;
+  capsizedUntil: number;
 }
 
 export interface StateSchema {
@@ -139,6 +141,7 @@ export class NetSession {
   onCastRejected: (() => void) | null = null;
   onCatchRejected: (() => void) | null = null;
   onLightning: ((msg: LightningMessage) => void) | null = null;
+  onBigWave: ((msg: BigWaveMessage) => void) | null = null;
   onStarted: ((msg: StartedMessage, view: LobbyView) => void) | null = null;
   onError: ((message: string) => void) | null = null;
   /** Yhteys katkesi muusta syystä kuin omasta lähdöstä. */
@@ -165,6 +168,7 @@ export class NetSession {
     room.onMessage(ServerMsg.castRejected, () => this.onCastRejected?.());
     room.onMessage(ServerMsg.catchRejected, () => this.onCatchRejected?.());
     room.onMessage(ServerMsg.lightning, (m: LightningMessage) => this.onLightning?.(m));
+    room.onMessage(ServerMsg.bigWave, (m: BigWaveMessage) => this.onBigWave?.(m));
     room.onLeave(() => {
       clearResume();
       if (!this.leaving) this.onDisconnect?.();
