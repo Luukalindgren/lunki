@@ -1,10 +1,15 @@
 import * as THREE from 'three';
 import { TUBE_RADIUS } from '@lunki/shared';
 
+/** Räpylöiden lepokohta renkaan etureunan edessä (paikallinen x). */
+const FIN_X = TUBE_RADIUS + 0.15;
+
 /**
  * Kelluntarengas ja kalastaja ylhäältä katsottuna. Paikallisessa
  * koordinaatistossa katse osoittaa +x-suuntaan; ryhmää käännetään y-akselin
- * ympäri headingin mukaan.
+ * ympäri headingin mukaan. Kuten oikeassa renkaassa, jalat ja räpylät ovat
+ * kalastajan edessä samalla puolella kuin vapa ja heittosuunta: potkut
+ * työntävät vettä eteen, joten rengas kulkee selkä edellä.
  */
 export function createTubeMesh(color = 0xd23a2a): THREE.Group {
   const group = new THREE.Group();
@@ -40,11 +45,15 @@ export function createTubeMesh(color = 0xd23a2a): THREE.Group {
   cap.position.set(0.2, 1.0, 0);
   group.add(cap);
 
-  // Räpylät renkaan takana
+  // Sääret istuimelta eteen renkaan yli ja räpylät niiden päässä
+  const legMat = new THREE.MeshLambertMaterial({ color: 0x3b4630 });
   const finMat = new THREE.MeshLambertMaterial({ color: 0x1c232b });
-  for (const z of [-0.25, 0.25]) {
+  for (const z of [-0.2, 0.2]) {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(TUBE_RADIUS - 0.1, 0.14, 0.14), legMat);
+    leg.position.set((TUBE_RADIUS + 0.2) / 2, 0.12, z);
+    group.add(leg);
     const fin = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.05, 0.22), finMat);
-    fin.position.set(-TUBE_RADIUS - 0.2, 0.05, z);
+    fin.position.set(FIN_X, 0.05, z);
     fin.name = 'fin';
     group.add(fin);
   }
@@ -55,7 +64,7 @@ export function createTubeMesh(color = 0xd23a2a): THREE.Group {
     new THREE.MeshLambertMaterial({ color: 0xf6d04d }),
   );
   rod.rotation.z = 0.25;
-  rod.position.set(1.1, 1.1, 0.3);
+  rod.position.set(1.1, 1.1, 0.38);
   rod.name = 'rod';
   group.add(rod);
 
@@ -68,7 +77,7 @@ export function animateFins(group: THREE.Group, kickPhase: number): void {
   for (const child of group.children) {
     if (child.name !== 'fin') continue;
     const swing = Math.sin((kickPhase + i * 0.5) * Math.PI * 2) * 0.25;
-    child.position.x = -TUBE_RADIUS - 0.2 + swing;
+    child.position.x = FIN_X + swing;
     i++;
   }
 }

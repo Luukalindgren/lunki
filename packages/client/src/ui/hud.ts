@@ -154,7 +154,7 @@ export class Hud {
           ...(multiplayer ? ['Sotkussa kelatkaa yhdessä · KATKO katkaisee'] : []),
         ]
       : [
-          'W/S potki · A/D käänny · Shift pikapotku',
+          'W/S potki taakse/eteen · A/D käänny · Shift pika',
           'Hiiri: tähtää, pidä pohjassa ja päästä = heitto',
           'Hiiri pohjassa tai välilyönti = kelaa',
           '1/2/3 kelausnopeus · Q/E jarru löysälle/kireälle',
