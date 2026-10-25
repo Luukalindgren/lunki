@@ -431,9 +431,17 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   }
 
   override onLeave(client: Client) {
-    this.state.players.delete(client.sessionId);
-    this.chatLimits.delete(client.sessionId);
-    if (this.state.hostId === client.sessionId) {
+    const id = client.sessionId;
+    // Siima sotkussa lähtevän kanssa: toinen pääsee jatkamaan heti.
+    const partner = this.state.players.get(id)?.tangledWith;
+    if (partner) this.untangle(id, partner, 'cut', id);
+    this.state.players.delete(id);
+    // Lähtijän rengas ei saa jäädä näkymättömäksi esteeksi.
+    this.sims.delete(id);
+    this.reeling.delete(id);
+    this.tangleFree.delete(id);
+    this.chatLimits.delete(id);
+    if (this.state.hostId === id) {
       // Isännyys siirtyy seuraavaksi liittyneelle.
       this.state.hostId = this.state.players.keys().next().value ?? '';
     }

@@ -805,4 +805,35 @@ describe('LunkiRoom', () => {
     await host.leave();
     await back.leave();
   });
+
+  it('kesken kisan lähtenyt ei jää näkymättömäksi esteeksi eikä sotkuun', async () => {
+    const host = await sdk().create(ROOM_NAME, {
+      name: 'A',
+      playerId: 'a',
+      testTiming: { countdown: 0.1, duration: 60 },
+    });
+    const guest = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
+    await until(() => players(host).length === 2);
+    guest.send(ClientMsg.ready, true);
+    await until(() => players(host).some((p) => p.ready));
+    host.send(ClientMsg.start);
+    await until(() => host.state.phase === 'playing');
+
+    type P = { tangledWith: string };
+    const room = matchMaker.getLocalRoomById(host.roomId) as unknown as {
+      sims: Map<string, unknown>;
+      state: { players: Map<string, P> };
+    };
+    // Sotku lähtevän pelaajan kanssa (kumpi tahansa järjestys sessionId:issä).
+    room.state.players.get(host.sessionId)!.tangledWith = guest.sessionId;
+    room.state.players.get(guest.sessionId)!.tangledWith = host.sessionId;
+    await until(() => (host.state.players.get(host.sessionId) as P).tangledWith !== '');
+
+    await guest.leave();
+    await until(() => players(host).length === 1);
+    expect([...room.sims.keys()]).toEqual([host.sessionId]);
+    await until(() => (host.state.players.get(host.sessionId) as P).tangledWith === '');
+
+    await host.leave();
+  });
 });
