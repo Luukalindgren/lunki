@@ -168,6 +168,8 @@ export class SoloGame {
   readonly fish: FishPopulation;
   readonly competition: CompetitionState;
   private reelClickTimer = 0;
+  /** Potkuvaiheen puolikas edellisellä päivityksellä (räpylöiden äänet). */
+  private strokes = 0;
   /** Kutsutaan, kun kilpailuaika loppuu. */
   onFinished: (() => void) | null = null;
   private readonly remoteView: RemotePlayersView | null = null;
@@ -719,6 +721,13 @@ export class SoloGame {
     const left = timeLeft(this.competition);
     this.hud.setTimer(formatTime(left), left < 60);
     this.updateWeather(dt);
+    this.sfx.updateAmbience(dt, this.weather.now);
+    // Potkuvaihe kiertää 0–1; kumpikin räpylä loiskahtaa kerran kierroksessa.
+    const strokes = Math.floor(this.tube.kickPhase * 2);
+    if (strokes !== this.strokes) {
+      this.strokes = strokes;
+      this.sfx.paddle();
+    }
     if (this.net) {
       this.updateRaceHud();
       this.hud.update(dt);
@@ -812,6 +821,7 @@ export class SoloGame {
     dt: number,
   ): void {
     const { hud, sfx } = this;
+    if (events.cast !== undefined) sfx.cast(events.cast);
     if (events.splash) {
       this.fishingView.startSplash(events.splash);
       sfx.splash();
