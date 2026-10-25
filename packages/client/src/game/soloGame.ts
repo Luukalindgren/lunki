@@ -186,6 +186,8 @@ export class SoloGame {
   private nextStrike = 0;
   /** Yksinpelin salaman jäähy (kisa-aika, s). */
   private outUntil = 0;
+  /** Mistä jäähy tuli (tilarivin teksti). */
+  private outLabel = 'Jäähy';
   private readonly bigWaveView = new BigWaveView();
   /** Isot aallot: varoitukset ja näkymä molemmissa, osumat yksinpelissä. */
   private readonly bigWaves: BigWave[];
@@ -408,10 +410,11 @@ export class SoloGame {
   }
 
   /** Rangaistus omasta osumasta. Moninpelissä palvelin pitää jäähyn ja saaliit. */
-  private punish(penalty: Penalty): string {
+  private punish(penalty: Penalty, label: string): string {
     resetFishing(this.fishing);
     this.sfx.lost();
     const outcome = penaltyOutcome(penalty, this.competition.elapsed);
+    if (outcome.outUntil > 0) this.outLabel = label;
     if (!this.net) this.outUntil = Math.max(this.outUntil, outcome.outUntil);
     if (outcome.loseCatch) this.competition.catches.length = 0;
     return {
@@ -554,7 +557,7 @@ export class SoloGame {
   private onCapsize(cause: 'wave' | 'spout'): void {
     this.capsizedAt = this.competition.elapsed;
     if (cause === 'spout') this.sfx.wave();
-    const penalty = this.punish(this.settings.capsizePenalty ?? 'none');
+    const penalty = this.punish(this.settings.capsizePenalty ?? 'none', 'Kaatumisen jäähy');
     this.hud.showWeighIn(
       cause === 'wave' ? 'Kaaduit!' : 'Trombi kaatoi sinut!',
       penalty ||
@@ -565,7 +568,8 @@ export class SoloGame {
 
   /** Jäähyä jäljellä (s); pudonneella Infinity. */
   private get timeOutLeft(): number {
-    const until = this.net ? this.net.world.outUntil : this.outUntil;
+    // Maalle heiton sakko kirjataan heti myös omalle koneelle (palvelin vahvistaa).
+    const until = Math.max(this.net?.world.outUntil ?? 0, this.outUntil);
     if (until >= OUT_OF_RACE) return Infinity;
     return Math.max(0, until - this.competition.elapsed);
   }
@@ -598,7 +602,7 @@ export class SoloGame {
     this.hud.flash(d < 300 ? 0.8 : d < 1000 ? 0.5 : 0.3);
     this.sfx.thunder(d, d / LIGHTNING.soundSpeed);
     if (!hitMe) return;
-    const penalty = this.punish(this.settings.lightningPenalty ?? 'none');
+    const penalty = this.punish(this.settings.lightningPenalty ?? 'none', 'Salaman jäähy');
     this.hud.showWeighIn('Salama iski!', penalty || 'Siima paloi poikki – laske vapa ukkosella', 4);
   }
 
@@ -695,13 +699,17 @@ export class SoloGame {
             ...(input.wasPressed('Digit2') ? { gear: 1 } : {}),
             ...(input.wasPressed('Digit3') ? { gear: 2 } : {}),
             ...(this.pendingTackle ? { tackle: this.pendingTackle } : {}),
+            cut: input.wasPressed('KeyC'),
           },
           this.fishingContext(fishEvents.strike),
           dt,
         );
     this.handleEvents(events, fishEvents.follow !== undefined, reeling, dt);
     if (f.onLand && f.stage === 'water')
-      this.hud.showMessage('Viehe rannalla – kelaa takaisin', 0.2);
+      this.hud.showMessage(
+        `Viehe jäi kiinni maalle\nKatkaise siima: ${this.hud.touchMode ? 'KATKO' : 'C'}`,
+        0.2,
+      );
 
     // Kamera: kun viehe on ulkona, seurataan renkaan ja vieheen väliä ja loitonnetaan tarvittaessa.
     if (lureOut) {
@@ -730,9 +738,9 @@ export class SoloGame {
           ]
         : []),
       ...(timeOut === Infinity
-        ? ['Salama pudotti sinut kisasta']
+        ? ['Putosit kisasta']
         : timeOut > 0
-          ? [`Salaman jäähy ${Math.ceil(timeOut)} s`]
+          ? [`${this.outLabel} ${Math.ceil(timeOut)} s`]
           : []),
       describeTackle(f.tackle),
       `Siimaa ${fi(f.lineLength, 1)} m`,
@@ -883,7 +891,21 @@ export class SoloGame {
       hud.showMessage('Pohjatartunta! Kelaa irrottaaksesi', 2);
     }
     if (events.unsnagged) hud.showMessage('Viehe irtosi pohjasta', 1.5);
-    if (events.bitOff) {
+    if (events.stuck) sfx.strike();
+    if (events.lineCut) {
+      sfx.lost();
+      const wait = this.settings.landPenalty ?? 0;
+      if (wait > 0) {
+        this.outUntil = Math.max(this.outUntil, this.competition.elapsed + wait);
+        this.outLabel = 'Uusi viehe';
+      }
+      this.net?.world.landCut();
+      hud.showWeighIn(
+        'Siima poikki',
+        wait > 0 ? `Viehe jäi maalle · uuden solmiminen ${wait} s` : 'Viehe jäi maalle',
+        3,
+      );
+    } else if (events.bitOff) {
       sfx.lost();
       hud.showMessage('Hauki katkaisi siiman hampaillaan – kokeile teräsperuketta', 3.5);
     } else if (events.lureLost) {

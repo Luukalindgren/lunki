@@ -222,6 +222,16 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       if (p?.tangledWith) this.untangle(client.sessionId, p.tangledWith, 'cut', client.sessionId);
     });
 
+    this.onMessage(ClientMsg.landCut, (client) => {
+      const p = this.state.players.get(client.sessionId);
+      const sim = this.sims.get(client.sessionId);
+      if (!p || !sim || this.state.phase !== 'playing') return;
+      // Uuden vieheen solmiminen: kalastaa ei voi ennen sakon loppua.
+      p.outUntil = Math.max(p.outUntil, this.state.clock + this.state.settings.landPenalty);
+      p.lureStage = 0;
+      sim.splashed = false;
+    });
+
     this.onMessage(ClientMsg.tackle, (client, msg: unknown) => {
       const p = this.state.players.get(client.sessionId);
       const t = parseTackle(msg);

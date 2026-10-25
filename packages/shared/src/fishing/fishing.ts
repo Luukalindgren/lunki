@@ -47,6 +47,8 @@ export interface FishingInput {
   gear?: number;
   /** Uudet varusteet; vaihtuvat vain vieheen ollessa kelalla. */
   tackle?: Tackle;
+  /** Katkaisee siiman, kun viehe on juuttunut maalle (C). */
+  cut?: boolean;
 }
 
 export interface FishingState {
@@ -59,7 +61,10 @@ export interface FishingState {
   /** Vieheen sijainti vaakatasossa ja syvyys (m, positiivinen alaspäin). */
   lure: Vec2;
   depth: number;
-  /** Onko viehe maalla (heitetty rannalle). */
+  /**
+   * Viehe on heitetty maalle tai laiturille ja juuttunut kiinni: sitä ei saa
+   * kelattua takaisin, vaan siima on katkaistava.
+   */
   onLand: boolean;
   /** Heittonappi pitää päästää irti ennen uutta latausta (esim. kelauksen jälkeen). */
   needRelease: boolean;
@@ -111,8 +116,6 @@ export const LURE = {
   /** Vieheen vastus vedessä: jännitys = base + coeff · v² (kg). */
   dragBase: 0.05,
   dragCoeff: 0.35,
-  /** Rannalla raahattavan vieheen kitka (kg). */
-  landFriction: 0.6,
   /** Viehe on kotona, kun se on näin lähellä vavan kärkeä. */
   homeDistance: 1.5,
 } as const;
@@ -204,6 +207,10 @@ export interface FishingEvents {
   snagged?: boolean;
   unsnagged?: boolean;
   lureLost?: boolean;
+  /** Viehe juuttui maalle tai laiturille. */
+  stuck?: boolean;
+  /** Pelaaja katkaisi siiman maalle juuttuneen vieheen takia. */
+  lineCut?: boolean;
   caught?: Catch;
 }
 
@@ -308,10 +315,12 @@ export function stepFishing(
       if (landed) {
         s.flight = null;
         s.stage = 'water';
+        // Laiturit ovat vesialueessa saarina, joten nekin ovat "maata".
         s.onLand = !ctx.isWater(s.lure);
         s.depth = 0;
         s.lineLength = Math.min(REEL.spool, distance(tip, s.lure) * (1 + REEL.landingSlack));
-        if (!s.onLand) events.splash = { ...s.lure };
+        if (s.onLand) events.stuck = true;
+        else events.splash = { ...s.lure };
       }
       break;
     }
@@ -331,34 +340,34 @@ export function stepFishing(
       }
       if (fish && s.struckId !== null) resolveStrike(s, reeling, fish, events, dt);
 
-      if (hooked && fish) {
+      if (s.onLand) {
+        holdStuck(s, tip, reeling, input.cut === true, events);
+        if (s.stage !== 'water') break;
+      } else if (hooked && fish) {
         fight(s, hooked, tip, ctx, fish, events, dt);
       } else if (s.snag !== null) {
         pullSnag(s, tip, reeling, fish, events, dt);
         if (s.stage !== 'water') break;
       } else {
         pullLure(s, tip, dt);
-        if (s.onLand && ctx.isWater(s.lure)) s.onLand = false;
-        if (!s.onLand) {
-          const lure = LURES[s.tackle.lure];
-          const rate = lure.sinkRate - lure.lift * s.lureSpeed;
-          // Vaappu sukeltaa vain lippansa syvyyteen; syvemmältä se ei kelatessa painu.
-          const bottom = ctx.depthAt(s.lure);
-          const limit = Math.min(bottom, Math.max(lure.maxDepth, s.depth));
-          s.depth = Math.max(0, Math.min(limit, s.depth + rate * dt));
-          // Kivikko ja oksat ovat pohjassa; kaislikon varret ulottuvat pintaan asti.
-          const structure = s.lureSpeed > 0.05 ? ctx.structureAt?.(s.lure) : null;
-          if (
-            structure &&
-            structure.kind !== 'dropoff' &&
-            (structure.kind === 'reeds' || s.depth >= bottom - SNAG.nearBottom) &&
-            s.struckId === null &&
-            fish?.rng.chance(SNAG.rate, dt)
-          ) {
-            s.snag = 0;
-            s.lureSpeed = 0;
-            events.snagged = true;
-          }
+        const lure = LURES[s.tackle.lure];
+        const rate = lure.sinkRate - lure.lift * s.lureSpeed;
+        // Vaappu sukeltaa vain lippansa syvyyteen; syvemmältä se ei kelatessa painu.
+        const bottom = ctx.depthAt(s.lure);
+        const limit = Math.min(bottom, Math.max(lure.maxDepth, s.depth));
+        s.depth = Math.max(0, Math.min(limit, s.depth + rate * dt));
+        // Kivikko ja oksat ovat pohjassa; kaislikon varret ulottuvat pintaan asti.
+        const structure = s.lureSpeed > 0.05 ? ctx.structureAt?.(s.lure) : null;
+        if (
+          structure &&
+          structure.kind !== 'dropoff' &&
+          (structure.kind === 'reeds' || s.depth >= bottom - SNAG.nearBottom) &&
+          s.struckId === null &&
+          fish?.rng.chance(SNAG.rate, dt)
+        ) {
+          s.snag = 0;
+          s.lureSpeed = 0;
+          events.snagged = true;
         }
       }
       stepLine(s.line, tip, s.lure, s.lineLength, dt, { x: 0.15, y: 0.1 });
@@ -386,11 +395,10 @@ function pullLure(s: FishingState, tip: Vec2, dt: number): void {
     return;
   }
   let speed = over / dt;
-  let tension = (s.onLand ? LURE.landFriction : LURE.dragBase) + LURE.dragCoeff * speed * speed;
+  let tension = LURE.dragBase + LURE.dragCoeff * speed * speed;
   if (tension > s.drag) {
     // Nopeus, jolla vastus on täsmälleen jarrun suuruinen.
-    const base = s.onLand ? LURE.landFriction : LURE.dragBase;
-    speed = Math.sqrt(Math.max(0, s.drag - base) / LURE.dragCoeff);
+    speed = Math.sqrt(Math.max(0, s.drag - LURE.dragBase) / LURE.dragCoeff);
     tension = s.drag;
     s.dragSlipping = true;
   }
@@ -402,6 +410,26 @@ function pullLure(s: FishingState, tip: Vec2, dt: number): void {
   s.lineLength = Math.min(REEL.spool, distance(s.lure, tip));
   s.tension = tension;
   s.lureSpeed = move / dt;
+}
+
+/**
+ * Maalle tai laiturille juuttunut viehe ei irtoa: kelaaminen vain kiristää
+ * siiman, ja ainoa keino on katkaista siima (viehe jää maalle).
+ */
+function holdStuck(
+  s: FishingState,
+  tip: Vec2,
+  reeling: boolean,
+  cut: boolean,
+  events: FishingEvents,
+): void {
+  s.lureSpeed = 0;
+  s.lineLength = Math.max(s.lineLength, distance(s.lure, tip));
+  s.tension = reeling ? s.drag : 0;
+  if (!cut) return;
+  events.lineCut = true;
+  events.lureLost = true;
+  resetFishing(s);
 }
 
 /**
@@ -441,6 +469,7 @@ function pullSnag(
 /** Viehe takaisin kelalle (esim. kun palvelin hylkää heiton). */
 export function resetFishing(s: FishingState): void {
   s.snag = null;
+  s.onLand = false;
   s.stage = 'idle';
   s.needRelease = true;
   s.lineLength = 0;
