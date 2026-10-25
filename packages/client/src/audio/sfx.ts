@@ -1,10 +1,21 @@
+import { Ambience, type AmbienceInput } from './ambience';
+import { Music } from './music';
+import { loadAudioSettings, saveAudioSettings, volumeGain, type AudioSettings } from './settings';
+
 /**
  * Yksinkertaiset retroäänet WebAudiolla, ilman äänitiedostoja. Ääni käynnistyy
  * vasta ensimmäisestä käyttäjän painalluksesta (selainten autoplay-sääntö).
+ * Tehosteilla, ympäristöäänillä ja musiikilla on omat voimakkuutensa.
  */
 export class Sfx {
   private ctx: AudioContext | null = null;
+  /** Tehosteiden väylä. */
   private master: GainNode | null = null;
+  private ambienceBus: GainNode | null = null;
+  private musicBus: GainNode | null = null;
+  private ambience: Ambience | null = null;
+  private music: Music | null = null;
+  private settings: AudioSettings = loadAudioSettings();
   muted = false;
 
   /** Kutsutaan käyttäjän syötteestä. */
@@ -15,12 +26,55 @@ export class Sfx {
     }
     try {
       this.ctx = new AudioContext();
-      this.master = this.ctx.createGain();
-      this.master.gain.value = 0.25;
-      this.master.connect(this.ctx.destination);
+      const bus = () => {
+        const g = this.ctx!.createGain();
+        g.connect(this.ctx!.destination);
+        return g;
+      };
+      this.master = bus();
+      this.ambienceBus = bus();
+      this.musicBus = bus();
+      this.ambience = new Ambience(this.ctx, this.ambienceBus);
+      this.music = new Music(this.ctx, this.musicBus);
+      this.applySettings();
     } catch {
       this.ctx = null;
     }
+  }
+
+  get audioSettings(): AudioSettings {
+    return { ...this.settings };
+  }
+
+  setAudioSettings(s: AudioSettings): void {
+    this.settings = { ...s };
+    saveAudioSettings(this.settings);
+    this.applySettings();
+  }
+
+  private applySettings(): void {
+    if (!this.ctx || !this.master || !this.ambienceBus || !this.musicBus) return;
+    const t = this.ctx.currentTime;
+    this.master.gain.setTargetAtTime(0.25 * volumeGain(this.settings.effects), t, 0.05);
+    this.ambienceBus.gain.setTargetAtTime(0.5 * volumeGain(this.settings.ambience), t, 0.2);
+    this.musicBus.gain.setTargetAtTime(0.5 * volumeGain(this.settings.music), t, 0.2);
+    if (this.settings.music > 0) this.music?.start();
+    else this.music?.stop();
+  }
+
+  /** Ympäristöäänet seuraavat säätä; kutsutaan joka päivityksessä. */
+  updateAmbience(dt: number, w: AmbienceInput): void {
+    if (this.settings.ambience > 0) this.ambience?.update(dt, w);
+  }
+
+  /** Heitto: viuhahdus, voimakkaampi kovalla heitolla. */
+  cast(power: number): void {
+    this.noise(0.25, 0.25 + power * 0.35, 1200 + power * 2500, 0.15);
+  }
+
+  /** Räpylän potku: pehmeä loiskahdus. */
+  paddle(): void {
+    this.noise(0.12, 0.12, 600, 0.04);
   }
 
   /** Kalan seuraaminen: pieni näpäytys siimassa. */

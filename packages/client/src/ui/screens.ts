@@ -38,6 +38,7 @@ import {
 } from '@lunki/shared';
 import type { LobbyView } from '../net/session';
 import { LIBRARIES } from './credits';
+import { VOLUME_LEVELS, type AudioSettings, type VolumeLevel } from '../audio/settings';
 
 const SETTINGS_KEY = 'lunki.soloSettings';
 
@@ -97,6 +98,7 @@ export class Screens {
     onMultiplayer: () => void,
     onRecords: () => void,
     onCredits: () => void,
+    onAudio: () => void,
   ): void {
     const settings = { ...initial };
     const panel = this.panel();
@@ -154,6 +156,7 @@ export class Screens {
         ],
         ['Moninpeli', onMultiplayer],
         ['Ennätykset', onRecords],
+        ['Äänet', onAudio],
         ['Tekijät ja lähteet', onCredits],
       ]),
       h(
@@ -288,6 +291,43 @@ export class Screens {
     this.show(panel);
   }
 
+  /** Äänenvoimakkuudet alkuvalikosta. */
+  showAudio(
+    current: AudioSettings,
+    onChange: (a: AudioSettings) => void,
+    onBack: () => void,
+  ): void {
+    const panel = this.panel();
+    panel.append(
+      h('h2', 'Äänet'),
+      this.audioEditor(current, onChange),
+      this.buttons([['Takaisin', onBack]]),
+    );
+    this.show(panel);
+  }
+
+  private audioEditor(initial: AudioSettings, onChange: (a: AudioSettings) => void): HTMLElement {
+    const a = { ...initial };
+    const box = document.createElement('div');
+    box.className = 'settings';
+    const row = (label: string, key: keyof AudioSettings) =>
+      this.choice(
+        label,
+        VOLUME_LEVELS.map((o) => [String(o.value), o.label]),
+        String(a[key]),
+        (v) => {
+          a[key] = Number(v) as VolumeLevel;
+          onChange({ ...a });
+        },
+      );
+    box.append(
+      row('Tehosteet', 'effects'),
+      row('Tuuli, sade ja linnut', 'ambience'),
+      row('Musiikki', 'music'),
+    );
+    return box;
+  }
+
   /** Tekijät, kartta-aineistojen lähdemaininnat ja kirjastojen lisenssit. */
   showCredits(onBack: () => void): void {
     const panel = this.panel();
@@ -383,12 +423,14 @@ export class Screens {
     onQuit: () => void,
     multiplayer = false,
     tackle?: { current: Tackle; onChange: (t: Tackle) => void },
+    audio?: { current: AudioSettings; onChange: (a: AudioSettings) => void },
   ): void {
     const panel = this.panel();
     panel.append(
       h('h2', multiplayer ? 'Valikko' : 'Tauko'),
       ...(multiplayer ? [h('p', 'Kisa jatkuu muilla taustalla.', 'hint')] : []),
       ...(tackle ? [this.tackleEditor(tackle.current, tackle.onChange)] : []),
+      ...(audio ? [this.audioEditor(audio.current, audio.onChange)] : []),
       this.buttons([
         ['Jatka', onResume],
         [multiplayer ? 'Poistu kisasta' : 'Lopeta kisa', onQuit],
