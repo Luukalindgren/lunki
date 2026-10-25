@@ -6,9 +6,14 @@ import { expect, type Page } from '@playwright/test';
  */
 export function watchErrors(page: Page) {
   const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
+  // Virheet myös testin tulosteeseen, jotta CI:n lokista näkee syyn.
+  const add = (e: string) => {
+    errors.push(e);
+    console.log(e);
+  };
+  page.on('pageerror', (e) => add(`pageerror: ${e.message}`));
   page.on('console', (m) => {
-    if (m.type() === 'error') errors.push(`console: ${m.text()}`);
+    if (m.type() === 'error') add(`console: ${m.text()}`);
   });
   return {
     errors,

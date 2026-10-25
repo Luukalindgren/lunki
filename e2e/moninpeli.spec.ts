@@ -30,7 +30,8 @@ test('moninpeli: Chromium, Firefox ja iPhone samassa huoneessa', async ({
       options: BrowserContextOptions,
       name: string,
     ): Promise<Page> => {
-      const browser = await launcher.launch();
+      // Ei chromium-projektin käynnistysvalitsimia (SwiftShader) muille selaimille.
+      const browser = await launcher.launch({ args: [] });
       others.push(browser);
       const ctx = await browser.newContext({ ...options, baseURL: 'http://localhost:4173' });
       const page = await ctx.newPage();
