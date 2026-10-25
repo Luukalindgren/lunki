@@ -24,9 +24,10 @@ describe('kilpailu', () => {
     const c = createCompetition({ durationMinutes: 10, difficulty: 'easy', winRule: 'total' });
     stepCompetition(c, 12.5);
     expect(recordCatch(c, perch(0.2))?.time).toBe(12.5);
+    expect(recordCatch(c, perch(0.25), { x: 3, y: -4 })?.at).toEqual({ x: 3, y: -4 });
     stepCompetition(c, 600);
     expect(recordCatch(c, perch(0.3))).toBeNull();
-    expect(c.catches).toHaveLength(1);
+    expect(c.catches).toHaveLength(2);
   });
 
   it('yhteenveto voittoehdon mukaan', () => {

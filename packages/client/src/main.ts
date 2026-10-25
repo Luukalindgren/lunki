@@ -7,6 +7,7 @@ import {
   isTimeOfDay,
   isWeatherLevel,
   parseRoomCode,
+  type CatchRecord,
   type CompetitionSettings,
   type TimeOfDay,
   type WeatherLevel,
@@ -21,6 +22,8 @@ import { SoloGame } from './game/soloGame';
 import { loadTackle, saveTackle } from './game/tackle';
 import { loadAppearance, saveAppearance } from './game/appearance';
 import { Hud } from './ui/hud';
+import { describeSpot } from './ui/lakeMap';
+import type { WeighCardInfo } from './ui/weighCard';
 import { ChatBox } from './ui/chat';
 import { TouchControls, isTouchDevice } from './ui/touchControls';
 import { Screens, loadSettings } from './ui/screens';
@@ -153,8 +156,26 @@ async function showRecords() {
   if (!cancelled && !game) screens.showRecords(board, settings.difficulty, showMenu);
 }
 
+/** Punnituskortti oman kisan suurimmasta kalasta; null, jos saalista ei tullut. */
+function weighCardFor(g: SoloGame): WeighCardInfo | null {
+  const biggest = g.competition.catches.reduce<CatchRecord | null>(
+    (best, c) => (!best || c.weight > best.weight ? c : best),
+    null,
+  );
+  if (!biggest) return null;
+  return {
+    fish: biggest,
+    angler: loadIdentity().name,
+    appearance: loadAppearance(),
+    timeOfDay: g.settings.timeOfDay ?? 'day',
+    spot: biggest.at ? describeSpot(biggest.at) : null,
+    date: new Date(),
+  };
+}
+
 function showResults() {
   if (!game) return;
+  const card = weighCardFor(game);
   hud.setVisible(false);
   if (session) {
     const s = session;
@@ -169,6 +190,7 @@ function showResults() {
       leaveRoom,
       new Map(v.players.map((p) => [p.sessionId, p.tackle])),
       (parent) => chat?.mount(parent, 'panel'),
+      card,
     );
     return;
   }
@@ -176,6 +198,7 @@ function showResults() {
     game.competition,
     () => startGame(settings),
     () => showMenu(),
+    card,
   );
 }
 

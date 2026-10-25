@@ -51,6 +51,13 @@ import {
 import type { LobbyView } from '../net/session';
 import { LIBRARIES } from './credits';
 import { fishImage } from './fishArt';
+import {
+  cardBlob,
+  cardFileName,
+  drawWeighCard,
+  weighCardText,
+  type WeighCardInfo,
+} from './weighCard';
 import { LakeMapView, describeSpot } from './lakeMap';
 import { drawTubePreview } from './tubePreview';
 import { VOLUME_LEVELS, type AudioSettings, type VolumeLevel } from '../audio/settings';
@@ -637,6 +644,7 @@ export class Screens {
     onLeave: () => void,
     tackles?: ReadonlyMap<string, Tackle>,
     chat?: (parent: HTMLElement) => void,
+    card?: WeighCardInfo | null,
   ): void {
     const panel = this.panel();
     panel.dataset.screen = 'race-results';
@@ -673,6 +681,7 @@ export class Screens {
         'hint',
       ),
     );
+    if (card) panel.append(this.weighCard(card));
     if (chat) chat(panel);
     panel.append(
       this.buttons(
@@ -688,7 +697,12 @@ export class Screens {
     this.show(panel);
   }
 
-  showResults(c: CompetitionState, onAgain: () => void, onMenu: () => void): void {
+  showResults(
+    c: CompetitionState,
+    onAgain: () => void,
+    onMenu: () => void,
+    card?: WeighCardInfo | null,
+  ): void {
     const panel = this.panel();
     const sum = summarize(c.catches, c.settings.winRule);
     panel.append(
@@ -718,6 +732,7 @@ export class Screens {
           'total',
         ),
       );
+      if (card) panel.append(this.weighCard(card));
     }
     panel.append(
       h(
@@ -731,6 +746,58 @@ export class Screens {
       ]),
     );
     this.show(panel);
+  }
+
+  /** Kisan suurimman kalan punnituskortti: tallennus kuvana ja jakaminen. */
+  private weighCard(info: WeighCardInfo): HTMLElement {
+    const box = document.createElement('div');
+    box.className = 'weigh-card-box';
+    const canvas = drawWeighCard(info);
+    const status = h('p', '', 'hint');
+    const url = location.origin + location.pathname;
+    const save = async () => {
+      const blob = await cardBlob(canvas);
+      if (!blob) return;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = cardFileName(info);
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      status.textContent = 'Kuva tallennettu';
+    };
+    const share = async () => {
+      const text = weighCardText(info, url);
+      const blob = await cardBlob(canvas);
+      try {
+        const file = blob ? new File([blob], cardFileName(info), { type: 'image/png' }) : null;
+        if (file && navigator.canShare?.({ files: [file] })) {
+          await navigator.share({ files: [file], text });
+          return;
+        }
+        if (blob && typeof ClipboardItem !== 'undefined') {
+          await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+          status.textContent = 'Kuva kopioitu – liitä se viestiin kavereille';
+          return;
+        }
+        await navigator.clipboard.writeText(text);
+        status.textContent = 'Teksti kopioitu – liitä se viestiin kavereille';
+      } catch (err) {
+        // Käyttäjä perui jakamisen tai selain esti leikepöydän.
+        if ((err as Error).name !== 'AbortError') {
+          status.textContent = 'Jakaminen ei onnistunut – tallenna kuva';
+        }
+      }
+    };
+    box.append(
+      h('p', 'Punnituskortti: kisan suurin kalasi', 'choice-label'),
+      canvas,
+      this.buttons([
+        ['Jaa', () => void share()],
+        ['Tallenna kuva', () => void save()],
+      ]),
+      status,
+    );
+    return box;
   }
 
   private panel(): HTMLDivElement {
