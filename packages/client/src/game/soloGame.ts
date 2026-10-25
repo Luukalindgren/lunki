@@ -484,8 +484,9 @@ export class SoloGame {
     // Pientä aaltoa (suojaisessa poukamassa tai heikossa tuulessa) ei huomaa.
     const felt = h >= BIG_WAVE.capsizeHeight / 2;
     while (this.nextWave < this.bigWaves.length && this.bigWaves[this.nextWave]!.t <= now) {
-      this.nextWave++;
-      if (felt) this.sfx.wave();
+      const t = this.bigWaves[this.nextWave++]!.t;
+      // Kisaan palatessa ohi menneet aallot eivät kuulu kerralla.
+      if (felt && now - t < 1) this.sfx.wave();
       if (!this.net && this.capsizeLeft === 0 && capsizes(this.tube.heading, w.windDir, h)) {
         this.capsizedUntil = now + BIG_WAVE.recover;
         this.onCapsize('wave');

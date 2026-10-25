@@ -97,7 +97,7 @@ export class NetWorld {
   /** Siimasotku selvisi. */
   onUntangled: ((msg: UntangledMessage) => void) | null = null;
   onRecord: ((msg: RecordMessage) => void) | null = null;
-  /** Toinen pelaaja nosti kalan: sama kala pois omasta kalakannasta. */
+  /** Kala nostettiin (yleensä toinen pelaaja): sama kala pois omasta kalakannasta. */
   onRemoteCatch: ((fish: FishTag, angler: string) => void) | null = null;
   private seenCatches = 0;
 
@@ -261,9 +261,11 @@ export class NetWorld {
     this.latestOthers = others;
     const catches = [...s.catches];
     if (catches.length < this.seenCatches) this.seenCatches = 0;
+    // Myös omat: sivun uudelleenlatauksen jälkeen kalakanta on luotu alusta, ja
+    // jo nostetut kalat pitää poistaa. Kesken kisan nostettu oma kala on jo
+    // korvattu seuraavalla sukupolvella, joten sen tunniste ei enää osu.
     for (const c of catches.slice(this.seenCatches))
-      if (c.player !== this.session.sessionId && c.fishSlot >= 0)
-        this.onRemoteCatch?.({ slot: c.fishSlot, gen: c.fishGen }, c.angler);
+      if (c.fishSlot >= 0) this.onRemoteCatch?.({ slot: c.fishSlot, gen: c.fishGen }, c.angler);
     this.seenCatches = catches.length;
   }
 
