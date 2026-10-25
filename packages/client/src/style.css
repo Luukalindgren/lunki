@@ -278,6 +278,8 @@ body {
   width: 100%;
   /* Ikkunan korkeus miinus .screen-reunus (32 px), oma täyte (40 px) ja kehys (8 px). */
   max-height: calc(100vh - 80px);
+  /* iPhonen Safarissa 100vh ulottuu työkalupalkin alle: alimmat napit jäisivät piiloon. */
+  max-height: calc(100dvh - 80px);
   overflow: auto;
   background: #1c232b;
   border: 4px solid #5f6b78;
@@ -1098,6 +1100,7 @@ body {
 @media (max-height: 500px) {
   .lake-map-canvas {
     max-height: 52vh;
+    max-height: 52dvh;
   }
 
   .screen-panel.map-panel h2 {

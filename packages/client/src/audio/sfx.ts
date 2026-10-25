@@ -24,7 +24,8 @@ export class Sfx {
   /** Kutsutaan käyttäjän syötteestä. */
   unlock(): void {
     if (this.ctx) {
-      if (this.ctx.state === 'suspended') void this.ctx.resume();
+      // iOS keskeyttää äänen ('interrupted') puhelun tai taustalle siirron ajaksi.
+      if (this.ctx.state !== 'running' && this.ctx.state !== 'closed') void this.ctx.resume();
       return;
     }
     try {
