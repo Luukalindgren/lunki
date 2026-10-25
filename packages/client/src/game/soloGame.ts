@@ -1024,7 +1024,7 @@ export class SoloGame {
     if (events.caught) {
       sfx.caught();
       this.net?.world.sendCatch(events.caught);
-      const record = recordCatch(this.competition, events.caught);
+      const record = recordCatch(this.competition, events.caught, this.tube.pos);
       this.fishingView.startSplash(this.fishing.lure);
       const catches = this.competition.catches;
       const biggest = catches.every((c) => c === record || c.weight < events.caught!.weight);
