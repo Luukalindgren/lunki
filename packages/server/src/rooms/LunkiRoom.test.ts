@@ -4,6 +4,8 @@ import {
   ClientMsg,
   LUNKINJARVI,
   ROOM_NAME,
+  ERRORS_PATH,
+  FEEDBACK_PATH,
   RECORDS_PATH,
   ServerMsg,
   TubePredictor,
@@ -31,11 +33,14 @@ import {
   type Strike,
 } from '@lunki/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { openDatabase } from '../db/open';
+import { FeedbackStore } from '../feedback/store';
 import { RecordStore } from '../records/store';
 import { createServer } from '../server';
 
 const PORT = 25000 + Math.floor(Math.random() * 5000);
 let server: Server;
+let feedback: FeedbackStore;
 const sdk = () => new Client(`ws://localhost:${PORT}`);
 
 /** Odottaa, kunnes ehto täyttyy (tilan päivitykset tulevat asynkronisesti). */
@@ -54,7 +59,9 @@ const players = (room: Room): PlayerView[] => [
 ];
 
 beforeAll(async () => {
-  server = createServer(new RecordStore(':memory:'));
+  const db = openDatabase(':memory:');
+  feedback = new FeedbackStore(db);
+  server = createServer({ records: new RecordStore(db), feedback });
   await server.listen(PORT);
 });
 
@@ -144,6 +151,24 @@ describe('LunkiRoom', () => {
     expect(gear()).toMatchObject({ rod: 'medium', line: 'medium', leader: false });
     await host.leave();
     await guest.leave();
+  });
+
+  it('palaute ja virheraportit tallentuvat palvelimelle', async () => {
+    const post = (path: string, body: unknown) =>
+      fetch(`http://localhost:${PORT}${path}`, {
+        method: 'POST',
+        headers: { 'content-type': 'text/plain' },
+        body: JSON.stringify(body),
+      });
+    const ok = await post(FEEDBACK_PATH, { name: 'Luuka', text: ' Hauki karkasi! ', context: 'x' });
+    expect(ok.status).toBe(200);
+    expect((await post(FEEDBACK_PATH, { name: 'tyhjä', text: '   ' })).status).toBe(400);
+    expect(feedback.feedback()[0]).toMatchObject({ name: 'Luuka', text: 'Hauki karkasi!' });
+
+    const err = { message: 'TypeError: x is undefined', source: 'main.js:1:2', stack: 's' };
+    await post(ERRORS_PATH, err);
+    await post(ERRORS_PATH, { ...err, stack: 's2' });
+    expect(feedback.errors()).toMatchObject([{ message: err.message, count: 2, stack: 's2' }]);
   });
 
   it('tuntematon koodi ei kelpaa', async () => {

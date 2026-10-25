@@ -325,7 +325,8 @@ body {
   max-width: calc(100% - 64px);
 }
 
-.screen input[type='text'] {
+.screen input[type='text'],
+.screen textarea {
   font: inherit;
   font-size: 26px;
   width: 100%;
@@ -336,7 +337,14 @@ body {
   padding: 4px 10px;
 }
 
-.screen input[type='text']:focus {
+.screen textarea {
+  margin-top: 8px;
+  font-size: 20px;
+  resize: vertical;
+}
+
+.screen input[type='text']:focus,
+.screen textarea:focus {
   border-color: #f6d04d;
   outline: none;
 }

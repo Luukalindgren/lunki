@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { RECORDS_PER_SPECIES, type RecordEntry } from '@lunki/shared';
+import { openDatabase } from '../db/open';
 import { RecordStore } from './store';
 
 const entry = (weight: number, p: Partial<RecordEntry> = {}): RecordEntry => ({
@@ -16,7 +17,7 @@ const entry = (weight: number, p: Partial<RecordEntry> = {}): RecordEntry => ({
 
 describe('ennätykset', () => {
   it('listaa suurimmat lajeittain ja vaikeustasoittain', () => {
-    const s = new RecordStore(':memory:');
+    const s = new RecordStore(openDatabase(':memory:'));
     expect(s.add(entry(0.3))).toBe(1);
     expect(s.add(entry(0.5))).toBe(1);
     expect(s.add(entry(0.4))).toBe(2);
@@ -39,10 +40,10 @@ describe('ennätykset', () => {
     const dir = mkdtempSync(join(tmpdir(), 'lunki-'));
     try {
       const path = join(dir, 'data', 'lunki.sqlite');
-      const a = new RecordStore(path);
+      const a = new RecordStore(openDatabase(path));
       a.add(entry(1.25, { species: 'zander' }));
       a.close();
-      const b = new RecordStore(path);
+      const b = new RecordStore(openDatabase(path));
       expect(b.board().normal?.zander).toEqual([entry(1.25, { species: 'zander' })]);
       b.close();
     } finally {

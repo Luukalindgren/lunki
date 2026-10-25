@@ -76,6 +76,21 @@ Kutsulinkki kuljettaa `palvelin`-parametrin mukanaan kavereille.
 Pysyvä Cloudflare-osoite onnistuu nimetyllä tunnelilla, mutta se vaatii
 Cloudflare-tilin ja oman verkkotunnuksen.
 
+## Palaute ja virheet
+
+Testaajat voivat lähettää palautetta alkuvalikon **Palaute**-napista. Julkaistu
+versio lähettää lisäksi selaimessa sattuneet käsittelemättömät virheet
+palvelimelle (enintään 5 sivun latausta kohden, sama virhe kerran). Molemmat
+tallentuvat samaan tietokantaan kuin ennätykset. Pelikoneella ne näkee
+komennolla:
+
+```powershell
+pnpm report
+```
+
+Tulosteessa näkyy palautteen kirjoittaja, teksti sekä selain ja pelin versio
+(commitin alku). Virheistä näkyy, montako kertaa sama virhe on toistunut.
+
 ## Vianetsintä
 
 | Oire                            | Syy ja korjaus                                                                                       |
