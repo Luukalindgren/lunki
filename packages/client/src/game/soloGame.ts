@@ -432,7 +432,7 @@ export class SoloGame {
     this.view.snapTo(this.tube.pos);
     hud.setCountdown(null);
     if (net) {
-      this.remoteView = new RemotePlayersView(net.overlay);
+      this.remoteView = new RemotePlayersView(net.overlay, this.hud.root);
       this.scene.add(this.remoteView.group);
       net.world.onEmote = (m) => {
         this.remoteView?.showEmote(m.from, m.emote);

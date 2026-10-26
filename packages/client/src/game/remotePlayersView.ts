@@ -39,10 +39,11 @@ export class RemotePlayersView {
   /** Ele tai viesti pelaajalle, jota ei vielä ole piirretty. */
   private readonly pending = new Map<string, { content: BubbleContent; at: number }>();
 
-  constructor(parent: HTMLElement) {
+  /** `below`: lappukerros tämän (HUD) alle, ettei se peitä nappeja ja paneeleja (#277). */
+  constructor(parent: HTMLElement, below: Element | null = null) {
     this.tags = document.createElement('div');
     this.tags.className = 'name-tags';
-    parent.appendChild(this.tags);
+    parent.insertBefore(this.tags, below?.parentNode === parent ? below : null);
   }
 
   /** Pelaajan käsimerkki: animaatio ja kupla. */
