@@ -352,6 +352,8 @@ body {
   margin-bottom: -20px;
   padding: 10px 0 20px;
   background: #1c232b;
+  /* Vierivän sisällön (esim. värinappien) päälle. */
+  z-index: 2;
 }
 
 .screen button {
@@ -1273,7 +1275,7 @@ body {
 }
 
 .screen-panel .settings .swatches {
-  gap: 6px;
+  gap: 8px;
 }
 
 .screen-panel .settings button.swatch {
@@ -1284,14 +1286,12 @@ body {
   border: 2px solid #39424d;
 }
 
-/* Valittu: tumma ja vaalea kaksoisreunus, isompi koko ja ruksi, jotta erottuu kaikilla väreillä. */
+/* Valittu: tumma ja keltainen kaksoisreunus sekä ruksi, jotta erottuu kaikilla väreillä.
+   Ei skaalausta eikä reunusta yli puolen välistä, ettei valinta peitä viereisiä värejä
+   tai paneelin alareunan painikkeita. */
 .screen-panel .settings button.swatch.selected {
-  z-index: 1;
   border: 3px solid #0b0f14;
-  box-shadow:
-    0 0 0 3px #f6d04d,
-    0 0 0 5px #0b0f14;
-  transform: scale(1.12);
+  box-shadow: 0 0 0 3px #f6d04d;
 }
 
 .screen-panel .settings button.swatch.selected::after {
