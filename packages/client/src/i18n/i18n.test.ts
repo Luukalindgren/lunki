@@ -95,6 +95,12 @@ describe('käännökset', () => {
       expect(finnish.test(text.replace(allowed, '')), `${key}: ${text}`).toBe(false);
   });
 
+  it('kalastuskisa on englanniksi competition, ei race (#250)', () => {
+    for (const [key, text] of Object.entries(en))
+      expect(text, `${key}: ${text}`).not.toMatch(/\brac(e|es|ing)\b/i);
+    expect(en['settings.startRace']).toBe('Start the competition');
+  });
+
   it('kieli tallennetusta valinnasta tai selaimen kielestä', () => {
     expect(detectLang('en', 'fi-FI')).toBe('en');
     expect(detectLang('fi', 'en-US')).toBe('fi');
