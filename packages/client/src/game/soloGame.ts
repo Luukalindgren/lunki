@@ -120,6 +120,7 @@ import { fishLengthCm } from '../ui/fishArt';
 import { FishingView } from './fishingView';
 import { rodSideOffset } from './lineHang';
 import { PovRod } from './povRod';
+import { PovTube } from './povTube';
 import { loadTackle, nextLure, saveTackle } from './tackle';
 import { TopDownCamera } from './topDownCamera';
 import { QuietSpot } from './quietSpot';
@@ -174,6 +175,9 @@ export class SoloGame {
   private readonly scenery = new THREE.Group();
   private readonly mapOverlay = new THREE.Group();
   private readonly povRod = new PovRod();
+  private readonly povTube: PovTube;
+  /** Pikapotku päällä (kalastajan silmin näkyvät räpylät, #230). */
+  private sprinting = false;
   /** Pelaaja kelaa (kelan kampi pyörii kalastajan silmin). */
   private cranking = false;
   readonly water: WaterBody;
@@ -389,6 +393,9 @@ export class SoloGame {
     this.scene.add(this.scenery, this.mapOverlay);
     this.povRod.group.visible = false;
     this.scene.add(this.povRod.group);
+    this.povTube = new PovTube(this.appearance);
+    this.povTube.group.visible = false;
+    this.scene.add(this.povTube.group);
     this.fishingView.lineColor = this.appearance.line;
     this.scene.add(this.fishingView.group, this.youMarker.group);
     if (this.spectating) {
@@ -510,6 +517,7 @@ export class SoloGame {
     this.scenery.visible = pov;
     this.mapOverlay.visible = !pov;
     this.povRod.group.visible = pov && !this.spectating;
+    this.povTube.group.visible = pov && !this.spectating;
     this.tubeMesh.visible = !pov && !this.spectating;
     for (const o of this.topViewOnly) o.visible = !pov;
     this.sky.dome.visible = pov;
@@ -871,6 +879,7 @@ export class SoloGame {
       );
       this.tube = collideTubeWithShore(this.tube, next, this.water);
     }
+    this.sprinting = !capsized && readTubeInput(input).sprint;
 
     const f = this.fishing;
     const castHeld = this.castControl.castHeld(f.stage, {
@@ -1414,6 +1423,44 @@ export class SoloGame {
     }
   }
 
+  /**
+   * Kalastajan silmin näkyvä rengas, sääret ja räpylät (#230): keinunta,
+   * potkut, käännökset, kaatuminen ja ison kalan veto siiman suuntaan.
+   */
+  private updatePovTube(pos: Vec2, heading: number, capsize: number, flying: boolean): void {
+    const tube = this.povTube;
+    tube.group.visible = !this.spectating && !flying;
+    if (!tube.group.visible) return;
+    const f = this.fishing;
+    let pull = 0;
+    if (f.hookedId !== null) {
+      const side = Math.sin(Math.atan2(f.lure.y - pos.y, f.lure.x - pos.x) - heading);
+      pull = -side * Math.min(1, f.tension / breakingStrength(f.tackle));
+    }
+    const now = performance.now();
+    tube.update(
+      toWorld(pos, 0),
+      heading,
+      {
+        kickPhase: this.tube.kickPhase,
+        sprint: this.sprinting,
+        angVel: this.tube.angVel,
+        roll: this.rock.roll,
+        pitch: this.rock.pitch,
+        lift: this.rock.lift,
+        capsize,
+        pull,
+        clarity: this.daylight.light,
+        emote: this.emoting?.id ?? null,
+        emoteAge: this.emoting ? (now - this.emoting.start) / 1000 : 0,
+      },
+      Math.min(0.1, (now - this.povTubeTime) / 1000),
+    );
+    this.povTubeTime = now;
+  }
+
+  private povTubeTime = performance.now();
+
   private toggleEmoteMenu(): void {
     if (!this.emoteMenu) {
       this.emoteMenu = new EmoteMenu(this.hud.root);
@@ -1563,6 +1610,7 @@ export class SoloGame {
               pitch: this.rock.pitch,
             },
       );
+      this.updatePovTube(pos, heading, roll, air !== null);
       // Vapa oikeasta kädestä kärkeen; kärki on siiman alkupiste.
       const side = rodSideOffset(heading);
       const tip = rodTip(pos, heading);
