@@ -46,6 +46,12 @@ export const SPECIES_PIN_COLORS: Record<SpeciesId, string> = {
   roach: '#e05a4f',
   zander: '#c3cbd2',
   trout: '#d98ee6',
+  bream: '#c9b98a',
+  ruffe: '#8a6a42',
+  burbot: '#6fb0d8',
+  ide: '#f6d04d',
+  rainbow: '#e58aa0',
+  carp: '#b88a3a',
 };
 
 /** 2026-10-25 → 25.10.2026 (englanniksi 25 Oct 2026) */

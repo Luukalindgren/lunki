@@ -1379,6 +1379,10 @@ export class SoloGame {
       hud.showMessage(flyGear ? t('game.missedFly') : t('game.missed'), 2);
       sfx.eventVoice('missed');
     }
+    if (events.jumped) {
+      sfx.splash();
+      hud.showMessage(t('game.jumped'), 1.5);
+    }
     if (events.escaped) {
       sfx.lost();
       sfx.eventVoice('escaped');

@@ -6,7 +6,18 @@ import type { WeatherNow } from '../weather/weather';
 import type { DifficultyParams } from './difficulty';
 import { baitOf, tackleAppeal, type Tackle } from './gear';
 
-export type SpeciesId = 'perch' | 'pike' | 'roach' | 'zander' | 'trout';
+export type SpeciesId =
+  | 'perch'
+  | 'pike'
+  | 'roach'
+  | 'zander'
+  | 'trout'
+  | 'bream'
+  | 'ruffe'
+  | 'burbot'
+  | 'ide'
+  | 'rainbow'
+  | 'carp';
 
 /** Lajin ominaisuudet: koko, voima, elinalue ja käytös. */
 export interface Species {
@@ -92,6 +103,20 @@ export interface Behavior {
    * pimeällä. Puuttuu, jos laji pysyy pohjan tuntumassa (bottomOffset).
    */
   column?: { day: number; dark: number };
+  /**
+   * Vastaiskun ikkunan kerroin (1 = tavallinen): kuhan varovainen "napsu"
+   * pitää viehettä suussaan vain hetken.
+   */
+  strikeWindow?: number;
+  /**
+   * Seuraa viehettä pitkään ennen iskua (kerroin seuraamisen kestolle; isku
+   * on vastaavasti harvempi sekunnissa). Taimen.
+   */
+  follows?: number;
+  /** Hyppyjä sekunnissa paon aikana; löysällä siimalla kala irtoaa hypyssä. */
+  jumps?: number;
+  /** Pakojen pituuden kerroin väsytyksessä (karppi: pitkät pakoretket). */
+  runs?: number;
 }
 
 export const SPECIES: Record<SpeciesId, Species> = {
@@ -292,6 +317,8 @@ export const SPECIES: Record<SpeciesId, Species> = {
       dayDepth: [4, 99],
       dimDepth: [1.5, 4],
       column: { day: 0.95, dark: 0.6 },
+      // Isku on usein varovainen napsu: vastaiskun ikkuna on lyhyempi.
+      strikeWindow: 0.6,
     },
   },
   trout: {
@@ -341,6 +368,315 @@ export const SPECIES: Record<SpeciesId, Species> = {
       dayDepth: [2, 99],
       dimDepth: [1, 99],
       column: { day: 0.45, dark: 0.25 },
+      // Seuraa viehettä pitkään ennen iskua ja hyppii väsytyksessä.
+      follows: 1.8,
+      jumps: 0.3,
+    },
+  },
+  bream: {
+    id: 'bream',
+    name: 'Lahna',
+    native: true,
+    abundance: 1.6,
+    // Parvet mutapohjaisissa lahdissa ja syvänteen reunoilla.
+    schoolSize: 16,
+    schoolSpread: 10,
+    habitat: { minDepth: 2, maxDepth: 6 },
+    wanderShare: 0.2,
+    structures: ['weed', 'dropoff'],
+    structureShare: 0.2,
+    medianWeight: 0.8,
+    weightSpread: 0.55,
+    minWeight: 0.15,
+    maxWeight: 6,
+    trophyChance: 0.03,
+    trophyWeight: 2.5,
+    sizes: [1, 2, 3.5, 5],
+    giants: { giant: 1, huge: 2 },
+    // Raskas, kylki virtaa vasten, mutta ei nopeita pakoja.
+    pullPerKg: 1.4,
+    pullBase: 0.3,
+    endurancePerKg: 8,
+    senseRadius: 5,
+    // Pohjasta ruokaileva, ei petokala: tarttuu harvoin ja vain hitaaseen,
+    // pohjaa laahaavaan jigiin.
+    lureInterest: 0.25,
+    preferredSpeed: 0.15,
+    speedTolerance: 0.2,
+    roamSpeed: 0.2,
+    homeRange: 30,
+    chaseSpeed: 0.7,
+    runSpeed: 1.1,
+    bottomOffset: 0.3,
+    // Hämärässä ja yöllä parvi nousee ruokailemaan matalikoille.
+    behavior: {
+      night: 0.9,
+      twilight: 1.3,
+      day: 0.6,
+      cloud: 0.2,
+      wind: 0,
+      windShore: 0.15,
+      visual: false,
+      ambush: false,
+      competes: false,
+      prey: false,
+      dayDepth: [2.5, 6],
+      dimDepth: [1, 3],
+    },
+  },
+  ruffe: {
+    id: 'ruffe',
+    name: 'Kiiski',
+    native: true,
+    // Harvinainen: yllätys eikä riesa.
+    abundance: 0.5,
+    schoolSize: 12,
+    schoolSpread: 6,
+    habitat: { minDepth: 2, maxDepth: 8 },
+    wanderShare: 0.2,
+    structures: ['dropoff', 'rocks'],
+    structureShare: 0.25,
+    medianWeight: 0.04,
+    weightSpread: 0.45,
+    minWeight: 0.012,
+    maxWeight: 0.25,
+    trophyChance: 0.02,
+    trophyWeight: 0.12,
+    sizes: [0.06, 0.1, 0.15, 0.2],
+    giants: { giant: 1, huge: 1 },
+    // Ei juuri vastusta.
+    pullPerKg: 2,
+    pullBase: 0.08,
+    endurancePerKg: 8,
+    senseRadius: 4,
+    // Tarttuu herkästi pohjan tuntumassa uitettuun jigiin ja pieneen lippaan.
+    lureInterest: 1.1,
+    preferredSpeed: 0.2,
+    speedTolerance: 0.3,
+    roamSpeed: 0.15,
+    homeRange: 25,
+    chaseSpeed: 0.8,
+    runSpeed: 1,
+    bottomOffset: 0.2,
+    // Pimeän ja hämärän kala, päivälläkin aktiivinen syvällä.
+    behavior: {
+      night: 1.2,
+      twilight: 1.3,
+      day: 0.8,
+      cloud: 0.1,
+      wind: 0,
+      windShore: 0,
+      visual: false,
+      ambush: false,
+      competes: false,
+      prey: false,
+      dayDepth: [3, 99],
+      dimDepth: [2, 6],
+    },
+  },
+  burbot: {
+    id: 'burbot',
+    name: 'Made',
+    native: true,
+    abundance: 0.35,
+    // Yksin syvänteessä ja jyrkänteen alla kylmässä pohjavedessä.
+    schoolSize: 1,
+    schoolSpread: 0,
+    habitat: { minDepth: 4, maxDepth: 99 },
+    wanderShare: 0.15,
+    structures: ['dropoff', 'rocks', 'tree'],
+    structureShare: 0.4,
+    medianWeight: 0.6,
+    weightSpread: 0.55,
+    minWeight: 0.15,
+    maxWeight: 4,
+    trophyChance: 0.03,
+    trophyWeight: 1.5,
+    sizes: [0.8, 1.5, 2.5, 3.2],
+    giants: { giant: 1, huge: 2 },
+    // Kiemurteleva, ei pitkiä pakoja.
+    pullPerKg: 1.3,
+    pullBase: 0.3,
+    endurancePerKg: 6,
+    senseRadius: 6,
+    // Tarttuu yöllä pohjaan lasketun, paikallaan tai hitaasti nytkytetyn jigin perään.
+    lureInterest: 0.8,
+    preferredSpeed: 0.1,
+    speedTolerance: 0.25,
+    roamSpeed: 0.08,
+    homeRange: 15,
+    chaseSpeed: 0.8,
+    runSpeed: 1.2,
+    bottomOffset: 0.15,
+    // Lähes vain yöllä aktiivinen, kesällä hidas.
+    behavior: {
+      night: 1.8,
+      twilight: 0.9,
+      day: 0.08,
+      cloud: 0.2,
+      wind: 0,
+      windShore: 0,
+      visual: false,
+      ambush: false,
+      competes: false,
+      prey: false,
+      dayDepth: [4, 99],
+      dimDepth: [2, 99],
+    },
+  },
+  ide: {
+    id: 'ide',
+    name: 'Säyne',
+    native: false,
+    abundance: 0.7,
+    // Välivesi ja pinta, salmet ja syvänteen reunat.
+    schoolSize: 8,
+    schoolSpread: 8,
+    habitat: { minDepth: 1.5, maxDepth: 5 },
+    wanderShare: 0.35,
+    structures: ['dropoff', 'reeds'],
+    structureShare: 0.2,
+    medianWeight: 0.7,
+    weightSpread: 0.5,
+    minWeight: 0.2,
+    maxWeight: 4,
+    trophyChance: 0.03,
+    trophyWeight: 1.8,
+    sizes: [0.8, 1.5, 2.5, 3.2],
+    giants: { giant: 1, huge: 2 },
+    // Hyppivä, sitkeä taistelija.
+    pullPerKg: 2.4,
+    pullBase: 0.4,
+    endurancePerKg: 13,
+    senseRadius: 8,
+    // Tarttuu lippaan ja pieneen lusikkaan.
+    lureInterest: 0.75,
+    preferredSpeed: 0.5,
+    speedTolerance: 0.4,
+    roamSpeed: 0.35,
+    homeRange: 45,
+    chaseSpeed: 1.6,
+    runSpeed: 2.2,
+    bottomOffset: 1.5,
+    // Iltaisin pinnassa hyönteisten perässä.
+    behavior: {
+      night: 0.4,
+      twilight: 1.6,
+      day: 0.8,
+      cloud: 0.2,
+      wind: 0.1,
+      windShore: 0.2,
+      visual: true,
+      ambush: false,
+      competes: false,
+      prey: false,
+      dayDepth: [2, 5],
+      dimDepth: [0.5, 3],
+      column: { day: 0.5, dark: 0.15 },
+      jumps: 0.25,
+    },
+  },
+  rainbow: {
+    id: 'rainbow',
+    name: 'Kirjolohi',
+    native: false,
+    abundance: 0.6,
+    // Istutettu: partioi laajasti ja nopeasti avovedessä.
+    schoolSize: 4,
+    schoolSpread: 12,
+    habitat: { minDepth: 2, maxDepth: 99 },
+    wanderShare: 0.6,
+    structures: [],
+    structureShare: 0,
+    medianWeight: 1.2,
+    weightSpread: 0.45,
+    minWeight: 0.4,
+    maxWeight: 7,
+    trophyChance: 0.03,
+    trophyWeight: 3,
+    sizes: [1.5, 2.5, 4, 5.5],
+    giants: { giant: 1, huge: 2 },
+    pullPerKg: 2.8,
+    pullBase: 0.5,
+    endurancePerKg: 14,
+    senseRadius: 11,
+    // Ahne: tarttuu hyvin lusikkaan ja lippaan.
+    lureInterest: 1.25,
+    preferredSpeed: 1.1,
+    speedTolerance: 0.6,
+    roamSpeed: 0.6,
+    homeRange: 70,
+    chaseSpeed: 2.6,
+    runSpeed: 3,
+    bottomOffset: 2,
+    // Viihtyy viileässä: kirkkaalla syvemmällä, hämärässä pinnassa. Hyppii väsytyksessä.
+    behavior: {
+      night: 0.4,
+      twilight: 1.3,
+      day: 0.9,
+      cloud: 0.3,
+      wind: 0.2,
+      windShore: 0.1,
+      visual: true,
+      ambush: false,
+      competes: false,
+      prey: false,
+      dayDepth: [3, 99],
+      dimDepth: [1, 99],
+      column: { day: 0.55, dark: 0.2 },
+      jumps: 0.6,
+    },
+  },
+  carp: {
+    id: 'carp',
+    name: 'Karppi',
+    native: false,
+    abundance: 0.3,
+    // Istutettu: lämmin, matala ja kasvillisuuden reunustama mutapohja.
+    schoolSize: 4,
+    schoolSpread: 6,
+    habitat: { minDepth: 0.8, maxDepth: 3 },
+    wanderShare: 0.1,
+    structures: ['weed', 'reeds'],
+    structureShare: 0.5,
+    medianWeight: 3,
+    weightSpread: 0.5,
+    minWeight: 0.8,
+    maxWeight: 18,
+    trophyChance: 0.04,
+    trophyWeight: 8,
+    sizes: [4, 7, 10, 14],
+    giants: { giant: 1, huge: 2 },
+    // Erittäin voimakas, pitkät pakoretket: jarru pitää säätää.
+    pullPerKg: 1.5,
+    pullBase: 1,
+    endurancePerKg: 10,
+    senseRadius: 5,
+    // Hyvin varovainen pohjasta ruokailija: tarttuu harvoin, lähinnä hitaasti
+    // pohjaa pitkin uitettuun jigiin.
+    lureInterest: 0.12,
+    preferredSpeed: 0.12,
+    speedTolerance: 0.15,
+    roamSpeed: 0.15,
+    homeRange: 30,
+    chaseSpeed: 0.6,
+    runSpeed: 2.2,
+    bottomOffset: 0.2,
+    // Aktiivisin hämärässä ja yöllä.
+    behavior: {
+      night: 1.3,
+      twilight: 1.4,
+      day: 0.6,
+      cloud: 0.1,
+      wind: 0,
+      windShore: 0.2,
+      visual: false,
+      ambush: false,
+      competes: false,
+      prey: false,
+      dayDepth: [1, 3],
+      dimDepth: [0.6, 2],
+      runs: 2,
     },
   },
 };
@@ -952,21 +1288,24 @@ export function stepFishPopulation(
       f.depth += (lure.depth - f.depth) * Math.min(1, dt * 1.5);
       const appeal = lureAppeal(f, lure);
       const ambush = sp.behavior.ambush;
+      // Taimen seuraa pitkään ja iskee vasta harkittuaan.
+      const follows = sp.behavior.follows ?? 1;
       // Viehe liian lähellä kalastajaa: kala kääntyy pois. Väijyjä ei lähde
       // kauas paikaltaan ja ratkaisee nopeasti, iskeekö.
       if (
         distance(lure.pos, lure.tip) < 3.5 ||
-        f.timer > (ambush ? 4 : 8) ||
+        f.timer > (ambush ? 4 : 8 * follows) ||
         (ambush && distance(f.pos, f.home) > sp.homeRange + sp.senseRadius)
       ) {
         loseInterest(f, rng);
         continue;
       }
       const a =
-        Math.sqrt(act[f.species]) *
-        (ambush ? 1.6 : 1) *
-        (1 + excite) *
-        wariness(size, act[f.species]);
+        (Math.sqrt(act[f.species]) *
+          (ambush ? 1.6 : 1) *
+          (1 + excite) *
+          wariness(size, act[f.species])) /
+        follows;
       if (
         near < 1.2 &&
         rng.chance((0.35 + appeal * 0.9) * sp.lureInterest * diff.biteRate * a, dt)
@@ -1233,7 +1572,9 @@ export function stepHookedFish(
   f.timer -= dt;
   if (f.timer <= 0) {
     f.running = !f.running && rng.next() < 0.3 + 0.7 * f.stamina;
-    f.timer = f.running ? rng.range(0.8, 2.5) * (0.4 + f.stamina) : rng.range(0.6, 1.8);
+    f.timer = f.running
+      ? rng.range(0.8, 2.5) * (0.4 + f.stamina) * (sp.behavior.runs ?? 1)
+      : rng.range(0.6, 1.8);
     if (f.running) {
       // Pakosuunta: pääosin poispäin kalastajasta, välillä sivulle.
       const away = Math.atan2(f.pos.y - tip.y, f.pos.x - tip.x);
