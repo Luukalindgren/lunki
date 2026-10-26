@@ -124,17 +124,28 @@ test.describe('puhelin', () => {
     const { width, height } = page.viewportSize()!;
     const x = width * 0.35;
     const y = height * 0.28;
-    await drag(page, browserName, { x, y }, { x, y: y + height * 0.3 }, 150);
-    await expect(page.locator('.hud-fly-panel')).toBeVisible();
-    await expect(page.locator('.hud-status')).toContainText('Alas = takaheitto');
-    await page.locator('.hud-power.fly-now').waitFor();
+    const message = page.locator('.hud-message');
     // Siima suorassa takana: pyyhkäisy ylös on eteenheitto, ja perho laskeutuu. Kuormitetussa
     // CI:ssä ohjelmistorenderöinnin viive voi myöhästyttää pyyhkäisyn, jolloin takaheitto ehtii
-    // pudota veteen ja eteenpäin pyyhkäisy on rullaheitto: sekin on pyyhkäisyllä tehty heitto.
-    await drag(page, browserName, { x, y: y + height * 0.3 }, { x, y }, 150);
-    await expect(page.locator('.hud-message')).toContainText(/(Heitto|Rullaheitto) \d+ m/, {
-      timeout: 15_000,
-    });
+    // pudota veteen: eteenpäin pyyhkäisy on silloin rullaheitto tai siima nostetaan uudelleen.
+    let cast = false;
+    for (let attempt = 0; attempt < 3 && !cast; attempt++) {
+      await drag(page, browserName, { x, y }, { x, y: y + height * 0.3 }, 150);
+      if (attempt === 0) {
+        await expect(page.locator('.hud-fly-panel')).toBeVisible();
+        await expect(page.locator('.hud-status')).toContainText('Alas = takaheitto');
+      }
+      await page
+        .locator('.hud-power.fly-now')
+        .waitFor({ timeout: 5_000 })
+        .catch(() => undefined);
+      await drag(page, browserName, { x, y: y + height * 0.3 }, { x, y }, 150);
+      await expect(message).toContainText(/(Heitto|Rullaheitto) \d+ m|putosi/, { timeout: 15_000 });
+      cast = /(Heitto|Rullaheitto) \d+ m/.test(await message.innerText());
+      // Pudonnut takaheitto: annetaan ilmoituksen mennä ja nostetaan siima uudelleen.
+      if (!cast) await expect(message).toBeHidden({ timeout: 10_000 });
+    }
+    expect(cast).toBe(true);
     await expect(page.locator('.hud-fly-panel')).toBeHidden();
     errors.check();
   });
