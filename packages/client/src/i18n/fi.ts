@@ -298,6 +298,7 @@ export const fi = {
   'records.board': 'Lista',
   'records.details': 'Tiedot',
   'records.showOnMap': 'Näytä kartalla',
+  'records.showCard': 'Näytä saaliskortti',
   'records.none': 'Ei vielä saaliita',
   'records.noPlaced':
     'Tällä vaikeustasolla ei vielä ole ennätyksiä, joiden saantipaikka on tallessa.',
@@ -349,6 +350,7 @@ export const fi = {
   'card.textCopied': 'Teksti kopioitu – liitä se viestiin kavereille',
   'card.shareFailed': 'Jakaminen ei onnistunut – tallenna kuva',
   'card.label': 'Punnituskortti: kisan suurin kalasi',
+  'card.recordLabel': 'Punnituskortti: ennätyskala',
   'card.share': 'Jaa',
   'card.save': 'Tallenna kuva',
   'card.heading': 'PUNNITUSKORTTI',

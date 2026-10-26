@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_APPEARANCE, type RecordEntry } from '@lunki/shared';
 import {
   SCENE_HEIGHT,
   SCENE_WIDTH,
   anglerScene,
   formatCardDate,
+  recordCard,
   sceneFishWidth,
   weighCardText,
   type WeighCardInfo,
@@ -49,5 +51,45 @@ describe('punnituskortti', () => {
     expect(text).toMatch(/\(\d+ cm\)/);
     expect(text).toContain('https://example.com/lunki/');
     expect(formatCardDate(info.date)).toBe('25.10.2026');
+  });
+});
+
+describe('punnituskortti ennätysrivistä (#238)', () => {
+  const old: RecordEntry = {
+    species: 'pike',
+    weight: 4.2,
+    angler: 'Luuka',
+    difficulty: 'normal',
+    date: '2026-10-24',
+  };
+
+  it('vanhassa ennätyksessä oletusulkonäkö, päivä ja ei kisa-aikaa', () => {
+    const card = recordCard(old, null);
+    expect(card.appearance).toEqual(DEFAULT_APPEARANCE);
+    expect(card.timeOfDay).toBe('day');
+    expect(Number.isFinite(card.fish.time)).toBe(false);
+    expect(card.date.getUTCDate()).toBe(24);
+    expect(card.fish.at).toBeUndefined();
+  });
+
+  it('uudessa ennätyksessä kalastajan oma ulkonäkö, aika ja paikka', () => {
+    const card = recordCard(
+      {
+        ...old,
+        appearance: look,
+        timeOfDay: 'evening',
+        raceTime: 312,
+        x: 10,
+        y: -4,
+        at: '2026-10-26T17:40:00.000Z',
+      },
+      'Syvyys 2,1 m',
+    );
+    expect(card.appearance).toEqual(look);
+    expect(card.timeOfDay).toBe('evening');
+    expect(card.fish.time).toBe(312);
+    expect(card.fish.at).toEqual({ x: 10, y: -4 });
+    expect(card.spot).toBe('Syvyys 2,1 m');
+    expect(card.date.toISOString()).toBe('2026-10-26T17:40:00.000Z');
   });
 });

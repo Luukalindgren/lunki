@@ -1494,3 +1494,25 @@ body {
     height: 38px;
   }
 }
+
+/* Punnituskortti ennätyslistan päällä (#238): himmennetty tausta, klikkaus ohi sulkee. */
+.screen-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(11 15 20 / 70%);
+}
+
+.screen-modal .modal-panel {
+  max-width: 640px;
+}
+
+/* Kortin painikkeet eivät jää paneelin alareunaan kuten näkymän omat. */
+.screen-modal .modal-panel > .buttons:last-child {
+  position: static;
+  margin: 18px 0 0;
+  padding: 0;
+}

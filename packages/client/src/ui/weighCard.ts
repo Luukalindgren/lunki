@@ -1,7 +1,9 @@
 import {
+  DEFAULT_APPEARANCE,
   formatTime,
   type Appearance,
   type CatchRecord,
+  type RecordEntry,
   type SpeciesId,
   type TimeOfDay,
 } from '@lunki/shared';
@@ -259,6 +261,30 @@ export const CARD_HEIGHT = SCENE_HEIGHT * CARD_SCALE + FRAME * 2;
 
 const css = (hex: number) => `#${hex.toString(16).padStart(6, '0')}`;
 
+/**
+ * Punnituskortti ennätysrivistä (#238). Vanhoista ennätyksistä puuttuvat
+ * ulkonäkö (oletusvärit), vuorokaudenaika (päivä) ja kisa-aika (ei näytetä).
+ * `spot` = paikan kuvaus tallennetusta sijainnista, jos se on tallessa.
+ */
+export function recordCard(r: RecordEntry, spot: string | null): WeighCardInfo {
+  const fish: CatchRecord = {
+    species: r.species,
+    name: speciesName(r.species),
+    weight: r.weight,
+    time: r.raceTime ?? NaN,
+  };
+  if (r.x !== undefined && r.y !== undefined) fish.at = { x: r.x, y: r.y };
+  return {
+    fish,
+    angler: r.angler,
+    appearance: r.appearance ?? DEFAULT_APPEARANCE,
+    timeOfDay: r.timeOfDay ?? 'day',
+    spot,
+    // Vanhoissa ennätyksissä on vain päivä: keskipäivä, ettei aikavyöhyke siirrä päivää.
+    date: new Date(r.at ?? `${r.date}T12:00:00Z`),
+  };
+}
+
 export const formatCardDate = (d: Date) =>
   formatDay(d.getDate(), d.getMonth() + 1, d.getFullYear());
 
@@ -335,7 +361,9 @@ function paintCard(canvas: HTMLCanvasElement, info: WeighCardInfo): void {
   line(formatWeight(f.weight), 76, 0xf6d04d, 2);
   line(`${Math.round(fishLengthCm(f.species, f.weight))} cm`, 36, 0xeef2f3, 14);
   line(
-    t('card.raceTime', { time: formatTime(f.time), timeOfDay: timeOfDayName(info.timeOfDay) }),
+    Number.isFinite(f.time)
+      ? t('card.raceTime', { time: formatTime(f.time), timeOfDay: timeOfDayName(info.timeOfDay) })
+      : timeOfDayName(info.timeOfDay),
     26,
     0xc3cbd2,
   );

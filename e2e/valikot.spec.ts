@@ -101,3 +101,43 @@ test.describe('valikot näppäimistöllä (#237)', () => {
     errors.check();
   });
 });
+
+test('ennätyslistan saaliskortti avautuu ja sulkeutuu (#238)', async ({
+  page,
+  request,
+  isMobile,
+}, info) => {
+  const errors = watchErrors(page);
+  // Oma ennätys yksinpelin listalle, kalastajan värit mukana.
+  const angler = `Kortti-${info.project.name}`.slice(0, 16);
+  const res = await request.post('http://localhost:2567/records/solo', {
+    headers: { 'content-type': 'text/plain' },
+    data: JSON.stringify({
+      species: 'pike',
+      weight: 3 + info.workerIndex / 100,
+      angler,
+      difficulty: 'normal',
+      timeOfDay: 'evening',
+      appearance: { tube: 0xf6d04d, fins: 0x1c232b, shirt: 0x2f9e8f, line: 0xc3cbd2 },
+    }),
+  });
+  expect(res.ok()).toBe(true);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Ennätykset' }).click();
+  await page.locator('.choice').first().getByRole('button', { name: 'Yksinpeli' }).click();
+  await page.locator('li.record-row', { hasText: angler }).click();
+  const open = page.getByRole('button', { name: 'Näytä saaliskortti' });
+  await open.click();
+  const modal = page.locator('.screen-modal');
+  await expect(modal.locator('canvas.weigh-card')).toBeVisible();
+  await expect(modal.getByRole('button', { name: 'Tallenna kuva' })).toBeVisible();
+  if (isMobile) await modal.getByRole('button', { name: 'Takaisin' }).click();
+  else {
+    await page.keyboard.press('Escape');
+    // Kohdistus palaa listaan samaan kohtaan.
+    await expect(open).toBeFocused();
+  }
+  await expect(modal).toHaveCount(0);
+  await expect(title(page)).toHaveText('Lunkinjärven ennätykset');
+  errors.check();
+});

@@ -66,6 +66,7 @@ describe('ennätykset', () => {
       rod: 'heavy',
       line: 'thick',
       leader: true,
+      appearance: { tube: 0xf6d04d, fins: 0x1c232b, shirt: 0x2f9e8f, line: 0xc3cbd2 },
     });
     s.add(full);
     s.add(entry(0.2, { leader: false }));

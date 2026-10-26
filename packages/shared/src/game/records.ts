@@ -1,6 +1,7 @@
 import { DIFFICULTIES, type Difficulty } from '../fishing/difficulty';
 import { SPECIES, type SpeciesId } from '../fishing/fish';
 import { LINES, LURES, RODS, type LineId, type LureId, type RodId } from '../fishing/gear';
+import { parseAppearance, type Appearance } from '../net/appearance';
 import { sanitizeName } from '../net/protocol';
 import { SKY_NAMES, type Sky } from '../weather/weather';
 import { TIME_OF_DAY_NAMES, type TimeOfDay } from '../weather/timeOfDay';
@@ -32,6 +33,8 @@ export interface RecordEntry {
   rod?: RodId;
   line?: LineId;
   leader?: boolean;
+  /** Kalastajan ulkonäkö punnituskorttiin (lokakuusta 2026 alkaen). */
+  appearance?: Appearance;
 }
 
 /** Ennätykset vaikeustasoittain ja lajeittain, suurin ensin. */
@@ -97,5 +100,7 @@ export function parseSoloRecord(v: unknown, now = new Date()): RecordEntry | nul
   if (has(RODS, o.rod)) e.rod = o.rod;
   if (has(LINES, o.line)) e.line = o.line;
   if (typeof o.leader === 'boolean') e.leader = o.leader;
+  const look = parseAppearance(o.appearance);
+  if (look) e.appearance = look;
   return e;
 }
