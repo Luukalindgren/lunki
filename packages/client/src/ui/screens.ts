@@ -497,12 +497,14 @@ export class Screens {
       );
       list.appendChild(li);
     }
+    // Katsojat eivät vie kalastajapaikkoja (#274).
+    const anglers = v.players.filter((p) => !p.spectator).length;
     panel.append(
       h('h2', t('lobby.title')),
       h('p', t('mp.roomCode'), 'hint'),
       code,
       copy,
-      h('p', t('lobby.players', { n: v.players.length, max: v.maxPlayers }), 'choice-label'),
+      h('p', t('lobby.players', { n: anglers, max: v.maxPlayers }), 'choice-label'),
       list,
     );
     // Esim. turnauksessa karsitut voivat katsoa seuraavaa kisaa.
@@ -525,7 +527,7 @@ export class Screens {
     }
     panel.append(
       v.amHost
-        ? this.settingsEditor(v.settings, v.players.length, actions.onSettings, actions.onPickStart)
+        ? this.settingsEditor(v.settings, anglers, actions.onSettings, actions.onPickStart)
         : this.settingsSummary(v.settings),
       // Katsoja ei kalasta, joten varusteita ei tarvita.
       ...(me?.spectator
