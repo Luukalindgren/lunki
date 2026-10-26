@@ -580,9 +580,12 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
    * pääse ja asiakas pyysi (JoinOptions.spectate), liitytään katsojaksi.
    */
   override onAuth(_client: Client, options: Partial<JoinOptions> = {}) {
+    // Oma katkennut paikka (sama selain) vapautuu liittyessä, joten sitä ei lasketa (#309).
+    const own = this.droppedSession(playerIdOf(options));
+    const ownSeat = own !== undefined && !this.state.players.get(own)?.spectator ? 1 : 0;
     const refusal =
       this.state.phase === 'lobby'
-        ? this.anglerCount() >= this.state.settings.maxPlayers
+        ? this.anglerCount() - ownSeat >= this.state.settings.maxPlayers
           ? JoinRefusal.full
           : null
         : this.lateJoinRefusal(options);
@@ -636,8 +639,9 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       client.send(ServerMsg.chatHistory, this.chatLog);
       return;
     }
-    // Sama selain uudesta välilehdestä: katkennut yhteys luovuttaa paikkansa.
-    const dropped = racing && id ? this.droppedSession(id) : undefined;
+    // Sama selain uudesta välilehdestä: katkennut yhteys luovuttaa paikkansa,
+    // myös aulassa, ettei sinne jää haamua ja kaksoisnimeä (#309).
+    const dropped = id ? this.droppedSession(id) : undefined;
     if (dropped) this.vacate(dropped);
     const seat = racing && id ? this.seats.get(id) : undefined;
     if (seat) this.seats.delete(id);
