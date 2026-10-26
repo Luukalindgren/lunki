@@ -18,7 +18,11 @@ export function watchErrors(page: Page) {
     add(`pageerror: ${e.message}`);
   });
   page.on('console', (m) => {
-    if (m.type() === 'error') add(`console: ${m.text()}`);
+    if (m.type() !== 'error') return;
+    // Firefox hylkää sivun keskeneräiset lupaukset uudelleenlatauksessa ja
+    // kirjaa sen virheeksi. Sivu on jo lähdössä, joten ohitetaan.
+    if (m.text().includes('InvalidStateError: Navigated away from page')) return;
+    add(`console: ${m.text()}`);
   });
   return {
     errors,
