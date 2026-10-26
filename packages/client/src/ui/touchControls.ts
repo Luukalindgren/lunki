@@ -88,12 +88,14 @@ export class TouchControls {
     this.cutButton = this.tap('touch.cut', 'KeyC', 'touch.cutTitle');
     this.lineButton = this.hold('touch.line', 'LineGrip', 'touch.lineTitle');
     this.lineButton.hidden = true;
+    const camButton = this.tap('touch.cam', 'KeyV', 'touch.camTitle');
+    camButton.classList.add('touch-cam');
     const grid = div('touch-grid');
     grid.append(
       this.tap('touch.lure', 'KeyR', 'touch.lureTitle'),
       this.tap('touch.sonar', 'KeyK', 'touch.sonarTitle'),
       this.tap('touch.depth', 'KeyL', 'touch.depthTitle'),
-      this.tap('touch.cam', 'KeyV', 'touch.camTitle'),
+      camButton,
       this.tap('touch.emote', 'KeyG', 'touch.emoteTitle'),
       this.tap('touch.dragLess', 'KeyQ', 'touch.dragLessTitle'),
       this.tap('touch.dragMore', 'KeyE', 'touch.dragMoreTitle'),
@@ -133,6 +135,11 @@ export class TouchControls {
   /** Chat on vain moninpelissä. */
   setMultiplayer(multiplayer: boolean): void {
     this.chatButton.hidden = !multiplayer;
+  }
+
+  /** Katsojalle vain näkymän napit: kalastajan ohjaimet eivät tee mitään (#280). */
+  setSpectator(spectator: boolean): void {
+    this.root.classList.toggle('spectator', spectator);
   }
 
   /**

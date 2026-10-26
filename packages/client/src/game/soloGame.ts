@@ -1573,7 +1573,7 @@ export class SoloGame {
       t('mp.spectating'),
       name ? t('game.following', { name }) : t('game.nobody'),
       this.hud.touchMode ? t('game.nextTouch') : t('game.nextKeys'),
-      t('game.viewToggle'),
+      this.hud.touchMode ? t('game.viewToggleTouch') : t('game.viewToggle'),
     ]);
     const left = timeLeft(this.competition);
     this.hud.setTimer(formatTime(left), left < 60);

@@ -1283,6 +1283,23 @@ body {
   border-color: #d23a2a;
 }
 
+/* Katsojalle vain näkymän napit (#280). */
+.touch-controls.spectator .touch-stick,
+.touch-controls.spectator .touch-reel,
+.touch-controls.spectator .touch-grid > :not(.touch-cam) {
+  display: none;
+}
+
+.touch-controls.spectator .touch-grid {
+  grid-template-columns: 56px;
+}
+
+.hud.spectator .hud-tension,
+.hud.spectator .hud-power,
+.hud.spectator .hud-gauges {
+  display: none;
+}
+
 /* Pystyasennossa napit allekkain, jotta tatille jää tilaa. */
 @media (orientation: portrait) {
   .touch-actions {

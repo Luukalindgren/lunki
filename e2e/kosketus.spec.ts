@@ -150,3 +150,41 @@ test.describe('puhelin', () => {
     errors.check();
   });
 });
+
+test('katsojalle puhelimella vain näkymän napit (#280)', async ({
+  page,
+  browser,
+  browserName,
+  isMobile,
+}) => {
+  test.skip(!isMobile || browserName !== 'chromium', 'ajetaan kerran, android-projektissa');
+  const errors = watchErrors(page);
+  const host = await (await browser.newContext({ baseURL: 'http://localhost:4173' })).newPage();
+  await host.goto('/?view=top');
+  await host.getByRole('button', { name: 'Moninpeli' }).click();
+  await expect(host.getByText('Palvelin päällä')).toBeVisible();
+  await host.getByLabel('Nimimerkki').fill('Isäntä');
+  await host.getByRole('button', { name: 'Luo uusi huone' }).click();
+  const code = (await host.locator('.room-code').innerText()).trim();
+
+  await page.goto('/?view=top');
+  await page.getByRole('button', { name: 'Moninpeli' }).tap();
+  await expect(page.getByText('Palvelin päällä')).toBeVisible();
+  await page.getByLabel('Nimimerkki').fill('Katsoja');
+  await page.getByLabel('Huonekoodi').fill(code);
+  await page.getByRole('button', { name: 'Liity koodilla' }).tap();
+  await page.getByRole('button', { name: 'Katson' }).tap();
+  await expect(host.locator('.player-state.ok')).toHaveCount(2);
+  await host.getByRole('button', { name: 'Aloita kisa' }).click();
+
+  await expect(page.locator('.hud-timer')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'KAM' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'VIESTI' })).toBeVisible();
+  for (const label of ['KELAA', 'VIEHE', 'LUOT', 'KATKO'])
+    await expect(page.getByRole('button', { name: label })).toBeHidden();
+  await expect(page.locator('.touch-stick')).toBeHidden();
+  await expect(page.locator('.hud-tension')).toBeHidden();
+  await expect(page.locator('.hud-status')).toContainText('KAM: kalastajan silmin');
+  await host.context().close();
+  errors.check();
+});
