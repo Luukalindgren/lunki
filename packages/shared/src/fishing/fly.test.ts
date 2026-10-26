@@ -108,7 +108,7 @@ describe('perhon uitto vedoilla (#234)', () => {
   it('veto tuo perhoa ja kerää löysää renkaan eteen, tauolla perho pysähtyy', () => {
     const { s, ctx } = inWater(fly());
     run(s, ctx, { lineHand: true, strip: FLY.steadyStrip * DT }, 2);
-    expect(s.slack).toBeCloseTo(1.2, 1);
+    expect(s.slack).toBeCloseTo(FLY.steadyStrip * 2, 1);
     expect(s.lureSpeed).toBeGreaterThan(0.4);
     expect(distance(s.lure, { x: 1.6, y: 0 })).toBeLessThan(18.4 - 0.8);
     run(s, ctx, { lineHand: true }, 1);

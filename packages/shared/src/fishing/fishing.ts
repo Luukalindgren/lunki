@@ -321,13 +321,13 @@ const RATTLE_RATE = 2.5;
 /** Perhokalastus (#234): uitto siimakädellä vedoin, väsytys sormin tai kelalta. */
 export const FLY = {
   /** Nopein veto (m/s): hiiren nopeampi liike ei vedä enempää. */
-  maxStripSpeed: 2,
+  maxStripSpeed: 3.5,
   /** Tasainen veto välilyönnillä tai VEDÄ-napilla (m/s). */
-  steadyStrip: 0.6,
+  steadyStrip: 0.9,
   /** Avoimen siimakäden kitka (kg): kala vie siimaa sormien läpi. */
   fingerDrag: 0.5,
   /** Löysän siiman kelausnopeus kelalle (m/s). */
-  reelSlackSpeed: 2.5,
+  reelSlackSpeed: 4,
   /**
    * Heitossa ammutaan löysä siima. Heiton yli jäävä löysä (m) sotkeutuu
    * herkemmin: tämän ylittävästä osasta riski kasvaa.

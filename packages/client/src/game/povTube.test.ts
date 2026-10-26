@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EMOTE_DURATION } from '@lunki/shared';
-import { finPose, handRaise } from './povTube';
+import { DIM, coilPoint, finPose, handRaise, slackCoilLayout } from './povTube';
 
 describe('POV-kellukan räpylät ja käsi (#230)', () => {
   it('räpylät potkivat vuorotellen ja pikapotku heiluttaa enemmän', () => {
@@ -37,5 +37,24 @@ describe('POV-kellukan räpylät ja käsi (#230)', () => {
     expect(handRaise(EMOTE_DURATION - 0.15)).toBeGreaterThan(0);
     expect(handRaise(EMOTE_DURATION - 0.15)).toBeLessThan(1);
     expect(handRaise(EMOTE_DURATION)).toBe(0);
+  });
+});
+
+describe('perhon löysä siima POV:ssa', () => {
+  it('kiekurat ovat siimatason päällä, eivät vedessä', () => {
+    slackCoilLayout().forEach((k, c) => {
+      for (let i = 0; i < 32; i++) {
+        const p = coilPoint(k, c, (i / 32) * Math.PI * 2);
+        expect(p.x).toBeGreaterThan(DIM.apronFrom);
+        expect(p.x).toBeLessThan(DIM.flapTo);
+        expect(Math.abs(p.z)).toBeLessThan(DIM.apronHalf);
+        expect(p.y).toBeGreaterThan(DIM.apronY);
+      }
+    });
+  });
+
+  it('kiekurat kasautuvat toistensa päälle', () => {
+    const ys = slackCoilLayout().map((k) => k.y);
+    for (let i = 1; i < ys.length; i++) expect(ys[i]).toBeGreaterThan(ys[i - 1]!);
   });
 });
