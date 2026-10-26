@@ -439,6 +439,7 @@ export class SoloGame {
       isWater: (p) => this.water.isWater(p),
       depthAt: (p) => this.bottom.depthAt(p),
       structureAt: (p) => this.bottom.structureAt(p),
+      bottomTypeAt: (p) => this.bottom.bottomTypeAt(p),
       wind: this.wind,
       fish: { pop: this.fish, diff: DIFFICULTIES[this.settings.difficulty], rng: this.rng, strike },
     };
@@ -944,7 +945,10 @@ export class SoloGame {
       t('game.bottom', { m: decimal(this.bottom.depthAt(lureOut ? f.lure : this.tube.pos), 1) }),
     ]);
     this.hud.sonar.update(dt, () =>
-      sonarPing(this.tube.pos, this.fish.fish, this.bottom.depthAt(this.tube.pos)),
+      sonarPing(this.tube.pos, this.fish.fish, this.bottom.depthAt(this.tube.pos), {
+        floor: this.bottom.bottomTypeAt(this.tube.pos),
+        structure: this.bottom.structureAt(this.tube.pos),
+      }),
     );
     this.hud.lureSonar.update(dt, f.stage === 'water' && !f.onLand, () => ({
       tip: rodTip(this.tube.pos, this.tube.heading),
@@ -953,12 +957,14 @@ export class SoloGame {
       depthAt: (p) => this.bottom.depthAt(p),
       isWater: (p) => this.water.isWater(p),
       structureAt: (p) => this.bottom.structureAt(p),
+      bottomTypeAt: (p) => this.bottom.bottomTypeAt(p),
       fish: this.fish.fish.filter(
         (x) => x.mode === 'follow' || x.mode === 'struck' || x.id === f.hookedId,
       ),
       bite: f.struckId !== null,
       hooked: f.hookedId !== null,
       snag: f.snag !== null,
+      fouled: f.fouled,
     }));
     const left = timeLeft(this.competition);
     this.hud.setTimer(formatTime(left), left < 60);
@@ -1142,6 +1148,8 @@ export class SoloGame {
       hud.showMessage(t('game.snagged'), 2);
     }
     if (events.unsnagged) hud.showMessage(t('game.unsnagged'), 1.5);
+    if (events.fouled) hud.showMessage(t('game.fouled'), 2.5);
+    if (events.rattle) sfx.rattle();
     if (events.stuck) sfx.strike();
     if (events.lineCut) {
       sfx.lost();

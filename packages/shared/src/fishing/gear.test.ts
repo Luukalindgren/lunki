@@ -4,7 +4,13 @@ import { distance } from '../vec2';
 import { predictLanding } from './cast';
 import { DIFFICULTIES } from './difficulty';
 import { lureAppeal, spawnFish, type FishPopulation, type LureInfo } from './fish';
-import { createFishing, stepFishing, type FishingContext, type FishingEvents } from './fishing';
+import {
+  createFishing,
+  lureInfo,
+  stepFishing,
+  type FishingContext,
+  type FishingEvents,
+} from './fishing';
 import {
   DEFAULT_TACKLE,
   breakingStrength,
@@ -14,6 +20,7 @@ import {
   type Tackle,
 } from './gear';
 import type { Structure } from '../map/bottom';
+import type { BottomType } from '../map/scatter';
 
 const DT = 1 / 60;
 const world = { isWater: (p: { x: number }) => Math.abs(p.x) < 500, depthAt: () => 6 };
@@ -249,5 +256,112 @@ describe('pohjatartunta', () => {
       expect(log.some((e) => e.unsnagged)).toBe(false);
       expect(log.some((e) => e.lureLost)).toBe(true);
     }
+  });
+});
+
+describe('kivet, kasvustot, risukot ja pohjan laatu (#226)', () => {
+  /** Viehe kelataan 2 m syvän rakenteen poikki; jigi saa painua pohjaan tauoilla. */
+  function run(
+    seed: number,
+    lure: Tackle['lure'],
+    structure: Structure | null,
+    floor: BottomType = 'sand',
+    depth = 2,
+  ) {
+    const rng = new Rng(seed);
+    const s = createFishing(tackle({ lure }));
+    s.stage = 'water';
+    s.lure = { x: 32, y: 0 };
+    s.lineLength = 30;
+    s.depth = lure === 'wobbler' ? 0 : depth;
+    const ctx: FishingContext = {
+      tubePos: { x: 0, y: 0 },
+      heading: 0,
+      isWater: world.isWater,
+      depthAt: () => depth,
+      structureAt: (p) =>
+        structure && distance(p, structure.pos) <= structure.radius ? structure : null,
+      bottomTypeAt: () => floor,
+      fish: { pop: { fish: [], nextId: 1, tick: 0 }, diff: DIFFICULTIES.normal, rng },
+    };
+    const log: FishingEvents[] = [];
+    const states: { fouled: boolean; info: LureInfo | null }[] = [];
+    for (let i = 0; i < 30 / DT && s.stage === 'water'; i++) {
+      const reel = s.snag !== null || Math.floor(i / 40) % 2 === 0;
+      log.push(
+        stepFishing(s, { aim: { x: 30, y: 0 }, castHeld: false, reel, cancel: false }, ctx, DT),
+      );
+      states.push({ fouled: s.fouled, info: lureInfo(s, ctx) });
+    }
+    return { log, states, s };
+  }
+  const boulder: Structure = {
+    kind: 'boulder',
+    pos: { x: 22, y: 0 },
+    radius: 1.5,
+    height: 0.8,
+  };
+  const weed: Structure = {
+    kind: 'weed',
+    pos: { x: 22, y: 0 },
+    radius: 8,
+    height: 1,
+    density: 1,
+  };
+  const count = (
+    lure: Tackle['lure'],
+    st: Structure | null,
+    ev: keyof FishingEvents,
+    floor?: BottomType,
+  ) => {
+    let n = 0;
+    for (let seed = 1; seed <= 40; seed++)
+      if (run(seed, lure, st, floor).log.some((e) => e[ev])) n++;
+    return n;
+  };
+
+  it('jigi tarttuu kiveen useammin kuin vaappu, jonka lippa kimmottaa sen irti', () => {
+    const jig = count('jig', boulder, 'snagged');
+    const wobbler = count('wobbler', boulder, 'snagged');
+    expect(jig).toBeGreaterThan(wobbler);
+    expect(jig).toBeGreaterThan(4);
+  });
+
+  it('kasvustosta viehe kerää rikkaa, joka vie houkuttelevuuden kunnes viehe puhdistetaan', () => {
+    const { log, states, s } = run(3, 'spoon', weed);
+    const at = log.findIndex((e) => e.fouled);
+    expect(at).toBeGreaterThanOrEqual(0);
+    const info = states[at]!.info!;
+    expect(info.fouled).toBe(true);
+    const fish = spawnFish(
+      { fish: [], nextId: 1, tick: 0 },
+      'perch',
+      { x: 20, y: 0 },
+      { isWater: () => true, depthAt: () => 2 },
+      new Rng(1),
+    );
+    fish.depth = info.depth;
+    const clean = lureAppeal(fish, { ...info, fouled: false });
+    expect(lureAppeal(fish, info)).toBeLessThan(clean * 0.1);
+    // Kotiin kelattu viehe on taas puhdas.
+    if (s.stage === 'idle') expect(s.fouled).toBe(false);
+  });
+
+  it('liejussa jigi tarttuu kevyesti ja irtoaa aina ensimmäisellä vedolla', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const { log } = run(seed, 'jig', null, 'mud');
+      const at = log.findIndex((e) => e.snagged);
+      // Viimeisinä sekunteina tarttunutta ei ehditty irrottaa.
+      if (at < 0 || at > log.length - 2 / DT) continue;
+      expect(log.some((e) => e.lureLost)).toBe(false);
+      expect(log.slice(at).some((e) => e.unsnagged)).toBe(true);
+    }
+    expect(count('jig', null, 'snagged', 'mud')).toBeGreaterThan(3);
+    expect(count('jig', null, 'snagged', 'sand')).toBe(0);
+  });
+
+  it('kivikkopohjassa jigi kolisee, hiekalla ei', () => {
+    expect(count('jig', null, 'rattle', 'rock')).toBeGreaterThan(30);
+    expect(count('jig', null, 'rattle', 'sand')).toBe(0);
   });
 });

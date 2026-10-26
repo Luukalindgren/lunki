@@ -113,6 +113,11 @@ export class Sfx {
     this.tone(2200, 0.012, 'square', 0.15);
   }
 
+  /** Jigi kolahtaa kivikkopohjaan: lyhyt, kova naksahdus. */
+  rattle(): void {
+    this.tone(1400 + Math.random() * 600, 0.02, 'square', 0.18);
+  }
+
   /** Jarru luistaa: sirisevä ääni. */
   dragSlip(): void {
     this.tone(3200 + Math.random() * 800, 0.03, 'sawtooth', 0.12);

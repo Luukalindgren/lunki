@@ -1,6 +1,8 @@
 import { distance, type Vec2 } from '../vec2';
 import { closestPointOnSegment } from './geometry';
+import type { Pier } from './piers';
 import { REEDS, ReedIndex, type ReedBed } from './reeds';
+import { BOTTOM_TYPES, bottomTypeFor, scatterStructures, type BottomType } from './scatter';
 import { pointInRing } from './surroundings';
 
 /**
@@ -25,14 +27,27 @@ export interface BottomFeatures {
   /** Arvioitu suurin syvyys (m), kun luotausaineistoa ei ole. */
   maxDepth: number;
   features: BottomFeature[];
+  /**
+   * Siroitellaanko pohjalle sääntöjen mukaan kiviä, uposkasvustoja ja
+   * risukoita (#226, ks. scatter.ts). Testijärvillä pois.
+   */
+  scatter?: boolean;
 }
 
 /** Rakenne, johon viehe voi tarttua ja jonka lähellä kalat viihtyvät. */
 export interface Structure {
-  kind: 'rocks' | 'tree' | 'dropoff' | 'reeds';
+  /**
+   * Käsin merkityt: kivikko, kaatunut puu, jyrkänne ja kaislikko. Siroitellut
+   * (#226): yksittäinen kivi, uposkasvusto ja risukko tai uppotukki.
+   */
+  kind: 'rocks' | 'tree' | 'dropoff' | 'reeds' | 'boulder' | 'weed' | 'brush';
   /** Keskipiste (puulla rungon puoliväli, kaislikolla rajauslaatikon keskipiste). */
   pos: Vec2;
   radius: number;
+  /** Korkeus pohjasta (m): kivi, kasvusto ja risukko. */
+  height?: number;
+  /** Kasvuston tiheys 0–1. */
+  density?: number;
   /** Puun runko janana tyvestä latvaan. */
   trunk?: [Vec2, Vec2];
   /** Kaislikon reuna: kalat viihtyvät reunalla, viehe tarttuu sisällä. */
@@ -41,6 +56,8 @@ export interface Structure {
 
 /** Rungon ympäriltä viehe voi tarttua oksiin (m). */
 const TREE_REACH = 2.5;
+/** Rakenteiden hakuruudukon koko (m). */
+const INDEX_CELL = 16;
 
 export const BOTTOM = {
   /** Ruudukon koko (m): syvyys esilasketaan ja interpoloidaan. */
@@ -66,15 +83,21 @@ export class LakeBottom {
   private readonly cols: number;
   private readonly rows: number;
   private readonly depth: Float32Array;
+  private readonly shore: Float32Array;
+  /** Pohjan laatu ruuduittain (indeksi BOTTOM_TYPES-listaan). */
+  private readonly floor: Uint8Array;
   readonly structures: Structure[];
   readonly maxDepth: number;
   private readonly reeds: ReedIndex;
+  /** Rakenteet hakuruudukossa: ruudun avain → rakenteiden indeksit järjestyksessä. */
+  private readonly index = new Map<number, number[]>();
 
   constructor(
     private readonly water: { isWater(p: Vec2): boolean },
     readonly bounds: { minX: number; minY: number; maxX: number; maxY: number },
     readonly features: BottomFeatures,
     reeds: readonly ReedBed[] = [],
+    piers: readonly Pier[] = [],
   ) {
     this.reeds = new ReedIndex(reeds);
     const c = BOTTOM.cell;
@@ -85,6 +108,7 @@ export class LakeBottom {
       for (let i = 0; i < this.cols; i++)
         wet[j * this.cols + i] = water.isWater(this.cellPos(i, j)) ? 1 : 0;
     const dist = distanceTransform(wet, this.cols, this.rows, c);
+    this.shore = dist;
     this.depth = new Float32Array(this.cols * this.rows);
     let deepest = 0;
     for (let j = 0; j < this.rows; j++) {
@@ -112,6 +136,69 @@ export class LakeBottom {
       return [];
     });
     for (const r of reeds) this.structures.push(reedStructure(r));
+
+    const ground = {
+      bounds,
+      isWater: (p: Vec2) => water.isWater(p),
+      depthAt: (p: Vec2) => this.depthAt(p),
+      shoreDistance: (p: Vec2) => this.shoreDistance(p),
+      steepness: (p: Vec2) => this.steepness(p),
+      rockAreas: this.structures.filter((st) => st.kind === 'rocks'),
+      shoals: features.features.flatMap((f) =>
+        f.type === 'shoal' ? [{ pos: { x: f.x, y: f.y }, radius: f.radius }] : [],
+      ),
+      inReeds: (p: Vec2) => this.reeds.insideDistance(p) > 0,
+      piers,
+    };
+    if (features.scatter)
+      for (const it of scatterStructures(ground))
+        this.structures.push({
+          kind: it.kind,
+          pos: it.pos,
+          radius: it.radius,
+          height: it.height,
+          density: it.density,
+        });
+    this.floor = new Uint8Array(this.cols * this.rows);
+    for (let j = 0; j < this.rows; j++)
+      for (let i = 0; i < this.cols; i++)
+        if (wet[j * this.cols + i])
+          this.floor[j * this.cols + i] = BOTTOM_TYPES.indexOf(
+            bottomTypeFor(ground, this.cellPos(i, j)),
+          );
+    this.structures.forEach((st, k) => {
+      const r = st.radius + TREE_REACH;
+      for (let y = Math.floor((st.pos.y - r) / INDEX_CELL); y <= (st.pos.y + r) / INDEX_CELL; y++)
+        for (
+          let x = Math.floor((st.pos.x - r) / INDEX_CELL);
+          x <= (st.pos.x + r) / INDEX_CELL;
+          x++
+        ) {
+          const key = cellKey(x, y);
+          const list = this.index.get(key);
+          if (list) list.push(k);
+          else this.index.set(key, [k]);
+        }
+    });
+  }
+
+  /** Pohjan laatu (lieju, hiekka, kivikko); maalla hiekka. */
+  bottomTypeAt(p: Vec2): BottomType {
+    const k = this.nearestCell(p);
+    return k < 0 ? 'sand' : BOTTOM_TYPES[this.floor[k]!]!;
+  }
+
+  /** Etäisyys rantaan (m) lähimmän ruudun mukaan; maalla 0. */
+  shoreDistance(p: Vec2): number {
+    const k = this.nearestCell(p);
+    return k < 0 ? 0 : this.shore[k]!;
+  }
+
+  private nearestCell(p: Vec2): number {
+    const i = Math.round((p.x - this.bounds.minX) / BOTTOM.cell + 1);
+    const j = Math.round((p.y - this.bounds.minY) / BOTTOM.cell + 1);
+    if (i < 0 || j < 0 || i >= this.cols || j >= this.rows) return -1;
+    return j * this.cols + i;
   }
 
   /** Pohjan syvyys (m, positiivinen alaspäin). Maalla 0. */
@@ -132,9 +219,17 @@ export class LakeBottom {
     return Math.max(0.2, d);
   }
 
-  /** Rakenne, jonka alueella piste on (kivikko, puun oksat, jyrkänteen reuna), tai null. */
+  /**
+   * Rakenne, jonka alueella piste on (kivikko, puun oksat, jyrkänteen reuna,
+   * kivi, kasvusto, risukko), tai null. Päällekkäisistä listassa ensimmäinen.
+   */
   structureAt(p: Vec2): Structure | null {
-    for (const s of this.structures) {
+    const list = this.index.get(
+      cellKey(Math.floor(p.x / INDEX_CELL), Math.floor(p.y / INDEX_CELL)),
+    );
+    if (!list) return null;
+    for (const k of list) {
+      const s = this.structures[k]!;
       if (s.ring) {
         if (distance(s.pos, p) <= s.radius && pointInRing(p, s.ring)) return s;
       } else if (s.trunk) {
@@ -151,14 +246,20 @@ export class LakeBottom {
     };
   }
 
-  private computeDepth(p: Vec2, shoreDist: number): number {
-    const max = this.features.maxDepth;
+  /** Rannan jyrkkyyskerroin: luonnollinen vaihtelu ja käsin merkityt alueet. */
+  private steepness(p: Vec2): number {
     let steep = 1 + BOTTOM.steepnessVariation * valueNoise(p.x / 220, p.y / 220, 7);
     for (const f of this.features.features) {
       if (f.type !== 'steep') continue;
       const w = smoothFalloff(distance(p, f), f.radius);
       steep *= 1 + (f.steepness - 1) * w;
     }
+    return steep;
+  }
+
+  private computeDepth(p: Vec2, shoreDist: number): number {
+    const max = this.features.maxDepth;
+    const steep = this.steepness(p);
     // Kyllästyvä käyrä: rannalla jyrkkyyden mukainen, keskellä lähestyy maksimia.
     const k = BOTTOM.slope * steep;
     let d = BOTTOM.shoreDepth + (max - BOTTOM.shoreDepth) * (1 - Math.exp((-k * shoreDist) / max));
@@ -185,6 +286,9 @@ export class LakeBottom {
 }
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+/** Hakuruudukon avain (ruudut ±32 768 asti). */
+const cellKey = (x: number, y: number) => (x + 32768) * 65536 + (y + 32768);
 
 function reedStructure(r: ReedBed): Structure {
   const xs = r.ring.map((p) => p.x);

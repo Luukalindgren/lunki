@@ -13,7 +13,7 @@ export function bottomFor(map: LakeMap, water: WaterBody): LakeBottom {
   let b = bottoms.get(map);
   if (!b) {
     const features = map === LUNKINJARVI ? LUNKINJARVI_BOTTOM : { maxDepth: 6, features: [] };
-    b = new LakeBottom(water, map.bounds, features, map.reeds);
+    b = new LakeBottom(water, map.bounds, features, map.reeds, map.piers);
     bottoms.set(map, b);
   }
   return b;

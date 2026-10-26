@@ -33,11 +33,29 @@ describe('vieheluotain', () => {
       26,
     );
     expect(cols).toHaveLength(26);
-    expect(cols[0]).toEqual({ bottom: 0, structure: null });
+    expect(cols[0]).toEqual({ bottom: 0, structure: null, height: 0, floor: null });
     expect(cols[15]!.bottom).toBeCloseTo(1.5);
     expect(cols[9]!.structure).toBe('rocks');
     expect(cols[12]!.structure).toBeNull();
     expect(cols[22]!.bottom).toBeNull();
+  });
+
+  it('profiili kertoo pohjan laadun ja kiven korkeuden (#226)', () => {
+    const boulder: Structure = { kind: 'boulder', pos: { x: 5, y: 0 }, radius: 1, height: 0.7 };
+    const cols = lureProfile(
+      {
+        tip: { x: 0, y: 0 },
+        depthAt: () => 3,
+        isWater: () => true,
+        structureAt: (p: Vec2) => (Math.abs(p.x - 5) <= 1 ? boulder : null),
+        bottomTypeAt: (p: Vec2) => (p.x < 8 ? 'rock' : 'mud'),
+      },
+      { x: 1, y: 0 },
+      10,
+      11,
+    );
+    expect(cols[5]).toEqual({ bottom: 3, structure: 'boulder', height: 0.7, floor: 'rock' });
+    expect(cols[9]).toEqual({ bottom: 3, structure: null, height: 0, floor: 'mud' });
   });
 
   it('vieheen väri kertoo syvyyden', () => {

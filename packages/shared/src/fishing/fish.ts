@@ -98,7 +98,7 @@ export const SPECIES: Record<SpeciesId, Species> = {
     // Rantojen tuntuma ja syvänteiden reunat.
     habitat: { minDepth: 1, maxDepth: 4.5 },
     wanderShare: 0.25,
-    structures: ['rocks', 'dropoff'],
+    structures: ['rocks', 'dropoff', 'weed', 'brush'],
     structureShare: 0.3,
     medianWeight: 0.14,
     weightSpread: 0.65,
@@ -145,7 +145,7 @@ export const SPECIES: Record<SpeciesId, Species> = {
     schoolSpread: 0,
     habitat: { minDepth: 0.6, maxDepth: 2.2 },
     wanderShare: 0.1,
-    structures: ['reeds', 'tree', 'rocks'],
+    structures: ['reeds', 'tree', 'rocks', 'weed', 'brush'],
     structureShare: 0.35,
     medianWeight: 1.3,
     weightSpread: 0.6,
@@ -192,7 +192,7 @@ export const SPECIES: Record<SpeciesId, Species> = {
     schoolSpread: 12,
     habitat: { minDepth: 0.5, maxDepth: 3 },
     wanderShare: 0.3,
-    structures: ['reeds'],
+    structures: ['reeds', 'weed'],
     structureShare: 0.2,
     medianWeight: 0.11,
     weightSpread: 0.5,
@@ -470,6 +470,8 @@ export interface LureInfo {
   tip: Vec2;
   /** Kalastajan varusteet (viehe, siima, peruke). */
   tackle?: Tackle;
+  /** Viehe on kerännyt rikkaa uposkasvustosta (#226). */
+  fouled?: boolean;
 }
 
 export interface FishEvents {
@@ -590,8 +592,33 @@ export function spawnFish(
   };
 }
 
+/**
+ * Rakenteen paino parven paikkaa arvottaessa: siroteltuja kasvustoja ja
+ * risukoita on paljon, joten yksittäinen niistä painaa vähemmän kuin käsin
+ * merkitty kivikko tai kaislikko.
+ */
+const SPOT_WEIGHT: Partial<Record<Structure['kind'], number>> = {
+  boulder: 0.05,
+  weed: 0.25,
+  brush: 0.5,
+};
+
+/** Rikkaisen vieheen houkuttelevuus tavalliseen verrattuna (#226). */
+export const FOULED_APPEAL = 0.05;
+
 /** Kaislikon reunalle asettuvien kalojen hajonta (m). */
 const REED_EDGE_SPREAD = 4;
+
+/** Painotettu valinta yhdellä satunnaisluvulla (kalakannan arvontajärjestys pysyy). */
+function pickSpot(spots: readonly Structure[], u: number): Structure {
+  const weight = (st: Structure) => SPOT_WEIGHT[st.kind] ?? 1;
+  let left = u * spots.reduce((sum, st) => sum + weight(st), 0);
+  for (const st of spots) {
+    left -= weight(st);
+    if (left < 0) return st;
+  }
+  return spots[spots.length - 1]!;
+}
 
 function randomWaterPoint(
   world: FishWorld,
@@ -602,7 +629,7 @@ function randomWaterPoint(
   // Osa parvista asettuu lajille mieluisan rakenteen luo.
   const spots = (world.structures ?? []).filter((s) => sp.structures.includes(s.kind));
   if (spots.length > 0 && rng.next() < sp.structureShare) {
-    const s = spots[Math.floor(rng.next() * spots.length)]!;
+    const s = pickSpot(spots, rng.next());
     for (let i = 0; i < 20; i++) {
       // Kaislikossa kalat vaanivat reunalla, muualla rakenteen ympärillä.
       const c = s.ring ? s.ring[Math.floor(rng.next() * s.ring.length)]! : s.pos;
@@ -641,7 +668,8 @@ export function lureAppeal(fish: Fish, lure: LureInfo): number {
   const dd = Math.abs(lure.depth - fish.depth);
   const depthScore = Math.max(0, 1 - dd / 2.5);
   const gear = lure.tackle ? tackleAppeal(lure.tackle, fish.species) : 1;
-  return speedScore * depthScore * gear;
+  const clean = lure.fouled ? FOULED_APPEAL : 1;
+  return speedScore * depthScore * gear * clean;
 }
 
 /** Valo, sää ja tuuli, jotka ohjaavat kalojen syöntiä ja liikkeitä. */

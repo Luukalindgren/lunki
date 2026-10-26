@@ -18,6 +18,11 @@ export interface Lure {
   appeal: Record<SpeciesId, number>;
   /** Paikallaan olevan tai vajoavan vieheen houkuttelevuus (0–1). */
   stillAppeal: number;
+  /**
+   * Tartuntariskin kerroin kivissä, oksissa ja risukoissa: jigi laahaa
+   * pohjaa, vaapun lippa kimmottaa sen kivestä irti.
+   */
+  snagRisk: number;
   /** Lyhyt kuvaus valikkoon. */
   hint: string;
 }
@@ -32,6 +37,7 @@ export const LURES: Record<LureId, Lure> = {
     castFactor: 1.1,
     appeal: { perch: 1, pike: 1.15, roach: 0.3, zander: 0.6, trout: 1.15 },
     stillAppeal: 0.2,
+    snagRisk: 1,
     hint: 'Heittyy pitkälle ja uppoaa, monipuolinen',
   },
   wobbler: {
@@ -43,6 +49,7 @@ export const LURES: Record<LureId, Lure> = {
     castFactor: 0.85,
     appeal: { perch: 0.8, pike: 1.4, roach: 0.2, zander: 1, trout: 1 },
     stillAppeal: 0.1,
+    snagRisk: 0.45,
     hint: 'Kelluu, sukeltaa kelatessa n. 2,5 m:iin, hauen herkku',
   },
   jig: {
@@ -54,6 +61,7 @@ export const LURES: Record<LureId, Lure> = {
     castFactor: 1.15,
     appeal: { perch: 1.2, pike: 0.6, roach: 0.5, zander: 1.5, trout: 0.5 },
     stillAppeal: 0.7,
+    snagRisk: 1.4,
     hint: 'Painuu pohjaan, toimii nykien ja tauottaen',
   },
   spinner: {
@@ -65,6 +73,7 @@ export const LURES: Record<LureId, Lure> = {
     castFactor: 0.9,
     appeal: { perch: 1.3, pike: 0.7, roach: 0.9, zander: 0.4, trout: 1.3 },
     stillAppeal: 0.1,
+    snagRisk: 0.9,
     hint: 'Pieni lippa, ahvenen ja särjen suosikki',
   },
 };

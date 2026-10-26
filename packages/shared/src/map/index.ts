@@ -8,3 +8,4 @@ export * from './reeds';
 export * from './surroundings';
 export * from './types';
 export * from './waterBody';
+export * from './scatter';
