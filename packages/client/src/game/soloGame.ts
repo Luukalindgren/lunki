@@ -534,7 +534,8 @@ export class SoloGame {
     this.pov.setResolution(r);
   }
 
-  setViewMode(mode: 'top' | 'pov'): void {
+  /** announce = false: ei ilmoitusta (kisan alussa näkymä vain asetetaan). */
+  setViewMode(mode: 'top' | 'pov', announce = true): void {
     this.viewMode = mode;
     const pov = mode === 'pov';
     this.scenery.visible = pov;
@@ -548,7 +549,7 @@ export class SoloGame {
     this.scene.fog = pov ? new THREE.Fog(this.sky.lighting.horizon, 500, 2600) : null;
     this.applyWeatherLight();
     this.fishingView.pov = pov;
-    this.hud.showMessage(pov ? t('game.viewPov') : t('game.viewTop'), 1.2);
+    if (announce) this.hud.showMessage(pov ? t('game.viewPov') : t('game.viewTop'), 1.2);
   }
 
   /** Vaihtaa varusteet heti, tai kun viehe seuraavan kerran on kelalla. */

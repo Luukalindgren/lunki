@@ -90,9 +90,13 @@ export function audioStates(page: Page): Promise<string[]> {
   );
 }
 
-/** Päävalikosta yksinpeliin oletusasetuksilla. */
-export async function startSolo(page: Page): Promise<void> {
-  await page.goto('/');
+/**
+ * Yksinpeli oletusasetuksilla. Kisa alkaa pelissä kalastajan silmin (POV), mutta
+ * testit, jotka eivät koske näkymää, ajetaan ylhäältä (?view=top): POV piirtyy
+ * CI:n ohjelmistorenderöinnillä vain muutaman kuvan sekunnissa.
+ */
+export async function startSolo(page: Page, view: 'pov' | 'top' = 'top'): Promise<void> {
+  await page.goto(view === 'top' ? '/?view=top' : '/');
   await page.getByRole('button', { name: 'Yksinpeli' }).click();
   await page.getByRole('button', { name: 'Aloita kisa' }).click();
   await expect(page.locator('.hud-timer')).toBeVisible();

@@ -71,6 +71,12 @@ import { VOLUME_LEVELS, type AudioSettings, type VolumeLevel } from '../audio/se
 import { MUSIC_CHOICES, type MusicChoice } from '../audio/music';
 import { DEFAULT_HUD_SCALE, HUD_SCALES } from './hudScale';
 import {
+  fullscreenButton,
+  fullscreenSupported,
+  isStandalone,
+  needsHomeScreenHint,
+} from './fullscreen';
+import {
   LANGS,
   formatWeight,
   getLang,
@@ -250,6 +256,7 @@ export class Screens {
       [t('menu.feedback'), actions.onFeedback],
       [t('menu.credits'), actions.onCredits],
     ]);
+    this.addFullscreen(menu);
     const language = this.choice(
       t('menu.language'),
       LANGS.map((l) => [l, LANG_NAMES[l]]),
@@ -267,6 +274,7 @@ export class Screens {
       h('p', t('menu.subtitle'), 'subtitle'),
       menu,
       language,
+      ...this.homeScreenHint(),
       h('p', t('menu.controls'), 'hint'),
       h('p', t('menu.mapCredit'), 'hint credit-line'),
     );
@@ -955,10 +963,13 @@ export class Screens {
       ...(tackle ? [this.tackleEditor(tackle.current, tackle.onChange, 'during')] : []),
       ...(audio ? [this.audioEditor(audio.current, audio.onChange)] : []),
       ...(hudSize ? [this.hudSizeSlider(hudSize)] : []),
-      this.buttons([
-        [t('pause.resume'), onResume],
-        [multiplayer ? t('pause.leaveRace') : t('pause.endRace'), onQuit],
-      ]),
+      ...this.homeScreenHint(),
+      this.addFullscreen(
+        this.buttons([
+          [t('pause.resume'), onResume],
+          [multiplayer ? t('pause.leaveRace') : t('pause.endRace'), onQuit],
+        ]),
+      ),
     );
     this.show(panel);
   }
@@ -1735,6 +1746,21 @@ export class Screens {
     input.spellcheck = false;
     row.append(input);
     return row;
+  }
+
+  /** Koko näytön nappi rivin loppuun, jos selain sen osaa eikä peli jo ole sovelluksena. */
+  private addFullscreen(row: HTMLElement): HTMLElement {
+    if (fullscreenSupported() && !isStandalone()) {
+      const b = fullscreenButton();
+      b.style.setProperty('--i', String(row.childElementCount));
+      row.appendChild(b);
+    }
+    return row;
+  }
+
+  /** iPhonella koko näyttö onnistuu vain Koti-valikon kuvakkeesta. */
+  private homeScreenHint(): HTMLElement[] {
+    return needsHomeScreenHint() ? [h('p', t('fullscreen.homeScreenHint'), 'hint')] : [];
   }
 
   private buttons(list: (readonly [string, (e: Event) => void])[]): HTMLElement {
