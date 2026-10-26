@@ -21,6 +21,9 @@ import {
   type TubeState,
   type Tackle,
   type Appearance,
+  type ChatMessage,
+  type EmoteId,
+  type EmoteMessage,
   type Vec2,
   type WaterBody,
 } from '@lunki/shared';
@@ -116,6 +119,9 @@ export class NetWorld {
   /** Kala nostettiin (yleensä toinen pelaaja): sama kala pois omasta kalakannasta. */
   onRemoteCatch: ((fish: FishTag, angler: string) => void) | null = null;
   private seenCatches = 0;
+  /** Toisen pelaajan käsimerkki ja chat-viesti puhekuplaksi. */
+  onEmote: ((msg: EmoteMessage) => void) | null = null;
+  onChatBubble: ((msg: ChatMessage) => void) | null = null;
   /** Uusi punnittu saalis kisan aikana ja saajan paikka (tulossivun karttaan, tunnisteena nimi). */
   onCatchSeen: ((mark: RaceCatchMark) => void) | null = null;
 
@@ -143,6 +149,12 @@ export class NetWorld {
     };
     session.onUntangled = (m) => this.onUntangled?.(m);
     session.onRecord = (m) => this.onRecord?.(m);
+    session.onEmote = (m) => this.onEmote?.(m);
+    session.onChatBubble = (m) => this.onChatBubble?.(m);
+  }
+
+  sendEmote(emote: EmoteId): void {
+    this.session.sendEmote(emote);
   }
 
   cutLine(): void {
@@ -406,5 +418,7 @@ export class NetWorld {
     this.session.onSpout = null;
     this.session.onUntangled = null;
     this.session.onRecord = null;
+    this.session.onEmote = null;
+    this.session.onChatBubble = null;
   }
 }

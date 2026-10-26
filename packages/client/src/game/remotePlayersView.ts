@@ -1,9 +1,10 @@
 import * as THREE from 'three';
-import { LureStage, rodTip, type Appearance } from '@lunki/shared';
+import { EMOTE_DURATION, LureStage, rodTip, type Appearance, type EmoteId } from '@lunki/shared';
 import type { RemotePlayer } from '../net/netWorld';
 import { toWorld } from '../world/lakeMesh';
 import { AIR_SAMPLES, ROD_TIP_Y, flightLine, hangLine, rodSideOffset, writeLine } from './lineHang';
-import { animateFins, applyAppearance, createTubeMesh } from './tubeMesh';
+import { FAR_BUBBLE, SpeechBubble, type BubbleContent } from './speechBubble';
+import { animateEmote, animateFins, applyAppearance, createTubeMesh } from './tubeMesh';
 
 const cssColor = (hex: number) => `#${hex.toString(16).padStart(6, '0')}`;
 /** Muiden siiman kireyttä ei tiedetä: piirretään puolikireänä. */
@@ -16,6 +17,9 @@ interface Entry {
   lure: THREE.Mesh;
   line: THREE.Line;
   tag: HTMLDivElement;
+  bubble: SpeechBubble;
+  /** Käynnissä oleva käsimerkki ja sen alku (ms). */
+  emote: { id: EmoteId; start: number } | null;
   /** Viimeksi käytetyt värit: vaihdetaan vain muuttuessa. */
   appearance: Appearance;
 }
@@ -26,6 +30,8 @@ export class RemotePlayersView {
   private readonly entries = new Map<string, Entry>();
   private readonly tags: HTMLDivElement;
   private readonly v = new THREE.Vector3();
+  /** Ele tai viesti pelaajalle, jota ei vielä ole piirretty. */
+  private readonly pending = new Map<string, { content: BubbleContent; at: number }>();
 
   constructor(parent: HTMLElement) {
     this.tags = document.createElement('div');
@@ -33,12 +39,41 @@ export class RemotePlayersView {
     parent.appendChild(this.tags);
   }
 
+  /** Pelaajan käsimerkki: animaatio ja kupla. */
+  showEmote(id: string, emote: EmoteId, now = performance.now()): void {
+    this.bubble(id, { emote }, now);
+  }
+
+  /** Pelaajan chat-viesti kuplana. */
+  showChat(id: string, text: string, now = performance.now()): void {
+    this.bubble(id, { text }, now);
+  }
+
+  private bubble(id: string, content: BubbleContent, now: number): void {
+    const e = this.entries.get(id);
+    if (!e) {
+      this.pending.set(id, { content, at: now });
+      return;
+    }
+    e.bubble.show(content, now);
+    if ('emote' in content) e.emote = { id: content.emote, start: now };
+  }
+
   update(players: RemotePlayer[], camera: THREE.Camera, canvas: HTMLCanvasElement): void {
+    const now = performance.now();
     const seen = new Set<string>();
     const rect = canvas.getBoundingClientRect();
     for (const p of players) {
       seen.add(p.id);
       const e = this.entries.get(p.id) ?? this.add(p.id, p.appearance);
+      const waiting = this.pending.get(p.id);
+      if (waiting) {
+        this.pending.delete(p.id);
+        this.bubble(p.id, waiting.content, waiting.at);
+      }
+      const age = e.emote ? (now - e.emote.start) / 1000 : Infinity;
+      if (age > EMOTE_DURATION) e.emote = null;
+      animateEmote(e.tube, e.emote?.id ?? null, age);
       if (!sameAppearance(e.appearance, p.appearance)) this.recolor(e, p.appearance);
       e.tube.position.copy(toWorld(p.pos, p.lift ?? 0));
       e.tube.rotation.y = p.heading;
@@ -71,11 +106,20 @@ export class RemotePlayersView {
       this.v.copy(e.tube.position).setY(1.5).project(camera);
       const visible = Math.abs(this.v.x) <= 1.1 && Math.abs(this.v.y) <= 1.1;
       e.tag.hidden = !visible;
-      if (visible) {
+      const at = visible
+        ? {
+            x: rect.left + ((this.v.x + 1) / 2) * rect.width,
+            y: rect.top + ((1 - this.v.y) / 2) * rect.height,
+          }
+        : null;
+      if (at) {
         e.tag.textContent = p.name;
-        e.tag.style.left = `${rect.left + ((this.v.x + 1) / 2) * rect.width}px`;
-        e.tag.style.top = `${rect.top + ((1 - this.v.y) / 2) * rect.height}px`;
+        e.tag.style.left = `${at.x}px`;
+        e.tag.style.top = `${at.y}px`;
       }
+      // Kaukana (kalastajan silmin) kupla pienenee eikä näytä viestin tekstiä.
+      const far = camera.position.distanceTo(e.tube.position) > FAR_BUBBLE;
+      e.bubble.place(at, far, now);
     }
     for (const [id, e] of this.entries) if (!seen.has(id)) this.remove(id, e);
   }
@@ -98,7 +142,8 @@ export class RemotePlayersView {
     tag.className = 'name-tag';
     tag.style.borderColor = cssColor(appearance.tube);
     this.tags.appendChild(tag);
-    const e = { tube, lure, line, tag, appearance };
+    const bubble = new SpeechBubble(this.tags);
+    const e: Entry = { tube, lure, line, tag, bubble, emote: null, appearance };
     this.entries.set(id, e);
     return e;
   }
@@ -113,6 +158,7 @@ export class RemotePlayersView {
   private remove(id: string, e: Entry): void {
     this.group.remove(e.tube, e.lure, e.line);
     e.tag.remove();
+    e.bubble.remove();
     this.entries.delete(id);
   }
 

@@ -53,6 +53,10 @@ import {
   stepTube,
   REEDS,
   STAMINA,
+  ChatLimiter,
+  EMOTE_DURATION,
+  EMOTE_RATE,
+  type EmoteId,
   type CompetitionSettings,
   type LakeBottom,
   type CompetitionState,
@@ -116,7 +120,9 @@ import { PovRod } from './povRod';
 import { loadTackle, nextLure, saveTackle } from './tackle';
 import { TopDownCamera } from './topDownCamera';
 import { QuietSpot } from './quietSpot';
-import { animateFins, createTubeMesh } from './tubeMesh';
+import { animateEmote, animateFins, createTubeMesh } from './tubeMesh';
+import { SpeechBubble, type BubbleContent } from './speechBubble';
+import { EmoteMenu } from '../ui/emoteMenu';
 import { YouMarker } from './youMarker';
 import { loadAppearance } from './appearance';
 import { RaceLog, type RaceMapData } from './raceLog';
@@ -182,6 +188,12 @@ export class SoloGame {
   private readonly fishingView = new FishingView();
   /** Vinkkaa paikan vaihdosta, kun heitot menevät tyhjiin. */
   private readonly quietSpot = new QuietSpot();
+  /** Käsimerkit (#228): valikko, käynnissä oleva ele (alku ms) ja oma kupla. */
+  private emoteMenu: EmoteMenu | null = null;
+  private emoting: { id: EmoteId; start: number } | null = null;
+  private readonly emoteLimiter = new ChatLimiter(EMOTE_RATE);
+  private ownBubble: SpeechBubble | null = null;
+  private gameCanvas: HTMLCanvasElement | null = null;
   /** Suurkalan varjo veden alla (#231). */
   private readonly fishShadow = new FishShadow();
   /** Hiiren osoittama piste maailmassa. */
@@ -388,6 +400,11 @@ export class SoloGame {
     if (net) {
       this.remoteView = new RemotePlayersView(net.overlay);
       this.scene.add(this.remoteView.group);
+      net.world.onEmote = (m) => this.remoteView?.showEmote(m.from, m.emote);
+      net.world.onChatBubble = (m) => {
+        if (m.from === net.world.myId) this.showOwnBubble({ text: m.text });
+        else this.remoteView?.showChat(m.from, m.text);
+      };
       net.world.onPeerConnection = (name, connected) =>
         this.hud.showMessage(
           connected ? t('game.peerBack', { name }) : t('game.peerLost', { name }),
@@ -787,6 +804,7 @@ export class SoloGame {
         1.5,
       );
     if (input.wasPressed('KeyV')) this.setViewMode(this.viewMode === 'top' ? 'pov' : 'top');
+    if (input.wasPressed('KeyG') && !this.spectating) this.toggleEmoteMenu();
     if (input.wasPressed('KeyR') && !this.spectating)
       this.setTackle(nextLure(this.pendingTackle ?? this.fishing.tackle));
     if (!this.net) this.strikeLightning();
@@ -879,7 +897,8 @@ export class SoloGame {
             f,
             {
               aim: this.aim,
-              castHeld: !frozen && !capsized && timeOut === 0 && castHeld,
+              // Eleen aikana käsi on varattu: heittää ei voi.
+              castHeld: !frozen && !capsized && timeOut === 0 && castHeld && !this.emoteActive,
               reel: reeling,
               cancel: input.isDown('Mouse2') || input.isDown('KeyX'),
               dragDelta: (input.wasPressed('KeyE') ? 1 : 0) - (input.wasPressed('KeyQ') ? 1 : 0),
@@ -1370,8 +1389,56 @@ export class SoloGame {
     }
   }
 
+  private toggleEmoteMenu(): void {
+    if (!this.emoteMenu) {
+      this.emoteMenu = new EmoteMenu(this.hud.root);
+      this.emoteMenu.onPick = (id) => this.emote(id);
+    }
+    this.emoteMenu.toggle();
+  }
+
+  /** Tekee käsimerkin: oma animaatio ja kupla, moninpelissä muille. */
+  emote(id: EmoteId): void {
+    if (!this.emoteLimiter.take(Date.now())) {
+      this.hud.showMessage(t('emote.tooMany'), 2);
+      return;
+    }
+    this.emoting = { id, start: performance.now() };
+    this.showOwnBubble({ emote: id });
+    this.net?.world.sendEmote(id);
+  }
+
+  private get emoteActive(): boolean {
+    return this.emoting !== null && performance.now() - this.emoting.start < EMOTE_DURATION * 1000;
+  }
+
+  private showOwnBubble(content: BubbleContent): void {
+    this.ownBubble ??= new SpeechBubble(this.hud.root);
+    this.ownBubble.show(content);
+  }
+
+  /** Oma kupla renkaan yllä vain ylhäältä katsottuna (kalastajan silmin ei omaa kuplaa). */
+  private placeOwnBubble(): void {
+    const bubble = this.ownBubble;
+    if (!bubble) return;
+    const canvas = (this.gameCanvas ??=
+      document.querySelector<HTMLCanvasElement>('canvas.game-canvas'));
+    if (this.viewMode !== 'top' || !canvas || this.spectating) {
+      bubble.place(null, false);
+      return;
+    }
+    const v = this.tubeMesh.position.clone().setY(1.5).project(this.camera);
+    const rect = canvas.getBoundingClientRect();
+    bubble.place(
+      { x: rect.left + ((v.x + 1) / 2) * rect.width, y: rect.top + ((1 - v.y) / 2) * rect.height },
+      false,
+    );
+  }
+
   /** Vapauttaa GPU-resurssit, kun kierros päättyy. */
   dispose(): void {
+    this.emoteMenu?.dispose();
+    this.ownBubble?.remove();
     this.remoteView?.dispose();
     this.net?.world.dispose();
     this.waterWaves.uWaterMask.value?.dispose();
@@ -1420,6 +1487,9 @@ export class SoloGame {
       this.flightShadow.scale.setScalar(Math.max(0.4, 1 - air.height / SPOUT.flightHeight));
     }
     animateFins(this.tubeMesh, b.kickPhase);
+    const emoteAge = this.emoting ? (performance.now() - this.emoting.start) / 1000 : Infinity;
+    if (emoteAge > EMOTE_DURATION) this.emoting = null;
+    animateEmote(this.tubeMesh, this.emoting?.id ?? null, emoteAge);
     const hooked = this.fish.fish.find((x) => x.id === this.fishing.hookedId) ?? null;
     this.fishingView.update(this.fishing, this.fishingContext(), this.aim, 1 / 60, hooked);
     this.view.apply();
@@ -1480,6 +1550,7 @@ export class SoloGame {
           : others;
       this.remoteView.update(shown, this.camera, this.net.canvas);
     }
+    this.placeOwnBubble();
   }
 }
 

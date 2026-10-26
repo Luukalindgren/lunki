@@ -26,6 +26,10 @@ import {
   type BigWaveMessage,
   type SpoutMessage,
   type ChatMessage,
+  type EmoteId,
+  type EmoteMessage,
+  EMOTE_PROTOCOL,
+  isEmoteId,
   CHAT_HISTORY,
   CHAT_PROTOCOL,
   LAND_CUT_PROTOCOL,
@@ -276,6 +280,10 @@ export class NetSession {
   onChat: (() => void) | null = null;
   /** Palvelin hylkäsi viestin (liian tiheään). */
   onChatRejected: (() => void) | null = null;
+  /** Uusi chat-viesti puhekuplaksi pelaajan ylle (ei historiaa). */
+  onChatBubble: ((msg: ChatMessage) => void) | null = null;
+  /** Toisen pelaajan käsimerkki. */
+  onEmote: ((msg: EmoteMessage) => void) | null = null;
   /** Viimeisimmät chat-viestit, vanhin ensin. */
   chat: ChatMessage[] = [];
   onStarted: ((msg: StartedMessage, view: LobbyView) => void) | null = null;
@@ -313,12 +321,16 @@ export class NetSession {
     room.onMessage(ServerMsg.chat, (m: ChatMessage) => {
       this.chat = [...this.chat, m].slice(-CHAT_HISTORY);
       this.onChat?.();
+      this.onChatBubble?.(m);
     });
     room.onMessage(ServerMsg.chatHistory, (m: ChatMessage[]) => {
       this.chat = Array.isArray(m) ? m.slice(-CHAT_HISTORY) : [];
       this.onChat?.();
     });
     room.onMessage(ServerMsg.chatRejected, () => this.onChatRejected?.());
+    room.onMessage(ServerMsg.emote, (m: EmoteMessage) => {
+      if (m && typeof m.from === 'string' && isEmoteId(m.emote)) this.onEmote?.(m);
+    });
     room.onLeave(() => {
       clearResume();
       if (!this.leaving) this.onDisconnect?.();
@@ -470,6 +482,11 @@ export class NetSession {
 
   sendChat(text: string): void {
     if (this.chatAvailable) this.room.send(ClientMsg.chat, text);
+  }
+
+  /** Vanha palvelin ei välitä eleitä: ne näkyvät silloin vain omalla koneella. */
+  sendEmote(emote: EmoteId): void {
+    if (this.serverProtocol >= EMOTE_PROTOCOL) this.room.send(ClientMsg.emote, emote);
   }
 
   sendAppearance(a: Appearance): void {

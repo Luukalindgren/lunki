@@ -376,7 +376,7 @@ export const fi = {
   'help.touch4': 'Sormi järvellä tai KELAA = kelaa',
   'help.touch5': 'NOP kelausnopeus · JAR−/JAR+ jarru',
   'help.touch6': 'VIEHE vaihda · LUOT kaikuluotain · SYV vieheen syvyys',
-  'help.touch7': 'KAM kalastajan silmin',
+  'help.touch7': 'KAM kalastajan silmin · ELE käsimerkit',
   'help.thunder': 'Ukkosella kelaa viehe sisään ja pysy rannan lähellä',
   'help.touchLand': 'Viehe maalla tai laiturilla: KATKO katkaisee siiman',
   'help.touchTangle': 'Sotkussa kelatkaa yhdessä · KATKO katkaisee',
@@ -387,7 +387,7 @@ export const fi = {
   'help.keys3': 'Hiiri pohjassa tai välilyönti = kelaa',
   'help.keys4': '1/2/3 kelausnopeus · Q/E jarru löysemmälle/kireämmälle',
   'help.keys5': 'R vaihda viehe · K kaikuluotain · L vieheen syvyys',
-  'help.keys6': 'V kalastajan silmin',
+  'help.keys6': 'V kalastajan silmin · G käsimerkit',
   'help.keysLand': 'Viehe maalla tai laiturilla: C katkaisee siiman',
   'help.keysTangle': 'Sotkussa kelatkaa yhdessä · C katkaisee siiman',
   'sonar.depth': '{depth} m',
@@ -424,7 +424,17 @@ export const fi = {
   'touch.cancelTitle': 'Peru heitto',
   'touch.reel': 'KELAA',
   'touch.reelTitle': 'Kelaa',
+  'touch.emote': 'ELE',
+  'touch.emoteTitle': 'Käsimerkit',
 
+  // --- Käsimerkit ---
+  'emote.wave': 'Vilkutus',
+  'emote.thumbsUp': 'Peukku',
+  'emote.middleFinger': 'Keskisormi',
+  'emote.fist': 'Nyrkin heristys',
+  'emote.comeHere': 'Tänne!',
+  'emote.bigFish': 'Näin iso!',
+  'emote.tooMany': 'Liian monta elettä – odota hetki.',
   // --- Chat ---
   'chat.oldServer':
     'Palvelin on vanhempaa versiota: chat toimii, kun palvelin käynnistetään uudelleen.',

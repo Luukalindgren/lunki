@@ -12,13 +12,15 @@ export const ROOM_NAME = 'lunki';
  * uudelleen: asiakas ei lähetä vanhemmalle palvelimelle viestejä, joita se
  * ei tunne. Vanha palvelin ilman kenttää = 1.
  */
-export const PROTOCOL_VERSION = 4;
+export const PROTOCOL_VERSION = 5;
 /** Chat tuli versiossa 2. */
 export const CHAT_PROTOCOL = 2;
 /** Maalle juuttuneen vieheen siiman katkaisu (ClientMsg.landCut) tuli versiossa 3. */
 export const LAND_CUT_PROTOCOL = 3;
 /** Katsojat (JoinOptions.spectate, ClientMsg.spectate) tulivat versiossa 4. */
 export const SPECTATE_PROTOCOL = 4;
+/** Käsimerkit (ClientMsg.emote, ServerMsg.emote) tulivat versiossa 5. */
+export const EMOTE_PROTOCOL = 5;
 
 /** Oletuspelaajamäärä huoneessa. Rakenne sallii isomman. */
 export const DEFAULT_MAX_PLAYERS = 8;
@@ -133,6 +135,8 @@ export const ClientMsg = {
   landCut: 'landCut',
   /** Aulassa: seuraava kisa katsojana (true) tai kalastajana (false). */
   spectate: 'spectate',
+  /** Käsimerkki muille (EmoteId). */
+  emote: 'emote',
 } as const;
 
 /** Vieheen tila muille näytettäväksi. */
@@ -175,6 +179,8 @@ export const ServerMsg = {
   chatHistory: 'chatHistory',
   /** Viestiä ei välitetty: liian tiheään. */
   chatRejected: 'chatRejected',
+  /** Toisen pelaajan käsimerkki (EmoteMessage). */
+  emote: 'emote',
 } as const;
 
 export interface RecordMessage {

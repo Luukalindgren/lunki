@@ -82,6 +82,15 @@ muut pelaajat: SnapshotBuffer, piirretään 120 ms menneisyydestä
   oman siiman heti; toinen jatkaa normaalisti. Sotkukohta näkyy kaikille
   valkoisena rastina, ja selvinnyt pari on 2 s suojassa uudelta sotkulta.
 
+- **Käsimerkit ja puhekuplat** (#228, protokolla 5). G (kosketuksella ELE)
+  avaa ympyrävalikon: vilkutus, peukku, keskisormi, nyrkin heristys, "tänne!"
+  ja "näin iso!". Ele on 2,2 s käsien animaatio (`animateEmote`), jonka aikana
+  ei voi heittää, ja 3 s kupla nimilapun yllä. Chat-viestit näkyvät kuplassa
+  40 merkkiin lyhennettynä 5 s; yli 45 m:n päässä kupla pienenee ja viestistä
+  näkyy vain "…". Palvelin tarkistaa eleen tunnisteen ja tiheyden (2 putkeen,
+  sitten 1 / 2 s) ja välittää sen muille (`ServerMsg.emote`); eleitä ei
+  tallenneta. Yksinpelissä eleet näkyvät vain omalla koneella.
+
 ## Testaus viiveellä
 
 ```sh

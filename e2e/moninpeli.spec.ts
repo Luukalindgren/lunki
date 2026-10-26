@@ -116,6 +116,14 @@ test('moninpeli: Chromium, Firefox ja iPhone samassa huoneessa', async ({
       await expect.poll(() => p.locator('.hud-timer').innerText(), { timeout: 20_000 }).not.toBe(t);
     }
 
+    // Käsimerkki ja kisan aikainen chat kulkevat muille kuplina (#228).
+    await host.keyboard.press('KeyG');
+    await expect(host.locator('.emote-menu')).toBeVisible();
+    await host.keyboard.press('Digit1');
+    await expect(host.locator('.emote-menu')).toBeHidden();
+    for (const p of [ff, ios])
+      await expect(p.locator('.name-tags .speech-bubble canvas.emote-icon')).toHaveCount(1);
+
     for (const [name, errors] of pages) {
       test.info().annotations.push({ type: name, description: errors.errors.join(' | ') || 'ok' });
       errors.check();

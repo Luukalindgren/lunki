@@ -76,6 +76,9 @@ import {
   type UntangledMessage,
   CHAT_HISTORY,
   ChatLimiter,
+  EMOTE_RATE,
+  isEmoteId,
+  type EmoteMessage,
   sanitizeChat,
   type ChatMessage,
   type Waterspout,
@@ -181,6 +184,8 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   private chatId = 0;
   /** Chatin nopeusrajoitus pelaajittain (sessionId). */
   private readonly chatLimits = new Map<string, ChatLimiter>();
+  /** Käsimerkkien nopeusrajoitus pelaajittain (sessionId). */
+  private readonly emoteLimits = new Map<string, ChatLimiter>();
   /** Selaimen pysyvä tunniste pelaajittain (sessionId); ei jaeta muille. */
   private readonly playerIds = new Map<string, string>();
   /** Kesken kisan lähteneiden paikat (playerId); tyhjenee uuden kisan alkaessa. */
@@ -389,6 +394,16 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       this.chatLog.push(msg);
       if (this.chatLog.length > CHAT_HISTORY) this.chatLog.shift();
       this.broadcast(ServerMsg.chat, msg);
+    });
+
+    // Käsimerkki muille: tunnettu ele ja rajattu tiheys. Eleitä ei tallenneta.
+    this.onMessage(ClientMsg.emote, (client, emote: unknown) => {
+      if (!this.state.players.has(client.sessionId) || !isEmoteId(emote)) return;
+      let limiter = this.emoteLimits.get(client.sessionId);
+      if (!limiter) this.emoteLimits.set(client.sessionId, (limiter = new ChatLimiter(EMOTE_RATE)));
+      if (!limiter.take(Date.now())) return;
+      const msg: EmoteMessage = { from: client.sessionId, emote };
+      this.broadcast(ServerMsg.emote, msg, { except: client });
     });
 
     // Uudemman asiakkaan tuntematon viesti ohitetaan: muuten Colyseus
@@ -673,6 +688,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     this.reeling.delete(id);
     this.tangleFree.delete(id);
     this.chatLimits.delete(id);
+    this.emoteLimits.delete(id);
     if (this.state.hostId === id) {
       // Isännyys siirtyy seuraavaksi liittyneelle.
       this.state.hostId = this.state.players.keys().next().value ?? '';

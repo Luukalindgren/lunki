@@ -85,6 +85,7 @@ export class TouchControls {
       this.tap('touch.sonar', 'KeyK', 'touch.sonarTitle'),
       this.tap('touch.depth', 'KeyL', 'touch.depthTitle'),
       this.tap('touch.cam', 'KeyV', 'touch.camTitle'),
+      this.tap('touch.emote', 'KeyG', 'touch.emoteTitle'),
       this.tap('touch.dragLess', 'KeyQ', 'touch.dragLessTitle'),
       this.tap('touch.dragMore', 'KeyE', 'touch.dragMoreTitle'),
       this.gearButton,

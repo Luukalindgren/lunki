@@ -30,6 +30,8 @@ import {
   DEFAULT_TACKLE,
   PROTOCOL_VERSION,
   CHAT_RATE,
+  EMOTE_RATE,
+  type EmoteMessage,
   JoinRefusal,
   type ChatMessage,
   type RoomError,
@@ -454,6 +456,36 @@ describe('LunkiRoom', () => {
     await host.leave();
     await guest.leave();
     await late.leave();
+  });
+
+  it('käsimerkit muille, tuntemattomat hylätään ja tiheys rajataan (#228)', async () => {
+    const host = await sdk().create(ROOM_NAME, { name: 'A', playerId: 'a' });
+    const guest = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
+    await until(() => players(host).length === 2);
+    const seen: EmoteMessage[] = [];
+    guest.onMessage(ServerMsg.emote, (m: EmoteMessage) => seen.push(m));
+    let own = 0;
+    host.onMessage(ServerMsg.emote, () => own++);
+
+    host.send(ClientMsg.emote, 'moonwalk');
+    host.send(ClientMsg.emote, { emote: 'wave' });
+    host.send(ClientMsg.emote, 'wave');
+    await until(() => seen.length === 1);
+    expect(seen[0]).toEqual({ from: host.sessionId, emote: 'wave' });
+
+    // Purske täyttyy: ylimääräiset ohitetaan hiljaa.
+    for (let i = 0; i < EMOTE_RATE.burst + 2; i++) host.send(ClientMsg.emote, 'thumbsUp');
+    // Vieras voi silti tehdä omansa (raja on pelaajakohtainen); sen jälkeen jono on käsitelty.
+    let back = 0;
+    host.onMessage(ServerMsg.emote, () => back++);
+    guest.send(ClientMsg.emote, 'fist');
+    await until(() => back === 1);
+    expect(seen.length).toBe(EMOTE_RATE.burst);
+    // Tekijä ei saa omaa elettään takaisin.
+    expect(own).toBe(1);
+
+    await host.leave();
+    await guest.leave();
   });
 
   it('tuntematon viestityyppi ei katkaise yhteyttä, ja protokollaversio näkyy', async () => {
