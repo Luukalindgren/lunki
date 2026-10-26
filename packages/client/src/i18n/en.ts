@@ -182,6 +182,9 @@ export const en: Record<keyof typeof fi, string> = {
   'tackle.hint':
     'Thin line casts further but snaps more easily. A pike can bite through the line without a leader.',
   'tackle.beginner': 'Beginner tackle',
+  'tackle.lureInRace':
+    'You change the lure during the race: the R key, the LURE button or the pause menu.',
+  'tackle.rodLocked': 'Rod: {rod}. The rod stays the same for the whole race.',
 
   // --- Starting spot ---
   'startPicker.choose': 'Choose this',
