@@ -95,6 +95,34 @@ export function handRaise(age: number): number {
   return k * k * (3 - 2 * k);
 }
 
+/** Kiekuroita enintään ja pisteitä kiekuraa kohden. */
+const SLACK_COILS = 8;
+const COIL_POINTS = 16;
+
+/**
+ * Löysän siiman kiekurat vedessä renkaan edessä, räpylöiden molemmin puolin:
+ * soikeat lenkit vähän eri kohdissa, vuorotellen kummallakin puolella.
+ */
+function slackCoils(material: THREE.LineBasicMaterial): THREE.LineSegments {
+  const points: THREE.Vector3[] = [];
+  for (let c = 0; c < SLACK_COILS; c++) {
+    // Kiinteä "satunnainen" sijoittelu, jotta kasa ei elä kuvasta toiseen.
+    const side = c % 2 === 0 ? 1 : -1;
+    const cx = 0.75 + ((c * 29) % 6) * 0.08;
+    const cz = side * (0.38 + ((c * 17) % 5) * 0.05);
+    const rx = 0.08 + ((c * 37) % 5) * 0.012;
+    const rz = 0.1 + ((c * 53) % 7) * 0.012;
+    const at = (i: number) => {
+      const a = (i / COIL_POINTS) * Math.PI * 2 + c;
+      return new THREE.Vector3(cx + Math.cos(a) * rx, 0.02, cz + Math.sin(a) * rz);
+    };
+    for (let i = 0; i < COIL_POINTS; i++) points.push(at(i), at(i + 1));
+  }
+  const line = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(points), material);
+  line.geometry.setDrawRange(0, 0);
+  return line;
+}
+
 /** Kahden värin sekoitus. */
 const mix = (a: number, b: number, k: number) =>
   new THREE.Color(a).lerp(new THREE.Color(b), k).getHex();
@@ -172,6 +200,9 @@ export class PovTube {
   private lastPhase = 0;
   private time = 0;
   private lastClarity = -1;
+  /** Perhon löysä siima kiekuroina verkkotasolla (#234). */
+  private readonly slackMaterial = new THREE.LineBasicMaterial({ color: DEFAULT_APPEARANCE.line });
+  private readonly slackLine: THREE.LineSegments;
 
   constructor(appearance: Appearance = DEFAULT_APPEARANCE) {
     this.group.add(this.body);
@@ -222,7 +253,9 @@ export class PovTube {
       rail.position.set(DIM.apronFrom + apronLen / 2, DIM.apronY, side * DIM.apronHalf);
       this.apron.add(rail);
     }
-    this.body.add(this.apron);
+    this.slackLine = slackCoils(this.slackMaterial);
+    this.slackLine.visible = false;
+    this.body.add(this.apron, this.slackLine);
 
     // Sääret polvista viistosti eteen veteen; veden alla tummina.
     const legMat = new THREE.MeshLambertMaterial({ color: COLOR.legs });
@@ -290,6 +323,14 @@ export class PovTube {
   }
 
   /** `origin` = renkaan kohta maailmassa vedenpinnalla, `heading` = katsesuunta. */
+  /** Löysää siimaa (m) renkaan edessä: yksi kiekura noin kahta ja puolta metriä kohden. */
+  setSlack(meters: number, color: number): void {
+    const coils = Math.min(SLACK_COILS, Math.ceil(meters / 2.5));
+    this.slackLine.visible = meters > 0.2;
+    this.slackLine.geometry.setDrawRange(0, coils * COIL_POINTS * 2);
+    this.slackMaterial.color.setHex(color);
+  }
+
   update(origin: THREE.Vector3, heading: number, input: PovTubeInput, dt: number): void {
     this.time += dt;
     this.group.position.copy(origin);

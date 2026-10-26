@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { SPECIES } from '../fishing/fish';
 import { DEFAULT_APPEARANCE } from '../net/appearance';
-import { parseSoloRecord } from './records';
+import { DEFAULT_TACKLE } from '../fishing/gear';
+import { parseSoloRecord, recordTackle } from './records';
 
 const now = new Date('2026-10-26T00:10:00Z');
 const valid = {
@@ -65,6 +66,31 @@ describe('yksinpelin saaliin tarkistus', () => {
     expect(e.sky).toBeUndefined();
     expect(e.leader).toBeUndefined();
     expect(e.angler).toBe('Kalastaja');
+  });
+
+  it('perhosaaliiseen tallentuvat perhovälineet, virvelin tiedot jäävät pois (#233)', () => {
+    const e = parseSoloRecord(
+      {
+        ...valid,
+        ...recordTackle({ ...DEFAULT_TACKLE, method: 'fly', fly: 'popper' }),
+        lure: 'spoon',
+      },
+      now,
+    )!;
+    expect(e.method).toBe('fly');
+    expect(e.fly).toBe('popper');
+    expect(e.flyRod).toBe('fly8');
+    expect(e.flyLine).toBe('floating');
+    expect(e.flyLeader).toBe('steel');
+    expect(e.lure).toBeUndefined();
+    expect(recordTackle(DEFAULT_TACKLE)).toEqual({
+      method: 'spin',
+      lure: 'spoon',
+      rod: 'medium',
+      line: 'medium',
+      leader: false,
+    });
+    expect(parseSoloRecord({ ...valid, method: 'net', fly: 'popper' }, now)!.fly).toBeUndefined();
   });
 
   it('ulkonäkö tallennetaan punnituskorttiin, tuntemattomat värit oletuksiksi', () => {

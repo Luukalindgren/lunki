@@ -26,6 +26,17 @@ import {
   TIME_OF_DAY_IDS,
   WEATHER_LEVEL_IDS,
   mapCredits,
+  DEFAULT_TACKLE,
+  FLIES,
+  FLY_IDS,
+  FLY_LEADERS,
+  FLY_LEADER_IDS,
+  FLY_LINES,
+  FLY_LINE_IDS,
+  FLY_RODS,
+  FLY_ROD_IDS,
+  METHODS,
+  type Method,
 } from '@lunki/shared';
 import { creditText } from '../ui/credits';
 import { en } from './en';
@@ -42,6 +53,11 @@ import {
 import {
   colorName,
   describeFullTackle,
+  flyLeaderName,
+  flyLineName,
+  flyName,
+  flyRodName,
+  methodName,
   difficultyName,
   warningText,
   winRuleName,
@@ -138,8 +154,17 @@ describe('käännökset', () => {
         expect(colorName(c.hex, '?'), c.name).not.toBe('?');
     }
     expect(speciesName('pike')).toBe('Pike');
-    expect(describeFullTackle({ rod: 'heavy', lure: 'spoon', line: 'thin', leader: true })).toBe(
-      'Heavy rod · Spoon · 0.20 mm · leader',
+    expect(
+      describeFullTackle({
+        ...DEFAULT_TACKLE,
+        rod: 'heavy',
+        lure: 'spoon',
+        line: 'thin',
+        leader: true,
+      }),
+    ).toBe('Heavy rod · Spoon · 0.20 mm · leader');
+    expect(describeFullTackle({ ...DEFAULT_TACKLE, method: 'fly', fly: 'popper' })).toBe(
+      'Fly rod #8 · Popper · Floating · Steel',
     );
   });
 
@@ -155,6 +180,11 @@ describe('käännökset', () => {
       expect(rodHint(id)).toBe(RODS[id].hint);
     }
     for (const id of LINE_IDS) expect(lineName(id)).toBe(LINES[id].name);
+    for (const id of FLY_IDS) expect(flyName(id)).toBe(FLIES[id].name);
+    for (const id of FLY_ROD_IDS) expect(flyRodName(id)).toBe(FLY_RODS[id].name);
+    for (const id of FLY_LINE_IDS) expect(flyLineName(id)).toBe(FLY_LINES[id].name);
+    for (const id of FLY_LEADER_IDS) expect(flyLeaderName(id)).toBe(FLY_LEADERS[id].name);
+    for (const id of Object.keys(METHODS) as Method[]) expect(methodName(id)).toBe(METHODS[id]);
     for (const id of SKIES) expect(skyName(id)).toBe(SKY_NAMES[id]);
     for (const id of TIME_OF_DAY_IDS) expect(timeOfDayName(id)).toBe(TIME_OF_DAY_NAMES[id]);
     for (const id of WEATHER_LEVEL_IDS) expect(weatherLevelName(id)).toBe(WEATHER_LEVELS[id].label);

@@ -47,6 +47,12 @@ export const PlayerState = schema(
     lure: t.string().default(DEFAULT_TACKLE.lure),
     line: t.string().default(DEFAULT_TACKLE.line),
     leader: t.boolean().default(DEFAULT_TACKLE.leader),
+    /** Virveli tai perho, ja perhovälineet (#234). */
+    method: t.string().default(DEFAULT_TACKLE.method),
+    flyRod: t.string().default(DEFAULT_TACKLE.flyRod),
+    flyLine: t.string().default(DEFAULT_TACKLE.flyLine),
+    flyLeader: t.string().default(DEFAULT_TACKLE.flyLeader),
+    fly: t.string().default(DEFAULT_TACKLE.fly),
     /** Katsoja: ei rengasta eikä saaliita, näkee kisan ja voi chatata. */
     spectator: t.boolean().default(false),
     /** Värit muiden nähtäväksi (Appearance). */

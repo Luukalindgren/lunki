@@ -77,6 +77,34 @@ test.describe('yksinpeli', () => {
     errors.check();
   });
 
+  test('perho: kalastustapa taukovalikosta, heitto ja vedot välilyönnillä (#234)', async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, 'puhelimet: ks. kosketus.spec.ts');
+    const errors = watchErrors(page);
+    await startSolo(page);
+    const status = async () => (await page.locator('.hud-status').textContent()) ?? '';
+    const metres = (re: RegExp) => async () =>
+      Number(re.exec(await status())?.[1]?.replace(',', '.') ?? 0);
+
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Perho', exact: true }).click();
+    await page.getByRole('button', { name: 'Jatka' }).click();
+    await expect.poll(status).toContain('Hauki-streameri');
+    await expect.poll(status).toContain('Löysää 0,0 m');
+
+    await page.keyboard.down('Space');
+    await page.waitForTimeout(500);
+    await page.keyboard.up('Space');
+    await expect.poll(metres(/Siimaa ([\d,]+) m/), { timeout: 10_000 }).toBeGreaterThan(3);
+    // Välilyönti pohjassa vetää siimaa renkaan eteen löysäksi.
+    await page.keyboard.down('Space');
+    await expect.poll(metres(/Löysää ([\d,]+) m/), { timeout: 15_000 }).toBeGreaterThan(0.5);
+    await page.keyboard.up('Space');
+    errors.check();
+  });
+
   test('HUDin koko taukovalikosta: reunat pysyvät, valinta säilyy', async ({ page, isMobile }) => {
     test.skip(isMobile, 'puhelimet: ks. kosketus.spec.ts');
     const errors = watchErrors(page);

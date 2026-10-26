@@ -1,12 +1,22 @@
 import {
+  FLIES,
+  FLY_LEADERS,
+  FLY_LINES,
+  FLY_RODS,
   LINES,
   LURES,
+  METHODS,
   RODS,
   SKY_NAMES,
   SPECIES,
   TIME_OF_DAY_NAMES,
   formatTime,
+  type FlyId,
+  type FlyLeaderId,
+  type FlyLineId,
+  type FlyRodId,
   type LineId,
+  type Method,
   type LureId,
   type RecordEntry,
   type RodId,
@@ -15,7 +25,19 @@ import {
   type TimeOfDay,
 } from '@lunki/shared';
 import { formatClock, formatDay, formatWeight, shortDecimal, t } from '../i18n';
-import { lineName, lureName, rodName, skyName, speciesName, timeOfDayName } from '../i18n/names';
+import {
+  flyLeaderName,
+  flyLineName,
+  flyName,
+  flyRodName,
+  lineName,
+  lureName,
+  methodName,
+  rodName,
+  skyName,
+  speciesName,
+  timeOfDayName,
+} from '../i18n/names';
 
 /** Ennätyskartan merkin väri lajin mukaan. */
 export const SPECIES_PIN_COLORS: Record<SpeciesId, string> = {
@@ -68,12 +90,24 @@ export function recordDetails(r: RecordEntry, spot?: string | null): [string, st
     const wind = r.wind !== undefined ? t('records.wind', { wind: shortDecimal(r.wind) }) : '';
     rows.push([t('settings.weather'), `${known<Sky>(SKY_NAMES, r.sky, skyName)}${wind}`]);
   }
+  // Virveli vai perho (#233): vanhat saaliit ovat virvelillä.
+  if (r.method) rows.push([t('records.method'), known<Method>(METHODS, r.method, methodName)]);
+  if (r.fly) rows.push([t('records.fly'), known<FlyId>(FLIES, r.fly, flyName)]);
   if (r.lure) rows.push([t('records.lure'), known<LureId>(LURES, r.lure, lureName)]);
-  const gear = [
-    r.rod && known<RodId>(RODS, r.rod, rodName),
-    r.line && t('records.line', { name: known<LineId>(LINES, r.line, lineName) }),
-    r.leader && t('records.leader'),
-  ].filter(Boolean);
+  const gear =
+    r.method === 'fly'
+      ? [
+          r.flyRod && known<FlyRodId>(FLY_RODS, r.flyRod, flyRodName),
+          r.flyLine &&
+            t('records.line', { name: known<FlyLineId>(FLY_LINES, r.flyLine, flyLineName) }),
+          r.flyLeader &&
+            `${t('tackle.flyLeader')} ${known<FlyLeaderId>(FLY_LEADERS, r.flyLeader, flyLeaderName)}`.toLowerCase(),
+        ].filter(Boolean)
+      : [
+          r.rod && known<RodId>(RODS, r.rod, rodName),
+          r.line && t('records.line', { name: known<LineId>(LINES, r.line, lineName) }),
+          r.leader && t('records.leader'),
+        ].filter(Boolean);
   if (gear.length > 0) rows.push([t('records.gear'), gear.join(', ')]);
   rows.push([
     t('records.place'),

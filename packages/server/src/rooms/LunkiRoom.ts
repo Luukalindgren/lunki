@@ -47,6 +47,9 @@ import {
   sanitizeName,
   validateSettingsPatch,
   parseTackle,
+  recordTackle,
+  DEFAULT_TACKLE,
+  type Tackle,
   parseAppearance,
   isFishTag,
   FISH_COUNT,
@@ -61,9 +64,6 @@ import {
   JoinRefusal,
   RECORDS_PER_SPECIES,
   type Difficulty,
-  type LineId,
-  type LureId,
-  type RodId,
   type TimeOfDay,
   type RecordMessage,
   type SpeciesId,
@@ -94,6 +94,20 @@ import { recordStore } from '../records';
 import { releaseCode, reserveCode } from './codes';
 import { FROZEN, stepSims, type Sim } from './simulation';
 import { CatchState, LunkiState, PlayerState } from './state';
+
+/** Pelaajan varusteet tilasta (ennätyksiin). */
+const playerTackle = (p: PlayerState): Tackle =>
+  parseTackle({
+    rod: p.rod,
+    lure: p.lure,
+    line: p.line,
+    leader: p.leader,
+    method: p.method,
+    flyRod: p.flyRod,
+    flyLine: p.flyLine,
+    flyLeader: p.flyLeader,
+    fly: p.fly,
+  }) ?? DEFAULT_TACKLE;
 
 export interface CreateOptions extends Partial<JoinOptions> {
   maxPlayers?: number;
@@ -326,12 +340,20 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       const p = this.state.players.get(client.sessionId);
       const t = parseTackle(msg);
       if (!p || !t) return;
-      // Vapa valitaan ennen kisaa; kesken kisan tullut saa valita sen kerran.
-      if (this.state.phase === 'lobby' || !this.rodFixed.has(client.sessionId)) p.rod = t.rod;
+      // Vavat valitaan ennen kisaa; kesken kisan tullut saa valita ne kerran.
+      // Virvelin ja perhon välillä voi vaihtaa kesken kisan.
+      if (this.state.phase === 'lobby' || !this.rodFixed.has(client.sessionId)) {
+        p.rod = t.rod;
+        p.flyRod = t.flyRod;
+      }
       if (this.state.phase !== 'lobby') this.rodFixed.add(client.sessionId);
       p.lure = t.lure;
       p.line = t.line;
       p.leader = t.leader;
+      p.method = t.method;
+      p.flyLine = t.flyLine;
+      p.flyLeader = t.flyLeader;
+      p.fly = t.fly;
     });
 
     this.onMessage(ClientMsg.appearance, (client, msg: unknown) => {
@@ -841,10 +863,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       timeOfDay: st.settings.timeOfDay as TimeOfDay,
       ...(weather && { sky: weather.sky, wind: Math.round(weather.windSpeed * 10) / 10 }),
       ...(p && {
-        lure: p.lure as LureId,
-        rod: p.rod as RodId,
-        line: p.line as LineId,
-        leader: p.leader,
+        ...recordTackle(playerTackle(p)),
         appearance: {
           tube: p.tubeColor,
           fins: p.finColor,

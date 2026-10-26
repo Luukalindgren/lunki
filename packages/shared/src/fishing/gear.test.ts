@@ -155,12 +155,14 @@ describe('vieheet ja siimat', () => {
     expect(isTackle({ ...DEFAULT_TACKLE, rod: 'toString' })).toBe(false);
   });
 
-  it('vanha tallennus ilman vapaa saa perusvavan', () => {
+  it('vanha tallennus ilman vapaa ja perhovälineitä saa oletukset', () => {
     expect(parseTackle({ lure: 'jig', line: 'thin', leader: true })).toEqual({
+      ...DEFAULT_TACKLE,
       rod: 'medium',
       lure: 'jig',
       line: 'thin',
       leader: true,
+      method: 'spin',
     });
     expect(parseTackle({ lure: 'nope' })).toBeNull();
     expect(parseTackle('spoon')).toBeNull();

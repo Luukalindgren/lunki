@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Rng } from '../rng';
 import { distance } from '../vec2';
+import { DEFAULT_TACKLE } from './gear';
 import { replaceFish } from './fishing';
 import { DIFFICULTIES, type Difficulty } from './difficulty';
 import {
@@ -615,7 +616,7 @@ describe('suurkalat ja jättikalat (#231)', () => {
         speed: 0.6,
         fishable: true,
         tip: { x: 0, y: 0 },
-        tackle: { rod: 'medium', lure: 'spoon', line: 'medium', leader: true },
+        tackle: { ...DEFAULT_TACKLE, leader: true },
       };
       for (let i = 0; i < 0.5 / DT; i++) {
         const ev = stepFishPopulation(pop, lure, lake, DIFFICULTIES.normal, rng, DT);
