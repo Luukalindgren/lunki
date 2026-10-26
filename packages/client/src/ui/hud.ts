@@ -50,6 +50,8 @@ export class Hud {
   private readonly probeU: HTMLDivElement;
   private readonly probeM: HTMLDivElement;
   private messageTimer = 0;
+  /** Pysyvä ilmoitus (yhteyskatko), joka palaa näkyviin muiden viestien jälkeen. */
+  private standing: string | null = null;
   private weighTimer = 0;
   /** Punnituskortti on saaliista: uuden heiton aloitus piilottaa sen. */
   private weighCatch = false;
@@ -372,6 +374,17 @@ export class Hud {
   }
 
   /**
+   * Ilmoitus, joka pysyy näkyvissä kunnes se poistetaan (null). Väliin
+   * tulevat viestit näkyvät tavalliseen tapaan, minkä jälkeen tämä palaa.
+   */
+  setStandingMessage(text: string | null): void {
+    this.standing = text;
+    if (this.messageTimer > 0) return;
+    this.messageText.textContent = text ?? '';
+    this.message.hidden = text === null;
+  }
+
+  /**
    * Salaman välähdys: koko ruudun vaaleus tällä hetkellä (0–1). `invert` =
    * aivan lähellä iskiessä kuva kääntyy hetkeksi negatiiviksi.
    */
@@ -390,7 +403,7 @@ export class Hud {
     }
     if (this.messageTimer > 0) {
       this.messageTimer -= dt;
-      if (this.messageTimer <= 0) this.message.hidden = true;
+      if (this.messageTimer <= 0) this.setStandingMessage(this.standing);
     }
   }
 }

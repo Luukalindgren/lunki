@@ -393,6 +393,7 @@ function enterLobby(s: NetSession) {
   s.onDisconnect = () => {
     if (session !== s) return;
     session = null;
+    hud.setStandingMessage(null);
     chat?.dispose();
     chat = null;
     game?.dispose();
@@ -400,7 +401,10 @@ function enterLobby(s: NetSession) {
     showMultiplayer('', t('mp.disconnected'));
   };
   s.onConnection = (connected) => {
-    if (session === s) hud.showMessage(connected ? t('mp.reconnected') : t('mp.reconnecting'), 3);
+    if (session !== s) return;
+    // Katkon ajan ilmoitus pysyy: muuten pysähtynyt kisa näyttäisi jäätyneeltä (#293).
+    hud.setStandingMessage(connected ? null : t('mp.reconnecting'));
+    if (connected) hud.showMessage(t('mp.reconnected'), 3);
   };
   // Uudelleenyhdistäessä kisa voi olla jo käynnissä.
   if (s.ready) s.onChange(s.view());
@@ -422,6 +426,7 @@ async function tryResume(): Promise<boolean> {
 function leaveRoom() {
   const s = session;
   session = null;
+  hud.setStandingMessage(null);
   clearLastRoom();
   chat?.dispose();
   chat = null;
