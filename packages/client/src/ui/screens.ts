@@ -59,6 +59,7 @@ import type { RaceEventKind, RaceMapData } from '../game/raceLog';
 import { SPECIES_PIN_COLORS, formatDate, recordDetails, recordTitle } from './recordDetails';
 import { drawTubePreview } from './tubePreview';
 import { VOLUME_LEVELS, type AudioSettings, type VolumeLevel } from '../audio/settings';
+import { MUSIC_CHOICES, type MusicChoice } from '../audio/music';
 import {
   LANGS,
   formatWeight,
@@ -566,7 +567,7 @@ export class Screens {
     const a = { ...initial };
     const box = document.createElement('div');
     box.className = 'settings';
-    const row = (label: string, key: keyof AudioSettings) =>
+    const row = (label: string, key: 'effects' | 'ambience' | 'music') =>
       this.choice(
         label,
         VOLUME_LEVELS.map((v) => [String(v), t(`volume.${v}`)]),
@@ -580,6 +581,15 @@ export class Screens {
       row(t('audio.effects'), 'effects'),
       row(t('audio.ambience'), 'ambience'),
       row(t('audio.music'), 'music'),
+      this.choice(
+        t('audio.track'),
+        MUSIC_CHOICES.map((c) => [c, t(`music.${c}`)]),
+        a.musicTrack,
+        (v) => {
+          a.musicTrack = v as MusicChoice;
+          onChange({ ...a });
+        },
+      ),
     );
     return box;
   }

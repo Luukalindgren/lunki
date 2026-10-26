@@ -1,3 +1,5 @@
+import { MUSIC_CHOICES, type MusicChoice } from './music';
+
 /** Äänenvoimakkuus portaittain: pois, hiljainen, normaali, kova. */
 export type VolumeLevel = 0 | 1 | 2 | 3;
 
@@ -14,9 +16,18 @@ export interface AudioSettings {
   ambience: VolumeLevel;
   /** Taustamusiikki (oletuksena pois). */
   music: VolumeLevel;
+  /** Soitettava raita tai vaihtuva. */
+  musicTrack: MusicChoice;
 }
 
-export const DEFAULT_AUDIO: AudioSettings = { effects: 2, ambience: 2, music: 0 };
+export const DEFAULT_AUDIO: AudioSettings = {
+  effects: 2,
+  ambience: 2,
+  music: 0,
+  musicTrack: 'vaihtuva',
+};
+
+const VOLUME_KEYS = ['effects', 'ambience', 'music'] as const;
 
 const KEY = 'lunki.audio';
 const isLevel = (v: unknown): v is VolumeLevel => v === 0 || v === 1 || v === 2 || v === 3;
@@ -25,7 +36,8 @@ export function loadAudioSettings(): AudioSettings {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) ?? 'null') as Partial<AudioSettings> | null;
     const s = { ...DEFAULT_AUDIO };
-    for (const k of Object.keys(s) as (keyof AudioSettings)[]) if (isLevel(raw?.[k])) s[k] = raw[k];
+    for (const k of VOLUME_KEYS) if (isLevel(raw?.[k])) s[k] = raw[k];
+    if (MUSIC_CHOICES.includes(raw?.musicTrack as MusicChoice)) s.musicTrack = raw!.musicTrack!;
     return s;
   } catch {
     return { ...DEFAULT_AUDIO };

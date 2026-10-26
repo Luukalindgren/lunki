@@ -73,6 +73,7 @@ export class Sfx {
     this.thunderBus.gain.setTargetAtTime(0.9 * volumeGain(this.settings.effects), t, 0.05);
     this.ambienceBus.gain.setTargetAtTime(0.5 * volumeGain(this.settings.ambience), t, 0.2);
     this.musicBus.gain.setTargetAtTime(0.5 * volumeGain(this.settings.music), t, 0.2);
+    this.music?.setChoice(this.settings.musicTrack);
     if (this.settings.music > 0) this.music?.start();
     else this.music?.stop();
   }

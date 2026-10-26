@@ -258,6 +258,12 @@ export const en: Record<keyof typeof fi, string> = {
   'audio.effects': 'Effects',
   'audio.ambience': 'Wind, rain and birds',
   'audio.music': 'Music',
+  'audio.track': 'Track',
+  'music.vaihtuva': 'Rotate',
+  'music.jarvenselka': 'Open lake',
+  'music.usva': 'Morning mist',
+  'music.valssi': 'Loon waltz',
+  'music.uistelu': 'Trolling',
   'credits.title': 'Credits and sources',
   'credits.authors':
     'Lunkinjärvi: Luuka Lindgren and Claude Code. The sounds are synthesised in the browser.',
