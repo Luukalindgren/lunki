@@ -1,7 +1,7 @@
 import type { Structure } from '../map/bottom';
 import type { BottomType } from '../map/scatter';
 import { distance, type Vec2 } from '../vec2';
-import type { Fish } from './fish';
+import { sizeClass, type Fish, type SizeClass } from './fish';
 
 /** Kaikuluotaimen keila: säde (m) = base + syvyys · spread. */
 export const SONAR = {
@@ -12,6 +12,8 @@ export const SONAR = {
 export interface SonarEcho {
   depth: number;
   weight: number;
+  /** Kokoluokka lajin rajoista: kaiun väri ja koko (#231). */
+  size: SizeClass;
 }
 
 export interface SonarPing {
@@ -46,7 +48,8 @@ export function sonarPing(
     if (f.mode === 'gone' || f.depth > bottom) continue;
     const radius = SONAR.base + f.depth * SONAR.spread;
     if (Math.abs(f.pos.x - pos.x) > radius || Math.abs(f.pos.y - pos.y) > radius) continue;
-    if (distance(f.pos, pos) <= radius) echoes.push({ depth: f.depth, weight: f.weight });
+    if (distance(f.pos, pos) <= radius)
+      echoes.push({ depth: f.depth, weight: f.weight, size: sizeClass(f.species, f.weight) });
   }
   echoes.sort((a, b) => a.depth - b.depth);
   const ping: SonarPing = { bottom, echoes };
@@ -56,6 +59,21 @@ export function sonarPing(
     ping.cover = { kind: st.kind, height: st.height ?? 0 };
   return ping;
 }
+
+/**
+ * Kaiun väri ja koko (px) kokoluokittain: keltainen, oranssi, punainen,
+ * violetti ja jättikalalle musta ohuella valkoisella reunalla.
+ */
+export const ECHO_STYLE: readonly { color: string; px: number }[] = [
+  { color: '#f6d04d', px: 1 },
+  { color: '#f08a2c', px: 2 },
+  { color: '#d23a2a', px: 3 },
+  { color: '#9b4dd8', px: 4 },
+  { color: '#000000', px: 5 },
+];
+
+/** Jättikalan kaiun reuna. */
+export const GIANT_RIM = '#ffffff';
 
 /** Näytön syvyysalue (m): pienin porras, johon pohja mahtuu. */
 export function sonarRange(bottom: number): number {

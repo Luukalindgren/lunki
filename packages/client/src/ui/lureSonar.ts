@@ -1,4 +1,14 @@
-import { distance, sonarRange, type BottomType, type Structure, type Vec2 } from '@lunki/shared';
+import {
+  ECHO_STYLE,
+  GIANT_RIM,
+  distance,
+  sizeClass,
+  sonarRange,
+  type BottomType,
+  type SpeciesId,
+  type Structure,
+  type Vec2,
+} from '@lunki/shared';
 import { lureColor } from '../game/lureColor';
 import { decimal, t } from '../i18n';
 
@@ -31,9 +41,6 @@ const COLORS = {
   brush: '#7a5230',
   trail: '#4f6f86',
   glint: '#eef2f3',
-  small: '#f6d04d',
-  big: '#f08a2c',
-  huge: '#d23a2a',
   bite: '#d23a2a',
 };
 
@@ -41,6 +48,7 @@ export interface LureSonarFish {
   pos: Vec2;
   depth: number;
   weight: number;
+  species: SpeciesId;
 }
 
 /** Yhden hetken tiedot vieheestä ja järvestä siiman suunnassa. */
@@ -273,12 +281,18 @@ export class LureSonarDisplay {
     for (const f of frame.fish) {
       const fx = x(alongLine(frame.tip, this.dir, f.pos));
       if (fx < 0 || fx >= WIDTH) continue;
-      // Isompi kala näkyy paksumpana ja punaisempana kaikuna, kuten renkaan luotaimessa.
-      const size = f.weight < 0.4 ? 1 : f.weight < 2 ? 2 : 3;
-      g.fillStyle = size === 1 ? COLORS.small : size === 2 ? COLORS.big : COLORS.huge;
+      // Isompi kala näkyy isompana kaikuna, samoin värein kuin renkaan luotaimessa.
+      const size = sizeClass(f.species, f.weight);
+      const half = ECHO_STYLE[size]!.px;
       const fy = y(f.depth);
-      g.fillRect(fx - size, fy, size * 2 + 1, 1);
-      if (size > 1) g.fillRect(fx - size + 1, fy - 1, size * 2 - 1, 1);
+      const arc = (color: string, grow: number) => {
+        g.fillStyle = color;
+        g.fillRect(fx - half - grow, fy, half * 2 + 1 + grow * 2, 1 + grow);
+        if (half > 1) g.fillRect(fx - half + 1 - grow, fy - 1 - grow, half * 2 - 1 + grow * 2, 1);
+      };
+      // Jättikala: musta kaiku ohuella valkoisella reunalla.
+      if (size === 4) arc(GIANT_RIM, 1);
+      arc(ECHO_STYLE[size]!.color, 0);
     }
 
     const lx = Math.min(WIDTH - 2, x(distance(frame.tip, frame.lure)));

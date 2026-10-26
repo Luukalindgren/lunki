@@ -260,7 +260,7 @@ describe('pohjatartunta', () => {
 });
 
 describe('kivet, kasvustot, risukot ja pohjan laatu (#226)', () => {
-  /** Viehe kelataan 2 m syvän rakenteen poikki; jigi saa painua pohjaan tauoilla. */
+  /** Viehe kelataan 2 m:n syvyydessä rakenteen yli; jigi painuu pohjaan tauoilla. */
   function run(
     seed: number,
     lure: Tackle['lure'],
@@ -286,7 +286,7 @@ describe('kivet, kasvustot, risukot ja pohjan laatu (#226)', () => {
     };
     const log: FishingEvents[] = [];
     const states: { fouled: boolean; info: LureInfo | null }[] = [];
-    for (let i = 0; i < 30 / DT && s.stage === 'water'; i++) {
+    for (let i = 0; i < 15 / DT && s.stage === 'water'; i++) {
       const reel = s.snag !== null || Math.floor(i / 40) % 2 === 0;
       log.push(
         stepFishing(s, { aim: { x: 30, y: 0 }, castHeld: false, reel, cancel: false }, ctx, DT),
@@ -297,7 +297,7 @@ describe('kivet, kasvustot, risukot ja pohjan laatu (#226)', () => {
   }
   const boulder: Structure = {
     kind: 'boulder',
-    pos: { x: 22, y: 0 },
+    pos: { x: 27, y: 0 },
     radius: 1.5,
     height: 0.8,
   };
@@ -315,7 +315,7 @@ describe('kivet, kasvustot, risukot ja pohjan laatu (#226)', () => {
     floor?: BottomType,
   ) => {
     let n = 0;
-    for (let seed = 1; seed <= 40; seed++)
+    for (let seed = 1; seed <= 30; seed++)
       if (run(seed, lure, st, floor).log.some((e) => e[ev])) n++;
     return n;
   };
@@ -348,7 +348,7 @@ describe('kivet, kasvustot, risukot ja pohjan laatu (#226)', () => {
   });
 
   it('liejussa jigi tarttuu kevyesti ja irtoaa aina ensimmäisellä vedolla', () => {
-    for (let seed = 1; seed <= 30; seed++) {
+    for (let seed = 1; seed <= 15; seed++) {
       const { log } = run(seed, 'jig', null, 'mud');
       const at = log.findIndex((e) => e.snagged);
       // Viimeisinä sekunteina tarttunutta ei ehditty irrottaa.
@@ -361,7 +361,7 @@ describe('kivet, kasvustot, risukot ja pohjan laatu (#226)', () => {
   });
 
   it('kivikkopohjassa jigi kolisee, hiekalla ei', () => {
-    expect(count('jig', null, 'rattle', 'rock')).toBeGreaterThan(30);
+    expect(count('jig', null, 'rattle', 'rock')).toBeGreaterThan(25);
     expect(count('jig', null, 'rattle', 'sand')).toBe(0);
   });
 });

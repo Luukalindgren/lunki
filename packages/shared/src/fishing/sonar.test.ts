@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Rng } from '../rng';
-import { spawnFish, type FishPopulation } from './fish';
+import { sizeClass, spawnFish, type FishPopulation } from './fish';
 import { sonarPing, sonarRange } from './sonar';
 
 const world = { isWater: () => true, depthAt: () => 5 };
@@ -18,7 +18,9 @@ describe('kaikuluotain', () => {
     const ping = sonarPing({ x: 0, y: 0 }, [shallow, deep, far], 5);
     expect(ping.bottom).toBe(5);
     // 2,5 m sivulla: 1 m syvyydessä keila on 1,85 m, 4 m syvyydessä 2,9 m.
-    expect(ping.echoes).toEqual([{ depth: 4, weight: deep.weight }]);
+    expect(ping.echoes).toEqual([
+      { depth: 4, weight: deep.weight, size: sizeClass('pike', deep.weight) },
+    ]);
   });
 
   it('ei näe pohjan alle eikä poistuneita kaloja', () => {

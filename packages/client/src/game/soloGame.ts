@@ -77,6 +77,7 @@ import {
 } from '@lunki/shared';
 import type { Input } from '../engine/input';
 import { createBottomMesh } from '../world/bottomMesh';
+import { FishShadow } from '../world/fishShadow';
 import { Ground } from '../world/ground';
 import { createShoreScenery } from '../world/shoreScenery';
 import { createMapOverlay, createTerrainMesh } from '../world/surroundingsMesh';
@@ -181,6 +182,8 @@ export class SoloGame {
   private readonly fishingView = new FishingView();
   /** Vinkkaa paikan vaihdosta, kun heitot menevät tyhjiin. */
   private readonly quietSpot = new QuietSpot();
+  /** Suurkalan varjo veden alla (#231). */
+  private readonly fishShadow = new FishShadow();
   /** Hiiren osoittama piste maailmassa. */
   aim: Vec2 = { x: 0, y: 0 };
   /** Heitto hiirellä tai välilyönnillä katsesuuntaan (#227). */
@@ -350,6 +353,7 @@ export class SoloGame {
     this.updateSky(0);
     this.applyWeatherLight();
     this.scene.add(createBottomMesh(this.bottom, this.waterWaves));
+    this.scene.add(this.fishShadow.mesh);
     this.scene.add(this.tubeMesh);
     this.flightShadow.visible = false;
     this.scene.add(this.flightShadow);
@@ -889,6 +893,8 @@ export class SoloGame {
             dt,
           );
     this.handleEvents(events, fishEvents.follow !== undefined, reeling, dt);
+    this.fishShadow.update(this.fish.fish, this.tube.pos);
+    if (fishEvents.shadow !== undefined) this.hud.showMessage(t('game.bigShadow'), 2.5);
     if (f.onLand && f.stage === 'water')
       this.hud.showMessage(
         t('game.stuckOnLand', { key: this.hud.touchMode ? t('touch.cut') : 'C' }),

@@ -21,6 +21,31 @@ Osa hauista (35 %) ja särkiparvista (20 %) asettuu kaislikoiden ja lumpeikoiden
 (`lunkinjarvi-reeds.json`). Kaislikossa viehe voi tarttua varsiin missä syvyydessä tahansa,
 ja rengas kulkee siellä hitaasti.
 
+## Suurkalat ja jättikalat (#231)
+
+Jokaisella lajilla on viisi kokoluokkaa omin painorajoin (`sizes`). Luotaimet näyttävät
+kaiun luokan mukaan:
+
+| Luokka    | Kaiku                               | Ahven    | Hauki  | Särki     | Kuha   | Taimen |
+| --------- | ----------------------------------- | -------- | ------ | --------- | ------ | ------ |
+| pieni     | keltainen 1 px                      | < 0,2 kg | < 1 kg | < 0,15 kg | < 1 kg | < 1 kg |
+| iso       | oranssi 2 px                        | 0,2      | 1      | 0,15      | 1      | 1      |
+| tosi iso  | punainen 3 px                       | 0,4      | 2,5    | 0,3       | 2      | 2      |
+| suurkala  | violetti 4 px                       | 0,8      | 5      | 0,5       | 4      | 3      |
+| jättikala | musta, valkoinen reuna, 5 px, leveä | 1,2      | 8      | 0,7       | 6      | 4,5    |
+
+Järvessä on aina jokaista lajia vähintään yksi jättikala (hauella kaksi) ja kaksi suurkalaa.
+Paikat valitaan kalakannan siemenestä omalla arpojallaan, joten palvelin laskee saman kannan,
+ja saadun jättikalan tilalle syntyy taas jättikala.
+
+Iso kala on vanha ja kokenut: se kiinnostuu vieheestä yhtä herkästi kuin pienempi, mutta
+iskee harvemmin (iskuherkkyys luokittain 1; 0,9; 0,7; 0,4; 0,25). Hämärässä, tuulella ja
+ennen ukkosta suurkalat innostuvat selvemmin kuin pienet. Ne pitävät isosta ja hitaasta
+vieheestä (vaappu ja lusikka), jigi ja lippa kiinnostavat vähemmän. Kun suurkala seuraa
+viehettä alle 6 m:n päähän kalastajasta, se kääntyy pois ja säikähtää (painuu syvemmälle
+eikä kiinnostu 30–60 s): kalastaja näkee tumman varjon vieheen perässä ja ilmoituksen
+"Iso varjo seurasi viehettä!". Pohjaan tarttunut viehe säikäyttää sen samoin.
+
 ## Käytös
 
 Lajien käytös (`behavior` lajin parametreissa) jäljittelee oikeita kaloja:
