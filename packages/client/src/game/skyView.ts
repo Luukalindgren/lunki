@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { moonAt, sunAt, type CelestialPosition, type TimeOfDay, type Vec2 } from '@lunki/shared';
+import { moonAt, sunAt, type CelestialPosition, type Vec2 } from '@lunki/shared';
 
 /**
  * Jälkikäsittelyn sävytys palettiin pyöristämisen jälkeen: väri =
@@ -81,172 +81,169 @@ const DAY: Look = {
   glitterAmount: 0.5,
 };
 
-/** Ilmeet kisan etenemisen mukaan (0 = alku, 1 = loppu). */
-export const LOOKS: Record<TimeOfDay, [number, Look][]> = {
-  morning: [
-    [
-      0,
-      {
-        // Sarastus: aurinko vielä horisontin alla, viimeiset tähdet ja paksu usva.
-        zenith: 0x24406e,
-        mid: 0x7b87b4,
-        horizon: 0xf2c4a8,
-        glowIn: 0xffeec0,
-        glowOut: 0xf3a27a,
-        glowAmount: 1,
-        glowSize: 0.22,
-        cloudLit: 0xffc4a4,
-        cloudShade: 0x5e6286,
-        clouds: 0.2,
-        mul: [0.86, 0.86, 1],
-        add: [0.06, 0.05, 0.1],
-        sat: 0.75,
-        fog: [40, 700],
-        mist: 1,
-        stars: 0.35,
-        ambient: 0.9,
-        direct: 0.5,
-        glitter: 0xfff3b0,
-        glitterAmount: 1,
-      },
-    ],
-    [
-      1,
-      {
-        // Aurinko noussut: lämmin aamuvalo, usva hälvenee.
-        zenith: 0x3474b4,
-        mid: 0x88b6dc,
-        horizon: 0xf4e0c4,
-        glowIn: 0xfffbe0,
-        glowOut: 0xf8d49c,
-        glowAmount: 0.85,
-        glowSize: 0.12,
-        cloudLit: 0xfff2dc,
-        cloudShade: 0x9ea6ba,
-        clouds: 0.3,
-        mul: [1.08, 1, 0.88],
-        add: [0.03, 0.02, 0],
-        sat: 1.05,
-        fog: [250, 1900],
-        mist: 0.3,
-        stars: 0,
-        ambient: 1,
-        direct: 0.9,
-        glitter: 0xfff3b0,
-        glitterAmount: 1,
-      },
-    ],
-  ],
-  day: [[0, DAY]],
-  evening: [
-    [
-      0,
-      {
-        // Kultainen tunti: aurinko matalalla luoteessa.
-        zenith: 0x316aa4,
-        mid: 0x76a4c8,
-        horizon: 0xf0d6a4,
-        glowIn: 0xfff4c0,
-        glowOut: 0xf6bc6c,
-        glowAmount: 0.95,
-        glowSize: 0.15,
-        cloudLit: 0xffdc9c,
-        cloudShade: 0x8a88a0,
-        clouds: 0.35,
-        mul: [1.14, 0.98, 0.76],
-        add: [0.03, 0.01, 0],
-        sat: 1.1,
-        fog: [400, 2400],
-        mist: 0,
-        stars: 0,
-        ambient: 1,
-        direct: 0.9,
-        glitter: 0xf6d04d,
-        glitterAmount: 1,
-      },
-    ],
-    [
-      0.55,
-      {
-        // Auringonlasku: oranssi hehku, punertava taivaanranta ja hehkuvat pilvet.
-        zenith: 0x263a74,
-        mid: 0x866496,
-        horizon: 0xf0864c,
-        glowIn: 0xfff0a0,
-        glowOut: 0xee5c2c,
-        glowAmount: 1.2,
-        glowSize: 0.3,
-        cloudLit: 0xff8c5a,
-        cloudShade: 0x563c5c,
-        clouds: 0.4,
-        mul: [1.12, 0.78, 0.62],
-        add: [0.05, 0, 0.03],
-        sat: 1.05,
-        fog: [300, 2000],
-        mist: 0.1,
-        stars: 0,
-        ambient: 0.95,
-        direct: 0.6,
-        glitter: 0xf08a2c,
-        glitterAmount: 1,
-      },
-    ],
-    [
-      1,
-      {
-        // Hämärä: aurinko laskenut, taivaanrannassa punainen juova, tähdet syttyvät.
-        zenith: 0x0c1836,
-        mid: 0x282e5e,
-        horizon: 0x9c3e4e,
-        glowIn: 0xee7c40,
-        glowOut: 0x9a2e40,
-        glowAmount: 0.85,
-        glowSize: 0.25,
-        cloudLit: 0xb85a6a,
-        cloudShade: 0x26223c,
-        clouds: 0.3,
-        mul: [0.58, 0.52, 0.74],
-        add: [0.04, 0.02, 0.08],
-        sat: 0.75,
-        fog: [200, 1600],
-        mist: 0.45,
-        stars: 0.6,
-        ambient: 0.9,
-        direct: 0.3,
-        glitter: 0xd23a2a,
-        glitterAmount: 0.6,
-      },
-    ],
-  ],
-  night: [
-    [
-      0,
-      {
-        // Kuutamo: tähtitaivas, kuu kaakossa ja kuun silta järvellä.
-        zenith: 0x040916,
-        mid: 0x0c1834,
-        horizon: 0x203252,
-        glowIn: 0xc8d8f0,
-        glowOut: 0x34507e,
-        glowAmount: 1,
-        glowSize: 0.05,
-        cloudLit: 0x8496b8,
-        cloudShade: 0x121a2e,
-        clouds: 0.2,
-        mul: [0.56, 0.68, 0.96],
-        add: [0.01, 0.02, 0.06],
-        sat: 0.5,
-        fog: [150, 1400],
-        mist: 0.35,
-        stars: 1,
-        ambient: 0.9,
-        direct: 0.8,
-        glitter: 0xeef2f3,
-        glitterAmount: 0.8,
-      },
-    ],
-  ],
+/** Vuorokauden hetkiä; niiden välillä ilme liukuu pelikellon mukaan. */
+const DAWN: Look = {
+  // Sarastus: aurinko vielä horisontin alla, viimeiset tähdet ja paksu usva.
+  zenith: 0x24406e,
+  mid: 0x7b87b4,
+  horizon: 0xf2c4a8,
+  glowIn: 0xffeec0,
+  glowOut: 0xf3a27a,
+  glowAmount: 1,
+  glowSize: 0.22,
+  cloudLit: 0xffc4a4,
+  cloudShade: 0x5e6286,
+  clouds: 0.2,
+  mul: [0.86, 0.86, 1],
+  add: [0.06, 0.05, 0.1],
+  sat: 0.75,
+  fog: [40, 700],
+  mist: 1,
+  stars: 0.35,
+  ambient: 0.9,
+  direct: 0.5,
+  glitter: 0xfff3b0,
+  glitterAmount: 1,
 };
+
+const SUNRISE: Look = {
+  // Aurinko noussut: lämmin aamuvalo, usva hälvenee.
+  zenith: 0x3474b4,
+  mid: 0x88b6dc,
+  horizon: 0xf4e0c4,
+  glowIn: 0xfffbe0,
+  glowOut: 0xf8d49c,
+  glowAmount: 0.85,
+  glowSize: 0.12,
+  cloudLit: 0xfff2dc,
+  cloudShade: 0x9ea6ba,
+  clouds: 0.3,
+  mul: [1.08, 1, 0.88],
+  add: [0.03, 0.02, 0],
+  sat: 1.05,
+  fog: [250, 1900],
+  mist: 0.3,
+  stars: 0,
+  ambient: 1,
+  direct: 0.9,
+  glitter: 0xfff3b0,
+  glitterAmount: 1,
+};
+
+const GOLDEN: Look = {
+  // Kultainen tunti: aurinko matalalla lännessä, maisema kellertävän ruskea,
+  // taivaanranta kultainen ja pilvet hunajaisia.
+  zenith: 0x3a6696,
+  mid: 0x9aa8b0,
+  horizon: 0xf2c47c,
+  glowIn: 0xfff0b4,
+  glowOut: 0xf0a44a,
+  glowAmount: 1.05,
+  glowSize: 0.2,
+  cloudLit: 0xffcc78,
+  cloudShade: 0x8a7464,
+  clouds: 0.35,
+  mul: [1.18, 0.95, 0.84],
+  add: [0.05, 0.02, 0],
+  sat: 1.12,
+  fog: [400, 2400],
+  mist: 0,
+  stars: 0,
+  ambient: 1,
+  direct: 0.9,
+  glitter: 0xf6d04d,
+  glitterAmount: 1,
+};
+
+const SUNSET: Look = {
+  // Auringonlasku: oranssi hehku, punertava taivaanranta ja hehkuvat pilvet.
+  zenith: 0x263a74,
+  mid: 0x866496,
+  horizon: 0xf0864c,
+  glowIn: 0xfff0a0,
+  glowOut: 0xee5c2c,
+  glowAmount: 1.2,
+  glowSize: 0.3,
+  cloudLit: 0xff8c5a,
+  cloudShade: 0x563c5c,
+  clouds: 0.4,
+  mul: [1.14, 0.82, 0.58],
+  add: [0.06, 0.02, 0.02],
+  sat: 1.05,
+  fog: [300, 2000],
+  mist: 0.1,
+  stars: 0,
+  ambient: 0.95,
+  direct: 0.6,
+  glitter: 0xf08a2c,
+  glitterAmount: 1,
+};
+
+const DUSK: Look = {
+  // Hämärä: aurinko laskenut, taivaanrannassa punainen juova, tähdet syttyvät.
+  zenith: 0x0c1836,
+  mid: 0x282e5e,
+  horizon: 0x9c3e4e,
+  glowIn: 0xee7c40,
+  glowOut: 0x9a2e40,
+  glowAmount: 0.85,
+  glowSize: 0.25,
+  cloudLit: 0xb85a6a,
+  cloudShade: 0x26223c,
+  clouds: 0.3,
+  mul: [0.58, 0.52, 0.74],
+  add: [0.04, 0.02, 0.08],
+  sat: 0.75,
+  fog: [200, 1600],
+  mist: 0.45,
+  stars: 0.6,
+  ambient: 0.9,
+  direct: 0.3,
+  glitter: 0xd23a2a,
+  glitterAmount: 0.6,
+};
+
+const NIGHT: Look = {
+  // Kuutamo: tähtitaivas, kuu kaakossa ja kuun silta järvellä.
+  zenith: 0x040916,
+  mid: 0x0c1834,
+  horizon: 0x203252,
+  glowIn: 0xc8d8f0,
+  glowOut: 0x34507e,
+  glowAmount: 1,
+  glowSize: 0.05,
+  cloudLit: 0x8496b8,
+  cloudShade: 0x121a2e,
+  clouds: 0.2,
+  mul: [0.56, 0.68, 0.96],
+  add: [0.01, 0.02, 0.06],
+  sat: 0.5,
+  fog: [150, 1400],
+  mist: 0.35,
+  stars: 1,
+  ambient: 0.9,
+  direct: 0.8,
+  glitter: 0xeef2f3,
+  glitterAmount: 0.8,
+};
+
+/**
+ * Ilmeet pelikellon mukaan (tunti, ilme). Hetket on sovitettu kisapäivän
+ * aurinkoon (ks. sunAt): aurinko nousee noin 5.55 ja laskee noin 21.00.
+ */
+export const LOOKS: [number, Look][] = [
+  [0, NIGHT],
+  [3.3, NIGHT],
+  [4.75, DAWN],
+  [7, SUNRISE],
+  [9.5, DAY],
+  [16.5, DAY],
+  [19, GOLDEN],
+  [20.9, SUNSET],
+  [21.9, DUSK],
+  [23, NIGHT],
+  [24, NIGHT],
+];
 
 /** Pilvisen sään taivas tummuuden mukaan: vaalean harmaasta myrskyn tummaan. */
 const OVERCAST_LIGHT = new THREE.Color(0xaab2bc);
@@ -299,18 +296,15 @@ function blend(a: Look, b: Look, t: number): Look {
   return out;
 }
 
-/** Vuorokaudenajan ilme kisan etenemän mukaan. */
-export function lookAt(time: TimeOfDay, progress: number): Look {
-  const keys = LOOKS[time];
-  if (progress <= keys[0]![0]) return keys[0]![1];
-  const last = keys[keys.length - 1]!;
-  if (progress >= last[0]) return last[1];
-  for (let i = 1; i < keys.length; i++) {
-    const [p1, b] = keys[i]!;
-    const [p0, a] = keys[i - 1]!;
-    if (progress <= p1) return blend(a, b, (progress - p0) / (p1 - p0));
+/** Ilme pelikellon aikaan `hours` (0–24). */
+export function lookAt(hours: number): Look {
+  const h = ((hours % 24) + 24) % 24;
+  for (let i = 1; i < LOOKS.length; i++) {
+    const [h1, b] = LOOKS[i]!;
+    const [h0, a] = LOOKS[i - 1]!;
+    if (h <= h1) return h1 === h0 ? b : blend(a, b, (h - h0) / (h1 - h0));
   }
-  return last[1];
+  return LOOKS[LOOKS.length - 1]![1];
 }
 
 const DOME_RADIUS = 2800;
@@ -492,7 +486,7 @@ export class SkyView {
   private clock = 0;
   private readonly cloudOffset = new THREE.Vector2();
 
-  constructor(readonly time: TimeOfDay) {
+  constructor() {
     const color = () => ({ value: new THREE.Color() });
     this.domeMaterial = new THREE.ShaderMaterial({
       vertexShader: DOME_VERT,
@@ -532,20 +526,22 @@ export class SkyView {
   }
 
   /**
-   * Päivittää ilmeen kisan etenemän (0–1), pilvisyyden (taivaan tummuus 0–1)
+   * Päivittää ilmeen pelikellon (tuntia 0–24), pilvisyyden (taivaan tummuus 0–1)
    * ja salaman välähdyksen mukaan; `dt` liikuttaa pilviä ja tähtien tuiketta.
    */
-  update(progress: number, darkness: number, flash: number, wind: Vec2, dt = 0): void {
-    const look = lookAt(this.time, progress);
+  update(hours: number, darkness: number, flash: number, wind: Vec2, dt = 0): void {
+    const look = lookAt(hours);
     // Pilvisellä säällä taivas harmaantuu ja pilvet peittävät auringon, kuun ja tähdet.
     const cloud = smoothstep(0.15, 0.6, darkness);
     const overcast = OVERCAST_LIGHT.clone().lerp(OVERCAST_DARK, smoothstep(0.3, 0.8, darkness));
-    const sunPos = sunAt(this.time, progress);
-    const moonPos = moonAt(this.time, progress);
+    const sunPos = sunAt(hours);
+    const moonPos = moonAt(hours);
     const sunDir = skyDirection(sunPos);
-    const moonDir = moonPos ? skyDirection(moonPos) : null;
+    const moonUp = moonPos.elevation > -MOON_RADIUS;
+    const moonDir = skyDirection(moonPos);
     // Hehku ja kimallus: aurinko, kun se on lähellä horisonttia tai ylempänä, muuten kuu.
-    const bodyDir = moonDir && sunPos.elevation < -0.1 ? moonDir : sunDir;
+    const byMoon = moonUp && sunPos.elevation < -0.1;
+    const bodyDir = byMoon ? moonDir : sunDir;
 
     this.clock += dt;
     // Pilvet ajelehtivat tuulen mukana (kuvakulmassa hitaasti) ja aina vähän.
@@ -565,8 +561,11 @@ export class SkyView {
     u.uGlowSize!.value = look.glowSize;
     (u.uSunDir!.value as THREE.Vector3).copy(sunDir);
     u.uSun!.value = sunPos.elevation > -SUN_RADIUS ? 1 - cloud : 0;
-    if (moonDir) (u.uMoonDir!.value as THREE.Vector3).copy(moonDir);
-    u.uMoon!.value = moonDir ? 1 - cloud : 0;
+    (u.uMoonDir!.value as THREE.Vector3).copy(moonDir);
+    // Kuu kalpenee valoisalla taivaalla.
+    u.uMoon!.value = moonUp
+      ? (1 - cloud) * (1 - 0.7 * smoothstep(-0.1, 0.05, sunPos.elevation))
+      : 0;
     u.uStars!.value = look.stars * (1 - cloud);
     u.uTime!.value = this.clock;
     u.uClouds!.value = Math.min(0.95, look.clouds + darkness * 1.1);
@@ -581,7 +580,7 @@ export class SkyView {
     l.ambient = look.ambient;
     l.direct = look.direct * (1 - 0.5 * cloud);
     // Varjostus pidetään korkealla: matala valo tummentaisi tasaisen veden ja maan.
-    const shade = moonDir && sunPos.elevation < -0.1 ? moonPos! : sunPos;
+    const shade = byMoon ? moonPos : sunPos;
     l.lightDir.copy(skyDirection({ ...shade, elevation: Math.max(shade.elevation, 0.98) }));
     l.horizon.copy(u.uHorizon!.value as THREE.Color);
     const fogScale = 1 - 0.3 * cloud;

@@ -39,6 +39,7 @@ import {
   stepCompetition,
   timeLeft,
   createFishing,
+  clockAt,
   daylight,
   lureInfo,
   stepFishPopulation,
@@ -300,7 +301,7 @@ export class SoloGame {
     this.scene.background = new THREE.Color(LAND_COLOR);
     this.scene.add(this.hemi);
     this.scene.add(this.sun);
-    this.sky = new SkyView(settings.timeOfDay ?? 'day');
+    this.sky = new SkyView();
     this.mist = new MistView((p) => this.water.isWater(p), map.bounds);
     this.scene.add(this.sky.dome, this.mist.group);
     const plan = planWeather(seed, settings.weather ?? 'realistic', settings.durationMinutes * 60);
@@ -1026,14 +1027,14 @@ export class SoloGame {
     this.rock.roll += (Math.atan(side) * 0.7 - this.rock.roll) * k;
   }
 
-  /** Kisan eteneminen 0–1: aurinko liikkuu kisan aikana. */
-  get dayProgress(): number {
-    return Math.min(1, this.competition.elapsed / (this.settings.durationMinutes * 60));
+  /** Pelikello (tuntia 0–24): alkaa vuorokaudenajan mukaan ja etenee kisakellon mukana. */
+  get clock(): number {
+    return clockAt(this.settings.timeOfDay ?? 'day', this.competition.elapsed);
   }
 
   /** Päivänvalo ja hämäryys nyt: kalojen syönti ja äänimaailma seuraavat tätä. */
   get daylight() {
-    return daylight(this.settings.timeOfDay ?? 'day', this.dayProgress);
+    return daylight(this.clock);
   }
 
   /** Paletin sävytys jälkikäsittelyyn (vuorokaudenaika ja salama). */
@@ -1041,11 +1042,11 @@ export class SoloGame {
     return this.sky.grade;
   }
 
-  /** Vuorokaudenaika kisan etenemän ja sään mukaan; kimallus vesishaderille. */
+  /** Vuorokaudenaika pelikellon ja sään mukaan; kimallus vesishaderille. */
   private updateSky(dt: number): void {
     const now = this.weather.now;
     const wind = windVector(now);
-    this.sky.update(this.dayProgress, now.darkness, this.lightning.flash, wind, dt);
+    this.sky.update(this.clock, now.darkness, this.lightning.flash, wind, dt);
     this.mist.update(dt, this.sky.mist, wind, this.viewMode === 'pov');
     const g = this.sky.glitter;
     this.waterWaves.uGlitterDir.value.copy(g.dir);
