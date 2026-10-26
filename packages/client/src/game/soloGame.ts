@@ -136,6 +136,7 @@ import { TopDownCamera } from './topDownCamera';
 import { QuietSpot } from './quietSpot';
 import { animateEmote, animateFins, createTubeMesh } from './tubeMesh';
 import { SpeechBubble, type BubbleContent } from './speechBubble';
+import { screenAnchor } from './screenAnchor';
 import { EmoteMenu } from '../ui/emoteMenu';
 import { YouMarker } from './youMarker';
 import { loadAppearance } from './appearance';
@@ -174,6 +175,9 @@ export interface NetLink {
   overlay: HTMLElement;
   canvas: HTMLCanvasElement;
 }
+
+/** Saaliin punnituskortti näkyy näin kauan, ellei pelaaja ala heittää uudelleen. */
+const CATCH_CARD_SECONDS = 6;
 
 /**
  * Pelikierros järvellä. Yksinpelissä rengas liikkuu paikallisesti;
@@ -1470,7 +1474,7 @@ export class SoloGame {
       hud.showWeighIn(
         `${speciesName(events.caught.species)} ${formatWeight(events.caught.weight)}`,
         `${length} · ${catches.length > 1 && biggest ? t('game.biggestSoFar') : t('game.nthFish', { n: ordinal(catches.length) })}`,
-        3.5,
+        CATCH_CARD_SECONDS,
         events.caught,
       );
     }
@@ -1768,12 +1772,12 @@ export class SoloGame {
       bubble.place(null, false);
       return;
     }
-    const v = this.tubeMesh.position.clone().setY(1.5).project(this.camera);
-    const rect = canvas.getBoundingClientRect();
-    bubble.place(
-      { x: rect.left + ((v.x + 1) / 2) * rect.width, y: rect.top + ((1 - v.y) / 2) * rect.height },
-      false,
+    const at = screenAnchor(
+      this.tubeMesh.position.clone().setY(1.5),
+      this.camera,
+      canvas.getBoundingClientRect(),
     );
+    bubble.place(at, false);
   }
 
   /** Vapauttaa GPU-resurssit, kun kierros päättyy. */

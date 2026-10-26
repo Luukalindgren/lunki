@@ -7,6 +7,7 @@ import { FAR_BUBBLE, SpeechBubble, type BubbleContent } from './speechBubble';
 import { animateEmote, animateFins, applyAppearance, createTubeMesh } from './tubeMesh';
 import { FLY_LINE_POINTS, RemoteFlyLine, flyLineProfile, flyLineWorld } from './flyLine';
 import { flyRodTip } from './povRod';
+import { screenAnchor } from './screenAnchor';
 
 const cssColor = (hex: number) => `#${hex.toString(16).padStart(6, '0')}`;
 /** Muiden siiman kireyttä ei tiedetä: piirretään puolikireänä. */
@@ -115,15 +116,9 @@ export class RemotePlayersView {
       }
 
       // Nimilappu renkaan yläpuolelle näytön koordinaateissa.
-      this.v.copy(e.tube.position).setY(1.5).project(camera);
-      const visible = Math.abs(this.v.x) <= 1.1 && Math.abs(this.v.y) <= 1.1;
-      e.tag.hidden = !visible;
-      const at = visible
-        ? {
-            x: rect.left + ((this.v.x + 1) / 2) * rect.width,
-            y: rect.top + ((1 - this.v.y) / 2) * rect.height,
-          }
-        : null;
+      // Kameran takana oleva piste karsitaan, muuten lappu näkyisi peilattuna.
+      const at = screenAnchor(this.v.copy(e.tube.position).setY(1.5), camera, rect);
+      e.tag.hidden = !at;
       if (at) {
         e.tag.textContent = p.name;
         e.tag.style.left = `${at.x}px`;
