@@ -132,6 +132,12 @@ export const RECONNECT_SECONDS = Number(process.env.LUNKI_RECONNECT_SECONDS) || 
  */
 export const MAX_MESSAGES_PER_SECOND = 400;
 
+/**
+ * Katsojapaikat kalastajien lisäksi. Colyseuksen `maxClients` laskee kaikki
+ * yhteydet, joten ilman varaa katsoja täyttäisi lähteneen kalastajan paikan.
+ */
+export const SPECTATOR_SLOTS = 8;
+
 /** Kisasta lähteneen paikka: sama selain pääsee jatkamaan siitä. */
 interface Seat {
   /** Lähtijän sessionId: saaliit siirretään palaajalle. */
@@ -233,7 +239,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     this.state.code = code;
     const max = Math.round(Number(options.maxPlayers) || DEFAULT_MAX_PLAYERS);
     this.state.settings.maxPlayers = Math.min(Math.max(max, 1), MAX_PLAYERS_LIMIT);
-    this.maxClients = this.state.settings.maxPlayers;
+    this.maxClients = this.state.settings.maxPlayers + SPECTATOR_SLOTS;
     // Koodilla liitytään, joten huone ei näy julkisessa listassa.
     void this.setPrivate(true);
     this.maxMessagesPerSecond = MAX_MESSAGES_PER_SECOND;
@@ -399,7 +405,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       // valinneet katsovat edelleen.
       for (const id of this.lateSpectators) {
         const p = this.state.players.get(id);
-        if (p) p.spectator = false;
+        if (p && this.anglerCount() < this.state.settings.maxPlayers) p.spectator = false;
       }
       this.lateSpectators.clear();
       this.rodFixed.clear();
@@ -448,9 +454,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
 
     this.onMessage(ClientMsg.settings, (client, patch: unknown) => {
       if (client.sessionId !== this.state.hostId || this.state.phase !== 'lobby') return;
-      const valid = validateSettingsPatch(patch, this.state.players.size, (p) =>
-        isValidStart(water, p),
-      );
+      const valid = validateSettingsPatch(patch, this.anglerCount(), (p) => isValidStart(water, p));
       const s = this.state.settings;
       let changed = false;
       for (const [key, value] of Object.entries(valid)) {
@@ -479,8 +483,8 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         }
       }
       if (valid.maxPlayers !== undefined) {
-        this.maxClients = valid.maxPlayers;
-        void this.setMatchmaking({ maxClients: valid.maxPlayers });
+        this.maxClients = valid.maxPlayers + SPECTATOR_SLOTS;
+        void this.setMatchmaking({ maxClients: this.maxClients });
       }
       // Muuttuneet säännöt: muiden pitää kuitata valmius uudelleen.
       if (changed) this.state.players.forEach((p) => (p.ready = false));
@@ -489,6 +493,9 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     this.onMessage(ClientMsg.spectate, (client, on: unknown) => {
       const p = this.state.players.get(client.sessionId);
       if (!p || this.state.phase !== 'lobby') return;
+      // Kalastajaksi vain, jos kalastajapaikkoja on vapaana.
+      if (on !== true && p.spectator && this.anglerCount() >= this.state.settings.maxPlayers)
+        return;
       p.spectator = on === true;
       p.ready = false;
       this.lateSpectators.delete(client.sessionId);
@@ -572,11 +579,27 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
    * pääse ja asiakas pyysi (JoinOptions.spectate), liitytään katsojaksi.
    */
   override onAuth(_client: Client, options: Partial<JoinOptions> = {}) {
-    if (this.state.phase === 'lobby') return true;
-    const refusal = this.lateJoinRefusal(options);
+    const refusal =
+      this.state.phase === 'lobby'
+        ? this.anglerCount() >= this.state.settings.maxPlayers
+          ? JoinRefusal.full
+          : null
+        : this.lateJoinRefusal(options);
     if (!refusal) return true;
-    if (options.spectate === true) return { spectator: true };
+    if (options.spectate === true && this.spectatorCount() < SPECTATOR_SLOTS)
+      return { spectator: true };
     throw new ServerError(4403, refusal);
+  }
+
+  /** Kalastajat huoneessa (katkenneet mukaan lukien, katsojat pois). */
+  private anglerCount(): number {
+    let n = 0;
+    this.state.players.forEach((p) => (n += p.spectator ? 0 : 1));
+    return n;
+  }
+
+  private spectatorCount(): number {
+    return this.state.players.size - this.anglerCount();
   }
 
   /** Syy, miksi kisaan ei pääse kesken kaiken; null = pääsee. */
@@ -588,7 +611,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     if (returning) return null;
     if (rule === 'return') return JoinRefusal.returnOnly;
     // Lähteneiden paikat pidetään vapaana paluuta varten.
-    if (this.state.players.size + this.seats.size >= this.state.settings.maxPlayers)
+    if (this.anglerCount() + this.seats.size >= this.state.settings.maxPlayers)
       return JoinRefusal.full;
     return null;
   }
@@ -597,13 +620,14 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     const id = playerIdOf(options);
     const racing = this.state.phase !== 'lobby';
     if (id) this.playerIds.set(client.sessionId, id);
-    if (racing && (auth as { spectator?: boolean } | undefined)?.spectator) {
+    if ((auth as { spectator?: boolean } | undefined)?.spectator) {
       // Katsoja ei saa rengasta eikä vie lähteneen paikkaa.
       const p = new PlayerState();
       p.name = this.uniqueName(sanitizeName(options.name));
       p.spectator = true;
       this.state.players.set(client.sessionId, p);
-      this.lateSpectators.add(client.sessionId);
+      // Kesken kisan tullut on uudessa kisassa kalastaja; aulassa voi itse vaihtaa.
+      if (racing) this.lateSpectators.add(client.sessionId);
       if (!this.state.hostId) this.state.hostId = client.sessionId;
       client.send(ServerMsg.chatHistory, this.chatLog);
       return;
