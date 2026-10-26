@@ -69,8 +69,8 @@ yläpää on alle 1,5 m pinnasta.
 Jos liikkuva viehe hipoo pohjaa (alle 0,35 m pohjasta tai kiven, kasvuston tai risukon
 yläpäästä) rakenteen kohdalla, se voi tarttua. Riski (0,9/s kerrottuna) riippuu
 rakenteesta (kivi 1,5, risukko 1,6, puu 1,2, kivikko ja kaislikko 1, kasvusto 0,12 ×
-tiheys²) ja vieheestä (jigi 1,4, lusikka 1, lippa 0,9, vaappu 0,45, koska lippa kimmottaa
-sen kivestä). Kelaaminen kiristää siiman jarrun voimalla. Noin 1,2 s vedon jälkeen viehe
+tiheys²) ja vieheestä (jigi 1,4, lusikka 1, vaappu 0,7, koska sen kaksi kolmihaarakoukkua
+jäävät esteeseen, ja lippa 0,5, koska pyörivä siipi suojaa koukkua). Kelaaminen kiristää siiman jarrun voimalla. Noin 1,2 s vedon jälkeen viehe
 irtoaa (60 %) tai siima katkeaa ja viehe jää pohjaan. Jos jarru on kireämmällä kuin siima
 kestää, siima katkeaa heti.
 
