@@ -67,6 +67,15 @@ export class Input {
     this.moveAccY = 0;
   }
 
+  /**
+   * Unohtaa painallukset, joita ei ole vielä käsitelty. Valikon Esc kulkee
+   * pelille (MENU_PASS), ja jos peli alkaa ennen seuraavaa askelta, sama
+   * painallus avaisi muuten heti taukovalikon.
+   */
+  dropPresses(): void {
+    this.pressedQueue.clear();
+  }
+
   /** Lukitsee osoittimen pelikuvaan, jotta liike ei lopu ruudun reunaan. */
   lockPointer(): void {
     if (document.pointerLockElement === this.target || !this.target.requestPointerLock) return;
