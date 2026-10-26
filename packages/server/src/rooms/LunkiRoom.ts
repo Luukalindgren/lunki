@@ -517,8 +517,9 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         client.send(ServerMsg.error, { code: 'need-angler' } satisfies RoomError);
         return;
       }
+      // Katkennutta ei odoteta: palatessaan hän jatkaa kisassa (#275).
       const notReady = anglers
-        .filter(([id, p]) => !p.ready && id !== this.state.hostId)
+        .filter(([id, p]) => !p.ready && p.connected && id !== this.state.hostId)
         .map(([, p]) => p);
       if (notReady.length > 0) {
         client.send(ServerMsg.error, {
@@ -694,6 +695,8 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   override onDrop(client: Client) {
     const p = this.state.players.get(client.sessionId);
     if (p) p.connected = false;
+    // Aulassa ja tulossivulla muut eivät voi odottaa isännän paluuta (#275).
+    if (client.sessionId === this.state.hostId && this.state.phase !== 'playing') this.passHost();
     // Rengas jää odottamaan; vanhat syötteet hylätään, kuittaus säilyy.
     this.sims.get(client.sessionId)?.inputs.clear();
     // Jos paluuta ei tule ajoissa, Colyseus kutsuu onLeave-metodia.
@@ -744,10 +747,22 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     this.tangleFree.delete(id);
     this.chatLimits.delete(id);
     this.emoteLimits.delete(id);
-    if (this.state.hostId === id) {
-      // Isännyys siirtyy seuraavaksi liittyneelle.
-      this.state.hostId = this.state.players.keys().next().value ?? '';
-    }
+    if (this.state.hostId === id) this.passHost(true);
+  }
+
+  /**
+   * Isännyys seuraavaksi liittyneelle yhteydessä olevalle, mieluiten
+   * kalastajalle. Jos kukaan muu ei ole yhteydessä, isäntä pysyy (tai
+   * lähtiessä siirtyy kenelle tahansa jäljellä olevalle).
+   */
+  private passHost(leaving = false) {
+    const others = [...this.state.players.entries()].filter(([id]) => id !== this.state.hostId);
+    const next =
+      others.find(([, p]) => p.connected && !p.spectator) ??
+      others.find(([, p]) => p.connected) ??
+      (leaving ? others[0] : undefined);
+    if (next) this.state.hostId = next[0];
+    else if (leaving) this.state.hostId = '';
   }
 
   override onDispose() {
@@ -793,7 +808,11 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     } else if (st.phase === 'playing') {
       const end = this.durationOverride ?? st.settings.durationMinutes * 60;
       st.clock = Math.min(end, st.clock + NET_DT);
-      if (st.clock >= end) st.phase = 'finished';
+      if (st.clock >= end) {
+        st.phase = 'finished';
+        // Kisan aikana katkennut isäntä ei saa estää uutta kisaa.
+        if (!st.players.get(st.hostId)?.connected) this.passHost();
+      }
     }
     const weather =
       this.weather && st.phase === 'playing' ? weatherAt(this.weather, st.clock) : null;
