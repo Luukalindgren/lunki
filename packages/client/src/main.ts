@@ -3,6 +3,7 @@ import {
   GAME_NAME,
   LUNKINJARVI,
   WaterBody,
+  formatClock,
   formatTime,
   isTimeOfDay,
   isWeatherLevel,
@@ -425,6 +426,7 @@ function togglePause() {
       session !== null,
       { current: game.tackle, onChange: (t) => game?.setTackle(t) },
       { current: sfx.audioSettings, onChange: (a) => sfx.setAudioSettings(a) },
+      formatClock(game.clock),
     );
   } else {
     screens.hide();

@@ -810,10 +810,13 @@ export class Screens {
     multiplayer = false,
     tackle?: { current: Tackle; onChange: (t: Tackle) => void },
     audio?: { current: AudioSettings; onChange: (a: AudioSettings) => void },
+    /** Pelikellon aika järvellä, esim. 05:12. */
+    clock?: string,
   ): void {
     const panel = this.panel();
     panel.append(
       h('h2', multiplayer ? t('pause.menu') : t('pause.title')),
+      ...(clock ? [h('p', t('pause.clock', { time: clock }))] : []),
       ...(multiplayer ? [h('p', t('pause.continues'), 'hint')] : []),
       ...(tackle ? [this.tackleEditor(tackle.current, tackle.onChange)] : []),
       ...(audio ? [this.audioEditor(audio.current, audio.onChange)] : []),

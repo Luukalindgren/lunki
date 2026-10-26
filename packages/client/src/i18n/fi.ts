@@ -311,6 +311,7 @@ export const fi = {
   // --- Tauko ja tulokset ---
   'pause.menu': 'Valikko',
   'pause.title': 'Tauko',
+  'pause.clock': 'Kello järvellä {time}',
   'pause.continues': 'Kisa jatkuu muilla taustalla.',
   'pause.resume': 'Jatka',
   'pause.leaveRace': 'Poistu kisasta',
