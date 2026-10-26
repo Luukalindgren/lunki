@@ -1,0 +1,54 @@
+name: Puheäänet
+
+# Tekee käsimerkkien ja tapahtumien puherepliikit (#229) Piper-puhesynteesillä
+# (suomenkielinen ääni fi_FI-harri-medium) ja jälkikäsittelee ne ffmpegillä.
+# Pilviympäristö ei tavoita äänimallin palvelinta, joten teko tapahtuu
+# GitHubin ajoympäristössä. Tulokset tallennetaan artefaktiksi; ne kopioidaan
+# hakemistoon packages/client/public/audio/puhe/. Omat äänitykset voi vaihtaa
+# suoraan samoilla tiedostonimillä ilman tätä työnkulkua.
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/project-thread-5flba0]
+    paths:
+      - scripts/puhe/**
+      - .github/workflows/puhe.yml
+
+permissions:
+  contents: write
+
+jobs:
+  tee:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: sudo apt-get update -q && sudo apt-get install -yq ffmpeg
+      - run: pip install piper-tts
+      - name: Äänimalli
+        run: |
+          base=https://huggingface.co/rhasspy/piper-voices/resolve/main/fi/fi_FI/harri/medium
+          mkdir -p malli
+          for f in fi_FI-harri-medium.onnx fi_FI-harri-medium.onnx.json MODEL_CARD; do
+            curl -fsSL -o "malli/$f" "$base/$f"
+          done
+          cat malli/MODEL_CARD
+          pip show piper-tts | head -3
+      - run: python3 scripts/puhe/tee.py malli/fi_FI-harri-medium.onnx
+      - name: Kommitoi äänet haaraan
+        if: github.event_name == 'push'
+        run: |
+          mkdir -p puhe-raaka && cp malli/MODEL_CARD puhe-raaka/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add packages/client/public/audio/puhe puhe-raaka
+          git commit -m "Puheäänet: Piper fi_FI-harri ja jälkikäsittely (automaattinen)"
+          git push
+      - uses: actions/upload-artifact@v4
+        with:
+          name: puheaanet
+          path: |
+            packages/client/public/audio/puhe/
+            puhe-raaka/

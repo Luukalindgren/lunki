@@ -263,6 +263,10 @@ export const fi = {
   'audio.ambience': 'Tuuli, sade ja linnut',
   'audio.music': 'Musiikki',
   'audio.track': 'Kappale',
+  'audio.voice': 'Puheäänet',
+  'audio.eventVoices': 'Kiroilu tapahtumissa',
+  'audio.voiceHint':
+    'Pelaajat kiroilevat: käsimerkeissä kuuluu suomenkielistä puhetta, myös ronskia kieltä. Kiroilu tapahtumissa: oma kalastajasi sadattelee, kun siima katkeaa, kala karkaa tai rengas kaatuu.',
   'music.vaihtuva': 'Vaihtuva',
   'music.jarvenselka': 'Järvenselkä',
   'music.usva': 'Aamu-usva',

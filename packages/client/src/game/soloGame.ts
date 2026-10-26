@@ -56,6 +56,8 @@ import {
   ChatLimiter,
   EMOTE_DURATION,
   EMOTE_RATE,
+  EMOTES,
+  sizeClass,
   type EmoteId,
   type CompetitionSettings,
   type LakeBottom,
@@ -112,6 +114,7 @@ import { MistView } from './mistView';
 import type { NetWorld } from '../net/netWorld';
 import { RemotePlayersView } from './remotePlayersView';
 import type { Sfx } from '../audio/sfx';
+import { voiceFalloff, type VoiceId } from '../audio/voice';
 import type { Hud } from '../ui/hud';
 import { fishLengthCm } from '../ui/fishArt';
 import { FishingView } from './fishingView';
@@ -400,7 +403,11 @@ export class SoloGame {
     if (net) {
       this.remoteView = new RemotePlayersView(net.overlay);
       this.scene.add(this.remoteView.group);
-      net.world.onEmote = (m) => this.remoteView?.showEmote(m.from, m.emote);
+      net.world.onEmote = (m) => {
+        this.remoteView?.showEmote(m.from, m.emote);
+        const who = net.world.others().find((o) => o.id === m.from);
+        if (who) this.speakAt(m.emote, who.id, who.pos);
+      };
       net.world.onChatBubble = (m) => {
         if (m.from === net.world.myId) this.showOwnBubble({ text: m.text });
         else this.remoteView?.showChat(m.from, m.text);
@@ -654,6 +661,7 @@ export class SoloGame {
     if (tangle && !this.wasTangled) {
       this.sfx.strike();
       this.hud.showMessage(t('game.tangled', { name: tangle.with }), 3);
+      this.sfx.eventVoice('tangled');
     }
     this.wasTangled = tangle !== null;
     this.knots.update(w.tangles());
@@ -719,6 +727,7 @@ export class SoloGame {
     // Moninpelissä kaatumiset kirjataan palvelimen viesteistä kaikille.
     if (!this.net) this.logCapsize(this.flight?.from ?? this.tube.pos);
     if (cause === 'spout') this.sfx.wave();
+    this.sfx.eventVoice('capsized');
     const penalty = this.punish(this.settings.capsizePenalty ?? 'none', t('game.capsizeTimeOut'));
     this.hud.showWeighIn(
       t(
@@ -776,6 +785,7 @@ export class SoloGame {
     this.shakeStrength = Math.max(0, 1 - d / 500);
     this.flashInvert = d < 60;
     this.sfx.thunder(d, d / LIGHTNING.soundSpeed);
+    if (d < 150) this.sfx.eventVoice('lightning');
     if (!hitMe) return;
     const penalty = this.punish(
       this.settings.lightningPenalty ?? 'none',
@@ -1157,9 +1167,13 @@ export class SoloGame {
       sfx.hooked();
       hud.showMessage(t('game.hooked'), 1.5);
     }
-    if (events.missed) hud.showMessage(t('game.missed'), 2);
+    if (events.missed) {
+      hud.showMessage(t('game.missed'), 2);
+      sfx.eventVoice('missed');
+    }
     if (events.escaped) {
       sfx.lost();
+      sfx.eventVoice('escaped');
       hud.showMessage(t('game.escaped'), 2.5);
     }
     if (events.tackleChanged) {
@@ -1170,12 +1184,19 @@ export class SoloGame {
     }
     if (events.snagged) {
       sfx.strike();
+      sfx.eventVoice('snagged');
       hud.showMessage(t('game.snagged'), 2);
     }
     if (events.unsnagged) hud.showMessage(t('game.unsnagged'), 1.5);
-    if (events.fouled) hud.showMessage(t('game.fouled'), 2.5);
+    if (events.fouled) {
+      hud.showMessage(t('game.fouled'), 2.5);
+      sfx.eventVoice('fouled');
+    }
     if (events.rattle) sfx.rattle();
-    if (events.stuck) sfx.strike();
+    if (events.stuck) {
+      sfx.strike();
+      sfx.eventVoice('stuck');
+    }
     if (events.lineCut) {
       sfx.lost();
       const wait = this.settings.landPenalty ?? 0;
@@ -1191,16 +1212,20 @@ export class SoloGame {
       );
     } else if (events.bitOff) {
       sfx.lost();
+      sfx.eventVoice('bitOff');
       hud.showMessage(t('game.bitOff'), 3.5);
     } else if (events.lureLost) {
       sfx.lost();
+      sfx.eventVoice('lureLost');
       hud.showMessage(t('game.lureLost'), 3);
     } else if (events.lineBroken) {
       sfx.lost();
+      sfx.eventVoice('lineBroken');
       hud.showMessage(t('game.lineBroken'), 3);
     }
     if (events.caught) {
       sfx.caught();
+      if (sizeClass(events.caught.species, events.caught.weight) >= 3) sfx.eventVoice('bigCatch');
       this.net?.world.sendCatch(events.caught);
       const record = recordCatch(this.competition, events.caught, this.tube.pos);
       // Moninpelissä saaliit tulevat kartalle palvelimen punnitsemina (onCatchSeen).
@@ -1395,6 +1420,7 @@ export class SoloGame {
       this.emoteMenu.onPick = (id) => this.emote(id);
     }
     this.emoteMenu.toggle();
+    this.sfx.preloadVoices(EMOTES);
   }
 
   /** Tekee käsimerkin: oma animaatio ja kupla, moninpelissä muille. */
@@ -1405,7 +1431,23 @@ export class SoloGame {
     }
     this.emoting = { id, start: performance.now() };
     this.showOwnBubble({ emote: id });
+    this.sfx.voice(id, { speaker: 'me' });
     this.net?.world.sendEmote(id);
+  }
+
+  /**
+   * Toisen pelaajan repliikki: hiljenee etäisyyden mukaan (80 m:n päähän ei
+   * kuulu) ja tulee kameran suunnasta katsottuna vasemmalta tai oikealta.
+   */
+  private speakAt(id: VoiceId, speaker: string, at: Vec2): void {
+    // Katsoja kuulee kameran kohdalta, pelaaja oman renkaansa kohdalta.
+    const cam = this.camera.position;
+    const ear = this.spectating ? { x: cam.x, y: -cam.z } : this.tube.pos;
+    const gain = voiceFalloff(distance(at, ear));
+    if (gain <= 0) return;
+    const local = toWorld(at, 1).applyMatrix4(this.camera.matrixWorldInverse);
+    const side = local.x / Math.max(4, Math.hypot(local.x, local.z));
+    this.sfx.voice(id, { gain, pan: side * 0.8, speaker });
   }
 
   private get emoteActive(): boolean {

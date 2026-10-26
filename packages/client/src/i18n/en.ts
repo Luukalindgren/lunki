@@ -263,6 +263,10 @@ export const en: Record<keyof typeof fi, string> = {
   'audio.ambience': 'Wind, rain and birds',
   'audio.music': 'Music',
   'audio.track': 'Track',
+  'audio.voice': 'Voices',
+  'audio.eventVoices': 'Swearing at mishaps',
+  'audio.voiceHint':
+    'Players swear: emotes come with Finnish speech, including strong language. Swearing at mishaps: your angler curses when the line snaps, a fish gets away or the tube capsizes.',
   'music.vaihtuva': 'Rotate',
   'music.jarvenselka': 'Open lake',
   'music.usva': 'Morning mist',
