@@ -90,7 +90,15 @@ export class NetWorld {
   readonly predictor: TubePredictor;
   private readonly remotes = new Map<
     string,
-    { name: string; appearance: Appearance; fly: boolean; buf: SnapshotBuffer<RemoteSnap> }
+    {
+      /** Näytettävä nimi, katkoksen aikana merkinnän kanssa. */
+      name: string;
+      /** Pelaajan oma nimi ilman merkintöjä. */
+      player: string;
+      appearance: Appearance;
+      fly: boolean;
+      buf: SnapshotBuffer<RemoteSnap>;
+    }
   >();
   private lure: [number, number, number, number] = [0, 0, LureStage.none, 0];
   /** Muiden viimeisimmät palvelintilat (ennakoinnin törmäyksiin). */
@@ -343,6 +351,7 @@ export class NetWorld {
       if (!r) {
         r = {
           name: p.name,
+          player: p.name,
           appearance: playerAppearance(p),
           fly: p.method === 'fly',
           buf: new SnapshotBuffer(lerpSnap),
@@ -351,6 +360,7 @@ export class NetWorld {
         this.remotes.set(id, r);
         if (this.primed) this.onPeerJoined?.(p.name);
       }
+      r.player = p.name;
       r.name = p.connected ? p.name : t('game.peerOffline', { name: p.name });
       r.appearance = playerAppearance(p);
       r.fly = p.method === 'fly';
@@ -369,7 +379,7 @@ export class NetWorld {
       if (!seen.has(id)) {
         this.remotes.delete(id);
         this.peerConnected.delete(id);
-        this.onPeerLeft?.(r.name.replace(/ \(katkos\)$/, ''));
+        this.onPeerLeft?.(r.player);
       }
     this.latestOthers = others;
     const first = !this.primed;

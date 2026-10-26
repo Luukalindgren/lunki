@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { LUNKINJARVI, WaterBody } from '@lunki/shared';
+import { setLangForTest } from '../i18n';
 import { NetWorld } from './netWorld';
 import type { NetSession } from './session';
 
@@ -45,4 +46,28 @@ describe('omat tiedot moninpelissä', () => {
     expect(y.ownTackle?.lure).toBe('wobbler');
     expect(x.ownName).toBe('X');
   });
+});
+
+describe('poistuneen ilmoitus', () => {
+  afterEach(() => setLangForTest('fi'));
+
+  for (const lang of ['fi', 'en'] as const)
+    it(`katkenneen pelaajan nimeen ei jää katkosmerkintää (${lang}, #281)`, () => {
+      setLangForTest(lang);
+      const players = new Map([
+        ['me', { ...player('Minä', 0, 0, 'spoon'), connected: true }],
+        ['y', { ...player('Ystävä', 0, 0, 'spoon'), connected: true }],
+      ]);
+      const state = { players, catches: [] };
+      const session = { sessionId: 'me', room: { state } } as unknown as NetSession;
+      const world = new NetWorld(session, new WaterBody(LUNKINJARVI));
+      const left: string[] = [];
+      world.onPeerLeft = (name) => left.push(name);
+      session.onState?.(state as never);
+      players.get('y')!.connected = false;
+      session.onState?.(state as never);
+      players.delete('y');
+      session.onState?.(state as never);
+      expect(left).toEqual(['Ystävä']);
+    });
 });
