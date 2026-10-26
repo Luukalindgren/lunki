@@ -990,11 +990,19 @@ body {
   top: calc(var(--u) * 82);
 }
 
+/* Ohje yläosaan sään alle, ettei se peitä nappeja, joita se selittää. */
 .hud.touch .hud-help {
   position: absolute;
   left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  top: calc(var(--u) * 38);
+  transform: translateX(-50%);
+  font-size: calc(var(--u) * 7);
+  background: rgb(11 15 20 / 90%);
+  /* Kapealla ruudulla pitkät rivit rivittyvät, ettei ohje valu reunojen yli. */
+  white-space: pre-line;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: calc(100% - 16px);
 }
 
 /* Ilmoitus vasemman pinon ja luotainten väliin. */
@@ -1017,10 +1025,22 @@ body {
     align-items: flex-start;
   }
 
-  /* Saaliit sään alapuolelle, ettei pitkä rivi osu siihen. */
+  /* Kellon alla oleva pino (saaliit tai tila) sään alapuolelle, ettei pitkä
+     rivi osu siihen. */
+  .hud.touch .hud-timer {
+    margin-bottom: calc(var(--u) * 10);
+  }
+
   .hud.touch .hud-catches {
-    margin-top: calc(var(--u) * 8);
     font-size: calc(var(--u) * 7);
+  }
+
+  /* Pystyssä tilapaneelin alle ja vasemman nappirivin oikealle puolelle. */
+  .hud.touch .hud-help {
+    top: calc(var(--u) * 88);
+    left: 64px;
+    transform: none;
+    max-width: calc(100% - 72px);
   }
 
   .hud.touch .hud-status {
