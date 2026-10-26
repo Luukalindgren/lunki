@@ -320,6 +320,8 @@ export const en: Record<keyof typeof fi, string> = {
   'pause.menu': 'Menu',
   'pause.title': 'Paused',
   'pause.clock': 'Time at the lake {time}',
+  'pause.hudSize': 'HUD size {pct} %',
+  'pause.hudSizeCapped': 'HUD size {pct} % ({fits} % fits this screen)',
   'pause.continues': 'The race goes on for the others.',
   'pause.resume': 'Continue',
   'pause.leaveRace': 'Leave the race',

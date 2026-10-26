@@ -57,6 +57,36 @@ test.describe('yksinpeli', () => {
     errors.check();
   });
 
+  test('HUDin koko taukovalikosta: reunat pysyvät, valinta säilyy', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'puhelimet: ks. kosketus.spec.ts');
+    const errors = watchErrors(page);
+    await startSolo(page);
+    const timerBox = () => page.locator('.hud-timer').boundingBox();
+    const tension = () => page.locator('.hud-tension').boundingBox();
+    const before = (await timerBox())!;
+    const { width } = page.viewportSize()!;
+
+    await page.keyboard.press('Escape');
+    const slider = page.locator('#hud-size');
+    await slider.focus();
+    await page.keyboard.press('Home');
+    await expect(page.locator('label[for=hud-size]')).toHaveText('HUDin koko 70 %');
+    await page.getByRole('button', { name: 'Jatka' }).click();
+
+    // Pienempi, mutta samassa kulmassa samalla reunavälillä.
+    const small = (await timerBox())!;
+    expect(small.height).toBeLessThan(before.height * 0.8);
+    expect(small.x).toBeCloseTo(before.x, 0);
+    expect(small.y).toBeCloseTo(before.y, 0);
+    const t = (await tension())!;
+    expect(width - (t.x + t.width)).toBeCloseTo(before.x, 0);
+
+    // Asetus säilyy uudelleenlatauksen yli.
+    await startSolo(page);
+    expect((await timerBox())!.height).toBeCloseTo(small.height, 0);
+    errors.check();
+  });
+
   test('järvikartta', async ({ page }) => {
     const errors = watchErrors(page);
     await page.goto('/');

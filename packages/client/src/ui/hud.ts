@@ -19,6 +19,8 @@ export class Hud {
   private readonly messageText: HTMLSpanElement;
   /** Vasen yläkulma: kello ja saaliit (kosketuksella myös tilapaneeli) allekkain. */
   private readonly topLeft: HTMLDivElement;
+  /** Yläreunan keskellä: kompassi, sää ja (työpöydällä) kuntopalkki allekkain. */
+  private readonly topCenter: HTMLDivElement;
   private readonly tension: HTMLDivElement;
   private readonly tensionFill: HTMLDivElement;
   private readonly tensionDrag: HTMLDivElement;
@@ -39,6 +41,8 @@ export class Hud {
   readonly compass: CompassDisplay;
   /** Vieheluotain: näkyy, kun viehe on vedessä. */
   readonly lureSonar: LureSonarDisplay;
+  private readonly probeU: HTMLDivElement;
+  private readonly probeM: HTMLDivElement;
   private messageTimer = 0;
   private weighTimer = 0;
   private multiplayer = false;
@@ -89,18 +93,17 @@ export class Hud {
     // eivätkä peitä ilmoituksia keskellä ruutua.
     this.topLeft = el('div', 'hud-top-left');
     this.topLeft.append(this.timer, this.catches);
-    const topCenter = el('div', 'hud-top-center');
+    this.topCenter = el('div', 'hud-top-center');
     this.root.append(
       this.status,
       this.power,
       this.tension,
-      this.stamina,
       this.topLeft,
-      topCenter,
+      this.topCenter,
       this.countdown,
     );
-    this.compass = new CompassDisplay(topCenter);
-    topCenter.appendChild(this.weather);
+    this.compass = new CompassDisplay(this.topCenter);
+    this.topCenter.append(this.weather, this.stamina);
     // Luotaimet oikeassa alakulmassa ohjeen yläpuolella. Kosketusnäytöllä
     // alakulmassa ovat ohjaimet, joten ne nousevat kireysmittarin alle.
     const bottomRight = el('div', 'hud-bottom-right');
@@ -111,6 +114,11 @@ export class Hud {
     this.lureSonar = new LureSonarDisplay(gauges);
     // Ilmoitus ja punnitus kaiken muun päällä.
     this.root.append(this.message, this.weigh);
+    this.probeU = el('div', 'hud-probe');
+    this.probeU.style.width = 'calc(var(--u) * 100)';
+    this.probeM = el('div', 'hud-probe');
+    this.probeM.style.width = 'calc(var(--m) * 100)';
+    this.root.append(this.probeU, this.probeM);
     this.relabel();
     onLangChange(() => this.relabel());
   }
@@ -127,6 +135,20 @@ export class Hud {
   setPixelSize(cssPx: number): void {
     // --u lasketaan tästä tyylitiedostossa: kapealla pystyruudulla HUD pienenee.
     this.root.style.setProperty('--u0', `${cssPx}px`);
+  }
+
+  /** Pelaajan valitsema HUDin koko (taukovalikon kokovalitsin), 1 = oletus. */
+  setScale(scale: number): void {
+    this.root.style.setProperty('--hud-scale', String(scale));
+  }
+
+  /**
+   * Toteutunut koko: tyylitiedosto rajaa HUDin siihen, mikä mahtuu ruudulle.
+   * null, kun HUD on piilossa eikä sitä voi mitata.
+   */
+  effectiveScale(): number | null {
+    const m = this.probeM.getBoundingClientRect().width;
+    return m > 0 ? this.probeU.getBoundingClientRect().width / m : null;
   }
 
   setStatus(lines: string[]): void {
@@ -208,6 +230,9 @@ export class Hud {
     // Kosketuksella tila vasempaan pinoon, alhaalla ovat ohjaimet.
     if (touch) this.topLeft.appendChild(this.status);
     else this.root.insertBefore(this.status, this.root.firstChild!.nextSibling);
+    // Kuntopalkki: kosketuksella tatin yläpuolelle, muuten sään alle.
+    if (touch) this.root.insertBefore(this.stamina, this.topLeft);
+    else this.topCenter.appendChild(this.stamina);
     this.help.hidden = touch;
     this.setHelpMode(this.multiplayer, this.spectator);
   }
@@ -246,7 +271,13 @@ export class Hud {
             'help.keysLand',
             ...(multiplayer ? (['help.keysTangle', 'help.chatKey'] as const) : []),
           ];
-    this.help.textContent = lines.map((k) => t(k)).join('\n');
+    const text = lines.map((k) => t(k));
+    this.help.textContent = text.join('\n');
+    // Ohjeen koko HUD-pikseleinä (rivi 8, merkki 3,2 + täyte ja kehys 6):
+    // tyylitiedosto rajaa HUDin koon niin, että ohje mahtuu luotainten alle.
+    const cols = Math.max(...text.map((l) => l.length));
+    this.root.style.setProperty('--help-h', String(6 + 8 * text.length));
+    this.root.style.setProperty('--help-w', String(Math.ceil(6 + 3.2 * cols)));
   }
 
   toggleHelp(): void {

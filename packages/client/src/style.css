@@ -34,7 +34,25 @@ body {
 
 .hud {
   --u0: 3px;
-  --u: var(--u0);
+  /* --m = reunavälien ja pinojen välien yksikkö, --u = HUD-pikseli. Taukovalikon
+     kokovalitsin (--hud-scale) muuttaa vain --u:ta, joten paneelit pysyvät
+     samoissa kulmissa samoilla väleillä. --u-max rajaa koon siihen, mikä
+     mahtuu ruudulle (kosketusnäytöllä ohjaimet vievät tilaa). */
+  --m: var(--u0);
+  --hud-scale: 1;
+  /* Oikea sarake: kireysmittari ja sen teksti (72), luotaimet (57) ja ohje
+     (--help-h) allekkain; alarivi: tilapaneeli (92) ja ohje (--help-w)
+     vierekkäin. Ohjeen mitat HUD-pikseleinä asettaa Hud.setHelpMode. */
+  --help-h: 78;
+  --help-w: 211;
+  --u-max: max(
+    var(--m),
+    min(
+      calc((100vh - var(--m) * 16) / (129 + var(--help-h))),
+      calc((100vw - var(--m) * 12) / (98 + var(--help-w)))
+    )
+  );
+  --u: min(calc(var(--m) * var(--hud-scale)), var(--u-max));
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -53,8 +71,8 @@ body {
 }
 
 .hud-status {
-  left: calc(var(--u) * 4);
-  bottom: calc(var(--u) * 4);
+  left: calc(var(--m) * 4);
+  bottom: calc(var(--m) * 4);
   white-space: pre;
 }
 
@@ -80,8 +98,8 @@ body {
   /* Saalislistan alle ja renkaan yläpuolelle. */
   top: 36%;
   /* Reunoilla kireysmittari ja paneelit: pitkä ilmoitus rivittyy niiden väliin. */
-  left: calc(var(--u) * 16);
-  right: calc(var(--u) * 16);
+  left: calc(var(--m) * 8 + var(--u) * 8);
+  right: calc(var(--m) * 8 + var(--u) * 8);
   z-index: 2;
   text-align: center;
   font-size: calc(var(--u) * 12);
@@ -103,7 +121,7 @@ body {
   position: absolute;
   display: flex;
   flex-direction: column;
-  gap: calc(var(--u) * 4);
+  gap: calc(var(--m) * 4);
 }
 
 .hud-top-left > .hud-panel,
@@ -113,21 +131,21 @@ body {
 }
 
 .hud-top-left {
-  left: calc(var(--u) * 4);
-  top: calc(var(--u) * 4);
+  left: calc(var(--m) * 4);
+  top: calc(var(--m) * 4);
   align-items: flex-start;
 }
 
 .hud-top-center {
   left: 50%;
-  top: calc(var(--u) * 4);
+  top: calc(var(--m) * 4);
   transform: translateX(-50%);
   align-items: center;
 }
 
 .hud-bottom-right {
-  right: calc(var(--u) * 4);
-  bottom: calc(var(--u) * 4);
+  right: calc(var(--m) * 4);
+  bottom: calc(var(--m) * 4);
   align-items: flex-end;
 }
 
@@ -138,8 +156,8 @@ body {
 }
 
 .hud-tension {
-  right: calc(var(--u) * 4);
-  top: calc(var(--u) * 4);
+  right: calc(var(--m) * 4);
+  top: calc(var(--m) * 4);
   width: calc(var(--u) * 8);
   height: calc(var(--u) * 60);
   padding: 0;
@@ -165,11 +183,8 @@ body {
   background: #f6d04d;
 }
 
+/* Työpöydällä yläreunan pinossa sään alla (Hud.setTouch siirtää). */
 .hud-stamina {
-  position: absolute;
-  left: 50%;
-  top: calc(var(--u) * 38);
-  transform: translateX(-50%);
   display: flex;
   align-items: center;
   gap: calc(var(--u) * 3);
@@ -205,7 +220,7 @@ body {
   flex-direction: row-reverse;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: calc(var(--u) * 4);
+  gap: calc(var(--m) * 4);
 }
 
 .hud-gauges .hud-panel {
@@ -256,6 +271,13 @@ body {
   right: calc(var(--u) * -1);
   margin-top: calc(var(--u) * 2);
   font-size: calc(var(--u) * 8);
+}
+
+/* Mittatikut: HUD-pikseli ja reunaväli sadalla kerrottuna (Hud.effectiveScale). */
+.hud-probe {
+  position: absolute;
+  visibility: hidden;
+  height: 0;
 }
 
 [hidden] {
@@ -478,7 +500,7 @@ body {
   transform: translateX(-50%);
   /* Kapealla näytöllä kortti ja kalan kuva mahtuvat ruutuun. */
   width: max-content;
-  max-width: calc(100% - var(--u) * 8);
+  max-width: calc(100% - var(--m) * 8);
   box-sizing: border-box;
   z-index: 1;
   text-align: center;
@@ -528,6 +550,77 @@ body {
 .screen textarea:focus {
   border-color: #f6d04d;
   outline: none;
+}
+
+/* HUDin kokovalitsin: portaittainen liukusäädin retrotyyliin. */
+.hud-size-track {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hud-size-end {
+  color: #c3cbd2;
+  font-size: 30px;
+  line-height: 1;
+}
+
+.hud-size-end.small {
+  font-size: 18px;
+}
+
+.screen input[type='range'] {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.screen input[type='range']::-webkit-slider-runnable-track {
+  height: 8px;
+  background: #39424d;
+  border: 3px solid #5f6b78;
+}
+
+.screen input[type='range']::-moz-range-track {
+  height: 8px;
+  background: #39424d;
+  border: 3px solid #5f6b78;
+}
+
+.screen input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 28px;
+  margin-top: -13px;
+  border-radius: 0;
+  background: #1b5a84;
+  border: 3px solid #83c2db;
+}
+
+.screen input[type='range']::-moz-range-thumb {
+  width: 12px;
+  height: 22px;
+  border-radius: 0;
+  background: #1b5a84;
+  border: 3px solid #83c2db;
+}
+
+.screen input[type='range']:focus-visible {
+  outline: none;
+}
+
+.screen input[type='range']:focus-visible::-webkit-slider-thumb {
+  border-color: #f6d04d;
+}
+
+.screen input[type='range']:focus-visible::-moz-range-thumb {
+  border-color: #f6d04d;
 }
 
 .screen-panel .error {
@@ -967,10 +1060,9 @@ body {
 
 /* Kuntopalkki tatin yläpuolella. */
 .hud.touch .hud-stamina {
-  top: auto;
+  position: absolute;
   left: calc(16px + env(safe-area-inset-left, 0px));
   bottom: calc(150px + env(safe-area-inset-bottom, 0px));
-  transform: none;
 }
 
 .hud.touch .hud-stamina-bar {
@@ -988,15 +1080,17 @@ body {
 
 .hud.touch .hud-gauges {
   position: absolute;
-  right: calc(var(--u) * 4);
-  top: calc(var(--u) * 82);
+  right: calc(var(--m) * 4);
+  /* Kireysmittarin (60 + kehys 2) ja sen tekstin (2 + 8) alle. */
+  top: calc(var(--m) * 10 + var(--u) * 72);
 }
 
 /* Ohje yläosaan sään alle, ettei se peitä nappeja, joita se selittää. */
 .hud.touch .hud-help {
   position: absolute;
   left: 50%;
-  top: calc(var(--u) * 38);
+  /* Kompassin (11 + 2) ja sään (7 + 4 + 2) alle. */
+  top: calc(var(--m) * 12 + var(--u) * 26);
   transform: translateX(-50%);
   font-size: calc(var(--u) * 7);
   background: rgb(11 15 20 / 90%);
@@ -1010,19 +1104,33 @@ body {
 /* Ilmoitus vasemman pinon ja luotainten väliin. */
 .hud.touch .hud-message {
   top: 30%;
-  left: calc(64px + var(--u) * 80);
-  right: calc(var(--u) * 182);
+  left: calc(64px + var(--m) * 4 + var(--u) * 76);
+  right: calc(var(--m) * 10 + var(--u) * 172);
+}
+
+/* Vaakasuunnassa luotaimet kireysmittarin alla eivät saa ulottua oikean
+   alakulman nappeihin (3 × 44 + 2 × 6 + reuna 16 = 160 px). */
+.hud.touch {
+  --u-max: max(var(--m), calc((100dvh - 160px - var(--m) * 14) / 129));
 }
 
 /* Pystyssä kapea ruutu: HUD pienempänä, kompassi ja sää kellon oikealle
    puolelle, luotaimet allekkain oikeaan reunaan ja ilmoitus nappien yläpuolelle. */
 @media (orientation: portrait) {
+  /* Leveyden rajaa tilapaneeli (65 u, napit 64 px) ja sen vieressä oleva
+     luotain (68 u) sekä ylärivi: kello, kompassi ja kireysmittari (126 u).
+     Korkeuden oikea sarake: mittari ja kaksi luotainta (186 u) nappien
+     yläpuolelle (256 px). Oletuskoko ei koskaan pienene. */
   .hud.touch {
-    --u: calc(var(--u0) * 0.75);
+    --m: calc(var(--u0) * 0.75);
+    --u-max: max(
+      var(--m),
+      min(calc((100vw - 64px - var(--m) * 16) / 133), calc((100dvh - 256px - var(--m) * 14) / 186))
+    );
   }
 
   .hud.touch .hud-top-center {
-    left: calc(64px + var(--u) * 40);
+    left: calc(64px + var(--m) * 4 + var(--u) * 36);
     transform: none;
     align-items: flex-start;
   }
@@ -1030,7 +1138,7 @@ body {
   /* Kellon alla oleva pino (saaliit tai tila) sään alapuolelle, ettei pitkä
      rivi osu siihen. */
   .hud.touch .hud-timer {
-    margin-bottom: calc(var(--u) * 10);
+    margin-bottom: calc(var(--m) * 4 + var(--u) * 6);
   }
 
   .hud.touch .hud-catches {
@@ -1039,14 +1147,15 @@ body {
 
   /* Pystyssä tilapaneelin alle ja vasemman nappirivin oikealle puolelle. */
   .hud.touch .hud-help {
-    top: calc(var(--u) * 88);
+    top: calc(var(--m) * 16 + var(--u) * 72);
     left: 64px;
     transform: none;
     max-width: calc(100% - 72px);
   }
 
+  /* Kuten saaliit: 8 u:n rivit ulottuivat oikean reunan luotaimen alle. */
   .hud.touch .hud-status {
-    font-size: calc(var(--u) * 8);
+    font-size: calc(var(--u) * 7);
   }
 
   .hud.touch .hud-gauges {
@@ -1058,8 +1167,8 @@ body {
     top: auto;
     /* Nappipino: 3 riviä (3 × 44 + 2 × 6) + väli 8 + KELAA 88 + reuna 16 = 256 px. */
     bottom: calc(264px + env(safe-area-inset-bottom, 0px));
-    left: calc(var(--u) * 4);
-    right: calc(var(--u) * 4);
+    left: calc(var(--m) * 4);
+    right: calc(var(--m) * 4);
   }
 }
 
@@ -1205,8 +1314,9 @@ body {
 .chat-hud {
   position: absolute;
   /* Vasemmalle tilapaneelin yläpuolelle: oikealla alhaalla on ohje. */
-  left: calc(var(--u) * 4);
-  bottom: calc(var(--u) * 66);
+  left: calc(var(--m) * 4);
+  /* Tilapaneelin (5 riviä: 50 + 4 + 2) yläpuolelle. */
+  bottom: calc(var(--m) * 8 + var(--u) * 58);
   width: min(calc(var(--u) * 130), 45%);
   font-size: calc(var(--u) * 8);
   display: flex;
@@ -1253,7 +1363,7 @@ body {
 .hud.touch .chat-hud {
   left: 50%;
   bottom: auto;
-  top: calc(var(--u) * 38);
+  top: calc(var(--m) * 12 + var(--u) * 26);
   transform: translateX(-50%);
   width: min(360px, 50%);
   font-size: max(14px, calc(var(--u) * 7));
@@ -1263,7 +1373,7 @@ body {
 @media (orientation: portrait) {
   .hud.touch .chat-hud {
     left: calc(8px + env(safe-area-inset-left, 0px));
-    top: calc(var(--u) * 142);
+    top: calc(var(--m) * 16 + var(--u) * 126);
     transform: none;
     width: calc(var(--u) * 108);
   }

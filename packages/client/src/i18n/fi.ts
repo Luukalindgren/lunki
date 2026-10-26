@@ -320,6 +320,8 @@ export const fi = {
   'pause.menu': 'Valikko',
   'pause.title': 'Tauko',
   'pause.clock': 'Kello järvellä {time}',
+  'pause.hudSize': 'HUDin koko {pct} %',
+  'pause.hudSizeCapped': 'HUDin koko {pct} % (ruudulle mahtuu {fits} %)',
   'pause.continues': 'Kisa jatkuu muilla taustalla.',
   'pause.resume': 'Jatka',
   'pause.leaveRace': 'Poistu kisasta',
