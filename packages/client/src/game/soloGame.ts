@@ -929,7 +929,7 @@ export class SoloGame {
     // Perho heitetään hiirellä, rytmissä välilyönnillä (#235) tai sormen pyyhkäisyllä (#236).
     const flyCasting = isFly(f.tackle);
     const touch = this.hud.touchMode;
-    const swipe = this.readSwipe(touch);
+    this.collectSwipe(touch);
     const castHeld =
       this.castControl.castHeld(f.stage, {
         mouse: input.isDown('Mouse0'),
@@ -960,7 +960,7 @@ export class SoloGame {
                     grip: input.isDown('LineGrip'),
                     haul: input.wasPressed('Reel'),
                     key: false,
-                    ...swipe,
+                    ...this.takeSwipe(),
                   }
                 : {
                     grip: input.isDown('Mouse0'),
@@ -973,6 +973,8 @@ export class SoloGame {
             )
           : { rod: 0, grip: true }
         : undefined;
+    // Käyttämätön liike unohtuu, paitsi heiton aloittaneella askeleella: se kuuluu heittoon.
+    if (!startFlyCast) this.swipeX = this.swipeY = 0;
     const internal = this.screenToInternal(input.mouseX, input.mouseY);
     this.aim = this.castControl.aim(
       (this.viewMode === 'pov' ? this.pov : this.view).internalToWorld(internal.x, internal.y),
@@ -1672,25 +1674,29 @@ export class SoloGame {
   }
 
   private povTubeTime = performance.now();
-  /** Sormen edellinen paikka perhoheiton pyyhkäisyä varten (null = sormi ylhäällä). */
-  private swipeFrom: { x: number; y: number } | null = null;
+  /** Sormen liike pelikuvalla (CSS-pikseleinä), jota perhoheitto ei ole vielä käyttänyt. */
+  private swipeX = 0;
+  private swipeY = 0;
 
   /**
-   * Sormen liike pelikuvalla tämän askeleen aikana hiiren pikseleinä (#236):
-   * pyyhkäisy ylös on eteenheitto, alas takaheitto.
+   * Kerää sormen liikkeen pelikuvalla (#236): pyyhkäisy ylös on eteenheitto,
+   * alas takaheitto. Liike tulee tapahtumista, ei askelten välisistä
+   * paikoista, joten hitaalla ruudunpäivityksellä pyyhkäisyn alku ei katoa.
    */
-  private readSwipe(touch: boolean): { dx: number; dy: number } {
-    const input = this.input;
-    const down = touch && input.isDown('Mouse0');
-    const from = this.swipeFrom;
-    this.swipeFrom = down ? { x: input.mouseX, y: input.mouseY } : null;
-    if (!down || !from) return { dx: 0, dy: 0 };
-    const h = window.innerHeight;
-    return {
-      dx: touchToRodPixels(input.mouseX - from.x, h),
-      dy: touchToRodPixels(input.mouseY - from.y, h),
-    };
+  private collectSwipe(touch: boolean): void {
+    this.swipeX = touch ? this.swipeX + this.input.dragDX : 0;
+    this.swipeY = touch ? this.swipeY + this.input.dragDY : 0;
   }
+
+  /** Kerätty pyyhkäisy perhoheitolle hiiren pikseleinä. */
+  private takeSwipe(): { dx: number; dy: number } {
+    const h = window.innerHeight;
+    const swipe = { dx: touchToRodPixels(this.swipeX, h), dy: touchToRodPixels(this.swipeY, h) };
+    this.swipeX = 0;
+    this.swipeY = 0;
+    return swipe;
+  }
+
   /** Perhon vedot hiirellä. */
   private readonly flyStrip = new FlyStrip();
 
