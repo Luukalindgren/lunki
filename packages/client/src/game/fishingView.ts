@@ -103,6 +103,11 @@ export class FishingView {
     this.group.add(this.fishShadow);
   }
 
+  /** Siiman näkyvä väri (katkeamisvaroitus mukaan lukien). */
+  get shownLineColor(): number {
+    return (this.line.material as THREE.LineBasicMaterial).color.getHex();
+  }
+
   startSplash(at: Vec2): void {
     this.splash.position.copy(toWorld(at, 0.05));
     this.splashAge = 0;
