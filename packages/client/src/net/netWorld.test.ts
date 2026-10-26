@@ -71,3 +71,34 @@ describe('poistuneen ilmoitus', () => {
       expect(left).toEqual(['Ystävä']);
     });
 });
+
+describe('muiden liike verkon heitellessä', () => {
+  it('kisan aikana tasainen liike piirtyy tasaisena, vaikka tilat saapuvat epätasaisesti', () => {
+    const players = new Map([
+      ['me', player('Minä', 0, 0, 'spoon')],
+      ['y', player('Ystävä', 0, 0, 'spoon')],
+    ]);
+    const state = { players, catches: [], phase: 'playing', clock: 0 };
+    const session = { sessionId: 'me', room: { state } } as unknown as NetSession;
+    let now = 0;
+    const world = new NetWorld(session, new WaterBody(LUNKINJARVI), () => now);
+    // Palvelin lähettää 50 ms välein, ystävä etenee 1 m/s; viive vaihtelee 0–40 ms.
+    const jitter = [0, 0.04, 0.01, 0.03, 0, 0.04, 0.02, 0, 0.035, 0.01, 0.04, 0];
+    const arrivals = jitter.map((j, i) => ({ at: 1 + i * 0.05 + j, clock: i * 0.05 }));
+    const xs: number[] = [];
+    let k = 0;
+    for (now = 1; now < 1.6; now += 1 / 60) {
+      while (k < arrivals.length && arrivals[k]!.at <= now) {
+        state.clock = arrivals[k]!.clock;
+        players.get('y')!.x = state.clock;
+        session.onState?.(state as never);
+        k++;
+      }
+      const x = world.others()[0]?.pos.x;
+      if (x !== undefined && now > 1.2) xs.push(x);
+    }
+    const steps = xs.slice(1).map((x, i) => x - xs[i]!);
+    // Saapumishetkellä leimattuna askeleet vaihtelisivat pysähdyksestä 2,5-kertaiseen.
+    for (const s of steps) expect(Math.abs(s * 60 - 1)).toBeLessThan(0.1);
+  });
+});
