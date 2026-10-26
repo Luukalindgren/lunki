@@ -32,6 +32,15 @@ export class Input {
   mouseDY = 0;
   private moveAccX = 0;
   private moveAccY = 0;
+  /**
+   * Vasen nappi tai sormi pohjassa kuljettu matka (CSS-pikseleinä) edellisestä
+   * askeleesta. Kerätään tapahtumista, joten nopea pyyhkäisy ei katoa, vaikka
+   * se alkaisi tai loppuisi askelten välissä (perhoheitto sormella, #236).
+   */
+  dragDX = 0;
+  dragDY = 0;
+  private dragAccX = 0;
+  private dragAccY = 0;
   /** Kosketus, joka toimii hiirenä pelikuvan päällä (yksi kerrallaan). */
   private aimPointer: number | null = null;
   /**
@@ -65,6 +74,10 @@ export class Input {
     this.mouseDY = this.moveAccY;
     this.moveAccX = 0;
     this.moveAccY = 0;
+    this.dragDX = this.dragAccX;
+    this.dragDY = this.dragAccY;
+    this.dragAccX = 0;
+    this.dragAccY = 0;
   }
 
   /**
@@ -169,6 +182,12 @@ export class Input {
       }
     }
     if (document.pointerLockElement === this.target) return;
+    // Painalluksen alussa (onPointerDown) nappi ei ole vielä pohjassa: hyppy
+    // edellisestä paikasta painalluskohtaan ei ole vetoa.
+    if (this.down.has('Mouse0')) {
+      this.dragAccX += e.clientX - this.mouseX;
+      this.dragAccY += e.clientY - this.mouseY;
+    }
     this.mouseX = e.clientX;
     this.mouseY = e.clientY;
   };
