@@ -131,6 +131,16 @@ describe('SnapshotBuffer', () => {
     expect(b.sample(1.25)).toBe(12.5);
     expect(b.sample(3)).toBe(20);
   });
+
+  it('jatkaa liikettä uusimman tilan jälkeen vain pyydetyn ajan', () => {
+    const b = new SnapshotBuffer<number>((a, c, t) => a + (c - a) * t);
+    b.push(1, 10);
+    expect(b.sample(1.5, 0.25)).toBe(10);
+    b.push(2, 20);
+    expect(b.sample(2.1, 0.25)).toBeCloseTo(21);
+    expect(b.sample(3, 0.25)).toBeCloseTo(22.5);
+    expect(b.sample(3)).toBe(20);
+  });
 });
 
 describe('SnapshotClock', () => {

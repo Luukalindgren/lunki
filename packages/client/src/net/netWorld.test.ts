@@ -113,3 +113,43 @@ describe('muiden räpylät', () => {
     expect(lerpKickPhase(0.5, 0, 0.5)).toBe(0);
   });
 });
+
+describe('muut lyhyessä verkkokatkossa', () => {
+  const setup = () => {
+    const players = new Map([
+      ['me', player('Minä', 0, 0, 'spoon')],
+      ['y', player('Ystävä', 0, 0, 'spoon')],
+    ]);
+    const state = { players, catches: [], phase: 'playing', clock: 0 };
+    const session = { sessionId: 'me', room: { state } } as unknown as NetSession;
+    const clock = { now: 0 };
+    const world = new NetWorld(session, new WaterBody(LUNKINJARVI), () => clock.now);
+    const send = (at: number, serverTime: number, x: number) => {
+      clock.now = at;
+      state.clock = serverTime;
+      players.get('y')!.x = x;
+      session.onState?.(state as never);
+    };
+    return { world, clock, send };
+  };
+
+  it('ystävä ui eteenpäin jumin ajan eikä jähmety', () => {
+    const { world, clock, send } = setup();
+    // 1 m/s, sitten tilat lakkaavat tulemasta.
+    for (let i = 0; i <= 10; i++) send(1 + i * 0.05, i * 0.05, i * 0.05);
+    const last = 0.5;
+    clock.now = 1.5 + 0.12 + 0.1;
+    expect(world.others()[0]!.pos.x).toBeCloseTo(last + 0.1, 3);
+    // Pitkässä katkossa liike pysähtyy jatkoajan päähän.
+    clock.now = 1.5 + 0.12 + 2;
+    expect(world.others()[0]!.pos.x).toBeCloseTo(last + 0.25, 3);
+  });
+
+  it('siirtoa (esim. trombi) ei jatketa', () => {
+    const { world, clock, send } = setup();
+    send(1, 0, 0);
+    send(1.05, 0.05, 30);
+    clock.now = 1.05 + 0.12 + 0.2;
+    expect(world.others()[0]!.pos.x).toBe(30);
+  });
+});

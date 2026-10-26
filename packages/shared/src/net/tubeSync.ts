@@ -225,7 +225,12 @@ export class SnapshotBuffer<T> {
     while (this.snaps.length > 2 && this.snaps[0]!.time < time - this.maxAge) this.snaps.shift();
   }
 
-  sample(time: number): T | null {
+  /**
+   * Tila hetkellä `time`. Jos uusin tila on jo ohitettu (yhteys jumittaa),
+   * liikettä jatketaan kahden viimeisimmän tilan suuntaan enintään
+   * `extrapolate` sekuntia, ettei pelaaja jähmety ja sitten hyppää.
+   */
+  sample(time: number, extrapolate = 0): T | null {
     const s = this.snaps;
     if (s.length === 0) return null;
     if (time <= s[0]!.time) return s[0]!.value;
@@ -233,7 +238,12 @@ export class SnapshotBuffer<T> {
       const a = s[k]!;
       if (a.time <= time) {
         const b = s[k + 1];
-        if (!b) return a.value;
+        if (!b) {
+          const prev = s[k - 1];
+          if (!prev || extrapolate <= 0) return a.value;
+          const until = Math.min(time, a.time + extrapolate);
+          return this.lerp(prev.value, a.value, (until - prev.time) / (a.time - prev.time));
+        }
         return this.lerp(a.value, b.value, (time - a.time) / (b.time - a.time));
       }
     }
