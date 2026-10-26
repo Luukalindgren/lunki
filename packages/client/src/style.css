@@ -53,6 +53,8 @@ body {
     )
   );
   --u: min(calc(var(--m) * var(--hud-scale)), var(--u-max));
+  /* Ohjeen korkeus (ks. .hud-help: matalalla ruudulla teksti pienenee). */
+  --help-px: min(calc(var(--u) * var(--help-h)), calc(100vh - var(--m) * 16 - var(--u) * 129));
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -146,7 +148,7 @@ body {
 
 /* Ohje oikeassa alakulmassa ulottuu keskelle: ilmoitukset sen yläpuolelle. */
 .hud.help-open .hud-notices {
-  --nb-help: calc(var(--m) * 8 + var(--u) * var(--help-h));
+  --nb-help: calc(var(--m) * 8 + var(--help-px));
 }
 
 /* Luotaimet rinnakkain veisivät leveyden (Hud.measureEdges): ilmoitukset
@@ -156,8 +158,13 @@ body {
   --nb-gauges: calc(var(--m) * 8 + var(--right-h, 0px));
 }
 
+/* Matala alue luotainten yläpuolella: ilmoitus pienemmällä, jotta mahtuu riville. */
+.hud.wide-gauges:not(.touch) .hud-message {
+  font-size: calc(var(--u) * 9);
+}
+
 .hud.wide-gauges.help-open .hud-notices {
-  --nb-gauges: calc(var(--m) * 12 + var(--u) * var(--help-h) + var(--right-h, 0px));
+  --nb-gauges: calc(var(--m) * 12 + var(--help-px) + var(--right-h, 0px));
 }
 
 .hud-notices > * {
@@ -217,7 +224,13 @@ body {
 
 .hud-help {
   white-space: pre;
-  font-size: calc(var(--u) * 8);
+  /* Matalalla ruudulla (esim. moninpelin pidempi ohje 720p:llä) teksti
+     pienenee, jotta luotaimet eivät nouse kireysmittarin tekstin päälle:
+     oikea sarake 16 m + 129 u, ohjeen täyte ja kehys 6 u. */
+  font-size: min(
+    calc(var(--u) * 8),
+    calc((100vh - var(--m) * 16 - var(--u) * 135) * 8 / (var(--help-h) - 6))
+  );
   color: #c3cbd2;
 }
 
@@ -1292,15 +1305,16 @@ body {
   transform: translateX(-50%);
 }
 
-/* Kuntopalkki tatin yläpuolella. */
+/* Kuntopalkki tatin yläpuolella, vaakasuunnassa vasemman nappirivin
+   (8 + 56 px) oikealla puolella: matalalla ruudulla rivi ulottuu tatille asti. */
 .hud.touch .hud-stamina {
   position: absolute;
-  left: calc(16px + env(safe-area-inset-left, 0px));
+  left: calc(72px + env(safe-area-inset-left, 0px));
   bottom: calc(150px + env(safe-area-inset-bottom, 0px));
 }
 
 .hud.touch .hud-stamina-bar {
-  width: 124px;
+  width: 96px;
 }
 
 .hud.touch .hud-stamina-label {
@@ -1390,6 +1404,14 @@ body {
     font-size: calc(var(--u) * 7);
   }
 
+  .hud.touch .hud-stamina {
+    left: calc(16px + env(safe-area-inset-left, 0px));
+  }
+
+  .hud.touch .hud-stamina-bar {
+    width: 124px;
+  }
+
   /* Pystyssä kuntopalkin yläpuolelle nappipinon vasemmalle puolelle, pienempänä. */
   .hud.touch .hud-fly-panel {
     left: calc(16px + env(safe-area-inset-left, 0px));
@@ -1445,7 +1467,8 @@ body {
   .hud.touch.mp .hud-notices {
     top: max(
       calc(var(--m) * 8 + var(--left-h, calc(var(--u) * 126))),
-      calc(var(--m) * 16 + var(--u) * 126 + var(--chat-h, 0px)),
+      calc(var(--m) * 8 + var(--left-h, calc(var(--u) * 118)) + var(--chat-h, 0px)),
+      calc(258px + var(--chat-h, 0px) + env(safe-area-inset-top, 0px)),
       calc(var(--m) * 14 + var(--u) * 72 + var(--right-h, 0px)),
       calc(258px + env(safe-area-inset-top, 0px))
     );
@@ -1658,9 +1681,17 @@ body {
 @media (orientation: portrait) {
   .hud.touch .chat-hud {
     left: calc(8px + env(safe-area-inset-left, 0px));
-    top: calc(var(--m) * 16 + var(--u) * 126);
+    /* Vasemman pinon ja nappirivin (5 nappia: 258 px) alle. */
+    top: max(
+      calc(var(--m) * 8 + var(--left-h, calc(var(--u) * 118))),
+      calc(258px + env(safe-area-inset-top, 0px))
+    );
     transform: none;
-    width: calc(var(--u) * 108);
+    /* Oikean reunan luotainten vasemmalle puolelle. */
+    width: min(
+      calc(var(--u) * 108),
+      calc(100vw - 16px - var(--m) * 8 - var(--right-w, calc(var(--u) * 68)))
+    );
   }
 }
 
