@@ -1,6 +1,7 @@
 import { Ambience, type AmbienceInput } from './ambience';
 import { Music } from './music';
 import { thunderClap } from './thunder';
+import { VoicePlayer, type VoiceId, type VoiceOptions } from './voice';
 import { loadAudioSettings, saveAudioSettings, volumeGain, type AudioSettings } from './settings';
 
 /**
@@ -14,6 +15,8 @@ export class Sfx {
   private master: GainNode | null = null;
   private ambienceBus: GainNode | null = null;
   private musicBus: GainNode | null = null;
+  private voiceBus: GainNode | null = null;
+  private voices: VoicePlayer | null = null;
   /** Ukkosen oma väylä: kovempi kuin muut tehosteet, rajoitin estää säröytymisen. */
   private thunderBus: GainNode | null = null;
   private ambience: Ambience | null = null;
@@ -38,6 +41,8 @@ export class Sfx {
       this.master = bus();
       this.ambienceBus = bus();
       this.musicBus = bus();
+      this.voiceBus = bus();
+      this.voices = new VoicePlayer(this.ctx, this.voiceBus);
       const limiter = this.ctx.createDynamicsCompressor();
       limiter.threshold.value = -3;
       limiter.knee.value = 0;
@@ -73,9 +78,26 @@ export class Sfx {
     this.thunderBus.gain.setTargetAtTime(0.9 * volumeGain(this.settings.effects), t, 0.05);
     this.ambienceBus.gain.setTargetAtTime(0.5 * volumeGain(this.settings.ambience), t, 0.2);
     this.musicBus.gain.setTargetAtTime(0.5 * volumeGain(this.settings.music), t, 0.2);
+    this.voiceBus?.gain.setTargetAtTime(volumeGain(this.settings.voice), t, 0.05);
     this.music?.setChoice(this.settings.musicTrack);
     if (this.settings.music > 0) this.music?.start();
     else this.music?.stop();
+  }
+
+  /** Puherepliikki (#229); ei mitään, jos puheäänet on mykistetty. */
+  voice(id: VoiceId, opts?: VoiceOptions): void {
+    if (this.muted || this.settings.voice === 0) return;
+    this.voices?.play(id, opts);
+  }
+
+  /** Tapahtumien repliikit vain, jos pelaaja on ne valinnut. */
+  eventVoice(id: VoiceId): void {
+    if (this.settings.eventVoices) this.voice(id, { speaker: 'me' });
+  }
+
+  /** Lataa repliikit taustalla, kun puheäänet ovat käytössä. */
+  preloadVoices(ids: readonly VoiceId[]): void {
+    if (this.settings.voice > 0) this.voices?.preload(ids);
   }
 
   /** Ympäristöäänet seuraavat säätä; kutsutaan joka päivityksessä. */

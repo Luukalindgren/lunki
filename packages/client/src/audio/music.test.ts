@@ -49,7 +49,16 @@ describe('ääniasetukset', () => {
       ambience: 3,
       music: 2,
       musicTrack: 'vaihtuva',
+      voice: 2,
+      eventVoices: false,
     });
+  });
+
+  it('puheäänten taso ja tapahtumien kiroilu tallentuvat (#229)', () => {
+    stored({ voice: 0, eventVoices: true });
+    expect(loadAudioSettings()).toEqual({ ...DEFAULT_AUDIO, voice: 0, eventVoices: true });
+    stored({ voice: 7, eventVoices: 'joo' });
+    expect(loadAudioSettings()).toEqual(DEFAULT_AUDIO);
   });
 
   it('tallennettu raita säilyy, tuntematon hylätään', () => {

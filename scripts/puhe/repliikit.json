@@ -1,0 +1,33 @@
+{
+  "_ohje": "Puheäänten repliikit (#229). Tunniste → repliikit; tiedostot packages/client/public/audio/puhe/<tunniste>-<n>.mp3 (n alkaa 1:stä). Omat äänitykset voi vaihtaa samoilla nimillä.",
+  "wave": ["Moro!", "Terve terve!", "Hei siellä!", "No mitäs sinne?", "Ahoi!"],
+  "thumbsUp": ["Hyvä!", "Kova kala!", "No niin!", "Siistiä!", "Hieno!"],
+  "middleFinger": [
+    "Haista paska!",
+    "Painu helvettiin!",
+    "Vittu sun kanssas!",
+    "Mee ny siitä!",
+    "Perkele!"
+  ],
+  "fist": [
+    "Saatana!",
+    "Voi vittu mikä tuuri!",
+    "Mun kala, perkele!",
+    "Älä tuu mun apajille!",
+    "Voi jumalauta!"
+  ],
+  "comeHere": ["Tuu tänne!", "Täällä syö!", "Hei, tänne päin!", "Tuu kattoo!"],
+  "bigFish": ["Näin iso oli!", "Ei kukaan usko tätä!", "Kato tätä!", "Ihan totta, tämmönen!"],
+  "lineBroken": ["Voi saatana!", "Perkele, siima poikki!", "Ei jumalauta..."],
+  "escaped": ["Ei helvetti...", "Voi ei, se karkas!", "Saatanan kala!", "Se oli iso, perkele!"],
+  "capsized": ["Voi perkele, mä kaaduin!", "Uuh, kylmää!", "Apua, mä uppoon!"],
+  "snagged": ["Pohjassa kiinni, perkele!", "No voi vittu, taas kiinni!", "Ei taas tätä..."],
+  "lureLost": ["Siinä meni viehe...", "Voi saatana, kallis viehe!", "Hyvästi, rakas viehe."],
+  "stuck": ["Hups, maalle meni.", "No nyt meni puskaan.", "Ei se kala siellä oo!"],
+  "bitOff": ["Hauki vei siiman, perkele!", "Hampaat, saatana!"],
+  "missed": ["Ohi meni!", "Liian myöhään!", "Voi pentele."],
+  "bigCatch": ["Jes!", "Hyvä kala!", "No niin, tuu tänne!"],
+  "fouled": ["Taas rikkaa...", "Pelkkää heinää!"],
+  "tangled": ["Hei, sä sotkit mun siiman!", "Irti mun siimasta!"],
+  "lightning": ["Huh, läheltä piti!", "Jumalauta, mikä pamaus!"]
+}

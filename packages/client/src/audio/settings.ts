@@ -18,6 +18,10 @@ export interface AudioSettings {
   music: VolumeLevel;
   /** Soitettava raita tai vaihtuva. */
   musicTrack: MusicChoice;
+  /** Puheäänet: käsimerkkien kirosanat ja huudahdukset (#229). */
+  voice: VolumeLevel;
+  /** Kalastaja kiroilee myös tapahtumissa (siima poikki, kala karkasi…); oletuksena pois. */
+  eventVoices: boolean;
 }
 
 export const DEFAULT_AUDIO: AudioSettings = {
@@ -25,9 +29,11 @@ export const DEFAULT_AUDIO: AudioSettings = {
   ambience: 2,
   music: 0,
   musicTrack: 'vaihtuva',
+  voice: 2,
+  eventVoices: false,
 };
 
-const VOLUME_KEYS = ['effects', 'ambience', 'music'] as const;
+const VOLUME_KEYS = ['effects', 'ambience', 'music', 'voice'] as const;
 
 const KEY = 'lunki.audio';
 const isLevel = (v: unknown): v is VolumeLevel => v === 0 || v === 1 || v === 2 || v === 3;
@@ -38,6 +44,7 @@ export function loadAudioSettings(): AudioSettings {
     const s = { ...DEFAULT_AUDIO };
     for (const k of VOLUME_KEYS) if (isLevel(raw?.[k])) s[k] = raw[k];
     if (MUSIC_CHOICES.includes(raw?.musicTrack as MusicChoice)) s.musicTrack = raw!.musicTrack!;
+    if (typeof raw?.eventVoices === 'boolean') s.eventVoices = raw.eventVoices;
     return s;
   } catch {
     return { ...DEFAULT_AUDIO };

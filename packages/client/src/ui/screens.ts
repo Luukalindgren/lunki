@@ -598,7 +598,7 @@ export class Screens {
     const a = { ...initial };
     const box = document.createElement('div');
     box.className = 'settings';
-    const row = (label: string, key: 'effects' | 'ambience' | 'music') =>
+    const row = (label: string, key: 'effects' | 'ambience' | 'music' | 'voice') =>
       this.choice(
         label,
         VOLUME_LEVELS.map((v) => [String(v), t(`volume.${v}`)]),
@@ -621,6 +621,20 @@ export class Screens {
           onChange({ ...a });
         },
       ),
+      row(t('audio.voice'), 'voice'),
+      this.choice(
+        t('audio.eventVoices'),
+        [
+          ['1', t('common.yes')],
+          ['0', t('common.no')],
+        ],
+        a.eventVoices ? '1' : '0',
+        (v) => {
+          a.eventVoices = v === '1';
+          onChange({ ...a });
+        },
+      ),
+      h('p', t('audio.voiceHint'), 'hint'),
     );
     return box;
   }

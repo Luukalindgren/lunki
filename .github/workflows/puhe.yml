@@ -1,0 +1,42 @@
+name: Puheäänet
+
+# Tekee käsimerkkien ja tapahtumien puherepliikit (#229) Piper-puhesynteesillä
+# (suomenkielinen ääni fi_FI-harri-medium) ja jälkikäsittelee ne ffmpegillä.
+# Pilviympäristö ei tavoita äänimallin palvelinta, joten teko tapahtuu
+# GitHubin ajoympäristössä. Käsin ajettaessa (Actions → Puheäänet → Run
+# workflow) tulokset tallennetaan artefaktiksi; ne kopioidaan hakemistoon
+# packages/client/public/audio/puhe/. Omat äänitykset voi vaihtaa suoraan
+# samoilla tiedostonimillä ilman tätä työnkulkua.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tee:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: sudo apt-get update -q && sudo apt-get install -yq ffmpeg
+      - run: pip install piper-tts
+      - name: Äänimalli
+        run: |
+          base=https://huggingface.co/rhasspy/piper-voices/resolve/main/fi/fi_FI/harri/medium
+          mkdir -p malli
+          for f in fi_FI-harri-medium.onnx fi_FI-harri-medium.onnx.json MODEL_CARD; do
+            curl -fsSL -o "malli/$f" "$base/$f"
+          done
+          cat malli/MODEL_CARD
+          pip show piper-tts | head -3
+      - run: python3 scripts/puhe/tee.py malli/fi_FI-harri-medium.onnx
+      - uses: actions/upload-artifact@v4
+        with:
+          name: puheaanet
+          path: |
+            packages/client/public/audio/puhe/
+            puhe-raaka/
+            malli/MODEL_CARD
