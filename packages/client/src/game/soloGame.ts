@@ -136,6 +136,7 @@ import { TopDownCamera } from './topDownCamera';
 import { QuietSpot } from './quietSpot';
 import { animateEmote, animateFins, createTubeMesh } from './tubeMesh';
 import { SpeechBubble, type BubbleContent } from './speechBubble';
+import { screenAnchor } from './screenAnchor';
 import { EmoteMenu } from '../ui/emoteMenu';
 import { YouMarker } from './youMarker';
 import { loadAppearance } from './appearance';
@@ -1768,12 +1769,12 @@ export class SoloGame {
       bubble.place(null, false);
       return;
     }
-    const v = this.tubeMesh.position.clone().setY(1.5).project(this.camera);
-    const rect = canvas.getBoundingClientRect();
-    bubble.place(
-      { x: rect.left + ((v.x + 1) / 2) * rect.width, y: rect.top + ((1 - v.y) / 2) * rect.height },
-      false,
+    const at = screenAnchor(
+      this.tubeMesh.position.clone().setY(1.5),
+      this.camera,
+      canvas.getBoundingClientRect(),
     );
+    bubble.place(at, false);
   }
 
   /** Vapauttaa GPU-resurssit, kun kierros päättyy. */
