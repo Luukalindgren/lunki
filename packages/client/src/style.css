@@ -93,6 +93,23 @@ body {
   background: #f6d04d;
 }
 
+/* Perhoheitto: siima suorassa, nyt vaihdetaan suuntaa (#235). */
+.hud-power.fly-now .hud-power-fill {
+  background: #7bd66f;
+}
+
+.hud-power.fly-now::after {
+  content: attr(data-now);
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  transform: translate(-50%, calc(var(--u) * -2));
+  color: #7bd66f;
+  font-size: calc(var(--u) * 11);
+  white-space: nowrap;
+  text-shadow: 0 calc(var(--u) * 1) 0 #000;
+}
+
 .hud-message {
   position: absolute;
   /* Saalislistan alle ja renkaan yläpuolelle. */

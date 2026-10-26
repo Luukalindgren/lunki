@@ -168,8 +168,45 @@ suu). Väsytyksessä puristettu siima ei anna periksi, joten iso kala voi katkai
 Kun hiiren päästää, kala vie siimaa sormien läpi (0,5 kg kitka), ensin löysästä. F kelaa
 löysät kelalle, minkä jälkeen väsytys toimii kelan jarrulla kuten virvelillä.
 
-**Heitto.** Heitto käyttää toistaiseksi virvelin voimamittaria (perhoheiton oma mekaniikka
-tulee #235:ssä). Heitto ampuu löysän siiman. Heiton pituuden yli jäävä löysä jää renkaan
-eteen, ja yli 5 m ylimääräinen löysä voi sotkeutua (ei helpolla), jolloin heitto jää lyhyeksi.
+**Heitto (#235).** Perho heitetään heiluttamalla vapaa edestakaisin. Parametrit: `FLY_CAST`
+tiedostossa `flyCast.ts`, vaikeustasojen avut `flyCast` tiedostossa `difficulty.ts`.
+
+- Hiiren vasen aloittaa heiton, ja osoitin lukitaan pelikuvaan. Hiiri itseä kohti =
+  takaheitto, poispäin = eteenheitto (400 px = koko liikerata, noin 120°). Vasen pohjassa =
+  siimakäsi puristaa siimaa, oikea = siimakäden veto (haul, siima +25 % nopeammin). X keskeyttää.
+- Jokainen liike päättyy pysäytykseen, joka lähettää silmukan. Siiman nopeus = vavan
+  huippunopeus × 4 m/s (enintään 32 m/s) × varusteiden kerroin. Silmukka aukeaa ajassa siima /
+  nopeus; kun siima on suorassa, kuuluu naksahdus ja mittari muuttuu vihreäksi ("NYT!" helpolla ja
+  normaalilla). Silloin vaihdetaan suuntaa.
+- Ihannekaari kasvaa siiman mukana: 5 m siimalla noin 30°, 18 m siimalla noin 80°.
+- Siimaa pidennetään avaamalla siimakäsi silmukan auetessa: siimaa luistaa 35 % siiman
+  nopeudesta (helpolla itsestään). Viimeisessä eteenheitossa avoin käsi ampuu siimaa 80 %
+  nopeudesta. Ilmassa enintään 22 m, eli heitto renkaasta noin 25 m. Luistava siima tulee ensin
+  renkaan edestä löysästä.
+- Vedestä heittoon nostetaan enintään 10 m siimaa (hiiren oikea uiton aikana). Siima vedessä ja
+  eteenpäin liike = rullaheitto, enintään 12 m.
+- Välilyönnillä rytmiheitto: jokainen painallus tekee taka- tai eteenheiton ihannekaarella, ja
+  siimakäsi pidentää siimaa itsestään 16 metriin. Heitto laskeutuu, kun painaminen loppuu.
+- Kosketusnäytöllä perho heitetään toistaiseksi voimamittarilla.
+
+| Virhe                                     | Seuraus                                                         |
+| ----------------------------------------- | --------------------------------------------------------------- |
+| Suunnan vaihto ennen kuin silmukka aukesi | Läimäys, vapa ei lataudu; realistisella perho voi katketa       |
+| Liian myöhään                             | Takaheitto putoaa veteen, eteenheitto laskeutuu                 |
+| Liian lyhyt liike pitkälle siimalle       | Siima ei jaksa: luhistuu tai putoaa                             |
+| Liian laaja liike tai laimea pysäytys     | Leveä silmukka: −20 % ja tuuli siirtää perhoa kaksinkertaisesti |
+| Siimakäsi auki liikkeen aikana            | Vapa ei lataudu (−65 %)                                         |
+| Kiihdytys äkkiä liikkeen lopussa          | Häntäsilmukka: −15 %; realistisella tuulisolmu (siima −40 %)    |
+| Takaheitto rantaan tai kaislikkoon        | Perho tarttuu taakse, irrotus 4 s                               |
+| Kova sivutuuli oikealta (realistinen)     | Perho voi osua hattuun, irrotus 4 s                             |
+
+| Vaikeustaso | Läimäys ennen | Putoaa (suoristumisesta) | NYT!-merkki | Siima luistaa itse | Virheet         |
+| ----------- | ------------- | ------------------------ | ----------- | ------------------ | --------------- |
+| Helppo      | 35 %          | 150 %, väh. 0,8 s        | kyllä       | kyllä              | ei              |
+| Normaali    | 65 %          | 60 %, väh. 0,35 s        | kyllä       | ei                 | heikentävät     |
+| Realistinen | 80 %          | 35 %, väh. 0,2 s         | ei          | ei                 | kaikki käytössä |
+
+Kun löysää on renkaan edessä enemmän kuin heitto vie (voimamittariheitto), yli 5 m ylimääräinen
+löysä voi sotkeutua (ei helpolla), jolloin heitto jää lyhyeksi.
 
 Ennätyksiin ja yksinpelin ennätyslistaan tallentuu kalastustapa ja perhovälineet.

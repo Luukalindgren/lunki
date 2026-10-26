@@ -5,3 +5,4 @@ export * from './fishing';
 export * from './gear';
 export * from './sonar';
 export * from './line';
+export * from './flyCast';

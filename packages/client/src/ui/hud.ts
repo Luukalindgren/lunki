@@ -158,7 +158,16 @@ export class Hud {
 
   setPower(power: number | null): void {
     this.power.hidden = power === null;
+    this.power.classList.remove('fly-now');
     if (power !== null) this.powerFill.style.height = `${Math.round(power * 100)}%`;
+  }
+
+  /** Perhoheiton ajoitusmittari (#235): silmukan aukeaminen ja "nyt!"-merkki. */
+  setFlyLoop(progress: number, now: boolean): void {
+    this.power.hidden = false;
+    this.powerFill.style.height = `${Math.round(progress * 100)}%`;
+    this.power.classList.toggle('fly-now', now);
+    this.power.dataset.now = t('game.flyNow');
   }
 
   /** Jännitysmittari: jännitys ja jarru suhteessa siiman kestävyyteen. */
@@ -269,6 +278,7 @@ export class Hud {
             'help.keys5',
             'help.keys6',
             'help.keysFly',
+            'help.keysFlyCast',
             'help.keysTools',
             'help.thunder',
             'help.keysLand',
