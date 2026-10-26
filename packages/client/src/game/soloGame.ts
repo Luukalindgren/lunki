@@ -1544,7 +1544,11 @@ export class SoloGame {
    */
   private followTube(step: number): TubeState | null {
     const others = this.net!.world.others();
-    if (others.length === 0) return null;
+    if (others.length === 0) {
+      // Seurattu lähti eikä muita ole: tilapaneeliin "Järvellä ei ole ketään" (#288).
+      this.followed = null;
+      return null;
+    }
     let i = Math.max(
       0,
       others.findIndex((o) => o.id === this.followed),
