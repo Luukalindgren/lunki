@@ -262,6 +262,7 @@ export class Hud {
         : [
             'help.keys1',
             'help.keys2',
+            'help.keysSpace',
             'help.keys3',
             'help.keys4',
             'help.keys5',
