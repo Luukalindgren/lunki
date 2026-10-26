@@ -124,6 +124,8 @@ import { describeTackle, lureName, skyName, speciesName } from '../i18n/names';
 const LAND_COLOR = 0x24502c;
 /** Yksinpelin pelaajan tunniste kisan kulussa. */
 const SOLO_ID = 'me';
+/** Lähiveden aallokon esiin- ja poishäivytyksen kesto (s). */
+const SWELL_FADE_TIME = 2;
 
 /**
  * Näppäinasettelu: WASD tai nuolet. W vie katseen suuntaan kohti räpylöitä
@@ -248,6 +250,8 @@ export class SoloGame {
   /** Aallokko: keinunta ja POV-näkymän aaltoileva lähivesi. */
   private readonly swell: Swell;
   private readonly swellPatch: THREE.Mesh;
+  /** Lähiveden aallokko päällä (hystereesillä, jotteivät puuskat vilkuta sitä). */
+  private swellOn = false;
   /** Renkaan keinunta (tasoitettu): nosto (m), kallistus ja nyökkäys (rad). */
   private readonly rock = { lift: 0, roll: 0, pitch: 0 };
   /** Ohi menevän ison aallon nosto (m) renkaan kohdalla. */
@@ -1015,8 +1019,17 @@ export class SoloGame {
       this.waterWaves.uSwell.value[i]!.set(w.dir.x, w.dir.y, w.k, w.phase);
       amp.setComponent(i, w.amp);
     });
+    // Lähivesi aaltoilee, kun aallokko on yli 3 cm, ja tasoittuu alle 2 cm:ssä.
+    // Muutos häivytetään, jotteivät aallot ja viivat ilmesty tai katoa kerralla.
+    const hs = this.waves.heightAt(p, windSpeed);
+    this.swellOn = hs >= 0.03 || (this.swellOn && hs >= 0.02);
+    const fade = this.waterWaves.uSwellFade;
+    fade.value = Math.min(
+      1,
+      Math.max(0, fade.value + ((this.swellOn ? 1 : -1) * dt) / SWELL_FADE_TIME),
+    );
     const shore = this.water.closestShorePoint(p, SHORE_FADE)?.distance ?? SHORE_FADE;
-    const s = this.swell.sample(p, this.waves.heightAt(p, windSpeed) * shoreFade(shore));
+    const s = this.swell.sample(p, hs * shoreFade(shore) * fade.value);
     const h = this.tube.heading;
     const ahead = s.slope.x * Math.cos(h) + s.slope.y * Math.sin(h);
     const side = s.slope.x * Math.sin(h) - s.slope.y * Math.cos(h);
@@ -1340,7 +1353,7 @@ export class SoloGame {
     this.remoteView?.dispose();
     this.net?.world.dispose();
     this.waterWaves.uWaterMask.value?.dispose();
-    this.waterWaves.uBottomShade.value?.dispose();
+    this.waterWaves.uDepthTex.value?.dispose();
     this.scene.traverse((o) => {
       const mesh = o as THREE.Mesh;
       mesh.geometry?.dispose();
@@ -1389,7 +1402,7 @@ export class SoloGame {
     this.fishingView.update(this.fishing, this.fishingContext(), this.aim, 1 / 60, hooked);
     this.view.apply();
     // Tyynellä lähivesi on tasainen, joten pohjan kivet ja sävyt näkyvät kuten ennenkin.
-    const rough = this.waves.heightAt(pos, this.weather.now.windSpeed) >= 0.03;
+    const rough = this.waterWaves.uSwellFade.value > 0;
     placeSwellPatch(
       this.swellPatch,
       this.waterWaves,

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { LakeMap, Vec2 } from '@lunki/shared';
+import { DEPTH_SHADE_GLSL, DEPTH_TEX_RANGE } from './depthShade';
 
 /** Pelikoordinaatti (x itään, y pohjoiseen) → Three.js-maailma (x, 0, -y). */
 export const toWorld = (p: Vec2, height = 0): THREE.Vector3 => new THREE.Vector3(p.x, height, -p.y);
@@ -148,12 +149,17 @@ export function createWaterWaves() {
     uSwellOrigin: { value: new THREE.Vector2() },
     /** POV-näkymän aaltoileva lähivesi: keskipiste x, y ja säde (m); 0 = pois. */
     uPatch: { value: new THREE.Vector3(0, 0, 0) },
+    /** Lähiveden aallokon häivytys 0–1: aallot ja viivat tulevat esiin ja häviävät liukuen. */
+    uSwellFade: { value: 0 },
     /** Vesialue tekstuurina (punainen = vettä) ja sen rajat: minX, minY, leveys, korkeus. */
     uWaterMask: { value: null as THREE.Texture | null },
     uWaterMaskBounds: { value: new THREE.Vector4(0, 0, 1, 1) },
-    /** Pohjan syvyyssävy (ks. bottomMesh): lähivesi piirtää sen itse. */
-    uBottomShade: { value: null as THREE.Texture | null },
-    uBottomShadeBounds: { value: new THREE.Vector4(0, 0, 1, 1) },
+    /**
+     * Pohjan syvyys tekstuurina (ks. bottomMesh): punainen = syvyys / DEPTH_TEX_RANGE.
+     * Vesishaderi valitsee syvyydestä vyöhykkeen sävyn, joten rajat kaartuvat sileästi.
+     */
+    uDepthTex: { value: null as THREE.Texture | null },
+    uDepthBounds: { value: new THREE.Vector4(0, 0, 1, 1) },
     /** 1 = pohjan sävy piirretään vesishaderissa (ks. createBottomMesh). */
     uBottomShadeOn: { value: 0 },
   };
@@ -183,20 +189,19 @@ uniform vec3 uPatch;
 uniform sampler2D uWaterMask;
 uniform vec4 uWaterMaskBounds;
 varying vec3 vGlitterPos;
-uniform sampler2D uBottomShade;
-uniform vec4 uBottomShadeBounds;
+uniform sampler2D uDepthTex;
+uniform vec4 uDepthBounds;
 uniform float uBottomShadeOn;
 #ifdef SWELL_PATCH
 varying float vSwell;
+varying float vSwellK;
+varying vec2 vSwellGrad;
+uniform vec4 uSwell[3];
+uniform vec2 uSwellOrigin;
 #endif
+${DEPTH_SHADE_GLSL}
 float waterHash(vec2 p) {
   return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
-}
-// 4×4 Bayer-matriisi 0–1 pikselirasteriin.
-float waterBayer(vec2 p) {
-  int i = int(mod(p.x, 4.0)) + int(mod(p.y, 4.0)) * 4;
-  int m[16] = int[16](0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5);
-  return (float(m[i]) + 0.5) / 16.0;
 }
 `;
     shader.vertexShader = (SWELL_VERTEX_HEADER + shader.vertexShader)
@@ -237,28 +242,52 @@ float waterBayer(vec2 p) {
       waveUv.x += sin(vMapUv.y * 40.0 + uWaterTime * 1.3) * 0.01;
       waveUv.y += sin(vMapUv.x * 33.0 - uWaterTime * 1.1) * 0.008;
       vec4 sampledDiffuseColor = texture2D( map, waveUv );
+      float waterDepth = uBottomShadeOn > 0.5
+        ? texture2D(uDepthTex, (waterXY - uDepthBounds.xy) / uDepthBounds.zw).r * ${DEPTH_TEX_RANGE.toFixed(1)}
+        : 10.0;
       // POV-näkymässä kuvion 0,25 m tekselit kasvaisivat aivan kameran edessä
       // isoiksi tummiksi ja vaaleiksi laatoiksi: lähivesi on tasaväristä.
+      // Matalikolla kuvio jätetään pois: vaalean pohjan sävyn alla viivat
+      // vihertyivät paletissa ja näyttivät kaloilta.
       float eyeDist = distance(cameraPosition, vGlitterPos);
-      sampledDiffuseColor.rgb = mix(vec3(0.012, 0.102, 0.235), sampledDiffuseColor.rgb, smoothstep(1.5, 4.0, eyeDist));
+      float waterDetail = smoothstep(1.5, 4.0, eyeDist) * smoothstep(2.0, 3.0, waterDepth);
+      sampledDiffuseColor.rgb = mix(vec3(0.012, 0.102, 0.235), sampledDiffuseColor.rgb, waterDetail);
+      float waterFoam = 0.0;
+      float waterTrough = 0.0;
       #ifdef SWELL_PATCH
-      // Aallonharjat vaaleampia ja pohjat tummempia. Raja rasteroidaan
-      // pikseleittäin, jotta sävyt vaihtuvat liukuen eivätkä isoina laattoina.
-      float swellDither = waterBayer(gl_FragCoord.xy);
-      float swellCrest = step(swellDither, smoothstep(0.15, 0.85, vSwell));
-      float swellLow = step(swellDither, smoothstep(0.2, 0.9, -vSwell));
-      sampledDiffuseColor.rgb = mix(sampledDiffuseColor.rgb, vec3(0.024, 0.195, 0.376), 0.75 * swellCrest);
-      sampledDiffuseColor.rgb = mix(sampledDiffuseColor.rgb, vec3(0.006, 0.042, 0.107), 0.7 * swellLow);
+      // Aallokko pikselitaiteen tapaan: harjan kohdalla vaalea katkoviiva ja
+      // sen edessä tumma, kummatkin vain kameraan päin olevalla rinteellä.
+      // Viivat ovat pikselin paksuisia korkeuskäyrien pätkiä, jotka kulkevat
+      // aaltojen mukana. Heikossa aallokossa pätkiä on vähän, ja ne syttyvät
+      // yksitellen, joten kuvio ei ilmesty eikä katoa kerralla.
+      {
+        vec2 swRel = waterXY - uSwellOrigin;
+        vec4 sw0 = uSwell[0];
+        float crestId = floor((sw0.z * dot(swRel, sw0.xy) - sw0.w) / 6.2832 + 0.25);
+        float along = dot(swRel, vec2(-sw0.y, sw0.x));
+        float dashCell = floor(along / 1.2 + waterHash(vec2(crestId, 3.1)) * 9.0);
+        float dashHash = waterHash(vec2(dashCell, crestId));
+        vec2 toCam = vec2(cameraPosition.x, -cameraPosition.z) - waterXY;
+        float facing = step(dot(vSwellGrad, toCam), 0.0);
+        float lineW = max(fwidth(vSwell), 1e-4);
+        // Kaukana käyrät tihenevät alle pikselin: viivat jätetään pois.
+        float swellDensity = vSwellK * (1.0 - smoothstep(0.2, 0.45, lineW)) * facing;
+        float lineAt = lineW * 0.6;
+        float crestLine = max(
+          step(abs(vSwell - 0.4), lineAt) * step(dashHash, swellDensity),
+          step(abs(vSwell - 0.12), lineAt) * step(1.0 - dashHash, 0.5 * swellDensity));
+        float frontLine = max(
+          step(abs(vSwell + 0.2), lineAt) * step(fract(dashHash * 7.0), 0.7 * swellDensity),
+          step(abs(vSwell + 0.5), lineAt) * step(fract(dashHash * 13.0), 0.4 * swellDensity));
+        sampledDiffuseColor.rgb = mix(sampledDiffuseColor.rgb, vec3(0.024, 0.195, 0.381), crestLine);
+        sampledDiffuseColor.rgb = mix(sampledDiffuseColor.rgb, vec3(0.006, 0.042, 0.107), frontLine);
+        waterTrough = frontLine;
+      }
       #endif
       // Tuulen aallot: lyhyitä vaahtopäitä, jotka syntyvät, ajelehtivat
       // myötätuuleen ja sammuvat. Kaari kaartuu tuulen suuntaan, ja sen
       // takana on tumma aallonpohja. Vaahtopäitä on sitä enemmän, mitä
       // korkeampi aalto (pyyhkäisymatka × tuuli).
-      float waterFoam = 0.0;
-      float waterTrough = 0.0;
-      #ifdef SWELL_PATCH
-      waterTrough = smoothstep(0.0, 0.4, -vSwell);
-      #endif
       if (uWaveScale > 0.0) {
         vec2 wp = vMapUv * ${WATER_TEXTURE_METERS.toFixed(1)};
         float hs = texture2D(uWaveTex, (wp - uWaveBounds.xy) / uWaveBounds.zw).r * uWaveScale;
@@ -296,10 +325,10 @@ float waterBayer(vec2 p) {
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <opaque_fragment>',
       /* glsl */ `// Pohjan syvyyssävy valaisemattomana veden päällä (ennen erillinen kerros).
-      // Aallonpohjissa sävy jätetään pois: tumma pohja ja vihertävä sävy
-      // osuisivat paletissa vihreään, ja vesi näyttäisi maalta.
+      // Tummien viivojen kohdalla sävy jätetään pois: tumma pohja ja vihertävä
+      // sävy osuisivat paletissa vihreään, ja vesi näyttäisi maalta.
       if (uBottomShadeOn > 0.5) {
-        vec4 bottomShade = texture2D(uBottomShade, (waterXY - uBottomShadeBounds.xy) / uBottomShadeBounds.zw);
+        vec4 bottomShade = depthShade(waterDepth);
         outgoingLight = mix(outgoingLight, bottomShade.rgb, bottomShade.a * (1.0 - waterTrough));
       }
       outgoingLight = mix(outgoingLight, vec3(0.9, 0.95, 1.0), waterFoam);
@@ -365,6 +394,9 @@ const SWELL_VERTEX_HEADER = /* glsl */ `varying vec3 vGlitterPos;
 uniform vec3 uPatch;
 #ifdef SWELL_PATCH
 varying float vSwell;
+varying float vSwellK;
+varying vec2 vSwellGrad;
+uniform float uSwellFade;
 uniform sampler2D uWaveTex;
 uniform vec4 uWaveBounds;
 uniform float uWaveScale;
@@ -384,7 +416,9 @@ const SWELL_NORMAL = /* glsl */ `#ifdef SWELL_PATCH
   swellHs *= 1.0 - smoothstep(uPatch.z * 0.55, uPatch.z * 0.95, length(position.xy));
   float swellShore = texture2D(uWaterMask, (swellXY - uWaterMaskBounds.xy) / uWaterMaskBounds.zw).g;
   float swellOpen = swellHs;
-  swellHs *= smoothstep(0.5, 1.0, swellShore);
+  swellHs *= smoothstep(0.5, 1.0, swellShore) * uSwellFade;
+  // Viivojen tiheys: tyynellä ei viivoja, kovassa aallokossa paljon.
+  vSwellK = smoothstep(0.02, 0.15, swellHs);
   vec2 swellRel = swellXY - uSwellOrigin;
   float swellH = 0.0;
   vec2 swellGrad = vec2(0.0);
@@ -396,6 +430,7 @@ const SWELL_NORMAL = /* glsl */ `#ifdef SWELL_PATCH
   }
   // Syvä aallonpohja ei saa painua rannan maapohjan alle.
   swellH = max(swellH * swellHs, ${(-SWELL_MIN_DEPTH).toFixed(2)});
+  vSwellGrad = swellGrad;
   swellGrad *= swellHs;
   // Suhteellinen korkeus −1…1 värjäykseen: harjat vaaleampia, pohjat tummempia.
   vSwell = swellH / max(0.03, swellOpen * (uSwellAmp.x + uSwellAmp.y + uSwellAmp.z));
@@ -433,7 +468,7 @@ export function createSwellPatch(map: LakeMap, waves: WaterWaves): THREE.Mesh {
 }
 
 /**
- * Veden pinnassa makaavat kerrokset (pohjan sävy, kivet ja rungot) jätetään
+ * Veden pinnassa makaavat kerrokset (kivet ja rungot) jätetään
  * pois aaltoilevan lähiveden kohdalta: muuten ne kelluisivat aallonpohjien yllä.
  */
 export function clipToSwellPatch(material: THREE.Material, waves: WaterWaves): void {
