@@ -11,6 +11,13 @@ Peli koostuu kahdesta osasta:
 GitHub Pages on HTTPS-sivu, joten selain hyväksyy vain suojatun
 `wss://`-yhteyden palvelimeen. Siksi palvelin julkaistaan tunnelin kautta:
 porttia ei tarvitse avata reitittimestä, ja tunneli hoitaa sertifikaatin.
+Nykyinen osoite on `wss://peli.lunkinjarvi.com` (Cloudflare Tunnel).
+
+Cloudflare katkaisee WebSocket-yhteyden 100 sekunnin hiljaisuuden jälkeen.
+Palvelin pingaa kaikkia yhteyksiä 3 sekunnin välein (`PING_INTERVAL_MS`,
+`packages/server/src/server.ts`), joten aulassa odottelu ei katkaise
+yhteyttä. Cloudflaren omat huoltokatkot voivat silti pudottaa yhteyden; peli
+yhdistää silloin uudelleen samaan kisaan.
 
 ## Kertaluonteiset asetukset
 
@@ -28,18 +35,22 @@ läppäriltä SSH:n yli: [windows-palvelin.md](windows-palvelin.md).
    cd lunki
    pnpm install
    ```
-4. **Tunneli (suositus: Tailscale Funnel, pysyvä osoite ilman omaa
-   verkkotunnusta):**
-   1. Asenna [Tailscale](https://tailscale.com/download) ja kirjaudu.
-   2. Aja PowerShellissä `tailscale funnel --bg 2567`. Jos Funnel ei ole vielä
-      sallittu, komento antaa linkin, josta sen saa päälle (HTTPS-varmenteet ja
-      Funnel tailnetin asetuksista).
-   3. Komento tulostaa osoitteen, esim. `https://pelikone.tailabc123.ts.net`.
-      `--bg` pitää tunnelin päällä myös uudelleenkäynnistysten yli.
+4. **Tunneli (suositus: Cloudflare Tunnel omalla verkkotunnuksella):**
+   1. Asenna `cloudflared`: `winget install Cloudflare.cloudflared`.
+   2. Cloudflaren dashboard → _Zero Trust → Networks → Tunnels → Create
+      tunnel_. Kopioi sieltä palvelun asennuskomento (sisältää tokenin) ja aja
+      se järjestelmänvalvojan PowerShellissä. Tunneli käynnistyy sen jälkeen
+      Windows-palveluna koneen mukana.
+   3. Lisää tunneliin _Public hostname_: `peli.lunkinjarvi.com` →
+      `http://localhost:2567`. Cloudflare luo DNS-tietueen itse.
+   4. Pidä _Bot Fight Mode_ pois päältä (tai rajaa se pois `peli.`-osoitteesta):
+      se estää WebSocket-kättelyn ja palautteiden haun GitHub Actionsista.
+   5. Kokeile selaimella <https://peli.lunkinjarvi.com/__healthcheck>, vastaus
+      on `OK`.
 5. **Palvelimen osoite asiakkaalle:** repositorion _Settings → Secrets and
    variables → Actions → Variables → New repository variable_:
    - nimi `LUNKI_SERVER_URL`
-   - arvo sama osoite `wss://`-alulla, esim. `wss://pelikone.tailabc123.ts.net`
+   - arvo sama osoite `wss://`-alulla: `wss://peli.lunkinjarvi.com`
 
    Aja _Julkaisu_ uudelleen, niin peli käyttää tätä palvelinta.
 
@@ -61,10 +72,20 @@ läppäriltä SSH:n yli: [windows-palvelin.md](windows-palvelin.md).
    tai koodi (esim. `LUNKI-4F7K`). Kaverit avaavat linkin, kirjoittavat
    nimimerkin ja painavat **Valmis!**. Valitse asetukset ja **Aloita kisa**.
 
+## Vaihtoehto: Tailscale Funnel
+
+Ilman omaa verkkotunnusta pysyvän osoitteen saa Tailscale Funnelilla.
+Asenna [Tailscale](https://tailscale.com/download), kirjaudu ja aja
+`tailscale funnel --bg 2567`. Jos Funnel ei ole vielä sallittu, komento antaa
+linkin, josta sen saa päälle. Osoite on muotoa
+`https://pelikone.tailabc123.ts.net` (`LUNKI_SERVER_URL`iin `wss://`-alulla).
+Funnel on beta-vaiheessa, sen kaistarajoja ei kerrota, eikä omaa
+verkkotunnusta tueta. `tailscale funnel reset` sulkee sen.
+
 ## Vaihtoehto: Cloudflaren pikatunneli
 
-Jos Tailscale ei sovi, [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)
-antaa tilapäisen osoitteen ilman tiliä:
+Ilman Cloudflare-tiliä [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)
+antaa tilapäisen osoitteen:
 
 ```powershell
 cloudflared tunnel --url http://localhost:2567
@@ -75,9 +96,6 @@ käynnistyksellä, joten sitä ei kannata laittaa `LUNKI_SERVER_URL`-muuttujaan.
 Anna se sen sijaan pelin osoitteessa:
 `https://luukalindgren.github.io/lunki/?palvelin=wss://satunnainen-nimi.trycloudflare.com`.
 Kutsulinkki kuljettaa `palvelin`-parametrin mukanaan kavereille.
-
-Pysyvä Cloudflare-osoite onnistuu nimetyllä tunnelilla, mutta se vaatii
-Cloudflare-tilin ja oman verkkotunnuksen.
 
 ## Vaihtoehto: pilvipalvelin
 
@@ -146,3 +164,6 @@ Tulosteessa näkyy palautteen kirjoittaja, teksti sekä selain ja pelin versio
 | Toimii kotona, ei kavereilla    | `LUNKI_SERVER_URL` puuttuu tai Julkaisua ei ajettu muuttujan lisäämisen jälkeen.                         |
 | "Huonetta ei löytynyt…"         | Koodi väärin tai huone täynnä. Huone katoaa, kun kaikki poistuvat.                                       |
 | Pelaaja putosi kesken kisan     | Päävalikon "Palaa kisaan" tai sama huonekoodi palauttaa samaan renkaaseen ja saaliisiin.                 |
+| Yhteysvirhe, healthcheck 403    | Cloudflaren Bot Fight Mode estää: ota se pois päältä tai rajaa `peli.lunkinjarvi.com` pois.              |
+| Healthcheck 502                 | Tunneli on päällä, mutta palvelin ei: `lunki kaynnista`.                                                 |
+| Healthcheck 530 (virhe 1033)    | Tunneli ei ole päällä: `lunki` näyttää `cloudflared`-palvelun tilan (`Start-Service cloudflared`).       |

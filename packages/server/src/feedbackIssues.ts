@@ -65,7 +65,13 @@ try {
 }
 if (res.status === 401)
   throw new Error('Pelipalvelin hylkäsi avaimen: tarkista LUNKI_FEEDBACK_TOKEN.');
-// Funnel vastaa 502, kun palvelin ei ole päällä; vanha palvelinversio 404.
+// Cloudflaren haaste (Bot Fight Mode tms.) ei mene ohi itsestään, joten se on virhe.
+if (res.status === 403)
+  throw new Error(
+    'Pelipalvelin vastasi 403: Cloudflare todennäköisesti esti Actionsin (Bot Fight Mode), ks. docs/windows-palvelin.md.',
+  );
+// Cloudflare vastaa 502, kun palvelin ei ole päällä, ja 530 (virhe 1033), kun
+// tunneli ei ole; Funnel vastaa 502. Vanha palvelinversio vastaa 404.
 if (!res.ok) done(`Pelipalvelin vastasi ${res.status}, yritetään myöhemmin.`);
 const { feedback } = (await res.json()) as { feedback: PendingFeedback[] };
 if (feedback.length === 0) done('Ei uusia palautteita.');

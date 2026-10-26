@@ -114,7 +114,7 @@ switch ($Komento) {
       Write-Log 'pnpm install epäonnistui, palvelinta ei käynnistetty'
       exit 1
     }
-    # Tunneli (Tailscale Funnel) ohjaa liikenteen osoitteeseen 127.0.0.1:2567, joten
+    # Tunneli (cloudflared) ohjaa liikenteen osoitteeseen localhost:2567, joten
     # palvelimen ei tarvitse näkyä kotiverkkoon eikä tailnetiin.
     $env:LUNKI_HOST = '127.0.0.1'
     Write-Log 'Käynnistetään palvelin (pnpm run server)'
@@ -159,11 +159,13 @@ switch ($Komento) {
     $task = Get-ServerTask
     if ($task) { Write-Host "Tehtävä:    $($task.State)" } else { Write-Host 'Tehtävä:    ei asennettu (lunki.ps1 asenna)' }
     if (Test-Health) { Write-Host "Palvelin:   päällä (portti $Port)" } else { Write-Host 'Palvelin:   ei vastaa' }
+    # Cloudflare Tunnel (peli.lunkinjarvi.com) pyörii Windows-palveluna.
+    $cf = Get-Service cloudflared -ErrorAction SilentlyContinue
+    if ($cf) { Write-Host "Tunneli:    cloudflared $($cf.Status)" } else { Write-Host 'Tunneli:    cloudflared-palvelua ei ole asennettu' }
+    # Funnel oli aiempi tunneli; näytetään, jos se on vielä päällä.
     if (Get-Command tailscale -ErrorAction SilentlyContinue) {
       $funnel = (tailscale funnel status 2>&1 | Out-String).Trim()
-      Write-Host "Tunneli:`n$funnel"
-    } else {
-      Write-Host 'Tunneli:    tailscale-komentoa ei löytynyt'
+      if ($funnel -and $funnel -notmatch 'No serve config') { Write-Host "Funnel:`n$funnel" }
     }
   }
 

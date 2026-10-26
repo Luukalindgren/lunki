@@ -13,7 +13,11 @@ kirjoita "PowerShell" → hiiren oikea → _Suorita järjestelmänvalvojana_.
 winget install -e --id Git.Git
 winget install -e --id OpenJS.NodeJS.LTS
 winget install -e --id tailscale.tailscale
+winget install -e --id Cloudflare.cloudflared
 ```
+
+Tailscalea tarvitaan etäkäyttöön (SSH, `lunki`-komento), `cloudflared`ia
+pelaajien tunneliin.
 
 Sulje ja avaa PowerShell uudelleen, jotta uudet komennot löytyvät:
 
@@ -32,16 +36,27 @@ Windowsilla.
 
 ## 2. Tunneli (kerran)
 
-Kirjaudu Tailscaleen tehtäväpalkin kuvakkeesta ja aja:
+Pelaajat tulevat Cloudflare Tunnelin kautta osoitteeseen
+`wss://peli.lunkinjarvi.com`:
 
-```powershell
-tailscale funnel --bg 2567
-```
+1. Cloudflaren dashboard → _Zero Trust → Networks → Tunnels → Create
+   tunnel_ (tyyppi Cloudflared). Kopioi sivulta Windowsin asennuskomento
+   (`cloudflared.exe service install <token>`) ja aja se järjestelmänvalvojan
+   PowerShellissä. Tunneli on sen jälkeen Windows-palvelu `cloudflared`, joka
+   käynnistyy koneen mukana.
+2. Lisää tunneliin _Public hostname_: `peli.lunkinjarvi.com` →
+   `http://localhost:2567`. Cloudflare luo DNS-tietueen itse.
+3. _Security → Bots_: Bot Fight Mode pois päältä (tai rajattuna pois
+   `peli.`-osoitteesta), muuten WebSocket-kättely ja palautteiden haku
+   estyvät.
+4. Repositorion muuttujaksi `LUNKI_SERVER_URL` arvo
+   `wss://peli.lunkinjarvi.com`, ks. [julkaisu.md](julkaisu.md).
 
-Jos komento antaa linkin, avaa se ja salli Funnel. Osoite (esim.
-`https://pelikone.tailabc123.ts.net`) asetetaan repositorion muuttujaksi
-`LUNKI_SERVER_URL` `wss://`-alulla, ks. [julkaisu.md](julkaisu.md).
-`--bg` pitää tunnelin päällä myös uudelleenkäynnistysten yli.
+Tila: `Get-Service cloudflared` tai `lunki`. Tunnelin voi käynnistää
+uudelleen komennolla `Restart-Service cloudflared` (järjestelmänvalvojana).
+
+Aiemmin käytössä ollut Tailscale Funnel suljetaan, kun tunneli toimii:
+`tailscale funnel reset`. Tailscale jää etäkäyttöön.
 
 ## 3. Palvelin tehtäväksi (kerran, järjestelmänvalvojana)
 
@@ -60,7 +75,7 @@ Käyttö (myös SSH:n yli):
 | Komento                                    | Mitä tekee                                                 |
 | ------------------------------------------ | ---------------------------------------------------------- |
 | `.\scripts\windows\lunki.ps1 kaynnista`    | `git pull`, `pnpm install` ja palvelin päälle              |
-| `.\scripts\windows\lunki.ps1 tila`         | Onko palvelin ja tunneli päällä                            |
+| `.\scripts\windows\lunki.ps1 tila`         | Onko palvelin ja tunneli (`cloudflared`) päällä            |
 | `.\scripts\windows\lunki.ps1 loki`         | Palvelimen lokin loppu (`-Seuraa` jatkaa, Ctrl+C lopettaa) |
 | `.\scripts\windows\lunki.ps1 pysayta`      | Pysäyttää palvelimen                                       |
 | `.\scripts\windows\lunki.ps1 poista`       | Poistaa tehtävän                                           |
@@ -70,10 +85,12 @@ Loki on tiedostossa `logs\palvelin.log`. Ennätykset tallentuvat kuten ennenkin
 tiedostoon `packages\server\data\lunki.sqlite`.
 
 Tehtävä käynnistää palvelimen kuuntelemaan vain osoitetta `127.0.0.1`
-(`LUNKI_HOST`): pelaajat tulevat Funnelin kautta, joten porttia 2567 ei näy
+(`LUNKI_HOST`): pelaajat tulevat tunnelin kautta, joten porttia 2567 ei näy
 kotiverkkoon. Palvelin rajoittaa huoneiden luontia ja palautteita
-IP-osoitetta kohden Funnelin kertoman pelaajan osoitteen mukaan; rajat ovat
-väljiä, joten samassa verkossa pelaavat kaverit eivät huomaa niitä.
+IP-osoitetta kohden tunnelin kertoman pelaajan osoitteen mukaan
+(`X-Forwarded-For`-otsakkeen viimeinen merkintä, Cloudflarella sama kuin
+`CF-Connecting-IP`); rajat ovat väljiä, joten samassa verkossa pelaavat
+kaverit eivät huomaa niitä.
 
 ## 4. SSH-palvelin (kerran, järjestelmänvalvojana)
 
@@ -167,7 +184,7 @@ ja `LUNKI_PC_DIR`.
 
 Pelaajien palautteet tallentuvat pelikoneen tietokantaan (`pnpm report`
 näyttää ne). Työnkulku _Palautteet_ (GitHub Actions) hakee ne kolmen tunnin
-välein Funnelin kautta ja tekee jokaisesta issuen tunnisteella `palaute`.
+välein tunnelin kautta (`LUNKI_SERVER_URL`) ja tekee jokaisesta issuen tunnisteella `palaute`.
 Niitä ei aloiteta automaattisesti: Luuka käy ne läpi ja vaihtaa tunnisteen
 (esim. `ehdotus` tai bugi) tai sulkee issuen. Haettu palaute merkitään
 tietokantaan viedyksi, joten samasta palautteesta ei tule toista issueta.
@@ -195,11 +212,13 @@ pelaajille, että palaute julkaistaan pelin GitHubissa.
 
 ## Vianetsintä
 
-| Oire                              | Syy ja korjaus                                                                                                                                                                |
-| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ssh` jää odottamaan eikä yhdistä | Onko pelikone hereillä ja Tailscale päällä molemmissa? `tailscale ping pelikone`.                                                                                             |
-| `Permission denied` salasanalla   | Microsoft-tilillä salasana on tilin salasana. Jos tili on salasanaton, käytä avainta (avain lisätään silloin pelikoneella suoraan tiedostoon).                                |
-| Avain ei kelpaa                   | Avain on väärässä tiedostossa tai tiedoston oikeudet ovat väärin: aja läppärin kohdan 5 `icacls`-osa uudelleen pelikoneella järjestelmänvalvojana.                            |
-| `lunki.ps1 cannot be loaded`      | Suoritus estetty: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned -Force`.                                                                                               |
-| Palautteet-ajo: "hylkäsi avaimen" | Salaisuus `LUNKI_FEEDBACK_TOKEN` ei vastaa pelikoneen avainta: vie `lunki palauteavain` uudelleen salaisuudeksi.                                                              |
-| `kaynnista` sanoo "ei vastannut"  | Komento näyttää lokin lopun. Yleisimmät: `pnpm`-komentoa ei löydy (asenna `npm install -g pnpm@10.28.0`), Node on liian vanha tai portti 2567 on jo toisen ohjelman käytössä. |
+| Oire                                  | Syy ja korjaus                                                                                                                                                                                                                                                                  |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ssh` jää odottamaan eikä yhdistä     | Onko pelikone hereillä ja Tailscale päällä molemmissa? `tailscale ping pelikone`.                                                                                                                                                                                               |
+| `Permission denied` salasanalla       | Microsoft-tilillä salasana on tilin salasana. Jos tili on salasanaton, käytä avainta (avain lisätään silloin pelikoneella suoraan tiedostoon).                                                                                                                                  |
+| Avain ei kelpaa                       | Avain on väärässä tiedostossa tai tiedoston oikeudet ovat väärin: aja läppärin kohdan 5 `icacls`-osa uudelleen pelikoneella järjestelmänvalvojana.                                                                                                                              |
+| `lunki.ps1 cannot be loaded`          | Suoritus estetty: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned -Force`.                                                                                                                                                                                                 |
+| Peli: "Palvelimeen ei saada yhteyttä" | Kokeile <https://peli.lunkinjarvi.com/__healthcheck>. 502: palvelin ei ole päällä (`lunki kaynnista`). 530 / virhe 1033: tunneli ei ole päällä (`lunki` näyttää `cloudflared`-palvelun tilan; `Start-Service cloudflared`). 403: Cloudflaren Bot Fight Mode estää, ks. kohta 2. |
+| Palautteet-ajo: "vastasi 403"         | Cloudflare haastaa GitHub Actionsin pyynnön: Bot Fight Mode pois päältä tai rajattuna pois `peli.`-osoitteesta.                                                                                                                                                                 |
+| Palautteet-ajo: "hylkäsi avaimen"     | Salaisuus `LUNKI_FEEDBACK_TOKEN` ei vastaa pelikoneen avainta: vie `lunki palauteavain` uudelleen salaisuudeksi.                                                                                                                                                                |
+| `kaynnista` sanoo "ei vastannut"      | Komento näyttää lokin lopun. Yleisimmät: `pnpm`-komentoa ei löydy (asenna `npm install -g pnpm@10.28.0`), Node on liian vanha tai portti 2567 on jo toisen ohjelman käytössä.                                                                                                   |

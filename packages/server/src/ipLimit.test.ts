@@ -3,10 +3,10 @@ import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { clientIp, limitPerIp } from './ipLimit';
 
-const fake = (remoteAddress: string, xff?: string) =>
+const fake = (remoteAddress: string, xff?: string, extra: Record<string, string> = {}) =>
   ({
     socket: { remoteAddress },
-    headers: xff === undefined ? {} : { 'x-forwarded-for': xff },
+    headers: { ...(xff === undefined ? {} : { 'x-forwarded-for': xff }), ...extra },
   }) as unknown as IncomingMessage;
 
 describe('clientIp', () => {
@@ -17,6 +17,16 @@ describe('clientIp', () => {
   it('tunnelin takana: tunnelin lisäämä viimeinen osoite', () => {
     expect(clientIp(fake('127.0.0.1', '6.6.6.6, 84.20.1.7'))).toBe('84.20.1.7');
     expect(clientIp(fake('::ffff:127.0.0.1', '84.20.1.7'))).toBe('84.20.1.7');
+  });
+
+  it('Cloudflare Tunnel: viimeinen merkintä on CF-Connecting-IP, väärennetty alku ohitetaan', () => {
+    const req = fake('127.0.0.1', '6.6.6.6, 84.20.1.7', { 'cf-connecting-ip': '84.20.1.7' });
+    expect(clientIp(req)).toBe('84.20.1.7');
+  });
+
+  it('Funnelin kautta itse kirjoitettu CF-Connecting-IP ei vaihda osoitetta', () => {
+    const req = fake('127.0.0.1', '84.20.1.7', { 'cf-connecting-ip': '6.6.6.6' });
+    expect(clientIp(req)).toBe('84.20.1.7');
   });
 
   it('paikallinen pyyntö ilman otsaketta: osoitetta ei tiedetä', () => {

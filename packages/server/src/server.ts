@@ -51,9 +51,23 @@ const json = (body: unknown): unknown => {
   }
 };
 
+/**
+ * WebSocket-pingin väli. Cloudflare Tunnel katkaisee yhteyden 100 s hiljaisuuden
+ * jälkeen, joten palvelimen pitää pingata selvästi useammin. Arvot ovat
+ * Colyseuksen oletukset, mutta ne kirjataan tähän, ettei pingiä poisteta
+ * vahingossa: 0 kytkisi sen pois ja aulassa odottavat putoaisivat.
+ */
+export const PING_INTERVAL_MS = 3_000;
+/** Näin monta vastaamatonta pingiä, ja yhteys katkaistaan. */
+export const PING_MAX_RETRIES = 2;
+
 /** Luo pelipalvelimen. Erillään käynnistyksestä, jotta testit voivat ajaa sen. */
 export function createServer({ records, feedback, feedbackToken }: ServerStores = {}): Server {
-  const server = new Server({ transport: new WebSocketTransport(), greet: false });
+  const transport = new WebSocketTransport({
+    pingInterval: PING_INTERVAL_MS,
+    pingMaxRetries: PING_MAX_RETRIES,
+  });
+  const server = new Server({ transport, greet: false });
   server.define(ROOM_NAME, LunkiRoom);
   setRecordStore(records ?? null);
   const feedbackLimit = rateLimit(10);
