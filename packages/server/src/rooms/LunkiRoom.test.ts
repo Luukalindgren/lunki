@@ -1293,6 +1293,25 @@ describe('liittyminen kesken kisan', () => {
     await spec.leave();
   });
 
+  it('päättyneeseen kisaan tullut katsoo tuloksia ja kalastaa uudessa kisassa (#279)', async () => {
+    const host = await sdk().create(ROOM_NAME, {
+      name: 'A',
+      playerId: 'a',
+      testTiming: { countdown: 0.1, duration: 0.5 },
+    });
+    host.send(ClientMsg.start);
+    await until(() => host.state.phase === 'finished', 4000);
+    const late = await sdk().joinById(host.roomId, { name: 'C', playerId: 'c' });
+    await until(() => players(host).length === 2);
+    expect((host.state.players.get(late.sessionId) as Spectating).spectator).toBe(true);
+    host.send(ClientMsg.restart);
+    await until(() => host.state.phase === 'lobby');
+    expect((host.state.players.get(late.sessionId) as Spectating).spectator).toBe(false);
+
+    await host.leave();
+    await late.leave();
+  });
+
   it('aulassa katsojaksi valinnut ei saa rengasta, ja kisaan tarvitaan kalastaja', async () => {
     const host = await sdk().create(ROOM_NAME, {
       name: 'A',
