@@ -86,6 +86,7 @@ import { LightningView } from './lightningView';
 import { BigWaveView } from './bigWaveView';
 import { SpoutView, flightPose } from './spoutView';
 import { KnotView } from './knotView';
+import { CastControl } from './castControl';
 import {
   createLakeMesh,
   createSwellPatch,
@@ -182,6 +183,8 @@ export class SoloGame {
   private readonly quietSpot = new QuietSpot();
   /** Hiiren osoittama piste maailmassa. */
   aim: Vec2 = { x: 0, y: 0 };
+  /** Heitto hiirellä tai välilyönnillä katsesuuntaan (#227). */
+  private readonly castControl = new CastControl();
   readonly rng: Rng;
   readonly fish: FishPopulation;
   readonly competition: CompetitionState;
@@ -792,7 +795,8 @@ export class SoloGame {
     const timeOut = this.timeOutLeft;
     const capsized = this.capsizeLeft > 0;
     const still = { kick: 0, turn: 0, sprint: false };
-    const reelHeld = input.isDown('Mouse0') || input.isDown('Space');
+    // `Reel` on kosketusnäytön KELAA-nappi: se kelaa, mutta ei heitä.
+    const reelHeld = input.isDown('Mouse0') || input.isDown('Space') || input.isDown('Reel');
     const tangle = this.updateTangle(input.wasPressed('KeyC'));
     if (!frozen) this.logRace();
 
@@ -835,12 +839,17 @@ export class SoloGame {
       this.tube = collideTubeWithShore(this.tube, next, this.water);
     }
 
-    const internal = this.screenToInternal(input.mouseX, input.mouseY);
-    this.aim = (this.viewMode === 'pov' ? this.pov : this.view).internalToWorld(
-      internal.x,
-      internal.y,
-    );
     const f = this.fishing;
+    const castHeld = this.castControl.castHeld(f.stage, {
+      mouse: input.isDown('Mouse0'),
+      key: input.isDown('Space'),
+    });
+    const internal = this.screenToInternal(input.mouseX, input.mouseY);
+    this.aim = this.castControl.aim(
+      (this.viewMode === 'pov' ? this.pov : this.view).internalToWorld(internal.x, internal.y),
+      this.tube.pos,
+      this.tube.heading,
+    );
     const lureOut = f.stage === 'flight' || f.stage === 'water';
     // Sotkussa vapa on kiinni: kelaaminen selvittää sotkua palvelimella.
     const reeling = !frozen && !tangle && lureOut && reelHeld;
@@ -865,9 +874,9 @@ export class SoloGame {
             f,
             {
               aim: this.aim,
-              castHeld: !frozen && !capsized && timeOut === 0 && input.isDown('Mouse0'),
+              castHeld: !frozen && !capsized && timeOut === 0 && castHeld,
               reel: reeling,
-              cancel: input.isDown('Mouse2'),
+              cancel: input.isDown('Mouse2') || input.isDown('KeyX'),
               dragDelta: (input.wasPressed('KeyE') ? 1 : 0) - (input.wasPressed('KeyQ') ? 1 : 0),
               ...(input.wasPressed('Digit1') ? { gear: 0 } : {}),
               ...(input.wasPressed('Digit2') ? { gear: 1 } : {}),

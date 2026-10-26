@@ -91,7 +91,7 @@ export class TouchControls {
       this.hold('touch.cancel', 'Mouse2', 'touch.cancelTitle'),
       this.cutButton,
     );
-    const reel = this.hold('touch.reel', 'Space', 'touch.reelTitle');
+    const reel = this.hold('touch.reel', 'Reel', 'touch.reelTitle');
     reel.classList.add('touch-reel');
     const actions = div('touch-actions');
     actions.append(grid, reel);

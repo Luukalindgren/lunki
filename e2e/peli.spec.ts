@@ -57,6 +57,26 @@ test.describe('yksinpeli', () => {
     errors.check();
   });
 
+  test('heitto pelkällä näppäimistöllä: välilyönti pohjassa ja päästä', async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, 'puhelimet: ks. kosketus.spec.ts');
+    const errors = watchErrors(page);
+    await startSolo(page);
+    const line = async () => {
+      const text = (await page.locator('.hud-status').textContent()) ?? '';
+      return Number(/Siimaa ([\d,]+) m/.exec(text)?.[1]?.replace(',', '.') ?? 0);
+    };
+    await expect.poll(line).toBe(0);
+    await page.keyboard.down('Space');
+    await page.waitForTimeout(500);
+    await page.keyboard.up('Space');
+    // Viehe lentää katsesuuntaan ja siimaa on ulkona ilman hiirtä.
+    await expect.poll(line, { timeout: 10_000 }).toBeGreaterThan(3);
+    errors.check();
+  });
+
   test('HUDin koko taukovalikosta: reunat pysyvät, valinta säilyy', async ({ page, isMobile }) => {
     test.skip(isMobile, 'puhelimet: ks. kosketus.spec.ts');
     const errors = watchErrors(page);
