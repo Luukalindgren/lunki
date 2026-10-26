@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { distance } from '../vec2';
 import { CAST, rodTip } from './cast';
 import {
+  REEL,
   createFishing,
   stepFishing,
   type FishingContext,
@@ -96,7 +97,47 @@ describe('kalastuksen vaiheet', () => {
     for (let i = 0; i < 100; i++) stepFishing(s, input({ dragDelta: 1 }), ctx, DT);
     expect(s.drag).toBe(8);
     stepFishing(s, input({ gear: 5 }), ctx, DT);
-    expect(s.gear).toBe(2);
+    expect(s.gear).toBe(REEL.fastGear);
+  });
+
+  it('pikakelaus tuo vieheen nopeasti ja palaa edelliseen vaihteeseen', () => {
+    const time = (gear: number) => {
+      const s = castAndLand(0.6);
+      stepFishing(s, input({ gear }), ctx, DT);
+      let t = 0;
+      while (s.stage === 'water' && t < 120) {
+        stepFishing(s, input({ reel: true }), ctx, DT);
+        t += DT;
+      }
+      expect(s.stage).toBe('idle');
+      return { t, gear: s.gear };
+    };
+    const fast = time(REEL.fastGear);
+    const normal = time(2);
+    expect(fast.t).toBeLessThan(normal.t * 0.65);
+    // Kotiin tultua pikakelaus palaa oletusvaihteelle, eikä jarru luista vieheen takia.
+    expect(fast.gear).toBe(1);
+    expect(normal.gear).toBe(2);
+  });
+
+  it('pikakelaus uudestaan valittuna palaa edelliseen vaihteeseen', () => {
+    const s = createFishing();
+    stepFishing(s, input({ gear: 0 }), ctx, DT);
+    stepFishing(s, input({ gear: REEL.fastGear }), ctx, DT);
+    expect(s.gear).toBe(REEL.fastGear);
+    stepFishing(s, input({ gear: REEL.fastGear }), ctx, DT);
+    expect(s.gear).toBe(0);
+  });
+
+  it('pikakelattu viehe ei luista jarrua', () => {
+    const s = castAndLand(0.6);
+    stepFishing(s, input({ gear: REEL.fastGear }), ctx, DT);
+    let slipped = false;
+    while (s.stage === 'water') {
+      stepFishing(s, input({ reel: true }), ctx, DT);
+      slipped ||= s.dragSlipping;
+    }
+    expect(slipped).toBe(false);
   });
 
   it('peruutus keskeyttää latauksen', () => {

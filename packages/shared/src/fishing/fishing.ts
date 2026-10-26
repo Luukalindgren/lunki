@@ -58,7 +58,7 @@ export interface FishingInput {
   cancel: boolean;
   /** Jarrun säätö tällä askeleella: -1 löysää, +1 kiristää. */
   dragDelta?: number;
-  /** Kelan vaihde 0–2, jos vaihdettiin tällä askeleella. */
+  /** Kelan vaihde 0–3 (3 = pikakelaus), jos vaihdettiin tällä askeleella. */
   gear?: number;
   /** Uudet varusteet; vaihtuvat vain vieheen ollessa kelalla. */
   tackle?: Tackle;
@@ -107,6 +107,8 @@ export interface FishingState {
   drag: number;
   /** Kelan vaihde: indeksi REEL.gears-taulukkoon. */
   gear: number;
+  /** Vaihde, jolle pikakelaus palaa vieheen tultua kotiin. */
+  gearBeforeFast: number;
   /** Vieheen nopeus vedessä (m/s), syvyyttä ja kalojen kiinnostusta varten. */
   lureSpeed: number;
   /** Onko jarru luistanut tällä askeleella (äänimerkkiä varten). */
@@ -168,11 +170,19 @@ export const LURE = {
   dragCoeff: 0.35,
   /** Viehe on kotona, kun se on näin lähellä vavan kärkeä. */
   homeDistance: 1.5,
+  /** Tätä nopeammin viehe liukuu pinnassa, eikä vastus enää kasva. */
+  planeSpeed: 1.5,
 } as const;
 
 export const REEL = {
-  /** Kelausnopeudet (m/s) vaihteittain: hidas, normaali, nopea. */
-  gears: [0.45, 0.9, 1.5],
+  /**
+   * Kelausnopeudet (m/s) vaihteittain: hidas, normaali, nopea ja pikakelaus.
+   * Pikakelaus tuo vieheen nopeasti takaisin, mutta niin nopea viehe ei
+   * kiinnosta kaloja (lureAppeal) ja nousee pintaan.
+   */
+  gears: [0.45, 0.9, 1.5, 3],
+  /** Pikakelauksen vaihde: palaa edelliseen, kun viehe tulee kotiin. */
+  fastGear: 3,
   /** Jarrun säätöväli ja askel (kg). */
   minDrag: 0.25,
   maxDrag: 8,
@@ -198,6 +208,7 @@ export const createFishing = (tackle: Tackle = DEFAULT_TACKLE): FishingState => 
   tension: 0,
   drag: REEL.defaultDrag,
   gear: 1,
+  gearBeforeFast: 1,
   lureSpeed: 0,
   dragSlipping: false,
   struckId: null,
@@ -389,7 +400,7 @@ export function stepFishing(
       Math.min(REEL.maxDrag, s.drag + Math.sign(input.dragDelta) * REEL.dragStep),
     );
   }
-  if (input.gear !== undefined) s.gear = Math.max(0, Math.min(REEL.gears.length - 1, input.gear));
+  if (input.gear !== undefined) setGear(s, input.gear);
   if (input.tackle && (s.stage === 'idle' || s.stage === 'charging')) {
     // Virveliin vaihdettaessa perhon löysä siima kelataan pois.
     if (input.tackle.method !== s.tackle.method) s.slack = 0;
@@ -534,12 +545,26 @@ export function stepFishing(
 
       if (s.hookedId === null && distance(s.lure, tip) <= LURE.homeDistance) {
         resetFishing(s);
+        if (s.gear === REEL.fastGear) s.gear = s.gearBeforeFast;
         events.home = true;
       }
       break;
     }
   }
   return events;
+}
+
+/** Vaihtaa kelan vaihteen; pikakelaus uudestaan valittuna palaa edelliseen. */
+function setGear(s: FishingState, gear: number): void {
+  const next = Math.max(0, Math.min(REEL.gears.length - 1, gear));
+  if (next === REEL.fastGear) {
+    if (s.gear === REEL.fastGear) {
+      s.gear = s.gearBeforeFast;
+      return;
+    }
+    s.gearBeforeFast = s.gear;
+  }
+  s.gear = next;
 }
 
 /** Siiman kestävyys (kg): tuulisolmu heikentää perhon siimaa. */
@@ -725,7 +750,8 @@ function pullLure(s: FishingState, tip: Vec2, dt: number, hold: number): void {
     return;
   }
   let speed = over / dt;
-  let tension = LURE.dragBase + LURE.dragCoeff * speed * speed;
+  const water = Math.min(speed, LURE.planeSpeed);
+  let tension = LURE.dragBase + LURE.dragCoeff * water * water;
   if (tension > hold) {
     // Nopeus, jolla vastus on täsmälleen jarrun suuruinen.
     speed = Math.sqrt(Math.max(0, hold - LURE.dragBase) / LURE.dragCoeff);

@@ -75,6 +75,13 @@ test.describe('puhelin', () => {
     await page.locator('.emote-option').first().tap();
     await expect(page.locator('.emote-menu')).toBeHidden();
 
+    // NOP-nappi kiertää kelausnopeudet ja pikakelauksen.
+    await page.getByRole('button', { name: 'NOP 2' }).tap();
+    await page.getByRole('button', { name: 'NOP 3' }).tap();
+    await expect(page.getByRole('button', { name: 'PIKA' })).toBeVisible();
+    await page.getByRole('button', { name: 'PIKA' }).tap();
+    await expect(page.getByRole('button', { name: 'NOP 1' })).toBeVisible();
+
     // Ääni käynnistyy pelkistä napautuksista.
     await expect.poll(() => audioStates(page)).toContain('running');
 
