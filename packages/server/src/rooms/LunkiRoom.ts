@@ -606,7 +606,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   /** Syy, miksi kisaan ei pääse kesken kaiken; null = pääsee. */
   private lateJoinRefusal(options: Partial<JoinOptions>): string | null {
     const id = playerIdOf(options);
-    const returning = id !== '' && (this.seats.has(id) || this.droppedSession(id) !== undefined);
+    const returning = this.isReturning(id);
     const rule = isLateJoin(this.state.settings.lateJoin) ? this.state.settings.lateJoin : 'open';
     if (rule === 'closed') return JoinRefusal.closed;
     if (returning) return null;
@@ -621,7 +621,10 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     const id = playerIdOf(options);
     const racing = this.state.phase !== 'lobby';
     if (id) this.playerIds.set(client.sessionId, id);
-    if ((auth as { spectator?: boolean } | undefined)?.spectator) {
+    // Päättyneeseen kisaan tullut katsoo tuloksia ja pääsee mukaan uuteen
+    // kisaan; muuten hän näkyisi tuloksissa ilman rengasta (#279).
+    const afterEnd = this.state.phase === 'finished' && !this.isReturning(id);
+    if ((auth as { spectator?: boolean } | undefined)?.spectator || afterEnd) {
       // Katsoja ei saa rengasta eikä vie lähteneen paikkaa.
       const p = new PlayerState();
       p.name = this.uniqueName(sanitizeName(options.name));
@@ -646,6 +649,13 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     else if (this.state.phase === 'countdown' || this.state.phase === 'playing')
       this.spawnLate(client.sessionId, p);
     client.send(ServerMsg.chatHistory, this.chatLog);
+  }
+
+  /** Kisassa ollut palaa: paikka odottaa tai yhteys on vielä katkenneena. */
+  private isReturning(playerId: string): boolean {
+    return (
+      playerId !== '' && (this.seats.has(playerId) || this.droppedSession(playerId) !== undefined)
+    );
   }
 
   /** Katkennut (paluuta odottava) yhteys samalta selaimelta. */
