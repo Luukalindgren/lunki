@@ -3,7 +3,7 @@ name: Julkaisu
 # Asiakas GitHub Pagesiin aina, kun main päivittyy.
 # Palvelimen osoite tulee repositorion muuttujasta LUNKI_SERVER_URL
 # (Settings → Secrets and variables → Actions → Variables), esim.
-# wss://pelikone.tailnet-nimi.ts.net. Ks. docs/julkaisu.md.
+# wss://peli.lunkinjarvi.com. Ks. docs/julkaisu.md.
 
 on:
   push:

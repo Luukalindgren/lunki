@@ -8,12 +8,16 @@ import type {
 const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 
 /**
- * Pyytäjän IP-osoite, tai null, jos sitä ei tiedetä. Tunnelin (Tailscale
- * Funnel, cloudflared) takana yhteys tulee pelikoneelta itseltään, ja tunneli
- * lisää asiakkaan osoitteen X-Forwarded-For-otsakkeen loppuun. Otsakkeeseen
- * luotetaan vain silloin: suoraan yhdistävä voisi kirjoittaa siihen mitä
- * tahansa. Otsakkeen alkupään merkinnät ovat asiakkaan omia, joten käytetään
- * viimeistä.
+ * Pyytäjän IP-osoite, tai null, jos sitä ei tiedetä. Tunnelin (Cloudflare
+ * Tunnel, Tailscale Funnel) takana yhteys tulee pelikoneelta itseltään, ja
+ * tunneli lisää asiakkaan osoitteen X-Forwarded-For-otsakkeen loppuun.
+ * Otsakkeeseen luotetaan vain silloin: suoraan yhdistävä voisi kirjoittaa
+ * siihen mitä tahansa. Otsakkeen alkupään merkinnät ovat asiakkaan omia, joten
+ * käytetään viimeistä.
+ *
+ * Cloudflare lisää loppuun saman osoitteen, jonka se antaa CF-Connecting-IP:ssä,
+ * eikä cloudflared lisää omaansa. CF-Connecting-IP:hen ei luoteta erikseen:
+ * Funnelin kautta tuleva voisi kirjoittaa sen itse.
  */
 export function clientIp(req: IncomingMessage): string | null {
   const remote = req.socket.remoteAddress ?? '';
