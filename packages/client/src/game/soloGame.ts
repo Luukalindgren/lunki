@@ -71,6 +71,7 @@ import {
   type FishPopulation,
   type FishingContext,
   type FlyCastEvents,
+  type FlyCastState,
   type FishingState,
   type PlayerResult,
   type Penalty,
@@ -101,7 +102,7 @@ import { BigWaveView } from './bigWaveView';
 import { SpoutView, flightPose } from './spoutView';
 import { KnotView } from './knotView';
 import { CastControl } from './castControl';
-import { FlyCastControl } from './flyCastControl';
+import { FlyCastControl, touchToRodPixels } from './flyCastControl';
 import {
   createLakeMesh,
   createSwellPatch,
@@ -835,7 +836,14 @@ export class SoloGame {
     if (input.wheel !== 0) this.view.zoom(input.wheel);
     if (input.wasPressed('KeyH')) this.hud.toggleHelp();
     if (input.wasPressed('KeyK')) this.hud.sonar.toggle();
-    if (input.wasPressed('KeyL'))
+    // Heiton aikana L (kosketuksella SYV) ja P piilottavat perhoheiton sivukuvan (#236).
+    const casting = this.fishing.stage === 'casting';
+    if (input.wasPressed('KeyP') || (casting && input.wasPressed('KeyL')))
+      this.hud.showMessage(
+        this.hud.flyPanel.toggle() ? t('game.flyPanelOn') : t('game.flyPanelOff'),
+        1.5,
+      );
+    else if (input.wasPressed('KeyL'))
       this.hud.showMessage(
         this.hud.lureSonar.toggle() ? t('game.lureSonarOn') : t('game.lureSonarOff'),
         1.5,
@@ -874,7 +882,7 @@ export class SoloGame {
       const stage =
         f.hookedId !== null
           ? LureStage.hooked
-          : f.stage === 'flight'
+          : f.stage === 'flight' || f.stage === 'casting'
             ? LureStage.flight
             : f.stage === 'water'
               ? LureStage.water
@@ -882,7 +890,8 @@ export class SoloGame {
       const tubeInput = frozen || capsized ? still : readTubeInput(input);
       this.tube = this.net.world.stepOwn(
         tubeInput,
-        f.lure,
+        // Perhoheitossa muille välitetään perhon paikka ilmassa (#236).
+        (f.stage === 'casting' && this.fishingView.flyInAir) || f.lure,
         stage,
         frozen ? undefined : this.tubeWind,
         !frozen && reelHeld,
@@ -901,8 +910,10 @@ export class SoloGame {
     this.sprinting = !capsized && readTubeInput(input).sprint;
 
     const f = this.fishing;
-    // Perho heitetään hiirellä tai rytmissä välilyönnillä (#235); kosketuksella voimamittarilla.
-    const flyCasting = isFly(f.tackle) && !this.hud.touchMode;
+    // Perho heitetään hiirellä, rytmissä välilyönnillä (#235) tai sormen pyyhkäisyllä (#236).
+    const flyCasting = isFly(f.tackle);
+    const touch = this.hud.touchMode;
+    const swipe = this.readSwipe(touch);
     const castHeld =
       this.castControl.castHeld(f.stage, {
         mouse: input.isDown('Mouse0'),
@@ -915,26 +926,33 @@ export class SoloGame {
       const mouse = input.wasPressed('Mouse0');
       if (f.stage === 'idle' && (mouse || input.wasPressed('Space'))) {
         startFlyCast = true;
-        this.flyCastControl.start(!mouse);
+        this.flyCastControl.start(mouse ? (touch ? 'touch' : 'mouse') : 'keyboard');
       } else if (f.stage === 'water' && input.wasPressed('Mouse2')) {
-        // Siiman nosto vedestä uuteen heittoon.
+        // Siiman nosto vedestä uuteen heittoon (kosketuksella PERU).
         startFlyCast = true;
-        this.flyCastControl.start(false);
+        this.flyCastControl.start(touch ? 'touch' : 'mouse');
       }
-      if (startFlyCast && !this.flyCastControl.keyboard) input.lockPointer();
+      if (startFlyCast && this.flyCastControl.mode === 'mouse') input.lockPointer();
     }
     const flyCast =
       f.stage === 'casting' && f.flyCast
         ? canCast
           ? this.flyCastControl.read(
               f.flyCast,
-              {
-                grip: input.isDown('Mouse0'),
-                haul: input.wasPressed('Mouse2'),
-                key: input.wasPressed('Space'),
-                dx: input.mouseDX,
-                dy: input.mouseDY,
-              },
+              touch
+                ? {
+                    grip: input.isDown('LineGrip'),
+                    haul: input.wasPressed('Reel'),
+                    key: false,
+                    ...swipe,
+                  }
+                : {
+                    grip: input.isDown('Mouse0'),
+                    haul: input.wasPressed('Mouse2'),
+                    key: input.wasPressed('Space'),
+                    dx: input.mouseDX,
+                    dy: input.mouseDY,
+                  },
               dt,
             )
           : { rod: 0, grip: true }
@@ -975,8 +993,11 @@ export class SoloGame {
               // Eleen aikana käsi on varattu: heittää ei voi.
               castHeld: !frozen && !capsized && timeOut === 0 && castHeld && !this.emoteActive,
               reel: reeling,
-              // Heiton aikana oikea nappi on siimakäden veto: keskeytys vain X:llä.
-              cancel: (f.stage !== 'casting' && input.isDown('Mouse2')) || input.isDown('KeyX'),
+              // Heiton aikana oikea nappi on siimakäden veto: keskeytys X:llä tai PERU-napilla.
+              cancel:
+                (f.stage !== 'casting' && input.isDown('Mouse2')) ||
+                (f.stage === 'casting' && touch && input.wasPressed('Mouse2')) ||
+                input.isDown('KeyX'),
               dragDelta: (input.wasPressed('KeyE') ? 1 : 0) - (input.wasPressed('KeyQ') ? 1 : 0),
               ...(input.wasPressed('Digit1') ? { gear: 0 } : {}),
               ...(input.wasPressed('Digit2') ? { gear: 1 } : {}),
@@ -1023,9 +1044,10 @@ export class SoloGame {
     if (this.tube.stamina <= 0 && this.prevTube.stamina > 0)
       this.hud.showMessage(t('game.tired'), 2.5);
     const cast = f.stage === 'casting' ? f.flyCast : null;
+    const marker = DIFFICULTIES[this.settings.difficulty].flyCast.marker;
+    this.hud.flyPanel.update(dt, cast, marker);
     if (cast) {
       // Ajoitusmittari: silmukka aukeaa, ja suorassa siimassa "nyt!" (helppo ja normaali).
-      const marker = DIFFICULTIES[this.settings.difficulty].flyCast.marker;
       this.hud.setFlyLoop(
         loopProgress(cast),
         marker && cast.phase === 'loop' && cast.loopAge >= cast.loopTime,
@@ -1059,8 +1081,12 @@ export class SoloGame {
               ? t('game.flyUntangle', { s: Math.ceil(cast.busy) })
               : this.flyCastControl.keyboard
                 ? t('game.flyCastKeys')
-                : t('game.flyCastMouse'),
-            ...(cast.busy > 0 || this.flyCastControl.keyboard ? [] : [t('game.flyCastButtons')]),
+                : touch
+                  ? t('game.flyCastTouch')
+                  : t('game.flyCastMouse'),
+            ...(cast.busy > 0 || this.flyCastControl.keyboard
+              ? []
+              : [touch ? t('game.flyCastTouchButtons') : t('game.flyCastButtons')]),
           ]
         : []),
       describeTackle(f.tackle),
@@ -1232,14 +1258,50 @@ export class SoloGame {
     }
   }
 
+  private lastHiss = 0;
+  /** Perhovavan edellinen kulma ja taipuma (#236). */
+  private bendRod: number | null = null;
+  private bend = 0;
+  private bendTime = performance.now();
+
+  /**
+   * Perhovapa taipuu liikkeen aikana: kahva johtaa ja kärki laahaa perässä.
+   * Pysäytyksessä taipuma palautuu, ja vapa suoristuu.
+   */
+  private flyRodBend(cast: FlyCastState | null): number {
+    const now = performance.now();
+    const dt = Math.min(0.1, Math.max(1e-3, (now - this.bendTime) / 1000));
+    this.bendTime = now;
+    const vel = cast && this.bendRod !== null ? (cast.rod - this.bendRod) / dt : 0;
+    this.bendRod = cast ? cast.rod : null;
+    const target = Math.max(-0.6, Math.min(0.6, vel * 0.15));
+    this.bend += (target - this.bend) * Math.min(1, dt * 18);
+    return this.bend;
+  }
+
+  /** Siiman sihinä, enintään muutaman kerran sekunnissa. */
+  private hiss(): void {
+    const now = performance.now();
+    if (now - this.lastHiss < 90) return;
+    this.lastHiss = now;
+    this.sfx.lineHiss();
+  }
+
   /** Perhoheiton tapahtumat (#235): viuhahdukset, nykäys ja virheiden ilmoitukset. */
   private handleFlyCast(ev: FlyCastEvents): void {
     const { hud, sfx } = this;
-    if (ev.stop) sfx.cast(Math.min(1, ev.stop.speed / FLY_CAST.maxLineSpeed) * 0.6);
-    // Siima suoristui: pieni nykäys vavassa.
-    if (ev.straight) sfx.tick();
+    const cast = this.fishing.flyCast;
+    // Siima suhisee silmukan aukeamisen ajan (#236).
+    if (ev.stop)
+      sfx.flySwish(
+        ev.stop.speed / FLY_CAST.maxLineSpeed,
+        cast?.phase === 'loop' ? cast.loopTime : 0.3,
+      );
+    // Siima suoristui: vaimea nykäys vavassa.
+    if (ev.straight) sfx.flyTug();
+    if (ev.slipped) this.hiss();
+    if (ev.crack) sfx.flyCrack();
     if (ev.crack && !ev.flyLost) {
-      sfx.rattle();
       hud.showMessage(t('game.flyCrack'), 2);
     }
     if (ev.knot) hud.showMessage(t('game.flyKnot'), 2.5);
@@ -1274,8 +1336,12 @@ export class SoloGame {
     if (follow || events.strike) this.quietSpot.noticed();
     if (events.home && this.quietSpot.home()) hud.showMessage(t('game.quiet'), 4);
     if (events.splash) {
-      this.fishingView.startSplash(events.splash);
-      sfx.splash();
+      // Perho laskeutuu pienellä roiskeella, popperi isommalla (#236).
+      const tk = this.fishing.tackle;
+      const big = !isFly(tk) || tk.fly === 'popper';
+      this.fishingView.startSplash(events.splash, isFly(tk) ? (big ? 0.7 : 0.4) : 1);
+      if (isFly(tk)) sfx.flyLand(big);
+      else sfx.splash();
       this.net?.world.sendSplash(events.splash);
     }
     if (follow) sfx.tick();
@@ -1316,7 +1382,9 @@ export class SoloGame {
       sfx.lost();
       hud.showMessage(t('game.flyTangle'), 2.5);
     }
-    if (events.pop) sfx.splash();
+    if (events.pop) sfx.pop();
+    // Kala vie siimaa sormien läpi.
+    if (this.fishing.fingerSlip) this.hiss();
     if (events.snagged) {
       sfx.strike();
       sfx.eventVoice('snagged');
@@ -1584,6 +1652,25 @@ export class SoloGame {
   }
 
   private povTubeTime = performance.now();
+  /** Sormen edellinen paikka perhoheiton pyyhkäisyä varten (null = sormi ylhäällä). */
+  private swipeFrom: { x: number; y: number } | null = null;
+
+  /**
+   * Sormen liike pelikuvalla tämän askeleen aikana hiiren pikseleinä (#236):
+   * pyyhkäisy ylös on eteenheitto, alas takaheitto.
+   */
+  private readSwipe(touch: boolean): { dx: number; dy: number } {
+    const input = this.input;
+    const down = touch && input.isDown('Mouse0');
+    const from = this.swipeFrom;
+    this.swipeFrom = down ? { x: input.mouseX, y: input.mouseY } : null;
+    if (!down || !from) return { dx: 0, dy: 0 };
+    const h = window.innerHeight;
+    return {
+      dx: touchToRodPixels(input.mouseX - from.x, h),
+      dy: touchToRodPixels(input.mouseY - from.y, h),
+    };
+  }
   /** Hiiren edellinen pystysijainti perhon vetoja varten (null = nappi ylhäällä). */
   private stripMouseY: number | null = null;
 
@@ -1784,7 +1871,7 @@ export class SoloGame {
         this.fishing,
         this.cranking,
         this.fishingView.shownLineColor,
-        swing?.height,
+        { tipY: swing?.height, fly: isFly(this.fishing.tackle), bend: this.flyRodBend(cast) },
       );
       this.sky.follow(this.pov.camera.position);
       this.mist.follow(this.pov.camera.position);

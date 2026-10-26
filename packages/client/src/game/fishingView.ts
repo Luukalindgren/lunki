@@ -20,8 +20,11 @@ import {
   rodSideOffset,
   tautness,
   writeLine,
+  type LinePoint,
 } from './lineHang';
 import { lureColor } from './lureColor';
+import { FLY_LINE_POINTS, flyLinePose, flyLineProfile, flyLineWorld } from './flyLine';
+import { flyRodTip } from './povRod';
 
 const SPLASH_TIME = 0.6;
 /** Siiman piirtokorkeus pinnalla. */
@@ -41,9 +44,14 @@ export class FishingView {
   private readonly lure: THREE.Mesh;
   private readonly lureShadow: THREE.Mesh;
   private readonly line: THREE.Line;
+  /** Perhosiima ja perho ilmassa heiton aikana (#236). */
+  private readonly flyLine: THREE.Line;
+  private readonly fly: THREE.Mesh;
   private readonly splash: THREE.Mesh;
   private readonly fishShadow: THREE.Mesh;
   private splashAge = Infinity;
+  private splashSize = 1;
+  private readonly flyPoints: LinePoint[] = [];
   /** Siiman kireys tasoitettuna, ettei roikkuma hypi jännityksen mukana. */
   private taut = 0;
 
@@ -83,6 +91,21 @@ export class FishingView {
     this.line.visible = false;
     this.group.add(this.line);
 
+    this.flyLine = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(
+        Array.from({ length: FLY_LINE_POINTS }, () => new THREE.Vector3()),
+      ),
+      new THREE.LineBasicMaterial({ color: 0xc3cbd2 }),
+    );
+    this.flyLine.visible = false;
+    this.group.add(this.flyLine);
+    this.fly = new THREE.Mesh(
+      new THREE.BoxGeometry(0.25, 0.25, 0.25),
+      new THREE.MeshBasicMaterial({ color: 0xf08a2c }),
+    );
+    this.fly.visible = false;
+    this.group.add(this.fly);
+
     this.splash = new THREE.Mesh(
       new THREE.RingGeometry(0.8, 1, 12),
       new THREE.MeshBasicMaterial({ color: 0xeef2f3, transparent: true }),
@@ -112,9 +135,18 @@ export class FishingView {
       : this.lineColor;
   }
 
-  startSplash(at: Vec2): void {
+  /** Roiske osumakohtaan; `size` < 1 = perhon pieni roiske (#236). */
+  startSplash(at: Vec2, size = 1): void {
     this.splash.position.copy(toWorld(at, 0.05));
     this.splashAge = 0;
+    this.splashSize = size;
+  }
+
+  /** Perho ilmassa heiton aikana (muiden pelaajien tiedoksi), null = ei heittoa. */
+  get flyInAir(): Vec2 | null {
+    if (!this.flyLine.visible) return null;
+    const p = this.flyPoints[this.flyPoints.length - 1];
+    return p ? { x: p.x, y: p.y } : null;
   }
 
   update(
@@ -164,6 +196,8 @@ export class FishingView {
       mat.color.setHex(s.stage === 'charging' ? 0xf6d04d : 0xfff3b0);
     }
 
+    this.updateFlyLine(s, ctx, side);
+
     const out = s.stage === 'flight' || s.stage === 'water';
     this.lure.visible = out;
     this.line.visible = out;
@@ -203,9 +237,32 @@ export class FishingView {
     this.splash.visible = this.splashAge < SPLASH_TIME;
     if (this.splash.visible) {
       const t = this.splashAge / SPLASH_TIME;
-      this.splash.scale.setScalar(0.4 + t * 1.6);
+      this.splash.scale.setScalar((0.4 + t * 1.6) * this.splashSize);
       (this.splash.material as THREE.MeshBasicMaterial).opacity = 1 - t;
     }
+  }
+
+  /** Perhoheitossa siima ilmassa silmukkana vavan kärjestä perhoon (#236). */
+  private updateFlyLine(s: FishingState, ctx: FishingContext, side: Vec2): void {
+    const c = s.stage === 'casting' ? s.flyCast : null;
+    this.flyLine.visible = this.fly.visible = c !== null;
+    if (!c) return;
+    const pts = flyLineWorld(
+      flyLineProfile(flyLinePose(c, flyRodTip(c.rod))),
+      ctx.tubePos,
+      ctx.heading,
+      ctx.heading + c.aim,
+      side,
+      this.flyPoints,
+    );
+    const pos = this.flyLine.geometry.getAttribute('position') as THREE.BufferAttribute;
+    writeLine(pos, pts);
+    pos.needsUpdate = true;
+    this.flyLine.geometry.computeBoundingSphere();
+    (this.flyLine.material as THREE.LineBasicMaterial).color.setHex(this.lineColor);
+    const end = pts[pts.length - 1]!;
+    this.fly.position.set(end.x, end.h, -end.y);
+    this.fly.scale.setScalar(this.pov ? 0.4 : 1);
   }
 }
 

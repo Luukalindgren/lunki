@@ -3,6 +3,7 @@ import type { SpeciesId } from '@lunki/shared';
 import { CompassDisplay } from './compass';
 import { fishImage } from './fishArt';
 import { LureSonarDisplay } from './lureSonar';
+import { FlyCastPanel } from './flyCastPanel';
 import { SonarDisplay } from './sonar';
 import { onLangChange, t, type MsgKey } from '../i18n';
 
@@ -41,6 +42,8 @@ export class Hud {
   readonly compass: CompassDisplay;
   /** Vieheluotain: näkyy, kun viehe on vedessä. */
   readonly lureSonar: LureSonarDisplay;
+  /** Perhoheiton sivukuva (#236). */
+  readonly flyPanel: FlyCastPanel;
   private readonly probeU: HTMLDivElement;
   private readonly probeM: HTMLDivElement;
   private messageTimer = 0;
@@ -112,6 +115,7 @@ export class Hud {
     this.root.appendChild(bottomRight);
     this.sonar = new SonarDisplay(gauges);
     this.lureSonar = new LureSonarDisplay(gauges);
+    this.flyPanel = new FlyCastPanel(gauges);
     // Ilmoitus ja punnitus kaiken muun päällä.
     this.root.append(this.message, this.weigh);
     this.probeU = el('div', 'hud-probe');
@@ -242,6 +246,9 @@ export class Hud {
     // Kuntopalkki: kosketuksella tatin yläpuolelle, muuten sään alle.
     if (touch) this.root.insertBefore(this.stamina, this.topLeft);
     else this.topCenter.appendChild(this.stamina);
+    // Perhoheiton sivukuva: kosketuksella renkaan alle, jotta se ei peitä siimaa.
+    if (touch) this.root.insertBefore(this.flyPanel.root, this.message);
+    else this.lureSonar.root.after(this.flyPanel.root);
     this.help.hidden = touch;
     this.setHelpMode(this.multiplayer, this.spectator);
   }
@@ -264,6 +271,7 @@ export class Hud {
             'help.touch6',
             'help.touch7',
             'help.touchFly',
+            'help.touchFlyCast',
             'help.touchTools',
             'help.thunder',
             'help.touchLand',

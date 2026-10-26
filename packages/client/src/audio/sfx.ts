@@ -110,6 +110,43 @@ export class Sfx {
     this.noise(0.25, 0.25 + power * 0.35, 1200 + power * 2500, 0.15);
   }
 
+  /**
+   * Perhosiiman suhina ilmassa (#236): kestää silmukan aukeamisen ajan, ja
+   * nopea siima suhisee kovempaa ja kirkkaammin.
+   */
+  flySwish(speed: number, duration: number): void {
+    const k = Math.max(0, Math.min(1, speed));
+    this.noise(Math.max(0.15, Math.min(1.2, duration)), 0.1 + k * 0.3, 500 + k * 2600, 0.12);
+  }
+
+  /** Liian aikainen suunnanvaihto: siima läimähtää kuin piiska. */
+  flyCrack(): void {
+    this.noise(0.04, 0.7, 7000);
+    this.tone(2400, 0.025, 'square', 0.25);
+  }
+
+  /** Siima suoristui: vaimea nykäys vavassa. */
+  flyTug(): void {
+    this.tone(150, 0.07, 'square', 0.35, 0, 90);
+    this.tone(1400, 0.02, 'square', 0.2);
+  }
+
+  /** Perho laskeutuu veteen: kevyt lipsahdus, popperi isommin. */
+  flyLand(big: boolean): void {
+    this.noise(big ? 0.16 : 0.09, big ? 0.35 : 0.14, big ? 1600 : 1100);
+  }
+
+  /** Popperin pulpahdus vedettäessä. */
+  pop(): void {
+    this.tone(260, 0.07, 'sine', 0.6, 0, 720);
+    this.noise(0.06, 0.25, 1300);
+  }
+
+  /** Siima sihisee sormien ja ohjainten läpi. */
+  lineHiss(): void {
+    this.noise(0.07, 0.12, 4500);
+  }
+
   /** Räpylän potku: pehmeä loiskahdus. */
   paddle(): void {
     this.noise(0.12, 0.12, 600, 0.04);

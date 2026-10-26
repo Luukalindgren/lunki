@@ -5,6 +5,8 @@ import { toWorld } from '../world/lakeMesh';
 import { AIR_SAMPLES, ROD_TIP_Y, flightLine, hangLine, rodSideOffset, writeLine } from './lineHang';
 import { FAR_BUBBLE, SpeechBubble, type BubbleContent } from './speechBubble';
 import { animateEmote, animateFins, applyAppearance, createTubeMesh } from './tubeMesh';
+import { FLY_LINE_POINTS, RemoteFlyLine, flyLineProfile, flyLineWorld } from './flyLine';
+import { flyRodTip } from './povRod';
 
 const cssColor = (hex: number) => `#${hex.toString(16).padStart(6, '0')}`;
 /** Muiden siiman kireyttä ei tiedetä: piirretään puolikireänä. */
@@ -16,6 +18,9 @@ interface Entry {
   tube: THREE.Group;
   lure: THREE.Mesh;
   line: THREE.Line;
+  /** Perhoheiton siima silmukkana (#236). */
+  flyLine: THREE.Line;
+  fly: RemoteFlyLine;
   tag: HTMLDivElement;
   bubble: SpeechBubble;
   /** Käynnissä oleva käsimerkki ja sen alku (ms). */
@@ -81,8 +86,15 @@ export class RemotePlayersView {
       animateFins(e.tube, p.kickPhase);
 
       const showLure = p.lure !== null && p.lureStage !== LureStage.none;
-      e.lure.visible = e.line.visible = showLure;
-      if (showLure) {
+      // Perhovälineillä lento on perhoheittoa: perho kulkee edestakaisin silmukan kärjessä.
+      const casting = showLure && p.fly === true && p.lureStage === LureStage.flight;
+      e.lure.visible = showLure;
+      e.line.visible = showLure && !casting;
+      e.flyLine.visible = casting;
+      if (casting) this.drawFlyCast(e, p);
+      else e.fly.reset();
+      e.lure.scale.setScalar(casting ? 0.5 : 1);
+      if (showLure && !casting) {
         const tip = rodTip(p.pos, p.heading);
         const side = rodSideOffset(p.heading);
         const flying = p.lureStage === LureStage.flight;
@@ -124,6 +136,27 @@ export class RemotePlayersView {
     for (const [id, e] of this.entries) if (!seen.has(id)) this.remove(id, e);
   }
 
+  /** Muun pelaajan perhoheitto perhon paikasta päätellen. */
+  private drawFlyCast(e: Entry, p: RemotePlayer): void {
+    const side = rodSideOffset(p.heading);
+    const tip0 = flyRodTip(1);
+    const tip = {
+      x: p.pos.x + side.x + Math.cos(p.heading) * tip0.forward,
+      y: p.pos.y + side.y + Math.sin(p.heading) * tip0.forward,
+    };
+    const along =
+      (p.lure!.x - tip.x) * Math.cos(p.heading) + (p.lure!.y - tip.y) * Math.sin(p.heading);
+    const prev = e.fly.pose(along, tip0);
+    // Vapa on silmukan suunnan pysäytysasennossa.
+    const pose = { ...prev, ...posed(flyRodTip(prev.dir)) };
+    const pts = flyLineWorld(flyLineProfile(pose), p.pos, p.heading, p.heading, side);
+    const pos = e.flyLine.geometry.attributes.position as THREE.BufferAttribute;
+    writeLine(pos, pts);
+    pos.needsUpdate = true;
+    const end = pts[pts.length - 1]!;
+    e.lure.position.set(end.x, end.h, -end.y);
+  }
+
   private add(id: string, appearance: Appearance): Entry {
     const tube = createTubeMesh(appearance);
     const lure = new THREE.Mesh(
@@ -137,13 +170,31 @@ export class RemotePlayersView {
       new THREE.LineBasicMaterial({ color: appearance.line }),
     );
     line.frustumCulled = false;
-    this.group.add(tube, lure, line);
+    const flyLine = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(
+        Array.from({ length: FLY_LINE_POINTS }, () => new THREE.Vector3()),
+      ),
+      line.material,
+    );
+    flyLine.frustumCulled = false;
+    flyLine.visible = false;
+    this.group.add(tube, lure, line, flyLine);
     const tag = document.createElement('div');
     tag.className = 'name-tag';
     tag.style.borderColor = cssColor(appearance.tube);
     this.tags.appendChild(tag);
     const bubble = new SpeechBubble(this.tags);
-    const e: Entry = { tube, lure, line, tag, bubble, emote: null, appearance };
+    const e: Entry = {
+      tube,
+      lure,
+      line,
+      flyLine,
+      fly: new RemoteFlyLine(),
+      tag,
+      bubble,
+      emote: null,
+      appearance,
+    };
     this.entries.set(id, e);
     return e;
   }
@@ -156,7 +207,7 @@ export class RemotePlayersView {
   }
 
   private remove(id: string, e: Entry): void {
-    this.group.remove(e.tube, e.lure, e.line);
+    this.group.remove(e.tube, e.lure, e.line, e.flyLine);
     e.tag.remove();
     e.bubble.remove();
     this.entries.delete(id);
@@ -170,3 +221,8 @@ export class RemotePlayersView {
 
 const sameAppearance = (a: Appearance, b: Appearance) =>
   a.tube === b.tube && a.fins === b.fins && a.shirt === b.shirt && a.line === b.line;
+
+const posed = (tip: { forward: number; height: number }) => ({
+  tipS: tip.forward,
+  tipH: tip.height,
+});

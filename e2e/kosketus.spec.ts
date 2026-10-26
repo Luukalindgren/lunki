@@ -86,4 +86,42 @@ test.describe('puhelin', () => {
 
     errors.check();
   });
+
+  test('perhoheitto pyyhkäisyllä, SIIMA- ja VETO-napit (#236)', async ({
+    page,
+    isMobile,
+    browserName,
+  }) => {
+    test.skip(!isMobile, 'vain puhelinemuloinnit');
+    const errors = watchErrors(page);
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Yksinpeli' }).tap();
+    // Helpolla ajoitusikkuna on leveä, joten testin viive ei myöhästytä heittoa.
+    await page.getByRole('button', { name: 'Helppo' }).tap();
+    await page.getByRole('button', { name: 'Aloita kisa' }).tap();
+    await expect(page.locator('.hud-timer')).toBeVisible();
+    await page.getByRole('button', { name: 'II' }).tap();
+    await page.getByRole('button', { name: 'Perho', exact: true }).tap();
+    await page.getByRole('button', { name: 'Jatka' }).tap();
+    await expect(page.getByRole('button', { name: 'SIIMA' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'VETO' })).toBeVisible();
+
+    // Pyyhkäisy alas järvellä: takaheitto. Sivukuva näyttää siiman heiton ajan.
+    const { width, height } = page.viewportSize()!;
+    const x = width / 2;
+    const y = height * 0.35;
+    await drag(page, browserName, { x, y }, { x, y: y + height * 0.3 }, 150);
+    await expect(page.locator('.hud-fly-panel')).toBeVisible();
+    await expect(page.locator('.hud-status')).toContainText('Alas = takaheitto');
+    await page.locator('.hud-power.fly-now').waitFor();
+    // Siima suorassa takana: pyyhkäisy ylös on eteenheitto, ja perho laskeutuu. Kuormitetussa
+    // CI:ssä ohjelmistorenderöinnin viive voi myöhästyttää pyyhkäisyn, jolloin takaheitto ehtii
+    // pudota veteen ja eteenpäin pyyhkäisy on rullaheitto: sekin on pyyhkäisyllä tehty heitto.
+    await drag(page, browserName, { x, y: y + height * 0.3 }, { x, y }, 150);
+    await expect(page.locator('.hud-message')).toContainText(/(Heitto|Rullaheitto) \d+ m/, {
+      timeout: 15_000,
+    });
+    await expect(page.locator('.hud-fly-panel')).toBeHidden();
+    errors.check();
+  });
 });

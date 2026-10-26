@@ -15,6 +15,8 @@ const COLOR = {
   rotor: 0x5f6b78,
   light: 0xc3cbd2,
   knob: 0xe0cf9c,
+  /** Perhovapa (#236): oliivinvihreä aihio. */
+  flyRod: 0x6a9a3e,
 } as const;
 
 /**
@@ -51,12 +53,17 @@ const ROD_BACK = THREE.MathUtils.degToRad(115);
  * etäisyys renkaan keskeltä eteenpäin ja korkeus. +1 on lepoasento.
  */
 export function flyRodTip(rod: number): { forward: number; height: number } {
-  const k = (1 - Math.max(-1, Math.min(1, rod))) / 2;
-  const angle = ROD_REST + (ROD_BACK - ROD_REST) * k;
+  const angle = flyRodAngle(rod);
   return {
     forward: ROD.seatForward + Math.cos(angle) * ROD_LENGTH,
     height: ROD.seatHeight + Math.sin(angle) * ROD_LENGTH,
   };
+}
+
+/** Perhovavan kulma vaakatasosta (rad): lepoasennosta (+1) takaheiton pysäytykseen (-1). */
+export function flyRodAngle(rod: number): number {
+  const k = (1 - Math.max(-1, Math.min(1, rod))) / 2;
+  return ROD_REST + (ROD_BACK - ROD_REST) * k;
 }
 
 /** Kelan osien paikat kelan omassa kehyksessä: x = vapaa pitkin eteen, y = ylös, z = oikealle. */
@@ -70,13 +77,27 @@ const CRANK_RPS = 1.6;
 /** Ruudun kiertonopeuden yläraja (rad/s): nopeampi kierto näyttäisi seisovan. */
 const MAX_SPIN = 40;
 
+/** Kohta vavalla: metrejä istukasta, tai `{ blank }` = osuus aihiosta etukahvasta kärkeen. */
+type Station = number | { blank: number };
+
 interface RodPiece {
   /** Siirtymä vavan keskiviivasta pikseleinä (+ = vavan alapuoli ruudulla). */
   off: number;
-  from: number;
-  /** `null` = vavan kärki. */
-  to: number | null;
+  from: Station;
+  to: Station;
 }
+
+/** Aihio on paloina, jotta perhovapa taipuu heitossa kaarelle (#236). */
+const BLANK_SEGMENTS = 6;
+const blank = (off: number): RodPiece[] =>
+  Array.from({ length: BLANK_SEGMENTS }, (_, i) => ({
+    off,
+    from: { blank: i / BLANK_SEGMENTS },
+    to: { blank: (i + 1) / BLANK_SEGMENTS },
+  }));
+
+/** Perhokela vavan tyvessä (kelan kehyksessä): keskipiste, säde ja leveys. */
+const FLY_REEL = { x: -ROD.butt + 0.04, y: -0.055, radius: 0.045, width: 0.022 };
 
 /** Yhden pikselin levyiset viivat, jotka yhdessä piirtävät vavan. */
 const ROD_PARTS: { color: number; pieces: RodPiece[] }[] = (() => {
@@ -87,14 +108,8 @@ const ROD_PARTS: { color: number; pieces: RodPiece[] }[] = (() => {
     { off, from: s1, to: ROD.foreGrip },
   ];
   return [
-    {
-      color: COLOR.rod,
-      pieces: [{ off: 0, from: ROD.foreGrip, to: null }],
-    },
-    {
-      color: COLOR.rodShade,
-      pieces: [{ off: 1, from: ROD.foreGrip, to: null }],
-    },
+    { color: COLOR.rod, pieces: blank(0) },
+    { color: COLOR.rodShade, pieces: blank(1) },
     { color: COLOR.cork, pieces: [...grip(-1), ...grip(0)] },
     { color: COLOR.corkShade, pieces: grip(1) },
     {
@@ -117,7 +132,13 @@ const COIL_POINTS = 13;
  */
 export class PovRod {
   readonly group = new THREE.Group();
-  private readonly rodLines: { line: THREE.LineSegments; pieces: RodPiece[] }[];
+  private readonly rodLines: {
+    line: THREE.LineSegments;
+    pieces: RodPiece[];
+    color: number;
+  }[];
+  /** Perhokela (#236) virvelin kelan tilalla. */
+  private readonly flyReel = new THREE.Group();
   private readonly along: THREE.Line;
   private readonly coil: THREE.Line;
   private readonly reel = new THREE.Group();
@@ -162,7 +183,7 @@ export class PovRod {
       // Vapa piirretään siiman päälle, kun ne osuvat samoihin pikseleihin kärjessä.
       line.renderOrder = 2;
       this.group.add(line);
-      return { line, pieces };
+      return { line, pieces, color };
     });
 
     this.along = this.lineObject(ROD.guides.length + 2);
@@ -245,6 +266,31 @@ export class PovRod {
     this.reel.add(handle);
 
     this.group.add(this.reel);
+
+    // Perhokela: kehä, siimakerros ja kampinuppi; akseli osoittaa sivulle.
+    const flyDrum = (r: number, w: number, mat: THREE.Material) => {
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, w, 14), mat);
+      m.rotation.x = Math.PI / 2;
+      return m;
+    };
+    this.flyReel.position.set(FLY_REEL.x, FLY_REEL.y, 0);
+    this.flyReel.add(
+      flyDrum(FLY_REEL.radius, FLY_REEL.width, new THREE.MeshBasicMaterial({ color: COLOR.body })),
+    );
+    const flyLineMat = new THREE.MeshBasicMaterial({ color: 0xc3cbd2 });
+    this.lineMaterials.push(flyLineMat);
+    this.flyReel.add(flyDrum(FLY_REEL.radius * 0.8, FLY_REEL.width + 0.002, flyLineMat));
+    this.flyReel.add(
+      flyDrum(
+        FLY_REEL.radius * 0.35,
+        FLY_REEL.width + 0.004,
+        new THREE.MeshBasicMaterial({ color: COLOR.dark }),
+      ),
+    );
+    this.flyReel.add(box(0.008, 0.008, 0.012, COLOR.knob, 0, FLY_REEL.radius * 0.6, -0.016));
+    this.flyReel.add(box(0.012, 0.03, 0.007, COLOR.dark, 0, FLY_REEL.radius + 0.008, 0));
+    this.flyReel.visible = false;
+    this.reel.add(this.flyReel);
   }
 
   private lineObject(points: number): THREE.Line {
@@ -262,7 +308,9 @@ export class PovRod {
 
   /**
    * `tip` = piirretyn kärjen paikka (oikeassa kädessä), `pixelSize` = pikselin
-   * koko metrin päässä kamerasta, `cranking` = pelaaja kelaa.
+   * koko metrin päässä kamerasta, `cranking` = pelaaja kelaa. `style`:
+   * kärjen korkeus perhoheitossa, perhovapa (#236) ja taipuma (m, neljäsosa
+   * näkyy vavan keskellä, + = vavan yläpuolelle).
    */
   update(
     camera: THREE.PerspectiveCamera,
@@ -273,8 +321,11 @@ export class PovRod {
     s: FishingState,
     cranking: boolean,
     lineColor: number,
-    tipY = ROD_TIP_Y,
+    style: { tipY?: number; fly?: boolean; bend?: number } = {},
   ): void {
+    const tipY = style.tipY ?? ROD_TIP_Y;
+    const fly = style.fly === true;
+    const bend = style.bend ?? 0;
     const now = performance.now() / 1000;
     const dt = Number.isFinite(this.lastTime) ? Math.min(0.1, Math.max(0, now - this.lastTime)) : 0;
     this.lastTime = now;
@@ -297,20 +348,31 @@ export class PovRod {
     camera.updateMatrixWorld();
     camera.getWorldDirection(v.camFwd);
     const sign = this.chooseAxis(camera);
-    const along = (sAlong: number, out: THREE.Vector3) =>
+    // Taipuva vapa kaartuu kahvan ja kärjen välissä; kärki pysyy siiman alkupisteessä.
+    const along = (sAlong: number, out: THREE.Vector3) => {
       out.copy(v.seat).addScaledVector(v.f, sAlong);
+      const k = Math.max(0, sAlong - ROD.foreGrip) / Math.max(1e-3, length - ROD.foreGrip);
+      return out.addScaledVector(v.u, bend * k * (1 - k));
+    };
+    const station = (st: Station) =>
+      typeof st === 'number' ? st : ROD.foreGrip + st.blank * (length - ROD.foreGrip);
     // Siirtää pisteen `px` pikseliä valitulla ruudun akselilla.
     const shift = (p: THREE.Vector3, px: number) => {
       const depth = Math.max(0.05, v.a.subVectors(p, camera.position).dot(v.camFwd));
       return p.addScaledVector(v.camAxis, px * sign * depth * pixelSize);
     };
 
-    for (const { line, pieces } of this.rodLines) {
+    for (const { line, pieces, color } of this.rodLines) {
+      // Perhovapa on ohut: aihion varjoriviä ei piirretä, ja aihio on vihreä.
+      line.visible = !fly || color !== COLOR.rodShade;
+      (line.material as THREE.LineBasicMaterial).color.setHex(
+        fly && color === COLOR.rod ? COLOR.flyRod : color,
+      );
       const attr = line.geometry.getAttribute('position') as THREE.BufferAttribute;
       pieces.forEach((piece, i) => {
-        shift(along(piece.from, v.b), piece.off);
+        shift(along(station(piece.from), v.b), piece.off);
         attr.setXYZ(i * 2, v.b.x, v.b.y, v.b.z);
-        shift(along(piece.to ?? length, v.b), piece.off);
+        shift(along(station(piece.to), v.b), piece.off);
         attr.setXYZ(i * 2 + 1, v.b.x, v.b.y, v.b.z);
       });
       attr.needsUpdate = true;
@@ -321,19 +383,23 @@ export class PovRod {
     this.reel.quaternion.setFromRotationMatrix(v.m);
     this.reel.position.copy(v.seat);
     this.animateReel(s, cranking, dt);
+    // Perhovavassa kela on tyvessä; virvelin kelan osat piiloon.
+    for (const part of this.reel.children) part.visible = (part === this.flyReel) === fly;
     this.reel.updateMatrixWorld(true);
 
     for (const m of this.lineMaterials) m.color.setHex(lineColor);
-    const bailOpen = s.stage === 'charging' || s.stage === 'flight';
-    const exit = bailOpen
-      ? this.reel.localToWorld(
-          v.b.set(
-            SPOOL.x + SPOOL.half,
-            SPOOL.y + Math.cos(this.coilAngle) * SPOOL.radius,
-            Math.sin(this.coilAngle) * SPOOL.radius,
-          ),
-        )
-      : this.roller.getWorldPosition(v.b);
+    const bailOpen = !fly && (s.stage === 'charging' || s.stage === 'flight');
+    const exit = fly
+      ? this.reel.localToWorld(v.b.set(FLY_REEL.x, FLY_REEL.y + FLY_REEL.radius * 0.8, 0))
+      : bailOpen
+        ? this.reel.localToWorld(
+            v.b.set(
+              SPOOL.x + SPOOL.half,
+              SPOOL.y + Math.cos(this.coilAngle) * SPOOL.radius,
+              Math.sin(this.coilAngle) * SPOOL.radius,
+            ),
+          )
+        : this.roller.getWorldPosition(v.b);
     const attr = this.along.geometry.getAttribute('position') as THREE.BufferAttribute;
     attr.setXYZ(0, exit.x, exit.y, exit.z);
     ROD.guides.forEach(([at, drop], i) => {

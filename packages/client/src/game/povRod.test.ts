@@ -45,7 +45,7 @@ describe('virveli kalastajan silmin', () => {
     for (const i of [0, 1]) {
       const a = toPixel(vertex(blank!, i));
       const b = toPixel(vertex(shade!, i));
-      const d = [Math.abs(a.x - b.x), Math.abs(a.y - b.y)].sort();
+      const d = [Math.abs(a.x - b.x), Math.abs(a.y - b.y)].sort((p, q) => p - q);
       expect(d[0]).toBeCloseTo(0, 3);
       expect(d[1]).toBeCloseTo(1, 3);
     }
@@ -63,5 +63,34 @@ describe('virveli kalastajan silmin', () => {
     expect(p.x).toBeLessThan(w * 0.95);
     expect(p.y).toBeGreaterThan(h * 0.05);
     expect(p.y).toBeLessThan(h * 0.95);
+  });
+});
+
+describe('perhovapa kalastajan silmin (#236)', () => {
+  it('ohut vihreä aihio, perhokela ja taipuma heitossa', () => {
+    const pov = new PovCamera();
+    pov.setResolution({ width: 427, height: 240, scale: 3 });
+    const pos = { x: 0, y: 0 };
+    pov.apply(pos, 0, 0);
+    const tip = rodTip(pos, 0);
+    const draw = (bend: number) => {
+      const rod = new PovRod();
+      rod.update(pov.camera, pov.pixelSize, pos, 0, tip, createFishing(), false, 0xc3cbd2, {
+        fly: true,
+        bend,
+      });
+      return rod;
+    };
+    const straight = draw(0);
+    const [blank, shade] = straight.group.children;
+    expect(shade!.visible).toBe(false);
+    expect(((blank as THREE.Line).material as THREE.LineBasicMaterial).color.getHex()).toBe(
+      0x6a9a3e,
+    );
+    // Taipuma siirtää aihion keskikohtaa, kärki pysyy siiman alkupisteessä.
+    const bent = draw(0.4).group.children[0]!;
+    const mid = 5;
+    expect(vertex(bent, mid).y - vertex(blank!, mid).y).toBeGreaterThan(0.05);
+    expect(vertex(bent, 11).distanceTo(vertex(blank!, 11))).toBeLessThan(0.01);
   });
 });

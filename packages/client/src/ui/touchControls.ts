@@ -26,6 +26,12 @@ export class TouchControls {
   private readonly gearButton: HTMLButtonElement;
   private readonly cutButton: HTMLButtonElement;
   private readonly chatButton: HTMLButtonElement;
+  /** Perhon siimakäsi (#236): pohjassa puristaa siimaa. */
+  private readonly lineButton: HTMLButtonElement;
+  private readonly reelButton: HTMLButtonElement;
+  private readonly reelText: { label?: MsgKey; title: MsgKey };
+  private fly = false;
+  private flyInHand = false;
   /** VIESTI-nappi: avaa moninpelin chatin. */
   onChat: (() => void) | null = null;
   private stickPointer: number | null = null;
@@ -79,6 +85,8 @@ export class TouchControls {
       this.tapKey(`Digit${((this.gear + 1) % GEARS) + 1}`),
     );
     this.cutButton = this.tap('touch.cut', 'KeyC', 'touch.cutTitle');
+    this.lineButton = this.hold('touch.line', 'LineGrip', 'touch.lineTitle');
+    this.lineButton.hidden = true;
     const grid = div('touch-grid');
     grid.append(
       this.tap('touch.lure', 'KeyR', 'touch.lureTitle'),
@@ -89,13 +97,15 @@ export class TouchControls {
       this.tap('touch.dragLess', 'KeyQ', 'touch.dragLessTitle'),
       this.tap('touch.dragMore', 'KeyE', 'touch.dragMoreTitle'),
       this.gearButton,
+      this.lineButton,
       this.hold('touch.cancel', 'Mouse2', 'touch.cancelTitle'),
       this.cutButton,
     );
-    const reel = this.hold('touch.reel', 'Reel', 'touch.reelTitle');
-    reel.classList.add('touch-reel');
+    this.reelButton = this.hold('touch.reel', 'Reel', 'touch.reelTitle');
+    this.reelButton.classList.add('touch-reel');
+    this.reelText = this.texts[this.texts.length - 1]!;
     const actions = div('touch-actions');
-    actions.append(grid, reel);
+    actions.append(grid, this.reelButton);
 
     this.root.append(stick, tools, actions);
     parent.appendChild(this.root);
@@ -115,6 +125,22 @@ export class TouchControls {
   /** Chat on vain moninpelissä. */
   setMultiplayer(multiplayer: boolean): void {
     this.chatButton.hidden = !multiplayer;
+  }
+
+  /**
+   * Perhovälineet (#236): SIIMA-nappi siimakädelle kelausnopeuden tilalle, ja
+   * kun siima on kädessä, KELAA on VETO (uitto, heitossa siimakäden veto).
+   */
+  setFly(fly: boolean, inHand: boolean): void {
+    if (fly === this.fly && inHand === this.flyInHand) return;
+    this.fly = fly;
+    this.flyInHand = inHand;
+    this.lineButton.hidden = !fly;
+    this.gearButton.hidden = fly;
+    const strip = fly && inHand;
+    this.reelText.label = strip ? 'touch.strip' : 'touch.reel';
+    this.reelText.title = strip ? 'touch.stripTitle' : 'touch.reelTitle';
+    this.relabel();
   }
 
   /** Kelan vaihde napin tekstiin (0-pohjainen). */

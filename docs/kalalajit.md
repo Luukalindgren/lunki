@@ -187,7 +187,11 @@ tiedostossa `flyCast.ts`, vaikeustasojen avut `flyCast` tiedostossa `difficulty.
   eteenpäin liike = rullaheitto, enintään 12 m.
 - Välilyönnillä rytmiheitto: jokainen painallus tekee taka- tai eteenheiton ihannekaarella, ja
   siimakäsi pidentää siimaa itsestään 16 metriin. Heitto laskeutuu, kun painaminen loppuu.
-- Kosketusnäytöllä perho heitetään toistaiseksi voimamittarilla.
+- Kosketusnäytöllä (#236) pyyhkäisy järvellä alas = takaheitto, ylös = eteenheitto (60 %
+  ruudun korkeudesta = koko liikerata), ja sormen pysähtyminen on pysäytys. Siimakäsi toimii
+  kuten rytmiheitossa, kunnes pelaaja painaa SIIMA-nappia: sen jälkeen SIIMA pohjassa =
+  puristus. VETO on uitossa siiman veto ja heitossa siimakäden veto, PERU nostaa siiman
+  uuteen heittoon ja keskeyttää heiton.
 
 | Virhe                                     | Seuraus                                                         |
 | ----------------------------------------- | --------------------------------------------------------------- |
@@ -205,6 +209,24 @@ tiedostossa `flyCast.ts`, vaikeustasojen avut `flyCast` tiedostossa `difficulty.
 | Helppo      | 35 %          | 150 %, väh. 0,8 s        | kyllä       | kyllä              | ei              |
 | Normaali    | 65 %          | 60 %, väh. 0,35 s        | kyllä       | ei                 | heikentävät     |
 | Realistinen | 80 %          | 35 %, väh. 0,2 s         | ei          | ei                 | kaikki käytössä |
+
+**Näkymät ja äänet (#236).** Siiman muoto ilmassa lasketaan sivukuvana (`game/flyLine.ts`):
+silmukan alempi osa kulkee vavan kärjestä liikkeen suuntaan ja ylempi palaa sen yläpuolella,
+kunnes siima on suorassa; myöhästynyt siima putoaa. Samaa muotoa käyttävät:
+
+- Sivukuvapaneeli (`ui/flyCastPanel.ts`) luotainten vieressä heiton ajan; P (heiton aikana myös
+  L) piilottaa. Suorassa siimassa perho välkkyy vihreänä ja teksti on "NYT!", jos merkki on
+  vaikeustasolla käytössä. Kosketuksella paneeli on alareunassa.
+- Ylhäältä siima näkyy viivana, ja silmukka on kallellaan oikealle, jotta se erottuu kapeana
+  lenkkinä. POV:ssa sama siima kulkee 3D:nä oikean olan yli.
+- POV:ssa perhovapa on ohut ja vihreä, kela on tyvessä, ja vapa taipuu liikkeen aikana (kahva
+  johtaa). Perho laskeutuu pienellä roiskeella, popperi isommalla.
+- Muut pelaajat: lentovaihe välittää perhon paikan ilmassa. Vastaanottaja päättelee silmukan
+  suunnan perhon liikkeestä ja siiman pituuden suurimmasta etäisyydestä, joten palvelinta ei
+  tarvinnut muuttaa.
+- Äänet: suhina silmukan auetessa (voimakkuus ja sävy nopeuden mukaan), läimäys, vaimea nykäys
+  suoristuessa, perhon laskeutuminen, popperin pulpahdus ja siiman sihinä, kun siimaa luistaa tai
+  kala vie sitä sormien läpi.
 
 Kun löysää on renkaan edessä enemmän kuin heitto vie (voimamittariheitto), yli 5 m ylimääräinen
 löysä voi sotkeutua (ei helpolla), jolloin heitto jää lyhyeksi.

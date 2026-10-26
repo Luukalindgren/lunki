@@ -44,6 +44,8 @@ export interface RemotePlayer {
   lure: Vec2 | null;
   lureStage: number;
   appearance: Appearance;
+  /** Perhovälineet: lennossa oleva "viehe" on perhoheiton perho (#236). */
+  fly?: boolean;
   /** Trombin lennättämänä korkeus ilmassa (m) ja kieppuminen (rad). */
   lift?: number;
   tumble?: number;
@@ -82,7 +84,7 @@ export class NetWorld {
   readonly predictor: TubePredictor;
   private readonly remotes = new Map<
     string,
-    { name: string; appearance: Appearance; buf: SnapshotBuffer<RemoteSnap> }
+    { name: string; appearance: Appearance; fly: boolean; buf: SnapshotBuffer<RemoteSnap> }
   >();
   private lure: [number, number, number, number] = [0, 0, LureStage.none, 0];
   /** Muiden viimeisimmät palvelintilat (ennakoinnin törmäyksiin). */
@@ -316,13 +318,19 @@ export class NetWorld {
       seen.add(id);
       let r = this.remotes.get(id);
       if (!r) {
-        r = { name: p.name, appearance: playerAppearance(p), buf: new SnapshotBuffer(lerpSnap) };
+        r = {
+          name: p.name,
+          appearance: playerAppearance(p),
+          fly: p.method === 'fly',
+          buf: new SnapshotBuffer(lerpSnap),
+        };
         this.peerConnected.set(id, p.connected);
         this.remotes.set(id, r);
         if (this.primed) this.onPeerJoined?.(p.name);
       }
       r.name = p.connected ? p.name : t('game.peerOffline', { name: p.name });
       r.appearance = playerAppearance(p);
+      r.fly = p.method === 'fly';
       const was = this.peerConnected.get(id);
       if (was !== undefined && was !== p.connected) this.onPeerConnection?.(p.name, p.connected);
       this.peerConnected.set(id, p.connected);
@@ -386,6 +394,7 @@ export class NetWorld {
         lure: s.lureStage !== LureStage.none ? s.lure : null,
         lureStage: s.lureStage,
         appearance: r.appearance,
+        fly: r.fly,
       });
     }
     return out;
