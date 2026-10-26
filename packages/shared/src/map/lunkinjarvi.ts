@@ -3,6 +3,7 @@ import features from './lunkinjarvi-features.json';
 import data from './lunkinjarvi.json';
 import reeds from './lunkinjarvi-reeds.json';
 import surroundings from './lunkinjarvi-surroundings.json';
+import { roundRing } from './geometry';
 import { planPiers } from './piers';
 import type { LakeMap, LakeSurroundings } from './types';
 
@@ -12,9 +13,22 @@ import type { LakeMap, LakeSurroundings } from './types';
  * Laiturit päätellään rantamökeistä (ks. planPiers). Kaislikot on rajattu
  * käsin ilmakuvista (lunkinjarvi-reeds.json, saa muokata).
  */
-export const LUNKINJARVI: LakeMap = {
+/**
+ * Rantaviivan kulmien pyöristys (m): OSM-rannan pitkät suorat ja terävät
+ * kulmat näyttivät kulmikkailta. Pyöristys tehdään tässä, jotta peli,
+ * palvelin ja kaikki rannasta lasketut asiat käyttävät samaa rantaa.
+ */
+const SHORE_ROUNDING = 5;
+
+const rounded = {
   ...data,
-  piers: planPiers(data, surroundings as LakeSurroundings),
+  shore: roundRing(data.shore, SHORE_ROUNDING),
+  islands: data.islands.map((ring) => roundRing(ring, SHORE_ROUNDING)),
+};
+
+export const LUNKINJARVI: LakeMap = {
+  ...rounded,
+  piers: planPiers(rounded, surroundings as LakeSurroundings),
   reeds: reeds.reeds,
 };
 
