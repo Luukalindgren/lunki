@@ -7,6 +7,7 @@ import { Rng } from '../rng';
 import {
   InputQueue,
   SnapshotBuffer,
+  SnapshotClock,
   TubePredictor,
   cloneTube,
   decodeInputs,
@@ -129,6 +130,32 @@ describe('SnapshotBuffer', () => {
     expect(b.sample(0.5)).toBe(10);
     expect(b.sample(1.25)).toBe(12.5);
     expect(b.sample(3)).toBe(20);
+  });
+});
+
+describe('SnapshotClock', () => {
+  it('leimaa palvelimen ajalla, joten heittely ei näy välimatkoissa', () => {
+    const c = new SnapshotClock();
+    const jitter = [0.03, 0, 0.04, 0.01, 0.035, 0.002];
+    const stamps = jitter.map((j, i) => c.stamp(10 + i * 0.05 + 0.04 + j, i * 0.05));
+    // Nopein paketti (heittely 0) määrää eron; sen jälkeen välit ovat lähes tasan 50 ms.
+    for (let i = 2; i < stamps.length; i++)
+      expect(stamps[i]! - stamps[i - 1]!).toBeCloseTo(0.05, 2);
+    // Leima ei ole koskaan saapumista myöhemmin, joten tila on piirrettävissä ajallaan.
+    stamps.forEach((s, i) => expect(s).toBeLessThanOrEqual(10 + i * 0.05 + 0.04 + jitter[i]!));
+  });
+
+  it('seuraa hitaasti kasvavaa eroa ja aloittaa alusta isossa hypyssä', () => {
+    const c = new SnapshotClock();
+    c.stamp(10, 0);
+    // Palvelin jätättää: ero kasvaa, ja arvio nousee perässä.
+    let s = 0;
+    for (let i = 1; i <= 200; i++) s = c.stamp(10 + i * 0.05 + i * 0.001, i * 0.05);
+    expect(10 + 200 * 0.051 - s).toBeLessThan(0.03);
+    // Uusi kisa: palvelimen kello alkaa nollasta.
+    expect(c.stamp(30, 0)).toBe(30);
+    // Ilman palvelimen aikaa leima on saapumishetki.
+    expect(c.stamp(31, null)).toBe(31);
   });
 });
 

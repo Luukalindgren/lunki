@@ -2,6 +2,7 @@ import {
   LureStage,
   NET_DT,
   SnapshotBuffer,
+  SnapshotClock,
   TubePredictor,
   encodeInputs,
   lerpAngle,
@@ -100,6 +101,8 @@ export class NetWorld {
       buf: SnapshotBuffer<RemoteSnap>;
     }
   >();
+  /** Muiden tilojen aikaleimat kisan kellosta, ettei verkon heittely nyi liikettä. */
+  private readonly stamps = new SnapshotClock();
   private lure: [number, number, number, number] = [0, 0, LureStage.none, 0];
   /** Muiden viimeisimmät palvelintilat (ennakoinnin törmäyksiin). */
   private latestOthers: TubeState[] = [];
@@ -328,7 +331,7 @@ export class NetWorld {
   }
 
   private onState(s: StateSchema): void {
-    const now = this.clock();
+    const stamp = this.stamps.stamp(this.clock(), s.phase === 'playing' ? s.clock : null);
     const seen = new Set<string>();
     const others: TubeState[] = [];
     s.players.forEach((p, id) => {
@@ -367,7 +370,7 @@ export class NetWorld {
       const was = this.peerConnected.get(id);
       if (was !== undefined && was !== p.connected) this.onPeerConnection?.(p.name, p.connected);
       this.peerConnected.set(id, p.connected);
-      r.buf.push(now, {
+      r.buf.push(stamp, {
         pos: { x: p.x, y: p.y },
         heading: p.heading,
         kickPhase: p.kickPhase,

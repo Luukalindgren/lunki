@@ -240,3 +240,35 @@ export class SnapshotBuffer<T> {
     return s[s.length - 1]!.value;
   }
 }
+
+/**
+ * Tilojen aikaleimat ilman verkon heittelyä. Saapumishetki vaihtelee paketti
+ * paketilta, ja sillä leimattuna tasainen liike nykii (tila tulee "liian
+ * aikaisin" tai "myöhään"). Kisan aikana palvelimen kello kertoo, mihin
+ * hetkeen tila kuuluu: leimaksi tulee palvelimen aika plus arvio kellojen
+ * erosta. Arvio seuraa nopeimmin perille tulleita, nousee hitaasti (palvelin
+ * jätättää, kellot ajelehtivat) ja alkaa alusta isossa hypyssä (uusi kisa,
+ * katkos). Ilman palvelimen aikaa (aula, lähtölaskenta) leimana on saapumishetki.
+ */
+export class SnapshotClock {
+  private offset: number | null = null;
+
+  constructor(
+    /** Kuinka suuri osa erosta korjataan kerralla, kun arvio on liian pieni. */
+    private readonly rise = 0.05,
+    /** Tätä suurempi ero (s) aloittaa arvion alusta. */
+    private readonly resetAfter = 0.5,
+  ) {}
+
+  stamp(arrival: number, serverTime: number | null): number {
+    if (serverTime === null) {
+      this.offset = null;
+      return arrival;
+    }
+    const o = arrival - serverTime;
+    if (this.offset === null || o < this.offset || o - this.offset > this.resetAfter)
+      this.offset = o;
+    else this.offset += (o - this.offset) * this.rise;
+    return serverTime + this.offset;
+  }
+}
