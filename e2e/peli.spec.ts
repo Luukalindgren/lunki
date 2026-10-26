@@ -122,3 +122,22 @@ test('ilman WebGL:ää näytetään selitys tyhjän ruudun sijaan', async ({ pag
   await expect(page.getByText('Grafiikka ei käynnisty')).toBeVisible();
   await expect(page.getByText('laitteistokiihdytys')).toBeVisible();
 });
+
+test('valittu väri ei piirry kisan painikkeiden päälle', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Yksinpeli' }).click();
+  const swatch = page.locator('.settings.appearance .swatches').first().locator('button').nth(10);
+  await swatch.click();
+  await expect(swatch).toHaveClass(/selected/);
+  // Vieritetään valittu väri paneelin alareunan painikkeiden alle.
+  const hidden = await swatch.evaluate((sel) => {
+    const panel = sel.closest('.screen-panel')!;
+    const footer = panel.querySelector(':scope > .buttons:last-child')!;
+    const f = footer.getBoundingClientRect();
+    panel.scrollTop += sel.getBoundingClientRect().top - (f.top + f.height / 2);
+    const r = sel.getBoundingClientRect();
+    const top = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+    return !!top && footer.contains(top);
+  });
+  expect(hidden).toBe(true);
+});
