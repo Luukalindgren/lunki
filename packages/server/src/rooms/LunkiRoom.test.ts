@@ -1098,7 +1098,7 @@ describe('LunkiRoom', () => {
 });
 
 describe('liittyminen kesken kisan', () => {
-  type P = { name: string; x: number; y: number; connected: boolean };
+  type P = { name: string; x: number; y: number; connected: boolean; spectator: boolean };
   const water = new WaterBody(LUNKINJARVI);
   const me = (room: Room) => room.state.players.get(room.sessionId) as P;
 
@@ -1190,6 +1190,32 @@ describe('liittyminen kesken kisan', () => {
 
     await host.leave();
     await tab.leave();
+  });
+
+  it('aulassa katkennut palaa koodilla ilman kaksoispaikkaa, myös täyteen aulaan (#309)', async () => {
+    const host = await sdk().create(ROOM_NAME, { name: 'A', playerId: 'a', maxPlayers: 2 });
+    const guest = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
+    await until(() => players(host).length === 2);
+    guest.reconnection.enabled = false;
+    guest.connection.close(4010);
+    await until(
+      () => (host.state.players.get(guest.sessionId) as P | undefined)?.connected === false,
+    );
+
+    // Aula on täynnä haamun kanssa, mutta oma katkennut paikka vapautuu paluulle.
+    const back = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
+    await until(() => host.state.players.has(back.sessionId));
+    expect(host.state.players.has(guest.sessionId)).toBe(false);
+    expect(players(host)).toHaveLength(2);
+    expect((host.state.players.get(back.sessionId) as P).name).toBe('B');
+    expect((host.state.players.get(back.sessionId) as P).spectator).toBe(false);
+    // Muu selain ei silti mahdu täyteen aulaan.
+    expect(await refusal(sdk().joinById(host.roomId, { name: 'C', playerId: 'c' }))).toBe(
+      JoinRefusal.full,
+    );
+
+    await host.leave();
+    await back.leave();
   });
 
   it('"Vain paluu" päästää vain lähteneen takaisin', async () => {
