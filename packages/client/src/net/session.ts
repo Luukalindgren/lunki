@@ -1,4 +1,4 @@
-import { Client, type Room } from '@colyseus/sdk';
+import type { Room } from '@colyseus/sdk';
 import {
   ClientMsg,
   ROOM_NAME,
@@ -84,8 +84,19 @@ export function customServer(): string | null {
   }
 }
 
+/**
+ * Colyseuksen asiakas ladataan vasta moninpeliin mentäessä: yksinpelaaja ei
+ * lataa sitä lainkaan, ja sivu aukeaa nopeammin.
+ */
+const importSdk = () => import('@colyseus/sdk');
+let sdk: ReturnType<typeof importSdk> | null = null;
+const loadSdk = () => (sdk ??= importSdk());
+const client = async () => new (await loadSdk()).Client(serverUrl());
+
 /** Onko pelipalvelin tavoitettavissa? (Colyseuksen /__healthcheck) */
 export async function checkServer(timeoutMs = 4000): Promise<boolean> {
+  // Moninpelivalikko on auki: asiakas valmiiksi ladattavaksi liittymistä varten.
+  loadSdk().catch(() => (sdk = null));
   const http = serverUrl().replace(/^ws/, 'http').replace(/\/$/, '');
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -349,13 +360,15 @@ export class NetSession {
   }
 
   static async create(options: JoinOptions): Promise<NetSession> {
-    const room = await new Client(serverUrl()).create<StateSchema>(ROOM_NAME, options);
+    const room = await (await client()).create<StateSchema>(ROOM_NAME, options);
     return new NetSession(room);
   }
 
   /** Jos kisaan ei pääse mukaan (huoneen asetus), liitytään katsojaksi. */
   static async join(code: string, options: JoinOptions): Promise<NetSession> {
-    const room = await new Client(serverUrl()).joinById<StateSchema>(code, {
+    const room = await (
+      await client()
+    ).joinById<StateSchema>(code, {
       ...options,
       spectate: true,
     });
@@ -374,7 +387,7 @@ export class NetSession {
     const token = loadResume();
     if (!token) return null;
     try {
-      const room = await new Client(serverUrl()).reconnect<StateSchema>(token);
+      const room = await (await client()).reconnect<StateSchema>(token);
       return new NetSession(room);
     } catch {
       clearResume();
