@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { REEL, type FishingState, type Vec2 } from '@lunki/shared';
+import { CAST, REEL, type FishingState, type Vec2 } from '@lunki/shared';
 import { toWorld } from '../world/lakeMesh';
 import { ROD_TIP_Y } from './lineHang';
 
@@ -38,6 +38,26 @@ const ROD = {
     [0.9, 0.008],
   ],
 } as const;
+
+/** Vavan pituus istukasta kärkeen lepoasennossa. */
+const ROD_LENGTH = Math.hypot(CAST.rodReach - ROD.seatForward, ROD_TIP_Y - ROD.seatHeight);
+/** Lepoasennon kulma vaakatasosta. */
+const ROD_REST = Math.atan2(ROD_TIP_Y - ROD.seatHeight, CAST.rodReach - ROD.seatForward);
+/** Takaheiton pysäytys (vapa hieman pystyn yli, kello 1). */
+const ROD_BACK = THREE.MathUtils.degToRad(115);
+
+/**
+ * Perhoheitossa (#235) vavan kulma -1 (taakse) … +1 (eteen): kärjen
+ * etäisyys renkaan keskeltä eteenpäin ja korkeus. +1 on lepoasento.
+ */
+export function flyRodTip(rod: number): { forward: number; height: number } {
+  const k = (1 - Math.max(-1, Math.min(1, rod))) / 2;
+  const angle = ROD_REST + (ROD_BACK - ROD_REST) * k;
+  return {
+    forward: ROD.seatForward + Math.cos(angle) * ROD_LENGTH,
+    height: ROD.seatHeight + Math.sin(angle) * ROD_LENGTH,
+  };
+}
 
 /** Kelan osien paikat kelan omassa kehyksessä: x = vapaa pitkin eteen, y = ylös, z = oikealle. */
 const SPOOL = { x: 0.04, y: -0.05, radius: 0.018, lip: 0.021, half: 0.012 };
@@ -253,6 +273,7 @@ export class PovRod {
     s: FishingState,
     cranking: boolean,
     lineColor: number,
+    tipY = ROD_TIP_Y,
   ): void {
     const now = performance.now() / 1000;
     const dt = Number.isFinite(this.lastTime) ? Math.min(0.1, Math.max(0, now - this.lastTime)) : 0;
@@ -267,7 +288,7 @@ export class PovRod {
       y: pos.y + Math.sin(heading) * ROD.seatForward + Math.sin(heading - Math.PI / 2) * side,
     };
     v.seat.copy(toWorld(seat2, ROD.seatHeight));
-    v.tip.copy(toWorld(tip, ROD_TIP_Y));
+    v.tip.copy(toWorld(tip, tipY));
     const length = v.seat.distanceTo(v.tip);
     v.f.subVectors(v.tip, v.seat).normalize();
     v.u.set(0, 1, 0).addScaledVector(v.f, -v.f.y).normalize();

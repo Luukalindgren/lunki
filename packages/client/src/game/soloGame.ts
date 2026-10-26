@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import {
   breakingStrength,
   FLY,
+  FLY_CAST,
   holdForce,
+  loopProgress,
   isFly,
   recordTackle,
   LUNKINJARVI,
@@ -68,6 +70,7 @@ import {
   type CompetitionState,
   type FishPopulation,
   type FishingContext,
+  type FlyCastEvents,
   type FishingState,
   type PlayerResult,
   type Penalty,
@@ -98,6 +101,7 @@ import { BigWaveView } from './bigWaveView';
 import { SpoutView, flightPose } from './spoutView';
 import { KnotView } from './knotView';
 import { CastControl } from './castControl';
+import { FlyCastControl } from './flyCastControl';
 import {
   createLakeMesh,
   createSwellPatch,
@@ -123,7 +127,7 @@ import type { Hud } from '../ui/hud';
 import { fishLengthCm } from '../ui/fishArt';
 import { FishingView } from './fishingView';
 import { rodSideOffset } from './lineHang';
-import { PovRod } from './povRod';
+import { PovRod, flyRodTip } from './povRod';
 import { PovTube } from './povTube';
 import { loadTackle, nextLure, saveTackle } from './tackle';
 import { TopDownCamera } from './topDownCamera';
@@ -215,6 +219,7 @@ export class SoloGame {
   aim: Vec2 = { x: 0, y: 0 };
   /** Heitto hiirellä tai välilyönnillä katsesuuntaan (#227). */
   private readonly castControl = new CastControl();
+  private readonly flyCastControl = new FlyCastControl();
   readonly rng: Rng;
   readonly fish: FishPopulation;
   readonly competition: CompetitionState;
@@ -483,6 +488,7 @@ export class SoloGame {
       depthAt: (p) => this.bottom.depthAt(p),
       structureAt: (p) => this.bottom.structureAt(p),
       bottomTypeAt: (p) => this.bottom.bottomTypeAt(p),
+      reedsAt: (p) => this.water.reedsAt(p) !== null,
       wind: this.wind,
       fish: { pop: this.fish, diff: DIFFICULTIES[this.settings.difficulty], rng: this.rng, strike },
     };
@@ -895,10 +901,44 @@ export class SoloGame {
     this.sprinting = !capsized && readTubeInput(input).sprint;
 
     const f = this.fishing;
-    const castHeld = this.castControl.castHeld(f.stage, {
-      mouse: input.isDown('Mouse0'),
-      key: input.isDown('Space'),
-    });
+    // Perho heitetään hiirellä tai rytmissä välilyönnillä (#235); kosketuksella voimamittarilla.
+    const flyCasting = isFly(f.tackle) && !this.hud.touchMode;
+    const castHeld =
+      this.castControl.castHeld(f.stage, {
+        mouse: input.isDown('Mouse0'),
+        key: input.isDown('Space'),
+      }) &&
+      (!flyCasting || f.stage === 'charging');
+    const canCast = !frozen && !capsized && timeOut === 0 && !this.emoteActive && !tangle;
+    let startFlyCast = false;
+    if (flyCasting && canCast) {
+      const mouse = input.wasPressed('Mouse0');
+      if (f.stage === 'idle' && (mouse || input.wasPressed('Space'))) {
+        startFlyCast = true;
+        this.flyCastControl.start(!mouse);
+      } else if (f.stage === 'water' && input.wasPressed('Mouse2')) {
+        // Siiman nosto vedestä uuteen heittoon.
+        startFlyCast = true;
+        this.flyCastControl.start(false);
+      }
+      if (startFlyCast && !this.flyCastControl.keyboard) input.lockPointer();
+    }
+    const flyCast =
+      f.stage === 'casting' && f.flyCast
+        ? canCast
+          ? this.flyCastControl.read(
+              f.flyCast,
+              {
+                grip: input.isDown('Mouse0'),
+                haul: input.wasPressed('Mouse2'),
+                key: input.wasPressed('Space'),
+                dx: input.mouseDX,
+                dy: input.mouseDY,
+              },
+              dt,
+            )
+          : { rod: 0, grip: true }
+        : undefined;
     const internal = this.screenToInternal(input.mouseX, input.mouseY);
     this.aim = this.castControl.aim(
       (this.viewMode === 'pov' ? this.pov : this.view).internalToWorld(internal.x, internal.y),
@@ -935,7 +975,8 @@ export class SoloGame {
               // Eleen aikana käsi on varattu: heittää ei voi.
               castHeld: !frozen && !capsized && timeOut === 0 && castHeld && !this.emoteActive,
               reel: reeling,
-              cancel: input.isDown('Mouse2') || input.isDown('KeyX'),
+              // Heiton aikana oikea nappi on siimakäden veto: keskeytys vain X:llä.
+              cancel: (f.stage !== 'casting' && input.isDown('Mouse2')) || input.isDown('KeyX'),
               dragDelta: (input.wasPressed('KeyE') ? 1 : 0) - (input.wasPressed('KeyQ') ? 1 : 0),
               ...(input.wasPressed('Digit1') ? { gear: 0 } : {}),
               ...(input.wasPressed('Digit2') ? { gear: 1 } : {}),
@@ -944,10 +985,13 @@ export class SoloGame {
               cut: input.wasPressed('KeyC'),
               ...fly,
               reelSlack: input.isDown('KeyF'),
+              ...(startFlyCast ? { startFlyCast } : {}),
+              ...(flyCast ? { flyCast } : {}),
             },
             this.fishingContext(fishEvents.strike),
             dt,
           );
+    if (f.stage !== 'casting') input.unlockPointer();
     this.handleEvents(events, fishEvents.follow !== undefined, reeling, dt);
     this.fishShadow.update(this.fish.fish, this.tube.pos);
     if (fishEvents.shadow !== undefined) this.hud.showMessage(t('game.bigShadow'), 2.5);
@@ -978,7 +1022,15 @@ export class SoloGame {
     this.hud.setStamina(this.tube.stamina, STAMINA.tired);
     if (this.tube.stamina <= 0 && this.prevTube.stamina > 0)
       this.hud.showMessage(t('game.tired'), 2.5);
-    this.hud.setPower(f.stage === 'charging' ? chargePower(f.charge) : null);
+    const cast = f.stage === 'casting' ? f.flyCast : null;
+    if (cast) {
+      // Ajoitusmittari: silmukka aukeaa, ja suorassa siimassa "nyt!" (helppo ja normaali).
+      const marker = DIFFICULTIES[this.settings.difficulty].flyCast.marker;
+      this.hud.setFlyLoop(
+        loopProgress(cast),
+        marker && cast.phase === 'loop' && cast.loopAge >= cast.loopTime,
+      );
+    } else this.hud.setPower(f.stage === 'charging' ? chargePower(f.charge) : null);
     const hold = holdForce(f, { lineHand: fly?.lineHand ?? false });
     this.hud.setTension(f.tension, Math.min(hold, f.drag), breakingStrength(f.tackle));
     this.hud.setStatus([
@@ -1001,6 +1053,16 @@ export class SoloGame {
         : timeOut > 0
           ? [t('game.outLeft', { label: this.outLabel, s: Math.ceil(timeOut) })]
           : []),
+      ...(cast
+        ? [
+            cast.busy > 0
+              ? t('game.flyUntangle', { s: Math.ceil(cast.busy) })
+              : this.flyCastControl.keyboard
+                ? t('game.flyCastKeys')
+                : t('game.flyCastMouse'),
+            ...(cast.busy > 0 || this.flyCastControl.keyboard ? [] : [t('game.flyCastButtons')]),
+          ]
+        : []),
       describeTackle(f.tackle),
       t('game.line', { m: decimal(f.lineLength, 1) }),
       isFly(f.tackle) && !f.onReel
@@ -1170,6 +1232,34 @@ export class SoloGame {
     }
   }
 
+  /** Perhoheiton tapahtumat (#235): viuhahdukset, nykäys ja virheiden ilmoitukset. */
+  private handleFlyCast(ev: FlyCastEvents): void {
+    const { hud, sfx } = this;
+    if (ev.stop) sfx.cast(Math.min(1, ev.stop.speed / FLY_CAST.maxLineSpeed) * 0.6);
+    // Siima suoristui: pieni nykäys vavassa.
+    if (ev.straight) sfx.tick();
+    if (ev.crack && !ev.flyLost) {
+      sfx.rattle();
+      hud.showMessage(t('game.flyCrack'), 2);
+    }
+    if (ev.knot) hud.showMessage(t('game.flyKnot'), 2.5);
+    if (ev.collapsed) hud.showMessage(t('game.flyCollapsed'), 2);
+    else if (ev.fell) hud.showMessage(t('game.flyFell'), 2);
+    if (ev.snagBehind || ev.hat) {
+      sfx.strike();
+      hud.showMessage(ev.hat ? t('game.flyHat') : t('game.flySnagBehind'), 2.5);
+    }
+    if (ev.landed) {
+      this.quietSpot.cast(this.tube.pos);
+      hud.showMessage(
+        t(ev.landed.roll ? 'game.flyRollCast' : 'game.flyCastLength', {
+          m: Math.round(distance(this.tube.pos, this.fishing.lure)),
+        }),
+        1.5,
+      );
+    }
+  }
+
   private handleEvents(
     events: ReturnType<typeof stepFishing>,
     follow: boolean,
@@ -1220,6 +1310,8 @@ export class SoloGame {
       );
     }
     if (events.onReel) hud.showMessage(t('game.onReel'), 2);
+    if (events.flyCast) this.handleFlyCast(events.flyCast);
+    if (events.pickupFar) hud.showMessage(t('game.flyPickupFar', { m: FLY_CAST.pickupMax }), 2);
     if (events.flyTangle) {
       sfx.lost();
       hud.showMessage(t('game.flyTangle'), 2.5);
@@ -1260,7 +1352,7 @@ export class SoloGame {
     } else if (events.lureLost) {
       sfx.lost();
       sfx.eventVoice('lureLost');
-      hud.showMessage(t('game.lureLost'), 3);
+      hud.showMessage(events.flyCast?.flyLost ? t('game.flyLost') : t('game.lureLost'), 3);
     } else if (events.lineBroken) {
       sfx.lost();
       sfx.eventVoice('lineBroken');
@@ -1672,7 +1764,15 @@ export class SoloGame {
       this.updatePovTube(pos, heading, roll, air !== null);
       // Vapa oikeasta kädestä kärkeen; kärki on siiman alkupiste.
       const side = rodSideOffset(heading);
-      const tip = rodTip(pos, heading);
+      // Perhoheitossa vapa heiluu taakse ja eteen (#235).
+      const cast = this.fishing.stage === 'casting' ? this.fishing.flyCast : null;
+      const swing = cast ? flyRodTip(cast.rod) : null;
+      const tip = swing
+        ? {
+            x: pos.x + Math.cos(heading) * swing.forward,
+            y: pos.y + Math.sin(heading) * swing.forward,
+          }
+        : rodTip(pos, heading);
       tip.x += side.x;
       tip.y += side.y;
       this.povRod.update(
@@ -1684,6 +1784,7 @@ export class SoloGame {
         this.fishing,
         this.cranking,
         this.fishingView.shownLineColor,
+        swing?.height,
       );
       this.sky.follow(this.pov.camera.position);
       this.mist.follow(this.pov.camera.position);

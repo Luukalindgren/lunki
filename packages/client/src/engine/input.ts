@@ -1,3 +1,6 @@
+/** Yhden hiiritapahtuman suurin uskottava liike (px); suuremmat ovat lukituksen hyppyjä. */
+const MAX_MOVE = 300;
+
 /** Näppäimet, jotka menevät peliin myös valikon ollessa auki. */
 const MENU_PASS = new Set(['Escape', 'Backspace']);
 
@@ -18,6 +21,14 @@ export class Input {
   /** Rullan kertymä edellisestä askeleesta. */
   wheel = 0;
   private wheelAcc = 0;
+  /**
+   * Hiiren liike (CSS-pikseleinä) edellisestä askeleesta. Toimii myös
+   * lukitulla osoittimella, jolloin sijainti ei muutu (perhoheitto, #235).
+   */
+  mouseDX = 0;
+  mouseDY = 0;
+  private moveAccX = 0;
+  private moveAccY = 0;
   /** Kosketus, joka toimii hiirenä pelikuvan päällä (yksi kerrallaan). */
   private aimPointer: number | null = null;
   /**
@@ -47,6 +58,27 @@ export class Input {
     this.releasedQueue.clear();
     this.wheel = this.wheelAcc;
     this.wheelAcc = 0;
+    this.mouseDX = this.moveAccX;
+    this.mouseDY = this.moveAccY;
+    this.moveAccX = 0;
+    this.moveAccY = 0;
+  }
+
+  /** Lukitsee osoittimen pelikuvaan, jotta liike ei lopu ruudun reunaan. */
+  lockPointer(): void {
+    if (document.pointerLockElement === this.target || !this.target.requestPointerLock) return;
+    // Selain voi kieltäytyä (esim. ilman käyttäjän painallusta): liike toimii silti.
+    Promise.resolve(this.target.requestPointerLock()).catch(() => {});
+  }
+
+  unlockPointer(): void {
+    if (document.pointerLockElement === this.target) document.exitPointerLock();
+  }
+
+  /** Ohjelmallinen hiiren liike (automaattiset testit). */
+  simulateMove(dx: number, dy: number): void {
+    this.moveAccX += dx;
+    this.moveAccY += dy;
   }
 
   /** Onko näppäin (KeyboardEvent.code, esim. "KeyW") tai hiiren nappi ("Mouse0") pohjassa. */
@@ -111,6 +143,20 @@ export class Input {
 
   private onPointerMove = (e: PointerEvent) => {
     if (e.pointerType !== 'mouse' && e.pointerId !== this.aimPointer) return;
+    if (e.pointerType === 'mouse') {
+      // Osoittimen lukitus voi tuottaa yksittäisiä hyppäyksiä (kursori siirretään keskelle).
+      if (Math.abs(e.movementX) < MAX_MOVE && Math.abs(e.movementY) < MAX_MOVE) {
+        this.moveAccX += e.movementX || 0;
+        this.moveAccY += e.movementY || 0;
+      }
+      // Toinen nappi toisen ollessa pohjassa tulee liikkeenä (chorded button).
+      if (e.type === 'pointermove' && e.button >= 0) {
+        const bit = [1, 4, 2, 8, 16][e.button] ?? 0;
+        if (e.buttons & bit) this.press(`Mouse${e.button}`);
+        else this.release(`Mouse${e.button}`);
+      }
+    }
+    if (document.pointerLockElement === this.target) return;
     this.mouseX = e.clientX;
     this.mouseY = e.clientY;
   };
@@ -122,7 +168,8 @@ export class Input {
       this.aimPointer = e.pointerId;
     }
     this.onPointerMove(e);
-    this.target.setPointerCapture?.(e.pointerId);
+    // Lukitulla osoittimella kaappaus ei ole sallittu (eikä tarpeen).
+    if (document.pointerLockElement !== this.target) this.target.setPointerCapture?.(e.pointerId);
     this.press(`Mouse${e.button}`);
   };
 

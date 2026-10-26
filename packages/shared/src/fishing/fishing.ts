@@ -2,7 +2,7 @@ import type { Structure } from '../map/bottom';
 import type { BottomType } from '../map/scatter';
 import { distance, type Vec2 } from '../vec2';
 import type { Rng } from '../rng';
-import type { DifficultyParams } from './difficulty';
+import { DIFFICULTIES, type DifficultyParams } from './difficulty';
 import {
   SPECIES,
   fishHome,
@@ -14,6 +14,7 @@ import {
 } from './fish';
 import {
   DEFAULT_TACKLE,
+  FLY_CAST_FACTOR,
   baitOf,
   biteOffRate,
   breakingStrength,
@@ -22,6 +23,14 @@ import {
   tackleCastFactor,
   type Tackle,
 } from './gear';
+import {
+  FLY_CAST,
+  createFlyCast,
+  stepFlyCast,
+  type FlyCastEvents,
+  type FlyCastInput,
+  type FlyCastState,
+} from './flyCast';
 import { createLine, stepLine, straightenLine, type VerletLine } from './line';
 import {
   chargePower,
@@ -32,8 +41,11 @@ import {
   type LureFlight,
 } from './cast';
 
-/** Kalastuksen vaiheet: vapa valmiina, heiton lataus, viehe ilmassa, viehe vedessä. */
-export type FishingStage = 'idle' | 'charging' | 'flight' | 'water';
+/**
+ * Kalastuksen vaiheet: vapa valmiina, heiton lataus, viehe ilmassa, viehe
+ * vedessä. Perhoheitossa (#235) vapaa heilutetaan vaiheessa `casting`.
+ */
+export type FishingStage = 'idle' | 'charging' | 'casting' | 'flight' | 'water';
 
 export interface FishingInput {
   /** Tähtäyspiste maailmassa (hiiri). */
@@ -60,6 +72,13 @@ export interface FishingInput {
   rodLift?: boolean;
   /** Perho: löysä siima kelataan kelalle (F). */
   reelSlack?: boolean;
+  /**
+   * Perho: aloittaa heiton heiluttamalla (#235), kelalta tai nostamalla
+   * enintään `FLY_CAST.pickupMax` metrin siiman vedestä.
+   */
+  startFlyCast?: boolean;
+  /** Perho: vavan liike ja siimakäsi heiton aikana. */
+  flyCast?: FlyCastInput;
 }
 
 export interface FishingState {
@@ -113,6 +132,10 @@ export interface FishingState {
   onReel: boolean;
   /** Perho: siima luistaa sormien läpi tällä askeleella. */
   fingerSlip: boolean;
+  /** Perhoheiton tila vaiheessa `casting`. */
+  flyCast: FlyCastState | null;
+  /** Perho: tuulisolmu heikentää siimaa, kunnes siima kelataan kotiin. */
+  knot: boolean;
 }
 
 export interface FishingContext {
@@ -122,6 +145,8 @@ export interface FishingContext {
   depthAt(p: Vec2): number;
   /** Tuulen nopeusvektori (m/s): kaartaa heittoa. */
   wind?: Vec2;
+  /** Kaislikko: perhon takaheitto tarttuu kaisloihin. */
+  reedsAt?(p: Vec2): boolean;
   /** Rakenne (kivikko, puu) vieheen kohdalla: viehe voi tarttua pohjaan. */
   structureAt?(p: Vec2): Structure | null;
   /** Pohjan laatu: liejussa jigi tarttuu kevyesti, kivikossa se kolisee. */
@@ -186,6 +211,8 @@ export const createFishing = (tackle: Tackle = DEFAULT_TACKLE): FishingState => 
   slack: 0,
   onReel: false,
   fingerSlip: false,
+  flyCast: null,
+  knot: false,
 });
 
 /** Kalan tunniste kalakannassa: paikka (indeksi) ja sukupolvi. */
@@ -250,6 +277,10 @@ export interface FishingEvents {
   flyTangle?: boolean;
   /** Perho: popperi pulpahti vedettäessä. */
   pop?: boolean;
+  /** Perhoheiton tapahtumat (#235). */
+  flyCast?: FlyCastEvents;
+  /** Perho: vedessä on liikaa siimaa heiton nostoon. */
+  pickupFar?: boolean;
   /** Pelaaja katkaisi siiman maalle juuttuneen vieheen takia. */
   lineCut?: boolean;
   caught?: Catch;
@@ -375,7 +406,8 @@ export function stepFishing(
       s.lineLength = 0;
       s.tension = 0;
       s.lureSpeed = 0;
-      if (!input.castHeld) s.needRelease = false;
+      if (input.startFlyCast && isFly(s.tackle)) beginFlyCast(s, FLY_CAST.startAerial, false);
+      else if (!input.castHeld) s.needRelease = false;
       else if (!s.needRelease) {
         s.stage = 'charging';
         s.charge = 0;
@@ -404,6 +436,10 @@ export function stepFishing(
       events.cast = s.power;
       break;
 
+    case 'casting':
+      stepCasting(s, input, ctx, tip, events, dt);
+      break;
+
     case 'flight': {
       const f = s.flight!;
       const landed = stepFlight(f, dt, ctx.wind);
@@ -430,6 +466,14 @@ export function stepFishing(
       const minLine = hooked ? FIGHT.minLine : 0;
       // Perhoa ei kelata: siimakäsi vetää siimaa renkaan eteen, kunnes löysät kelataan.
       const hand = handLine(s);
+      const free = !hooked && s.struckId === null && s.snag === null && !s.onLand;
+      if (input.startFlyCast && hand && free) {
+        if (s.lineLength > FLY_CAST.pickupMax) events.pickupFar = true;
+        else {
+          beginFlyCast(s, s.lineLength, true);
+          break;
+        }
+      }
       let reeling: boolean;
       if (hand) {
         const strip = Math.max(0, Math.min(input.strip ?? 0, FLY.maxStripSpeed * dt));
@@ -496,6 +540,91 @@ export function stepFishing(
     }
   }
   return events;
+}
+
+/** Siiman kestävyys (kg): tuulisolmu heikentää perhon siimaa. */
+export const lineStrength = (s: FishingState) =>
+  breakingStrength(s.tackle) * (s.knot ? FLY_CAST.knotStrength : 1);
+
+/** Perhoheitto alkaa: siima nousee ilmaan, ja perho on vavan kärjen luona. */
+function beginFlyCast(s: FishingState, aerial: number, inWater: boolean): void {
+  s.stage = 'casting';
+  s.flyCast = createFlyCast(aerial, inWater);
+  s.onReel = false;
+  s.stillTime = 0;
+}
+
+/**
+ * Perhoheiton askel: vapa heiluu, ja kun siima laskeutuu eteen, perho on
+ * vedessä heiton suunnassa. Tuuli siirtää perhoa, leveää silmukkaa enemmän.
+ */
+function stepCasting(
+  s: FishingState,
+  input: FishingInput,
+  ctx: FishingContext,
+  tip: Vec2,
+  events: FishingEvents,
+  dt: number,
+): void {
+  const c = s.flyCast!;
+  s.lure = tip;
+  s.depth = 0;
+  s.tension = 0;
+  s.lureSpeed = 0;
+  if (input.cancel && c.phase !== 'stroke') {
+    // Heitto keskeytetään: siima vedetään renkaan eteen löysäksi.
+    s.slack += c.aerial;
+    resetFishing(s);
+    return;
+  }
+  const fish = ctx.fish;
+  const heading = ctx.heading + c.aim;
+  const behind = (d: number) => ({
+    x: tip.x - Math.cos(heading) * d,
+    y: tip.y - Math.sin(heading) * d,
+  });
+  const wind = ctx.wind ?? { x: 0, y: 0 };
+  const ev = stepFlyCast(
+    c,
+    input.flyCast ?? { rod: 0, grip: true },
+    {
+      assist: (fish?.diff ?? DIFFICULTIES.normal).flyCast,
+      power: tackleCastFactor(s.tackle) / FLY_CAST_FACTOR,
+      blockedBehind: (d) => {
+        const p = behind(d);
+        return !ctx.isWater(p) || ctx.reedsAt?.(p) === true;
+      },
+      // Oikea käsi: tuuli oikealta puhaltaa vasemmalle (x itään, y pohjoiseen).
+      sideWind: -wind.x * Math.sin(ctx.heading) + wind.y * Math.cos(ctx.heading),
+      random: () => fish?.rng.next() ?? 1,
+    },
+    dt,
+  );
+  s.lineLength = c.aerial;
+  // Siimakädestä luistava siima tulee ensin löysästä, sitten kelalta.
+  if (ev.slipped) s.slack = Math.max(0, s.slack - ev.slipped);
+  if (ev.knot) s.knot = true;
+  if (Object.keys(ev).length > 0) events.flyCast = ev;
+  if (ev.flyLost) {
+    events.lureLost = true;
+    resetFishing(s);
+    return;
+  }
+  const landed = ev.landed;
+  if (!landed) return;
+  const angle = clampCastAngle(ctx.heading + landed.aim, ctx.heading);
+  const drift = (landed.wide ? 0.5 : 0.25) / rodPower(s.tackle);
+  s.lure = {
+    x: tip.x + Math.cos(angle) * landed.distance + wind.x * drift,
+    y: tip.y + Math.sin(angle) * landed.distance + wind.y * drift,
+  };
+  s.flyCast = null;
+  s.stage = 'water';
+  s.onLand = !ctx.isWater(s.lure);
+  s.lineLength = Math.min(REEL.spool, distance(tip, s.lure) * (1 + REEL.landingSlack));
+  straightenLine(s.line, tip, s.lure);
+  if (s.onLand) events.stuck = true;
+  else events.splash = { ...s.lure };
 }
 
 /** Perhon siima on siimakädessä (ei vielä kelalla). */
@@ -657,7 +786,7 @@ function pullSnag(
   s.tension = pullTension(s, hold);
   s.snag = (s.snag ?? 0) + dt;
   // Liian kireä jarru katkaisee siiman heti; siimakädellä vedetään tunnustellen.
-  const snap = fish?.diff.lineCanBreak === true && s.tension > breakingStrength(s.tackle);
+  const snap = fish?.diff.lineCanBreak === true && s.tension > lineStrength(s);
   if (!snap && s.snag < SNAG.pullTime) return;
   if (!snap && (s.softSnag || (fish?.rng.next() ?? 0) < SNAG.freeChance)) {
     s.snag = null;
@@ -675,7 +804,7 @@ function pullSnag(
  * reilusti alle siiman kestävyyden.
  */
 const pullTension = (s: FishingState, hold: number) =>
-  Number.isFinite(hold) ? hold : breakingStrength(s.tackle) * 0.7;
+  Number.isFinite(hold) ? hold : lineStrength(s) * 0.7;
 
 /**
  * Viehe takaisin kelalle (esim. kun palvelin hylkää heiton). Jos kala oli
@@ -698,6 +827,8 @@ export function resetFishing(s: FishingState, fish?: { pop: FishPopulation; rng:
   s.hookedId = null;
   s.stillTime = 0;
   s.onReel = false;
+  s.flyCast = null;
+  s.knot = false;
 }
 
 /** Iskun jälkeen: tarttuuko kala (vastaisku = kelaus ajoissa) vai sylkeekö se vieheen. */
@@ -802,7 +933,7 @@ function fight(
   s.depth = f.depth;
   s.lureSpeed = 0;
 
-  if (diff.lineCanBreak && tension > breakingStrength(s.tackle)) {
+  if (diff.lineCanBreak && tension > lineStrength(s)) {
     events.lineBroken = true;
     release(f, rng);
     resetFishing(s);

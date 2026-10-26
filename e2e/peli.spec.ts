@@ -77,7 +77,7 @@ test.describe('yksinpeli', () => {
     errors.check();
   });
 
-  test('perho: kalastustapa taukovalikosta, heitto ja vedot välilyönnillä (#234)', async ({
+  test('perho: kalastustapa taukovalikosta, rytmiheitto ja vedot välilyönnillä (#234, #235)', async ({
     page,
     isMobile,
   }) => {
@@ -94,9 +94,23 @@ test.describe('yksinpeli', () => {
     await expect.poll(status).toContain('Hauki-streameri');
     await expect.poll(status).toContain('Löysää 0,0 m');
 
-    await page.keyboard.down('Space');
-    await page.waitForTimeout(500);
-    await page.keyboard.up('Space');
+    // Rytmiheitto: välilyönti tekee takaheiton, ja kun siima on suorassa ("NYT!"), eteenheiton.
+    // Hitaalla koneella "NYT!" voi kestää vain ruudun tai kaksi, joten eteenheiton
+    // välilyönti painetaan sivulla heti, kun merkki ilmestyy.
+    await page.evaluate(() => {
+      const meter = document.querySelector('.hud-power')!;
+      const observer = new MutationObserver(() => {
+        if (!meter.classList.contains('fly-now')) return;
+        observer.disconnect();
+        window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', key: ' ' }));
+        setTimeout(() => window.dispatchEvent(new KeyboardEvent('keyup', { code: 'Space' })), 50);
+      });
+      observer.observe(meter, { attributes: true, attributeFilter: ['class'] });
+    });
+    await page.keyboard.press('Space');
+    await expect(page.locator('.hud-power')).toBeVisible();
+    await expect(page.locator('.hud-status')).toContainText('Välilyönti, kun siima suoristuu');
+    await expect(page.locator('.hud-message')).toContainText(/Heitto \d+ m/, { timeout: 10_000 });
     await expect.poll(metres(/Siimaa ([\d,]+) m/), { timeout: 10_000 }).toBeGreaterThan(3);
     // Välilyönti pohjassa vetää siimaa renkaan eteen löysäksi.
     await page.keyboard.down('Space');
