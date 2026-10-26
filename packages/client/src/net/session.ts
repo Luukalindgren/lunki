@@ -180,7 +180,7 @@ export interface LobbyView {
   maxPlayers: number;
   settings: RoomSettings;
   amHost: boolean;
-  /** Kaikki muut kalastajat kuin isäntä ovat valmiina. */
+  /** Kaikki muut yhteydessä olevat kalastajat kuin isäntä ovat valmiina. */
   allReady: boolean;
   /** Palvelin tuntee katsojat (vanha palvelin ei). */
   canSpectate: boolean;
@@ -424,7 +424,8 @@ export class NetSession {
         start: s.settings.customStart ? { x: s.settings.startX, y: s.settings.startY } : null,
       },
       amHost: s.hostId === me,
-      allReady: players.every((p) => p.host || p.ready || p.spectator),
+      // Katkennutta ei odoteta, kuten palvelinkaan ei (#275).
+      allReady: players.every((p) => p.host || p.ready || p.spectator || !p.connected),
       canSpectate: this.serverProtocol >= SPECTATE_PROTOCOL,
     };
   }
