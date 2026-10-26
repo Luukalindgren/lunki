@@ -85,6 +85,7 @@ import {
   type LakeMap,
   type RecordEntry,
   type Tackle,
+  type Appearance,
   type Vec2,
   type TubeInput,
   type TubeState,
@@ -197,12 +198,16 @@ export class SoloGame {
   readonly bottom: LakeBottom;
   tube: TubeState;
   private prevTube: TubeState;
-  /** Omat värit valitaan ennen kisaa (yksinpelin asetukset tai aula). */
-  private readonly appearance = loadAppearance();
-  private readonly tubeMesh = createTubeMesh(this.appearance);
+  /**
+   * Omat värit valitaan ennen kisaa (yksinpelin asetukset tai aula).
+   * Moninpelissä ne luetaan palvelimen tilasta kuten muidenkin: selaimen
+   * muisti on yhteinen saman selaimen ikkunoille.
+   */
+  readonly appearance: Appearance;
+  private readonly tubeMesh: THREE.Group;
   /** Oma sijainti kauas loitonnettaessa. */
   private readonly youMarker = new YouMarker();
-  readonly fishing: FishingState = createFishing(loadTackle());
+  readonly fishing: FishingState;
   /** Vaihdettavat varusteet: otetaan käyttöön, kun viehe on kelalla. */
   private pendingTackle: Tackle | null = null;
   private readonly fishingView = new FishingView();
@@ -310,6 +315,9 @@ export class SoloGame {
     readonly map: LakeMap = LUNKINJARVI,
     private readonly net?: NetLink,
   ) {
+    this.appearance = net?.world.ownAppearance ?? loadAppearance();
+    this.tubeMesh = createTubeMesh(this.appearance);
+    this.fishing = createFishing(net?.world.ownTackle ?? loadTackle());
     this.competition = createCompetition(settings);
     this.spectating = net?.world.spectating ?? false;
     this.water = new WaterBody(map);
@@ -563,6 +571,11 @@ export class SoloGame {
 
   get difficulty() {
     return this.settings.difficulty;
+  }
+
+  /** Moninpelissä oma nimi palvelimelta (se voi olla muutettu); yksinpelissä null. */
+  get ownName(): string | null {
+    return this.net?.world.ownName ?? null;
   }
 
   /** Rangaistus omasta osumasta. Moninpelissä palvelin pitää jäähyn ja saaliit. */

@@ -30,7 +30,13 @@ import {
 import type { RaceCatchMark, RacePlayerSpot } from '../game/raceLog';
 import { flightPose } from '../game/spoutView';
 import { t } from '../i18n';
-import { playerAppearance, type NetSession, type PlayerSchema, type StateSchema } from './session';
+import {
+  playerAppearance,
+  playerTackle,
+  type NetSession,
+  type PlayerSchema,
+  type StateSchema,
+} from './session';
 
 /** Muut pelaajat piirretään näin paljon menneisyydestä (s), jotta liike on pehmeää. */
 const INTERPOLATION_DELAY = 0.12;
@@ -250,6 +256,23 @@ export class NetWorld {
 
   get myId(): string {
     return this.session.sessionId;
+  }
+
+  /** Omat värit palvelimen tilasta, samat jotka muut näkevät. */
+  get ownAppearance(): Appearance | null {
+    const me = this.session.room.state.players.get(this.session.sessionId);
+    return me ? playerAppearance(me) : null;
+  }
+
+  /** Aulassa valitut omat varusteet palvelimen tilasta. */
+  get ownTackle(): Tackle | null {
+    const me = this.session.room.state.players.get(this.session.sessionId);
+    return me ? playerTackle(me) : null;
+  }
+
+  /** Oma nimi palvelimen tilasta (palvelin voi muuttaa sitä). */
+  get ownName(): string | null {
+    return this.session.room.state.players.get(this.session.sessionId)?.name ?? null;
   }
 
   /** Oma salaman jäähy: kalastaa ei voi ennen tätä kisa-aikaa (s). */
