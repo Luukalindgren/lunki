@@ -3,7 +3,47 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Lunkinjärvi</title>
+    <title>Lunkinjärvi – kelluntarengaskalastusta selaimessa</title>
+    <meta
+      name="description"
+      content="Ilmainen kalastuspeli selaimessa: kellu kelluntarenkaalla Tammelan Lunkinjärvellä, heitä virvelillä ja kisaa kavereiden kanssa. Ei asennusta eikä kirjautumista."
+    />
+    <!-- Kutsulinkit (?huone=…, ?palvelin=…) ovat hakukoneelle sama etusivu. -->
+    <link rel="canonical" href="https://lunkinjarvi.com/" />
+    <!-- Kutsulinkin esikatselu viestisovelluksissa (WhatsApp, Discord…). -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Lunkinjärvi" />
+    <meta property="og:title" content="Lunkinjärvi – kelluntarengaskalastusta selaimessa" />
+    <meta
+      property="og:description"
+      content="Kellu kelluntarenkaalla Tammelan Lunkinjärvellä, heitä virvelillä ja kisaa kavereiden kanssa. Ilmainen, ei asennusta eikä kirjautumista."
+    />
+    <meta property="og:url" content="https://lunkinjarvi.com/" />
+    <meta property="og:image" content="https://lunkinjarvi.com/esikatselu.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Iltaisa Lunkinjärvi kelluntarenkaasta katsottuna" />
+    <meta property="og:locale" content="fi_FI" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "VideoGame",
+        "name": "Lunkinjärvi",
+        "url": "https://lunkinjarvi.com/",
+        "image": "https://lunkinjarvi.com/esikatselu.png",
+        "description": "Ilmainen kalastuspeli selaimessa: kellu kelluntarenkaalla Tammelan Lunkinjärvellä, heitä virvelillä ja kisaa kavereiden kanssa.",
+        "genre": ["Kalastuspeli", "Moninpeli"],
+        "gamePlatform": "Selain",
+        "applicationCategory": "Game",
+        "operatingSystem": "Any",
+        "inLanguage": ["fi", "en"],
+        "playMode": ["SinglePlayer", "MultiPlayer"],
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" }
+      }
+    </script>
     <!-- Koti-valikosta avattuna peli aukeaa ilman selaimen palkkeja. -->
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
@@ -18,6 +58,18 @@
   </head>
   <body>
     <div id="app"></div>
+    <!-- Hakukoneelle ja ilman JavaScriptiä avaavalle sama esittely tekstinä. -->
+    <noscript>
+      <main style="max-width: 36em; margin: 2em auto; padding: 0 1em; color: #e8e2d0">
+        <h1>Lunkinjärvi</h1>
+        <p>
+          Kalastuspeli selaimessa. Kellu kelluntarenkaalla Tammelan Lunkinjärvellä, heitä virvelillä
+          ahventa, haukea ja kuhaa, ja kisaa kavereiden kanssa jaetulla huonekoodilla. Peli on
+          ilmainen, eikä se vaadi asennusta tai kirjautumista.
+        </p>
+        <p>Peli tarvitsee JavaScriptin ja WebGL:n.</p>
+      </main>
+    </noscript>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
