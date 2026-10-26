@@ -80,6 +80,7 @@ export class FishingView {
       ),
       new THREE.LineBasicMaterial({ color: 0xc3cbd2 }),
     );
+    this.line.visible = false;
     this.group.add(this.line);
 
     this.splash = new THREE.Mesh(
@@ -105,7 +106,10 @@ export class FishingView {
 
   /** Siiman näkyvä väri (katkeamisvaroitus mukaan lukien). */
   get shownLineColor(): number {
-    return (this.line.material as THREE.LineBasicMaterial).color.getHex();
+    // Siiman materiaali päivittyy vasta heitossa: sitä ennen näytetään valittu väri.
+    return this.line.visible
+      ? (this.line.material as THREE.LineBasicMaterial).color.getHex()
+      : this.lineColor;
   }
 
   startSplash(at: Vec2): void {
