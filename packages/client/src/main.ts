@@ -23,6 +23,7 @@ import { SoloGame } from './game/soloGame';
 import { loadTackle, saveTackle } from './game/tackle';
 import { loadAppearance, saveAppearance } from './game/appearance';
 import { Hud } from './ui/hud';
+import { loadHudScale, saveHudScale } from './ui/hudScale';
 import { describeSpot } from './ui/lakeMap';
 import type { WeighCardInfo } from './ui/weighCard';
 import { ChatBox } from './ui/chat';
@@ -56,6 +57,9 @@ const retro = createRenderer(canvas, app);
 const input = new Input(canvas);
 const fps = new FpsMeter(app, import.meta.env.DEV);
 const hud = new Hud(app);
+/** Pelaajan valitsema HUDin koko, tallessa selaimessa. */
+let hudScale = loadHudScale();
+hud.setScale(hudScale);
 hud.setVisible(false);
 const touch = isTouchDevice() ? new TouchControls(hud.root, input) : null;
 hud.setTouch(touch !== null);
@@ -429,6 +433,17 @@ function togglePause() {
       game.spectating ? undefined : { current: game.tackle, onChange: (t) => game?.setTackle(t) },
       { current: sfx.audioSettings, onChange: (a) => sfx.setAudioSettings(a) },
       formatClock(game.clock),
+      {
+        current: hudScale,
+        onChange: (scale) => {
+          hudScale = scale;
+          saveHudScale(scale);
+          hud.setScale(scale);
+          // Esikatselu: HUD näkyy valikon takana heti kokoa vaihdettaessa.
+          hud.setVisible(true);
+        },
+        effective: () => hud.effectiveScale(),
+      },
     );
   } else {
     screens.hide();

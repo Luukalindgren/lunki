@@ -60,6 +60,7 @@ import { SPECIES_PIN_COLORS, formatDate, recordDetails, recordTitle } from './re
 import { drawTubePreview } from './tubePreview';
 import { VOLUME_LEVELS, type AudioSettings, type VolumeLevel } from '../audio/settings';
 import { MUSIC_CHOICES, type MusicChoice } from '../audio/music';
+import { DEFAULT_HUD_SCALE, HUD_SCALES } from './hudScale';
 import {
   LANGS,
   formatWeight,
@@ -603,6 +604,53 @@ export class Screens {
     return box;
   }
 
+  /** HUDin koko portaittaisella liukusäätimellä (HUD_SCALES). */
+  private hudSizeSlider({
+    current: initial,
+    onChange,
+    effective,
+  }: {
+    current: number;
+    onChange: (scale: number) => void;
+    effective: () => number | null;
+  }): HTMLElement {
+    const row = document.createElement('div');
+    row.className = 'choice hud-size';
+    const label = h('label', '', 'choice-label') as HTMLLabelElement;
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.min = '0';
+    slider.max = String(HUD_SCALES.length - 1);
+    slider.step = '1';
+    const index = HUD_SCALES.indexOf(initial);
+    slider.value = String(index >= 0 ? index : HUD_SCALES.indexOf(DEFAULT_HUD_SCALE));
+    slider.id = 'hud-size';
+    label.htmlFor = slider.id;
+    const scale = () => HUD_SCALES[Number(slider.value)] ?? DEFAULT_HUD_SCALE;
+    const relabel = () => {
+      const pct = Math.round(scale() * 100);
+      // Ruudulle mahtuu vain pienempi: kerrotaan, ettei liukusäädin näytä jumittuvan.
+      const fits = effective();
+      const capped = fits !== null && fits < scale() - 0.01;
+      label.textContent = capped
+        ? t('pause.hudSizeCapped', { pct, fits: Math.round(fits * 100) })
+        : t('pause.hudSize', { pct });
+      slider.setAttribute('aria-valuetext', label.textContent);
+    };
+    relabel();
+    slider.addEventListener('input', () => {
+      onChange(scale());
+      relabel();
+    });
+    const small = h('span', 'A', 'hud-size-end small');
+    const big = h('span', 'A', 'hud-size-end');
+    const track = document.createElement('div');
+    track.className = 'hud-size-track';
+    track.append(small, slider, big);
+    row.append(label, track);
+    return row;
+  }
+
   /** Tekijät, kartta-aineistojen lähdemaininnat ja kirjastojen lisenssit. */
   showCredits(onBack: () => void): void {
     const panel = this.panel();
@@ -831,6 +879,12 @@ export class Screens {
     audio?: { current: AudioSettings; onChange: (a: AudioSettings) => void },
     /** Pelikellon aika järvellä, esim. 05:12. */
     clock?: string,
+    hudSize?: {
+      current: number;
+      onChange: (scale: number) => void;
+      /** Toteutunut koko, kun ruudulle ei mahdu valittua (null = ei tiedossa). */
+      effective: () => number | null;
+    },
   ): void {
     const panel = this.panel();
     panel.append(
@@ -839,6 +893,7 @@ export class Screens {
       ...(multiplayer ? [h('p', t('pause.continues'), 'hint')] : []),
       ...(tackle ? [this.tackleEditor(tackle.current, tackle.onChange, 'during')] : []),
       ...(audio ? [this.audioEditor(audio.current, audio.onChange)] : []),
+      ...(hudSize ? [this.hudSizeSlider(hudSize)] : []),
       this.buttons([
         [t('pause.resume'), onResume],
         [multiplayer ? t('pause.leaveRace') : t('pause.endRace'), onQuit],
