@@ -1,5 +1,11 @@
 import * as THREE from 'three';
-import { DEFAULT_APPEARANCE, TUBE_RADIUS, type Appearance } from '@lunki/shared';
+import {
+  DEFAULT_APPEARANCE,
+  EMOTE_DURATION,
+  TUBE_RADIUS,
+  type Appearance,
+  type EmoteId,
+} from '@lunki/shared';
 
 /** Räpylöiden lepokohta renkaan etureunan edessä (paikallinen x). */
 const FIN_X = TUBE_RADIUS + 0.15;
@@ -34,7 +40,7 @@ export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THR
 
   const head = new THREE.Mesh(
     new THREE.SphereGeometry(0.16, 8, 6),
-    new THREE.MeshLambertMaterial({ color: 0xe0cf9c }),
+    new THREE.MeshLambertMaterial({ color: SKIN }),
   );
   head.position.set(0.04, 0.9, 0);
   group.add(head);
@@ -60,6 +66,10 @@ export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THR
     group.add(fin);
   }
 
+  // Kädet käsimerkkejä varten (#228): vasen on vapaa, oikea pitää vapaa.
+  const skin = new THREE.MeshLambertMaterial({ color: SKIN });
+  for (const side of [-1, 1] as const) group.add(createArm(side, appearance.shirt, skin));
+
   // Virveli osoittaa eteen
   const rod = new THREE.Mesh(
     new THREE.BoxGeometry(2.1, 0.08, 0.08),
@@ -71,6 +81,90 @@ export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THR
   group.add(rod);
 
   return group;
+}
+
+const SKIN = 0xe0cf9c;
+/** Olkavarresta kämmeneen (m). Kädet ovat hieman liioitellun isot, jotta eleet erottaa kaukaa. */
+const ARM_LENGTH = 0.5;
+const HAND = 0.22;
+/** Lepoasento: käsivarsi eteen alas (kulma pystystä, rad), oikea vavan kahvalla. */
+const REST = { left: 0.6, right: 0.9 };
+
+function createArm(side: -1 | 1, shirt: number, skin: THREE.Material): THREE.Group {
+  const arm = new THREE.Group();
+  arm.name = side < 0 ? 'arm-left' : 'arm-right';
+  arm.position.set(0.05, 0.72, side * 0.42);
+  arm.rotation.z = side < 0 ? REST.left : REST.right;
+  const sleeve = new THREE.Mesh(
+    new THREE.BoxGeometry(0.13, ARM_LENGTH, 0.13),
+    new THREE.MeshLambertMaterial({ color: shirt }),
+  );
+  sleeve.name = 'shirt';
+  sleeve.position.y = -ARM_LENGTH / 2;
+  const hand = new THREE.Mesh(new THREE.BoxGeometry(HAND, HAND, HAND), skin);
+  hand.position.y = -ARM_LENGTH - HAND / 2;
+  // Peukalo ja keskisormi osoittavat käsivarren "yläpuolelle" (paikallinen +x):
+  // eteen ojennetulla kädellä ylös.
+  const thumb = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.08, 0.08), skin);
+  thumb.name = 'thumb';
+  thumb.position.set(HAND / 2 + 0.08, -ARM_LENGTH - HAND / 2, 0);
+  thumb.visible = false;
+  const finger = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.07, 0.07), skin);
+  finger.name = 'finger';
+  finger.position.set(HAND / 2 + 0.1, -ARM_LENGTH - HAND / 2, 0);
+  finger.visible = false;
+  arm.add(sleeve, hand, thumb, finger);
+  return arm;
+}
+
+/** Käden asento: kulma pystystä eteen (z) ja sivulle (x). */
+interface ArmPose {
+  forward: number;
+  side: number;
+}
+
+/** Eleen asento ajanhetkellä `t` (s): vasen ja oikea käsi (null = lepo). */
+function emotePose(emote: EmoteId, t: number): { left: ArmPose; right: ArmPose | null } {
+  switch (emote) {
+    case 'wave':
+      return { left: { forward: 2.7, side: 0.5 * Math.sin(t * 10) }, right: null };
+    case 'thumbsUp':
+      return { left: { forward: 1.7, side: 0 }, right: null };
+    case 'middleFinger':
+      return { left: { forward: 2.1, side: 0 }, right: null };
+    case 'fist':
+      return { left: { forward: 2.8 + 0.3 * Math.sin(t * 14), side: 0 }, right: null };
+    case 'comeHere':
+      return { left: { forward: 1.5 + 0.45 * Math.sin(t * 8), side: 0 }, right: null };
+    case 'bigFish': {
+      // Kädet sivuille: "näin iso!" ja hieman levenevä.
+      const spread = 1.3 + 0.15 * Math.sin(t * 5);
+      return { left: { forward: 0.4, side: spread }, right: { forward: 0.4, side: spread } };
+    }
+  }
+}
+
+/**
+ * Käsimerkin animaatio (#228): `emote` ja kulunut aika (s), null = kädet
+ * levossa. Ele alkaa ja päättyy pehmeästi.
+ */
+export function animateEmote(group: THREE.Group, emote: EmoteId | null, t: number): void {
+  const blend = emote ? Math.max(0, Math.min(1, t / 0.25, (EMOTE_DURATION - t) / 0.25)) : 0;
+  const pose = emote ? emotePose(emote, t) : null;
+  for (const child of group.children) {
+    const left = child.name === 'arm-left';
+    if (!left && child.name !== 'arm-right') continue;
+    const side = left ? -1 : 1;
+    const rest = left ? REST.left : REST.right;
+    const p = pose ? (left ? pose.left : pose.right) : null;
+    child.rotation.z = rest + ((p?.forward ?? rest) - rest) * blend;
+    // Sivulle nosto: vasen käsi -z-suuntaan, oikea +z.
+    child.rotation.x = -side * (p?.side ?? 0) * blend;
+    for (const part of child.children) {
+      if (part.name === 'thumb') part.visible = left && blend > 0.5 && emote === 'thumbsUp';
+      if (part.name === 'finger') part.visible = left && blend > 0.5 && emote === 'middleFinger';
+    }
+  }
 }
 
 /** Heiluttaa räpylöitä potkurytmin mukaan. */
@@ -86,7 +180,7 @@ export function animateFins(group: THREE.Group, kickPhase: number): void {
 
 /** Vaihtaa renkaan, räpylöiden ja paidan värit (räpylät jakavat materiaalin). */
 export function applyAppearance(group: THREE.Group, a: Appearance): void {
-  for (const child of group.children) {
+  group.traverse((child) => {
     const color =
       child.name === 'tube'
         ? a.tube
@@ -97,5 +191,5 @@ export function applyAppearance(group: THREE.Group, a: Appearance): void {
             : null;
     if (color !== null)
       ((child as THREE.Mesh).material as THREE.MeshLambertMaterial).color.setHex(color);
-  }
+  });
 }

@@ -376,7 +376,7 @@ export const en: Record<keyof typeof fi, string> = {
   'help.touch4': 'Finger on the lake or REEL = reel in',
   'help.touch5': 'SPD reel speed · DRG−/DRG+ drag',
   'help.touch6': 'LURE change · SONAR fish finder · DEPTH lure depth',
-  'help.touch7': 'CAM angler’s view',
+  'help.touch7': 'CAM angler’s view · EMO hand signs',
   'help.thunder': 'In thunder, reel your lure in and stay close to the shore',
   'help.touchLand': 'Lure on land or a pier: CUT cuts the line',
   'help.touchTangle': 'When tangled, reel together · CUT cuts the line',
@@ -387,7 +387,7 @@ export const en: Record<keyof typeof fi, string> = {
   'help.keys3': 'Hold the mouse or space = reel in',
   'help.keys4': '1/2/3 reel speed · Q/E loosen/tighten the drag',
   'help.keys5': 'R change lure · K sonar · L lure depth',
-  'help.keys6': 'V angler’s view',
+  'help.keys6': 'V angler’s view · G hand signs',
   'help.keysLand': 'Lure on land or a pier: C cuts the line',
   'help.keysTangle': 'When tangled, reel together · C cuts the line',
   'sonar.depth': '{depth} m',
@@ -424,7 +424,17 @@ export const en: Record<keyof typeof fi, string> = {
   'touch.cancelTitle': 'Cancel the cast',
   'touch.reel': 'REEL',
   'touch.reelTitle': 'Reel in',
+  'touch.emote': 'EMO',
+  'touch.emoteTitle': 'Hand signs',
 
+  // --- Hand signs ---
+  'emote.wave': 'Wave',
+  'emote.thumbsUp': 'Thumbs up',
+  'emote.middleFinger': 'Middle finger',
+  'emote.fist': 'Shake fist',
+  'emote.comeHere': 'Over here!',
+  'emote.bigFish': 'This big!',
+  'emote.tooMany': 'Too many hand signs – wait a moment.',
   // --- Chat ---
   'chat.oldServer':
     'The server is an older version: chat works once the server has been restarted.',

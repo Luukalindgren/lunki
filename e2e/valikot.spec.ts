@@ -141,3 +141,38 @@ test('ennätyslistan saaliskortti avautuu ja sulkeutuu (#238)', async ({
   await expect(title(page)).toHaveText('Lunkinjärven ennätykset');
   errors.check();
 });
+
+test('käsimerkit: G avaa valikon, numero tekee eleen ja Esc sulkee tauotta (#228)', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, 'puhelimissa ELE-nappi, ks. kosketus.spec');
+  const errors = watchErrors(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Yksinpeli' }).click();
+  await page.getByRole('button', { name: 'Aloita kisa' }).click();
+  await expect(page.locator('.hud-timer')).toBeVisible();
+  const menu = page.locator('.emote-menu');
+  await page.keyboard.press('KeyG');
+  await expect(menu).toBeVisible();
+  await expect(menu.locator('.emote-option')).toHaveCount(6);
+  // Esc sulkee valikon eikä avaa taukoa.
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeHidden();
+  await expect(page.locator('.screen')).toBeHidden();
+  // Nuolet ja Enter valitsevat; oma kupla näkyy ylhäältä katsottuna.
+  await page.keyboard.press('KeyG');
+  await expect(menu).toBeVisible();
+  await page.keyboard.press('ArrowRight');
+  await expect(menu.locator('.emote-caption')).toHaveText('Peukku');
+  await page.keyboard.press('Enter');
+  await expect(menu).toBeHidden();
+  await expect(page.locator('.speech-bubble')).toBeVisible();
+  await expect(page.locator('.speech-bubble canvas.emote-icon')).toHaveCount(1);
+  // Hiirellä: klikkaus valitsee.
+  await page.keyboard.press('KeyG');
+  await expect(menu).toBeVisible();
+  await menu.locator('.emote-option').nth(5).click();
+  await expect(menu).toBeHidden();
+  errors.check();
+});

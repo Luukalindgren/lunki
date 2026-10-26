@@ -66,6 +66,12 @@ test.describe('puhelin', () => {
     await expect.poll(() => canvasColors(page)).toBeGreaterThan(8);
     await info.attach('pysty-pov', { body: await page.screenshot(), contentType: 'image/png' });
 
+    // ELE-nappi avaa käsimerkit; napautus tekee eleen (#228).
+    await page.getByRole('button', { name: 'ELE' }).tap();
+    await expect(page.locator('.emote-menu')).toBeVisible();
+    await page.locator('.emote-option').first().tap();
+    await expect(page.locator('.emote-menu')).toBeHidden();
+
     // Ääni käynnistyy pelkistä napautuksista.
     await expect.poll(() => audioStates(page)).toContain('running');
 
