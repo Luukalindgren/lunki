@@ -1036,6 +1036,13 @@ body {
   color: #f6d04d;
 }
 
+/* Kapealla ruudulla tulosrivi rivittyy eikä leikkaudu (#278). */
+@media (max-width: 520px) {
+  .catch-list.results li {
+    white-space: pre-wrap;
+  }
+}
+
 .screen-panel .server-status.ok {
   color: #8fd16a;
 }

@@ -1033,6 +1033,8 @@ export class Screens {
     );
     if (card) panel.append(this.weighCard(card));
     if (chat) chat(panel);
+    // Vihje ennen nappeja: viimeisenä olevat napit pysyvät näkyvissä (#278).
+    if (!amHost) panel.append(h('p', t('results.hostRestarts'), 'hint'));
     panel.append(
       this.buttons(
         amHost
@@ -1043,7 +1045,6 @@ export class Screens {
           : [[t('common.leave'), onLeave]],
       ),
     );
-    if (!amHost) panel.append(h('p', t('results.hostRestarts'), 'hint'));
     this.show(panel, { cleanup: map?.dispose });
   }
 
