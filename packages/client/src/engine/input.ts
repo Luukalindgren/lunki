@@ -1,3 +1,5 @@
+import { WheelZoom } from './wheelZoom';
+
 /** Yhden hiiritapahtuman suurin uskottava liike (px); suuremmat ovat lukituksen hyppyjä. */
 const MAX_MOVE = 300;
 
@@ -21,6 +23,7 @@ export class Input {
   /** Rullan kertymä edellisestä askeleesta. */
   wheel = 0;
   private wheelAcc = 0;
+  private readonly wheelZoom = new WheelZoom();
   /**
    * Hiiren liike (CSS-pikseleinä) edellisestä askeleesta. Toimii myös
    * lukitulla osoittimella, jolloin sijainti ei muutu (perhoheitto, #235).
@@ -186,6 +189,6 @@ export class Input {
 
   private onWheel = (e: WheelEvent) => {
     e.preventDefault();
-    this.wheelAcc += Math.sign(e.deltaY);
+    this.wheelAcc += this.wheelZoom.feed(e, e.timeStamp);
   };
 }

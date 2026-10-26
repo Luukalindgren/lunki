@@ -119,10 +119,11 @@ test.describe('puhelin', () => {
     await expect(page.getByRole('button', { name: 'SIIMA' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'VETO' })).toBeVisible();
 
-    // Pyyhkäisy alas järvellä: takaheitto. Sivukuva näyttää siiman heiton ajan.
+    // Pyyhkäisy alas järvellä: takaheitto. Sivukuva näyttää siiman heiton ajan. Pystypuhelimessa
+    // ruudun keskilinjan alapäässä on KAM-nappi: siihen osuva pyyhkäisy vaihtaisi POV-näkymään.
     const { width, height } = page.viewportSize()!;
-    const x = width / 2;
-    const y = height * 0.35;
+    const x = width * 0.35;
+    const y = height * 0.28;
     await drag(page, browserName, { x, y }, { x, y: y + height * 0.3 }, 150);
     await expect(page.locator('.hud-fly-panel')).toBeVisible();
     await expect(page.locator('.hud-status')).toContainText('Alas = takaheitto');
