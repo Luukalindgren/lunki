@@ -304,11 +304,14 @@ export class NetSession {
     saveResume(room.reconnectionToken);
     room.onDrop(() => this.onConnection?.(false));
     room.onReconnect(() => {
+      if (this.leaving) return;
       saveResume(room.reconnectionToken);
       this.onConnection?.(true);
     });
     room.onStateChange(() => {
-      if (!this.ready) return;
+      // Lähtiessä palvelimelta voi vielä tulla tiloja ennen kuin huone sulkeutuu:
+      // ne eivät saa enää ohjata peliä.
+      if (!this.ready || this.leaving) return;
       this.onState?.(this.room.state);
       this.onChange?.(this.view());
     });

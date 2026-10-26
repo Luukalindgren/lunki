@@ -346,6 +346,8 @@ function enterLobby(s: NetSession) {
   };
   let wasReady = false;
   s.onChange = (v) => {
+    // Huoneesta jo lähdetty: myöhästynyt tila ei saa aloittaa kisaa uudelleen.
+    if (session !== s) return;
     // Kisa alkaa, kun tila aloituspaikkoineen on saapunut.
     if (v.phase !== 'lobby' && !game) {
       picking = false;
@@ -382,10 +384,12 @@ function enterLobby(s: NetSession) {
     render();
   };
   s.onError = (m) => {
+    if (session !== s) return;
     notice = m;
     render();
   };
   s.onDisconnect = () => {
+    if (session !== s) return;
     session = null;
     chat?.dispose();
     chat = null;
@@ -393,8 +397,9 @@ function enterLobby(s: NetSession) {
     game = null;
     showMultiplayer('', t('mp.disconnected'));
   };
-  s.onConnection = (connected) =>
-    hud.showMessage(connected ? t('mp.reconnected') : t('mp.reconnecting'), 3);
+  s.onConnection = (connected) => {
+    if (session === s) hud.showMessage(connected ? t('mp.reconnected') : t('mp.reconnecting'), 3);
+  };
   // Uudelleenyhdistäessä kisa voi olla jo käynnissä.
   if (s.ready) s.onChange(s.view());
   else render();
