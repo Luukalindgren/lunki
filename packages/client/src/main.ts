@@ -398,7 +398,8 @@ function enterLobby(s: NetSession) {
     chat = null;
     game?.dispose();
     game = null;
-    showMultiplayer('', t('mp.disconnected'));
+    // Kisa voi jatkua ja paikka odottaa: koodi valmiiksi kenttään paluuta varten (#299).
+    showMultiplayer(loadLastRoom() ?? '', t('mp.disconnected'));
   };
   s.onConnection = (connected) => {
     if (session !== s) return;
