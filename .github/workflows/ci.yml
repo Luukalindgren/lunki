@@ -33,8 +33,25 @@ jobs:
 
   selaimet:
     # Peli Chromiumilla, Firefoxilla ja WebKitillä (Safari) sekä puhelinemuloinneilla (e2e/).
+    # Jokainen projekti omana rinnakkaisena ajonaan; moninpelitesti ajetaan
+    # chromium-projektissa ja käynnistää itse myös Firefoxin ja iPhone-WebKitin.
+    name: selaimet (${{ matrix.projekti }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - projekti: chromium
+            selaimet: chromium firefox webkit
+          - projekti: firefox
+            selaimet: firefox
+          - projekti: webkit
+            selaimet: webkit
+          - projekti: iphone
+            selaimet: webkit
+          - projekti: android
+            selaimet: chromium
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -43,18 +60,51 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Playwrightin versio
+        id: pw
+        run: |
+          echo "versio=$(pnpm exec playwright --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
+          echo "kk=$(date +%Y-%m)" >> "$GITHUB_OUTPUT"
+      - name: Selaimet välimuistista
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.versio }}-${{ matrix.projekti }}
+      # Selainten järjestelmäpaketit (fontit, GStreamer ym.) tulevat Ubuntun
+      # peilistä, joka on välillä tukossa (20 min). Paketit talteen kuukaudeksi.
+      - name: Järjestelmäpaketit välimuistista
+        id: deb
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/selainpaketit
+          key: selainpaketit-${{ runner.os }}-${{ matrix.projekti }}-${{ steps.pw.outputs.kk }}
+          restore-keys: selainpaketit-${{ runner.os }}-${{ matrix.projekti }}-
+      - name: Selaimet
+        run: |
+          shopt -s nullglob
+          debs=(~/.cache/selainpaketit/*.deb)
+          if (( ${#debs[@]} )); then sudo cp "${debs[@]}" /var/cache/apt/archives/; fi
+          pnpm exec playwright install --with-deps ${{ matrix.selaimet }}
+          mkdir -p ~/.cache/selainpaketit
+          debs=(/var/cache/apt/archives/*.deb)
+          if (( ${#debs[@]} )); then cp "${debs[@]}" ~/.cache/selainpaketit/; fi
+          echo "Paketteja talteen: ${#debs[@]}"
+      - name: Järjestelmäpaketit talteen
+        if: steps.deb.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/selainpaketit
+          key: ${{ steps.deb.outputs.cache-primary-key }}
       - name: Build
         run: pnpm --filter @lunki/client build
-      - name: Selaimet
-        run: pnpm exec playwright install --with-deps chromium firefox webkit
       - name: Selaintestit
         # Virtuaalinäyttö Firefoxin WebGL:ää varten (ks. playwright.config.ts).
-        run: xvfb-run -a pnpm e2e
+        run: xvfb-run -a pnpm e2e --project=${{ matrix.projekti }}
       - name: Raportti
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: selaintestit
+          name: selaintestit-${{ matrix.projekti }}
           path: playwright-report/
           retention-days: 14
 
