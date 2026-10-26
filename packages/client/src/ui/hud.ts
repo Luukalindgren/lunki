@@ -35,6 +35,9 @@ export class Hud {
   private readonly catches: HTMLDivElement;
   private readonly weigh: HTMLDivElement;
   private readonly countdown: HTMLDivElement;
+  /** Ruudun keskellä allekkain: lähtölaskenta, punnitus ja ilmoitus. */
+  private readonly notices: HTMLDivElement;
+  private readonly gauges: HTMLDivElement;
   private readonly flashEl: HTMLDivElement;
   private flashLevel = 0;
   readonly sonar: SonarDisplay;
@@ -48,6 +51,8 @@ export class Hud {
   private readonly probeM: HTMLDivElement;
   private messageTimer = 0;
   private weighTimer = 0;
+  /** Punnituskortti on saaliista: uuden heiton aloitus piilottaa sen. */
+  private weighCatch = false;
   private multiplayer = false;
   private spectator = false;
   /** Kosketusohjaus: ohjeessa napit näppäinten sijaan. */
@@ -88,7 +93,7 @@ export class Hud {
     this.weather = el('div', 'hud-weather hud-panel');
     this.catches = el('div', 'hud-catches hud-panel');
     this.catches.hidden = true;
-    this.weigh = el('div', 'hud-weigh hud-panel');
+    this.weigh = el('div', 'hud-weigh');
     this.weigh.hidden = true;
     this.countdown = el('div', 'hud-countdown');
     this.countdown.hidden = true;
@@ -97,27 +102,23 @@ export class Hud {
     this.topLeft = el('div', 'hud-top-left');
     this.topLeft.append(this.timer, this.catches);
     this.topCenter = el('div', 'hud-top-center');
-    this.root.append(
-      this.status,
-      this.power,
-      this.tension,
-      this.topLeft,
-      this.topCenter,
-      this.countdown,
-    );
+    this.root.append(this.status, this.power, this.tension, this.topLeft, this.topCenter);
     this.compass = new CompassDisplay(this.topCenter);
     this.topCenter.append(this.weather, this.stamina);
     // Luotaimet oikeassa alakulmassa ohjeen yläpuolella. Kosketusnäytöllä
     // alakulmassa ovat ohjaimet, joten ne nousevat kireysmittarin alle.
     const bottomRight = el('div', 'hud-bottom-right');
-    const gauges = el('div', 'hud-gauges');
-    bottomRight.append(gauges, this.help);
+    this.gauges = el('div', 'hud-gauges');
+    bottomRight.append(this.gauges, this.help);
     this.root.appendChild(bottomRight);
-    this.sonar = new SonarDisplay(gauges);
-    this.lureSonar = new LureSonarDisplay(gauges);
-    this.flyPanel = new FlyCastPanel(gauges);
-    // Ilmoitus ja punnitus kaiken muun päällä.
-    this.root.append(this.message, this.weigh);
+    this.sonar = new SonarDisplay(this.gauges);
+    this.lureSonar = new LureSonarDisplay(this.gauges);
+    this.flyPanel = new FlyCastPanel(this.gauges);
+    // Lähtölaskenta, punnitus ja ilmoitus allekkain reunojen paneelien välissä,
+    // jotta ne eivät mene toistensa eivätkä muiden paneelien päälle.
+    this.notices = el('div', 'hud-notices');
+    this.notices.append(this.countdown, this.weigh, this.message);
+    this.root.appendChild(this.notices);
     this.probeU = el('div', 'hud-probe');
     this.probeU.style.width = 'calc(var(--u) * 100)';
     this.probeM = el('div', 'hud-probe');
@@ -125,6 +126,38 @@ export class Hud {
     this.root.append(this.probeU, this.probeM);
     this.relabel();
     onLangChange(() => this.relabel());
+    this.updateHelpOpen();
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver(() => this.measureEdges());
+      for (const e of [this.root, this.topLeft, this.status, this.gauges, this.flyPanel.root]) {
+        observer.observe(e);
+      }
+    }
+  }
+
+  /**
+   * Reunojen paneelien mitat tyylitiedostolle, joka rajaa ilmoitusalueen niiden
+   * väliin: leveys riippuu kielestä, saaliista ja siitä, mitkä luotaimet näkyvät.
+   */
+  private measureEdges(): void {
+    const px = (v: number) => `${Math.ceil(v)}px`;
+    const s = this.root.style;
+    // Työpöydällä tilapaneeli on omana paneelinaan vasemmassa alakulmassa.
+    const status = this.touch ? 0 : this.status.offsetWidth;
+    const left = Math.max(this.topLeft.offsetWidth, status);
+    s.setProperty('--left-w', px(left));
+    s.setProperty('--left-h', px(this.topLeft.offsetHeight));
+    const gauges = this.gauges.offsetWidth;
+    s.setProperty('--right-w', px(gauges));
+    s.setProperty('--right-h', px(this.gauges.offsetHeight));
+    // Työpöydällä vieheluotain ja perhoheiton sivukuva luotaimen rinnalla vievät
+    // leveyden: kapean sarakkeen sijaan ilmoitukset luotainten yläpuolelle.
+    const m = this.probeM.offsetWidth / 100;
+    const free = this.root.clientWidth - left - gauges - m * 16;
+    this.root.classList.toggle('wide-gauges', !this.touch && free < this.root.clientWidth * 0.3);
+    const fly = this.flyPanel.root.offsetHeight;
+    s.setProperty('--fly-h', fly > 0 ? `calc(${px(fly)} + var(--m) * 4)` : '0px');
+    s.setProperty('--fly-on', fly > 0 ? '1' : '0');
   }
 
   /** Kiinteät tekstit pelaajan kielellä (kieli voi vaihtua päävalikossa). */
@@ -163,6 +196,8 @@ export class Hud {
   setPower(power: number | null): void {
     this.power.hidden = power === null;
     this.power.classList.remove('fly-now');
+    // Uusi heitto: saaliskortti pois, ettei se peitä rengasta ja heittoa.
+    if (power !== null && this.weighCatch) this.hideWeighIn();
     if (power !== null) this.powerFill.style.height = `${Math.round(power * 100)}%`;
   }
 
@@ -185,6 +220,8 @@ export class Hud {
   /** Kuntopalkki: piilossa täysissä voimissa, väri vaihtuu väsyessä. */
   setStamina(stamina: number, tired: number): void {
     this.stamina.hidden = stamina >= 1;
+    // Työpöydällä kuntopalkki on sään alla: ilmoitukset sen alapuolelle.
+    this.root.classList.toggle('tired', !this.stamina.hidden);
     if (this.stamina.hidden) return;
     // Portaittain kuten muukin HUD.
     this.staminaFill.style.width = `${Math.round(stamina * 20) * 5}%`;
@@ -209,7 +246,10 @@ export class Hud {
     if (this.catches.textContent !== text) this.catches.textContent = text;
   }
 
-  /** Punnitus: iso ilmoitus saaliista, kalan kuva painoon suhteutettuna. */
+  /**
+   * Punnitus: iso ilmoitus saaliista, kalan kuva painoon suhteutettuna. Saaliin
+   * kortti katoaa viimeistään, kun pelaaja alkaa heittää uudelleen.
+   */
   showWeighIn(
     title: string,
     detail: string,
@@ -218,12 +258,20 @@ export class Hud {
   ): void {
     this.weigh.replaceChildren();
     if (fish) this.weigh.appendChild(fishImage(fish.species, fish.weight, 'calc(var(--u) * 2)'));
-    this.weigh.appendChild(document.createTextNode(title));
+    const heading = document.createElement('span');
+    heading.textContent = title;
     const small = document.createElement('small');
     small.textContent = detail;
-    this.weigh.appendChild(small);
+    this.weigh.append(heading, small);
     this.weigh.hidden = false;
     this.weighTimer = seconds;
+    this.weighCatch = fish !== undefined;
+  }
+
+  private hideWeighIn(): void {
+    this.weigh.hidden = true;
+    this.weighTimer = 0;
+    this.weighCatch = false;
   }
 
   /** Iso lähtölaskenta ruudun keskellä; null piilottaa. */
@@ -247,16 +295,20 @@ export class Hud {
     if (touch) this.root.insertBefore(this.stamina, this.topLeft);
     else this.topCenter.appendChild(this.stamina);
     // Perhoheiton sivukuva: kosketuksella renkaan alle, jotta se ei peitä siimaa.
-    if (touch) this.root.insertBefore(this.flyPanel.root, this.message);
+    if (touch) this.root.insertBefore(this.flyPanel.root, this.notices);
     else this.lureSonar.root.after(this.flyPanel.root);
     this.help.hidden = touch;
     this.setHelpMode(this.multiplayer, this.spectator);
+    this.updateHelpOpen();
+    this.measureEdges();
   }
 
   /** Ohjeen rivit: lyhyet, jotta paneeli ei peitä tilapaneelia. Katsojalle omat. */
   setHelpMode(multiplayer: boolean, spectator = false): void {
     this.multiplayer = multiplayer;
     this.spectator = spectator;
+    // Moninpelissä chat ja (kosketuksella) VIESTI-nappi vievät tilaa.
+    this.root.classList.toggle('mp', multiplayer);
     const lines: MsgKey[] = spectator
       ? this.touch
         ? ['help.spectatorTouch1', 'help.spectatorTouch2', 'help.touchTools']
@@ -303,6 +355,12 @@ export class Hud {
 
   toggleHelp(): void {
     this.help.hidden = !this.help.hidden;
+    this.updateHelpOpen();
+  }
+
+  /** Työpöydän ohje alhaalla: ilmoitukset sen yläpuolelle. */
+  private updateHelpOpen(): void {
+    this.root.classList.toggle('help-open', !this.help.hidden && !this.touch);
   }
 
   showMessage(text: string, seconds = 2.5): void {
@@ -326,7 +384,7 @@ export class Hud {
     if (this.flashEl.style.opacity !== opacity) this.flashEl.style.opacity = opacity;
     if (this.weighTimer > 0) {
       this.weighTimer -= dt;
-      if (this.weighTimer <= 0) this.weigh.hidden = true;
+      if (this.weighTimer <= 0) this.hideWeighIn();
     }
     if (this.messageTimer > 0) {
       this.messageTimer -= dt;
