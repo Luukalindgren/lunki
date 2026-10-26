@@ -98,6 +98,7 @@ let soloRecordNotes: string[] = [];
 function startGame(s: CompetitionSettings, seed = devSeed) {
   if (!session) settings = s;
   game?.dispose();
+  input.dropPresses();
   const net = session
     ? { world: new NetWorld(session, new WaterBody(LUNKINJARVI)), overlay: app!, canvas }
     : undefined;
