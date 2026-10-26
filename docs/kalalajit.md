@@ -116,3 +116,60 @@ siima ilman perukkaa. Parametrit: `packages/shared/src/fishing/gear.ts`.
 
 Teräsperukka estää hauen hampaita katkaisemasta siimaa väsytyksessä (normaalilla ja
 realistisella noin 3 % sekunnissa), mutta muut lajit tarttuvat siihen hieman harvemmin.
+
+## Perhokalastus (#234)
+
+Kalastajalla on mukana sekä virveli- että perhovälineet. Kalastustapa valitaan aulassa tai
+taukovalikossa (Kalastustapa: Virveli / Perho), ja sitä voi vaihtaa kesken kisan, kun viehe on
+kelalla. Vavat valitaan ennen kisaa, perho kisan aikana (R vaihtaa perhoa). Parametrit:
+`FLY_RODS`, `FLY_LINES`, `FLY_LEADERS` ja `FLIES` tiedostossa `gear.ts`, uitto `FLY` tiedostossa
+`fishing.ts`.
+
+| Perhovapa | Heitto | Peruke kestää | Väsytys | Kääntää perhon |
+| --------- | ------ | ------------- | ------- | -------------- |
+| #6        | +5 %   | +25 %         | −25 %   | enintään 10 cm |
+| #8        | perus  | +10 %         | perus   | enintään 20 cm |
+| #10       | −5 %   | perus         | +30 %   | enintään 30 cm |
+
+Liian iso perho kevyelle vavalle lyhentää heittoa 20 %. Perhoheitto on renkaasta 12–24 m, eli
+aina virveliheittoa lyhyempi (palvelimen heittotarkistus pätee sellaisenaan).
+
+| Perhosiima   | Vajoaminen | Syvin perho                    |
+| ------------ | ---------- | ------------------------------ |
+| Kelluva      | –          | perukkeen mitta 1,2 m          |
+| Intermediate | 5 cm/s     | pohjaan asti                   |
+| Uppoava      | 12 cm/s    | pohjaan asti, myös vedettäessä |
+
+| Peruke      | Kestävyys | Hauen hampaat     | Muut lajit       |
+| ----------- | --------- | ----------------- | ---------------- |
+| Tavallinen  | 7 kg      | katkeaa           | normaali         |
+| Fluorohiili | 9 kg      | katkeaa harvemmin | +8 % (näkymätön) |
+| Teräs       | 11 kg     | kestää            | arkailevat −15 % |
+
+| Perho           | Koko   | Uinti                                 | Parhaat lajit                     |
+| --------------- | ------ | ------------------------------------- | --------------------------------- |
+| Hauki-streameri | 20 cm  | leijuu, vajoaa hitaasti               | hauki, jättikalat (iskut tauolla) |
+| Pintapopperi    | 8 cm   | pysyy pinnassa, pulpahtaa vedettäessä | hauki, ahven                      |
+| Ahven-streameri | 6 cm   | vajoaa hitaasti                       | ahven, taimen, kuha               |
+| Nymfi           | 1,5 cm | vajoaa pohjan tuntumaan               | särki, taimen                     |
+
+Aloittelijan perhovälineet: #8, kelluva siima, teräsperuke ja hauki-streameri.
+
+**Uitto.** Perhoa ei kelata, vaan siimaa vedetään siimakädellä. Hiiren vasen pohjassa pitää
+siimaa, ja hiiren veto alas vetää siimaa liikkeen verran (koko ruudun liike noin 2 m, enintään
+2 m/s). Välilyönti ja kosketusnäytön KELAA vetävät tasaisesti 0,6 m/s. Vedetty siima jää
+löysäksi renkaan eteen veteen ja näkyy POV:ssa kiekuroina. Vetojen välillä perho pysähtyy ja
+leijuu, vajoaa tai nousee pintaan perhon ja siiman mukaan. Hauki ja suurkalat iskevät
+herkimmin 0,2–4 s tauolla vedon jälkeen.
+
+**Vastaisku ja väsytys.** Vastaisku tehdään siimakäden vedolla heti tärpin jälkeen. Vavan
+nosto (nopea hiiren liike ylös) pistää realistisella ja normaalilla haukeen huonommin (kova
+suu). Väsytyksessä puristettu siima ei anna periksi, joten iso kala voi katkaista perukkeen.
+Kun hiiren päästää, kala vie siimaa sormien läpi (0,5 kg kitka), ensin löysästä. F kelaa
+löysät kelalle, minkä jälkeen väsytys toimii kelan jarrulla kuten virvelillä.
+
+**Heitto.** Heitto käyttää toistaiseksi virvelin voimamittaria (perhoheiton oma mekaniikka
+tulee #235:ssä). Heitto ampuu löysän siiman. Heiton pituuden yli jäävä löysä jää renkaan
+eteen, ja yli 5 m ylimääräinen löysä voi sotkeutua (ei helpolla), jolloin heitto jää lyhyeksi.
+
+Ennätyksiin ja yksinpelin ennätyslistaan tallentuu kalastustapa ja perhovälineet.

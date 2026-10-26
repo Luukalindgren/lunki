@@ -4,7 +4,7 @@ import { Rng } from '../rng';
 import { distance, type Vec2 } from '../vec2';
 import type { WeatherNow } from '../weather/weather';
 import type { DifficultyParams } from './difficulty';
-import { LURES, tackleAppeal, type Tackle } from './gear';
+import { baitOf, tackleAppeal, type Tackle } from './gear';
 
 export type SpeciesId = 'perch' | 'pike' | 'roach' | 'zander' | 'trout';
 
@@ -494,13 +494,8 @@ export function wariness(size: SizeClass, activity: number): number {
   return size >= 3 ? Math.min(1, w * Math.max(1, activity) ** 1.5) : w;
 }
 
-/** Suurkalat pitävät isosta ja hitaasta vieheestä. */
-const BIG_FISH_LURE: Record<Tackle['lure'], number> = {
-  wobbler: 1.3,
-  spoon: 1.2,
-  jig: 0.8,
-  spinner: 0.6,
-};
+/** Vedon jälkeinen tauko (s), jonka aikana hauki ja suurkala iskevät herkimmin. */
+const PAUSE_WINDOW = { from: 0.2, to: 4 } as const;
 
 /**
  * Kalan kotipaikka: ensimmäinen sukupolvi parvessaan, myöhemmät saman lajin
@@ -553,6 +548,8 @@ export interface LureInfo {
   fouled?: boolean;
   /** Viehe on tarttunut pohjaan: suurkala säikähtää. */
   snagged?: boolean;
+  /** Kuinka kauan viehe on ollut paikallaan (s): perhon tauko houkuttaa haukea. */
+  pause?: number;
 }
 
 export interface FishEvents {
@@ -771,14 +768,22 @@ export function lureAppeal(fish: Fish, lure: LureInfo): number {
   const sp = SPECIES[fish.species];
   const dv = Math.abs(lure.speed - sp.preferredSpeed) / sp.speedTolerance;
   // Pysähtynytkin viehe kiinnostaa vähän (vajoava viehe; jigi eniten).
-  const still = lure.tackle ? LURES[lure.tackle.lure].stillAppeal : 0.25;
+  const bait = lure.tackle ? baitOf(lure.tackle) : null;
+  const big = !!bait && sizeClass(fish.species, fish.weight) >= 3;
+  // Hauki ja suurkala iskevät usein juuri vedon jälkeisellä tauolla (perho).
+  const pause =
+    bait &&
+    (fish.species === 'pike' || big) &&
+    lure.pause !== undefined &&
+    lure.pause >= PAUSE_WINDOW.from &&
+    lure.pause <= PAUSE_WINDOW.to;
+  const still = bait ? (pause ? bait.pauseAppeal : bait.stillAppeal) : 0.25;
   const speedScore = Math.max(lure.speed < 0.05 ? still : 0, 1 - dv * dv * 0.5);
   const dd = Math.abs(lure.depth - fish.depth);
   const depthScore = Math.max(0, 1 - dd / 2.5);
   const gear = lure.tackle ? tackleAppeal(lure.tackle, fish.species) : 1;
   const clean = lure.fouled ? FOULED_APPEAL : 1;
-  const big = lure.tackle && sizeClass(fish.species, fish.weight) >= 3;
-  const taste = big ? BIG_FISH_LURE[lure.tackle!.lure] : 1;
+  const taste = big && bait ? bait.bigFish : 1;
   return speedScore * depthScore * gear * clean * taste;
 }
 

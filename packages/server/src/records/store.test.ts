@@ -76,6 +76,21 @@ describe('ennätykset', () => {
     s.close();
   });
 
+  it('tallentaa perhosaaliin perhovälineet (#233)', () => {
+    const s = new RecordStore(openDatabase(':memory:'));
+    const fly = entry(3.2, {
+      species: 'pike',
+      method: 'fly',
+      fly: 'pikeStreamer',
+      flyRod: 'fly10',
+      flyLine: 'intermediate',
+      flyLeader: 'steel',
+    });
+    s.add(fly);
+    expect(s.board().normal?.pike).toEqual([fly]);
+    s.close();
+  });
+
   it('lisää sarakkeet vanhaan tietokantaan ja säilyttää vanhat saaliit', () => {
     const db = openDatabase(':memory:');
     db.exec(`

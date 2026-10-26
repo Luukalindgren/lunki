@@ -20,6 +20,11 @@ const DETAILS = [
   ['rod', 'rod', 'TEXT'],
   ['line', 'line', 'TEXT'],
   ['leader', 'leader', 'INTEGER'],
+  ['method', 'method', 'TEXT'],
+  ['fly', 'fly', 'TEXT'],
+  ['flyRod', 'fly_rod', 'TEXT'],
+  ['flyLine', 'fly_line', 'TEXT'],
+  ['flyLeader', 'fly_leader', 'TEXT'],
   ['appearance', 'appearance', 'TEXT'],
 ] as const satisfies readonly (readonly [keyof RecordEntry, string, string])[];
 

@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import {
   breakingStrength,
+  FLY,
+  holdForce,
+  isFly,
+  recordTackle,
   LUNKINJARVI,
   chargePower,
   WaterBody,
@@ -132,9 +136,13 @@ import { loadAppearance } from './appearance';
 import { RaceLog, type RaceMapData } from './raceLog';
 import { bottomFor } from '../world/lakeData';
 import { decimal, formatWeight, ordinal, t } from '../i18n';
-import { describeTackle, lureName, skyName, speciesName } from '../i18n/names';
+import { baitName, describeTackle, skyName, speciesName } from '../i18n/names';
 
 const LAND_COLOR = 0x24502c;
+/** Perhon veto: koko ruudun korkuinen hiiren liike vetää näin monta metriä siimaa. */
+const STRIP_PER_SCREEN = 2;
+/** Nopea hiiren nosto (osuus ruudun korkeudesta askeleessa) on vavan nosto. */
+const ROD_LIFT_FLICK = 0.03;
 /** Yksinpelin pelaajan tunniste kisan kulussa. */
 const SOLO_ID = 'me';
 /** Lähiveden aallokon esiin- ja poishäivytyksen kesto (s). */
@@ -533,7 +541,12 @@ export class SoloGame {
     this.pendingTackle = { ...tk };
     const f = this.fishing.stage;
     if (f !== 'idle' && f !== 'charging')
-      this.hud.showMessage(t('game.lureLater', { lure: lureName(tk.lure) }), 1.5);
+      this.hud.showMessage(
+        isFly(tk)
+          ? t('game.flyLater', { fly: baitName(tk) })
+          : t('game.lureLater', { lure: baitName(tk) }),
+        1.5,
+      );
   }
 
   /** Varusteet sellaisina kuin ne ovat seuraavassa heitossa. */
@@ -893,9 +906,12 @@ export class SoloGame {
       this.tube.heading,
     );
     const lureOut = f.stage === 'flight' || f.stage === 'water';
+    // Perho vedessä ja siima kädessä: hiiri tai välilyönti pitää siimaa ja vetää sitä.
+    const flyHand = isFly(f.tackle) && !f.onReel && f.stage === 'water';
+    const fly = flyHand ? this.readFlyHand(dt, frozen || !!tangle) : null;
     // Sotkussa vapa on kiinni: kelaaminen selvittää sotkua palvelimella.
-    const reeling = !frozen && !tangle && lureOut && reelHeld;
-    this.cranking = !frozen && lureOut && reelHeld;
+    const reeling = !flyHand && !frozen && !tangle && lureOut && reelHeld;
+    this.cranking = !flyHand && !frozen && lureOut && reelHeld;
     const world = {
       isWater: (p: Vec2) => this.water.isWater(p),
       depthAt: (p: Vec2) => this.bottom.depthAt(p),
@@ -926,6 +942,8 @@ export class SoloGame {
               ...(input.wasPressed('Digit3') ? { gear: 2 } : {}),
               ...(this.pendingTackle ? { tackle: this.pendingTackle } : {}),
               cut: input.wasPressed('KeyC'),
+              ...fly,
+              reelSlack: input.isDown('KeyF'),
             },
             this.fishingContext(fishEvents.strike),
             dt,
@@ -961,7 +979,8 @@ export class SoloGame {
     if (this.tube.stamina <= 0 && this.prevTube.stamina > 0)
       this.hud.showMessage(t('game.tired'), 2.5);
     this.hud.setPower(f.stage === 'charging' ? chargePower(f.charge) : null);
-    this.hud.setTension(f.tension, f.drag, breakingStrength(f.tackle));
+    const hold = holdForce(f, { lineHand: fly?.lineHand ?? false });
+    this.hud.setTension(f.tension, Math.min(hold, f.drag), breakingStrength(f.tackle));
     this.hud.setStatus([
       ...(this.flight
         ? [t('game.flying')]
@@ -984,7 +1003,9 @@ export class SoloGame {
           : []),
       describeTackle(f.tackle),
       t('game.line', { m: decimal(f.lineLength, 1) }),
-      t('game.drag', { kg: decimal(f.drag, 2), gear: f.gear + 1 }),
+      isFly(f.tackle) && !f.onReel
+        ? t('game.flyHand', { m: decimal(f.slack, 1) })
+        : t('game.drag', { kg: decimal(f.drag, 2), gear: f.gear + 1 }),
       t('game.lureDepth', { m: decimal(f.stage === 'water' && !f.onLand ? f.depth : 0, 1) }),
       t('game.bottom', { m: decimal(this.bottom.depthAt(lureOut ? f.lure : this.tube.pos), 1) }),
     ]);
@@ -1176,8 +1197,9 @@ export class SoloGame {
       sfx.hooked();
       hud.showMessage(t('game.hooked'), 1.5);
     }
+    const flyGear = isFly(this.fishing.tackle);
     if (events.missed) {
-      hud.showMessage(t('game.missed'), 2);
+      hud.showMessage(flyGear ? t('game.missedFly') : t('game.missed'), 2);
       sfx.eventVoice('missed');
     }
     if (events.escaped) {
@@ -1189,12 +1211,24 @@ export class SoloGame {
       this.pendingTackle = null;
       saveTackle(this.fishing.tackle);
       this.net?.world.sendTackle(this.fishing.tackle);
-      hud.showMessage(t('game.lureChanged', { lure: lureName(this.fishing.tackle.lure) }), 1.5);
+      const tk = this.fishing.tackle;
+      hud.showMessage(
+        isFly(tk)
+          ? t('game.flyChanged', { fly: baitName(tk) })
+          : t('game.lureChanged', { lure: baitName(tk) }),
+        1.5,
+      );
     }
+    if (events.onReel) hud.showMessage(t('game.onReel'), 2);
+    if (events.flyTangle) {
+      sfx.lost();
+      hud.showMessage(t('game.flyTangle'), 2.5);
+    }
+    if (events.pop) sfx.splash();
     if (events.snagged) {
       sfx.strike();
       sfx.eventVoice('snagged');
-      hud.showMessage(t('game.snagged'), 2);
+      hud.showMessage(flyGear ? t('game.snaggedFly') : t('game.snagged'), 2);
     }
     if (events.unsnagged) hud.showMessage(t('game.unsnagged'), 1.5);
     if (events.fouled) {
@@ -1230,7 +1264,7 @@ export class SoloGame {
     } else if (events.lineBroken) {
       sfx.lost();
       sfx.eventVoice('lineBroken');
-      hud.showMessage(t('game.lineBroken'), 3);
+      hud.showMessage(flyGear ? t('game.lineBrokenFly') : t('game.lineBroken'), 3);
     }
     if (events.caught) {
       sfx.caught();
@@ -1252,10 +1286,7 @@ export class SoloGame {
           timeOfDay: this.settings.timeOfDay ?? 'day',
           sky: w.sky,
           wind: w.windSpeed,
-          lure: gear.lure,
-          rod: gear.rod,
-          line: gear.line,
-          leader: gear.leader,
+          ...recordTackle(gear),
         });
       }
       this.fishingView.startSplash(this.fishing.lure);
@@ -1437,6 +1468,7 @@ export class SoloGame {
       const side = Math.sin(Math.atan2(f.lure.y - pos.y, f.lure.x - pos.x) - heading);
       pull = -side * Math.min(1, f.tension / breakingStrength(f.tackle));
     }
+    tube.setSlack(isFly(f.tackle) ? f.slack : 0, this.appearance.line);
     const now = performance.now();
     tube.update(
       toWorld(pos, 0),
@@ -1460,6 +1492,33 @@ export class SoloGame {
   }
 
   private povTubeTime = performance.now();
+  /** Hiiren edellinen pystysijainti perhon vetoja varten (null = nappi ylhäällä). */
+  private stripMouseY: number | null = null;
+
+  /**
+   * Perhon siimakäsi (#234): hiiren vasen tai välilyönti pitää siimaa. Hiiren
+   * veto alas vetää siimaa liikkeen verran, ylös nostaa vapaa (vastaisku).
+   * Välilyönti ja kosketusnäytön KELAA vetävät tasaisesti.
+   */
+  private readFlyHand(
+    dt: number,
+    blocked: boolean,
+  ): { lineHand: boolean; strip: number; rodLift: boolean } {
+    const input = this.input;
+    const mouse = input.isDown('Mouse0');
+    const steady = input.isDown('Space') || input.isDown('Reel');
+    const lineHand = !blocked && (mouse || steady);
+    let strip = steady ? FLY.steadyStrip * dt : 0;
+    let rodLift = false;
+    if (mouse && this.stripMouseY !== null) {
+      // Ruudun korkeus vastaa noin kahta metriä siimaa.
+      const dy = (input.mouseY - this.stripMouseY) / Math.max(1, window.innerHeight);
+      if (dy > 0) strip += dy * STRIP_PER_SCREEN;
+      else if (dy < -ROD_LIFT_FLICK) rodLift = true;
+    }
+    this.stripMouseY = mouse ? input.mouseY : null;
+    return { lineHand, strip: blocked ? 0 : strip, rodLift: !blocked && rodLift };
+  }
 
   private toggleEmoteMenu(): void {
     if (!this.emoteMenu) {

@@ -215,6 +215,11 @@ export interface PlayerSchema {
   lure: string;
   line: string;
   leader: boolean;
+  method: string;
+  flyRod: string;
+  flyLine: string;
+  flyLeader: string;
+  fly: string;
   tubeColor: number;
   finColor: number;
   shirtColor: number;
@@ -605,9 +610,17 @@ export function describeRoomError(m: RoomError | string): string {
 
 /** Pelaajan varusteet tilasta; tuntemattomat arvot korvautuvat oletuksilla. */
 export const playerTackle = (p: PlayerSchema): Tackle =>
-  parseTackle({ rod: p.rod, lure: p.lure, line: p.line, leader: p.leader }) ?? {
-    ...DEFAULT_TACKLE,
-  };
+  parseTackle({
+    rod: p.rod,
+    lure: p.lure,
+    line: p.line,
+    leader: p.leader,
+    method: p.method,
+    flyRod: p.flyRod,
+    flyLine: p.flyLine,
+    flyLeader: p.flyLeader,
+    fly: p.fly,
+  }) ?? { ...DEFAULT_TACKLE };
 
 /** Pelaajan värit tilasta; tuntemattomat värit korvautuvat oletuksilla. */
 export const playerAppearance = (p: PlayerSchema): Appearance =>

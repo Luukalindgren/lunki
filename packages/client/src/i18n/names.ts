@@ -1,6 +1,11 @@
 import {
   LURES,
   type Difficulty,
+  type FlyId,
+  type FlyLeaderId,
+  type FlyLineId,
+  type FlyRodId,
+  type Method,
   type LateJoin,
   type LineId,
   type LureId,
@@ -28,6 +33,14 @@ export const rodName = (id: RodId) => t(`rod.${id}`);
 export const rodHint = (id: RodId) => t(`rod.${id}.hint`);
 /** Siiman paksuus, esim. "0,25 mm". */
 export const lineName = (id: LineId) => t(`line.${id}`);
+export const methodName = (id: Method) => t(`method.${id}`);
+export const flyName = (id: FlyId) => t(`fly.${id}`);
+export const flyHint = (id: FlyId) => t(`fly.${id}.hint`);
+export const flyRodName = (id: FlyRodId) => t(`flyRod.${id}`);
+export const flyRodHint = (id: FlyRodId) => t(`flyRod.${id}.hint`);
+export const flyLineName = (id: FlyLineId) => t(`flyLine.${id}`);
+export const flyLineHint = (id: FlyLineId) => t(`flyLine.${id}.hint`);
+export const flyLeaderName = (id: FlyLeaderId) => t(`flyLeader.${id}`);
 export const skyName = (sky: Sky) => t(`sky.${sky}`);
 export const timeOfDayName = (v: TimeOfDay) => t(`timeOfDay.${v}`);
 export const difficultyName = (d: Difficulty) => t(`difficulty.${d}`);
@@ -47,10 +60,16 @@ export function colorName(hex: number, fallback: string): string {
 
 /** Varusteet lyhyesti HUD:iin. */
 export const describeTackle = (tk: Tackle) =>
-  `${lureName(tk.lure)} · ${lineName(tk.line)}${tk.leader ? ` · ${t('tackle.leaderShort')}` : ''}`;
+  tk.method === 'fly'
+    ? `${flyName(tk.fly)} · ${flyLineName(tk.flyLine)} · ${flyLeaderName(tk.flyLeader)}`
+    : `${lureName(tk.lure)} · ${lineName(tk.line)}${tk.leader ? ` · ${t('tackle.leaderShort')}` : ''}`;
 
 /** Varusteet kokonaan, vapa mukaan lukien (aula ja tulostaulu). */
-export const describeFullTackle = (tk: Tackle) => `${rodName(tk.rod)} · ${describeTackle(tk)}`;
+export const describeFullTackle = (tk: Tackle) =>
+  `${tk.method === 'fly' ? flyRodName(tk.flyRod) : rodName(tk.rod)} · ${describeTackle(tk)}`;
+
+/** Käytössä oleva viehe tai perho nimeltä. */
+export const baitName = (tk: Tackle) => (tk.method === 'fly' ? flyName(tk.fly) : lureName(tk.lure));
 
 /** Viehe tunnetaan, vaikka nimeä ei näytettäisi (tallennetut ennätykset). */
 export const isLure = (v: string): v is LureId => Object.hasOwn(LURES, v);

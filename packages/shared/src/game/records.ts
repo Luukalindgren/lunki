@@ -1,6 +1,24 @@
 import { DIFFICULTIES, type Difficulty } from '../fishing/difficulty';
 import { SPECIES, type SpeciesId } from '../fishing/fish';
-import { LINES, LURES, RODS, type LineId, type LureId, type RodId } from '../fishing/gear';
+import {
+  FLIES,
+  FLY_LEADERS,
+  FLY_LINES,
+  FLY_RODS,
+  LINES,
+  LURES,
+  METHODS,
+  RODS,
+  type FlyId,
+  type FlyLeaderId,
+  type FlyLineId,
+  type FlyRodId,
+  type LineId,
+  type LureId,
+  type Method,
+  type RodId,
+  type Tackle,
+} from '../fishing/gear';
 import { parseAppearance, type Appearance } from '../net/appearance';
 import { sanitizeName } from '../net/protocol';
 import { SKY_NAMES, type Sky } from '../weather/weather';
@@ -29,10 +47,18 @@ export interface RecordEntry {
   sky?: Sky;
   /** Tuulen nopeus (m/s). */
   wind?: number;
+  /** Virveli vai perho (#233); vanhoissa saaliissa puuttuu, ja ne ovat virvelillä. */
+  method?: Method;
+  /** Virvelin varusteet. */
   lure?: LureId;
   rod?: RodId;
   line?: LineId;
   leader?: boolean;
+  /** Perhon varusteet. */
+  fly?: FlyId;
+  flyRod?: FlyRodId;
+  flyLine?: FlyLineId;
+  flyLeader?: FlyLeaderId;
   /** Kalastajan ulkonäkö punnituskorttiin (lokakuusta 2026 alkaen). */
   appearance?: Appearance;
 }
@@ -67,6 +93,18 @@ const num = (v: unknown, min: number, max: number): number | undefined =>
   typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max ? v : undefined;
 const round1 = (v: number | undefined) => (v === undefined ? undefined : Math.round(v * 10) / 10);
 
+/** Saaliin varustetiedot ennätykseen: käytössä olevan kalastustavan välineet. */
+export function recordTackle(
+  t: Tackle,
+): Pick<
+  RecordEntry,
+  'method' | 'lure' | 'rod' | 'line' | 'leader' | 'fly' | 'flyRod' | 'flyLine' | 'flyLeader'
+> {
+  return t.method === 'fly'
+    ? { method: 'fly', fly: t.fly, flyRod: t.flyRod, flyLine: t.flyLine, flyLeader: t.flyLeader }
+    : { method: 'spin', lure: t.lure, rod: t.rod, line: t.line, leader: t.leader };
+}
+
 /**
  * Tarkistaa selaimen lähettämän yksinpelin saaliin. Lajin, painon ja
  * vaikeustason pitää kelvata; virheelliset lisätiedot jätetään pois.
@@ -96,10 +134,18 @@ export function parseSoloRecord(v: unknown, now = new Date()): RecordEntry | nul
   if (has(SKY_NAMES, o.sky)) e.sky = o.sky;
   const wind = round1(num(o.wind, 0, 100));
   if (wind !== undefined) e.wind = wind;
-  if (has(LURES, o.lure)) e.lure = o.lure;
-  if (has(RODS, o.rod)) e.rod = o.rod;
-  if (has(LINES, o.line)) e.line = o.line;
-  if (typeof o.leader === 'boolean') e.leader = o.leader;
+  if (has(METHODS, o.method)) e.method = o.method;
+  if (e.method === 'fly') {
+    if (has(FLIES, o.fly)) e.fly = o.fly;
+    if (has(FLY_RODS, o.flyRod)) e.flyRod = o.flyRod;
+    if (has(FLY_LINES, o.flyLine)) e.flyLine = o.flyLine;
+    if (has(FLY_LEADERS, o.flyLeader)) e.flyLeader = o.flyLeader;
+  } else {
+    if (has(LURES, o.lure)) e.lure = o.lure;
+    if (has(RODS, o.rod)) e.rod = o.rod;
+    if (has(LINES, o.line)) e.line = o.line;
+    if (typeof o.leader === 'boolean') e.leader = o.leader;
+  }
   const look = parseAppearance(o.appearance);
   if (look) e.appearance = look;
   return e;

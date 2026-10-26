@@ -9,6 +9,13 @@ import {
   LURE_IDS,
   ROD_IDS,
   DEFAULT_TACKLE,
+  FLY_IDS,
+  FLY_LEADERS,
+  FLY_LEADER_IDS,
+  FLY_LINE_IDS,
+  FLY_ROD_IDS,
+  METHODS,
+  type Method,
   NAME_MAX_LENGTH,
   LAND_PENALTIES,
   LATE_JOIN_OPTIONS,
@@ -77,6 +84,14 @@ import {
   colorName,
   describeFullTackle,
   difficultyName,
+  flyHint,
+  flyLeaderName,
+  flyLineHint,
+  flyLineName,
+  flyName,
+  flyRodHint,
+  flyRodName,
+  methodName,
   landPenaltyName,
   lateJoinName,
   lineName,
@@ -1373,8 +1388,9 @@ export class Screens {
   }
 
   /**
-   * Varusteet: vapa, viehe, siima ja teräsperuke. Ennen kisaa valitaan vapa
-   * (viehe vaihdetaan kisan aikana), kisan aikana viehe (vapa pysyy samana).
+   * Varusteet: kalastustapa (virveli tai perho) ja sen välineet. Ennen kisaa
+   * valitaan vavat (viehe tai perho vaihdetaan kisan aikana), kisan aikana
+   * viehe tai perho (vavat pysyvät samoina). Tavan voi vaihtaa milloin vain.
    */
   private tackleEditor(
     initial: Tackle,
@@ -1385,69 +1401,144 @@ export class Screens {
     const box = document.createElement('div');
     box.className = 'settings';
     box.dataset.tackle = mode;
-    const rodText = h('p', rodHint(tk.rod), 'hint');
-    const hint = h('p', lureHint(tk.lure), 'hint');
-    const set = (patch: Partial<Tackle>) => {
-      Object.assign(tk, patch);
-      rodText.textContent = rodHint(tk.rod);
-      hint.textContent = lureHint(tk.lure);
-      onChange({ ...tk });
+    const rebuild = (next: Tackle) => {
+      onChange(next);
+      box.replaceWith(this.tackleEditor(next, onChange, mode));
     };
-    if (mode === 'before')
-      box.append(
-        this.choice(
-          t('tackle.rod'),
-          ROD_IDS.map((id) => [id, rodName(id)]),
-          tk.rod,
-          (v) => set({ rod: v as Tackle['rod'] }),
-        ),
-        rodText,
-      );
-    else
-      box.append(
-        this.choice(
-          t('tackle.lure'),
-          LURE_IDS.map((id) => [id, lureName(id)]),
-          tk.lure,
-          (v) => set({ lure: v as Tackle['lure'] }),
-        ),
-        hint,
-      );
     box.append(
       this.choice(
-        t('tackle.line'),
-        LINE_IDS.map((id) => [
-          id,
-          t('tackle.lineOption', { name: lineName(id), kg: shortDecimal(LINES[id].strength) }),
-        ]),
-        tk.line,
-        (v) => set({ line: v as Tackle['line'] }),
+        t('tackle.method'),
+        (Object.keys(METHODS) as Method[]).map((id) => [id, methodName(id)]),
+        tk.method,
+        (v) => rebuild({ ...tk, method: v as Method }),
       ),
-      this.choice(
-        t('tackle.leader'),
-        [
-          ['no', t('common.no')],
-          ['yes', t('common.yes')],
-        ],
-        tk.leader ? 'yes' : 'no',
-        (v) => set({ leader: v === 'yes' }),
-      ),
-      h('p', t('tackle.hint'), 'hint'),
     );
+    const fly = tk.method === 'fly';
+    // Vihjeet päivittyvät valinnan mukana.
+    const hints: [HTMLElement, () => string][] = [];
+    const hint = (text: () => string) => {
+      const p = h('p', text(), 'hint');
+      hints.push([p, text]);
+      return p;
+    };
+    const set = (patch: Partial<Tackle>) => {
+      Object.assign(tk, patch);
+      for (const [p, text] of hints) p.textContent = text();
+      onChange({ ...tk });
+    };
+    if (fly) {
+      if (mode === 'before')
+        box.append(
+          this.choice(
+            t('tackle.flyRod'),
+            FLY_ROD_IDS.map((id) => [id, flyRodName(id)]),
+            tk.flyRod,
+            (v) => set({ flyRod: v as Tackle['flyRod'] }),
+          ),
+          hint(() => flyRodHint(tk.flyRod)),
+        );
+      else
+        box.append(
+          this.choice(
+            t('tackle.fly'),
+            FLY_IDS.map((id) => [id, flyName(id)]),
+            tk.fly,
+            (v) => set({ fly: v as Tackle['fly'] }),
+          ),
+          hint(() => flyHint(tk.fly)),
+        );
+      box.append(
+        this.choice(
+          t('tackle.flyLine'),
+          FLY_LINE_IDS.map((id) => [id, flyLineName(id)]),
+          tk.flyLine,
+          (v) => set({ flyLine: v as Tackle['flyLine'] }),
+        ),
+        hint(() => flyLineHint(tk.flyLine)),
+        this.choice(
+          t('tackle.flyLeader'),
+          FLY_LEADER_IDS.map((id) => [
+            id,
+            t('tackle.flyLeaderOption', {
+              name: flyLeaderName(id),
+              kg: shortDecimal(FLY_LEADERS[id].strength),
+            }),
+          ]),
+          tk.flyLeader,
+          (v) => set({ flyLeader: v as Tackle['flyLeader'] }),
+        ),
+        h('p', t('tackle.flyHint'), 'hint'),
+      );
+    } else {
+      if (mode === 'before')
+        box.append(
+          this.choice(
+            t('tackle.rod'),
+            ROD_IDS.map((id) => [id, rodName(id)]),
+            tk.rod,
+            (v) => set({ rod: v as Tackle['rod'] }),
+          ),
+          hint(() => rodHint(tk.rod)),
+        );
+      else
+        box.append(
+          this.choice(
+            t('tackle.lure'),
+            LURE_IDS.map((id) => [id, lureName(id)]),
+            tk.lure,
+            (v) => set({ lure: v as Tackle['lure'] }),
+          ),
+          hint(() => lureHint(tk.lure)),
+        );
+      box.append(
+        this.choice(
+          t('tackle.line'),
+          LINE_IDS.map((id) => [
+            id,
+            t('tackle.lineOption', { name: lineName(id), kg: shortDecimal(LINES[id].strength) }),
+          ]),
+          tk.line,
+          (v) => set({ line: v as Tackle['line'] }),
+        ),
+        this.choice(
+          t('tackle.leader'),
+          [
+            ['no', t('common.no')],
+            ['yes', t('common.yes')],
+          ],
+          tk.leader ? 'yes' : 'no',
+          (v) => set({ leader: v === 'yes' }),
+        ),
+        h('p', t('tackle.hint'), 'hint'),
+      );
+    }
     if (mode === 'during') {
-      box.append(h('p', t('tackle.rodLocked', { rod: rodName(tk.rod) }), 'hint'));
+      const rod = fly ? flyRodName(tk.flyRod) : rodName(tk.rod);
+      box.append(
+        h('p', t('tackle.rodLocked', { rod }), 'hint'),
+        h('p', t('tackle.methodInRace'), 'hint'),
+      );
       return box;
     }
     box.append(h('p', t('tackle.lureInRace'), 'hint'));
-    // Viehettä ei valita ennen kisaa, joten se säilyy ennallaan.
+    // Viehettä ja perhoa ei valita ennen kisaa, joten ne säilyvät ennallaan.
+    const reset: Tackle = fly
+      ? {
+          ...tk,
+          flyRod: DEFAULT_TACKLE.flyRod,
+          flyLine: DEFAULT_TACKLE.flyLine,
+          flyLeader: DEFAULT_TACKLE.flyLeader,
+        }
+      : {
+          ...tk,
+          rod: DEFAULT_TACKLE.rod,
+          line: DEFAULT_TACKLE.line,
+          leader: DEFAULT_TACKLE.leader,
+        };
     const beginner = document.createElement('button');
     beginner.textContent = t('tackle.beginner');
-    beginner.title = describeFullTackle({ ...DEFAULT_TACKLE, lure: tk.lure });
-    beginner.addEventListener('click', () => {
-      const reset = { ...DEFAULT_TACKLE, lure: tk.lure };
-      onChange(reset);
-      box.replaceWith(this.tackleEditor(reset, onChange, mode));
-    });
+    beginner.title = describeFullTackle(reset);
+    beginner.addEventListener('click', () => rebuild({ ...reset }));
     box.append(beginner);
     return box;
   }

@@ -54,6 +54,26 @@ describe('ennätyskalan tiedot', () => {
     ]);
   });
 
+  it('perhosaaliista tapa, perho ja perhovälineet (#233)', () => {
+    const r: RecordEntry = {
+      ...old,
+      species: 'pike',
+      method: 'fly',
+      fly: 'pikeStreamer',
+      flyRod: 'fly10',
+      flyLine: 'intermediate',
+      flyLeader: 'steel',
+    };
+    expect(recordDetails(r)).toEqual([
+      ['Kalastaja', 'Luuka'],
+      ['Saatu', '20.10.2026'],
+      ['Tapa', 'Perho'],
+      ['Perho', 'Hauki-streameri'],
+      ['Varusteet', 'Perhovapa #10, siima Intermediate, peruke teräs'],
+      ['Paikka', 'Ei tallessa: saalis on ajalta ennen paikkojen tallennusta'],
+    ]);
+  });
+
   it('päivämäärä suomalaisittain', () => {
     expect(formatDate('2026-01-05')).toBe('5.1.2026');
   });
