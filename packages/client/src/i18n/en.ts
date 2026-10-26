@@ -274,7 +274,7 @@ export const en: Record<keyof typeof fi, string> = {
   'music.uistelu': 'Trolling',
   'credits.title': 'Credits and sources',
   'credits.authors':
-    'Lunkinjärvi: Luuka Lindgren and Claude Code. The sounds are synthesised in the browser.',
+    'Lunkinjärvi: Luuka Lindgren and Claude Code. Sound effects are synthesised in the browser. Voices: Piper speech synthesis (Finnish voice harri, CC0 dataset), post-processed.',
   'credits.mapData': 'Map data',
   'credits.depthNote':
     'There is no public depth survey of Lunkinjärvi, so the lake bed is computed from the shoreline and the holes and reefs are made up.',

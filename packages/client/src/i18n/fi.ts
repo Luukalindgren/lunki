@@ -273,7 +273,8 @@ export const fi = {
   'music.valssi': 'Kuikan valssi',
   'music.uistelu': 'Uistelu',
   'credits.title': 'Tekijät ja lähteet',
-  'credits.authors': 'Lunkinjärvi: Luuka Lindgren ja Claude Code. Äänet syntetisoidaan selaimessa.',
+  'credits.authors':
+    'Lunkinjärvi: Luuka Lindgren ja Claude Code. Tehosteet syntetisoidaan selaimessa. Puheäänet: Piper-puhesynteesi (suomenkielinen ääni harri, aineisto CC0), jälkikäsitelty.',
   'credits.mapData': 'Kartta-aineistot',
   'credits.depthNote':
     'Lunkinjärvestä ei ole julkista luotausaineistoa, joten pohja on laskettu rantaviivasta ja syvänteet ja karikot ovat keksittyjä.',

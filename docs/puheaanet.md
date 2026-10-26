@@ -54,6 +54,14 @@ suomenkielisellä äänellä `fi_FI-harri-medium` ja jälkikäsittely ffmpegill�
 alas, särö, nopea tremolo ja kompressointi), jotta ääni kuulostaa vanhahkolta,
 käheältä ja äreältä. Skripti on `scripts/puhe/tee.py`.
 
+Uudet äänet (esimerkiksi muutetun käsikirjoituksen jälkeen): Actions → Puheäänet →
+Run workflow. Valmiit mp3-tiedostot ja raakatiedostot tulevat ajon artefaktina
+(`puheaanet`); mp3:t kopioidaan hakemistoon `packages/client/public/audio/puhe/`.
+
+Äänen `fi_FI-harri-medium` aineisto on CC0 (Finnish Single Speaker Speech Dataset);
+malli on hienosäädetty Piperin englanninkielisestä lessac-äänestä. Tekijätiedoissa
+mainitaan Piper ja ääni.
+
 Omat äänitykset korvaavat tekoälyäänet suoraan: tallenna mp3-tiedosto samalla
 nimellä hakemistoon `packages/client/public/audio/puhe/`. Repliikkien määrää voi
 muuttaa päivittämällä sekä `repliikit.json`:n että `VOICE_LINES`-taulukon.

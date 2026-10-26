@@ -3,19 +3,15 @@ name: Puheäänet
 # Tekee käsimerkkien ja tapahtumien puherepliikit (#229) Piper-puhesynteesillä
 # (suomenkielinen ääni fi_FI-harri-medium) ja jälkikäsittelee ne ffmpegillä.
 # Pilviympäristö ei tavoita äänimallin palvelinta, joten teko tapahtuu
-# GitHubin ajoympäristössä. Tulokset tallennetaan artefaktiksi; ne kopioidaan
-# hakemistoon packages/client/public/audio/puhe/. Omat äänitykset voi vaihtaa
-# suoraan samoilla tiedostonimillä ilman tätä työnkulkua.
+# GitHubin ajoympäristössä. Käsin ajettaessa (Actions → Puheäänet → Run
+# workflow) tulokset tallennetaan artefaktiksi; ne kopioidaan hakemistoon
+# packages/client/public/audio/puhe/. Omat äänitykset voi vaihtaa suoraan
+# samoilla tiedostonimillä ilman tätä työnkulkua.
 on:
   workflow_dispatch:
-  push:
-    branches: [claude/project-thread-5flba0]
-    paths:
-      - scripts/puhe/**
-      - .github/workflows/puhe.yml
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   tee:
@@ -37,18 +33,10 @@ jobs:
           cat malli/MODEL_CARD
           pip show piper-tts | head -3
       - run: python3 scripts/puhe/tee.py malli/fi_FI-harri-medium.onnx
-      - name: Kommitoi äänet haaraan
-        if: github.event_name == 'push'
-        run: |
-          mkdir -p puhe-raaka && cp malli/MODEL_CARD puhe-raaka/
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add packages/client/public/audio/puhe puhe-raaka
-          git commit -m "Puheäänet: Piper fi_FI-harri ja jälkikäsittely (automaattinen)"
-          git push
       - uses: actions/upload-artifact@v4
         with:
           name: puheaanet
           path: |
             packages/client/public/audio/puhe/
             puhe-raaka/
+            malli/MODEL_CARD

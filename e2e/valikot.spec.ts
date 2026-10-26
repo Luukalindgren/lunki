@@ -153,8 +153,11 @@ test('käsimerkit: G avaa valikon, numero tekee eleen ja Esc sulkee tauotta (#22
   await page.getByRole('button', { name: 'Aloita kisa' }).click();
   await expect(page.locator('.hud-timer')).toBeVisible();
   const menu = page.locator('.emote-menu');
+  // Puheäänet (#229) ladataan vasta, kun valikko avataan ensimmäisen kerran.
+  const voice = page.waitForResponse(/audio\/puhe\/[a-zA-Z]+-\d\.mp3$/);
   await page.keyboard.press('KeyG');
   await expect(menu).toBeVisible();
+  expect((await voice).ok()).toBe(true);
   await expect(menu.locator('.emote-option')).toHaveCount(6);
   // Esc sulkee valikon eikä avaa taukoa.
   await page.keyboard.press('Escape');
