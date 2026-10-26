@@ -174,6 +174,9 @@ export interface NetLink {
   canvas: HTMLCanvasElement;
 }
 
+/** Saaliin punnituskortti näkyy näin kauan, ellei pelaaja ala heittää uudelleen. */
+const CATCH_CARD_SECONDS = 6;
+
 /**
  * Pelikierros järvellä. Yksinpelissä rengas liikkuu paikallisesti;
  * moninpelissä (net) oma rengas ennakoidaan ja palvelin on totuus.
@@ -1456,7 +1459,7 @@ export class SoloGame {
       hud.showWeighIn(
         `${speciesName(events.caught.species)} ${formatWeight(events.caught.weight)}`,
         `${length} · ${catches.length > 1 && biggest ? t('game.biggestSoFar') : t('game.nthFish', { n: ordinal(catches.length) })}`,
-        3.5,
+        CATCH_CARD_SECONDS,
         events.caught,
       );
     }

@@ -27,6 +27,8 @@ export class ChatBox {
   private readonly seenAt = new Map<number, number>();
   private notice: { text: string; until: number } | null = null;
   private readonly timer: ReturnType<typeof setInterval>;
+  private readonly resize =
+    typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => this.reportHeight());
 
   constructor(private readonly session: NetSession) {
     this.root = document.createElement('div');
@@ -68,6 +70,7 @@ export class ChatBox {
     this.timer = setInterval(() => {
       if (this.mode === 'hud') this.render();
     }, 1000);
+    this.resize?.observe(this.root);
     this.render();
   }
 
@@ -78,7 +81,10 @@ export class ChatBox {
     this.mode = mode;
     this.root.className = `chat chat-${mode}`;
     this.form.hidden = mode === 'hud';
-    if (this.root.parentElement !== parent) parent.appendChild(this.root);
+    if (this.root.parentElement !== parent) {
+      this.root.parentElement?.style.removeProperty('--chat-h');
+      parent.appendChild(this.root);
+    }
     // Aula piirretään uudelleen tilan muuttuessa: kirjoitus jatkuu keskeytyksettä.
     // Uusi paneeli on sivulla vasta piirron jälkeen, siksi mikrotehtävänä.
     if (focused && mode === 'panel') {
@@ -88,6 +94,18 @@ export class ChatBox {
       });
     }
     this.render();
+    this.reportHeight();
+  }
+
+  /**
+   * Kisan aikana chatin korkeus HUDille (--chat-h), joka pitää ilmoitukset
+   * ja punnituskortin sen alapuolella.
+   */
+  private reportHeight(): void {
+    const hud = this.root.parentElement;
+    if (!hud || this.mode !== 'hud') return;
+    const h = this.root.offsetHeight;
+    hud.style.setProperty('--chat-h', h > 0 ? `calc(${h}px + var(--m) * 4)` : '0px');
   }
 
   /** Avaa kirjoituskentän kisan aikana. */
@@ -110,6 +128,8 @@ export class ChatBox {
 
   dispose(): void {
     clearInterval(this.timer);
+    this.resize?.disconnect();
+    this.root.parentElement?.style.removeProperty('--chat-h');
     window.removeEventListener('keydown', this.onKey);
     if (this.session.onChat) this.session.onChat = null;
     this.session.onChatRejected = null;

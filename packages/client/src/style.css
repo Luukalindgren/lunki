@@ -110,14 +110,63 @@ body {
   text-shadow: 0 calc(var(--u) * 1) 0 #000;
 }
 
-.hud-message {
+/* Lähtölaskenta, punnituskortti ja ilmoitus allekkain ruudun keskellä. Alue
+   rajautuu reunojen paneelien väliin, joten ne eivät mene toistensa eivätkä
+   muiden paneelien päälle. Paneelien mitat (--left-w, --left-h, --right-w,
+   --fly-h) asettaa Hud ja chatin korkeuden (--chat-h) ChatBox. */
+.hud-notices {
   position: absolute;
-  /* Saalislistan alle ja renkaan yläpuolelle. */
-  top: 36%;
-  /* Reunoilla kireysmittari ja paneelit: pitkä ilmoitus rivittyy niiden väliin. */
-  left: calc(var(--m) * 8 + var(--u) * 8);
-  right: calc(var(--m) * 8 + var(--u) * 8);
   z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--m) * 4);
+  container-type: inline-size;
+  /* Vasemmalla kello, saaliit ja tilapaneeli, oikealla luotaimet ja
+     kireysmittarin teksti (24). */
+  left: calc(var(--m) * 8 + var(--left-w, calc(var(--u) * 92)));
+  right: calc(var(--m) * 8 + max(var(--right-w, 0px), calc(var(--u) * 24)));
+  /* Kompassin (11 + 2) ja sään (7 + 4 + 2) alle. */
+  top: calc(var(--m) * 12 + var(--u) * 26);
+  --nb-chat: 0px;
+  --nb-help: 0px;
+  --nb-gauges: 0px;
+  bottom: max(calc(var(--m) * 4), var(--nb-chat), var(--nb-help), var(--nb-gauges));
+}
+
+/* Kuntopalkki (8) sään alla. */
+.hud.tired:not(.touch) .hud-notices {
+  top: calc(var(--m) * 16 + var(--u) * 34);
+}
+
+/* Moninpelin chat tilapaneelin (5 riviä: 50 + 4 + 2) yläpuolella. */
+.hud.mp .hud-notices {
+  --nb-chat: calc(var(--m) * 8 + var(--u) * 58 + var(--chat-h, 0px));
+}
+
+/* Ohje oikeassa alakulmassa ulottuu keskelle: ilmoitukset sen yläpuolelle. */
+.hud.help-open .hud-notices {
+  --nb-help: calc(var(--m) * 8 + var(--u) * var(--help-h));
+}
+
+/* Luotaimet rinnakkain veisivät leveyden (Hud.measureEdges): ilmoitukset
+   niiden yläpuolelle kireysmittarin tekstin (24) viereen. */
+.hud.wide-gauges .hud-notices {
+  right: calc(var(--m) * 8 + var(--u) * 24);
+  --nb-gauges: calc(var(--m) * 8 + var(--right-h, 0px));
+}
+
+.hud.wide-gauges.help-open .hud-notices {
+  --nb-gauges: calc(var(--m) * 12 + var(--u) * var(--help-h) + var(--right-h, 0px));
+}
+
+.hud-notices > * {
+  flex: none;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.hud-message {
   text-align: center;
   font-size: calc(var(--u) * 12);
   color: #fff3b0;
@@ -555,15 +604,15 @@ body {
   font-size: calc(var(--u) * 8);
 }
 
-.hud-weigh {
-  left: 50%;
-  top: 22%;
-  transform: translateX(-50%);
-  /* Kapealla näytöllä kortti ja kalan kuva mahtuvat ruutuun. */
-  width: max-content;
-  max-width: calc(100% - var(--m) * 8);
-  box-sizing: border-box;
-  z-index: 1;
+.hud-notices > .hud-weigh {
+  /* Matalalla alueella kalan kuva pienenee, teksti ei. */
+  flex: 0 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgb(11 15 20 / 65%);
+  border: var(--u) solid #39424d;
   text-align: center;
   font-size: calc(var(--u) * 12);
   color: #fff3b0;
@@ -757,9 +806,12 @@ body {
 
 .hud-weigh .fish-art {
   display: block;
+  flex: 0 1 auto;
+  min-height: 0;
   margin: 0 auto calc(var(--u) * 2);
   max-width: 100%;
   height: auto !important;
+  object-fit: contain;
 }
 
 :root {
@@ -957,11 +1009,9 @@ body {
 }
 
 .hud-countdown {
-  position: absolute;
-  left: 50%;
-  top: 30%;
-  transform: translate(-50%, -50%);
-  font-size: calc(var(--u) * 40);
+  /* "Kalastamaan!" mahtuu kapeallekin ilmoitusalueelle. */
+  font-size: min(calc(var(--u) * 40), 15cqi);
+  white-space: nowrap;
   color: #f6d04d;
   text-shadow: calc(var(--u) * 2) calc(var(--u) * 2) 0 #8c1c1c;
 }
@@ -1264,9 +1314,10 @@ body {
 
 .hud.touch .hud-gauges {
   position: absolute;
-  right: calc(var(--m) * 4);
-  /* Kireysmittarin (60 + kehys 2) ja sen tekstin (2 + 8) alle. */
-  top: calc(var(--m) * 10 + var(--u) * 72);
+  /* Vaakasuunnassa kireysmittarin ja sen tekstin (24) vasemmalle puolelle:
+     alla olevat napit jäävät vapaiksi myös vieheluotaimen ollessa auki. */
+  right: calc(var(--m) * 8 + var(--u) * 24);
+  top: calc(var(--m) * 4);
 }
 
 /* Ohje yläosaan sään alle, ettei se peitä nappeja, joita se selittää. */
@@ -1285,17 +1336,26 @@ body {
   max-width: calc(100% - 16px);
 }
 
-/* Ilmoitus vasemman pinon ja luotainten väliin. */
-.hud.touch .hud-message {
-  top: 30%;
-  left: calc(64px + var(--m) * 4 + var(--u) * 76);
-  right: calc(var(--m) * 10 + var(--u) * 172);
+/* Ilmoitukset vasemman pinon ja oikean alakulman nappien (12 + 3 × 56 + 2 × 6
+   + 8 + KELAA 88 = 288 px) väliin, chatin alle. Kaikki ohjeen päällä. */
+.hud.touch .hud-notices {
+  left: calc(64px + var(--m) * 4 + var(--left-w, calc(var(--u) * 80)));
+  right: max(
+    calc(296px + env(safe-area-inset-right, 0px)),
+    calc(var(--m) * 12 + var(--u) * 24 + var(--right-w, 0px))
+  );
+  top: calc(var(--m) * 12 + var(--u) * 26 + var(--chat-h, 0px));
+  bottom: calc(var(--m) * 4 + var(--fly-h, 0px) + env(safe-area-inset-bottom, 0px));
 }
 
-/* Vaakasuunnassa luotaimet kireysmittarin alla eivät saa ulottua oikean
-   alakulman nappeihin (3 × 44 + 2 × 6 + reuna 16 = 160 px). */
+/* Vaakasuunnassa kireysmittari ja sen teksti (72) eivät saa ulottua oikean
+   alakulman nappeihin (4 × 44 + 3 × 6 + reuna 16 = 210 px), eivätkä luotaimet
+   (68 + 4 + 100) ja mittari (24) keskellä olevaan kompassiin (puolikas 41). */
 .hud.touch {
-  --u-max: max(var(--m), calc((100dvh - 160px - var(--m) * 14) / 129));
+  --u-max: max(
+    var(--m),
+    min(calc((100dvh - 210px - var(--m) * 8) / 72), calc((50vw - var(--m) * 12) / 237))
+  );
 }
 
 /* Pystyssä kapea ruutu: HUD pienempänä, kompassi ja sää kellon oikealle
@@ -1304,12 +1364,13 @@ body {
   /* Leveyden rajaa tilapaneeli (65 u, napit 64 px) ja sen vieressä oleva
      luotain (68 u) sekä ylärivi: kello, kompassi ja kireysmittari (126 u).
      Korkeuden oikea sarake: mittari ja kaksi luotainta (186 u) nappien
-     yläpuolelle (256 px). Oletuskoko ei koskaan pienene. */
+     (4 × 44 + 3 × 6 + 8 + KELAA 88 + reuna 16 = 306 px) yläpuolelle.
+     Oletuskoko ei koskaan pienene. */
   .hud.touch {
     --m: calc(var(--u0) * 0.75);
     --u-max: max(
       var(--m),
-      min(calc((100vw - 64px - var(--m) * 16) / 133), calc((100dvh - 256px - var(--m) * 14) / 186))
+      min(calc((100vw - 64px - var(--m) * 16) / 133), calc((100dvh - 314px - var(--m) * 14) / 186))
     );
   }
 
@@ -1336,9 +1397,10 @@ body {
     transform: none;
   }
 
+  /* Nappipinon (12 + 192 px) vasemmalle puolelle. */
   .hud.touch .hud-fly-panel canvas {
-    width: calc(var(--u) * 80);
-    height: calc(var(--u) * 36.67);
+    width: min(calc(var(--u) * 80), calc(100vw - 236px));
+    height: auto;
   }
 
   /* Pystyssä tilapaneelin alle ja vasemman nappirivin oikealle puolelle. */
@@ -1354,17 +1416,44 @@ body {
     font-size: calc(var(--u) * 7);
   }
 
+  /* Kireysmittarin (60 + kehys 2) ja sen tekstin (2 + 8) alle. */
   .hud.touch .hud-gauges {
+    right: calc(var(--m) * 4);
+    top: calc(var(--m) * 10 + var(--u) * 72);
     flex-direction: column;
     align-items: flex-end;
   }
 
-  .hud.touch .hud-message {
-    top: auto;
-    /* Nappipino: 3 riviä (3 × 44 + 2 × 6) + väli 8 + KELAA 88 + reuna 16 = 256 px. */
-    bottom: calc(264px + env(safe-area-inset-bottom, 0px));
-    left: calc(var(--m) * 4);
-    right: calc(var(--m) * 4);
+  /* Ilmoitukset vasempaan reunaan kellon, saaliiden, chatin ja oikean reunan
+     luotainten alle, oikealla olevan nappipinon (12 + 3 × 56 + 2 × 6 = 192 px) ja alhaalla
+     tatin ja kuntopalkin (150 + 9) tai perhoheiton sivukuvan yläpuolelle.
+     Ylhäällä vasemmalla nappirivi: 4 nappia, moninpelissä 5 (8 + n × 50). */
+  .hud.touch .hud-notices {
+    left: calc(8px + env(safe-area-inset-left, 0px));
+    right: calc(200px + env(safe-area-inset-right, 0px));
+    top: max(
+      calc(var(--m) * 8 + var(--left-h, calc(var(--u) * 126))),
+      calc(var(--m) * 14 + var(--u) * 72 + var(--right-h, 0px)),
+      calc(208px + env(safe-area-inset-top, 0px))
+    );
+    bottom: calc(
+      167px + var(--fly-on, 0) * (23px + var(--fly-h, 0px)) + env(safe-area-inset-bottom, 0px)
+    );
+    font-size: calc(var(--u) * 9);
+  }
+
+  .hud.touch.mp .hud-notices {
+    top: max(
+      calc(var(--m) * 8 + var(--left-h, calc(var(--u) * 126))),
+      calc(var(--m) * 16 + var(--u) * 126 + var(--chat-h, 0px)),
+      calc(var(--m) * 14 + var(--u) * 72 + var(--right-h, 0px)),
+      calc(258px + env(safe-area-inset-top, 0px))
+    );
+  }
+
+  .hud.touch .hud-message,
+  .hud.touch .hud-weigh {
+    font-size: calc(var(--u) * 10);
   }
 }
 
