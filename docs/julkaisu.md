@@ -2,9 +2,10 @@
 
 Peli koostuu kahdesta osasta:
 
-- **Asiakas** (selainpeli) on GitHub Pagesissa:
-  <https://luukalindgren.github.io/lunki/>. Se päivittyy itsestään, kun
-  main-haaraan yhdistetään PR (työnkulku _Julkaisu_).
+- **Asiakas** (selainpeli) on GitHub Pagesissa omalla verkkotunnuksella:
+  <https://lunkinjarvi.com/>. Se päivittyy itsestään, kun main-haaraan
+  yhdistetään PR (työnkulku _Julkaisu_). Vanha osoite
+  `luukalindgren.github.io/lunki/` ohjautuu sinne.
 - **Pelipalvelin** pyörii Luukan pelikoneella. Yksinpeli toimii ilman sitä;
   moninpeliin palvelimen pitää olla päällä.
 
@@ -54,6 +55,34 @@ läppäriltä SSH:n yli: [windows-palvelin.md](windows-palvelin.md).
 
    Aja _Julkaisu_ uudelleen, niin peli käyttää tätä palvelinta.
 
+6. **Oma verkkotunnus:** _Settings → Pages → Custom domain_ on
+   `lunkinjarvi.com`, ja _Enforce HTTPS_ on päällä. Cloudflaren DNS:ssä
+   juuriosoite osoittaa GitHub Pagesiin.
+
+## Hakukoneet
+
+Sivulla on valmiina hakukoneita ja linkkien esikatselua varten otsikko,
+kuvaus, kanoninen osoite, Open Graph -tiedot, esikatselukuva
+(`packages/client/public/esikatselu.png`, 1200×630), JSON-LD-kuvaus,
+`robots.txt` ja `sitemap.xml`. Kanoninen osoite on aina
+`https://lunkinjarvi.com/`, joten kutsulinkit (`?huone=…`) eivät näy
+hakutuloksissa omina sivuinaan.
+
+Google Search Consolen käyttöönotto (kerran):
+
+1. <https://search.google.com/search-console> → _Lisää omaisuus →
+   Verkkotunnus_: `lunkinjarvi.com`. Vahvista lisäämällä Googlen antama
+   TXT-tietue Cloudflaren DNS-asetuksiin.
+2. _Sivukartat_ → lähetä `https://lunkinjarvi.com/sitemap.xml`.
+3. _URL-tarkistus_ → `https://lunkinjarvi.com/` → _Pyydä indeksointia_.
+4. Vapaaehtoinen: lisää osoite GitHub-repositorion _About → Website_
+   -kenttään. Jo yksi linkki nopeuttaa löytymistä.
+
+Haku "lunkinjarvi" löytää pelin yleensä muutamassa päivässä tai viikossa
+indeksoinnin jälkeen. Esikatselukuvan voi vaihtaa korvaamalla tiedoston
+samankokoisella kuvalla; WhatsApp ja Discord pitävät vanhaa kuvaa
+välimuistissa jonkin aikaa.
+
 ## Pelipäivänä
 
 1. Pelikoneella repositorion kansiossa:
@@ -66,7 +95,7 @@ läppäriltä SSH:n yli: [windows-palvelin.md](windows-palvelin.md).
    Ennätyslista tallentuu tiedostoon `packages/server/data/lunki.sqlite`
    (muutettavissa ympäristömuuttujalla `LUNKI_DB`), joten se säilyy
    uudelleenkäynnistysten yli. Varmuuskopioksi riittää tiedoston kopio.
-2. Avaa <https://luukalindgren.github.io/lunki/> → **Moninpeli**. Rivi
+2. Avaa <https://lunkinjarvi.com/> → **Moninpeli**. Rivi
    "Palvelin päällä" kertoo, että yhteys toimii.
 3. **Luo uusi huone** ja lähetä kavereille kutsulinkki (_Kopioi kutsulinkki_)
    tai koodi (esim. `LUNKI-4F7K`). Kaverit avaavat linkin, kirjoittavat
@@ -94,7 +123,7 @@ cloudflared tunnel --url http://localhost:2567
 Osoite (esim. `https://satunnainen-nimi.trycloudflare.com`) vaihtuu joka
 käynnistyksellä, joten sitä ei kannata laittaa `LUNKI_SERVER_URL`-muuttujaan.
 Anna se sen sijaan pelin osoitteessa:
-`https://luukalindgren.github.io/lunki/?palvelin=wss://satunnainen-nimi.trycloudflare.com`.
+`https://lunkinjarvi.com/?palvelin=wss://satunnainen-nimi.trycloudflare.com`.
 Kutsulinkki kuljettaa `palvelin`-parametrin mukanaan kavereille.
 
 ## Vaihtoehto: pilvipalvelin
