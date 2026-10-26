@@ -281,6 +281,9 @@ export class LakeMapView {
     frame.className = 'lake-map-frame';
     this.canvas = document.createElement('canvas');
     this.canvas.className = 'lake-map-canvas';
+    // Näppäimistöllä: nuolet panoroivat, +/− zoomaa, Enter valitsee keskeltä (#237).
+    this.canvas.tabIndex = 0;
+    this.canvas.setAttribute('aria-label', t('map.keys'));
     const zoom = document.createElement('div');
     zoom.className = 'lake-map-zoom';
     const zoomButton = (text: string, title: string, action: () => void) => {
@@ -422,6 +425,12 @@ export class LakeMapView {
     };
     c.addEventListener('pointerup', (e) => release(e, false));
     c.addEventListener('pointercancel', (e) => release(e, true));
+    c.addEventListener('keydown', (e) => {
+      if (this.onKey(e.code, e.key)) e.preventDefault();
+    });
+    // Tähtäin kartan keskellä vain näppäimistön kohdistuksessa.
+    c.addEventListener('focus', () => this.draw());
+    c.addEventListener('blur', () => this.draw());
     c.addEventListener(
       'wheel',
       (e) => {
@@ -433,6 +442,37 @@ export class LakeMapView {
       },
       { passive: false },
     );
+  }
+
+  /**
+   * Näppäin kartan ollessa kohdistettuna. Ylös/alas kartan reunassa ei käsitellä,
+   * jolloin valikko siirtyy seuraavalle riville. Palauttaa true, jos käsiteltiin.
+   */
+  private onKey(code: string, key: string): boolean {
+    const v = this.view;
+    const step = Math.max(24, Math.min(v.width, v.height) / 5);
+    const pan: Record<string, [number, number]> = {
+      ArrowLeft: [step, 0],
+      ArrowRight: [-step, 0],
+      ArrowUp: [0, step],
+      ArrowDown: [0, -step],
+    };
+    // Merkin mukaan, koska +/− ovat eri näppäimissä eri kielten asetteluissa.
+    const zoom: Record<string, number> = { '+': 2, '=': 2, '-': 0.5, '−': 0.5 };
+    if (pan[code]) {
+      const before = { ...v.center };
+      v.pan(...pan[code]);
+      const moved = v.center.x !== before.x || v.center.y !== before.y;
+      if (!moved && (code === 'ArrowUp' || code === 'ArrowDown')) return false;
+      this.touched = true;
+    } else if (zoom[key]) {
+      v.zoomAt(v.width / 2, v.height / 2, zoom[key]);
+      this.touched = true;
+    } else if (code === 'Enter' || code === 'NumpadEnter' || code === 'Space') {
+      this.onTap({ ...v.center });
+    } else return false;
+    this.draw();
+    return true;
   }
 
   private onTap(p: Vec2): void {
@@ -532,6 +572,11 @@ export class LakeMapView {
         this.label(ctx, this.options.markerLabel, s.x + 12, s.y, '#f6d04d');
     }
     this.drawPins(ctx);
+    if (document.activeElement === this.canvas && this.canvas.matches('.kb *')) {
+      const mid = { x: v.width / 2, y: v.height / 2 };
+      this.cross(ctx, mid, '#0b0f14', 9);
+      this.cross(ctx, mid, '#eef2f3', 7);
+    }
     this.scaleBar(ctx);
     this.label(ctx, t('map.north'), v.width - 8, 14, '#eef2f3', 'right');
   }

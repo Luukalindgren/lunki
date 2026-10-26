@@ -58,6 +58,7 @@ import { LakeMapView, RACE_EVENT_STYLE, describeSpot } from './lakeMap';
 import type { RaceEventKind, RaceMapData } from '../game/raceLog';
 import { SPECIES_PIN_COLORS, formatDate, recordDetails, recordTitle } from './recordDetails';
 import { drawTubePreview } from './tubePreview';
+import { MenuNav } from './menuNav';
 import { VOLUME_LEVELS, type AudioSettings, type VolumeLevel } from '../audio/settings';
 import { MUSIC_CHOICES, type MusicChoice } from '../audio/music';
 import { DEFAULT_HUD_SCALE, HUD_SCALES } from './hudScale';
@@ -90,6 +91,19 @@ import {
 } from '../i18n/names';
 
 const SETTINGS_KEY = 'lunki.soloSettings';
+/** Näkymät, jotka avautuvat aina alusta eivätkä muista kohdistusta. */
+const NO_FOCUS_MEMORY = new Set(['pause', 'results', 'race-results', 'message']);
+
+interface ShowOptions {
+  /** Näkymän siivous ennen seuraavaa. */
+  cleanup?: () => void;
+  /** Uudelleenpiirrossa säilytettävä vierityskohta. */
+  scroll?: [number, number] | null;
+  /** Esc / Backspace: paluu edelliseen näkymään. */
+  back?: () => void;
+  /** Kohdistus alkaa ensimmäiseltä riviltä ensisijaisen napin sijaan. */
+  focusFirst?: boolean;
+}
 
 const MODE_HINTS: Record<RecordMode, MsgKey> = {
   race: 'records.raceHint',
@@ -166,12 +180,17 @@ export class Screens {
   private cleanup: (() => void) | null = null;
   /** Tulossivulla valittuna saaliskartta (säilyy saman näkymän uudelleenpiirrossa). */
   private resultsOnMap = false;
+  /** Näppäimistöohjaus (#237). */
+  private readonly nav: MenuNav;
+  /** Kohdistettu kohde näkymittäin, jotta paluu palaa samaan kohtaan. */
+  private readonly focusMemory = new Map<string, number>();
 
   constructor(parent: HTMLElement) {
     this.root = document.createElement('div');
     this.root.className = 'screen';
     this.root.hidden = true;
     parent.appendChild(this.root);
+    this.nav = new MenuNav(this.root, () => this.open);
   }
 
   get open(): boolean {
@@ -179,6 +198,8 @@ export class Screens {
   }
 
   hide(): void {
+    this.rememberFocus();
+    this.nav.back = null;
     this.runCleanup();
     this.root.hidden = true;
     this.root.replaceChildren();
@@ -198,7 +219,7 @@ export class Screens {
     /** Kieli vaihtui: valikko piirretään uudelleen. */
     onLanguage: () => void;
   }): void {
-    const panel = this.panel();
+    const panel = this.panel('start');
     const menu = this.buttons([
       ...(actions.rejoin
         ? ([
@@ -238,7 +259,7 @@ export class Screens {
 
   /** Koko Lunkinjärvi karttana: syvyydet, pohjan muodot, laiturit ja rakennukset. */
   showLakeMap(onBack: () => void): void {
-    const panel = this.panel();
+    const panel = this.panel('lake-map');
     panel.classList.add('map-panel');
     const map = new LakeMapView();
     panel.append(
@@ -247,7 +268,7 @@ export class Screens {
       h('p', t('lakeMap.hint'), 'hint'),
       this.buttons([[t('common.back'), onBack]]),
     );
-    this.show(panel, () => map.dispose());
+    this.show(panel, { cleanup: () => map.dispose(), back: onBack });
   }
 
   /** Yksinpelin asetukset ennen kisaa. */
@@ -261,7 +282,7 @@ export class Screens {
     tackle: { current: Tackle; onChange: (t: Tackle) => void },
   ): void {
     const settings = { ...initial };
-    const panel = this.panel();
+    const panel = this.panel('solo');
     panel.append(
       h('h2', t('solo.title')),
       this.choice(
@@ -329,7 +350,7 @@ export class Screens {
         [t('common.back'), onBack],
       ]),
     );
-    this.show(panel);
+    this.show(panel, { back: onBack });
   }
 
   /** Moninpelin aloitus: nimimerkki, uusi huone tai liittyminen koodilla. */
@@ -341,7 +362,7 @@ export class Screens {
     onBack: () => void,
     error?: string,
   ): void {
-    const panel = this.panel();
+    const panel = this.panel('multiplayer');
     const nameInput = this.input(t('common.nickname'), name, NAME_MAX_LENGTH, t('common.angler'));
     const codeInput = this.input(t('mp.roomCode'), code, 40, 'LUNKI-XXXX');
     const nameValue = () => (nameInput.querySelector('input') as HTMLInputElement).value;
@@ -361,7 +382,7 @@ export class Screens {
     codeInput.querySelector('input')!.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') onJoin(nameValue(), codeValue());
     });
-    this.show(panel);
+    this.show(panel, { back: onBack });
     if (code) codeInput.querySelector('input')!.focus();
     else nameInput.querySelector('input')!.select();
   }
@@ -378,10 +399,10 @@ export class Screens {
   }
 
   showMessage(title: string, text: string, onCancel?: () => void): void {
-    const panel = this.panel();
+    const panel = this.panel('message');
     panel.append(h('h2', title), h('p', text));
     if (onCancel) panel.append(this.buttons([[t('common.cancel'), onCancel]]));
-    this.show(panel);
+    this.show(panel, onCancel ? { back: onCancel } : {});
   }
 
   /** Aula: pelaajat, valmius ja kisan aloitus. Piirretään uudelleen tilan muuttuessa. */
@@ -407,8 +428,7 @@ export class Screens {
     // Luettava ennen paneelin rakentamista: chatin siirto vanhasta paneelista
     // lyhentää sitä, ja selain siirtää vierityskohtaa ylös chatin korkeuden verran.
     const scroll = this.scrollOf('lobby');
-    const panel = this.panel();
-    panel.dataset.screen = 'lobby';
+    const panel = this.panel('lobby');
     const me = v.players.find((p) => p.me);
     const code = h('p', formatRoomCode(v.code), 'room-code');
     const copy = document.createElement('button');
@@ -507,7 +527,7 @@ export class Screens {
       ]);
     buttons.push([t('common.leave'), actions.onLeave]);
     panel.append(this.buttons(buttons));
-    this.show(panel, undefined, scroll);
+    this.show(panel, { scroll });
   }
 
   /** Testaajan palaute: teksti lähetetään pelipalvelimelle. */
@@ -516,7 +536,7 @@ export class Screens {
     onSend: (f: { name: string; text: string }) => Promise<boolean>,
     onBack: () => void,
   ): void {
-    const panel = this.panel();
+    const panel = this.panel('feedback');
     const nameRow = this.input(
       t('common.nickname'),
       name,
@@ -554,7 +574,7 @@ export class Screens {
         [t('common.back'), onBack],
       ]),
     );
-    this.show(panel);
+    this.show(panel, { back: onBack });
     text.focus();
   }
 
@@ -564,13 +584,13 @@ export class Screens {
     onChange: (a: AudioSettings) => void,
     onBack: () => void,
   ): void {
-    const panel = this.panel();
+    const panel = this.panel('audio');
     panel.append(
       h('h2', t('audio.title')),
       this.audioEditor(current, onChange),
       this.buttons([[t('common.back'), onBack]]),
     );
-    this.show(panel);
+    this.show(panel, { back: onBack });
   }
 
   private audioEditor(initial: AudioSettings, onChange: (a: AudioSettings) => void): HTMLElement {
@@ -653,7 +673,7 @@ export class Screens {
 
   /** Tekijät, kartta-aineistojen lähdemaininnat ja kirjastojen lisenssit. */
   showCredits(onBack: () => void): void {
-    const panel = this.panel();
+    const panel = this.panel('credits');
     const list = (items: (string | HTMLElement)[]) => {
       const ul = document.createElement('ul');
       ul.className = 'credits';
@@ -689,7 +709,7 @@ export class Screens {
       list([link(t('credits.osmCopyright'), 'https://www.openstreetmap.org/copyright')]),
       this.buttons([[t('common.back'), onBack]]),
     );
-    this.show(panel);
+    this.show(panel, { back: onBack });
   }
 
   /**
@@ -704,14 +724,14 @@ export class Screens {
     initial: Difficulty,
     onBack: () => void,
   ): void {
-    const panel = this.panel();
+    const panel = this.panel('records');
     panel.append(h('h2', t('records.title')));
     if (!raceBoard && !soloBoard) {
       panel.append(
         h('p', t('records.noServer'), 'error'),
         this.buttons([[t('common.back'), onBack]]),
       );
-      this.show(panel);
+      this.show(panel, { back: onBack });
       return;
     }
     let difficulty = initial;
@@ -868,7 +888,7 @@ export class Screens {
       modeHint,
       this.buttons([[t('common.back'), onBack]]),
     );
-    this.show(panel, () => map.dispose());
+    this.show(panel, { cleanup: () => map.dispose(), back: onBack, focusFirst: true });
   }
 
   showPause(
@@ -886,7 +906,7 @@ export class Screens {
       effective: () => number | null;
     },
   ): void {
-    const panel = this.panel();
+    const panel = this.panel('pause');
     panel.append(
       h('h2', multiplayer ? t('pause.menu') : t('pause.title')),
       ...(clock ? [h('p', t('pause.clock', { time: clock }))] : []),
@@ -917,8 +937,7 @@ export class Screens {
   ): void {
     // Uudelleenpiirto (esim. isäntä vaihtui) säilyttää valitun näkymän.
     if (this.scrollOf('race-results') === null) this.resultsOnMap = false;
-    const panel = this.panel();
-    panel.dataset.screen = 'race-results';
+    const panel = this.panel('race-results');
     const winner = results[0];
     panel.append(
       h('h2', t('results.raceOver')),
@@ -971,7 +990,7 @@ export class Screens {
       ),
     );
     if (!amHost) panel.append(h('p', t('results.hostRestarts'), 'hint'));
-    this.show(panel, map?.dispose);
+    this.show(panel, { cleanup: map?.dispose });
   }
 
   showResults(
@@ -983,7 +1002,7 @@ export class Screens {
     recordNotes: readonly string[] = [],
   ): void {
     this.resultsOnMap = false;
-    const panel = this.panel();
+    const panel = this.panel('results');
     const sum = summarize(c.catches, c.settings.winRule);
     const map = race ? this.raceMap(race) : null;
     panel.append(
@@ -1031,7 +1050,7 @@ export class Screens {
         [t('results.toMenu'), onMenu],
       ]),
     );
-    this.show(panel, map?.dispose);
+    this.show(panel, { cleanup: map?.dispose, back: onMenu });
   }
 
   /**
@@ -1157,9 +1176,11 @@ export class Screens {
     return box;
   }
 
-  private panel(): HTMLDivElement {
+  /** Uusi paneeli; `screen` nimeää näkymän (uudelleenpiirto, kohdistuksen muisti). */
+  private panel(screen: string): HTMLDivElement {
     const p = document.createElement('div');
     p.className = 'screen-panel';
+    p.dataset.screen = screen;
     return p;
   }
 
@@ -1174,24 +1195,41 @@ export class Screens {
     return prev?.dataset.screen === screen ? [prev.scrollTop, this.root.scrollTop] : null;
   }
 
-  private show(panel: HTMLElement, cleanup?: () => void, scroll?: [number, number] | null): void {
-    this.runCleanup();
-    this.cleanup = cleanup ?? null;
+  /** Kohdistetun kohteen järjestysnumero näkymän muistiin; -1 = ei kohdistusta. */
+  private rememberFocus(): number {
+    const prev = this.root.firstElementChild as HTMLElement | null;
+    const screen = prev?.dataset.screen;
+    if (!screen || this.root.hidden) return -1;
+    const index = this.nav.currentIndex();
+    if (index >= 0 && !NO_FOCUS_MEMORY.has(screen)) this.focusMemory.set(screen, index);
+    return index;
+  }
+
+  private show(panel: HTMLElement, { cleanup, scroll, back, focusFirst }: ShowOptions = {}): void {
     // Saman näkymän uudelleenpiirto (aula, tulokset) ei toista avausanimaatiota,
     // muuten paneeli välähtäisi jokaisella tilamuutoksella.
     const prev = this.root.firstElementChild as HTMLElement | null;
     const redraw =
       !this.root.hidden && !!panel.dataset.screen && prev?.dataset.screen === panel.dataset.screen;
+    const focused = this.rememberFocus();
+    this.runCleanup();
+    this.cleanup = cleanup ?? null;
+    this.nav.back = back ?? null;
     if (!redraw) panel.classList.add('enter');
     this.root.replaceChildren(panel);
     this.root.hidden = false;
     // Saman näkymän uudelleenpiirto (aula) säilyttää vierityksen.
-    if (scroll) {
-      [panel.scrollTop, this.root.scrollTop] = scroll;
-      return;
-    }
+    if (scroll) [panel.scrollTop, this.root.scrollTop] = scroll;
+    // Uudelleenpiirto pitää kohdistuksen paikallaan, ja näkymään palatessa
+    // jatketaan siitä, mihin jäätiin.
+    const index = redraw ? focused : (this.focusMemory.get(panel.dataset.screen!) ?? -1);
+    if (index >= 0 && this.nav.focusIndex(index, redraw)) return;
+    if (scroll) return;
     // Kohdistus ei saa vierittää pitkää näkymää alas.
-    panel.querySelector<HTMLButtonElement>('button.primary')?.focus({ preventScroll: true });
+    const first = focusFirst
+      ? this.nav.items()[0]
+      : panel.querySelector<HTMLButtonElement>('button.primary');
+    first?.focus({ preventScroll: true });
   }
 
   private choice(
@@ -1423,6 +1461,8 @@ export class Screens {
     row.append(h('span', t('settings.species'), 'choice-label'));
     const group = document.createElement('div');
     group.className = 'choice-options';
+    // Monivalinta: nuolet vain kohdistavat, Enter valitsee.
+    group.dataset.nav = 'focus';
     for (const o of SPECIES_OPTIONS) {
       const b = document.createElement('button');
       b.textContent = o.native ? speciesName(o.value) : `${speciesName(o.value)}*`;
@@ -1449,6 +1489,8 @@ export class Screens {
     row.append(h('span', t('settings.start'), 'choice-label'));
     const group = document.createElement('div');
     group.className = 'choice-options';
+    // Kartalta valinta avaa uuden näkymän, joten nuolet vain kohdistavat.
+    group.dataset.nav = 'focus';
     const random = document.createElement('button');
     random.textContent = t('settings.startRandom');
     const pick = document.createElement('button');
@@ -1477,7 +1519,7 @@ export class Screens {
     onDone: (start: Vec2 | null) => void,
     onCancel: () => void,
   ): void {
-    const panel = this.panel();
+    const panel = this.panel('start-picker');
     panel.classList.add('map-panel');
     let chosen = current;
     const buttons = this.buttons([
@@ -1501,7 +1543,7 @@ export class Screens {
       h('p', t('startPicker.hint'), 'hint'),
       buttons,
     );
-    this.show(panel, () => map.dispose());
+    this.show(panel, { cleanup: () => map.dispose(), back: onCancel });
   }
 
   /** Muut pelaajat näkevät asetukset tekstinä. */

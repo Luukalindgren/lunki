@@ -1,3 +1,6 @@
+/** Näppäimet, jotka menevät peliin myös valikon ollessa auki. */
+const MENU_PASS = new Set(['Escape', 'Backspace']);
+
 /**
  * Näppäimistön ja hiiren tila. Tapahtumat kerätään ja luetaan kiinteän
  * päivitysaskeleen alussa, jotta "painettiin juuri" -tieto ei katoa.
@@ -17,6 +20,12 @@ export class Input {
   private wheelAcc = 0;
   /** Kosketus, joka toimii hiirenä pelikuvan päällä (yksi kerrallaan). */
   private aimPointer: number | null = null;
+  /**
+   * Valikko auki: näppäimet ohjaavat valikkoa eivätkä peliä (esim. välilyönti
+   * ei kelaa taustalla moninpelin tauolla). Esc, Backspace ja F-näppäimet
+   * menevät silti peliin (tauon avaus ja sulku, paletti, FPS).
+   */
+  menuOpen: () => boolean = () => false;
 
   constructor(private readonly target: HTMLElement) {
     window.addEventListener('keydown', this.onKeyDown);
@@ -83,6 +92,7 @@ export class Input {
   private onKeyDown = (e: KeyboardEvent) => {
     // Tekstikenttiin kirjoittaminen ei ohjaa peliä.
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+    if (this.menuOpen() && !MENU_PASS.has(e.code) && !e.code.startsWith('F')) return;
     if (e.code.startsWith('Arrow') || e.code === 'Space' || e.code.startsWith('F')) {
       if (e.code !== 'F5' && e.code !== 'F11' && e.code !== 'F12') e.preventDefault();
     }

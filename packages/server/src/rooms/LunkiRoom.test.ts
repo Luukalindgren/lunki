@@ -115,7 +115,9 @@ function nearSlot(stock: FishPopulation, at: Vec2[], gens = [0], taken: number[]
     const d = Math.max(...gens.flatMap((g) => at.map((p) => distance(fishHome(stock, i, g)!, p))));
     if (d < bestD) [best, bestD] = [i, d];
   });
-  if (bestD > 150) throw new Error('kalaa ei ole heittomatkan päässä');
+  // Palvelin hyväksyy vieheen 200 m:n päähän renkaasta; pieni vara ajelehtimiselle.
+  // (150 m:n raja kaatoi testin satunnaisesti, kun kalakanta arvotaan joka kisaan.)
+  if (bestD > 190) throw new Error('kalaa ei ole heittomatkan päässä');
   return best;
 }
 

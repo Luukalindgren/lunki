@@ -117,6 +117,7 @@ export const fi = {
   'lakeMap.hint':
     'Vedä siirtääksesi, zoomaa rullalla, nipistämällä tai napeilla. Syvyydet ovat arvioita: järvestä ei ole julkista luotausta.',
   'map.wholeLake': 'Koko järvi',
+  'map.keys': 'Järvikartta: nuolet siirtävät, + ja − zoomaavat, Enter valitsee keskeltä',
   'map.tapWater': 'Napauta kohtaa vedessä.',
   'map.tapPin': 'Napauta merkkiä, niin näet saaliin tiedot.',
   'map.tapDepth': 'Napauta kohtaa, niin näet syvyyden.',
