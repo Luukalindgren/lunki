@@ -42,6 +42,8 @@ const COLOR = {
   foam: 0xeef2f3,
 } as const;
 
+/** Veden läpi piirrettävät osat; rengas piirretään niiden päälle. */
+const UNDERWATER_ORDER = 3;
 const SPLASHES = 12;
 const SPLASH_LIFE = 0.45;
 
@@ -256,6 +258,11 @@ export class PovTube {
     this.slackLine = slackCoils(this.slackMaterial);
     this.slackLine.visible = false;
     this.body.add(this.apron, this.slackLine);
+    // Rengas piirretään veden alla näkyvien räpylöiden jälkeen, jotta se peittää ne:
+    // levossa räpylöistä näkyvät vain kärjet renkaan edessä.
+    this.body.traverse((o) => {
+      if (o instanceof THREE.Mesh) o.renderOrder = UNDERWATER_ORDER + 1;
+    });
 
     // Sääret polvista viistosti eteen veteen; veden alla tummina.
     const legMat = new THREE.MeshLambertMaterial({ color: COLOR.legs });
@@ -277,7 +284,7 @@ export class PovTube {
       pivot.rotation.z = DIM.shinAngle;
       // Veden alla olevat osat piirretään vedenpinnan läpi (vesi on läpinäkymätön).
       for (const m of [shinWet, fin]) {
-        m.renderOrder = 3;
+        m.renderOrder = UNDERWATER_ORDER;
         (m.material as THREE.Material).depthTest = false;
       }
       this.body.add(pivot);
