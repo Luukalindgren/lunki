@@ -302,6 +302,9 @@ export class NetSession {
 
   private constructor(readonly room: Room<unknown, StateSchema>) {
     saveResume(room.reconnectionToken);
+    // SDK yhdistää oletuksena uudelleen vasta 5 s liittymisen jälkeen: heti
+    // kisaan palatessa tullut katko veisi muuten suoraan valikkoon (#273).
+    room.reconnection.minUptime = 0;
     room.onDrop(() => this.onConnection?.(false));
     room.onReconnect(() => {
       if (this.leaving) return;
