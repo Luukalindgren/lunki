@@ -41,6 +41,10 @@ import {
 
 /** Muut pelaajat piirretään näin paljon menneisyydestä (s), jotta liike on pehmeää. */
 const INTERPOLATION_DELAY = 0.12;
+/** Yhteyden jumittaessa muiden liikettä jatketaan enintään näin kauan (s). */
+const EXTRAPOLATE = 0.25;
+/** Tätä pidemmälle (m) ei jatketa: tila oli siirto (esim. trombi), ei uintia. */
+const EXTRAPOLATE_MAX = 1;
 
 export interface RemotePlayer {
   id: string;
@@ -427,8 +431,13 @@ export class NetWorld {
     const t = this.clock() - INTERPOLATION_DELAY;
     const out: RemotePlayer[] = [];
     for (const [id, r] of this.remotes) {
-      const s = r.buf.sample(t);
-      if (!s) continue;
+      const held = r.buf.sample(t);
+      if (!held) continue;
+      const ahead = r.buf.sample(t, EXTRAPOLATE)!;
+      const s =
+        Math.hypot(ahead.pos.x - held.pos.x, ahead.pos.y - held.pos.y) <= EXTRAPOLATE_MAX
+          ? ahead
+          : held;
       const air = this.inFlight(id, t, s.pos);
       out.push({
         id,
