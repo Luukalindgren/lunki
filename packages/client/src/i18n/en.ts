@@ -396,6 +396,7 @@ export const en: Record<keyof typeof fi, string> = {
   'lureSonar.biteReel': 'BITE! REEL!',
   'lureSonar.bite': 'BITE!',
   'lureSonar.snag': 'Snagged on the bottom!',
+  'lureSonar.fouled': 'Weed on the lure',
   'lureSonar.depth': 'Lure {lure} / bottom {bottom} m',
 
   // --- Touch controls ---
@@ -491,6 +492,7 @@ export const en: Record<keyof typeof fi, string> = {
   'game.lureChanged': 'Lure: {lure}',
   'game.snagged': 'Snagged on the bottom! Reel to free it',
   'game.unsnagged': 'The lure came free',
+  'game.fouled': 'Weed on the lure! Reel it in to clean it',
   'game.newLure': 'New lure',
   'game.lineCut': 'Line cut',
   'game.lureOnLandWait': 'The lure stayed on land · tying a new one takes {s} s',

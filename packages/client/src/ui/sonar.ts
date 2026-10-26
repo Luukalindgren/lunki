@@ -12,6 +12,12 @@ const COLORS = {
   grid: '#1d4a66',
   bottom: '#6b4a2b',
   bottomLine: '#e0b060',
+  /** Kova kivikkopohja kaikuu kirkkaampana, pehmeä lieju himmeämpänä. */
+  rockLine: '#fff0c0',
+  mudLine: '#9a7444',
+  boulder: '#8e99a4',
+  weed: '#3f8f3a',
+  brush: '#7a5230',
   small: '#f6d04d',
   big: '#f08a2c',
   huge: '#d23a2a',
@@ -80,8 +86,21 @@ export class SonarDisplay {
       const by = y(c.bottom);
       g.fillStyle = COLORS.bottom;
       g.fillRect(x, by, 1, HEIGHT - by);
-      g.fillStyle = COLORS.bottomLine;
-      g.fillRect(x, by, 1, 1);
+      // Kova pohja kaikuu paksumpana ja kirkkaampana viivana.
+      g.fillStyle =
+        c.floor === 'rock'
+          ? COLORS.rockLine
+          : c.floor === 'mud'
+            ? COLORS.mudLine
+            : COLORS.bottomLine;
+      g.fillRect(x, by, 1, c.floor === 'rock' ? 2 : 1);
+      if (c.cover) {
+        // Kivi kohoumana, kasvusto vihreänä ja risukko ruskeana kerroksena pohjan päällä.
+        const top = Math.min(by - 1, y(c.bottom - c.cover.height));
+        g.fillStyle = COLORS[c.cover.kind];
+        if (c.cover.kind === 'boulder') g.fillRect(x, top, 1, by - top);
+        else for (let py = top + (x % 2); py < by; py += 2) g.fillRect(x, py, 1, 1);
+      }
       for (const e of c.echoes) {
         const ey = Math.min(by - 1, y(e.depth));
         // Isompi kala näkyy paksumpana ja punaisempana kaikuna.

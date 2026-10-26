@@ -396,6 +396,7 @@ export const fi = {
   'lureSonar.biteReel': 'TÄRPPI! KELAA!',
   'lureSonar.bite': 'TÄRPPI!',
   'lureSonar.snag': 'Pohjassa kiinni!',
+  'lureSonar.fouled': 'Rikkaa vieheessä',
   'lureSonar.depth': 'Viehe {lure} / pohja {bottom} m',
 
   // --- Kosketusohjaimet ---
@@ -491,6 +492,7 @@ export const fi = {
   'game.lureChanged': 'Viehe: {lure}',
   'game.snagged': 'Pohjatartunta! Kelaa irrottaaksesi',
   'game.unsnagged': 'Viehe irtosi pohjasta',
+  'game.fouled': 'Vieheessä on rikkaa! Kelaa kotiin puhdistettavaksi',
   'game.newLure': 'Uusi viehe',
   'game.lineCut': 'Siima poikki',
   'game.lureOnLandWait': 'Viehe jäi maalle · uuden solmiminen {s} s',

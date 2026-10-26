@@ -75,7 +75,13 @@ describe('laskennallinen pohja', () => {
 describe('Lunkinjärven pohja', () => {
   const lake = new WaterBody(LUNKINJARVI);
   const t0 = Date.now();
-  const bottom = new LakeBottom(lake, LUNKINJARVI.bounds, LUNKINJARVI_BOTTOM);
+  const bottom = new LakeBottom(
+    lake,
+    LUNKINJARVI.bounds,
+    LUNKINJARVI_BOTTOM,
+    LUNKINJARVI.reeds,
+    LUNKINJARVI.piers,
+  );
   const ms = Date.now() - t0;
 
   it('lasketaan nopeasti ja syvänne on syvin kohta', () => {

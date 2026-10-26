@@ -37,3 +37,15 @@ describe('kaikuluotain', () => {
     expect(sonarRange(6.5)).toBe(8);
   });
 });
+
+describe('luotain näyttää pohjan laadun ja rakenteet (#226)', () => {
+  it('kova pohja ja kivi, kasvusto tai risukko välitetään näytölle', () => {
+    const weed = { kind: 'weed' as const, pos: { x: 0, y: 0 }, radius: 8, height: 0.9 };
+    const ping = sonarPing({ x: 0, y: 0 }, [], 2.5, { floor: 'rock', structure: weed });
+    expect(ping.floor).toBe('rock');
+    expect(ping.cover).toEqual({ kind: 'weed', height: 0.9 });
+    const rocks = { kind: 'rocks' as const, pos: { x: 0, y: 0 }, radius: 8 };
+    expect(sonarPing({ x: 0, y: 0 }, [], 2.5, { structure: rocks }).cover).toBeUndefined();
+    expect(sonarPing({ x: 0, y: 0 }, [], 2.5)).toEqual({ bottom: 2.5, echoes: [] });
+  });
+});

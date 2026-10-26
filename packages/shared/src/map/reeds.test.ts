@@ -9,7 +9,13 @@ import { pointInRing } from './surroundings';
 import { WaterBody } from './waterBody';
 
 const water = new WaterBody(LUNKINJARVI);
-const bottom = new LakeBottom(water, LUNKINJARVI.bounds, LUNKINJARVI_BOTTOM, LUNKINJARVI.reeds);
+const bottom = new LakeBottom(
+  water,
+  LUNKINJARVI.bounds,
+  LUNKINJARVI_BOTTOM,
+  LUNKINJARVI.reeds,
+  LUNKINJARVI.piers,
+);
 const beds = LUNKINJARVI.reeds ?? [];
 const centroid = (ring: { x: number; y: number }[]) => ({
   x: ring.reduce((s, p) => s + p.x, 0) / ring.length,

@@ -125,7 +125,13 @@ const rings = [LUNKINJARVI.shore, ...LUNKINJARVI.islands];
 /** Järven pohja kalojen sijoittelua varten; lasketaan ensimmäisen kisan alkaessa. */
 let bottom: LakeBottom | null = null;
 const fishWorld = () => {
-  bottom ??= new LakeBottom(water, LUNKINJARVI.bounds, LUNKINJARVI_BOTTOM, LUNKINJARVI.reeds);
+  bottom ??= new LakeBottom(
+    water,
+    LUNKINJARVI.bounds,
+    LUNKINJARVI_BOTTOM,
+    LUNKINJARVI.reeds,
+    LUNKINJARVI.piers,
+  );
   const b = bottom;
   return {
     isWater: (p: Vec2) => water.isWater(p),

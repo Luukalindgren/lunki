@@ -90,7 +90,13 @@ let lake: Parameters<typeof createFishPopulation>[0] | null = null;
 function stockOf(room: Room): FishPopulation {
   if (!lake) {
     const water = new WaterBody(LUNKINJARVI);
-    const bottom = new LakeBottom(water, LUNKINJARVI.bounds, LUNKINJARVI_BOTTOM, LUNKINJARVI.reeds);
+    const bottom = new LakeBottom(
+      water,
+      LUNKINJARVI.bounds,
+      LUNKINJARVI_BOTTOM,
+      LUNKINJARVI.reeds,
+      LUNKINJARVI.piers,
+    );
     lake = {
       isWater: (p) => water.isWater(p),
       depthAt: (p) => bottom.depthAt(p),

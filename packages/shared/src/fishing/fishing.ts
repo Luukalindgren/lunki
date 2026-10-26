@@ -1,4 +1,5 @@
 import type { Structure } from '../map/bottom';
+import type { BottomType } from '../map/scatter';
 import { distance, type Vec2 } from '../vec2';
 import type { Rng } from '../rng';
 import type { DifficultyParams } from './difficulty';
@@ -91,6 +92,10 @@ export interface FishingState {
   tackle: Tackle;
   /** Pohjaan tarttunut viehe: kuinka kauan sitä on yritetty irrottaa (s), null = vapaa. */
   snag: number | null;
+  /** Kevyt tartunta (jigi liejussa): irtoaa aina ensimmäisellä vedolla. */
+  softSnag: boolean;
+  /** Viehe on kerännyt uposkasvustosta rikkaa: kalat eivät juuri kiinnostu ennen puhdistusta. */
+  fouled: boolean;
 }
 
 export interface FishingContext {
@@ -102,6 +107,8 @@ export interface FishingContext {
   wind?: Vec2;
   /** Rakenne (kivikko, puu) vieheen kohdalla: viehe voi tarttua pohjaan. */
   structureAt?(p: Vec2): Structure | null;
+  /** Pohjan laatu: liejussa jigi tarttuu kevyesti, kivikossa se kolisee. */
+  bottomTypeAt?(p: Vec2): BottomType;
   /** Kalat: ilman tätä kalastetaan tyhjää järveä (testit, harjoittelu). */
   fish?: {
     pop: FishPopulation;
@@ -156,6 +163,8 @@ export const createFishing = (tackle: Tackle = DEFAULT_TACKLE): FishingState => 
   hookedId: null,
   tackle: { ...tackle },
   snag: null,
+  softSnag: false,
+  fouled: false,
 });
 
 /** Kalan tunniste kalakannassa: paikka (indeksi) ja sukupolvi. */
@@ -207,6 +216,10 @@ export interface FishingEvents {
   /** Viehe tarttui pohjaan / irtosi / jäi pohjaan (siima katkesi). */
   snagged?: boolean;
   unsnagged?: boolean;
+  /** Viehe keräsi rikkaa uposkasvustosta. */
+  fouled?: boolean;
+  /** Jigi kolahti kivikkopohjaan (ääni). */
+  rattle?: boolean;
   lureLost?: boolean;
   /** Viehe juuttui maalle tai laiturille. */
   stuck?: boolean;
@@ -224,7 +237,28 @@ export const SNAG = {
   /** Irrotusyrityksen kesto (s) ja onnistumisen todennäköisyys. */
   pullTime: 1.2,
   freeChance: 0.6,
+  /** Tartuntariskin kerroin rakenteittain; kasvusto vie viehettä vain harvoin. */
+  kindRisk: {
+    rocks: 1,
+    tree: 1.2,
+    reeds: 1,
+    dropoff: 0,
+    boulder: 1.5,
+    brush: 1.6,
+    weed: 0.12,
+  } satisfies Record<Structure['kind'], number>,
+  /** Liejupohjaa laahaavan jigin kevyt tartunta (todennäköisyys sekunnissa). */
+  mudRate: 0.15,
 } as const;
+
+/** Uposkasvustot (#226). */
+export const WEED = {
+  /** Todennäköisyys sekunnissa täysin tiheässä kasvustossa, että viehe kerää rikkaa. */
+  foulRate: 1.5,
+} as const;
+
+/** Kivikkopohjassa jigi kolisee (kertaa sekunnissa pohjaa laahatessa). */
+const RATTLE_RATE = 2.5;
 
 export const FIGHT = {
   /** Kala nostetaan, kun se on näin lähellä vavan kärkeä ja pinnassa. */
@@ -246,6 +280,7 @@ export function lureInfo(s: FishingState, ctx: FishingContext): LureInfo | null 
     fishable: s.hookedId === null,
     tip: rodTip(ctx.tubePos, ctx.heading),
     tackle: s.tackle,
+    fouled: s.fouled,
   };
 }
 
@@ -357,19 +392,8 @@ export function stepFishing(
         const bottom = ctx.depthAt(s.lure);
         const limit = Math.min(bottom, Math.max(lure.maxDepth, s.depth));
         s.depth = Math.max(0, Math.min(limit, s.depth + rate * dt));
-        // Kivikko ja oksat ovat pohjassa; kaislikon varret ulottuvat pintaan asti.
-        const structure = s.lureSpeed > 0.05 ? ctx.structureAt?.(s.lure) : null;
-        if (
-          structure &&
-          structure.kind !== 'dropoff' &&
-          (structure.kind === 'reeds' || s.depth >= bottom - SNAG.nearBottom) &&
-          s.struckId === null &&
-          fish?.rng.chance(SNAG.rate, dt)
-        ) {
-          s.snag = 0;
-          s.lureSpeed = 0;
-          events.snagged = true;
-        }
+        if (s.lureSpeed > 0.05 && s.struckId === null && fish)
+          touchBottom(s, ctx, bottom, fish.rng, events, dt);
       }
       stepLine(s.line, tip, s.lure, s.lineLength, dt, { x: 0.15, y: 0.1 });
 
@@ -381,6 +405,53 @@ export function stepFishing(
     }
   }
   return events;
+}
+
+/**
+ * Liikkuva viehe rakenteen kohdalla tai pohjassa: tarttuu kiveen, oksiin tai
+ * risukkoon, kerää rikkaa kasvustosta, tarttuu kevyesti liejuun tai kolisee
+ * kivikossa. Kivet, kasvustot ja risukot kohoavat pohjasta korkeutensa verran;
+ * kaislikon varret ulottuvat pintaan asti.
+ */
+function touchBottom(
+  s: FishingState,
+  ctx: FishingContext,
+  bottom: number,
+  rng: Rng,
+  events: FishingEvents,
+  dt: number,
+): void {
+  const lure = LURES[s.tackle.lure];
+  const structure = ctx.structureAt?.(s.lure);
+  if (structure) {
+    const top = bottom - (structure.height ?? 0) - SNAG.nearBottom;
+    if (structure.kind === 'reeds' || s.depth >= top) {
+      const density = structure.density ?? 1;
+      if (structure.kind === 'weed' && !s.fouled && rng.chance(WEED.foulRate * density, dt)) {
+        s.fouled = true;
+        events.fouled = true;
+      }
+      // Kasvusto tarttuu vain tiheänä; vieheen muoto ei siinä auta.
+      const risk =
+        SNAG.kindRisk[structure.kind] *
+        (structure.kind === 'weed' ? density * density : lure.snagRisk);
+      if (risk > 0 && rng.chance(SNAG.rate * risk, dt)) {
+        snagLure(s, false, events);
+        return;
+      }
+    }
+  }
+  if (s.depth < bottom - 0.05 || !ctx.bottomTypeAt || s.tackle.lure !== 'jig') return;
+  const floor = ctx.bottomTypeAt(s.lure);
+  if (floor === 'mud' && rng.chance(SNAG.mudRate, dt)) snagLure(s, true, events);
+  else if (floor === 'rock' && rng.chance(RATTLE_RATE, dt)) events.rattle = true;
+}
+
+function snagLure(s: FishingState, soft: boolean, events: FishingEvents): void {
+  s.snag = 0;
+  s.softSnag = soft;
+  s.lureSpeed = 0;
+  events.snagged = true;
 }
 
 /**
@@ -457,8 +528,9 @@ function pullSnag(
   // Liian kireä jarru katkaisee siiman heti.
   const snap = fish?.diff.lineCanBreak === true && s.drag > breakingStrength(s.tackle);
   if (!snap && s.snag < SNAG.pullTime) return;
-  if (!snap && (fish?.rng.next() ?? 0) < SNAG.freeChance) {
+  if (!snap && (s.softSnag || (fish?.rng.next() ?? 0) < SNAG.freeChance)) {
     s.snag = null;
+    s.softSnag = false;
     events.unsnagged = true;
   } else {
     events.lineBroken = true;
@@ -476,6 +548,9 @@ export function resetFishing(s: FishingState, fish?: { pop: FishPopulation; rng:
     fish && s.hookedId !== null ? fish.pop.fish.find((f) => f.id === s.hookedId) : null;
   if (hooked?.mode === 'hooked') release(hooked, fish!.rng);
   s.snag = null;
+  s.softSnag = false;
+  // Kotiin kelattu viehe puhdistetaan rikasta.
+  s.fouled = false;
   s.onLand = false;
   s.stage = 'idle';
   s.needRelease = true;

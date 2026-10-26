@@ -1,5 +1,6 @@
 {
   "maxDepth": 8,
+  "scatter": true,
   "features": [
     { "type": "hole", "name": "Länsiselän syvänne", "x": -250, "y": 150, "radius": 70, "depth": 10.5 },
     { "type": "shoal", "name": "Itäselän karikko", "x": 650, "y": 0, "radius": 35, "depth": 1.2 },

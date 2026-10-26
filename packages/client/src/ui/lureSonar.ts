@@ -1,4 +1,4 @@
-import { distance, sonarRange, type Structure, type Vec2 } from '@lunki/shared';
+import { distance, sonarRange, type BottomType, type Structure, type Vec2 } from '@lunki/shared';
 import { lureColor } from '../game/lureColor';
 import { decimal, t } from '../i18n';
 
@@ -20,10 +20,15 @@ const COLORS = {
   grid: '#1d4a66',
   bottom: '#6b4a2b',
   bottomLine: '#e0b060',
+  /** Kova kivikkopohja kaikuu kirkkaampana, pehmeä lieju himmeämpänä. */
+  rockLine: '#fff0c0',
+  mudLine: '#9a7444',
   land: '#3f6b2a',
   rocks: '#8e99a4',
   tree: '#a0703c',
   reeds: '#5fae3c',
+  weed: '#3f8f3a',
+  brush: '#7a5230',
   trail: '#4f6f86',
   glint: '#eef2f3',
   small: '#f6d04d',
@@ -47,6 +52,7 @@ export interface LureSonarFrame {
   depthAt(p: Vec2): number;
   isWater(p: Vec2): boolean;
   structureAt?(p: Vec2): Structure | null;
+  bottomTypeAt?(p: Vec2): BottomType;
   /** Vieheen perässä uivat kalat ja kiinni oleva kala. */
   fish: readonly LureSonarFish[];
   /** Kala iski: kelaa nyt. */
@@ -55,12 +61,18 @@ export interface LureSonarFrame {
   hooked: boolean;
   /** Viehe on tarttunut pohjaan. */
   snag: boolean;
+  /** Viehe on kerännyt rikkaa uposkasvustosta. */
+  fouled?: boolean;
 }
 
 /** Yksi sarake pohjan profiilia: syvyys (m) ja rakenne, null = maata. */
 export interface ProfileColumn {
   bottom: number | null;
   structure: Structure['kind'] | null;
+  /** Rakenteen korkeus pohjasta (m): kivi, kasvusto, risukko. */
+  height: number;
+  /** Pohjan laatu, jos tiedossa. */
+  floor: BottomType | null;
 }
 
 /** Näytön leveys metreinä: viiden metrin portaissa, vähintään 10 m. */
@@ -75,7 +87,7 @@ export function alongLine(tip: Vec2, dir: Vec2, p: Vec2): number {
 
 /** Pohjan profiili kärjestä vieheen suuntaan `span` metrin matkalta, `columns` saraketta. */
 export function lureProfile(
-  frame: Pick<LureSonarFrame, 'tip' | 'depthAt' | 'isWater' | 'structureAt'>,
+  frame: Pick<LureSonarFrame, 'tip' | 'depthAt' | 'isWater' | 'structureAt' | 'bottomTypeAt'>,
   dir: Vec2,
   span: number,
   columns = WIDTH,
@@ -83,9 +95,15 @@ export function lureProfile(
   return Array.from({ length: columns }, (_, i) => {
     const d = (i / (columns - 1)) * span;
     const p = { x: frame.tip.x + dir.x * d, y: frame.tip.y + dir.y * d };
-    if (!frame.isWater(p)) return { bottom: null, structure: null };
-    const s = frame.structureAt?.(p)?.kind ?? null;
-    return { bottom: frame.depthAt(p), structure: s === 'dropoff' ? null : s };
+    if (!frame.isWater(p)) return { bottom: null, structure: null, height: 0, floor: null };
+    const st = frame.structureAt?.(p);
+    const kind = st && st.kind !== 'dropoff' ? st.kind : null;
+    return {
+      bottom: frame.depthAt(p),
+      structure: kind,
+      height: (kind && st?.height) || 0,
+      floor: frame.bottomTypeAt?.(p) ?? null,
+    };
   });
 }
 
@@ -181,7 +199,10 @@ export class LureSonarDisplay {
     this.label.classList.toggle('alert', frame.bite || frame.snag);
     this.label.classList.toggle(
       'warn',
-      !frame.bite && !frame.snag && !frame.hooked && bottom - frame.depth < NEAR_BOTTOM,
+      !frame.bite &&
+        !frame.snag &&
+        !frame.hooked &&
+        (frame.fouled === true || bottom - frame.depth < NEAR_BOTTOM),
     );
   }
 
@@ -210,9 +231,26 @@ export class LureSonarDisplay {
       const by = y(c.bottom);
       g.fillStyle = COLORS.bottom;
       g.fillRect(i, by, 1, HEIGHT - by);
-      g.fillStyle = COLORS.bottomLine;
-      g.fillRect(i, by, 1, 1);
-      if (c.structure === 'reeds') {
+      // Kova pohja kaikuu paksumpana ja kirkkaampana viivana.
+      g.fillStyle =
+        c.floor === 'rock'
+          ? COLORS.rockLine
+          : c.floor === 'mud'
+            ? COLORS.mudLine
+            : COLORS.bottomLine;
+      g.fillRect(i, by, 1, c.floor === 'rock' ? 2 : 1);
+      // Kivi, kasvusto ja risukko kohoavat pohjasta korkeutensa verran.
+      const top = Math.min(by - 1, y(c.bottom - c.height));
+      if (c.structure === 'boulder') {
+        g.fillStyle = COLORS.rocks;
+        g.fillRect(i, top, 1, by - top);
+      } else if (c.structure === 'weed') {
+        g.fillStyle = COLORS.weed;
+        for (let py = top + (i % 2); py < by; py += 2) g.fillRect(i, py, 1, 1);
+      } else if (c.structure === 'brush') {
+        g.fillStyle = COLORS.brush;
+        for (let py = top + (i % 3); py < by; py += 2) g.fillRect(i, py, 1, 1);
+      } else if (c.structure === 'reeds') {
         // Kaislat kasvavat pohjasta pintaan asti.
         g.fillStyle = COLORS.reeds;
         for (let py = SURFACE_ROW + 1; py < by; py += 2) g.fillRect(i, py, 1, 1);
@@ -265,6 +303,7 @@ function labelFor(frame: LureSonarFrame, bottom: number, blink: number): string 
   if (frame.bite)
     return t(Math.floor(blink / 0.3) % 2 === 0 ? 'lureSonar.biteReel' : 'lureSonar.bite');
   if (frame.snag) return t('lureSonar.snag');
+  if (frame.fouled) return t('lureSonar.fouled');
   return t('lureSonar.depth', { lure: decimal(frame.depth, 1), bottom: decimal(bottom, 1) });
 }
 
