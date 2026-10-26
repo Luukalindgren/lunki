@@ -53,6 +53,11 @@ export class PovCamera {
   private roll = NaN;
   private pitch = NaN;
 
+  /** Yhden pikselin koko metreinä metrin päässä kamerasta. */
+  get pixelSize(): number {
+    return (2 * Math.tan(THREE.MathUtils.degToRad(FOV / 2))) / this.resolution.height;
+  }
+
   setResolution(r: RetroResolution): void {
     this.resolution = r;
     this.camera.aspect = r.width / r.height;

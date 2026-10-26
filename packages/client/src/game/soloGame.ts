@@ -109,7 +109,8 @@ import type { Sfx } from '../audio/sfx';
 import type { Hud } from '../ui/hud';
 import { fishLengthCm } from '../ui/fishArt';
 import { FishingView } from './fishingView';
-import { ROD_TIP_Y, rodSideOffset } from './lineHang';
+import { rodSideOffset } from './lineHang';
+import { PovRod } from './povRod';
 import { loadTackle, nextLure, saveTackle } from './tackle';
 import { TopDownCamera } from './topDownCamera';
 import { QuietSpot } from './quietSpot';
@@ -161,7 +162,9 @@ export class SoloGame {
   /** Vain POV:ssa näkyvät (maasto, metsänreuna) ja vain ylhäältä näkyvät (karttapohja). */
   private readonly scenery = new THREE.Group();
   private readonly mapOverlay = new THREE.Group();
-  private readonly povRod: THREE.Line;
+  private readonly povRod = new PovRod();
+  /** Pelaaja kelaa (kelan kampi pyörii kalastajan silmin). */
+  private cranking = false;
   readonly water: WaterBody;
   readonly bottom: LakeBottom;
   tube: TubeState;
@@ -362,13 +365,8 @@ export class SoloGame {
     }
     this.scenery.visible = false;
     this.scene.add(this.scenery, this.mapOverlay);
-    this.povRod = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
-      new THREE.LineBasicMaterial({ color: 0xf6d04d }),
-    );
-    this.povRod.visible = false;
-    this.povRod.frustumCulled = false;
-    this.scene.add(this.povRod);
+    this.povRod.group.visible = false;
+    this.scene.add(this.povRod.group);
     this.fishingView.lineColor = this.appearance.line;
     this.scene.add(this.fishingView.group, this.youMarker.group);
     if (this.spectating) {
@@ -479,7 +477,7 @@ export class SoloGame {
     const pov = mode === 'pov';
     this.scenery.visible = pov;
     this.mapOverlay.visible = !pov;
-    this.povRod.visible = pov && !this.spectating;
+    this.povRod.group.visible = pov && !this.spectating;
     this.tubeMesh.visible = !pov && !this.spectating;
     for (const o of this.topViewOnly) o.visible = !pov;
     this.sky.dome.visible = pov;
@@ -846,6 +844,7 @@ export class SoloGame {
     const lureOut = f.stage === 'flight' || f.stage === 'water';
     // Sotkussa vapa on kiinni: kelaaminen selvittää sotkua palvelimella.
     const reeling = !frozen && !tangle && lureOut && reelHeld;
+    this.cranking = !frozen && lureOut && reelHeld;
     const world = {
       isWater: (p: Vec2) => this.water.isWater(p),
       depthAt: (p: Vec2) => this.bottom.depthAt(p),
@@ -1434,16 +1433,16 @@ export class SoloGame {
       const tip = rodTip(pos, heading);
       tip.x += side.x;
       tip.y += side.y;
-      const hand = {
-        x: pos.x + Math.cos(heading - 1.1) * 0.45,
-        y: pos.y + Math.sin(heading - 1.1) * 0.45,
-      };
-      const attr = this.povRod.geometry.getAttribute('position') as THREE.BufferAttribute;
-      const h0 = toWorld(hand, 0.3);
-      const h1 = toWorld(tip, ROD_TIP_Y);
-      attr.setXYZ(0, h0.x, h0.y, h0.z);
-      attr.setXYZ(1, h1.x, h1.y, h1.z);
-      attr.needsUpdate = true;
+      this.povRod.update(
+        this.pov.camera,
+        this.pov.pixelSize,
+        pos,
+        heading,
+        tip,
+        this.fishing,
+        this.cranking,
+        this.fishingView.shownLineColor,
+      );
       this.sky.follow(this.pov.camera.position);
       this.mist.follow(this.pov.camera.position);
     }
