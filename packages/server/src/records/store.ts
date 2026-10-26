@@ -1,5 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 import {
+  parseAppearance,
   RECORDS_PER_SPECIES,
   type RecordBoard,
   type RecordEntry,
@@ -19,9 +20,19 @@ const DETAILS = [
   ['rod', 'rod', 'TEXT'],
   ['line', 'line', 'TEXT'],
   ['leader', 'leader', 'INTEGER'],
+  ['appearance', 'appearance', 'TEXT'],
 ] as const satisfies readonly (readonly [keyof RecordEntry, string, string])[];
 
 type Row = Record<string, string | number | null>;
+
+/** Ulkonäkö tallennetaan JSON-tekstinä; rikkinäinen arvo jää pois. */
+function readAppearance(v: string | number): RecordEntry['appearance'] {
+  try {
+    return parseAppearance(JSON.parse(String(v))) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /** Tietokannan rivi merkinnäksi: puuttuvat lisätiedot jäävät pois. */
 function toEntry(r: Row): RecordEntry {
@@ -34,7 +45,11 @@ function toEntry(r: Row): RecordEntry {
   };
   for (const [key, col] of DETAILS) {
     const v = r[col];
-    if (v !== null && v !== undefined) e[key] = key === 'leader' ? v === 1 : v;
+    if (v === null || v === undefined) continue;
+    if (key === 'appearance') {
+      const look = readAppearance(v);
+      if (look) e.appearance = look;
+    } else e[key] = key === 'leader' ? v === 1 : v;
   }
   return e as unknown as RecordEntry;
 }
@@ -91,7 +106,9 @@ export class RecordStore {
     const cols = DETAILS.map(([, col]) => col);
     const details = DETAILS.map(([key]) => {
       const v = e[key];
-      return v === undefined ? null : typeof v === 'boolean' ? Number(v) : v;
+      if (v === undefined) return null;
+      if (typeof v === 'object') return JSON.stringify(v);
+      return typeof v === 'boolean' ? Number(v) : v;
     });
     this.db
       .prepare(

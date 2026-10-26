@@ -118,7 +118,11 @@ function startGame(s: CompetitionSettings, seed = devSeed) {
   if (!session && devSeed === undefined) {
     const g = game;
     g.onSoloCatch = (entry) =>
-      void submitSoloRecord({ ...entry, angler: loadIdentity().name }).then((place) => {
+      void submitSoloRecord({
+        ...entry,
+        angler: loadIdentity().name,
+        appearance: loadAppearance(),
+      }).then((place) => {
         if (place === null || game !== g) return;
         const fish = `${speciesName(entry.species)} ${formatWeight(entry.weight)}`;
         const note =

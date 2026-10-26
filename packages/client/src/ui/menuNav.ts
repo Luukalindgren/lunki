@@ -54,7 +54,7 @@ export class MenuNav {
 
   /** Paneelin näkyvät ja käytössä olevat kohdistettavat dokumentin järjestyksessä. */
   items(): HTMLElement[] {
-    return [...this.root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+    return [...this.scope().querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
       (e) =>
         !(e as HTMLButtonElement).disabled &&
         !e.closest('[hidden]') &&
@@ -64,6 +64,12 @@ export class MenuNav {
 
   private indexItems(): HTMLElement[] {
     return this.items().filter((e) => !e.closest('.chat'));
+  }
+
+  /** Päällimmäinen kerros: avoin ikkuna (esim. punnituskortti) tai koko valikko. */
+  private scope(): HTMLElement {
+    const modals = this.root.querySelectorAll<HTMLElement>('.screen-modal');
+    return modals[modals.length - 1] ?? this.root;
   }
 
   /** Kohdistettavat riveittäin. */

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SPECIES } from '../fishing/fish';
+import { DEFAULT_APPEARANCE } from '../net/appearance';
 import { parseSoloRecord } from './records';
 
 const now = new Date('2026-10-26T00:10:00Z');
@@ -64,5 +65,14 @@ describe('yksinpelin saaliin tarkistus', () => {
     expect(e.sky).toBeUndefined();
     expect(e.leader).toBeUndefined();
     expect(e.angler).toBe('Kalastaja');
+  });
+
+  it('ulkonäkö tallennetaan punnituskorttiin, tuntemattomat värit oletuksiksi', () => {
+    const look = { ...DEFAULT_APPEARANCE, tube: 0xf6d04d };
+    expect(parseSoloRecord({ ...valid, appearance: look }, now)!.appearance).toEqual(look);
+    const odd = parseSoloRecord({ ...valid, appearance: { tube: 0x123456, shirt: 'red' } }, now)!;
+    expect(odd.appearance).toEqual(DEFAULT_APPEARANCE);
+    expect(parseSoloRecord({ ...valid, appearance: 'red' }, now)!.appearance).toBeUndefined();
+    expect(parseSoloRecord(valid, now)!.appearance).toBeUndefined();
   });
 });

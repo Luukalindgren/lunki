@@ -823,6 +823,12 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         rod: p.rod as RodId,
         line: p.line as LineId,
         leader: p.leader,
+        appearance: {
+          tube: p.tubeColor,
+          fins: p.finColor,
+          shirt: p.shirtColor,
+          line: p.lineColor,
+        },
       }),
     });
     if (place > RECORDS_PER_SPECIES) return;

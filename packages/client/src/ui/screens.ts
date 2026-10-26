@@ -51,6 +51,7 @@ import {
   cardBlob,
   cardFileName,
   drawWeighCard,
+  recordCard,
   weighCardText,
   type WeighCardInfo,
 } from './weighCard';
@@ -828,8 +829,19 @@ export class Screens {
               open = document.createElement('li');
               open.className = 'record-more';
               open.append(detailsBox(r));
-              if (r.x !== undefined)
-                open.append(this.buttons([[t('records.showOnMap'), () => openOnMap(r)]]));
+              const card = (e: Event) => {
+                const spot =
+                  r.x !== undefined && r.y !== undefined ? describeSpot({ x: r.x, y: r.y }) : null;
+                this.cardModal(recordCard(r, spot), e.currentTarget as HTMLElement);
+              };
+              open.append(
+                this.buttons([
+                  ...(r.x !== undefined
+                    ? ([[t('records.showOnMap'), () => openOnMap(r)]] as const)
+                    : []),
+                  [t('records.showCard'), card],
+                ]),
+              );
               li.after(open);
             }
             info.setAttribute('aria-expanded', String(open !== null));
@@ -1124,8 +1136,39 @@ export class Screens {
     return { element, dispose: () => map.dispose() };
   }
 
-  /** Kisan suurimman kalan punnituskortti: tallennus kuvana ja jakaminen. */
-  private weighCard(info: WeighCardInfo): HTMLElement {
+  /**
+   * Punnituskortti ennätyslistan päällä (#238). Esc, Takaisin tai klikkaus
+   * kortin ohi sulkee sen, ja kohdistus palaa avanneeseen nappiin.
+   */
+  private cardModal(info: WeighCardInfo, opener: HTMLElement): void {
+    const overlay = document.createElement('div');
+    overlay.className = 'screen-modal';
+    const box = document.createElement('div');
+    box.className = 'screen-panel modal-panel';
+    box.setAttribute('role', 'dialog');
+    box.setAttribute('aria-modal', 'true');
+    const back = this.nav.back;
+    const close = () => {
+      overlay.remove();
+      this.nav.back = back;
+      opener.focus({ preventScroll: true });
+    };
+    const buttons = this.buttons([[t('common.back'), close]]);
+    const backButton = buttons.querySelector('button')!;
+    // Jaa on kortin ensisijainen toiminto; Takaisin tavallisena.
+    backButton.classList.remove('primary');
+    box.append(this.weighCard(info, t('card.recordLabel')), buttons);
+    overlay.append(box);
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) close();
+    });
+    this.nav.back = close;
+    this.root.append(overlay);
+    backButton.focus({ preventScroll: true });
+  }
+
+  /** Punnituskortti: tallennus kuvana ja jakaminen. */
+  private weighCard(info: WeighCardInfo, label = t('card.label')): HTMLElement {
     const box = document.createElement('div');
     box.className = 'weigh-card-box';
     const canvas = drawWeighCard(info);
@@ -1165,7 +1208,7 @@ export class Screens {
       }
     };
     box.append(
-      h('p', t('card.label'), 'choice-label'),
+      h('p', label, 'choice-label'),
       canvas,
       this.buttons([
         [t('card.share'), () => void share()],
@@ -1589,7 +1632,7 @@ export class Screens {
     return row;
   }
 
-  private buttons(list: [string, () => void][]): HTMLElement {
+  private buttons(list: (readonly [string, (e: Event) => void])[]): HTMLElement {
     const row = document.createElement('div');
     row.className = 'buttons';
     list.forEach(([text, action], i) => {
