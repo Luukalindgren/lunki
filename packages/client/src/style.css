@@ -389,8 +389,35 @@ body {
 }
 
 .screen button:hover,
-.screen button:focus-visible {
+.screen.kb button:focus {
   border-color: #f6d04d;
+  outline: none;
+}
+
+.screen button:focus {
+  outline: none;
+}
+
+/* Näppäimistön kohdistus (#237): valkoinen kehys, joka erottuu valitun
+   (sininen) ja värin (keltainen rengas) korostuksesta, sekä vilkkuva ▶ rivin
+   edessä. Hiiren liike piilottaa merkin, kunnes nuolta painetaan. */
+.screen.kb button:focus,
+.screen.kb input:focus,
+.screen.kb textarea:focus,
+.screen.kb a:focus,
+.screen.kb canvas:focus {
+  outline: 3px solid #eef2f3;
+  outline-offset: 3px;
+}
+
+.screen.kb .choice:has(:focus) > .choice-label::before {
+  content: '▶ ';
+  color: #f6d04d;
+  animation: cursor-blink 0.8s steps(1) infinite;
+}
+
+.screen canvas:focus,
+.screen a:focus {
   outline: none;
 }
 
@@ -611,15 +638,15 @@ body {
   border: 3px solid #83c2db;
 }
 
-.screen input[type='range']:focus-visible {
+.screen input[type='range']:focus {
   outline: none;
 }
 
-.screen input[type='range']:focus-visible::-webkit-slider-thumb {
+.screen.kb input[type='range']:focus::-webkit-slider-thumb {
   border-color: #f6d04d;
 }
 
-.screen input[type='range']:focus-visible::-moz-range-thumb {
+.screen.kb input[type='range']:focus::-moz-range-thumb {
   border-color: #f6d04d;
 }
 
@@ -841,7 +868,7 @@ body {
 
 /* Retrovalikon osoitin valitun napin edessä. */
 .main-menu button:hover::before,
-.main-menu button:focus-visible::before {
+.screen.kb .main-menu button:focus::before {
   content: '▶';
   position: absolute;
   left: 12px;

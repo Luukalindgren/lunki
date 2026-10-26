@@ -77,6 +77,7 @@ const devDifficulty = (['easy', 'normal', 'realistic'] as const).find(
 const devSeed = params.has('seed') ? Number(params.get('seed')) : undefined;
 
 const screens = new Screens(app);
+input.menuOpen = () => screens.open;
 let settings = loadSettings(DEFAULT_SETTINGS);
 let game: SoloGame | null = null;
 let paused = false;
@@ -526,7 +527,8 @@ startLoop({
       retro.paletteMode = paletteModes[(i + 1) % paletteModes.length]!;
     }
     if (input.wasPressed('F3')) fps.toggle();
-    if (input.wasPressed('Escape')) togglePause();
+    // Taukovalikossa myös Backspace jatkaa peliä (muissa valikoissa se palaa takaisin).
+    if (input.wasPressed('Escape') || (paused && input.wasPressed('Backspace'))) togglePause();
     bench?.script(dt);
     const t0 = performance.now();
     // Moninpelissä kisa jatkuu valikon ollessa auki.
