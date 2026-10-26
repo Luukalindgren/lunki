@@ -310,6 +310,7 @@ export const en: Record<keyof typeof fi, string> = {
   // --- Pause and results ---
   'pause.menu': 'Menu',
   'pause.title': 'Paused',
+  'pause.clock': 'Time at the lake {time}',
   'pause.continues': 'The race goes on for the others.',
   'pause.resume': 'Continue',
   'pause.leaveRace': 'Leave the race',
