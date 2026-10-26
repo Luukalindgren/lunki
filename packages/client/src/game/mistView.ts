@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import type { LakeMap, Vec2 } from '@lunki/shared';
 import { toWorld } from '../world/lakeMesh';
 
-/** Usvan kuvion yhden toiston koko ylhäältä (m). */
-const PATCH_METERS = 45;
+/** Usvalauttojen tyypillinen koko ylhäältä (m). */
+const PATCH_METERS = 120;
 /**
  * Usvavallit ovat kameran ympärillä toistuvassa ruudussa (sivu m), joten
  * niitä riittää kaikkialle järvellä. Lähellä kameraa vallit ohenevat (m).
@@ -20,23 +20,54 @@ const NEAR_FADE: [number, number] = [8, 35];
  */
 const PATCH_VERT = /* glsl */ `
   uniform vec2 uOffset;
-  varying vec2 vUv;
+  varying vec2 vWorld;
   void main() {
     vec4 world = modelMatrix * vec4(position, 1.0);
-    vUv = world.xz / ${PATCH_METERS.toFixed(1)} + uOffset;
+    vWorld = world.xz - uOffset;
     gl_Position = projectionMatrix * viewMatrix * world;
   }
 `;
 
-/** Ylhäältä: ajelehtivia usvalauttoja. */
+/**
+ * Ylhäältä: ajelehtivia, epäsäännöllisiä usvalauttoja. Kuvio lasketaan
+ * kohinasta maailman koordinaateista, joten se ei toistu ruutuina.
+ */
 const PATCH_FRAG = /* glsl */ `
-  uniform sampler2D uMap;
   uniform float uAmount;
-  varying vec2 vUv;
+  varying vec2 vWorld;
+  float mistHash(vec2 p) {
+    // Ilman sin()-funktiota, jottei kuvio nauhoitu puhelinten GPU:illa.
+    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+  }
+  float mistNoise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    return mix(
+      mix(mistHash(i), mistHash(i + vec2(1.0, 0.0)), u.x),
+      mix(mistHash(i + vec2(0.0, 1.0)), mistHash(i + vec2(1.0, 1.0)), u.x),
+      u.y
+    );
+  }
+  float mistFbm(vec2 p) {
+    float sum = 0.0;
+    float amp = 0.5;
+    for (int k = 0; k < 5; k++) {
+      sum += amp * mistNoise(p);
+      p = mat2(1.6, 1.2, -1.2, 1.6) * p + vec2(3.1, 1.7);
+      amp *= 0.5;
+    }
+    return sum;
+  }
   void main() {
-    float n = texture2D(uMap, vUv).r * 0.7 + texture2D(uMap, vUv * 0.43 + vec2(0.31, 0.77)).r * 0.5;
-    float edge = 1.15 - 0.45 * uAmount;
-    float a = smoothstep(edge, edge + 0.3, n) * 0.6;
+    vec2 p = vWorld / ${PATCH_METERS.toFixed(1)};
+    // Vääristetty kohina tekee lautoista pilvimäisiä eikä pyöreitä läikkiä.
+    vec2 warp = vec2(mistFbm(p * 0.5), mistFbm(p * 0.5 + vec2(5.2, 1.3)));
+    float n = mistFbm(p + 1.6 * warp);
+    float edge = 0.66 - 0.16 * uAmount;
+    float a = smoothstep(edge, edge + 0.22, n) * 0.7;
     gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0 - 0.8 * a);
   }
 `;
@@ -181,8 +212,8 @@ export class MistView {
 
   /** `amount` = usvan määrä 0–1; usva ajelehtii hitaasti tuulen `wind` (m/s) mukana. */
   update(dt: number, amount: number, wind: Vec2, pov: boolean): void {
-    this.offset.x += (dt * (0.03 + wind.x * 0.05)) / PATCH_METERS;
-    this.offset.y -= (dt * (0.01 + wind.y * 0.05)) / PATCH_METERS;
+    this.offset.x += dt * (0.3 + wind.x * 0.5);
+    this.offset.y -= dt * (0.1 + wind.y * 0.5);
     this.group.visible = amount > 0.02;
     this.patches.visible = !pov;
     this.banks.visible = pov;
