@@ -64,7 +64,7 @@ test('moninpeli: Chromium, Firefox ja iPhone samassa huoneessa', async ({
       return page;
     };
 
-    await host.goto('/');
+    await host.goto('/?view=top');
     await host.getByRole('button', { name: 'Moninpeli' }).click();
     await expect(host.getByText('Palvelin päällä')).toBeVisible();
     await host.getByLabel('Nimimerkki').fill('Kromi');
@@ -90,7 +90,7 @@ test('moninpeli: Chromium, Firefox ja iPhone samassa huoneessa', async ({
         touch
           ? guest.getByRole('button', { name: label }).tap()
           : guest.getByRole('button', { name: label }).click();
-      await guest.goto('/');
+      await guest.goto('/?view=top');
       await press(text.multiplayer);
       await expect(guest.getByText(text.serverOk)).toBeVisible();
       await guest.getByLabel(text.nickname).fill(name);

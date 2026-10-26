@@ -148,7 +148,7 @@ test('käsimerkit: G avaa valikon, numero tekee eleen ja Esc sulkee tauotta (#22
 }) => {
   test.skip(isMobile, 'puhelimissa ELE-nappi, ks. kosketus.spec');
   const errors = watchErrors(page);
-  await page.goto('/');
+  await page.goto('/?view=top'); // oma kupla näkyy vain ylhäältä katsottuna
   await page.getByRole('button', { name: 'Yksinpeli' }).click();
   await page.getByRole('button', { name: 'Aloita kisa' }).click();
   await expect(page.locator('.hud-timer')).toBeVisible();

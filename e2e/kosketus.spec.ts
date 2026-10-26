@@ -51,7 +51,7 @@ test.describe('puhelin', () => {
     const t0 = await timer(page);
     await expect.poll(() => timer(page), { timeout: 15_000 }).not.toBe(t0);
     await expect.poll(() => canvasColors(page)).toBeGreaterThan(8);
-    await info.attach('pysty', { body: await page.screenshot(), contentType: 'image/png' });
+    await info.attach('pysty-pov', { body: await page.screenshot(), contentType: 'image/png' });
 
     // Tatti oikealle kääntää kalastajaa.
     const stick = (await page.locator('.touch-stick').boundingBox())!;
@@ -60,11 +60,14 @@ test.describe('puhelin', () => {
     await drag(page, browserName, centre, { x: centre.x + 60, y: centre.y }, 1500);
     await expect.poll(() => compassOffset(page)).not.toBe(before);
 
-    // KAM-nappi: kalastajan silmin.
+    // Kisa alkoi kalastajan silmin; KAM-nappi vaihtaa ylhäältä katsottuun.
     await page.getByRole('button', { name: 'KAM' }).tap();
-    await page.waitForTimeout(1500);
+    await expect(page.locator('.hud-message')).toHaveText('Ylhäältä (V)');
     await expect.poll(() => canvasColors(page)).toBeGreaterThan(8);
-    await info.attach('pysty-pov', { body: await page.screenshot(), contentType: 'image/png' });
+    await info.attach('pysty-ylhaalta', {
+      body: await page.screenshot(),
+      contentType: 'image/png',
+    });
 
     // ELE-nappi avaa käsimerkit; napautus tekee eleen (#228).
     await page.getByRole('button', { name: 'ELE' }).tap();
@@ -82,7 +85,10 @@ test.describe('puhelin', () => {
     await expect(page.locator('.touch-stick')).toBeInViewport();
     await expect(page.locator('.touch-reel')).toBeInViewport();
     await expect.poll(() => canvasColors(page)).toBeGreaterThan(8);
-    await info.attach('vaaka-pov', { body: await page.screenshot(), contentType: 'image/png' });
+    await info.attach('vaaka-ylhaalta', {
+      body: await page.screenshot(),
+      contentType: 'image/png',
+    });
 
     errors.check();
   });
@@ -94,7 +100,7 @@ test.describe('puhelin', () => {
   }) => {
     test.skip(!isMobile, 'vain puhelinemuloinnit');
     const errors = watchErrors(page);
-    await page.goto('/');
+    await page.goto('/?view=top');
     await page.getByRole('button', { name: 'Yksinpeli' }).tap();
     // Helpolla ajoitusikkuna on leveä, joten testin viive ei myöhästytä heittoa.
     await page.getByRole('button', { name: 'Helppo' }).tap();

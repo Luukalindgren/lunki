@@ -112,6 +112,9 @@ function startGame(s: CompetitionSettings, seed = devSeed) {
     net,
   );
   game.setResolution(retro.resolution);
+  // Kisa alkaa kalastajan silmin; V / KAM vaihtaa ylhäältä katsottuun.
+  // ?view=top (testit) ja suorituskykymittaus pysyvät ylhäällä.
+  game.setViewMode(params.get('view') === 'top' || params.has('bench') ? 'top' : 'pov', false);
   resultsAsHost = null;
   game.onFinished = () => showResults();
   soloRecordNotes = [];

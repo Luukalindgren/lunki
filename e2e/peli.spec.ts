@@ -14,7 +14,7 @@ test.describe('yksinpeli', () => {
     test.skip(isMobile, 'puhelimet: ks. kosketus.spec.ts');
     const errors = watchErrors(page);
     await trackAudio(page);
-    await startSolo(page);
+    await startSolo(page, 'pov');
 
     // Pelisilmukka pyörii ja WebGL piirtää järven.
     const t0 = await timer(page);
@@ -34,12 +34,12 @@ test.describe('yksinpeli', () => {
     await page.waitForTimeout(400);
     await page.mouse.up();
 
-    // Kalastajan silmin (V) ja takaisin.
+    // Kisa alkaa kalastajan silmin; V vaihtaa ylhäältä katsottuun ja takaisin.
     await page.keyboard.press('KeyV');
-    await page.waitForTimeout(1500);
-    // Ohjelmistorenderöinnillä POV:n ensimmäiset kuvat ovat CI:ssä hitaita.
-    await expect.poll(() => canvasColors(page), { timeout: 45_000 }).toBeGreaterThan(8);
+    await expect(page.locator('.hud-message')).toHaveText('Ylhäältä (V)');
+    await expect.poll(() => canvasColors(page)).toBeGreaterThan(8);
     await page.keyboard.press('KeyV');
+    await expect(page.locator('.hud-message')).toHaveText('Kalastajan silmin (V)');
 
     // Ääni käynnistyy ensimmäisestä painalluksesta (autoplay-sääntö). CI:n
     // virtuaalinäytöllä Firefoxilla ei ole äänilaitetta, joten siellä riittää,
@@ -48,9 +48,10 @@ test.describe('yksinpeli', () => {
       await expect.poll(() => audioStates(page)).toHaveLength(1);
     else await expect.poll(() => audioStates(page)).toContain('running');
 
-    // Tauko ja paluu.
+    // Tauko ja paluu. Taukovalikossa on koko näytön nappi.
     await page.keyboard.press('Escape');
     await expect(page.getByRole('button', { name: 'Jatka' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Koko näyttö' })).toBeVisible();
     await page.getByRole('button', { name: 'Jatka' }).click();
     await expect(page.locator('.hud-timer')).toBeVisible();
 
