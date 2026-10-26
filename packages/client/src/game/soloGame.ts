@@ -74,7 +74,6 @@ import {
   type FlyCastEvents,
   type FlyCastState,
   type FishingState,
-  type PlayerResult,
   type Penalty,
   type Strike,
   type BigWave,
@@ -143,6 +142,7 @@ import { YouMarker } from './youMarker';
 import { FlyStrip } from './flyStrip';
 import { loadAppearance } from './appearance';
 import { RaceLog, type RaceMapData } from './raceLog';
+import { scoreboardLines } from './raceScoreboard';
 import { bottomFor } from '../world/lakeData';
 import { decimal, formatWeight, ordinal, t } from '../i18n';
 import { baitName, describeTackle, skyName, speciesName } from '../i18n/names';
@@ -1593,12 +1593,7 @@ export class SoloGame {
           : null,
     );
     if ((this.raceHudTimer = (this.raceHudTimer + 1) % 15) !== 1) return;
-    const results = w.results();
-    const lines = results.slice(0, 5).map((r) => scoreLine(r, r.id === w.myId));
-    const me = results.find((r) => r.id === w.myId);
-    if (me && me.rank > 5 && !results.slice(0, 5).includes(me))
-      lines.push('…', scoreLine(me, true));
-    this.hud.setCatches([t('game.scoreboard'), ...lines]);
+    this.hud.setCatches([t('game.scoreboard'), ...scoreboardLines(w.results(), w.myId)]);
   }
 
   /**
@@ -1907,9 +1902,4 @@ export class SoloGame {
     }
     this.placeOwnBubble();
   }
-}
-
-function scoreLine(r: PlayerResult, me: boolean): string {
-  const name = r.name.length > 10 ? `${r.name.slice(0, 9)}…` : r.name;
-  return `${me ? '>' : ' '}${r.rank}. ${name.padEnd(10)} ${formatWeight(r.summary.score).padStart(7)}`;
 }
