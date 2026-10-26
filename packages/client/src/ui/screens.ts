@@ -257,6 +257,7 @@ export class Screens {
     /** Avaa kartan aloituspaikan valintaan; saa asetukset sellaisinaan. */
     onPickStart: (s: CompetitionSettings) => void,
     appearance: { current: Appearance; onChange: (a: Appearance) => void },
+    tackle: { current: Tackle; onChange: (t: Tackle) => void },
   ): void {
     const settings = { ...initial };
     const panel = this.panel();
@@ -312,6 +313,8 @@ export class Screens {
         (v) => (settings.landPenalty = Number(v)),
       ),
       h('p', t('settings.hazardHint'), 'hint'),
+      h('p', t('settings.tackle'), 'choice-label'),
+      this.tackleEditor(tackle.current, tackle.onChange, 'before'),
       h('p', t('settings.colors'), 'choice-label'),
       this.appearanceEditor(appearance.current, appearance.onChange),
       this.buttons([
@@ -444,7 +447,8 @@ export class Screens {
       li.append(
         name,
         h('span', state, `player-state ${p.host || p.ready || p.spectator ? 'ok' : ''}`),
-        h('span', describeFullTackle(p.tackle), 'player-gear'),
+        // Katsoja ei kalasta: ei varusteita.
+        ...(p.spectator ? [] : [h('span', describeFullTackle(p.tackle), 'player-gear')]),
       );
       list.appendChild(li);
     }
@@ -478,8 +482,13 @@ export class Screens {
       v.amHost
         ? this.settingsEditor(v.settings, v.players.length, actions.onSettings, actions.onPickStart)
         : this.settingsSummary(v.settings),
-      h('p', t('settings.tackle'), 'choice-label'),
-      this.tackleEditor(me?.tackle ?? DEFAULT_TACKLE, actions.onTackle),
+      // Katsoja ei kalasta, joten varusteita ei tarvita.
+      ...(me?.spectator
+        ? []
+        : [
+            h('p', t('settings.tackle'), 'choice-label'),
+            this.tackleEditor(me?.tackle ?? DEFAULT_TACKLE, actions.onTackle, 'before'),
+          ]),
       h('p', t('settings.colors'), 'choice-label'),
       this.appearanceEditor(me?.appearance ?? null, actions.onAppearance),
     );
@@ -828,7 +837,7 @@ export class Screens {
       h('h2', multiplayer ? t('pause.menu') : t('pause.title')),
       ...(clock ? [h('p', t('pause.clock', { time: clock }))] : []),
       ...(multiplayer ? [h('p', t('pause.continues'), 'hint')] : []),
-      ...(tackle ? [this.tackleEditor(tackle.current, tackle.onChange)] : []),
+      ...(tackle ? [this.tackleEditor(tackle.current, tackle.onChange, 'during')] : []),
       ...(audio ? [this.audioEditor(audio.current, audio.onChange)] : []),
       this.buttons([
         [t('pause.resume'), onResume],
@@ -1213,11 +1222,19 @@ export class Screens {
     return box;
   }
 
-  /** Varusteet: vapa, viehe, siima ja teräsperuke. */
-  private tackleEditor(initial: Tackle, onChange: (t: Tackle) => void): HTMLElement {
+  /**
+   * Varusteet: vapa, viehe, siima ja teräsperuke. Ennen kisaa valitaan vapa
+   * (viehe vaihdetaan kisan aikana), kisan aikana viehe (vapa pysyy samana).
+   */
+  private tackleEditor(
+    initial: Tackle,
+    onChange: (t: Tackle) => void,
+    mode: 'before' | 'during',
+  ): HTMLElement {
     const tk = { ...initial };
     const box = document.createElement('div');
     box.className = 'settings';
+    box.dataset.tackle = mode;
     const rodText = h('p', rodHint(tk.rod), 'hint');
     const hint = h('p', lureHint(tk.lure), 'hint');
     const set = (patch: Partial<Tackle>) => {
@@ -1226,28 +1243,27 @@ export class Screens {
       hint.textContent = lureHint(tk.lure);
       onChange({ ...tk });
     };
-    const beginner = document.createElement('button');
-    beginner.textContent = t('tackle.beginner');
-    beginner.title = describeFullTackle(DEFAULT_TACKLE);
-    beginner.addEventListener('click', () => {
-      onChange({ ...DEFAULT_TACKLE });
-      box.replaceWith(this.tackleEditor(DEFAULT_TACKLE, onChange));
-    });
+    if (mode === 'before')
+      box.append(
+        this.choice(
+          t('tackle.rod'),
+          ROD_IDS.map((id) => [id, rodName(id)]),
+          tk.rod,
+          (v) => set({ rod: v as Tackle['rod'] }),
+        ),
+        rodText,
+      );
+    else
+      box.append(
+        this.choice(
+          t('tackle.lure'),
+          LURE_IDS.map((id) => [id, lureName(id)]),
+          tk.lure,
+          (v) => set({ lure: v as Tackle['lure'] }),
+        ),
+        hint,
+      );
     box.append(
-      this.choice(
-        t('tackle.rod'),
-        ROD_IDS.map((id) => [id, rodName(id)]),
-        tk.rod,
-        (v) => set({ rod: v as Tackle['rod'] }),
-      ),
-      rodText,
-      this.choice(
-        t('tackle.lure'),
-        LURE_IDS.map((id) => [id, lureName(id)]),
-        tk.lure,
-        (v) => set({ lure: v as Tackle['lure'] }),
-      ),
-      hint,
       this.choice(
         t('tackle.line'),
         LINE_IDS.map((id) => [
@@ -1267,8 +1283,22 @@ export class Screens {
         (v) => set({ leader: v === 'yes' }),
       ),
       h('p', t('tackle.hint'), 'hint'),
-      beginner,
     );
+    if (mode === 'during') {
+      box.append(h('p', t('tackle.rodLocked', { rod: rodName(tk.rod) }), 'hint'));
+      return box;
+    }
+    box.append(h('p', t('tackle.lureInRace'), 'hint'));
+    // Viehettä ei valita ennen kisaa, joten se säilyy ennallaan.
+    const beginner = document.createElement('button');
+    beginner.textContent = t('tackle.beginner');
+    beginner.title = describeFullTackle({ ...DEFAULT_TACKLE, lure: tk.lure });
+    beginner.addEventListener('click', () => {
+      const reset = { ...DEFAULT_TACKLE, lure: tk.lure };
+      onChange(reset);
+      box.replaceWith(this.tackleEditor(reset, onChange, mode));
+    });
+    box.append(beginner);
     return box;
   }
 

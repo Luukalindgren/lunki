@@ -276,6 +276,21 @@ describe('LunkiRoom', () => {
     await guest.leave();
   });
 
+  it('kisan aikana vapa pysyy samana, viehe ja siima vaihtuvat', async () => {
+    const host = await sdk().create(ROOM_NAME, { name: 'A', playerId: 'a' });
+    await until(() => players(host).length === 1);
+    type Gear = { rod: string; lure: string; line: string; leader: boolean };
+    const gear = () => (players(host) as unknown as Gear[])[0]!;
+    host.send(ClientMsg.tackle, { rod: 'heavy', lure: 'spoon', line: 'medium', leader: false });
+    await until(() => gear().rod === 'heavy');
+    host.send(ClientMsg.start);
+    await until(() => host.state.phase === 'countdown');
+    host.send(ClientMsg.tackle, { rod: 'light', lure: 'jig', line: 'thin', leader: true });
+    await until(() => gear().lure === 'jig');
+    expect(gear()).toMatchObject({ rod: 'heavy', line: 'thin', leader: true });
+    await host.leave();
+  });
+
   it('värit näkyvät muille, ja tuntemattomat korvautuvat oletuksilla', async () => {
     const host = await sdk().create(ROOM_NAME, { name: 'A', playerId: 'a' });
     const guest = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });

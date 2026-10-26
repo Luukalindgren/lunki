@@ -181,6 +181,8 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   private readonly seats = new Map<string, Seat>();
   /** Kesken kisan katsojiksi tulleet: uudessa kisassa he ovat kalastajia. */
   private readonly lateSpectators = new Set<string>();
+  /** Kisan aikana vapaa ei enää vaihdeta: istunnot, joiden vapa on lukittu. */
+  private readonly rodFixed = new Set<string>();
   /** Kisan ensimmäinen aloituspaikka: myöhästyneet aloittavat sen läheltä. */
   private spawnOrigin: Vec2 | null = null;
   /** Kehitystä varten: LUNKI_RACE_SECONDS lyhentää kaikki kisat. */
@@ -313,7 +315,9 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       const p = this.state.players.get(client.sessionId);
       const t = parseTackle(msg);
       if (!p || !t) return;
-      p.rod = t.rod;
+      // Vapa valitaan ennen kisaa; kesken kisan tullut saa valita sen kerran.
+      if (this.state.phase === 'lobby' || !this.rodFixed.has(client.sessionId)) p.rod = t.rod;
+      if (this.state.phase !== 'lobby') this.rodFixed.add(client.sessionId);
       p.lure = t.lure;
       p.line = t.line;
       p.leader = t.leader;
@@ -356,6 +360,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         if (p) p.spectator = false;
       }
       this.lateSpectators.clear();
+      this.rodFixed.clear();
       this.state.phase = 'lobby';
     });
 
@@ -503,6 +508,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
 
       this.state.clock = 0;
       this.state.countdown = this.countdownSeconds;
+      for (const id of this.state.players.keys()) this.rodFixed.add(id);
       this.state.phase = 'countdown';
       this.setFixedTimestep(() => this.step(), 1 / NET_DT);
       this.broadcast(ServerMsg.started, { seed: this.state.seed });

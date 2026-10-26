@@ -183,6 +183,8 @@ export const fi = {
   'tackle.hint':
     'Ohut siima heittyy pidemmälle mutta katkeaa helpommin. Hauki voi purra siiman poikki ilman peruketta.',
   'tackle.beginner': 'Aloittelijan varusteet',
+  'tackle.lureInRace': 'Vieheen vaihdat kisan aikana: R-näppäin, VIEHE-nappi tai taukovalikko.',
+  'tackle.rodLocked': 'Vapa: {rod}. Vapa pysyy samana koko kisan.',
 
   // --- Aloituspaikan valinta ---
   'startPicker.choose': 'Valitse tämä',

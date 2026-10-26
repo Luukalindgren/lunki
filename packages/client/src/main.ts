@@ -168,6 +168,7 @@ function showSoloSetup(s: CompetitionSettings) {
         () => showSoloSetup(current),
       ),
     { current: loadAppearance(), onChange: saveAppearance },
+    { current: loadTackle(), onChange: saveTackle },
   );
 }
 
@@ -424,7 +425,8 @@ function togglePause() {
             showResults();
           },
       session !== null,
-      { current: game.tackle, onChange: (t) => game?.setTackle(t) },
+      // Katsoja ei kalasta.
+      game.spectating ? undefined : { current: game.tackle, onChange: (t) => game?.setTackle(t) },
       { current: sfx.audioSettings, onChange: (a) => sfx.setAudioSettings(a) },
       formatClock(game.clock),
     );
