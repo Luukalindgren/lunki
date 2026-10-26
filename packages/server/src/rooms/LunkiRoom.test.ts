@@ -1098,7 +1098,7 @@ describe('LunkiRoom', () => {
 });
 
 describe('liittyminen kesken kisan', () => {
-  type P = { name: string; x: number; y: number; connected: boolean };
+  type P = { name: string; x: number; y: number; connected: boolean; spectator: boolean };
   const water = new WaterBody(LUNKINJARVI);
   const me = (room: Room) => room.state.players.get(room.sessionId) as P;
 
