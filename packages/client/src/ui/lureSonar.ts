@@ -1,6 +1,5 @@
 import {
   ECHO_STYLE,
-  GIANT_RIM,
   distance,
   sizeClass,
   sonarRange,
@@ -285,14 +284,10 @@ export class LureSonarDisplay {
       const size = sizeClass(f.species, f.weight);
       const half = ECHO_STYLE[size]!.px;
       const fy = y(f.depth);
-      const arc = (color: string, grow: number) => {
-        g.fillStyle = color;
-        g.fillRect(fx - half - grow, fy, half * 2 + 1 + grow * 2, 1 + grow);
-        if (half > 1) g.fillRect(fx - half + 1 - grow, fy - 1 - grow, half * 2 - 1 + grow * 2, 1);
-      };
-      // Jättikala: musta kaiku ohuella valkoisella reunalla.
-      if (size === 4) arc(GIANT_RIM, 1);
-      arc(ECHO_STYLE[size]!.color, 0);
+      // Jättikala näkyy suurimpana, mustana kaarena.
+      g.fillStyle = ECHO_STYLE[size]!.color;
+      g.fillRect(fx - half, fy, half * 2 + 1, 1);
+      if (half > 1) g.fillRect(fx - half + 1, fy - 1, half * 2 - 1, 1);
     }
 
     const lx = Math.min(WIDTH - 2, x(distance(frame.tip, frame.lure)));

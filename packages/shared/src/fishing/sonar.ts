@@ -62,7 +62,7 @@ export function sonarPing(
 
 /**
  * Kaiun väri ja koko (px) kokoluokittain: keltainen, oranssi, punainen,
- * violetti ja jättikalalle musta ohuella valkoisella reunalla.
+ * violetti ja jättikalalle musta, leveä kaiku.
  */
 export const ECHO_STYLE: readonly { color: string; px: number }[] = [
   { color: '#f6d04d', px: 1 },
@@ -71,9 +71,6 @@ export const ECHO_STYLE: readonly { color: string; px: number }[] = [
   { color: '#9b4dd8', px: 4 },
   { color: '#000000', px: 5 },
 ];
-
-/** Jättikalan kaiun reuna. */
-export const GIANT_RIM = '#ffffff';
 
 /** Näytön syvyysalue (m): pienin porras, johon pohja mahtuu. */
 export function sonarRange(bottom: number): number {

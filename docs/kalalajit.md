@@ -26,13 +26,13 @@ ja rengas kulkee siellä hitaasti.
 Jokaisella lajilla on viisi kokoluokkaa omin painorajoin (`sizes`). Luotaimet näyttävät
 kaiun luokan mukaan:
 
-| Luokka    | Kaiku                               | Ahven    | Hauki  | Särki     | Kuha   | Taimen |
-| --------- | ----------------------------------- | -------- | ------ | --------- | ------ | ------ |
-| pieni     | keltainen 1 px                      | < 0,2 kg | < 1 kg | < 0,15 kg | < 1 kg | < 1 kg |
-| iso       | oranssi 2 px                        | 0,2      | 1      | 0,15      | 1      | 1      |
-| tosi iso  | punainen 3 px                       | 0,4      | 2,5    | 0,3       | 2      | 2      |
-| suurkala  | violetti 4 px                       | 0,8      | 5      | 0,5       | 4      | 3      |
-| jättikala | musta, valkoinen reuna, 5 px, leveä | 1,2      | 8      | 0,7       | 6      | 4,5    |
+| Luokka    | Kaiku              | Ahven    | Hauki  | Särki     | Kuha   | Taimen |
+| --------- | ------------------ | -------- | ------ | --------- | ------ | ------ |
+| pieni     | keltainen 1 px     | < 0,2 kg | < 1 kg | < 0,15 kg | < 1 kg | < 1 kg |
+| iso       | oranssi 2 px       | 0,2      | 1      | 0,15      | 1      | 1      |
+| tosi iso  | punainen 3 px      | 0,4      | 2,5    | 0,3       | 2      | 2      |
+| suurkala  | violetti 4 px      | 0,8      | 5      | 0,5       | 4      | 3      |
+| jättikala | musta, 5 px, leveä | 1,2      | 8      | 0,7       | 6      | 4,5    |
 
 Järvessä on aina jokaista lajia vähintään yksi jättikala (hauella kaksi) ja kaksi suurkalaa.
 Paikat valitaan kalakannan siemenestä omalla arpojallaan, joten palvelin laskee saman kannan,
