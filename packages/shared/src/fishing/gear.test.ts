@@ -3,8 +3,9 @@ import { Rng } from '../rng';
 import { distance } from '../vec2';
 import { predictLanding } from './cast';
 import { DIFFICULTIES } from './difficulty';
-import { lureAppeal, spawnFish, type FishPopulation, type LureInfo } from './fish';
+import { SPECIES_IDS, lureAppeal, spawnFish, type FishPopulation, type LureInfo } from './fish';
 import {
+  REEL,
   createFishing,
   lureInfo,
   stepFishing,
@@ -13,6 +14,7 @@ import {
 } from './fishing';
 import {
   DEFAULT_TACKLE,
+  LURE_IDS,
   breakingStrength,
   isTackle,
   parseTackle,
@@ -92,6 +94,27 @@ describe('vieheet ja siimat', () => {
     expect(lureAppeal(perch, lure({ lure: 'jig' }, 0))).toBeGreaterThan(
       lureAppeal(perch, lure({ lure: 'spinner' }, 0)) * 2,
     );
+  });
+
+  it('pikakelattu viehe ei kiinnosta mitään lajia', () => {
+    const rng = new Rng(2);
+    const pop: FishPopulation = { fish: [], nextId: 1, tick: 0 };
+    const fast = REEL.gears[REEL.fastGear];
+    for (const species of SPECIES_IDS) {
+      const fish = spawnFish(pop, species, { x: 0, y: 0 }, world, rng);
+      fish.depth = 0.5;
+      for (const lure of LURE_IDS) {
+        const info: LureInfo = {
+          pos: { x: 1, y: 0 },
+          depth: 0.5,
+          speed: fast,
+          fishable: true,
+          tip: { x: -20, y: 0 },
+          tackle: tackle({ lure }),
+        };
+        expect(lureAppeal(fish, info)).toBe(0);
+      }
+    }
   });
 
   it('hauki puree siiman poikki ilman teräsperuketta', () => {

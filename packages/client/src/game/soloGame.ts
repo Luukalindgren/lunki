@@ -3,6 +3,7 @@ import {
   breakingStrength,
   FLY,
   FLY_CAST,
+  REEL,
   holdForce,
   loopProgress,
   isFly,
@@ -1018,6 +1019,7 @@ export class SoloGame {
               ...(input.wasPressed('Digit1') ? { gear: 0 } : {}),
               ...(input.wasPressed('Digit2') ? { gear: 1 } : {}),
               ...(input.wasPressed('Digit3') ? { gear: 2 } : {}),
+              ...(input.wasPressed('Digit4') ? { gear: REEL.fastGear } : {}),
               ...(this.pendingTackle ? { tackle: this.pendingTackle } : {}),
               cut: input.wasPressed('KeyC'),
               ...fly,
@@ -1109,7 +1111,10 @@ export class SoloGame {
       t('game.line', { m: decimal(f.lineLength, 1) }),
       isFly(f.tackle) && !f.onReel
         ? t('game.flyHand', { m: decimal(f.slack, 1) })
-        : t('game.drag', { kg: decimal(f.drag, 2), gear: f.gear + 1 }),
+        : t('game.drag', {
+            kg: decimal(f.drag, 2),
+            gear: f.gear === REEL.fastGear ? t('game.fastGear') : f.gear + 1,
+          }),
       t('game.lureDepth', { m: decimal(f.stage === 'water' && !f.onLand ? f.depth : 0, 1) }),
       t('game.bottom', { m: decimal(this.bottom.depthAt(lureOut ? f.lure : this.tube.pos), 1) }),
     ]);
