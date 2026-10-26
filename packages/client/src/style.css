@@ -245,8 +245,25 @@ body {
 }
 
 .hud-sonar,
-.hud-lure-sonar {
+.hud-lure-sonar,
+.hud-fly-panel {
   padding: var(--u);
+}
+
+/* Perhoheiton sivukuva (#236), samankokoinen kuin vieheluotain. */
+.hud-fly-panel canvas {
+  display: block;
+  width: calc(var(--u) * 96);
+  height: calc(var(--u) * 44);
+  image-rendering: pixelated;
+}
+
+.hud-fly-panel .hud-sonar-label {
+  text-align: left;
+}
+
+.hud-sonar-label.now {
+  color: #7bd66f;
 }
 
 .hud-lure-sonar canvas {
@@ -1217,6 +1234,14 @@ body {
   font-size: calc(var(--u) * 7);
 }
 
+/* Perhoheiton sivukuva alareunan keskellä tatin ja nappien välissä (#236). */
+.hud.touch .hud-fly-panel {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--m) * 4 + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+}
+
 /* Kuntopalkki tatin yläpuolella. */
 .hud.touch .hud-stamina {
   position: absolute;
@@ -1302,6 +1327,18 @@ body {
 
   .hud.touch .hud-catches {
     font-size: calc(var(--u) * 7);
+  }
+
+  /* Pystyssä kuntopalkin yläpuolelle nappipinon vasemmalle puolelle, pienempänä. */
+  .hud.touch .hud-fly-panel {
+    left: calc(16px + env(safe-area-inset-left, 0px));
+    bottom: calc(190px + env(safe-area-inset-bottom, 0px));
+    transform: none;
+  }
+
+  .hud.touch .hud-fly-panel canvas {
+    width: calc(var(--u) * 80);
+    height: calc(var(--u) * 36.67);
   }
 
   /* Pystyssä tilapaneelin alle ja vasemman nappirivin oikealle puolelle. */

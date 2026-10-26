@@ -6,6 +6,7 @@ import {
   formatClock,
   formatTime,
   isTimeOfDay,
+  isFly,
   isWeatherLevel,
   parseRoomCode,
   type CatchRecord,
@@ -537,8 +538,10 @@ startLoop({
     const t0 = performance.now();
     // Moninpelissä kisa jatkuu valikon ollessa auki.
     if (game && ((!paused && !screens.open) || (session && paused))) game.update(dt);
-    if (game) touch?.setGear(game.fishing.gear);
-    else if (!game) sfx.updateAmbience(dt, MENU_AMBIENCE);
+    if (game) {
+      touch?.setGear(game.fishing.gear);
+      touch?.setFly(isFly(game.fishing.tackle), !game.fishing.onReel);
+    } else sfx.updateAmbience(dt, MENU_AMBIENCE);
     updateTime += performance.now() - t0;
     updateCount++;
   },
