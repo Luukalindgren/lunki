@@ -322,10 +322,12 @@ describe('kivet, kasvustot, risukot ja pohjan laatu (#226)', () => {
     return n;
   };
 
-  it('jigi tarttuu kiveen useammin kuin vaappu, jonka lippa kimmottaa sen irti', () => {
+  it('jigi tarttuu kiveen useammin kuin vaappu ja lippa, jonka siipi suojaa koukkua', () => {
     const jig = count('jig', boulder, 'snagged');
     const wobbler = count('wobbler', boulder, 'snagged');
+    const spinner = count('spinner', boulder, 'snagged');
     expect(jig).toBeGreaterThan(wobbler);
+    expect(wobbler).toBeGreaterThanOrEqual(spinner);
     expect(jig).toBeGreaterThan(4);
   });
 
