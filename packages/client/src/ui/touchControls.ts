@@ -1,3 +1,4 @@
+import { REEL } from '@lunki/shared';
 import type { Input } from '../engine/input';
 import { hasKey, onLangChange, t, type MsgKey } from '../i18n';
 
@@ -7,7 +8,7 @@ const STICK_RADIUS = 52;
 const DEAD_ZONE = 0.35;
 /** Tätä pidempi työntö ylös tai alas = pikapotku. */
 const SPRINT_AT = 0.95;
-const GEARS = 3;
+const GEARS = REEL.gears.length;
 
 /** Laitteessa on kosketusnäyttö pääosoittimena (tai ?kosketus kehitystä varten). */
 export function isTouchDevice(): boolean {
@@ -119,7 +120,14 @@ export class TouchControls {
       if (label) b.textContent = t(label);
       b.title = t(title);
     }
-    this.gearButton.textContent = t('touch.gear', { n: this.gear + 1 });
+    this.gearButton.textContent = this.gearLabel();
+  }
+
+  /** Vaihteen numero, pikakelauksella PIKA. */
+  private gearLabel(): string {
+    return this.gear === REEL.fastGear
+      ? t('touch.gearFast')
+      : t('touch.gear', { n: this.gear + 1 });
   }
 
   /** Chat on vain moninpelissä. */
@@ -147,7 +155,7 @@ export class TouchControls {
   setGear(gear: number): void {
     if (gear === this.gear) return;
     this.gear = gear;
-    this.gearButton.textContent = t('touch.gear', { n: gear + 1 });
+    this.gearButton.textContent = this.gearLabel();
   }
 
   private moveStick(stick: HTMLElement, e: PointerEvent) {
