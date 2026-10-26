@@ -7,15 +7,17 @@ const ground = new Ground(map, LUNKINJARVI_SURROUNDINGS.terrain);
 const inLake = (p: Vec2) =>
   pointInRing(p, map.shore) && !map.islands.some((i) => pointInRing(p, i));
 
-/** Pisteitä rantaviivan molemmin puolin. */
+/** Pisteitä rantaviivan molemmin puolin 3 m välein (pyöristetyissä kulmissa sivut ovat lyhyitä). */
 function nearShore(offset: number): Vec2[] {
   const out: Vec2[] = [];
   for (const ring of [map.shore, ...map.islands]) {
+    let start = 0;
     for (let i = 0; i < ring.length; i++) {
       const a = ring[i]!;
       const b = ring[(i + 1) % ring.length]!;
       const len = Math.hypot(b.x - a.x, b.y - a.y);
-      for (let s = 0; s < len; s += 3) {
+      let s = start;
+      for (; s < len; s += 3) {
         const t = s / len;
         // Vasen normaali osoittaa maalle.
         const n = { x: (b.y - a.y) / len, y: -(b.x - a.x) / len };
@@ -24,6 +26,7 @@ function nearShore(offset: number): Vec2[] {
           y: a.y + (b.y - a.y) * t + n.y * offset,
         });
       }
+      start = s - len;
     }
   }
   return out;

@@ -13,6 +13,11 @@ const DEPTH_BANDS: [number, [number, number, number, number]][] = [
 
 /** Syvyystekstuurin lukualue (m): punainen 1 = tämä syvyys tai syvempi. */
 export const DEPTH_TEX_RANGE = 12;
+/**
+ * Syvyysrajan porras (m): syvyys luetaan tämän kokoisten ruutujen keskeltä,
+ * jolloin raja kaartuu mutta etenee pikselitaiteen tapaan pienin portain.
+ */
+export const DEPTH_PIXEL = 1;
 /** Syvyystekstuurin tarkkuus (m/pikseli); välit interpoloidaan sileästi. */
 const DEPTH_TEX_CELL = 2;
 
@@ -20,8 +25,8 @@ const f = (x: number) => x.toFixed(4);
 
 /**
  * GLSL: syvyys (m) → vyöhykkeen sävy (lineaarinen rgb, peitto). Vyöhykkeet
- * vaihtuvat terävästi kuten ennenkin, mutta raja seuraa interpoloitua
- * syvyyttä, joten se kaartuu eikä porrastu ruutuihin.
+ * vaihtuvat terävästi kuten ennenkin, ja raja seuraa interpoloitua
+ * syvyyttä pienin portain (ks. DEPTH_PIXEL).
  */
 export const DEPTH_SHADE_GLSL = `vec4 depthShade(float d) {
 ${DEPTH_BANDS.map(([max, [r, g, b, a]]) => {

@@ -19,6 +19,35 @@ export function closestPointOnSegment(p: Vec2, a: Vec2, b: Vec2): Vec2 {
   return { x: a.x + abx * t, y: a.y + aby * t };
 }
 
+/**
+ * Pyöristää suljetun renkaan kulmat Chaikinin leikkauksella: joka kierroksella
+ * kärki korvataan kahdella pisteellä viereisillä sivuilla. Leikkaus on
+ * neljännes sivusta, mutta enintään `maxCut` metriä, ja se puolittuu
+ * kierroksittain, joten pitkät suorat säilyvät ja vain kulmat pyöristyvät
+ * (terävässäkin kulmassa muoto siirtyy vain muutaman metrin).
+ */
+export function roundRing(ring: readonly Vec2[], maxCut: number, rounds = 3): Vec2[] {
+  let out = [...ring];
+  let cutLimit = maxCut;
+  for (let r = 0; r < rounds; r++) {
+    const next: Vec2[] = [];
+    for (let i = 0; i < out.length; i++) {
+      const prev = out[(i + out.length - 1) % out.length]!;
+      const p = out[i]!;
+      const nxt = out[(i + 1) % out.length]!;
+      const towards = (q: Vec2) => {
+        const len = Math.hypot(q.x - p.x, q.y - p.y);
+        const t = len > 0 ? Math.min(0.25 * len, cutLimit) / len : 0;
+        return { x: p.x + (q.x - p.x) * t, y: p.y + (q.y - p.y) * t };
+      };
+      next.push(towards(prev), towards(nxt));
+    }
+    out = next;
+    cutLimit /= 2;
+  }
+  return out;
+}
+
 /** Douglas–Peucker-yksinkertaistus suljetulle renkaalle (ilman toistettua päätepistettä). */
 export function simplifyRing(ring: readonly Vec2[], tolerance: number): Vec2[] {
   if (ring.length <= 4) return [...ring];

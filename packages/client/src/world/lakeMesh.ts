@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { LakeMap, Vec2 } from '@lunki/shared';
-import { DEPTH_SHADE_GLSL, DEPTH_TEX_RANGE } from './depthShade';
+import { DEPTH_PIXEL, DEPTH_SHADE_GLSL, DEPTH_TEX_RANGE } from './depthShade';
 
 /** Pelikoordinaatti (x itään, y pohjoiseen) → Three.js-maailma (x, 0, -y). */
 export const toWorld = (p: Vec2, height = 0): THREE.Vector3 => new THREE.Vector3(p.x, height, -p.y);
@@ -242,8 +242,9 @@ float waterHash(vec2 p) {
       waveUv.x += sin(vMapUv.y * 40.0 + uWaterTime * 1.3) * 0.01;
       waveUv.y += sin(vMapUv.x * 33.0 - uWaterTime * 1.1) * 0.008;
       vec4 sampledDiffuseColor = texture2D( map, waveUv );
+      vec2 depthXY = (floor(waterXY / ${DEPTH_PIXEL.toFixed(1)}) + 0.5) * ${DEPTH_PIXEL.toFixed(1)};
       float waterDepth = uBottomShadeOn > 0.5
-        ? texture2D(uDepthTex, (waterXY - uDepthBounds.xy) / uDepthBounds.zw).r * ${DEPTH_TEX_RANGE.toFixed(1)}
+        ? texture2D(uDepthTex, (depthXY - uDepthBounds.xy) / uDepthBounds.zw).r * ${DEPTH_TEX_RANGE.toFixed(1)}
         : 10.0;
       // POV-näkymässä kuvion 0,25 m tekselit kasvaisivat aivan kameran edessä
       // isoiksi tummiksi ja vaaleiksi laatoiksi: lähivesi on tasaväristä.
