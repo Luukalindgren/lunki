@@ -1,82 +1,26 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { LakeBottom } from '@lunki/shared';
+import { createDepthTexture } from './depthShade';
 import { clipToSwellPatch, type WaterWaves } from './lakeMesh';
 
-/** Syvyysvyöhykkeet pinnan sävyyn: matala ranta vaalea, syvänne tumma. */
-const DEPTH_BANDS: [number, [number, number, number, number]][] = [
-  [1, [120, 180, 165, 0.5]],
-  [2, [95, 170, 160, 0.32]],
-  [3.5, [60, 140, 170, 0.18]],
-  [6, [0, 0, 0, 0]],
-  [8, [10, 30, 70, 0.22]],
-  [Infinity, [5, 15, 45, 0.4]],
-];
-
-/** Kuvan tarkkuus (m/pikseli): karkea, pikselimäinen sävytys. */
-const SHADE_CELL = 4;
-
 /**
- * Pohjan näkyvät osat ylhäältä: syvyyden mukainen sävy veden pinnassa sekä
- * kivikot ja kaatuneet puut.
+ * Pohjan näkyvät osat ylhäältä: kivikot ja kaatuneet puut. Syvyyden mukaisen
+ * sävyn piirtää vesishaderi syvyystekstuurista (ks. depthShade).
  */
-export function createBottomMesh(bottom: LakeBottom, waves?: WaterWaves): THREE.Group {
+export function createBottomMesh(bottom: LakeBottom, waves: WaterWaves): THREE.Group {
   const group = new THREE.Group();
   group.name = 'bottom';
-  const shade = createDepthShade(bottom, bottom.bounds);
+  const depth = createDepthTexture(bottom);
+  waves.uDepthTex.value = depth.texture;
+  waves.uDepthBounds.value.copy(depth.bounds);
+  waves.uBottomShadeOn.value = 1;
   const structures = createStructures(bottom);
-  if (waves) {
-    // Vesishaderi piirtää syvyyssävyn itse: erillinen kerros veden päällä
-    // vihertyi paletissa vaahtopäiden tummien aallonpohjien kohdalla.
-    const material = shade.material as THREE.MeshBasicMaterial;
-    const w = Math.ceil((bottom.bounds.maxX - bottom.bounds.minX) / SHADE_CELL) * SHADE_CELL;
-    const h = Math.ceil((bottom.bounds.maxY - bottom.bounds.minY) / SHADE_CELL) * SHADE_CELL;
-    waves.uBottomShade.value = material.map;
-    waves.uBottomShadeBounds.value.set(bottom.bounds.minX, bottom.bounds.maxY - h, w, h);
-    waves.uBottomShadeOn.value = 1;
-    shade.geometry.dispose();
-    if (structures) clipToSwellPatch(structures.material as THREE.Material, waves);
-  } else {
-    group.add(shade);
+  if (structures) {
+    clipToSwellPatch(structures.material as THREE.Material, waves);
+    group.add(structures);
   }
-  if (structures) group.add(structures);
   return group;
-}
-
-function createDepthShade(bottom: LakeBottom, b: LakeBottom['bounds']): THREE.Mesh {
-  const w = Math.ceil((b.maxX - b.minX) / SHADE_CELL);
-  const h = Math.ceil((b.maxY - b.minY) / SHADE_CELL);
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d')!;
-  const img = ctx.createImageData(w, h);
-  for (let j = 0; j < h; j++) {
-    for (let i = 0; i < w; i++) {
-      // Kuvan ylärivi on pohjoisessa.
-      const p = { x: b.minX + (i + 0.5) * SHADE_CELL, y: b.maxY - (j + 0.5) * SHADE_CELL };
-      const d = bottom.depthAt(p);
-      if (d <= 0) continue;
-      const [, c] = DEPTH_BANDS.find(([max]) => d < max)!;
-      const k = (j * w + i) * 4;
-      img.data[k] = c[0];
-      img.data[k + 1] = c[1];
-      img.data[k + 2] = c[2];
-      img.data[k + 3] = Math.round(c[3] * 255);
-    }
-  }
-  ctx.putImageData(img, 0, 0);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.magFilter = THREE.NearestFilter;
-  texture.minFilter = THREE.NearestFilter;
-  texture.colorSpace = THREE.SRGBColorSpace;
-  const mesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(w * SHADE_CELL, h * SHADE_CELL),
-    new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false }),
-  );
-  mesh.rotation.x = -Math.PI / 2;
-  mesh.position.set(b.minX + (w * SHADE_CELL) / 2, 0.01, -(b.maxY - (h * SHADE_CELL) / 2));
-  return mesh;
 }
 
 /** Kivet ja puut yhdeksi verkoksi (yksi piirtokutsu). */
