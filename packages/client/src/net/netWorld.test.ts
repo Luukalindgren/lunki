@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { LUNKINJARVI, WaterBody } from '@lunki/shared';
 import { setLangForTest } from '../i18n';
-import { NetWorld } from './netWorld';
+import { NetWorld, lerpKickPhase } from './netWorld';
 import type { NetSession } from './session';
 
 const player = (name: string, tube: number, fins: number, lure: string) => ({
@@ -100,5 +100,16 @@ describe('muiden liike verkon heitellessä', () => {
     const steps = xs.slice(1).map((x, i) => x - xs[i]!);
     // Saapumishetkellä leimattuna askeleet vaihtelisivat pysähdyksestä 2,5-kertaiseen.
     for (const s of steps) expect(Math.abs(s * 60 - 1)).toBeLessThan(0.1);
+  });
+});
+
+describe('muiden räpylät', () => {
+  it('potkuvaihe interpoloidaan eteenpäin kiertäen', () => {
+    expect(lerpKickPhase(0.2, 0.3, 0.5)).toBeCloseTo(0.25);
+    expect(lerpKickPhase(0.95, 0.05, 0.5)).toBeCloseTo(0);
+    expect(lerpKickPhase(0.9, 0.04, 0.25)).toBeCloseTo(0.935);
+    // Potku alkaa tai loppuu: ei liu'uteta nollasta.
+    expect(lerpKickPhase(0, 0.06, 0.5)).toBe(0.06);
+    expect(lerpKickPhase(0.5, 0, 0.5)).toBe(0);
   });
 });

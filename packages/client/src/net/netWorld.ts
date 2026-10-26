@@ -66,10 +66,21 @@ interface RemoteSnap {
   lureStage: number;
 }
 
+/**
+ * Potkuvaihe kiertää 0–1 ja on 0, kun ei potkita. Väliin interpoloidaan
+ * eteenpäin kiertäen, jotta räpylät liikkuvat sulavasti eivätkä tilojen
+ * tahdissa (20 kertaa sekunnissa).
+ */
+export function lerpKickPhase(a: number, b: number, t: number): number {
+  if (a === 0 || b === 0) return b;
+  const d = b >= a ? b - a : b + 1 - a;
+  return (a + d * t) % 1;
+}
+
 const lerpSnap = (a: RemoteSnap, b: RemoteSnap, t: number): RemoteSnap => ({
   pos: { x: a.pos.x + (b.pos.x - a.pos.x) * t, y: a.pos.y + (b.pos.y - a.pos.y) * t },
   heading: lerpAngle(a.heading, b.heading, t),
-  kickPhase: b.kickPhase,
+  kickPhase: lerpKickPhase(a.kickPhase, b.kickPhase, t),
   lure: { x: a.lure.x + (b.lure.x - a.lure.x) * t, y: a.lure.y + (b.lure.y - a.lure.y) * t },
   lureStage: t < 0.5 ? a.lureStage : b.lureStage,
 });
