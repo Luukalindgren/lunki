@@ -123,6 +123,15 @@ test('moninpeli: Chromium, Firefox ja iPhone samassa huoneessa', async ({
     await expect(host.locator('.emote-menu')).toBeHidden();
     for (const p of [ff, ios])
       await expect(p.locator('.name-tags .speech-bubble canvas.emote-icon')).toHaveCount(1);
+    // Nimilaput ja kuplat piirtyvät HUDin alle, eivät nappien päälle (#277).
+    for (const p of [host, ff, ios])
+      expect(
+        await p.evaluate(() => {
+          const tags = document.querySelector('.name-tags')!;
+          const hud = document.querySelector('.hud')!;
+          return Boolean(tags.compareDocumentPosition(hud) & Node.DOCUMENT_POSITION_FOLLOWING);
+        }),
+      ).toBe(true);
 
     for (const [name, errors] of pages) {
       test.info().annotations.push({ type: name, description: errors.errors.join(' | ') || 'ok' });
