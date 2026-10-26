@@ -55,7 +55,7 @@ import {
   catchRadius,
   createFishPopulation,
   fishHome,
-  fishWeight,
+  stockWeight,
   type FishPopulation,
   isLateJoin,
   JoinRefusal,
@@ -263,7 +263,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       const landed = fish && {
         species: fish.species,
         name: SPECIES[fish.species].name,
-        weight: fishWeight(stock!.seed!, fish.species, tag!.slot, tag!.gen),
+        weight: stockWeight(stock!, tag!.slot, tag!.gen),
       };
       const hookAt = sim?.hookAt;
       if (sim) sim.hookAt = null;

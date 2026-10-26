@@ -487,6 +487,7 @@ export const en: Record<keyof typeof fi, string> = {
   'game.quiet': 'Quiet here – kick somewhere else, K shows the fish',
   'game.strike': 'Bite!',
   'game.hooked': 'Fish on!',
+  'game.bigShadow': 'A big shadow followed the lure!',
   'game.missed': 'Missed – reel right after the bite',
   'game.escaped': 'The fish got off – keep the line tight',
   'game.lureChanged': 'Lure: {lure}',

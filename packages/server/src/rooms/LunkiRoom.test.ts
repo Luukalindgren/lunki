@@ -51,7 +51,7 @@ import {
   createFishPopulation,
   distance,
   fishHome,
-  fishWeight,
+  stockWeight,
   type FishPopulation,
   type SpeciesId,
   type Vec2,
@@ -148,7 +148,7 @@ function land(
   room.send(ClientMsg.catch, { species: 'perch', name: 'Ahven', weight: 0.3, fish: { slot, gen } });
   // Nostettu kala: viehe takaisin kelalla.
   room.send(ClientMsg.input, { i: [], l: [hook.x, hook.y, 0] });
-  return fishWeight(stock.seed!, stock.fish[slot]!.species, slot, gen);
+  return stockWeight(stock, slot, gen);
 }
 
 /**

@@ -34,6 +34,13 @@ export interface Species {
   /** Harvinainen iso yksilö: todennäköisyys ja painon mediaani (kg). */
   trophyChance: number;
   trophyWeight: number;
+  /**
+   * Kokoluokkien alarajat (kg): iso, tosi iso, suurkala ja jättikala (#231).
+   * Luotaimet näyttävät kaiun luokan mukaan.
+   */
+  sizes: readonly [number, number, number, number];
+  /** Jättikaloja ja suurkaloja järvessä aina vähintään näin monta. */
+  giants: { giant: number; huge: number };
   /** Vetovoima (kg) = weight · pullPerKg + pullBase. */
   pullPerKg: number;
   pullBase: number;
@@ -106,6 +113,8 @@ export const SPECIES: Record<SpeciesId, Species> = {
     maxWeight: 1.6,
     trophyChance: 0.01,
     trophyWeight: 0.7,
+    sizes: [0.2, 0.4, 0.8, 1.2],
+    giants: { giant: 1, huge: 2 },
     pullPerKg: 2.6,
     pullBase: 0.25,
     endurancePerKg: 14,
@@ -153,6 +162,8 @@ export const SPECIES: Record<SpeciesId, Species> = {
     maxWeight: 12,
     trophyChance: 0.03,
     trophyWeight: 5,
+    sizes: [1, 2.5, 5, 8],
+    giants: { giant: 2, huge: 2 },
     pullPerKg: 1.2,
     pullBase: 0.8,
     endurancePerKg: 7,
@@ -200,6 +211,8 @@ export const SPECIES: Record<SpeciesId, Species> = {
     maxWeight: 1,
     trophyChance: 0.01,
     trophyWeight: 0.45,
+    sizes: [0.15, 0.3, 0.5, 0.7],
+    giants: { giant: 1, huge: 2 },
     pullPerKg: 2.2,
     pullBase: 0.15,
     endurancePerKg: 12,
@@ -249,6 +262,8 @@ export const SPECIES: Record<SpeciesId, Species> = {
     maxWeight: 9,
     trophyChance: 0.03,
     trophyWeight: 4,
+    sizes: [1, 2, 4, 6],
+    giants: { giant: 1, huge: 2 },
     pullPerKg: 1.6,
     pullBase: 0.6,
     endurancePerKg: 9,
@@ -297,6 +312,8 @@ export const SPECIES: Record<SpeciesId, Species> = {
     maxWeight: 6,
     trophyChance: 0.03,
     trophyWeight: 3,
+    sizes: [1, 2, 3, 4.5],
+    giants: { giant: 1, huge: 2 },
     pullPerKg: 3,
     pullBase: 0.5,
     endurancePerKg: 16,
@@ -401,6 +418,11 @@ export interface FishPopulation {
   seed?: number;
   /** Ensimmäisen sukupolven kotipaikat paikoittain (parvien paikat). */
   homes?: Vec2[];
+  /**
+   * Taatut suurkalat (3) ja jättikalat (4) paikoittain (#231); muilla 0.
+   * Paikan kala on samaa kokoluokkaa myös seuraavissa sukupolvissa.
+   */
+  sizes?: SizeClass[];
   /** Parvet ja ensimmäisen sukupolven parvi paikoittain (-1 = yksin). */
   schools?: School[];
   schoolOf?: number[];
@@ -418,10 +440,67 @@ const fishSeed = (seed: number, slot: number, gen: number, salt: number) =>
     Math.imul(gen + 1, 0x27d4eb2f)) |
   0;
 
-/** Kalan paino paikasta ja sukupolvesta: sama kaikilla koneilla ja palvelimella. */
-export function fishWeight(seed: number, species: SpeciesId, slot: number, gen: number): number {
-  return randomWeight(SPECIES[species], new Rng(fishSeed(seed, slot, gen, 0x3c6ef372)));
+/**
+ * Kalan paino paikasta ja sukupolvesta: sama kaikilla koneilla ja
+ * palvelimella. Taattu suurkala tai jättikala (`size` 3 tai 4) saa painon
+ * luokkansa rajoista.
+ */
+export function fishWeight(
+  seed: number,
+  species: SpeciesId,
+  slot: number,
+  gen: number,
+  size: SizeClass = 0,
+): number {
+  const sp = SPECIES[species];
+  const rng = new Rng(fishSeed(seed, slot, gen, 0x3c6ef372));
+  if (size < 3) return randomWeight(sp, rng);
+  const lo = sp.sizes[size - 1]!;
+  const hi = size === 4 ? sp.maxWeight : sp.sizes[3];
+  const w = lo + (hi - lo) * rng.next() ** 1.5;
+  return Math.min(Math.round(w * 1000) / 1000, size === 4 ? hi : hi - 0.001);
 }
+
+/** Kalakannan kalan paino paikasta ja sukupolvesta (taatut suurkalat mukana). */
+export function stockWeight(pop: FishPopulation, slot: number, gen: number): number {
+  return fishWeight(pop.seed!, pop.fish[slot]!.species, slot, gen, pop.sizes?.[slot] ?? 0);
+}
+
+/**
+ * Kokoluokka lajin rajoista: 0 pieni, 1 iso, 2 tosi iso, 3 suurkala,
+ * 4 jättikala. Luotaimen kaiku ja ison kalan varovaisuus riippuvat siitä.
+ */
+export type SizeClass = 0 | 1 | 2 | 3 | 4;
+
+export function sizeClass(species: SpeciesId, weight: number): SizeClass {
+  const limits = SPECIES[species].sizes;
+  let c = 0;
+  while (c < 4 && weight >= limits[c]!) c++;
+  return c as SizeClass;
+}
+
+/**
+ * Iskuherkkyys kokoluokittain: iso kala on vanha ja kokenut, seuraa
+ * viehettä mutta iskee harvoin (#231).
+ */
+export const WARINESS: readonly number[] = [1, 0.9, 0.7, 0.4, 0.25];
+
+/**
+ * Iskuherkkyyden kerroin kokoluokalle ja lajin aktiivisuudelle: hämärässä,
+ * tuulella ja ukkosen edellä suurkalat innostuvat selvemmin kuin pienet.
+ */
+export function wariness(size: SizeClass, activity: number): number {
+  const w = WARINESS[size]!;
+  return size >= 3 ? Math.min(1, w * Math.max(1, activity) ** 1.5) : w;
+}
+
+/** Suurkalat pitävät isosta ja hitaasta vieheestä. */
+const BIG_FISH_LURE: Record<Tackle['lure'], number> = {
+  wobbler: 1.3,
+  spoon: 1.2,
+  jig: 0.8,
+  spinner: 0.6,
+};
 
 /**
  * Kalan kotipaikka: ensimmäinen sukupolvi parvessaan, myöhemmät saman lajin
@@ -472,6 +551,8 @@ export interface LureInfo {
   tackle?: Tackle;
   /** Viehe on kerännyt rikkaa uposkasvustosta (#226). */
   fouled?: boolean;
+  /** Viehe on tarttunut pohjaan: suurkala säikähtää. */
+  snagged?: boolean;
 }
 
 export interface FishEvents {
@@ -479,6 +560,8 @@ export interface FishEvents {
   follow?: number;
   /** Kala iski vieheeseen. */
   strike?: number;
+  /** Suurkala seurasi viehettä kalastajan lähelle ja kääntyi pois ("iso varjo"). */
+  shadow?: number;
 }
 
 export function randomWeight(sp: Species, rng: Rng): number {
@@ -549,7 +632,32 @@ export function createFishPopulation(
       }
     }
   }
+  assignGiants(pop, ids);
   return pop;
+}
+
+/**
+ * Taatut suurkalat ja jättikalat lajeittain (#231). Paikat valitaan kannan
+ * siemenestä omalla arpojallaan, joten kalakannan muut arvat eivät muutu.
+ */
+function assignGiants(pop: FishPopulation, ids: readonly SpeciesId[]): void {
+  const pick = new Rng(fishSeed(pop.seed!, 0, 0, 0x7f4a7c15));
+  pop.sizes = pop.fish.map(() => 0);
+  for (const id of ids) {
+    const free: number[] = [];
+    pop.fish.forEach((f, i) => f.species === id && free.push(i));
+    const { giant, huge } = SPECIES[id].giants;
+    const want: SizeClass[] = [
+      ...Array<SizeClass>(giant).fill(4),
+      ...Array<SizeClass>(huge).fill(3),
+    ];
+    for (const size of want) {
+      if (free.length === 0) break;
+      const slot = free.splice(Math.floor(pick.next() * free.length), 1)[0]!;
+      pop.sizes[slot] = size;
+      pop.fish[slot]!.weight = stockWeight(pop, slot, 0);
+    }
+  }
 }
 
 export function spawnFish(
@@ -574,7 +682,7 @@ export function spawnFish(
     species,
     weight:
       pop.seed !== undefined && slot !== undefined
-        ? fishWeight(pop.seed, species, slot, gen)
+        ? fishWeight(pop.seed, species, slot, gen, pop.sizes?.[slot] ?? 0)
         : randomWeight(sp, rng),
     pos,
     home: { ...pos },
@@ -669,7 +777,9 @@ export function lureAppeal(fish: Fish, lure: LureInfo): number {
   const depthScore = Math.max(0, 1 - dd / 2.5);
   const gear = lure.tackle ? tackleAppeal(lure.tackle, fish.species) : 1;
   const clean = lure.fouled ? FOULED_APPEAL : 1;
-  return speedScore * depthScore * gear * clean;
+  const big = lure.tackle && sizeClass(fish.species, fish.weight) >= 3;
+  const taste = big ? BIG_FISH_LURE[lure.tackle!.lure] : 1;
+  return speedScore * depthScore * gear * clean * taste;
 }
 
 /** Valo, sää ja tuuli, jotka ohjaavat kalojen syöntiä ja liikkeitä. */
@@ -824,6 +934,13 @@ export function stepFishPopulation(
     }
 
     if (f.mode === 'follow') {
+      const size = sizeClass(f.species, f.weight);
+      // Suurkala säikähtää pohjaan tarttunutta viehettä ja kalastajan läheisyyttä.
+      if (size >= 3 && (lure.snagged || distance(lure.pos, lure.tip) < BIG_FISH_SHY)) {
+        if (!lure.snagged) events.shadow = f.id;
+        spook(f, world, rng);
+        continue;
+      }
       f.timer += dt;
       // Uidaan vieheen perään ja syvyyteen.
       swimToward(f, lure.pos, sp.chaseSpeed, 0.6, dt);
@@ -840,7 +957,11 @@ export function stepFishPopulation(
         loseInterest(f, rng);
         continue;
       }
-      const a = Math.sqrt(act[f.species]) * (ambush ? 1.6 : 1) * (1 + excite);
+      const a =
+        Math.sqrt(act[f.species]) *
+        (ambush ? 1.6 : 1) *
+        (1 + excite) *
+        wariness(size, act[f.species]);
       if (
         near < 1.2 &&
         rng.chance((0.35 + appeal * 0.9) * sp.lureInterest * diff.biteRate * a, dt)
@@ -958,6 +1079,16 @@ function steerSchool(
   if (lure?.fishable && s.excitement > 0.2 && distance(lure.pos, s.center) < 30) {
     s.heading = Math.atan2(lure.pos.y - s.center.y, lure.pos.x - s.center.x);
   }
+}
+
+/** Suurkala kääntyy pois näin kaukana (m) kalastajasta: iso varjo vieheen perässä. */
+const BIG_FISH_SHY = 6;
+
+/** Säikähtänyt suurkala painuu syvemmälle eikä kiinnostu vieheestä vähään aikaan. */
+function spook(f: Fish, world: FishWorld, rng: Rng) {
+  loseInterest(f, rng);
+  f.cooldown = rng.range(30, 60);
+  f.depth = Math.min(Math.max(0.3, world.depthAt(f.pos) - 0.2), f.depth + 1.5);
 }
 
 function loseInterest(f: Fish, rng: Rng) {

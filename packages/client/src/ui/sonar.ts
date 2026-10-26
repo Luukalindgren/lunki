@@ -1,4 +1,4 @@
-import { sonarRange, type SonarPing } from '@lunki/shared';
+import { ECHO_STYLE, GIANT_RIM, sonarRange, type SonarPing } from '@lunki/shared';
 import { decimal, t } from '../i18n';
 
 /** Näytön koko sisäisinä pikseleinä (yksi pikseli = HUD:n --u). */
@@ -18,9 +18,6 @@ const COLORS = {
   boulder: '#8e99a4',
   weed: '#3f8f3a',
   brush: '#7a5230',
-  small: '#f6d04d',
-  big: '#f08a2c',
-  huge: '#d23a2a',
 };
 
 /**
@@ -103,10 +100,20 @@ export class SonarDisplay {
       }
       for (const e of c.echoes) {
         const ey = Math.min(by - 1, y(e.depth));
-        // Isompi kala näkyy paksumpana ja punaisempana kaikuna.
-        const size = e.weight < 0.4 ? 1 : e.weight < 2 ? 2 : 3;
-        g.fillStyle = size === 1 ? COLORS.small : size === 2 ? COLORS.big : COLORS.huge;
-        g.fillRect(x, ey - size + 1, 1, size);
+        // Isompi kala näkyy paksumpana kaikuna: keltainen, oranssi, punainen,
+        // violetti ja jättikala mustana valkoisella reunalla, kolmen sarakkeen levyisenä.
+        const style = ECHO_STYLE[e.size]!;
+        const top = ey - style.px + 1;
+        if (e.size === 4) {
+          g.fillStyle = GIANT_RIM;
+          g.fillRect(x - 2, top, 5, style.px);
+          g.fillRect(x - 1, top - 1, 3, style.px + 2);
+          g.fillStyle = style.color;
+          g.fillRect(x - 1, top, 3, style.px);
+        } else {
+          g.fillStyle = style.color;
+          g.fillRect(x, top, 1, style.px);
+        }
       }
     });
   }

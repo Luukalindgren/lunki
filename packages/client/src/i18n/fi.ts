@@ -487,6 +487,7 @@ export const fi = {
   'game.quiet': 'Hiljaista – potki muualle, K näyttää kalat',
   'game.strike': 'Tärppi!',
   'game.hooked': 'Kala kiinni!',
+  'game.bigShadow': 'Iso varjo seurasi viehettä!',
   'game.missed': 'Ohi meni – kelaa heti tärpin jälkeen',
   'game.escaped': 'Kala irtosi – pidä siima kireällä',
   'game.lureChanged': 'Viehe: {lure}',

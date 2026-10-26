@@ -281,6 +281,7 @@ export function lureInfo(s: FishingState, ctx: FishingContext): LureInfo | null 
     tip: rodTip(ctx.tubePos, ctx.heading),
     tackle: s.tackle,
     fouled: s.fouled,
+    snagged: s.snag !== null,
   };
 }
 

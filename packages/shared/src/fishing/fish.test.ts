@@ -18,7 +18,11 @@ import {
   fishConditions,
   fishHome,
   fishWeight,
+  sizeClass,
   speciesActivity,
+  stockWeight,
+  wariness,
+  type LureInfo,
 } from './fish';
 import { catchRadius } from '../net/castCheck';
 import type { WeatherNow } from '../weather/weather';
@@ -320,7 +324,7 @@ describe('kalakanta palvelimen tarkistettavissa', () => {
       b.fish.map((f) => [f.species, f.weight]),
     );
     a.fish.forEach((f, i) => {
-      expect(f.weight).toBe(fishWeight(a.seed!, f.species, i, 0));
+      expect(f.weight).toBe(stockWeight(a, i, 0));
       expect(f.home).toEqual(fishHome(a, i, 0));
     });
     // Saadun tilalle syntyvä kala on sama riippumatta muusta pelistä (eri rng).
@@ -331,7 +335,7 @@ describe('kalakanta palvelimen tarkistettavissa', () => {
       species: b.fish[7]!.species,
       weight: b.fish[7]!.weight,
     });
-    expect(a.fish[7]!.weight).toBe(fishWeight(a.seed!, a.fish[7]!.species, 7, 1));
+    expect(a.fish[7]!.weight).toBe(stockWeight(a, 7, 1));
     expect(a.fish[7]!.pos).toEqual(fishHome(a, 7, 1));
     expect(fishHome(a, 7, 1)).toEqual(b.fish[7]!.pos);
   });
@@ -536,5 +540,120 @@ describe('käytös', () => {
     expect(f.school).toBe(pop.schoolOf![host]);
     const s = pop.schools![f.school]!;
     expect(s.home.x + f.offset.x).toBeCloseTo(home.x);
+  });
+});
+
+describe('suurkalat ja jättikalat (#231)', () => {
+  const lake = {
+    isWater: (p: { x: number; y: number }) => Math.abs(p.x) < 400 && Math.abs(p.y) < 150,
+    depthAt: () => 3,
+  };
+  const bounds = { minX: -400, minY: -150, maxX: 400, maxY: 150 };
+
+  it('kokoluokat ovat lajikohtaiset: särjelläkin on jättikala', () => {
+    expect(sizeClass('pike', 0.5)).toBe(0);
+    expect(sizeClass('pike', 3)).toBe(2);
+    expect(sizeClass('pike', 6)).toBe(3);
+    expect(sizeClass('pike', 10)).toBe(4);
+    expect(sizeClass('roach', 0.8)).toBe(4);
+    expect(sizeClass('perch', 0.3)).toBe(1);
+    for (const id of SPECIES_IDS) {
+      const s = SPECIES[id].sizes;
+      expect(s[3], id).toBeLessThan(SPECIES[id].maxWeight);
+      for (let i = 1; i < 4; i++) expect(s[i]!, id).toBeGreaterThan(s[i - 1]!);
+    }
+  });
+
+  it('järvessä on aina jättikaloja ja suurkaloja, sama kanta palvelimella', () => {
+    for (const seed of [1, 2, 3]) {
+      const a = createFishPopulation(lake, bounds, new Rng(seed), 1800);
+      const b = createFishPopulation(lake, bounds, new Rng(seed), 1800);
+      expect(a.fish.map((f) => f.weight)).toEqual(b.fish.map((f) => f.weight));
+      for (const id of NATIVE_SPECIES) {
+        const sizes = a.fish.filter((f) => f.species === id).map((f) => sizeClass(id, f.weight));
+        const { giant, huge } = SPECIES[id].giants;
+        expect(sizes.filter((c) => c === 4).length, id).toBeGreaterThanOrEqual(giant);
+        expect(sizes.filter((c) => c >= 3).length, id).toBeGreaterThanOrEqual(giant + huge);
+      }
+      a.fish.forEach((f, i) => expect(f.weight).toBe(stockWeight(a, i, 0)));
+      // Saadun jättikalan tilalle syntyy taas jättikala.
+      const slot = a.sizes!.indexOf(4);
+      replaceFish(a, slot, lake, new Rng(5));
+      expect(sizeClass(a.fish[slot]!.species, a.fish[slot]!.weight)).toBe(4);
+    }
+  });
+
+  it('taattu kokoluokka antaa painon luokan rajoista', () => {
+    for (let gen = 0; gen < 50; gen++) {
+      expect(sizeClass('pike', fishWeight(7, 'pike', 3, gen, 4))).toBe(4);
+      expect(sizeClass('pike', fishWeight(7, 'pike', 3, gen, 3))).toBe(3);
+      expect(fishWeight(7, 'pike', 3, gen, 4)).toBeLessThanOrEqual(SPECIES.pike.maxWeight);
+    }
+  });
+
+  it('iso kala on varovainen, mutta innostuu hämärässä ja ennen ukkosta', () => {
+    expect(wariness(4, 1)).toBeLessThan(wariness(0, 1) * 0.3);
+    expect(wariness(3, 1)).toBeLessThan(wariness(2, 1));
+    expect(wariness(4, 2)).toBeGreaterThan(wariness(4, 1) * 2);
+    expect(wariness(0, 2)).toBe(wariness(0, 1));
+  });
+
+  /** Kuinka monessa kokeessa kala iskee puolen sekunnin seurannan aikana. */
+  function strikes(weight: number) {
+    let n = 0;
+    for (let seed = 1; seed <= 200; seed++) {
+      const rng = new Rng(seed);
+      const pop: FishPopulation = { fish: [], nextId: 1, tick: 0 };
+      const f = spawnFish(pop, 'pike', { x: 20, y: 0 }, lake, rng);
+      pop.fish.push(f);
+      f.weight = weight;
+      f.mode = 'follow';
+      f.depth = 1;
+      const lure: LureInfo = {
+        pos: { x: 20.5, y: 0 },
+        depth: 1,
+        speed: 0.6,
+        fishable: true,
+        tip: { x: 0, y: 0 },
+        tackle: { rod: 'medium', lure: 'spoon', line: 'medium', leader: true },
+      };
+      for (let i = 0; i < 0.5 / DT; i++) {
+        const ev = stepFishPopulation(pop, lure, lake, DIFFICULTIES.normal, rng, DT);
+        lure.pos = { x: f.pos.x + 0.5, y: f.pos.y };
+        if (ev.strike !== undefined) {
+          n++;
+          break;
+        }
+        if (f.mode !== 'follow') break;
+      }
+    }
+    return n;
+  }
+
+  it('jättikala iskee seuratessaan selvästi harvemmin kuin tavallinen saman lajin kala', () => {
+    const normal = strikes(1.2);
+    const giant = strikes(10);
+    expect(normal).toBeGreaterThan(40);
+    expect(giant).toBeLessThan(normal * 0.6);
+  });
+
+  it('suurkala kääntyy pois kalastajan läheltä ja paljastaa varjonsa', () => {
+    const rng = new Rng(3);
+    const pop: FishPopulation = { fish: [], nextId: 1, tick: 0 };
+    const f = spawnFish(pop, 'pike', { x: 5, y: 0 }, lake, rng);
+    pop.fish.push(f);
+    f.weight = 9;
+    f.mode = 'follow';
+    const lure: LureInfo = {
+      pos: { x: 4.5, y: 0 },
+      depth: 1,
+      speed: 0.6,
+      fishable: true,
+      tip: { x: 0, y: 0 },
+    };
+    const ev = stepFishPopulation(pop, lure, lake, DIFFICULTIES.normal, rng, DT);
+    expect(ev.shadow).toBe(f.id);
+    expect(f.mode).toBe('roam');
+    expect(f.cooldown).toBeGreaterThanOrEqual(30);
   });
 });
