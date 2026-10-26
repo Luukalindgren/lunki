@@ -267,6 +267,36 @@ describe('LunkiRoom', () => {
     await guest.leave();
   });
 
+  it('isännän yhteys katkeaa aulassa: isännyys siirtyy heti yhteydessä olevalle (#275)', async () => {
+    const host = await sdk().create(ROOM_NAME, { name: 'A', playerId: 'a' });
+    const off = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
+    const guest = await sdk().joinById(host.roomId, { name: 'C', playerId: 'c' });
+    await until(() => players(guest).length === 3);
+    type P = { connected: boolean };
+    const conn = (r: Room) => (guest.state.players.get(r.sessionId) as P | undefined)?.connected;
+    // B katkeaa ensin eikä ole valmis: se ei saa isännyyttä eikä estä aloitusta.
+    off.reconnection.enabled = false;
+    off.connection.close(4010);
+    await until(() => conn(off) === false);
+    const token = host.reconnectionToken;
+    host.reconnection.enabled = false;
+    host.connection.close(4010);
+    await until(() => guest.state.hostId === guest.sessionId);
+    expect(players(guest)).toHaveLength(3);
+
+    // Palaava entinen isäntä on tavallinen pelaaja.
+    const back = await sdk().reconnect(token);
+    await until(() => conn(back) === true);
+    expect(back.state.hostId).toBe(guest.sessionId);
+    back.send(ClientMsg.ready, true);
+    await until(() => (guest.state.players.get(back.sessionId) as { ready: boolean }).ready);
+    guest.send(ClientMsg.start);
+    await until(() => guest.state.phase === 'countdown');
+
+    await back.leave();
+    await guest.leave();
+  });
+
   it('varusteet näkyvät muille, ja kelvottomat hylätään', async () => {
     const host = await sdk().create(ROOM_NAME, { name: 'A', playerId: 'a' });
     const guest = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
