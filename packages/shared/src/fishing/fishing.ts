@@ -266,6 +266,8 @@ export interface FishingEvents {
   missed?: boolean;
   /** Kala irtosi väsytyksessä. */
   escaped?: boolean;
+  /** Kala hyppäsi väsytyksessä (kirjolohi, säyne, taimen). */
+  jumped?: boolean;
   /** Siima katkesi. */
   lineBroken?: boolean;
   /** Hauki katkaisi siiman hampaillaan (ei peruketta). */
@@ -873,7 +875,9 @@ function resolveStrike(
   }
   s.strikeAge += dt;
   const { diff, rng } = fish;
-  if (diff.autoHook || (reeling && s.strikeAge <= diff.hookWindow)) {
+  // Kuhan varovainen napsu: viehe on suussa vain hetken.
+  const window = diff.hookWindow * (SPECIES[f.species].behavior.strikeWindow ?? 1);
+  if (diff.autoHook || (reeling && s.strikeAge <= window)) {
     s.struckId = null;
     // Vavan nosto ei pistä hauen kovaan suuhun yhtä varmasti kuin siimakäden veto.
     const chance =
@@ -891,7 +895,7 @@ function resolveStrike(
       f.cooldown = rng.range(10, 20);
       events.missed = true;
     }
-  } else if (s.strikeAge > diff.hookWindow) {
+  } else if (s.strikeAge > window) {
     s.struckId = null;
     f.mode = 'roam';
     f.cooldown = rng.range(10, 20);
@@ -974,8 +978,12 @@ function fight(
     return;
   }
 
+  // Hyppivä kala: hypyssä löysälle jäänyt siima päästää koukun irti.
+  const jumps = SPECIES[f.species].behavior.jumps ?? 0;
+  const jumped = jumps > 0 && f.running && rng.chance(jumps, dt);
+  if (jumped) events.jumped = true;
   f.slack = tension > 0.01 ? 0 : f.slack + dt;
-  if (f.slack > diff.slackEscape) {
+  if (f.slack > diff.slackEscape || (jumped && f.slack > 0 && Number.isFinite(diff.slackEscape))) {
     events.escaped = true;
     release(f, rng);
     s.hookedId = null;

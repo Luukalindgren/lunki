@@ -1,19 +1,32 @@
 # Kalalajit
 
 Lajien parametrit ovat tiedostossa `packages/shared/src/fishing/fish.ts` (`SPECIES`).
-Oletuksena järvessä ovat Lunkinjärven oikeat lajit: ahven, hauki ja särki. Kuhan ja
-taimenen voi lisätä asetuksista (yksinpelin asetusnäkymä, moninpelissä isännän aula).
+Oletuksena järvessä ovat Lunkinjärven omat lajit: ahven, hauki, särki, lahna, kiiski
+(harvinaisena) ja made. Kuhan, taimenen, säyneen, kirjolohen ja karpin voi lisätä
+asetuksista (yksinpelin asetusnäkymä, moninpelissä isännän aula). Ennen #225:tä
+tallennettuihin asetuksiin lisätään uudet omat lajit automaattisesti kerran.
 
-| Laji   | Oma laji | Parvi | Elinalue (pohjan syvyys)   | Paino, mediaani | Iso yksilö             | Käytös                                                  |
-| ------ | -------- | ----- | -------------------------- | --------------- | ---------------------- | ------------------------------------------------------- |
-| Ahven  | kyllä    | 12    | 1–4,5 m, rantojen tuntuma  | 140 g           | 1 %, ~0,7 kg           | Runsain, kiinnostuu reippaasta vieheestä                |
-| Hauki  | kyllä    | yksin | 0,6–2,2 m, kaislikon reuna | 1,3 kg          | 3 %, ~5 kg (max 12 kg) | Vaanii paikallaan, iskee kauas ja nopeasti              |
-| Särki  | kyllä    | 24    | 0,5–3 m, kaislikon reuna   | 110 g           | 1 %, ~0,45 kg          | Ei petokala: tarttuu harvoin, vain hitaaseen vieheeseen |
-| Kuha   | ei       | 5     | yli 4 m, syvänteet         | 1 kg            | 3 %, ~4 kg             | Pohjan tuntumassa, hidas viehe                          |
-| Taimen | ei       | 3     | yli 2 m, avovesi           | 0,9 kg          | 3 %, ~3 kg             | Partioi laajasti, vahvin taistelija                     |
+| Laji      | Oma laji | Parvi | Elinalue (pohjan syvyys)         | Paino, mediaani | Iso yksilö              | Käytös                                                            |
+| --------- | -------- | ----- | -------------------------------- | --------------- | ----------------------- | ----------------------------------------------------------------- |
+| Ahven     | kyllä    | 12    | 1–4,5 m, rantojen tuntuma        | 140 g           | 1 %, ~0,7 kg            | Runsain, kiinnostuu reippaasta vieheestä                          |
+| Hauki     | kyllä    | yksin | 0,6–2,2 m, kaislikon reuna       | 1,3 kg          | 3 %, ~5 kg (max 12 kg)  | Vaanii paikallaan, iskee kauas ja nopeasti                        |
+| Särki     | kyllä    | 24    | 0,5–3 m, kaislikon reuna         | 110 g           | 1 %, ~0,45 kg           | Ei petokala: tarttuu harvoin, vain hitaaseen vieheeseen           |
+| Lahna     | kyllä    | 16    | 2–6 m, lahdet ja syvänteen reuna | 0,8 kg          | 3 %, ~2,5 kg (max 6 kg) | Pohjasta ruokaileva: vain hidas, pohjaa laahaava jigi             |
+| Kiiski    | kyllä    | 12    | 2–8 m, pohja                     | 40 g            | 2 %, ~120 g (max 250 g) | Harvinainen, tarttuu herkästi jigiin ja lippaan pohjassa          |
+| Made      | kyllä    | yksin | yli 4 m, syvänne ja jyrkänne     | 0,6 kg          | 3 %, ~1,5 kg (max 4 kg) | Lähes vain yöllä, paikallaan tai hitaasti nytkytetty jigi         |
+| Kuha      | ei       | 5     | yli 4 m, syvänteet               | 1 kg            | 3 %, ~4 kg              | Pohjan tuntumassa, hidas viehe, varovainen napsu                  |
+| Taimen    | ei       | 3     | yli 2 m, avovesi                 | 0,9 kg          | 3 %, ~3 kg              | Partioi laajasti, seuraa viehettä pitkään, hyppii                 |
+| Säyne     | ei       | 8     | 1,5–5 m, välivesi ja pinta       | 0,7 kg          | 3 %, ~1,8 kg (max 4 kg) | Iltaisin pinnassa, lippa ja pieni lusikka, hyppii                 |
+| Kirjolohi | ei       | 4     | yli 2 m, avovesi                 | 1,2 kg          | 3 %, ~3 kg (max 7 kg)   | Istutettu, ahne ja nopea, hyppii väsytyksessä                     |
+| Karppi    | ei       | 4     | 0,8–3 m, kasvillisuuden reuna    | 3 kg            | 4 %, ~8 kg (max 18 kg)  | Istutettu, hyvin varovainen pohjakala, pitkät ja voimakkaat pakot |
 
-Runsaus jaetaan valittujen lajien kesken suhteessa (ahven 6, särki 4, kuha 0,8, hauki 0,6,
-taimen 0,5). Saatu kala korvautuu uudella saman lajin kalalla lajitoverin lähellä.
+Runsaus jaetaan valittujen lajien kesken suhteessa (ahven 6, särki 4, lahna 1,6, kuha 0,8,
+säyne 0,7, hauki 0,6, kirjolohi 0,6, kiiski 0,5, taimen 0,5, made 0,35, karppi 0,3). Saatu
+kala korvautuu uudella saman lajin kalalla lajitoverin lähellä.
+
+Uudet lajit lisättiin listan loppuun, joten vanhoilla lajivalinnoilla (esim. vain ahven,
+hauki ja särki) kalakanta arvotaan täsmälleen kuten ennen; testi vertaa sormenjälkeä.
+Oletuslajisto muuttui, joten asiakas ja palvelin päivitetään samassa julkaisussa.
 
 Moninpelissä palvelin hylkää saaliin, jonka lajia ei ole huoneen lajistossa.
 
@@ -26,15 +39,16 @@ ja rengas kulkee siellä hitaasti.
 Jokaisella lajilla on viisi kokoluokkaa omin painorajoin (`sizes`). Luotaimet näyttävät
 kaiun luokan mukaan:
 
-| Luokka    | Kaiku              | Ahven    | Hauki  | Särki     | Kuha   | Taimen |
-| --------- | ------------------ | -------- | ------ | --------- | ------ | ------ |
-| pieni     | keltainen 1 px     | < 0,2 kg | < 1 kg | < 0,15 kg | < 1 kg | < 1 kg |
-| iso       | oranssi 2 px       | 0,2      | 1      | 0,15      | 1      | 1      |
-| tosi iso  | punainen 3 px      | 0,4      | 2,5    | 0,3       | 2      | 2      |
-| suurkala  | violetti 4 px      | 0,8      | 5      | 0,5       | 4      | 3      |
-| jättikala | musta, 5 px, leveä | 1,2      | 8      | 0,7       | 6      | 4,5    |
+| Luokka    | Kaiku              | Ahven    | Hauki  | Särki     | Kuha   | Taimen | Lahna | Kiiski | Made  | Säyne | Kirjolohi | Karppi |
+| --------- | ------------------ | -------- | ------ | --------- | ------ | ------ | ----- | ------ | ----- | ----- | --------- | ------ |
+| pieni     | keltainen 1 px     | < 0,2 kg | < 1 kg | < 0,15 kg | < 1 kg | < 1 kg | < 1   | < 0,06 | < 0,8 | < 0,8 | < 1,5     | < 4    |
+| iso       | oranssi 2 px       | 0,2      | 1      | 0,15      | 1      | 1      | 1     | 0,06   | 0,8   | 0,8   | 1,5       | 4      |
+| tosi iso  | punainen 3 px      | 0,4      | 2,5    | 0,3       | 2      | 2      | 2     | 0,1    | 1,5   | 1,5   | 2,5       | 7      |
+| suurkala  | violetti 4 px      | 0,8      | 5      | 0,5       | 4      | 3      | 3,5   | 0,15   | 2,5   | 2,5   | 4         | 10     |
+| jättikala | musta, 5 px, leveä | 1,2      | 8      | 0,7       | 6      | 4,5    | 5     | 0,2    | 3,2   | 3,2   | 5,5       | 14     |
 
-Järvessä on aina jokaista lajia vähintään yksi jättikala (hauella kaksi) ja kaksi suurkalaa.
+Järvessä on aina jokaista lajia vähintään yksi jättikala (hauella kaksi) ja kaksi suurkalaa
+(kiiskellä yksi).
 Paikat valitaan kalakannan siemenestä omalla arpojallaan, joten palvelin laskee saman kannan,
 ja saadun jättikalan tilalle syntyy taas jättikala.
 
@@ -63,13 +77,19 @@ Lajien käytös (`behavior` lajin parametreissa) jäljittelee oikeita kaloja:
 - **Särkiparvi pakenee haukea.** Kun hauki on parven lähellä, parvi pakenee muutaman sekunnin
   poispäin hauesta. Tuulella särkiparvet kulkevat aaltojen mukana tuulen alle.
 
-| Laji   | Yö  | Hämärä | Päivä | Pilvi | Tuuli | Syvyys päivällä → hämärässä          |
-| ------ | --- | ------ | ----- | ----- | ----- | ------------------------------------ |
-| Ahven  | 0,2 | 1,35   | 1     | –     | +15 % | 2–5 m → matalikoille 0,8–3 m         |
-| Hauki  | 0,3 | 1,4    | 0,9   | +35 % | +25 % | kaislikon reuna                      |
-| Särki  | 0,5 | 1,3    | 1     | –     | –     | välivesi 1,5–4 m → matalikot 0,4–1,5 |
-| Kuha   | 1,5 | 1,6    | 0,45  | +50 % | +30 % | syvänne → nousee 1,5–4 m:iin         |
-| Taimen | 0,4 | 1,4    | 0,8   | +50 % | +20 % | pintakerros, kirkkaalla syvemmällä   |
+| Laji   | Yö  | Hämärä | Päivä | Pilvi | Tuuli | Syvyys päivällä → hämärässä               |
+| ------ | --- | ------ | ----- | ----- | ----- | ----------------------------------------- |
+| Ahven  | 0,2 | 1,35   | 1     | –     | +15 % | 2–5 m → matalikoille 0,8–3 m              |
+| Hauki  | 0,3 | 1,4    | 0,9   | +35 % | +25 % | kaislikon reuna                           |
+| Särki  | 0,5 | 1,3    | 1     | –     | –     | välivesi 1,5–4 m → matalikot 0,4–1,5      |
+| Kuha   | 1,5 | 1,6    | 0,45  | +50 % | +30 % | syvänne → nousee 1,5–4 m:iin              |
+| Taimen | 0,4 | 1,4    | 0,8   | +50 % | +20 % | pintakerros, kirkkaalla syvemmällä        |
+| Lahna  | 0,9 | 1,3    | 0,6   | +20 % | –     | 2,5–6 m → matalikoille 1–3 m              |
+| Kiiski | 1,2 | 1,3    | 0,8   | +10 % | –     | yli 3 m → 2–6 m                           |
+| Made   | 1,8 | 0,9    | 0,08  | +20 % | –     | syvänne, yöllä 2 m:stä alkaen             |
+| Säyne  | 0,4 | 1,6    | 0,8   | +20 % | +10 % | välivesi → iltaisin pinnassa              |
+| Kirjo  | 0,4 | 1,3    | 0,9   | +30 % | +20 % | kirkkaalla syvemmällä, hämärässä pinnassa |
+| Karppi | 1,3 | 1,4    | 0,6   | +10 % | –     | 1–3 m → 0,6–2 m                           |
 
 Luvut ovat syöntiaktiivisuuden kertoimia (1 = tavallinen päivä): ne kertovat, kuinka herkästi
 kala kiinnostuu vieheestä ja kuinka vilkkaasti se liikkuu. Ahven, hauki ja taimen saalistavat
@@ -82,6 +102,20 @@ Sää vaikuttaa kaikkiin lajeihin:
 - **Ukkosella ja myrskyllä** kalat painuvat pohjaan ja syönti lähes loppuu.
 - **Tuulen puoleisella rannalla** (rannalla, jota kohti tuuli puhaltaa) ahven, hauki ja kuha
   ovat aktiivisempia, koska aallot tuovat sinne ravintoa; vastarannalla hiljaisempaa.
+
+Lajien erityispiirteet (`behavior`):
+
+- **Kuhan napsu**: kuha pitää viehettä suussaan vain hetken, joten vastaiskun ikkuna on 60 %
+  tavallisesta (`strikeWindow`).
+- **Taimen seuraa pitkään**: se seuraa viehettä 1,8 kertaa pidempään ennen kuin luovuttaa,
+  ja iskee sitä harvemmin sekunnissa (`follows`).
+- **Hyppivät kalat**: kirjolohi (0,6 hyppyä/s paossa), säyne (0,25) ja taimen (0,3) hyppäävät
+  väsytyksessä (`jumps`). Jos siima on hypyn hetkellä löysällä, kala irtoaa
+  (ei helpolla, jossa löysä siima ei muutenkaan päästä kalaa).
+- **Karpin pakoretket** ovat kaksi kertaa tavallista pidempiä (`runs`): jarru on säädettävä
+  ja 0,30 mm siima on tarpeen.
+- **Lahna, karppi ja made** ovat pohjakaloja: viehe kiinnostaa vain pohjan tuntumassa ja
+  hitaana, joten jigi on niille ylivoimaisesti paras.
 
 Vuorokaudenaika annetaan kaloille valona ja hämäryytenä (`fishConditions`). Kalojen
 liike ei vaikuta saaliin painoon tai lajiin: ne tulevat edelleen kalakannan siemenestä, ja
@@ -101,12 +135,12 @@ siima ilman perukkaa. Parametrit: `packages/shared/src/fishing/gear.ts`.
 | Perusvapa  | normaali | normaali         | normaali      |
 | Järeä vapa | −6 %     | −10 %            | +30 %         |
 
-| Viehe   | Uppoaminen                                          | Heitto   | Parhaat lajit        |
-| ------- | --------------------------------------------------- | -------- | -------------------- |
-| Lusikka | uppoaa, nousee kelatessa                            | pitkä    | hauki, taimen, ahven |
-| Vaappu  | kelluu, sukeltaa kelatessa n. 2,5 m:iin             | lyhyt    | hauki, kuha, taimen  |
-| Jigi    | painuu nopeasti pohjaan, kiinnostaa myös paikallaan | pisin    | kuha, ahven          |
-| Lippa   | uppoaa hitaasti                                     | lyhyehkö | ahven, taimen, särki |
+| Viehe   | Uppoaminen                                          | Heitto   | Parhaat lajit                     |
+| ------- | --------------------------------------------------- | -------- | --------------------------------- |
+| Lusikka | uppoaa, nousee kelatessa                            | pitkä    | hauki, kirjolohi, taimen, säyne   |
+| Vaappu  | kelluu, sukeltaa kelatessa n. 2,5 m:iin             | lyhyt    | hauki, kuha, taimen               |
+| Jigi    | painuu nopeasti pohjaan, kiinnostaa myös paikallaan | pisin    | made, kuha, kiiski, lahna, karppi |
+| Lippa   | uppoaa hitaasti                                     | lyhyehkö | säyne, ahven, kirjolohi, kiiski   |
 
 | Siima   | Kestävyys | Heitto   | Kalat                  |
 | ------- | --------- | -------- | ---------------------- |
@@ -151,7 +185,7 @@ aina virveliheittoa lyhyempi (palvelimen heittotarkistus pätee sellaisenaan).
 | Hauki-streameri | 20 cm  | leijuu, vajoaa hitaasti               | hauki, jättikalat (iskut tauolla) |
 | Pintapopperi    | 8 cm   | pysyy pinnassa, pulpahtaa vedettäessä | hauki, ahven                      |
 | Ahven-streameri | 6 cm   | vajoaa hitaasti                       | ahven, taimen, kuha               |
-| Nymfi           | 1,5 cm | vajoaa pohjan tuntumaan               | särki, taimen                     |
+| Nymfi           | 1,5 cm | vajoaa pohjan tuntumaan               | särki, kirjolohi, karppi, lahna   |
 
 Aloittelijan perhovälineet: #8, kelluva siima, teräsperuke ja hauki-streameri.
 

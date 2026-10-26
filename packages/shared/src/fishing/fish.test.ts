@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Rng } from '../rng';
 import { distance } from '../vec2';
-import { DEFAULT_TACKLE } from './gear';
+import { DEFAULT_TACKLE, type Tackle } from './gear';
 import { replaceFish } from './fishing';
 import { DIFFICULTIES, type Difficulty } from './difficulty';
 import {
@@ -9,6 +9,7 @@ import {
   SPECIES,
   SPECIES_IDS,
   createFishPopulation,
+  lureAppeal,
   randomWeight,
   spawnFish,
   stepFishPopulation,
@@ -217,14 +218,43 @@ describe('kalalajit', () => {
   const count = (pop: FishPopulation, id: SpeciesId) =>
     pop.fish.filter((f) => f.species === id).length;
 
-  it('oletuksena järvessä on ahven, hauki ja särki', () => {
-    expect(NATIVE_SPECIES).toEqual(['perch', 'pike', 'roach']);
+  it('oletuksena järvessä ovat Lunkinjärven omat lajit, kiiski harvinaisena', () => {
+    expect(NATIVE_SPECIES).toEqual(['perch', 'pike', 'roach', 'bream', 'ruffe', 'burbot']);
     const pop = createFishPopulation(lake, bounds, new Rng(1), 1800);
-    expect(pop.fish).toHaveLength(1800);
+    // Lajikohtainen pyöristys voi lisätä yhden kalan (kanta pysyy ennallaan).
+    expect(Math.abs(pop.fish.length - 1800)).toBeLessThanOrEqual(1);
     expect(count(pop, 'perch')).toBeGreaterThan(count(pop, 'roach'));
-    expect(count(pop, 'roach')).toBeGreaterThan(count(pop, 'pike'));
+    expect(count(pop, 'roach')).toBeGreaterThan(count(pop, 'bream'));
+    expect(count(pop, 'bream')).toBeGreaterThan(count(pop, 'pike'));
     expect(count(pop, 'pike')).toBeGreaterThan(50);
-    expect(count(pop, 'zander') + count(pop, 'trout')).toBe(0);
+    expect(count(pop, 'ruffe')).toBeGreaterThan(20);
+    expect(count(pop, 'ruffe')).toBeLessThan(count(pop, 'perch') / 8);
+    expect(count(pop, 'burbot')).toBeGreaterThan(20);
+    for (const id of ['zander', 'trout', 'ide', 'rainbow', 'carp'] as const)
+      expect(count(pop, id)).toBe(0);
+  });
+
+  it('jokaisen lajin kokoluokat ja painot ovat järkevät', () => {
+    const rng = new Rng(11);
+    for (const id of SPECIES_IDS) {
+      const sp = SPECIES[id];
+      expect(sp.id).toBe(id);
+      const sizes = [sp.minWeight, ...sp.sizes, sp.maxWeight];
+      expect([...sizes].sort((a, b) => a - b)).toEqual(sizes);
+      expect(sp.medianWeight).toBeLessThan(sp.sizes[1]);
+      for (let i = 0; i < 200; i++) {
+        const w = randomWeight(sp, rng);
+        expect(w).toBeGreaterThanOrEqual(sp.minWeight);
+        expect(w).toBeLessThanOrEqual(sp.maxWeight);
+      }
+    }
+  });
+
+  it('karppi on valinnainen ja voi kasvaa jättimäiseksi', () => {
+    expect(SPECIES.carp.native).toBe(false);
+    expect(SPECIES.carp.sizes[3]).toBeGreaterThan(SPECIES.pike.sizes[3]);
+    const pop = createFishPopulation(lake, bounds, new Rng(5), 400, ['carp']);
+    expect(Math.max(...pop.fish.map((f) => f.weight))).toBeGreaterThan(SPECIES.carp.sizes[3]);
   });
 
   it('asetus määrää lajiston', () => {
@@ -339,6 +369,33 @@ describe('kalakanta palvelimen tarkistettavissa', () => {
     expect(a.fish[7]!.weight).toBe(stockWeight(a, 7, 1));
     expect(a.fish[7]!.pos).toEqual(fishHome(a, 7, 1));
     expect(fishHome(a, 7, 1)).toEqual(b.fish[7]!.pos);
+  });
+
+  it('vanhojen lajien kalakanta ei muutu uusien lajien myötä (#225)', () => {
+    // Sormenjälki laskettu ennen uusia lajeja: kannan arvonta ei saa muuttua.
+    const sloped = {
+      isWater: lake.isWater,
+      depthAt: (p: { x: number; y: number }) =>
+        Math.max(0.2, Math.min(6.5, (150 - Math.abs(p.y)) * 0.05)),
+    };
+    const pop = createFishPopulation(sloped, bounds, new Rng(21), 600, [
+      'perch',
+      'pike',
+      'roach',
+      'zander',
+      'trout',
+    ]);
+    const text = JSON.stringify(
+      pop.fish.map((f) => [
+        f.species,
+        f.weight,
+        Math.round(f.pos.x * 1000),
+        Math.round(f.pos.y * 1000),
+      ]),
+    );
+    let h = 0x811c9dc5;
+    for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193) >>> 0;
+    expect(`${h} ${pop.fish.length}`).toBe('3891251101 600');
   });
 
   it('sukupolvet saavat eri painot', () => {
@@ -656,5 +713,134 @@ describe('suurkalat ja jättikalat (#231)', () => {
     expect(ev.shadow).toBe(f.id);
     expect(f.mode).toBe('roam');
     expect(f.cooldown).toBeGreaterThanOrEqual(30);
+  });
+});
+
+describe('uudet lajit (#225)', () => {
+  const NIGHT: FishConditions = { ...DAYTIME, light: 0 };
+  const DUSK: FishConditions = { ...DAYTIME, light: 0.4, twilight: 1 };
+  const fishOf = (id: SpeciesId, depth: number) => {
+    const pop: FishPopulation = { fish: [], nextId: 1, tick: 0 };
+    const f = spawnFish(pop, id, { x: 0, y: 0 }, world, new Rng(1));
+    f.depth = depth;
+    return f;
+  };
+  /** Vieheen houkuttelevuus pohjan tuntumassa (4 m) annetulla vieheellä ja vauhdilla. */
+  const appealOf = (id: SpeciesId, lure: Tackle['lure'], speed: number, depth = 3.8) =>
+    lureAppeal(fishOf(id, 3.8), {
+      pos: { x: 0, y: 0 },
+      depth,
+      speed,
+      fishable: true,
+      tip: { x: -20, y: 0 },
+      tackle: { ...DEFAULT_TACKLE, lure },
+    });
+
+  it('vuorokausirytmi: made syö yöllä, lahna ja karppi hämärässä, kiiski myös päivällä', () => {
+    expect(speciesActivity('burbot', NIGHT)).toBeGreaterThan(
+      speciesActivity('burbot', DAYTIME) * 10,
+    );
+    for (const id of ['bream', 'carp', 'ide'] as const)
+      expect(speciesActivity(id, DUSK)).toBeGreaterThan(speciesActivity(id, DAYTIME) * 1.5);
+    expect(speciesActivity('ruffe', DAYTIME)).toBeGreaterThan(0.6);
+    expect(speciesActivity('ruffe', NIGHT)).toBeGreaterThan(speciesActivity('ruffe', DAYTIME));
+    // Kirjolohi ja taimen ovat valoisalla syvemmällä kuin hämärässä.
+    for (const id of ['rainbow', 'trout'] as const) {
+      const col = SPECIES[id].behavior.column!;
+      expect(col.day).toBeGreaterThan(col.dark);
+    }
+  });
+
+  it('lahna, karppi ja made tarttuvat hitaaseen pohjajigiin, eivät nopeaan lusikkaan', () => {
+    for (const id of ['bream', 'carp', 'burbot'] as const) {
+      const jig = appealOf(id, 'jig', 0.12);
+      expect(jig).toBeGreaterThan(0.8);
+      expect(appealOf(id, 'spoon', 1)).toBeLessThan(jig / 10);
+      // Pinnan alla uiva jigi ei kiinnosta pohjakalaa.
+      expect(appealOf(id, 'jig', 0.12, 1)).toBeLessThan(jig / 5);
+    }
+    // Karppi on varovaisempi kuin lahna.
+    expect(SPECIES.carp.lureInterest).toBeLessThan(SPECIES.bream.lureInterest);
+  });
+
+  it('kiiski tarttuu jigiin ja lippaan, säyne ja kirjolohi lippaan ja lusikkaan', () => {
+    expect(appealOf('ruffe', 'jig', 0.2)).toBeGreaterThan(appealOf('ruffe', 'wobbler', 0.2) * 5);
+    expect(appealOf('ruffe', 'spinner', 0.2)).toBeGreaterThan(appealOf('ruffe', 'spoon', 0.2));
+    for (const id of ['ide', 'rainbow'] as const) {
+      const speed = SPECIES[id].preferredSpeed;
+      expect(appealOf(id, 'spinner', speed)).toBeGreaterThan(appealOf(id, 'jig', speed) * 2);
+      expect(appealOf(id, 'spoon', speed)).toBeGreaterThan(appealOf(id, 'jig', speed) * 1.5);
+    }
+  });
+
+  /** Kala on juuri iskenyt; kelaus alkaa `delay` sekunnin päästä. */
+  const strikeThenReel = (id: SpeciesId, delay: number, seed: number) => {
+    const sim = setup('normal', 0.8, seed);
+    const f = sim.pop.fish[0]!;
+    f.species = id;
+    f.mode = 'struck';
+    sim.ctx.fish!.strike = f.id;
+    for (let i = 0; i < 2 / DT && sim.s.hookedId === null; i++) {
+      const ev = stepFishing(
+        sim.s,
+        { aim: { x: 30, y: 0 }, castHeld: false, reel: i * DT >= delay, cancel: false },
+        sim.ctx,
+        DT,
+      );
+      sim.ctx.fish!.strike = undefined;
+      if (ev.missed) return 'missed';
+    }
+    return sim.s.hookedId !== null ? 'hooked' : 'missed';
+  };
+
+  it('kuhan napsuun on vastattava nopeammin kuin ahvenen iskuun', () => {
+    const delay = DIFFICULTIES.normal.hookWindow * 0.75;
+    let perch = 0;
+    let zander = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+      if (strikeThenReel('perch', delay, seed) === 'hooked') perch++;
+      if (strikeThenReel('zander', delay, seed) === 'hooked') zander++;
+    }
+    expect(perch).toBeGreaterThan(10);
+    expect(zander).toBe(0);
+    // Nopea vastaisku pistää kuhankin.
+    expect(strikeThenReel('zander', 0.1, 3)).toBe('hooked');
+  });
+
+  it('hyppivä kirjolohi irtoaa löysällä siimalla, ahven ei ehdi', () => {
+    const lostOnSlack = (id: SpeciesId) => {
+      let n = 0;
+      for (let seed = 1; seed <= 20; seed++) {
+        const sim = setup('normal', 1.5, seed);
+        const f = sim.pop.fish[0]!;
+        f.species = id;
+        f.mode = 'hooked';
+        f.running = true;
+        f.timer = 10;
+        f.stamina = 1;
+        sim.s.hookedId = f.id;
+        sim.s.lineLength += 30;
+        let jumped = false;
+        for (let i = 0; i < 2.5 / DT && sim.s.hookedId !== null; i++) {
+          const ev = stepFishing(
+            sim.s,
+            { aim: { x: 30, y: 0 }, castHeld: false, reel: false, cancel: false },
+            sim.ctx,
+            DT,
+          );
+          jumped ||= !!ev.jumped;
+          if (ev.escaped) n++;
+        }
+        if (id === 'perch') expect(jumped).toBe(false);
+      }
+      return n;
+    };
+    expect(lostOnSlack('perch')).toBe(0);
+    expect(lostOnSlack('rainbow')).toBeGreaterThan(8);
+  });
+
+  it('taimen seuraa viehettä pidempään ennen kuin luovuttaa', () => {
+    expect(SPECIES.trout.behavior.follows).toBeGreaterThan(1);
+    expect(SPECIES.carp.behavior.runs).toBeGreaterThan(1);
   });
 });

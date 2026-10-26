@@ -6,6 +6,9 @@ body {
   color: #eef2f3;
   font-family: monospace;
   overflow: hidden;
+  /* clip: kohdistettu valikkonappi ei voi vierittää sivua sivuttain, jolloin
+     HUD siirtyisi pikselin (#app on pikselin ruutua leveämpi). */
+  overflow: clip;
 }
 
 #app {

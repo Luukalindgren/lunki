@@ -30,7 +30,6 @@ import {
   formatRoomCode,
   DURATIONS,
   formatTime,
-  isSpeciesId,
   isTimeOfDay,
   isWeatherLevel,
   summarize,
@@ -66,6 +65,7 @@ import { LakeMapView, RACE_EVENT_STYLE, describeSpot } from './lakeMap';
 import type { RaceEventKind, RaceMapData } from '../game/raceLog';
 import { SPECIES_PIN_COLORS, formatDate, recordDetails, recordTitle } from './recordDetails';
 import { drawTubePreview } from './tubePreview';
+import { SPECIES_VERSION, migrateSpecies } from './speciesSettings';
 import { MenuNav } from './menuNav';
 import { VOLUME_LEVELS, type AudioSettings, type VolumeLevel } from '../audio/settings';
 import { MUSIC_CHOICES, type MusicChoice } from '../audio/music';
@@ -161,11 +161,11 @@ export function loadSettings(defaults: CompetitionSettings): CompetitionSettings
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (raw) {
-      const s = { ...defaults, ...(JSON.parse(raw) as Partial<CompetitionSettings>) };
-      const species = Array.isArray(s.species) ? s.species.filter(isSpeciesId) : [];
+      const saved = JSON.parse(raw) as Partial<CompetitionSettings> & { speciesVersion?: number };
+      const { speciesVersion, ...s } = { ...defaults, ...saved };
       return {
         ...s,
-        species: species.length > 0 ? species : defaults.species,
+        species: saved.species ? migrateSpecies(saved.species, speciesVersion) : defaults.species,
         weather: isWeatherLevel(s.weather) ? s.weather : defaults.weather,
         timeOfDay: isTimeOfDay(s.timeOfDay) ? s.timeOfDay : defaults.timeOfDay,
         lightningPenalty: isPenalty(s.lightningPenalty)
@@ -189,7 +189,7 @@ const isPoint = (v: unknown): v is Vec2 =>
 
 function saveSettings(s: CompetitionSettings): void {
   try {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...s, speciesVersion: SPECIES_VERSION }));
   } catch {
     // ei haittaa
   }
