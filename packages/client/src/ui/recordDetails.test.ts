@@ -96,7 +96,7 @@ describe('ennätyskalan tiedot', () => {
     expect(recordDetails(r, 'Depth 3.2 m')).toEqual([
       ['Angler', 'Luuka'],
       ['Caught', '20 Oct 2026'],
-      ['Race', 'Evening'],
+      ['Competition', 'Evening'],
       ['Weather', 'Rain, wind 5.3 m/s'],
       ['Lure', 'Crankbait'],
       ['Tackle', 'line 0.30 mm'],

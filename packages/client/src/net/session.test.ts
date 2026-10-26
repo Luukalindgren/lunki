@@ -21,10 +21,10 @@ describe('palvelimen virheet pelaajan kielellä', () => {
     expect(describeRoomError({ code: 'not-ready', names: ['A', 'B'] })).toBe('Waiting for: A, B');
     expect(describeRoomError('Odotetaan: A, B')).toBe('Waiting for: A, B');
     expect(describeRoomError({ code: 'host-only' })).toBe(
-      'Only the room’s creator can start the race',
+      'Only the room’s creator can start the competition',
     );
     expect(describeRoomError('Kisaan tarvitaan ainakin yksi kalastaja')).toBe(
-      'The race needs at least one angler',
+      'The competition needs at least one angler',
     );
     expect(describeRoomError('Jotain muuta')).toBe('Jotain muuta');
   });
