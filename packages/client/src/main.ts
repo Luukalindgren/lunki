@@ -201,8 +201,9 @@ function weighCardFor(g: SoloGame): WeighCardInfo | null {
   if (!biggest) return null;
   return {
     fish: biggest,
-    angler: loadIdentity().name,
-    appearance: loadAppearance(),
+    // Moninpelissä nimi ja värit palvelimelta (sama selain voi olla kahdesti pelissä).
+    angler: g.ownName ?? loadIdentity().name,
+    appearance: g.appearance,
     timeOfDay: g.settings.timeOfDay ?? 'day',
     spot: biggest.at ? describeSpot(biggest.at) : null,
     date: new Date(),
