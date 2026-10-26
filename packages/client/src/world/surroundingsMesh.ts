@@ -70,18 +70,21 @@ export function createMapOverlay(s: LakeSurroundings): THREE.Group {
 const GRASS_TEXTURE_METERS = 8;
 /** Saarten kannen korkeus vedenpinnasta (m) POV-näkymässä. */
 const ISLAND_CAP = 0.1;
+/** Maastoverkon palan koko (ruutua): näkymän ulkopuoliset palat jätetään piirtämättä. */
+const TERRAIN_CHUNK = 64;
 
 /**
  * POV-näkymän maasto: maanpinnasta (ks. Ground) matalapolygoninen pinta,
  * väritetty maankäytön mukaan ja kuvioitu pikseliruoholla, jotta rinteet
  * näyttävät maalta eivätkä tasaisilta seiniltä. Järven kohdalla pinta on
- * veden alla.
+ * veden alla, joten kokonaan järven sisällä olevia ruutuja ei piirretä.
+ * Pinta on paloina, jotta kamera piirtää vain näkyvät palat.
  */
 export function createTerrainMesh(
   ground: Ground,
   s: LakeSurroundings,
   islands: readonly (readonly Vec2[])[] = [],
-): THREE.Mesh | null {
+): THREE.Group | null {
   if (!ground.terrain) return null;
   const { cols, rows, cell } = ground;
   const cover = new LandCover(s);
@@ -103,31 +106,19 @@ export function createTerrainMesh(
       colors.set([color.r, color.g, color.b], k * 3);
     }
   }
-  const index: number[] = [];
-  for (let j = 0; j < rows - 1; j++) {
-    for (let i = 0; i < cols - 1; i++) {
-      const a = j * cols + i;
-      const b = a + 1;
-      const c = a + cols;
-      const d = c + 1;
-      // Vastapäivään ylhäältä katsottuna: normaali ylöspäin. Lävistäjä b–c
-      // kuten Ground.heightAt.
-      index.push(a, b, c, b, d, c);
-    }
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  g.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
-  g.setIndex(index);
-  g.computeVertexNormals();
   const material = new THREE.MeshLambertMaterial({
     vertexColors: true,
     flatShading: true,
     map: createGrassTexture(),
   });
-  const mesh = new THREE.Mesh(g, material);
-  mesh.name = 'terrain';
+  const group = new THREE.Group();
+  group.name = 'terrain';
+  for (let j0 = 0; j0 < rows - 1; j0 += TERRAIN_CHUNK) {
+    for (let i0 = 0; i0 < cols - 1; i0 += TERRAIN_CHUNK) {
+      const chunk = terrainChunk(ground, positions, colors, uvs, i0, j0);
+      if (chunk) group.add(new THREE.Mesh(chunk, material));
+    }
+  }
   // Pienet saaret eivät mahdu maastoverkon ruutuihin: matala, samalla
   // ruoholla kuvioitu kansi pitää ne näkyvissä. Rannasta sisämaahan maasto
   // nousee kannen yli.
@@ -144,9 +135,62 @@ export function createTerrainMesh(
     const capColors = new Float32Array(uv.count * 3);
     for (let i = 0; i < uv.count; i++) capColors.set([color.r, color.g, color.b], i * 3);
     cap.setAttribute('color', new THREE.BufferAttribute(capColors, 3));
-    mesh.add(new THREE.Mesh(cap, material));
+    group.add(new THREE.Mesh(cap, material));
   }
-  return mesh;
+  return group;
+}
+
+/**
+ * Maastoverkon pala, jonka vasen alakulma on ruudussa (i0, j0). Null, jos
+ * palan kaikki ruudut ovat kokonaan järven sisällä (läpinäkymättömän veden alla).
+ */
+function terrainChunk(
+  ground: Ground,
+  positions: Float32Array,
+  colors: Float32Array,
+  uvs: Float32Array,
+  i0: number,
+  j0: number,
+): THREE.BufferGeometry | null {
+  const { cols, rows, water } = ground;
+  const i1 = Math.min(i0 + TERRAIN_CHUNK, cols - 1);
+  const j1 = Math.min(j0 + TERRAIN_CHUNK, rows - 1);
+  const w = i1 - i0 + 1;
+  const local = (i: number, j: number) => (j - j0) * w + (i - i0);
+  const index: number[] = [];
+  for (let j = j0; j < j1; j++) {
+    for (let i = i0; i < i1; i++) {
+      const a = j * cols + i;
+      const b = a + 1;
+      const c = a + cols;
+      const d = c + 1;
+      if (water[a] && water[b] && water[c] && water[d]) continue;
+      const la = local(i, j);
+      const lc = la + w;
+      // Vastapäivään ylhäältä katsottuna: normaali ylöspäin. Lävistäjä b–c
+      // kuten Ground.heightAt.
+      index.push(la, la + 1, lc, la + 1, lc + 1, lc);
+    }
+  }
+  if (index.length === 0) return null;
+  const n = w * (j1 - j0 + 1);
+  const pos = new Float32Array(n * 3);
+  const col = new Float32Array(n * 3);
+  const uv = new Float32Array(n * 2);
+  for (let j = j0; j <= j1; j++) {
+    const from = j * cols + i0;
+    const to = local(i0, j);
+    pos.set(positions.subarray(from * 3, (from + w) * 3), to * 3);
+    col.set(colors.subarray(from * 3, (from + w) * 3), to * 3);
+    uv.set(uvs.subarray(from * 2, (from + w) * 2), to * 2);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  g.setIndex(index);
+  g.computeVertexNormals();
+  return g;
 }
 
 /**
