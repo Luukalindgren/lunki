@@ -13,7 +13,7 @@ import { emoteIcon } from '../ui/emoteIcons';
  */
 
 /** Mitat (m). Silmät ovat 0,55 m pinnasta (povCamera). */
-const DIM = {
+export const DIM = {
   /** Ponttoonin säde, keskilinjan etäisyys sivulle ja korkeus. */
   pontoonRadius: 0.15,
   pontoonSide: 0.5,
@@ -23,6 +23,12 @@ const DIM = {
   /** Verkkotaso: alku- ja loppureuna eteen, puolileveys ja korkeus. */
   apronFrom: 0.05,
   apronTo: 0.42,
+  /**
+   * Perhovarusteilla verkkotaso jatkuu polvien yli siimatasoksi tähän asti,
+   * jotta löysä siima näkyy sen päällä. Muuten taso jää lyhyeksi, ettei se
+   * peitä potkivia räpylöitä.
+   */
+  flapTo: 0.56,
   apronHalf: 0.3,
   apronY: 0.2,
   /** Polvet verkkotason alla, sääret viistosti eteen alas (kulma pystystä). */
@@ -101,25 +107,47 @@ export function handRaise(age: number): number {
 const SLACK_COILS = 8;
 const COIL_POINTS = 16;
 
+/** Kiekuran paikka ja säteet (m) renkaan koordinaatistossa. */
+export interface SlackCoil {
+  x: number;
+  y: number;
+  z: number;
+  rx: number;
+  rz: number;
+}
+
 /**
- * Löysän siiman kiekurat vedessä renkaan edessä, räpylöiden molemmin puolin:
- * soikeat lenkit vähän eri kohdissa, vuorotellen kummallakin puolella.
+ * Löysän siiman kiekurat kasana verkkotason päällä: soikeat lenkit vähän eri
+ * kohdissa vuorotellen keskilinjan kummallakin puolella, jokainen edellisen
+ * päällä. Kiinteä "satunnainen" sijoittelu, jotta kasa ei elä kuvasta toiseen.
  */
+export function slackCoilLayout(): SlackCoil[] {
+  const coils: SlackCoil[] = [];
+  for (let c = 0; c < SLACK_COILS; c++) {
+    const side = c % 2 === 0 ? 1 : -1;
+    coils.push({
+      x: 0.36 + ((c * 29) % 6) * 0.022,
+      y: DIM.apronY + 0.01 + c * 0.004,
+      z: side * (0.03 + ((c * 17) % 5) * 0.028),
+      rx: 0.05 + ((c * 37) % 5) * 0.007,
+      rz: 0.08 + ((c * 53) % 7) * 0.007,
+    });
+  }
+  return coils;
+}
+
+/** Kiekuran reunan pisteet: lenkki on vähän kuhmurainen, ei täydellinen soikio. */
+export function coilPoint(k: SlackCoil, c: number, a: number): THREE.Vector3 {
+  const r = 1 + 0.12 * Math.sin(a * 3 + c);
+  return new THREE.Vector3(k.x + Math.cos(a) * k.rx * r, k.y, k.z + Math.sin(a) * k.rz * r);
+}
+
 function slackCoils(material: THREE.LineBasicMaterial): THREE.LineSegments {
   const points: THREE.Vector3[] = [];
-  for (let c = 0; c < SLACK_COILS; c++) {
-    // Kiinteä "satunnainen" sijoittelu, jotta kasa ei elä kuvasta toiseen.
-    const side = c % 2 === 0 ? 1 : -1;
-    const cx = 0.75 + ((c * 29) % 6) * 0.08;
-    const cz = side * (0.38 + ((c * 17) % 5) * 0.05);
-    const rx = 0.08 + ((c * 37) % 5) * 0.012;
-    const rz = 0.1 + ((c * 53) % 7) * 0.012;
-    const at = (i: number) => {
-      const a = (i / COIL_POINTS) * Math.PI * 2 + c;
-      return new THREE.Vector3(cx + Math.cos(a) * rx, 0.02, cz + Math.sin(a) * rz);
-    };
+  slackCoilLayout().forEach((k, c) => {
+    const at = (i: number) => coilPoint(k, c, (i / COIL_POINTS) * Math.PI * 2 + c);
     for (let i = 0; i < COIL_POINTS; i++) points.push(at(i), at(i + 1));
-  }
+  });
   const line = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(points), material);
   line.geometry.setDrawRange(0, 0);
   return line;
@@ -129,7 +157,8 @@ function slackCoils(material: THREE.LineBasicMaterial): THREE.LineSegments {
 const mix = (a: number, b: number, k: number) =>
   new THREE.Color(a).lerp(new THREE.Color(b), k).getHex();
 
-function netTexture(): THREE.CanvasTexture {
+/** Verkon kuvio; `length` = verkon pituus eteen (m), jotta silmät ovat samankokoisia. */
+function netTexture(length: number): THREE.CanvasTexture {
   const size = 16;
   const c = document.createElement('canvas');
   c.width = c.height = size;
@@ -147,8 +176,30 @@ function netTexture(): THREE.CanvasTexture {
   tex.magFilter = THREE.NearestFilter;
   tex.minFilter = THREE.NearestFilter;
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(3, 2);
+  tex.repeat.set((3 * length) / (DIM.apronTo - DIM.apronFrom), 2);
   return tex;
+}
+
+/** Verkkotason osa `from`–`to` (m eteen): tumma kehys ja harva verkko. */
+function netPanel(from: number, to: number): THREE.Group {
+  const panel = new THREE.Group();
+  const len = to - from;
+  const net = new THREE.Mesh(
+    new THREE.PlaneGeometry(len, DIM.apronHalf * 2),
+    new THREE.MeshLambertMaterial({ map: netTexture(len) }),
+  );
+  net.rotation.x = -Math.PI / 2;
+  net.position.set(from + len / 2, DIM.apronY, 0);
+  const frame = new THREE.MeshLambertMaterial({ color: COLOR.apron });
+  const front = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.015, DIM.apronHalf * 2), frame);
+  front.position.set(to, DIM.apronY, 0);
+  panel.add(net, front);
+  for (const side of [-1, 1]) {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(len, 0.015, 0.015), frame);
+    rail.position.set(from + len / 2, DIM.apronY, side * DIM.apronHalf);
+    panel.add(rail);
+  }
+  return panel;
 }
 
 /** Räpylä ylhäältä: kapea kantapää, leveä lapa ja lovi kärjessä. */
@@ -185,6 +236,8 @@ export class PovTube {
   readonly group = new THREE.Group();
   /** Verkkotaso: perhokalastuksen irtosiima lepää tässä (#234). */
   readonly apron = new THREE.Group();
+  /** Perhovarusteiden siimataso verkkotason jatkona. */
+  private readonly flap = new THREE.Group();
   private readonly body = new THREE.Group();
   private readonly tubeMaterial: THREE.MeshLambertMaterial;
   private readonly finDry: THREE.MeshLambertMaterial;
@@ -238,26 +291,16 @@ export class PovTube {
       this.body.add(tube, tip, seam);
     }
 
-    // Verkkotaso reisien päällä: tumma kehys ja harva verkko.
-    const apronLen = DIM.apronTo - DIM.apronFrom;
-    const net = new THREE.Mesh(
-      new THREE.PlaneGeometry(apronLen, DIM.apronHalf * 2),
-      new THREE.MeshLambertMaterial({ map: netTexture() }),
-    );
-    net.rotation.x = -Math.PI / 2;
-    net.position.set(DIM.apronFrom + apronLen / 2, DIM.apronY, 0);
-    const frame = new THREE.MeshLambertMaterial({ color: COLOR.apron });
-    const front = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.015, DIM.apronHalf * 2), frame);
-    front.position.set(DIM.apronTo, DIM.apronY, 0);
-    this.apron.add(net, front);
-    for (const side of [-1, 1]) {
-      const rail = new THREE.Mesh(new THREE.BoxGeometry(apronLen, 0.015, 0.015), frame);
-      rail.position.set(DIM.apronFrom + apronLen / 2, DIM.apronY, side * DIM.apronHalf);
-      this.apron.add(rail);
-    }
+    // Verkkotaso reisien päällä ja perhovarusteiden siimataso sen jatkona.
+    this.apron.add(netPanel(DIM.apronFrom, DIM.apronTo));
+    this.flap.add(netPanel(DIM.apronTo, DIM.flapTo));
+    this.flap.visible = false;
     this.slackLine = slackCoils(this.slackMaterial);
     this.slackLine.visible = false;
-    this.body.add(this.apron, this.slackLine);
+    // Kiekurat piirretään verkon jälkeen: muuten niiden syvyys estäisi verkon
+    // piirron ja verkon alle jäävät räpylät näkyisivät viivojen kohdalla.
+    this.slackLine.renderOrder = UNDERWATER_ORDER + 2;
+    this.body.add(this.apron, this.flap, this.slackLine);
     // Rengas piirretään veden alla näkyvien räpylöiden jälkeen, jotta se peittää ne:
     // levossa räpylöistä näkyvät vain kärjet renkaan edessä.
     this.body.traverse((o) => {
@@ -330,8 +373,13 @@ export class PovTube {
   }
 
   /** `origin` = renkaan kohta maailmassa vedenpinnalla, `heading` = katsesuunta. */
-  /** Löysää siimaa (m) renkaan edessä: yksi kiekura noin kahta ja puolta metriä kohden. */
-  setSlack(meters: number, color: number): void {
+  /**
+   * Perhovarusteilla siimataso esiin ja sen päälle löysä siima (m) kiekuroina:
+   * yksi kiekura noin kahta ja puolta metriä kohden.
+   */
+  setFlyLine(fly: boolean, meters: number, color: number): void {
+    this.flap.visible = fly;
+    if (!fly) meters = 0;
     const coils = Math.min(SLACK_COILS, Math.ceil(meters / 2.5));
     this.slackLine.visible = meters > 0.2;
     this.slackLine.geometry.setDrawRange(0, coils * COIL_POINTS * 2);

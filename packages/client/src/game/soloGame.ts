@@ -139,6 +139,7 @@ import { SpeechBubble, type BubbleContent } from './speechBubble';
 import { screenAnchor } from './screenAnchor';
 import { EmoteMenu } from '../ui/emoteMenu';
 import { YouMarker } from './youMarker';
+import { FlyStrip } from './flyStrip';
 import { loadAppearance } from './appearance';
 import { RaceLog, type RaceMapData } from './raceLog';
 import { bottomFor } from '../world/lakeData';
@@ -146,10 +147,6 @@ import { decimal, formatWeight, ordinal, t } from '../i18n';
 import { baitName, describeTackle, skyName, speciesName } from '../i18n/names';
 
 const LAND_COLOR = 0x24502c;
-/** Perhon veto: koko ruudun korkuinen hiiren liike vetää näin monta metriä siimaa. */
-const STRIP_PER_SCREEN = 2;
-/** Nopea hiiren nosto (osuus ruudun korkeudesta askeleessa) on vavan nosto. */
-const ROD_LIFT_FLICK = 0.03;
 /** Yksinpelin pelaajan tunniste kisan kulussa. */
 const SOLO_ID = 'me';
 /** Lähiveden aallokon esiin- ja poishäivytyksen kesto (s). */
@@ -985,6 +982,7 @@ export class SoloGame {
     // Perho vedessä ja siima kädessä: hiiri tai välilyönti pitää siimaa ja vetää sitä.
     const flyHand = isFly(f.tackle) && !f.onReel && f.stage === 'water';
     const fly = flyHand ? this.readFlyHand(dt, frozen || !!tangle) : null;
+    if (!flyHand) this.flyStrip.reset();
     // Sotkussa vapa on kiinni: kelaaminen selvittää sotkua palvelimella.
     const reeling = !flyHand && !frozen && !tangle && lureOut && reelHeld;
     this.cranking = !flyHand && !frozen && lureOut && reelHeld;
@@ -1646,7 +1644,7 @@ export class SoloGame {
       const side = Math.sin(Math.atan2(f.lure.y - pos.y, f.lure.x - pos.x) - heading);
       pull = -side * Math.min(1, f.tension / breakingStrength(f.tackle));
     }
-    tube.setSlack(isFly(f.tackle) ? f.slack : 0, this.appearance.line);
+    tube.setFlyLine(isFly(f.tackle), f.slack, this.appearance.line);
     const now = performance.now();
     tube.update(
       toWorld(pos, 0),
@@ -1689,8 +1687,8 @@ export class SoloGame {
       dy: touchToRodPixels(input.mouseY - from.y, h),
     };
   }
-  /** Hiiren edellinen pystysijainti perhon vetoja varten (null = nappi ylhäällä). */
-  private stripMouseY: number | null = null;
+  /** Perhon vedot hiirellä. */
+  private readonly flyStrip = new FlyStrip();
 
   /**
    * Perhon siimakäsi (#234): hiiren vasen tai välilyönti pitää siimaa. Hiiren
@@ -1705,16 +1703,9 @@ export class SoloGame {
     const mouse = input.isDown('Mouse0');
     const steady = input.isDown('Space') || input.isDown('Reel');
     const lineHand = !blocked && (mouse || steady);
-    let strip = steady ? FLY.steadyStrip * dt : 0;
-    let rodLift = false;
-    if (mouse && this.stripMouseY !== null) {
-      // Ruudun korkeus vastaa noin kahta metriä siimaa.
-      const dy = (input.mouseY - this.stripMouseY) / Math.max(1, window.innerHeight);
-      if (dy > 0) strip += dy * STRIP_PER_SCREEN;
-      else if (dy < -ROD_LIFT_FLICK) rodLift = true;
-    }
-    this.stripMouseY = mouse ? input.mouseY : null;
-    return { lineHand, strip: blocked ? 0 : strip, rodLift: !blocked && rodLift };
+    const pull = this.flyStrip.read(mouse && !blocked, input.mouseY, window.innerHeight, dt);
+    const strip = (steady ? FLY.steadyStrip * dt : 0) + pull.strip;
+    return { lineHand, strip: blocked ? 0 : strip, rodLift: pull.rodLift };
   }
 
   private toggleEmoteMenu(): void {
