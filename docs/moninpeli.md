@@ -51,7 +51,10 @@ muut pelaajat: SnapshotBuffer, piirretään 120 ms menneisyydestä
   nimen perässä "(katkos)". Lyhyet katkokset SDK yhdistää itse; sivun
   uudelleenlatauksessa asiakas palaa välilehden muistiin tallennetulla
   tunnisteella samaan renkaaseen ja saaliisiin, ja syötteiden numerointi
-  jatkuu palvelimen kuittauksesta.
+  jatkuu palvelimen kuittauksesta. Hetken jumittaneen yhteyden viestit
+  saapuvat palvelimelle ryöppynä, joten viestiraja on väljä
+  (`MAX_MESSAGES_PER_SECOND`), ja asiakas yhdistää uudelleen heti liittymisen
+  jälkeenkin (`reconnection.minUptime = 0`).
 
 - **Liittyminen kesken kisan.** Huonetta ei lukita kisan alkaessa. Kisan
   aikana lähteneen paikka (rengas, jäähyt, nimi) jää odottamaan selaimen

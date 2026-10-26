@@ -122,6 +122,16 @@ export interface CreateOptions extends Partial<JoinOptions> {
  */
 export const RECONNECT_SECONDS = Number(process.env.LUNKI_RECONNECT_SECONDS) || 60;
 
+/**
+ * Viestiraja sekunnissa pelaajaa kohden. Syötteitä tulee 20 viestiä sekunnissa,
+ * mutta kun yhteys jumittuu hetkeksi (puhelimen verkko, tunnelin hikka),
+ * jumin aikana lähetetyt viestit saapuvat yhtenä ryöppynä. Ping katkaisee
+ * hiljaisen yhteyden noin 6–9 sekunnissa, joten raja on sitä pidemmän jumin
+ * ryöpylle mitoitettu: muuten Colyseus potkaisisi pelaajan pois ilman paluuta.
+ * Syötejono rajaa liikkeen joka tapauksessa (MAX_INPUT_QUEUE).
+ */
+export const MAX_MESSAGES_PER_SECOND = 400;
+
 /** Kisasta lähteneen paikka: sama selain pääsee jatkamaan siitä. */
 interface Seat {
   /** Lähtijän sessionId: saaliit siirretään palaajalle. */
@@ -226,8 +236,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     this.maxClients = this.state.settings.maxPlayers;
     // Koodilla liitytään, joten huone ei näy julkisessa listassa.
     void this.setPrivate(true);
-    // Syötteitä tulee 20 viestiä sekunnissa; reilu yläraja väärinkäytöksille.
-    this.maxMessagesPerSecond = 60;
+    this.maxMessagesPerSecond = MAX_MESSAGES_PER_SECOND;
 
     this.onMessage(ClientMsg.input, (client, msg: InputMessage) => {
       const sim = this.sims.get(client.sessionId);

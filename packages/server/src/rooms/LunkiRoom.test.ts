@@ -502,6 +502,24 @@ describe('LunkiRoom', () => {
     await host.leave();
   });
 
+  it('lyhyen verkkojumin viestiryöppy ei katkaise yhteyttä (#273)', async () => {
+    const host = await sdk().create(ROOM_NAME, { name: 'A', playerId: 'a' });
+    await until(() => players(host).length === 1);
+    host.send(ClientMsg.start);
+    await until(() => host.state.phase !== 'lobby');
+    let left = false;
+    host.onLeave(() => (left = true));
+    // 8 s jumi: 160 syöteviestiä saapuu kerralla.
+    let seq = 0;
+    for (let k = 0; k < 160; k++) {
+      const batch = [1, 2, 3].map(() => ({ seq: ++seq, kick: 1, turn: 0, sprint: false }));
+      host.send(ClientMsg.input, { i: encodeInputs(batch) });
+    }
+    await until(() => (host.state.players.get(host.sessionId)?.ack ?? 0) > 400);
+    expect(left).toBe(false);
+    await host.leave();
+  });
+
   it('tuntematon koodi ei kelpaa', async () => {
     await expect(sdk().joinById('ZZZZ', { name: 'A', playerId: 'a' })).rejects.toThrow();
   });
