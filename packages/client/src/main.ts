@@ -140,6 +140,7 @@ function startGame(s: CompetitionSettings, seed = devSeed) {
   hud.setHelpMode(session !== null, game.spectating);
   if (session) chat?.mount(hud.root, 'hud');
   touch?.setMultiplayer(session !== null);
+  touch?.setSpectator(game.spectating);
   if (import.meta.env.DEV) Object.assign(window, { lunki: game });
   paused = false;
   screens.hide();

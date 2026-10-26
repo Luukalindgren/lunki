@@ -309,6 +309,8 @@ export class Hud {
     this.spectator = spectator;
     // Moninpelissä chat ja (kosketuksella) VIESTI-nappi vievät tilaa.
     this.root.classList.toggle('mp', multiplayer);
+    // Katsojalla ei ole omaa siimaa: luotaimet ja kireysmittari piiloon (#280).
+    this.root.classList.toggle('spectator', spectator);
     const lines: MsgKey[] = spectator
       ? this.touch
         ? ['help.spectatorTouch1', 'help.spectatorTouch2', 'help.touchTools']
