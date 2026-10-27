@@ -418,6 +418,9 @@ export class SoloGame {
     }
     this.view.snapTo(this.tube.pos);
     hud.setCountdown(null);
+    // Kello näkyy heti HUDin tullessa esiin, ennen ensimmäistä päivitystä.
+    const left = timeLeft(this.competition);
+    hud.setTimer(formatTime(left), left < 60);
     if (net) {
       this.remoteView = new RemotePlayersView(net.overlay, this.hud.root);
       this.scene.add(this.remoteView.group);
