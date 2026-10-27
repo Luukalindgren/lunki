@@ -16,7 +16,7 @@ function selectionState(page: Page, selector: string) {
     const menu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
     el.dispatchEvent(menu);
     return {
-      userSelect: css.userSelect || css.webkitUserSelect || '',
+      userSelect: css.webkitUserSelect || css.userSelect || '',
       // Vain WebKit tuntee -webkit-touch-calloutin.
       callout: css.webkitTouchCallout ?? null,
       selectBlocked: start.defaultPrevented,
