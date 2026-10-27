@@ -82,6 +82,12 @@ export const SOLO_RECORDS_PATH = '/records/solo';
 /** Kumpi ennätyslista: moninpelin palvelimella punnitut vai yksinpelin ilmoitetut. */
 export type RecordMode = 'race' | 'solo';
 
+/**
+ * Palvelimen ollessa kiinni selain pitää saaliit tallessa ja lähettää ne
+ * myöhemmin saantihetken kanssa. Näin vanhaa saantihetkeä palvelin uskoo.
+ */
+export const SOLO_RECORD_MAX_AGE_MS = 60 * 24 * 3600 * 1000;
+
 /** Vastaus yksinpelin saaliiseen: sija lajin listalla, tai null jos ei päässyt listalle. */
 export interface SoloRecordReply {
   place: number | null;
@@ -92,6 +98,18 @@ const has = <K extends string>(table: Record<K, unknown>, v: unknown): v is K =>
 const num = (v: unknown, min: number, max: number): number | undefined =>
   typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max ? v : undefined;
 const round1 = (v: number | undefined) => (v === undefined ? undefined : Math.round(v * 10) / 10);
+
+/** Selaimen ilmoittama saantihetki, jos uskottava; muuten palvelimen aika. */
+function caughtAt(at: unknown, now: Date): Date {
+  if (typeof at !== 'string') return now;
+  const t = Date.parse(at);
+  // Pieni jousto eteenpäin: selaimen kello voi olla hieman edellä.
+  const ok =
+    Number.isFinite(t) &&
+    t <= now.getTime() + 5 * 60_000 &&
+    t >= now.getTime() - SOLO_RECORD_MAX_AGE_MS;
+  return ok ? new Date(Math.min(t, now.getTime())) : now;
+}
 
 /** Saaliin varustetiedot ennätykseen: käytössä olevan kalastustavan välineet. */
 export function recordTackle(
@@ -108,7 +126,9 @@ export function recordTackle(
 /**
  * Tarkistaa selaimen lähettämän yksinpelin saaliin. Lajin, painon ja
  * vaikeustason pitää kelvata; virheelliset lisätiedot jätetään pois.
- * Päivä ja kellonaika tulevat palvelimelta (`now`).
+ * Päivä ja kellonaika tulevat palvelimelta (`now`), paitsi myöhässä
+ * lähetetyllä saaliilla selaimen ilmoittama saantihetki (`at`), jos se on
+ * uskottava: ei tulevaisuudessa eikä vanhempi kuin SOLO_RECORD_MAX_AGE_MS.
  */
 export function parseSoloRecord(v: unknown, now = new Date()): RecordEntry | null {
   const o = (v ?? {}) as Record<string, unknown>;
@@ -116,7 +136,7 @@ export function parseSoloRecord(v: unknown, now = new Date()): RecordEntry | nul
   const sp = SPECIES[o.species];
   const weight = num(o.weight, sp.minWeight, sp.maxWeight);
   if (weight === undefined) return null;
-  const iso = now.toISOString();
+  const iso = caughtAt(o.at, now).toISOString();
   const e: RecordEntry = {
     species: o.species,
     weight: Math.round(weight * 1000) / 1000,

@@ -344,7 +344,7 @@ export const fi = {
   'records.title': 'Lunkinjärven ennätykset',
   'records.loading': 'Haetaan ennätyksiä…',
   'records.noServer':
-    'Ennätykset ovat pelipalvelimella, joka ei ole nyt päällä. Yksinpelin saaliit eivät pääse listalle sillä aikaa.',
+    'Ennätykset ovat pelipalvelimella, joka ei ole nyt päällä. Yksinpelin saaliit tallentuvat tälle laitteelle ja lähtevät listalle, kun palvelin on taas päällä.',
   'records.soloMissing': 'Pelipalvelin ei vielä tunne yksinpelin ennätyslistaa.',
   'records.raceMissing': 'Moninpelin ennätyksiä ei saatu haettua.',
   'records.raceHint': 'Listalle pääsevät moninpelikisoissa palvelimella punnitut kalat.',
@@ -373,6 +373,9 @@ export const fi = {
   'records.placeKept': 'Tallessa',
   'records.placeMissing': 'Ei tallessa: saalis on ajalta ennen paikkojen tallennusta',
   'records.soloFirst': 'Yksinpelin ennätys! {fish}',
+  'records.soloQueued':
+    'Palvelin ei ole päällä: saaliit tallentuvat ja lähtevät ennätyslistalle myöhemmin',
+  'records.fromQueue': 'Tallessa ollut saalis: {note}',
   'records.soloPlace': '{fish} on yksinpelin {place} suurin',
   'records.lakeFirst': 'Järven ennätys! {fish}',
   'records.lakePlace': '{fish} on järven {place} suurin',

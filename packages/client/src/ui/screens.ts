@@ -252,6 +252,22 @@ export class Screens {
       start.querySelector('.subtitle')?.after(...this.updateNotice());
   }
 
+  /** Päävalikon kertailmoitukset (palvelimen palattua listalle päässeet saaliit). */
+  private startNotes: string[] = [];
+
+  /** Näyttää ilmoitukset päävalikossa nyt tai sen seuraavalla avauksella, kerran. */
+  showStartNotes(notes: string[]): void {
+    if (!notes.length) return;
+    this.startNotes.push(...notes);
+    const start = this.root.querySelector('[data-screen="start"]');
+    if (start && !this.root.hidden)
+      start.querySelector('.subtitle')?.after(...this.takeStartNotes());
+  }
+
+  private takeStartNotes(): HTMLElement[] {
+    return this.startNotes.splice(0).map((n) => h('p', n, 'start-note'));
+  }
+
   private updateNotice(): HTMLElement[] {
     if (!this.update) return [];
     const b = document.createElement('button');
@@ -323,6 +339,7 @@ export class Screens {
     panel.append(
       waveTitle('LUNKINJÄRVI'),
       h('p', t('menu.subtitle'), 'subtitle'),
+      ...this.takeStartNotes(),
       ...this.updateNotice(),
       menu,
       language,

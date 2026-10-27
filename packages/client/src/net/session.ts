@@ -160,14 +160,16 @@ export async function fetchRecords(
 }
 
 /**
- * Lähettää yksinpelin saaliin yksinpelin ennätyslistalle. Palauttaa sijan
- * lajin listalla, tai null, jos kala ei mahtunut listalle tai palvelinta ei
- * tavoitettu.
+ * Yksinpelin saaliin lähetyksen tulos: sija lajin listalla (null = ei
+ * mahtunut listalle), palvelin hylkäsi saaliin, tai palvelinta ei tavoitettu.
  */
+export type SoloSubmit = { place: number | null } | 'rejected' | 'offline';
+
+/** Lähettää yksinpelin saaliin yksinpelin ennätyslistalle. */
 export async function submitSoloRecord(
-  entry: Omit<RecordEntry, 'date' | 'at'>,
+  entry: Omit<RecordEntry, 'date'>,
   timeoutMs = 6000,
-): Promise<number | null> {
+): Promise<SoloSubmit> {
   const http = serverHttpUrl();
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -179,9 +181,11 @@ export async function submitSoloRecord(
       body: JSON.stringify(entry),
       signal: ctrl.signal,
     });
-    return res.ok ? ((await res.json()) as SoloRecordReply).place : null;
+    if (res.ok) return { place: ((await res.json()) as SoloRecordReply).place };
+    // Cloudflare vastaa itse 5xx:llä, kun tunnelin takana oleva kone on kiinni.
+    return res.status >= 500 ? 'offline' : 'rejected';
   } catch {
-    return null;
+    return 'offline';
   } finally {
     clearTimeout(timer);
   }
