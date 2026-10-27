@@ -161,7 +161,7 @@ test.describe('puhelin', () => {
       await drag(page, browserName, { x, y }, { x, y: y + height * 0.3 }, 150);
       if (attempt === 0) {
         await expect(page.locator('.hud-fly-panel')).toBeVisible();
-        await expect(page.locator('.hud-situation')).toContainText('pyyhkäisy alas = takaheitto');
+        await expect(page.locator('.hud-situation')).toContainText('Alas = takaheitto');
         // Heiton aikana iso nappi on siimakäden veto ja KATKO peruu heiton.
         await expect(main).toHaveText('VETO');
         await expect(page.getByRole('button', { name: 'PERU' })).toBeVisible();

@@ -49,6 +49,8 @@ export const CONTROLS = {
   // Perho.
   backCast: { keys: [], label: 'ctl.mouseBack', touch: 'ctl.swipeDown' },
   forwardCast: { keys: [], label: 'ctl.mouseForward', touch: 'ctl.swipeUp' },
+  /** Perhoheitto sormella: pyyhkäisy järvellä (hiirellä vavan liike, ei erillistä nimeä). */
+  swipe: { keys: [], touch: 'ctl.swipe' },
   /** Siimakäsi heiton aikana: hiirellä vasen nappi (pointer), kosketuksella SIIMA. */
   lineGrip: { keys: [], label: 'key.mouseLeft', touch: 'touch.line', title: 'touch.lineTitle' },
   haul: { keys: ['Mouse2'], touch: 'touch.strip', title: 'touch.stripTitle' },
@@ -192,6 +194,15 @@ export function bindingText(a: Action, touch = touchMode): string | null {
   if (b.label) return t(b.label);
   const names = [...new Set(b.keys.map(keyName))];
   return names.length ? names.join('/') : null;
+}
+
+/**
+ * Otsikko ja sen näppäin, esim. "Viehe (R)". Kosketuksella pelkkä otsikko:
+ * nappi on samanniminen (VIEHE).
+ */
+export function withKey(label: MsgKey, a: Action, touch = touchMode): string {
+  const b = touch ? null : bindingText(a, false);
+  return b ? `${t(label)} (${b})` : t(label);
 }
 
 const isAction = (k: string): k is Action => Object.hasOwn(CONTROLS, k);

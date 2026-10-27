@@ -62,12 +62,10 @@ describe('toimintokartta', () => {
   });
 
   it('jokaisella kosketusnapilla on vihje ja teksti sanakirjassa', () => {
-    for (const [a, b] of Object.entries(CONTROLS) as [Action, (typeof CONTROLS)[Action]][]) {
-      const keys = [
-        'label' in b ? b.label : undefined,
-        'title' in b ? b.title : undefined,
-        'touch' in b && /^[a-z]/.test(b.touch) ? b.touch : undefined,
-      ].filter((k): k is MsgKey => k !== undefined);
+    for (const a of Object.keys(CONTROLS) as Action[]) {
+      const b = CONTROLS[a] as { label?: MsgKey; title?: MsgKey; touch?: string };
+      const touch = b.touch && /^[a-z]/.test(b.touch) ? (b.touch as MsgKey) : undefined;
+      const keys = [b.label, b.title, touch].filter((k): k is MsgKey => k !== undefined);
       for (const k of keys) {
         expect(fi[k], `${a}: ${k}`).toBeTruthy();
         expect(en[k], `${a}: ${k}`).toBeTruthy();

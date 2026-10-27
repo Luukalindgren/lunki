@@ -90,7 +90,7 @@ import {
   type Lang,
   type MsgKey,
 } from '../i18n';
-import { controlText } from '../game/controls';
+import { controlText, withKey } from '../game/controls';
 import {
   colorName,
   describeFullTackle,
@@ -1721,7 +1721,7 @@ export class Screens {
       else
         box.append(
           this.choice(
-            controlText('tackle.fly'),
+            withKey('tackle.fly', 'lure'),
             FLY_IDS.map((id) => [id, flyName(id)]),
             tk.fly,
             (v) => set({ fly: v as Tackle['fly'] }),
@@ -1764,7 +1764,7 @@ export class Screens {
       else
         box.append(
           this.choice(
-            controlText('tackle.lure'),
+            withKey('tackle.lure', 'lure'),
             LURE_IDS.map((id) => [id, lureName(id)]),
             tk.lure,
             (v) => set({ lure: v as Tackle['lure'] }),

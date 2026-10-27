@@ -1122,7 +1122,12 @@ export class SoloGame {
               ? t('game.flyUntangle', { s: Math.ceil(cast.busy) })
               : this.flyCastControl.keyboard
                 ? controlText('game.flyCastKeys')
-                : `${controlText('game.flyCastSwing')}\n${controlText('game.flyCastButtons')}`
+                : `${controlText('game.flyCastSwing')}\n${controlText(
+                    'game.flyCastButtons',
+                    {},
+                    // Kosketuksella PERU-nappi kertoo itse itsestään: rivi mahtuu pystyruudulle.
+                    { skip: touch ? ['cancel'] : [] },
+                  )}`
             : this.thunderNow && (lureOut || f.hookedId !== null)
               ? t('help.thunder')
               : null,
