@@ -124,7 +124,9 @@ export class WeatherView {
     const drift = this.now.windSpeed * 0.6;
     const dx = Math.cos(this.now.windDir) * drift;
     const dy = Math.sin(this.now.windDir) * drift;
-    const streak = topView ? topView.metersPerPixel * 3 : 0;
+    // Ylhäältä viirut ovat lyhyitä ja harmaansinisiä, etteivät ne sekoitu vaahtopäihin.
+    const streak = topView ? topView.metersPerPixel * 1.5 : 0;
+    (this.drops.material as THREE.LineBasicMaterial).color.setHex(topView ? 0x8fa9bd : 0xb8c8d8);
     const sx = (dx / FALL_SPEED) * DROP_LENGTH + streak;
     const sz = (-dy / FALL_SPEED) * DROP_LENGTH - streak;
     for (let i = 0; i < count; i++) {

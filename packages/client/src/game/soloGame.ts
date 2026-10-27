@@ -148,6 +148,8 @@ const LAND_COLOR = 0x24502c;
 const SOLO_ID = 'me';
 /** Lähiveden aallokon esiin- ja poishäivytyksen kesto (s). */
 const SWELL_FADE_TIME = 2;
+/** Pohjakuvion ajelehtiminen (m/s) tuulen metriä sekunnissa kohden. */
+const WATER_DRIFT = 0.02;
 
 /**
  * Näppäinasettelu: WASD tai nuolet. W vie katseen suuntaan kohti räpylöitä
@@ -552,6 +554,7 @@ export class SoloGame {
     this.scene.fog = pov ? new THREE.Fog(this.sky.lighting.horizon, 500, 2600) : null;
     this.applyWeatherLight();
     this.fishingView.pov = pov;
+    this.waterWaves.uPov.value = pov ? 1 : 0;
     if (announce) this.hud.showMessage(pov ? t('game.viewPov') : t('game.viewTop'), 1.2);
   }
 
@@ -1217,6 +1220,10 @@ export class SoloGame {
     this.waves.update(windDir);
     this.waterWaves.uWaveScale.value = WAVE_FACTOR_SCALE * windSpeed;
     this.waterWaves.uWaveDir.value.set(Math.cos(windDir), Math.sin(windDir));
+    // Pohjakuvio ajelehtii tuulen mukana, sitä nopeammin mitä kovempi tuuli.
+    const drift = this.waterWaves.uDrift.value;
+    drift.x = (drift.x + Math.cos(windDir) * windSpeed * WATER_DRIFT * dt) % 320;
+    drift.y = (drift.y + Math.sin(windDir) * windSpeed * WATER_DRIFT * dt) % 320;
     const p = this.tube.pos;
     this.swell.update(dt, windSpeed, windDir, p);
     const amp = this.waterWaves.uSwellAmp.value;
