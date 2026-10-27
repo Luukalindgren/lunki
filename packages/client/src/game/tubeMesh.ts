@@ -9,9 +9,14 @@ import {
 
 /** Räpylöiden lepokohta renkaan etureunan edessä (paikallinen x). */
 const FIN_X = TUBE_RADIUS + 0.15;
+/** Renkaan putken keskilinjan säde ja putken paksuus (säde). */
+const TUBE_CENTER = TUBE_RADIUS * 0.72;
+const TUBE_THICK = TUBE_RADIUS * 0.28;
+/** Sivuponttoonien kärkien etäisyys eteen kalastajasta. */
+const PONTOON_TIP = TUBE_RADIUS * 0.7;
 
 /**
- * Kelluntarengas ja kalastaja ylhäältä katsottuna. Paikallisessa
+ * U-muotoinen kelluntarengas ja kalastaja ylhäältä katsottuna. Paikallisessa
  * koordinaatistossa katse osoittaa +x-suuntaan; ryhmää käännetään y-akselin
  * ympäri headingin mukaan. Kuten oikeassa renkaassa, jalat ja räpylät ovat
  * kalastajan edessä samalla puolella kuin vapa ja heittosuunta: potkut
@@ -20,14 +25,36 @@ const FIN_X = TUBE_RADIUS + 0.15;
 export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THREE.Group {
   const group = new THREE.Group();
 
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(TUBE_RADIUS * 0.72, TUBE_RADIUS * 0.28, 6, 14),
-    new THREE.MeshLambertMaterial({ color: appearance.tube }),
+  // U-muotoinen rengas: kaari kalastajan takana ja sivuponttoonit, joiden
+  // kärjet jatkuvat siimatason ohi eteen. Etupää on avoin jaloille.
+  const tubeMat = new THREE.MeshLambertMaterial({ color: appearance.tube });
+  const back = new THREE.TorusGeometry(TUBE_CENTER, TUBE_THICK, 6, 8, Math.PI);
+  back.rotateZ(Math.PI / 2);
+  back.rotateX(-Math.PI / 2);
+  const parts: THREE.BufferGeometry[] = [back];
+  for (const z of [-TUBE_CENTER, TUBE_CENTER]) {
+    const pontoon = new THREE.CylinderGeometry(TUBE_THICK, TUBE_THICK, PONTOON_TIP, 6);
+    pontoon.rotateZ(Math.PI / 2);
+    pontoon.translate(PONTOON_TIP / 2, 0, z);
+    const tip = new THREE.SphereGeometry(TUBE_THICK, 6, 4);
+    tip.translate(PONTOON_TIP, 0, z);
+    parts.push(pontoon, tip);
+  }
+  for (const geometry of parts) {
+    const part = new THREE.Mesh(geometry, tubeMat);
+    part.name = 'tube';
+    part.position.y = 0.15;
+    group.add(part);
+  }
+
+  // Siimataso reisien päällä ponttoonien välissä, kuten POV-näkymässä.
+  const apronTo = PONTOON_TIP - TUBE_THICK * 0.6;
+  const apron = new THREE.Mesh(
+    new THREE.BoxGeometry(apronTo, 0.03, (TUBE_CENTER - TUBE_THICK) * 2),
+    new THREE.MeshLambertMaterial({ color: 0x1c232b }),
   );
-  ring.name = 'tube';
-  ring.rotation.x = -Math.PI / 2;
-  ring.position.y = 0.15;
-  group.add(ring);
+  apron.position.set(apronTo / 2, 0.32, 0);
+  group.add(apron);
 
   // Hartiat poikittain katsesuuntaan nähden
   const shoulders = new THREE.Mesh(
