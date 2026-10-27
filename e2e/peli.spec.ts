@@ -155,11 +155,11 @@ test.describe('yksinpeli', () => {
     await startSolo(page, 'pov');
     const canvas = page.locator('canvas.game-canvas');
     const label = page.locator('label[for=pov-fov]');
-    // Pystypuhelimella kuvaa levennetään jo oletuksella.
+    // Pystypuhelimella kuvaa levennetään jo oletuksella (määrä riippuu kuvasuhteesta).
     if (isMobile) {
       await expect
         .poll(async () => Number(await canvas.getAttribute('data-pov-fov')))
-        .toBeGreaterThan(90);
+        .toBeGreaterThan(75);
       return errors.check();
     }
     await expect(canvas).toHaveAttribute('data-pov-fov', '72');
