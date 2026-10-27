@@ -49,6 +49,8 @@ export class Input {
    * menevät silti peliin (tauon avaus ja sulku, paletti, FPS).
    */
   menuOpen: () => boolean = () => false;
+  /** Avoimella valikolla on oma paluu: Esc ja Backspace eivät mene peliin. */
+  menuBack: () => boolean = () => false;
 
   constructor(private readonly target: HTMLElement) {
     window.addEventListener('keydown', this.onKeyDown);
@@ -149,7 +151,9 @@ export class Input {
   private onKeyDown = (e: KeyboardEvent) => {
     // Tekstikenttiin kirjoittaminen ei ohjaa peliä.
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-    if (this.menuOpen() && !MENU_PASS.has(e.code) && !e.code.startsWith('F')) return;
+    if (this.menuOpen() && !e.code.startsWith('F')) {
+      if (!MENU_PASS.has(e.code) || this.menuBack()) return;
+    }
     if (e.code.startsWith('Arrow') || e.code === 'Space' || e.code.startsWith('F')) {
       if (e.code !== 'F5' && e.code !== 'F11' && e.code !== 'F12') e.preventDefault();
     }

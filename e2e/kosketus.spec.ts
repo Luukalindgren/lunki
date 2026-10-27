@@ -138,7 +138,9 @@ test.describe('puhelin', () => {
     await page.getByRole('button', { name: 'Aloita kisa' }).tap();
     await expect(page.locator('.hud-timer')).toBeVisible();
     await page.getByRole('button', { name: 'II' }).tap();
+    await page.getByRole('button', { name: 'Varusteet' }).tap();
     await page.getByRole('button', { name: 'Perho', exact: true }).tap();
+    await page.getByRole('button', { name: 'Takaisin' }).tap();
     await page.getByRole('button', { name: 'Jatka' }).tap();
     await expect(page.getByRole('button', { name: 'SIIMA' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'VETO' })).toBeVisible();

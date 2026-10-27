@@ -31,7 +31,7 @@ import { describeSpot } from './ui/lakeMap';
 import type { WeighCardInfo } from './ui/weighCard';
 import { ChatBox } from './ui/chat';
 import { TouchControls, isTouchDevice } from './ui/touchControls';
-import { Screens, loadSettings } from './ui/screens';
+import { Screens, loadSettings, type SettingsControls } from './ui/screens';
 import { dismissBootLoader } from './ui/loader';
 import { Bench } from './dev/bench';
 import { clearLastRoom, loadIdentity, loadLastRoom, saveLastRoom, saveName } from './net/identity';
@@ -110,8 +110,28 @@ const povFovControl = () => ({
     effectivePovFov(fov, retro.resolution.width / Math.max(1, retro.resolution.height)),
 });
 
+/** Asetusnäkymän säätimet; `reopen` piirtää näkymän uudelleen kielen vaihtuessa. */
+const settingsControls = (reopen: () => void): SettingsControls => ({
+  audio: { current: sfx.audioSettings, onChange: (a) => sfx.setAudioSettings(a) },
+  hudSize: {
+    current: hudScale,
+    onChange: (scale) => {
+      hudScale = scale;
+      saveHudScale(scale);
+      hud.setScale(scale);
+      // Esikatselu: HUD näkyy valikon takana heti kokoa vaihdettaessa.
+      hud.setVisible(true);
+    },
+    effective: () => hud.effectiveScale(),
+  },
+  povFov: povFovControl(),
+  onLanguage: reopen,
+});
+
 const screens = new Screens(app);
 input.menuOpen = () => screens.open;
+// Alinäkymän (esim. tauon asetukset) Esc palaa takaisin eikä jatka peliä.
+input.menuBack = () => screens.hasBack;
 let settings = loadSettings(DEFAULT_SETTINGS);
 let game: SoloGame | null = null;
 let paused = false;
@@ -217,12 +237,7 @@ function showMenu() {
     onMultiplayer: () => showMultiplayer(),
     onLakeMap: () => screens.showLakeMap(showMenu),
     onRecords: () => void showRecords(),
-    onSettings: () =>
-      screens.showSettings(
-        { current: sfx.audioSettings, onChange: (a) => sfx.setAudioSettings(a) },
-        povFovControl(),
-        showMenu,
-      ),
+    onSettings: showMenuSettings,
     onFeedback: () =>
       screens.showFeedback(
         loadIdentity().name,
@@ -232,6 +247,10 @@ function showMenu() {
     onCredits: () => screens.showCredits(showMenu),
     onLanguage: showMenu,
   });
+}
+
+function showMenuSettings() {
+  screens.showSettings(settingsControls(showMenuSettings), showMenu);
 }
 
 function showSoloSetup(s: CompetitionSettings) {
@@ -512,36 +531,45 @@ function togglePause() {
   paused = !paused;
   if (paused) {
     hud.setVisible(false);
-    screens.showPause(
-      togglePause,
-      session
-        ? leaveRoom
-        : () => {
-            game!.competition.finished = true;
-            showResults();
-          },
-      session !== null,
-      // Katsoja ei kalasta.
-      game.spectating ? undefined : { current: game.tackle, onChange: (t) => game?.setTackle(t) },
-      { current: sfx.audioSettings, onChange: (a) => sfx.setAudioSettings(a) },
-      formatClock(game.clock),
-      {
-        current: hudScale,
-        onChange: (scale) => {
-          hudScale = scale;
-          saveHudScale(scale);
-          hud.setScale(scale);
-          // Esikatselu: HUD näkyy valikon takana heti kokoa vaihdettaessa.
-          hud.setVisible(true);
-        },
-        effective: () => hud.effectiveScale(),
-      },
-      povFovControl(),
-    );
+    showPauseMenu();
   } else {
     screens.hide();
     hud.setVisible(true);
   }
+}
+
+/** Taukovalikko; `from` kohdistaa alinäkymän napin, josta palattiin. */
+function showPauseMenu(from?: 'tackle' | 'settings') {
+  const g = game;
+  if (!g) return;
+  const back = (sub: 'tackle' | 'settings') => () => {
+    // Moninpelin kisa voi päättyä alinäkymän ollessa auki.
+    if (paused && game === g) showPauseMenu(sub);
+  };
+  screens.showPause({
+    onResume: togglePause,
+    onQuit: session
+      ? leaveRoom
+      : () => {
+          g.competition.finished = true;
+          showResults();
+        },
+    multiplayer: session !== null,
+    clock: formatClock(g.clock),
+    // Katsoja ei kalasta.
+    onTackle: g.spectating
+      ? undefined
+      : () =>
+          screens.showPauseTackle(
+            { current: g.tackle, onChange: (t) => g.setTackle(t) },
+            back('tackle'),
+          ),
+    onSettings: () => {
+      const open = () => screens.showSettings(settingsControls(open), back('settings'));
+      open();
+    },
+    from,
+  });
 }
 
 retro.onResize((r) => {
