@@ -1282,6 +1282,71 @@ textarea,
   padding: 6px 14px;
 }
 
+/* Taukovalikko: lyhyt nappilista kuten päävalikossa. */
+.pause-menu {
+  margin-top: 14px;
+}
+
+/* Lyhyt lista ei tarvitse alareunaan kiinnitystä, joka peittäisi kellon. */
+.screen-panel > .pause-menu:last-child {
+  position: static;
+  margin-bottom: 0;
+  padding: 0;
+}
+
+/* Matala ruutu (puhelin vaakana): koko taukovalikko yhdelle ruudulle. */
+@media (max-height: 480px) {
+  .pause-menu {
+    gap: 6px;
+  }
+
+  .pause-menu button {
+    padding-block: 2px;
+  }
+}
+
+/* Asetusnäkymän osiot: Näyttö, Äänet, Kieli. */
+.screen-panel h3.settings-section {
+  margin: 22px 0 0;
+  font-size: 26px;
+  font-weight: normal;
+  color: #f6d04d;
+}
+
+.screen-panel h3.settings-section + * {
+  margin-top: 6px;
+}
+
+/* Varusteet ja värit tiivistettynä: yksi nappi, josta avautuu oma näkymä. */
+.summary-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+}
+
+.screen-panel .summary-button {
+  font-size: 20px;
+  padding: 4px 10px;
+}
+
+.summary-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.summary-arrow {
+  color: #f6d04d;
+}
+
+.tube-preview.small {
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  border-width: 1px;
+}
+
 /* Kielivalitsin valikon alla: otsikko ja FI/EN-napit samalla rivillä. */
 .language-choice {
   display: flex;

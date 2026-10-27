@@ -90,7 +90,9 @@ test.describe('yksinpeli', () => {
       Number(re.exec(await status())?.[1]?.replace(',', '.') ?? 0);
 
     await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Varusteet' }).click();
     await page.getByRole('button', { name: 'Perho', exact: true }).click();
+    await page.getByRole('button', { name: 'Takaisin' }).click();
     await page.getByRole('button', { name: 'Jatka' }).click();
     await expect.poll(status).toContain('Hauki-streameri');
     await expect.poll(status).toContain('Löysää 0,0 m');
@@ -130,10 +132,12 @@ test.describe('yksinpeli', () => {
     const { width } = page.viewportSize()!;
 
     await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Asetukset' }).click();
     const slider = page.locator('#hud-size');
     await slider.focus();
     await page.keyboard.press('Home');
     await expect(page.locator('label[for=hud-size]')).toHaveText('HUDin koko 70 %');
+    await page.getByRole('button', { name: 'Takaisin' }).click();
     await page.getByRole('button', { name: 'Jatka' }).click();
 
     // Pienempi, mutta samassa kulmassa samalla reunavälillä.
@@ -165,6 +169,7 @@ test.describe('yksinpeli', () => {
     await expect(canvas).toHaveAttribute('data-pov-fov', '72');
 
     await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Asetukset' }).click();
     await expect(label).toHaveText('Näkökenttä 72°');
     const slider = page.locator('#pov-fov');
     await slider.focus();
@@ -172,6 +177,7 @@ test.describe('yksinpeli', () => {
     await page.keyboard.press('ArrowRight');
     await expect(label).toHaveText('Näkökenttä 80°');
     await expect(canvas).toHaveAttribute('data-pov-fov', '80');
+    await page.getByRole('button', { name: 'Takaisin' }).click();
     await page.getByRole('button', { name: 'Jatka' }).click();
 
     // Valinta säilyy uudelleenlatauksen yli ja näkyy päävalikon asetuksissa.
@@ -214,6 +220,23 @@ test('toinen kisa ja valikon tausta piirtävät jaetun maailman (#327)', async (
   await page.getByRole('button', { name: 'Aloita kisa' }).click();
   await expect(page.locator('.hud-timer')).toBeVisible();
   await expect.poll(() => canvasColors(page)).toBeGreaterThan(Math.max(8, first / 2));
+  errors.check();
+});
+
+test('kieli vaihtuu kesken kisan tauon asetuksista', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'puhelimet: sama näkymä, tauko kosketusnapista');
+  const errors = watchErrors(page);
+  await startSolo(page);
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Asetukset' }).click();
+  await page.getByRole('button', { name: 'English' }).click();
+  await expect(page.locator('.screen-panel h2')).toHaveText('Settings');
+  await expect(page.getByRole('heading', { name: 'Language' })).toBeVisible();
+  // Esc palaa taukoon, ei jatka peliä.
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.screen-panel h2')).toHaveText('Paused');
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(page.locator('.hud-tension-label')).toHaveText('TENSION');
   errors.check();
 });
 
@@ -274,8 +297,11 @@ test('ilman WebGL:ää näytetään selitys tyhjän ruudun sijaan', async ({ pag
 
 test('valittu väri ei piirry kisan painikkeiden päälle', async ({ page }) => {
   await page.goto('/');
+  // Matala ruutu, jotta värit vierivät alareunan painikkeen alle.
+  await page.setViewportSize({ width: page.viewportSize()!.width, height: 400 });
   await page.getByRole('button', { name: 'Yksinpeli' }).click();
-  const swatch = page.locator('.settings.appearance .swatches').first().locator('button').nth(10);
+  await page.getByRole('button', { name: /Muuta värejä/ }).click();
+  const swatch = page.locator('.settings.appearance .swatches').last().locator('button').nth(3);
   await swatch.click();
   await expect(swatch).toHaveClass(/selected/);
   // Vieritetään valittu väri paneelin alareunan painikkeiden alle.

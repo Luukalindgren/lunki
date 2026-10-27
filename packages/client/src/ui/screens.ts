@@ -120,6 +120,25 @@ const SETTINGS_KEY = 'lunki.soloSettings';
 /** Näkymät, jotka avautuvat aina alusta eivätkä muista kohdistusta. */
 const NO_FOCUS_MEMORY = new Set(['pause', 'results', 'race-results', 'message']);
 
+/** Asetusnäkymän säätimet (päävalikko ja tauko). */
+export interface SettingsControls {
+  audio: { current: AudioSettings; onChange: (a: AudioSettings) => void };
+  hudSize: {
+    current: number;
+    onChange: (scale: number) => void;
+    /** Toteutunut koko, kun ruudulle ei mahdu valittua (null = ei tiedossa). */
+    effective: () => number | null;
+  };
+  povFov: {
+    current: number;
+    onChange: (fov: number) => void;
+    /** Toteutunut pysty-FOV tällä ruudulla valinnalla `fov`. */
+    effective: (fov: number) => number;
+  };
+  /** Kieli vaihtui: näkymä avataan uudelleen uudella kielellä. */
+  onLanguage: () => void;
+}
+
 interface ShowOptions {
   /** Näkymän siivous ennen seuraavaa. */
   cleanup?: () => void;
@@ -202,6 +221,8 @@ function saveSettings(s: CompetitionSettings): void {
 /** Valikot ja ruudut (aloitus, tauko, tulokset) HUD:n päällä. */
 export class Screens {
   private readonly root: HTMLDivElement;
+  /** Aulan uudelleenpiirto, joka odottaa varuste- tai värinäkymän sulkemista. */
+  private pendingLobby: (() => void) | null = null;
   /** Näkymän siivous ennen seuraavaa (esim. kartan koon seuranta). */
   private cleanup: (() => void) | null = null;
   /** Tulossivulla valittuna saaliskartta (säilyy saman näkymän uudelleenpiirrossa). */
@@ -241,6 +262,11 @@ export class Screens {
 
   get open(): boolean {
     return !this.root.hidden;
+  }
+
+  /** Avoimella näkymällä on oma paluu (Esc / Backspace palaa eikä mene peliin). */
+  get hasBack(): boolean {
+    return this.open && this.nav.back !== null;
   }
 
   hide(): void {
@@ -331,6 +357,16 @@ export class Screens {
     tackle: { current: Tackle; onChange: (t: Tackle) => void },
   ): void {
     const settings = { ...initial };
+    const setTackle = (next: Tackle) => {
+      tackle = { ...tackle, current: next };
+      tackle.onChange(next);
+    };
+    const setAppearance = (next: Appearance) => {
+      appearance = { ...appearance, current: next };
+      appearance.onChange(next);
+    };
+    const reopen = () =>
+      this.showSoloSetup({ ...settings }, onStart, onBack, onPickStart, appearance, tackle);
     const panel = this.panel('solo');
     panel.append(
       h('h2', t('solo.title')),
@@ -384,10 +420,22 @@ export class Screens {
         (v) => (settings.landPenalty = Number(v)),
       ),
       h('p', t('settings.hazardHint'), 'hint'),
-      h('p', t('settings.tackle'), 'choice-label'),
-      this.tackleEditor(tackle.current, tackle.onChange, 'before'),
-      h('p', t('settings.colors'), 'choice-label'),
-      this.appearanceEditor(appearance.current, appearance.onChange),
+      // Varusteet ja värit omissa näkymissään; paluu säilyttää kesken olevat valinnat.
+      this.tackleSummary(tackle.current, () =>
+        this.showTackle(
+          'solo-tackle',
+          { current: tackle.current, onChange: setTackle },
+          'before',
+          reopen,
+        ),
+      ),
+      this.colorsSummary(appearance.current, () =>
+        this.showColors(
+          'solo-colors',
+          { current: appearance.current, onChange: setAppearance },
+          reopen,
+        ),
+      ),
       this.buttons([
         [
           t('settings.startRace'),
@@ -479,6 +527,15 @@ export class Screens {
   ): void {
     // Luettava ennen paneelin rakentamista: chatin siirto vanhasta paneelista
     // lyhentää sitä, ja selain siirtää vierityskohtaa ylös chatin korkeuden verran.
+    // Varusteet tai värit auki: aula piirretään vasta paluun jälkeen uusimmalla tilalla.
+    const redraw = () => this.showLobby(v, link, actions, notice, chat);
+    const open = (this.root.firstElementChild as HTMLElement | null)?.dataset.screen;
+    if (this.open && (open === 'lobby-tackle' || open === 'lobby-colors')) {
+      this.pendingLobby = redraw;
+      return;
+    }
+    this.pendingLobby = null;
+    const back = () => (this.pendingLobby ?? redraw)();
     const scroll = this.scrollOf('lobby');
     const panel = this.panel('lobby');
     const me = v.players.find((p) => p.me);
@@ -561,11 +618,26 @@ export class Screens {
       ...(me?.spectator
         ? []
         : [
-            h('p', t('settings.tackle'), 'choice-label'),
-            this.tackleEditor(me?.tackle ?? DEFAULT_TACKLE, actions.onTackle, 'before'),
+            this.tackleSummary(me?.tackle ?? DEFAULT_TACKLE, () =>
+              this.showTackle(
+                'lobby-tackle',
+                { current: me?.tackle ?? DEFAULT_TACKLE, onChange: actions.onTackle },
+                'before',
+                back,
+              ),
+            ),
           ]),
-      h('p', t('settings.colors'), 'choice-label'),
-      this.appearanceEditor(me?.appearance ?? null, actions.onAppearance),
+      ...(me
+        ? [
+            this.colorsSummary(me.appearance, () =>
+              this.showColors(
+                'lobby-colors',
+                { current: me.appearance, onChange: actions.onAppearance },
+                back,
+              ),
+            ),
+          ]
+        : []),
     );
     if (notice) panel.append(h('p', notice, 'error'));
     const buttons: [string, () => void][] = [];
@@ -635,25 +707,99 @@ export class Screens {
     text.focus();
   }
 
-  /** Äänenvoimakkuudet alkuvalikosta. */
-  /** Päävalikon asetukset: äänet ja kalastajan silmin -näkymän näkökenttä. */
-  showSettings(
-    audio: { current: AudioSettings; onChange: (a: AudioSettings) => void },
-    povFov: {
-      current: number;
-      onChange: (fov: number) => void;
-      effective: (fov: number) => number;
-    },
-    onBack: () => void,
-  ): void {
+  /**
+   * Yhteinen asetusnäkymä päävalikosta ja tauolta: näyttö (HUDin koko,
+   * näkökenttä), äänet ja kieli. Takaisin palaa sinne, mistä tultiin.
+   */
+  showSettings(c: SettingsControls, onBack: () => void): void {
     const panel = this.panel('settings');
+    const language = this.choice(
+      t('menu.language'),
+      LANGS.map((l) => [l, LANG_NAMES[l]]),
+      getLang(),
+      (v) => {
+        setLang(v as Lang);
+        c.onLanguage();
+      },
+    );
     panel.append(
       h('h2', t('menu.settings')),
-      this.audioEditor(audio.current, audio.onChange),
-      this.povFovSlider(povFov),
+      h('h3', t('settings.display'), 'settings-section'),
+      this.hudSizeSlider(c.hudSize),
+      this.povFovSlider(c.povFov),
+      h('h3', t('settings.sound'), 'settings-section'),
+      this.audioEditor(c.audio.current, c.audio.onChange),
+      h('h3', t('menu.language'), 'settings-section'),
+      language,
       this.buttons([[t('common.back'), onBack]]),
     );
     this.show(panel, { back: onBack });
+  }
+
+  /** Omat varusteet omana näkymänään (tauko, yksinpelin valmistelu, aula). */
+  private showTackle(
+    screen: string,
+    tackle: { current: Tackle; onChange: (t: Tackle) => void },
+    mode: 'before' | 'during',
+    onBack: () => void,
+  ): void {
+    const panel = this.panel(screen);
+    panel.append(
+      h('h2', t('settings.tackle')),
+      this.tackleEditor(tackle.current, tackle.onChange, mode),
+      this.buttons([[t('common.back'), onBack]]),
+    );
+    this.show(panel, { back: onBack, focusFirst: true });
+  }
+
+  /** Omat värit omana näkymänään (yksinpelin valmistelu, aula). */
+  private showColors(
+    screen: string,
+    appearance: { current: Appearance; onChange: (a: Appearance) => void },
+    onBack: () => void,
+  ): void {
+    const panel = this.panel(screen);
+    panel.append(
+      h('h2', t('settings.colors')),
+      this.appearanceEditor(appearance.current, appearance.onChange),
+      this.buttons([[t('common.back'), onBack]]),
+    );
+    this.show(panel, { back: onBack, focusFirst: true });
+  }
+
+  /** Tiivistetty rivi: otsikko ja nappi, josta avautuu oma näkymä. */
+  private summaryRow(label: string, content: (string | Node)[], onOpen: () => void): HTMLElement {
+    const row = document.createElement('div');
+    row.className = 'choice summary-row';
+    const b = document.createElement('button');
+    b.className = 'summary-button';
+    b.append(...content, h('span', '›', 'summary-arrow'));
+    b.addEventListener('click', onOpen);
+    row.append(h('span', label, 'choice-label'), b);
+    return row;
+  }
+
+  /** Varusteiden yhteenvetorivi. */
+  private tackleSummary(tackle: Tackle, onOpen: () => void): HTMLElement {
+    return this.summaryRow(
+      t('settings.tackle'),
+      [h('span', `${methodName(tackle.method)} · ${describeFullTackle(tackle)}`, 'summary-text')],
+      onOpen,
+    );
+  }
+
+  /** Värien yhteenvetorivi: pieni renkaan kuva. */
+  private colorsSummary(appearance: Appearance | null, onOpen: () => void): HTMLElement {
+    const preview = document.createElement('canvas');
+    preview.className = 'tube-preview small';
+    preview.width = preview.height = 40;
+    preview.setAttribute('aria-hidden', 'true');
+    if (appearance) drawTubePreview(preview, appearance);
+    return this.summaryRow(
+      t('settings.colors'),
+      [preview, h('span', t('settings.changeColors'), 'summary-text')],
+      onOpen,
+    );
   }
 
   private audioEditor(initial: AudioSettings, onChange: (a: AudioSettings) => void): HTMLElement {
@@ -1048,46 +1194,52 @@ export class Screens {
     this.show(panel, { cleanup: () => map.dispose(), back: onBack, focusFirst: true });
   }
 
-  showPause(
-    onResume: () => void,
-    onQuit: () => void,
-    multiplayer = false,
-    tackle?: { current: Tackle; onChange: (t: Tackle) => void },
-    audio?: { current: AudioSettings; onChange: (a: AudioSettings) => void },
+  /** Taukovalikko: lyhyt nappilista, varusteet ja asetukset omina näkyminään. */
+  showPause(p: {
+    onResume: () => void;
+    onQuit: () => void;
+    multiplayer: boolean;
     /** Pelikellon aika järvellä, esim. 05:12. */
-    clock?: string,
-    hudSize?: {
-      current: number;
-      onChange: (scale: number) => void;
-      /** Toteutunut koko, kun ruudulle ei mahdu valittua (null = ei tiedossa). */
-      effective: () => number | null;
-    },
-    povFov?: {
-      current: number;
-      onChange: (fov: number) => void;
-      effective: (fov: number) => number;
-    },
-  ): void {
+    clock?: string;
+    /** Varusteet-näkymä; puuttuu katsojalta, joka ei kalasta. */
+    onTackle?: () => void;
+    onSettings: () => void;
+    /** Paluu alinäkymästä: kohdistus sen napille Jatka-napin sijaan. */
+    from?: 'tackle' | 'settings';
+  }): void {
     const panel = this.panel('pause');
+    const menu = this.buttons([
+      [t('pause.resume'), p.onResume],
+      ...(p.onTackle ? ([[t('pause.tackle'), p.onTackle]] as [string, () => void][]) : []),
+      [t('menu.settings'), p.onSettings],
+      [p.multiplayer ? t('pause.leaveRace') : t('pause.endRace'), p.onQuit],
+    ]);
+    // Koko näyttö ennen kisan lopetusta, joka pysyy viimeisenä.
+    this.addFullscreen(menu, menu.lastElementChild);
+    menu.classList.add('main-menu', 'pause-menu');
+    panel.classList.add('pause-panel');
     panel.append(
-      h('h2', multiplayer ? t('pause.menu') : t('pause.title')),
-      ...(clock ? [h('p', t('pause.clock', { time: clock }))] : []),
-      ...(multiplayer ? [h('p', t('pause.continues'), 'hint')] : []),
-      ...(tackle ? [this.tackleEditor(tackle.current, tackle.onChange, 'during')] : []),
-      ...(audio ? [this.audioEditor(audio.current, audio.onChange)] : []),
-      ...(hudSize ? [this.hudSizeSlider(hudSize)] : []),
-      ...(povFov ? [this.povFovSlider(povFov)] : []),
+      h('h2', p.multiplayer ? t('pause.menu') : t('pause.title')),
+      ...(p.clock ? [h('p', t('pause.clock', { time: p.clock }))] : []),
+      ...(p.multiplayer ? [h('p', t('pause.continues'), 'hint')] : []),
+      menu,
       ...this.homeScreenHint(),
       // Firefox ja Safari eivät anna Escin jäädä peliin koko näytöllä.
       ...(escapeLeavesFullscreen() ? [h('p', t('fullscreen.escHint'), 'hint')] : []),
-      this.addFullscreen(
-        this.buttons([
-          [t('pause.resume'), onResume],
-          [multiplayer ? t('pause.leaveRace') : t('pause.endRace'), onQuit],
-        ]),
-      ),
     );
     this.show(panel);
+    if (p.from) {
+      const label = t(p.from === 'tackle' ? 'pause.tackle' : 'menu.settings');
+      [...menu.querySelectorAll('button')].find((b) => b.textContent === label)?.focus();
+    }
+  }
+
+  /** Tauon Varusteet-näkymä; paluu taukoon. */
+  showPauseTackle(
+    tackle: { current: Tackle; onChange: (t: Tackle) => void },
+    onBack: () => void,
+  ): void {
+    this.showTackle('pause-tackle', tackle, 'during', onBack);
   }
 
   /** Moninpelin lopputulokset voittoehdon mukaan. */
@@ -1866,11 +2018,12 @@ export class Screens {
   }
 
   /** Koko näytön nappi rivin loppuun, jos selain sen osaa eikä peli jo ole sovelluksena. */
-  private addFullscreen(row: HTMLElement): HTMLElement {
+  private addFullscreen(row: HTMLElement, before: Element | null = null): HTMLElement {
     if (fullscreenSupported() && !isStandalone()) {
       const b = fullscreenButton();
-      b.style.setProperty('--i', String(row.childElementCount));
-      row.appendChild(b);
+      row.insertBefore(b, before);
+      // Porrastettu sisääntulo järjestyksessä.
+      [...row.children].forEach((c, i) => (c as HTMLElement).style.setProperty('--i', String(i)));
     }
     return row;
   }

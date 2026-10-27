@@ -55,13 +55,19 @@ test.describe('valikot näppäimistöllä (#237)', () => {
     await page.keyboard.press('Enter');
     await expect(page.locator('.hud-timer')).toBeVisible();
 
-    // Tauko: Jatka kohdistettuna, nuolet liikkuvat ja Enter jatkaa.
+    // Tauko: Jatka kohdistettuna, nuolet liikkuvat ja Enter avaa asetukset.
     await page.keyboard.press('Escape');
     await expect(title(page)).toHaveText('Tauko');
     await expect.poll(() => focused(page)).toBe('Jatka');
-    await page.keyboard.press('ArrowUp');
-    await expect.poll(() => page.evaluate(() => document.activeElement?.id)).toBe('pov-fov');
-    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(() => focused(page)).toBe('Varusteet');
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(() => focused(page)).toBe('Asetukset');
+    await page.keyboard.press('Enter');
+    await expect(title(page)).toHaveText('Asetukset');
+    await expect.poll(() => focused(page)).toBe('Takaisin');
+    // Alimmalta riviltä alas kiertää ylimpään: HUDin koko.
+    await page.keyboard.press('ArrowDown');
     await expect.poll(() => page.evaluate(() => document.activeElement?.id)).toBe('hud-size');
     // Liukusäädin liikkuu myös h- ja l-näppäimillä.
     const slider = page.locator('#hud-size');
@@ -70,8 +76,12 @@ test.describe('valikot näppäimistöllä (#237)', () => {
     await expect(slider).not.toHaveValue(size);
     await page.keyboard.press('h');
     await expect(slider).toHaveValue(size);
-    await page.keyboard.press('ArrowDown');
-    await page.keyboard.press('ArrowDown');
+    // Esc palaa taukoon (ei jatka peliä) samaan nappiin.
+    await page.keyboard.press('Escape');
+    await expect(title(page)).toHaveText('Tauko');
+    await expect.poll(() => focused(page)).toBe('Asetukset');
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('ArrowUp');
     await expect.poll(() => focused(page)).toBe('Jatka');
     // Välilyönti valikossa ei heitä taustalla.
     await page.keyboard.press('Space');
