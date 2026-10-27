@@ -45,6 +45,7 @@ import { NetWorld } from './net/netWorld';
 import { installErrorReporting, reportContext, sendFeedback } from './net/report';
 import { formatWeight, ordinal, t } from './i18n';
 import { speciesName } from './i18n/names';
+import { preventTextSelection } from './ui/noSelect';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) throw new Error('#app puuttuu');
@@ -65,6 +66,7 @@ hud.setVisible(false);
 const touch = isTouchDevice() ? new TouchControls(hud.root, input) : null;
 hud.setTouch(touch !== null);
 installErrorReporting();
+preventTextSelection();
 const sfx = new Sfx();
 // Kosketuksessa selain sallii äänen vasta sormen noustessa (pointerup/touchend),
 // ei vielä painalluksessa, joten kuunnellaan molempia.

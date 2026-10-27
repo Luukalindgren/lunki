@@ -9,6 +9,23 @@ body {
   /* clip: kohdistettu valikkonappi ei voi vierittää sivua sivuttain, jolloin
      HUD siirtyisi pikselin (#app on pikselin ruutua leveämpi). */
   overflow: clip;
+  /* Pelikuvan painelu puhelimella ei valitse HUD-tekstejä eikä avaa iOS:n
+     Kopioi/Etsi-valikkoa; tuplanapautus ei zoomaa (#311). */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Syöttökentät ja huonekoodi saa yhä valita ja kopioida. */
+input,
+textarea,
+[contenteditable],
+.room-code {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
 }
 
 #app {
