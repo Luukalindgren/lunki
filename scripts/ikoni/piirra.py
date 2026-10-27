@@ -40,9 +40,14 @@ VARIT = {
     "n": (0xC9, 0xD8, 0x7A),  # hauen täplät
     "o": (0x0B, 0x0F, 0x14),  # silmä
     "s": (0x9A, 0xA3, 0xAB),  # metalli
+    "l": (0x3B, 0x46, 0x30),  # sääret
+    "p": (0x1A, 0x1E, 0x24),  # räpylät
+    "q": (0x2A, 0x2E, 0x34),  # istuin
+    "r": (0x1C, 0x23, 0x2B),  # siimataso
+    "t": (0x3A, 0x46, 0x52),  # siimatason verkko
 }
 
-# A: kelluntarengas ylhäältä, vapa ja siima ojossa (alkuperäinen ikoni).
+# Vanha pyöreä kelluntarengas (#240). Oikea rengas on U-muotoinen, ks. u_rengas().
 RENGAS = """
 ................................
 ................................
@@ -226,12 +231,86 @@ def lusikka() -> list[list[str]]:
     return g
 
 
+def u_rengas() -> list[list[str]]:
+    """U-muotoinen kelluntarengas ylhäältä: kalastaja istuu haarojen välissä,
+    siimataso reisien päällä ja räpylät avoimen etupään edessä."""
+    g = tyhja()
+    cx, cy = 15.5, 18.5
+    ulko, sisa = 11.5, 6.0
+    karki = 8.5  # haarojen pyöreiden kärkien keskikohta
+    keski = (ulko + sisa) / 2
+    puoli = (ulko - sisa) / 2
+
+    def renkaassa(x: float, y: float) -> bool:
+        dx, dy = x - cx, y - cy
+        if dy >= 0:
+            return sisa <= math.hypot(dx, dy) <= ulko
+        if y >= karki:
+            return sisa <= abs(dx) <= ulko
+        return any(math.hypot(x - (cx + sx * keski), y - karki) <= puoli for sx in (-1, 1))
+
+    maski = [[renkaassa(x + 0.5, y + 0.5) for x in range(KOKO)] for y in range(KOKO)]
+    for y in range(KOKO):
+        for x in range(KOKO):
+            if maski[y][x]:
+                reuna = any(
+                    not (0 <= x + dx < KOKO and 0 <= y + dy < KOKO and maski[y + dy][x + dx])
+                    for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))
+                )
+                g[y][x] = "f" if reuna else "g"
+    # Kiilto vasemman haaran ja kaaren pinnalla.
+    for y in range(9, 19):
+        g[y][int(cx - keski) - 1] = "h"
+    for i in range(40):
+        a = math.pi * (0.55 + 0.35 * i / 39)
+        x = round(cx + (keski + 0.5) * math.cos(a) - 0.5)
+        y = round(cy + (keski + 0.5) * math.sin(a) - 0.5)
+        if g[y][x] == "g":
+            g[y][x] = "h"
+    # Istuin renkaan sisällä.
+    for y in range(16, 25):
+        for x in range(KOKO):
+            if g[y][x] == "." and math.hypot(x + 0.5 - cx, max(0.0, y + 0.5 - cy)) < sisa - 0.2:
+                g[y][x] = "q"
+    # Lyhyet sääret ja räpylät (kärjet levenevät, väli keskellä).
+    for lx in (12, 18):
+        for y in range(7, 9):
+            g[y][lx] = g[y][lx + 1] = "l"
+    for y, (a, b) in zip(range(1, 7), ((10, 14), (10, 14), (11, 14), (11, 14), (11, 13), (12, 13))):
+        for x in range(a, b + 1):
+            g[y][x] = g[y][31 - x] = "p"
+    # Himmeä siimataso reisien päällä haarojen välissä; kärjet jatkuvat sen ohi.
+    for y in range(8, 13):
+        for x in range(10, 22):
+            if g[y][x] not in "gfh":
+                g[y][x] = "t" if y % 2 == 1 and x % 2 == 0 else "r"
+    for x in range(11, 21):
+        g[13][x] = "l"  # reidet
+    # Hartiat, pipo, kädet ja vapa yläoikealle.
+    for y in range(14, 21):
+        for x in range(9, 23):
+            if abs(x + 0.5 - cx) < (6.5 if y < 18 else 6.5 - (y - 17) * 1.2):
+                g[y][x] = "j"
+    for y, xs in ((14, range(14, 18)), (15, range(13, 19)), (16, range(13, 19)), (17, range(13, 19)), (18, range(14, 18))):
+        for x in xs:
+            g[y][x] = "i"
+    g[13][15] = g[13][16] = "f"  # tupsu
+    g[13][9], g[13][10] = "k", "j"  # vasen käsi
+    g[13][21], g[12][22] = "j", "k"  # oikea käsi
+    for i in range(10):
+        g[12 - i][22 + i] = "c" if i < 3 else ("d" if i % 2 else "e")
+    aallot(g, [(1, 26), (24, 27), (2, 2)])
+    # Rivi alemmas, jotta räpylät mahtuvat Androidin pyöreään rajaukseen.
+    return [["."] * KOKO] + g[:-1]
+
+
 VAIHTOEHDOT = {
+    "u-rengas": u_rengas,
     "rengas": lambda: ruudukko(RENGAS),
     "hauki": hauki,
     "lusikka": lusikka,
 }
-OLETUS = "rengas"
+OLETUS = "u-rengas"
 
 
 def kuva(g: list[list[str]], kerroin: int) -> Image.Image:
