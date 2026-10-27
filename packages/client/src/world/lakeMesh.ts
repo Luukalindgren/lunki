@@ -122,8 +122,10 @@ function createReedTexture(): THREE.Texture {
   return texture;
 }
 
-/** Vesikuvion yhden toiston koko (m). */
+/** Vesikuvion yhden toiston koko (m): UV-koordinaatit ovat metrejä / tämä. */
 const WATER_TEXTURE_METERS = 32;
+/** Pohjakuvion ruutu (m): kussakin yksi viiva. */
+const BASE_CELL = 2.2;
 
 /** Veden aaltoilun kello (s); päivitetään pelisilmukasta. */
 export const waterTime = { value: 0 };
@@ -248,9 +250,30 @@ float waterHash(vec2 p) {
       #else
       if (inPatch) discard;
       #endif
-      // Kuvio ajelehtii tuulen mukana eikä kiemurtele: tyynellä vesi on paikallaan.
-      vec2 waveUv = vMapUv - uDrift / ${WATER_TEXTURE_METERS.toFixed(1)};
-      vec4 sampledDiffuseColor = texture2D( map, waveUv );
+      // Pohjakuvio: lyhyitä vaaleita ja tummia viivoja aallonharjojen suuntaan,
+      // samoilla sävyillä kuin aallokon viivat ja vaahtopäiden pohja. Viivat
+      // kiemurtelevat hitaasti ja ajelehtivat tuulen mukana (uDrift).
+      vec4 sampledDiffuseColor = vec4(vec3(0.012, 0.102, 0.235), 1.0);
+      vec2 crestDir = vec2(-uWaveDir.y, uWaveDir.x);
+      {
+        vec2 bxy = waterXY - uDrift;
+        vec2 bpx = max(fwidth(bxy), vec2(1e-4));
+        float bPix = max(bpx.x, bpx.y);
+        // Viiva on vähintään pikselin paksuinen; kaukana viivoja harvennetaan,
+        // jotteivät alle pikselin kuviot välky.
+        float bt = clamp(bPix * 0.6, 0.12, 0.6);
+        vec2 bCell = floor(bxy / ${BASE_CELL.toFixed(1)});
+        float bh = waterHash(bCell + 0.5);
+        float bh2 = waterHash(bCell.yx + 7.3);
+        vec2 bl = bxy - (bCell + 0.3 + 0.4 * vec2(bh, bh2)) * ${BASE_CELL.toFixed(1)};
+        float bAlong = dot(bl, crestDir);
+        float bAcross = dot(bl, uWaveDir) + 0.12 * sin(bAlong * 2.2 + uWaterTime * 1.1 + bh * 6.28);
+        float bHalf = 0.25 + 0.4 * fract(bh * 13.0);
+        float bShown = step(fract(bh * 29.0), 1.0 - smoothstep(0.3, 0.7, bPix));
+        float bDash = step(abs(bAlong), bHalf) * step(abs(bAcross), bt) * bShown;
+        vec3 bColor = fract(bh2 * 7.0) < 0.6 ? vec3(0.024, 0.195, 0.381) : vec3(0.006, 0.042, 0.107);
+        sampledDiffuseColor.rgb = mix(sampledDiffuseColor.rgb, bColor, bDash);
+      }
       vec2 depthXY = (floor(waterXY / ${DEPTH_PIXEL.toFixed(1)}) + 0.5) * ${DEPTH_PIXEL.toFixed(1)};
       float waterDepth = uBottomShadeOn > 0.5
         ? texture2D(uDepthTex, (depthXY - uDepthBounds.xy) / uDepthBounds.zw).r * ${DEPTH_TEX_RANGE.toFixed(1)}
@@ -300,8 +323,7 @@ float waterHash(vec2 p) {
       }
       #endif
       // Tuulen aallot: lyhyitä vaahtopäitä, jotka syntyvät, ajelehtivat
-      // myötätuuleen ja sammuvat. Kaari kaartuu tuulen suuntaan, ja sen
-      // takana on tumma aallonpohja. Vaahtopäitä on sitä enemmän, mitä
+      // myötätuuleen ja sammuvat. Valkoisen viivan takana on tumma aallonpohja. Vaahtopäitä on sitä enemmän, mitä
       // korkeampi aalto (pyyhkäisymatka × tuuli).
       if (uWaveScale > 0.0) {
         vec2 wp = vMapUv * ${WATER_TEXTURE_METERS.toFixed(1)};
@@ -324,7 +346,8 @@ float waterHash(vec2 p) {
         float h2 = waterHash(cell.yx + n * vec2(5.0, 13.0) + 0.37);
         vec2 local = q - cell * cellSize - cellSize * vec2(0.3 + 0.4 * h2, 0.25 + 0.5 * fract(h1 * 7.0));
         float len = (0.4 + 0.8 * fract(h2 * 13.0) + 2.0 * hs) * sin(3.1416 * life);
-        float du = local.x + 0.15 * local.y * local.y;
+        // Lähes suora viiva harjan suuntaan kuten pohjakuvio ja aallokon viivat.
+        float du = local.x + 0.04 * local.y * local.y;
         float t = clamp(px.x * 0.6, 0.12, 0.6);
         // Aivan kameran edessä vaahtopää olisi iso valkoinen laatta.
         float cap = step(h1, density) * step(abs(local.y), len) * step(4.0, eyeDist);
@@ -625,34 +648,20 @@ function boxBlur(src: Float32Array, w: number, h: number, r: number): Float32Arr
 }
 
 /**
- * Vedenpinnan pikselikuvio: harvoja välkehtiviä aallonharjoja tummalla pohjalla.
- * ShapeGeometryn UV:t ovat metrejä, joten toisto määrää tekselin koon (0,25 m).
+ * Veden pohjaväri tekstuurina. Kuvio piirretään varjostimessa (ks. map_fragment);
+ * tekstuuri antaa UV:t, jotka ovat metrejä / WATER_TEXTURE_METERS.
  */
 function createWaterTexture(): THREE.Texture {
-  const size = 128;
   const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
+  canvas.width = 1;
+  canvas.height = 1;
   const ctx = canvas.getContext('2d')!;
   ctx.fillStyle = '#1b5a84';
-  ctx.fillRect(0, 0, size, size);
-  // Kiinteä siemen, jotta kuvio on aina sama.
-  let seed = 7;
-  const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  for (let i = 0; i < 220; i++) {
-    const x = Math.floor(rand() * size);
-    const y = Math.floor(rand() * size);
-    const len = 2 + Math.floor(rand() * 4);
-    ctx.fillStyle = rand() < 0.6 ? '#2b7aa6' : '#123a5c';
-    ctx.fillRect(x, y, len, 1);
-  }
+  ctx.fillRect(0, 0, 1, 1);
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(1 / WATER_TEXTURE_METERS, 1 / WATER_TEXTURE_METERS);
-  texture.magFilter = THREE.NearestFilter;
-  // Kaukaa katsottuna kuvio sulautuu pohjaväriin eikä välky.
-  texture.minFilter = THREE.NearestMipmapLinearFilter;
   texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
 }
