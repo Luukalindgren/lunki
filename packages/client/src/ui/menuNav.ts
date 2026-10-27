@@ -1,7 +1,8 @@
 /**
  * Valikoiden näppäimistöohjaus peliohjaimen tapaan (#237): ylös/alas liikkuu
  * rivien välillä, vasen/oikea rivin sisällä, Enter tai välilyönti valitsee ja
- * Esc tai Backspace palaa edelliseen näkymään.
+ * Esc tai Backspace palaa edelliseen näkymään. Nuolten rinnalla toimivat
+ * vim-näppäimet h/j/k/l (vasen, alas, ylös, oikea), paitsi tekstikentissä.
  *
  * Rivit päätellään paneelin rakenteesta, joten näkymien ei tarvitse tehdä
  * omaa käsittelyä: valintarivin painikkeet (`.choice-options`), painikerivi
@@ -26,6 +27,20 @@ const KEY_ACTIONS: Record<string, NavAction> = {
   Escape: 'back',
   Backspace: 'back',
 };
+
+/** Vim-näppäimet merkin mukaan, jotta ne ovat samat kirjaimet kaikilla asetteluilla. */
+const VIM_ARROWS: Record<string, string> = {
+  h: 'ArrowLeft',
+  j: 'ArrowDown',
+  k: 'ArrowUp',
+  l: 'ArrowRight',
+};
+
+/** Näppäimen koodi niin, että vim-näppäimet h/j/k/l ovat nuolia. */
+export function navCode(e: KeyboardEvent): string {
+  if (e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return e.code;
+  return VIM_ARROWS[(e.key ?? '').toLowerCase()] ?? e.code;
+}
 
 const isTextField = (e: Element | null): e is HTMLInputElement | HTMLTextAreaElement =>
   e instanceof HTMLTextAreaElement ||
@@ -168,10 +183,14 @@ export class MenuNav {
 
   private onKey = (e: KeyboardEvent) => {
     if (!this.isOpen() || e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
-    const action = KEY_ACTIONS[e.code];
+    const code = navCode(e);
+    const action = KEY_ACTIONS[code];
     if (!action) return;
+    const vim = code !== e.code;
     const target = e.target instanceof Element ? e.target : null;
     if (isTextField(target)) {
+      // Kirjaimet kirjoitetaan kenttään.
+      if (vim) return;
       // Tekstikentässä nuolet ja Backspace toimivat normaalisti; ylös/alas
       // siirtää pois kentästä (monirivisessä vasta tekstin alussa tai lopussa).
       if (action === 'up' || action === 'down') {
@@ -184,13 +203,24 @@ export class MenuNav {
         }
       } else if (e.code !== 'Escape') return;
     }
-    // Liukusäädin muuttuu vasemmalla ja oikealla itse.
+    // Liukusäädin muuttuu vasemmalla ja oikealla itse; h ja l siirtävät sitä samoin.
     if (
       target instanceof HTMLInputElement &&
       target.type === 'range' &&
       (action === 'left' || action === 'right')
-    )
+    ) {
+      if (vim) {
+        e.preventDefault();
+        const before = target.value;
+        if (action === 'left') target.stepDown();
+        else target.stepUp();
+        if (target.value !== before) {
+          target.dispatchEvent(new Event('input', { bubbles: true }));
+          target.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }
       return;
+    }
     // Hiirellä käytön jälkeen ensimmäinen nuoli vain näyttää, missä kohdistus on.
     const arrow = action !== 'select' && action !== 'back';
     if (arrow && !this.keyboardBefore && this.current() === target) {

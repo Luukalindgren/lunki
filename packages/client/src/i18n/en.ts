@@ -149,7 +149,7 @@ export const en: Record<keyof typeof fi, string> = {
   'lakeMap.hint':
     'Drag to move, zoom with the wheel, a pinch or the buttons. Depths are estimates: there is no public depth survey of the lake.',
   'map.wholeLake': 'Whole lake',
-  'map.keys': 'Lake map: arrows move, + and − zoom, Enter picks the centre',
+  'map.keys': 'Lake map: arrows or h/j/k/l move, + and − zoom, Enter picks the centre',
   'map.tapWater': 'Tap a spot in the water.',
   'map.tapPin': 'Tap a marker to see the catch.',
   'map.tapDepth': 'Tap a spot to see the depth.',

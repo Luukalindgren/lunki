@@ -61,6 +61,13 @@ test.describe('valikot näppäimistöllä (#237)', () => {
     await expect.poll(() => focused(page)).toBe('Jatka');
     await page.keyboard.press('ArrowUp');
     await expect.poll(() => page.evaluate(() => document.activeElement?.id)).toBe('hud-size');
+    // Liukusäädin liikkuu myös h- ja l-näppäimillä.
+    const slider = page.locator('#hud-size');
+    const size = await slider.inputValue();
+    await page.keyboard.press('l');
+    await expect(slider).not.toHaveValue(size);
+    await page.keyboard.press('h');
+    await expect(slider).toHaveValue(size);
     await page.keyboard.press('ArrowDown');
     await expect.poll(() => focused(page)).toBe('Jatka');
     // Välilyönti valikossa ei heitä taustalla.
@@ -98,6 +105,45 @@ test.describe('valikot näppäimistöllä (#237)', () => {
     await expect(page.locator('.lake-map-info')).toContainText('Syvyys');
     await page.keyboard.press('Escape');
     await expect(title(page)).toHaveText('Yksinpeli');
+    errors.check();
+  });
+
+  test('vim-näppäimet h/j/k/l liikkuvat nuolten tapaan, mutta eivät tekstikentässä', async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, 'puhelimissa ei näppäimistöä');
+    const errors = watchErrors(page);
+    await page.goto('/');
+    await expect.poll(() => focused(page)).toBe('Yksinpeli');
+    await page.keyboard.press('j');
+    await expect(page.locator('.screen.kb')).toHaveCount(1);
+    await page.keyboard.press('j');
+    await expect.poll(() => focused(page)).toBe('Moninpeli');
+    await page.keyboard.press('k');
+    await expect.poll(() => focused(page)).toBe('Yksinpeli');
+    await page.keyboard.press('Enter');
+    await expect(title(page)).toHaveText('Yksinpeli');
+
+    // Kestoriville: l ja h vaihtavat valinnan.
+    await page.keyboard.press('j');
+    const duration = page.locator('.choice').first().locator('button.selected');
+    const before = await duration.innerText();
+    await expect.poll(() => focused(page)).toBe(before);
+    await page.keyboard.press('l');
+    await expect(duration).not.toHaveText(before);
+    await page.keyboard.press('h');
+    await expect(duration).toHaveText(before);
+    await page.keyboard.press('Escape');
+
+    // Nimimerkkiin kirjoitetaan kirjaimet, eikä kohdistus liiku.
+    await page.getByRole('button', { name: 'Moninpeli' }).click();
+    const nick = page.getByLabel('Nimimerkki');
+    await nick.fill('');
+    await nick.focus();
+    await page.keyboard.type('hjkl');
+    await expect(nick).toHaveValue('hjkl');
+    await expect(nick).toBeFocused();
     errors.check();
   });
 });
