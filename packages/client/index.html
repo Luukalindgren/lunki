@@ -44,10 +44,23 @@
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" }
       }
     </script>
+    <!-- Sivuston nimi hakutuloksessa (muuten Google näyttää pelkän verkkotunnuksen). -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Lunkinjärvi",
+        "alternateName": ["Lunkinjärvi-kalastuspeli", "lunkinjarvi.com"],
+        "url": "https://lunkinjarvi.com/"
+      }
+    </script>
     <!-- Koti-valikosta avattuna peli aukeaa ilman selaimen palkkeja. -->
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+    <!-- Google näyttää hakutuloksessa vain kuvakkeen, jonka koko on 48 px:n monikerta. -->
+    <link rel="icon" type="image/png" sizes="48x48" href="/icons/favicon-48.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <meta name="theme-color" content="#0b0f14" />
     <meta name="mobile-web-app-capable" content="yes" />

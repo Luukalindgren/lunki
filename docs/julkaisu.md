@@ -64,7 +64,9 @@ läppäriltä SSH:n yli: [windows-palvelin.md](windows-palvelin.md).
 Sivulla on valmiina hakukoneita ja linkkien esikatselua varten otsikko,
 kuvaus, kanoninen osoite, Open Graph -tiedot, esikatselukuva
 (`packages/client/public/esikatselu.png`, 1200×630), JSON-LD-kuvaus,
-`robots.txt` ja `sitemap.xml`. Kanoninen osoite on aina
+`robots.txt` ja `sitemap.xml`. Hakutuloksen sivustonimi tulee
+JSON-LD:n `WebSite`-kuvauksesta ja kuvake 48 px:n monikertana olevista
+faviconeista (`icons/favicon-48.png`, `icons/icon-192.png`). Kanoninen osoite on aina
 `https://lunkinjarvi.com/`, joten kutsulinkit (`?huone=…`) eivät näy
 hakutuloksissa omina sivuinaan.
 
@@ -75,6 +77,10 @@ Google Search Consolen käyttöönotto (kerran):
    TXT-tietue Cloudflaren DNS-asetuksiin.
 2. _Sivukartat_ → lähetä `https://lunkinjarvi.com/sitemap.xml`.
 3. _URL-tarkistus_ → `https://lunkinjarvi.com/` → _Pyydä indeksointia_.
+   Tee tämä aina, kun otsikko, kuvaus tai kuvake muuttuu: muuten Google
+   päivittää hakutuloksen vasta seuraavalla omalla käynnillään. Kuvaus
+   päivittyy yleensä muutamassa päivässä, kuvake ja sivustonimi voivat
+   viedä viikkoja.
 4. Vapaaehtoinen: lisää osoite GitHub-repositorion _About → Website_
    -kenttään. Jo yksi linkki nopeuttaa löytymistä.
 
