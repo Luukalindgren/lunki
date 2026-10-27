@@ -1,5 +1,13 @@
 import { expect, test, type Page } from '@playwright/test';
-import { audioStates, canvasColors, compassOffset, timer, trackAudio, watchErrors } from './apu';
+import {
+  audioStates,
+  canvasColors,
+  compassOffset,
+  soloUrl,
+  timer,
+  trackAudio,
+  watchErrors,
+} from './apu';
 
 /**
  * Sormella veto. Chromiumissa oikeat kosketustapahtumat (CDP); WebKitissä
@@ -42,7 +50,7 @@ test.describe('puhelin', () => {
     test.skip(!isMobile, 'vain puhelinemuloinnit');
     const errors = watchErrors(page);
     await trackAudio(page);
-    await page.goto('/');
+    await page.goto(soloUrl('pov'));
     await page.getByRole('button', { name: 'Yksinpeli' }).tap();
     await page.getByRole('button', { name: 'Aloita kisa' }).tap();
     await expect(page.locator('.hud-timer')).toBeVisible();
@@ -107,7 +115,7 @@ test.describe('puhelin', () => {
   }) => {
     test.skip(!isMobile, 'vain puhelinemuloinnit');
     const errors = watchErrors(page);
-    await page.goto('/?view=top');
+    await page.goto(soloUrl());
     await page.getByRole('button', { name: 'Yksinpeli' }).tap();
     await page.getByRole('button', { name: 'Aloita kisa' }).tap();
     await expect(page.locator('.hud-timer')).toBeVisible();
@@ -131,7 +139,7 @@ test.describe('puhelin', () => {
   }) => {
     test.skip(!isMobile, 'vain puhelinemuloinnit');
     const errors = watchErrors(page);
-    await page.goto('/?view=top');
+    await page.goto(soloUrl());
     await page.getByRole('button', { name: 'Yksinpeli' }).tap();
     // Helpolla ajoitusikkuna on leveä, joten testin viive ei myöhästytä heittoa.
     await page.getByRole('button', { name: 'Helppo' }).tap();

@@ -150,7 +150,7 @@ test.describe('yksinpeli', () => {
 
     // Asetus säilyy uudelleenlatauksen yli.
     await startSolo(page);
-    expect((await timerBox())!.height).toBeCloseTo(small.height, 0);
+    await expect.poll(async () => (await timerBox())!.height).toBeCloseTo(small.height, 0);
     errors.check();
   });
 

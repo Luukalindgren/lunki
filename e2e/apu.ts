@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type APIRequestContext, type Page } from '@playwright/test';
 
 /**
  * Kerää sivun kaatumiset ja konsolin virheet. Testin lopussa `check()`
@@ -31,28 +31,32 @@ export function watchErrors(page: Page) {
 }
 
 /**
- * Laskee pelikuvan erilaiset värit ruutukaappauksesta. WebGL-kanvaasia ei voi
- * lukea suoraan (piirtopuskuri tyhjenee), joten kuva puretaan sivulla <img>:n
- * kautta. Musta tai yksivärinen kuva = WebGL ei piirrä.
+ * Laskee pelikuvan erilaiset värit. WebGL-kanvaasin piirtopuskuri tyhjenee
+ * ruudun näyttämisen jälkeen, joten kuva kopioidaan sivulla
+ * requestAnimationFramessa heti pelin oman piirron perään (pelisilmukka pyytää
+ * seuraavan ruudun piirrettyään, joten sen kutsu on jonossa ensin). Ruutukaappaus
+ * olisi hidas: CI:n ohjelmistorenderöinnillä Chromiumin kaappaus kestää 5–25 s,
+ * jolloin odotus ehti vanhentua. Musta tai yksivärinen kuva = WebGL ei piirrä.
  */
-export async function canvasColors(page: Page): Promise<number> {
-  const png = await page.locator('canvas.game-canvas').screenshot();
-  return page.evaluate(async (b64) => {
-    const img = new Image();
-    img.src = `data:image/png;base64,${b64}`;
-    await img.decode();
-    const c = document.createElement('canvas');
-    c.width = img.width;
-    c.height = img.height;
-    const ctx = c.getContext('2d')!;
-    ctx.drawImage(img, 0, 0);
-    const data = ctx.getImageData(0, 0, c.width, c.height).data;
-    const seen = new Set<number>();
-    // Joka 7. pikseli riittää: retrokuvassa on vain kymmeniä värejä.
-    for (let i = 0; i < data.length; i += 28)
-      seen.add((data[i]! << 16) | (data[i + 1]! << 8) | data[i + 2]!);
-    return seen.size;
-  }, png.toString('base64'));
+export function canvasColors(page: Page): Promise<number> {
+  return page.locator('canvas.game-canvas').evaluate(
+    (canvas: HTMLCanvasElement) =>
+      new Promise<number>((resolve) =>
+        requestAnimationFrame(() => {
+          const c = document.createElement('canvas');
+          c.width = canvas.width;
+          c.height = canvas.height;
+          const ctx = c.getContext('2d')!;
+          ctx.drawImage(canvas, 0, 0);
+          const data = ctx.getImageData(0, 0, c.width, c.height).data;
+          const seen = new Set<number>();
+          // Joka 7. pikseli riittää: retrokuvassa on vain kymmeniä värejä.
+          for (let i = 0; i < data.length; i += 28)
+            seen.add((data[i]! << 16) | (data[i + 1]! << 8) | data[i + 2]!);
+          resolve(seen.size);
+        }),
+      ),
+  );
 }
 
 /** Kompassinauhan siirtymä: muuttuu, kun kalastaja kääntyy. */
@@ -91,13 +95,58 @@ export function audioStates(page: Page): Promise<string[]> {
 }
 
 /**
+ * Kisojen siemen. Ilman sitä aloituspaikka ja sää arvotaan joka kerta, jolloin
+ * esimerkiksi tuulivaroitus voi peittää testin odottaman ilmoituksen tai
+ * perhon takaheitto osua rannan puihin. Tällä siemenellä (Realistinen sää) on
+ * tyyntä ensimmäiset 18 minuuttia ja aloituspaikan takana on avovettä. Siemen
+ * myös jättää saaliit pois ennätyslistalta (main.ts).
+ */
+export const SEED = 8;
+
+/** Pelin osoite kiinteällä siemenellä; `top` = ylhäältä katsottuna (ks. startSolo). */
+export function soloUrl(view: 'pov' | 'top' = 'top'): string {
+  return view === 'top' ? `/?view=top&seed=${SEED}` : `/?seed=${SEED}`;
+}
+
+/**
  * Yksinpeli oletusasetuksilla. Kisa alkaa pelissä kalastajan silmin (POV), mutta
  * testit, jotka eivät koske näkymää, ajetaan ylhäältä (?view=top): POV piirtyy
  * CI:n ohjelmistorenderöinnillä vain muutaman kuvan sekunnissa.
  */
 export async function startSolo(page: Page, view: 'pov' | 'top' = 'top'): Promise<void> {
-  await page.goto(view === 'top' ? '/?view=top' : '/');
+  await page.goto(soloUrl(view));
   await page.getByRole('button', { name: 'Yksinpeli' }).click();
   await page.getByRole('button', { name: 'Aloita kisa' }).click();
-  await expect(page.locator('.hud-timer')).toBeVisible();
+  await raceRunning(page);
+}
+
+/**
+ * Kisa on käynnissä ja HUD asettunut: kello näyttää aikaa. Pelkkä näkyvyys ei
+ * riitä mittauksiin, sillä ensimmäisessä ruudussa kello on vielä tyhjä ja matala.
+ */
+export async function raceRunning(page: Page): Promise<void> {
+  await expect(page.locator('.hud-timer')).toHaveText(/\d+:\d\d/);
+}
+
+/** Pelipalvelin testeissä (playwright.config.ts). */
+export const SERVER_URL = 'http://localhost:2567';
+
+/**
+ * Paino, jolla saalis nousee yksinpelin ennätyslistan kärkeen (`base` tai
+ * kärkikalaa hieman painavampi). Palvelin on yhteinen kaikille projekteille,
+ * toistoille ja uusinnoille, ja listalla on vain viisi kalaa lajia kohden:
+ * kiinteällä painolla testin oma saalis putoaisi listalta, kun testi on
+ * ajettu muutaman kerran saman palvelimen aikana.
+ */
+export async function topWeight(
+  request: APIRequestContext,
+  species: string,
+  base: number,
+  difficulty = 'normal',
+): Promise<number> {
+  const res = await request.get(`${SERVER_URL}/records/solo`);
+  expect(res.ok()).toBe(true);
+  const board = (await res.json()) as Record<string, Record<string, { weight: number }[]>>;
+  const top = board[difficulty]?.[species]?.[0]?.weight ?? 0;
+  return Math.round((Math.max(base, top) + 0.001) * 1000) / 1000;
 }
