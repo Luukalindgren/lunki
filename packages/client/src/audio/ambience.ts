@@ -11,6 +11,8 @@ export interface AmbienceInput {
   /** Päivänvalo 0–1 ja hämäryys 0–1 (ks. daylight); puuttuu = päivä. */
   light?: number;
   twilight?: number;
+  /** Lähimmän trombin läheisyys 0–1 (1 = keskellä); puuttuu = ei trombia. */
+  spout?: number;
 }
 
 /** Valikon taustalla: tyyni kesäpäivä. */
@@ -36,6 +38,10 @@ export class Ambience {
   /** Rankkasade: kovat iskut ja ryöppyävä kohina. */
   private readonly rainPour: GainNode;
   private readonly rainRoar: GainNode;
+  /** Trombin pauhu: tumma, sykkivä kohina, joka voimistuu lähestyessä. */
+  private readonly spout: GainNode;
+  private readonly spoutFilter: BiquadFilterNode;
+  private spoutPhase = 0;
   private gust = 0;
   private gustTarget = 0;
   private gustTimer = 0;
@@ -86,6 +92,14 @@ export class Ambience {
     this.rainRoar.gain.value = 0;
     loop(roarFilter, this.rainRoar);
 
+    this.spoutFilter = ctx.createBiquadFilter();
+    this.spoutFilter.type = 'lowpass';
+    this.spoutFilter.frequency.value = 200;
+    this.spoutFilter.Q.value = 1.5;
+    this.spout = ctx.createGain();
+    this.spout.gain.value = 0;
+    loop(this.spoutFilter, this.spout);
+
     this.loons = ctx.createGain();
     this.loons.connect(out);
     const echo = ctx.createDelay(1);
@@ -119,6 +133,12 @@ export class Ambience {
     const sheet = 0.6 + 0.8 * this.gust;
     this.rainPour.gain.setTargetAtTime(pour * 0.3 * sheet, t, 0.3);
     this.rainRoar.gain.setTargetAtTime(pour * 0.14 * sheet, t, 0.3);
+    // Trombi pauhaa ja sykkii; lähellä kovempaa, korkeammalta ja nopeammin.
+    const near = Math.max(0, Math.min(1, w.spout ?? 0));
+    this.spoutPhase += dt * (1.5 + near * 4);
+    const throb = 0.75 + 0.25 * Math.sin(this.spoutPhase * Math.PI * 2);
+    this.spout.gain.setTargetAtTime(near * near * 1.4 * throb, t, 0.15);
+    this.spoutFilter.frequency.setTargetAtTime(160 + near * 380, t, 0.3);
 
     this.birdTimer -= dt;
     if (this.birdTimer <= 0) {
