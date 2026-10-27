@@ -30,6 +30,7 @@ import type { WeighCardInfo } from './ui/weighCard';
 import { ChatBox } from './ui/chat';
 import { TouchControls, isTouchDevice } from './ui/touchControls';
 import { Screens, loadSettings } from './ui/screens';
+import { dismissBootLoader } from './ui/loader';
 import { Bench } from './dev/bench';
 import { clearLastRoom, loadIdentity, loadLastRoom, saveLastRoom, saveName } from './net/identity';
 import {
@@ -196,7 +197,7 @@ function showSoloSetup(s: CompetitionSettings) {
 
 async function showRecords() {
   let cancelled = false;
-  screens.showMessage(t('menu.records'), t('records.loading'), () => {
+  screens.showLoading(t('menu.records'), t('records.loading'), () => {
     cancelled = true;
     showMenu();
   });
@@ -281,7 +282,7 @@ function showMultiplayer(code = '', error?: string) {
 async function connect(name: string, code: string | null, rejoin = false) {
   const options = { name: saveName(name), playerId: loadIdentity().playerId };
   let cancelled = false;
-  screens.showMessage(code ? t('mp.joining') : t('mp.creating'), t('mp.connecting'), () => {
+  screens.showLoading(code ? t('mp.joining') : t('mp.creating'), t('mp.connecting'), () => {
     cancelled = true;
     showMultiplayer(code ?? '');
   });
@@ -422,7 +423,7 @@ function enterLobby(s: NetSession) {
 /** Sivun uudelleenlataus kesken kisan: palataan samaan renkaaseen. */
 async function tryResume(): Promise<boolean> {
   if (!NetSession.canResume()) return false;
-  screens.showMessage(t('mp.resuming'), t('mp.connecting'));
+  screens.showLoading(t('mp.resuming'), t('mp.connecting'));
   const s = await NetSession.resume();
   if (!s) return false;
   // Odotetaan ensimmäistä tilaa.
@@ -529,6 +530,7 @@ function createRenderer(c: HTMLCanvasElement, parent: HTMLElement): RetroRendere
     panel.append(title, text);
     screen.appendChild(panel);
     parent.replaceChildren(screen);
+    dismissBootLoader();
     throw err;
   }
 }
@@ -581,5 +583,6 @@ startLoop({
     const { width, height, scale } = retro.resolution;
     fps.frame(frameTime, `${width}×${height} ×${scale} · ${active.view.metersPerPixel} m/px`);
     bench?.frame(frameTime);
+    dismissBootLoader();
   },
 });

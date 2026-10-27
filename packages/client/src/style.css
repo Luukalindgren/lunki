@@ -1862,3 +1862,192 @@ textarea,
   margin: 18px 0 0;
   padding: 0;
 }
+
+/* --- Latausanimaatio (ks. ui/loaderArt.ts) ---------------------------------
+   Kerrokset liikkuvat pelkällä transformilla ja steps()-ajoituksella:
+   kompositori pyörittää ne, vaikka pääsäie olisi kiinni koodin jäsentämisessä. */
+.loader {
+  --px: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--px) * 3);
+  font-family: 'VT323', monospace;
+  color: #eef2f3;
+}
+
+.loader-art {
+  position: relative;
+  overflow: hidden;
+  width: calc(var(--w) * var(--px));
+  height: calc(var(--h) * var(--px));
+  border: var(--px) solid #39424d;
+  box-shadow: var(--px) var(--px) 0 #0b0f14;
+}
+
+.loader-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(var(--lw) * var(--px));
+  height: calc(var(--lh) * var(--px));
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+.loader-layer svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.loader-strip {
+  animation-name: loader-strip;
+}
+
+.loader-scroll-x {
+  animation-name: loader-scroll-x;
+}
+
+.loader-scroll-y {
+  animation-name: loader-scroll-y;
+}
+
+@keyframes loader-strip {
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes loader-scroll-x {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes loader-scroll-y {
+  to {
+    transform: translateY(-50%);
+  }
+}
+
+.loader-label {
+  margin: 0;
+  font-size: calc(var(--px) * 7);
+  letter-spacing: 1px;
+}
+
+/* Pisteet ilmestyvät yksi kerrallaan; teksti ei hypi, koska pisteiden paikka on varattu. */
+.loader-dots i {
+  font-style: normal;
+  animation: 1.2s steps(1) infinite loader-dot-1;
+}
+
+.loader-dots i:nth-child(2) {
+  animation-name: loader-dot-2;
+}
+
+.loader-dots i:nth-child(3) {
+  animation-name: loader-dot-3;
+}
+
+@keyframes loader-dot-1 {
+  0% {
+    opacity: 0;
+  }
+  25%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes loader-dot-2 {
+  0% {
+    opacity: 0;
+  }
+  50%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes loader-dot-3 {
+  0% {
+    opacity: 0;
+  }
+  75%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loader-layer {
+    animation: none;
+  }
+
+  .loader-dots i {
+    animation: none;
+  }
+}
+
+/* Sivun ensimmäinen latausnäkymä (index.html) pelin kuvan päällä. */
+.boot-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px;
+  background: #0b0f14;
+  font-family: 'VT323', monospace;
+  color: #eef2f3;
+  transition: opacity 0.25s;
+}
+
+.boot-title {
+  margin: 0;
+  font-size: min(64px, 14vw);
+  white-space: nowrap;
+  color: #f6d04d;
+  text-shadow: 4px 4px 0 #8c1c1c;
+  letter-spacing: 4px;
+}
+
+.boot-loader-done {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.boot-slow {
+  margin: 0;
+  max-width: 24em;
+  text-align: center;
+  font-size: 22px;
+  color: #83c2db;
+  /* Näkyy vasta, jos lataus kestää. */
+  opacity: 0;
+  animation: boot-slow 0.3s 12s forwards;
+}
+
+@keyframes boot-slow {
+  to {
+    opacity: 1;
+  }
+}
+
+/* Kapealla puhelimella pienempi pikseli. */
+@media (max-width: 480px), (max-height: 420px) {
+  .boot-loader .loader {
+    --px: 3px;
+  }
+}
+
+/* Valikkopaneelissa animaatio otsikon alla. */
+.screen-panel .loader {
+  --px: 3px;
+  margin: 12px 0 4px;
+}
