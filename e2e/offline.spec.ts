@@ -18,11 +18,26 @@ async function waitControlled(page: Page) {
     .toBe(true);
 }
 
-test('peli aukeaa ja yksinpeli toimii ilman nettiä (#328)', async ({ page, context }) => {
+test('peli aukeaa ja yksinpeli toimii ilman nettiä (#328)', async ({
+  page,
+  context,
+  browserName,
+}) => {
   const w = watchErrors(page);
   await page.goto('/?view=top');
   await expect(page.getByRole('button', { name: 'Yksinpeli' })).toBeVisible();
   await waitControlled(page);
+  // Pelin tiedostot ovat välimuistissa: sivu, koodi ja tyylit.
+  const cached = await page.evaluate(async () => {
+    const cache = await caches.open((await caches.keys())[0]!);
+    return (await cache.keys()).map((r) => new URL(r.url).pathname);
+  });
+  expect(cached).toContain('/index.html');
+  expect(cached.some((p) => /^\/assets\/index-.*\.js$/.test(p))).toBe(true);
+  expect(cached.some((p) => /^\/assets\/index-.*\.css$/.test(p))).toBe(true);
+  // Playwrightin WebKit ei osaa sivun uudelleenlatausta verkotilassa service
+  // workerin kanssa ("internal error"), joten siellä riittää välimuistin tarkistus.
+  if (browserName === 'webkit') return w.check();
 
   await context.setOffline(true);
   await page.reload();
