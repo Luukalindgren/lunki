@@ -879,7 +879,7 @@ export class SoloGame {
     const timeOut = this.timeOutLeft;
     const capsized = this.capsizeLeft > 0;
     const still = { kick: 0, turn: 0, sprint: false };
-    // `Reel` on kosketusnäytön KELAA-nappi: se kelaa, mutta ei heitä.
+    // `Reel` on kosketusnäytön KELAA-nappi: se kelaa, mutta ei heitä (HEITÄ painaa välilyöntiä).
     const reelHeld = input.isDown('Mouse0') || input.isDown('Space') || input.isDown('Reel');
     const tangle = this.updateTangle(input.wasPressed('KeyC'));
     if (!frozen) this.logRace();
@@ -944,7 +944,7 @@ export class SoloGame {
         startFlyCast = true;
         this.flyCastControl.start(mouse ? (touch ? 'touch' : 'mouse') : 'keyboard');
       } else if (f.stage === 'water' && input.wasPressed('Mouse2')) {
-        // Siiman nosto vedestä uuteen heittoon (kosketuksella PERU).
+        // Siiman nosto vedestä uuteen heittoon (kosketuksella NOSTA).
         startFlyCast = true;
         this.flyCastControl.start(touch ? 'touch' : 'mouse');
       }
@@ -1012,11 +1012,8 @@ export class SoloGame {
               // Eleen aikana käsi on varattu: heittää ei voi.
               castHeld: !frozen && !capsized && timeOut === 0 && castHeld && !this.emoteActive,
               reel: reeling,
-              // Heiton aikana oikea nappi on siimakäden veto: keskeytys X:llä tai PERU-napilla.
-              cancel:
-                (f.stage !== 'casting' && input.isDown('Mouse2')) ||
-                (f.stage === 'casting' && touch && input.wasPressed('Mouse2')) ||
-                input.isDown('KeyX'),
+              // Heiton aikana oikea nappi on siimakäden veto: keskeytys X:llä.
+              cancel: (f.stage !== 'casting' && input.isDown('Mouse2')) || input.isDown('KeyX'),
               dragDelta: (input.wasPressed('KeyE') ? 1 : 0) - (input.wasPressed('KeyQ') ? 1 : 0),
               ...(input.wasPressed('Digit1') ? { gear: 0 } : {}),
               ...(input.wasPressed('Digit2') ? { gear: 1 } : {}),

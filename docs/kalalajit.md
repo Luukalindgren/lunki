@@ -224,8 +224,8 @@ tiedostossa `flyCast.ts`, vaikeustasojen avut `flyCast` tiedostossa `difficulty.
 - Kosketusnäytöllä (#236) pyyhkäisy järvellä alas = takaheitto, ylös = eteenheitto (60 %
   ruudun korkeudesta = koko liikerata), ja sormen pysähtyminen on pysäytys. Siimakäsi toimii
   kuten rytmiheitossa, kunnes pelaaja painaa SIIMA-nappia: sen jälkeen SIIMA pohjassa =
-  puristus. VETO on uitossa siiman veto ja heitossa siimakäden veto, PERU nostaa siiman
-  uuteen heittoon ja keskeyttää heiton.
+  puristus. VETO on uitossa siiman veto ja heitossa siimakäden veto. Perhon ollessa vedessä
+  SIIMA-nappi on NOSTA, joka nostaa siiman uuteen heittoon.
 
 | Virhe                                     | Seuraus                                                         |
 | ----------------------------------------- | --------------------------------------------------------------- |
