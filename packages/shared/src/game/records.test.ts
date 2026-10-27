@@ -45,6 +45,18 @@ describe('yksinpelin saaliin tarkistus', () => {
     });
   });
 
+  it('myöhässä lähetetty saalis pitää saantihetkensä, jos se on uskottava', () => {
+    const at = '2026-10-20T18:30:00.000Z';
+    expect(parseSoloRecord({ ...valid, at }, now)).toMatchObject({ date: '2026-10-20', at });
+    // Tulevaisuudessa, liian vanha tai roskaa: palvelimen aika.
+    for (const bad of ['2026-10-27T00:00:00Z', '2026-01-01T00:00:00Z', 'eilen', 42])
+      expect(parseSoloRecord({ ...valid, at: bad }, now)?.at).toBe('2026-10-26T00:10:00.000Z');
+    // Selaimen kello hieman edellä: ei tulevaisuuteen.
+    expect(parseSoloRecord({ ...valid, at: '2026-10-26T00:12:00Z' }, now)?.at).toBe(
+      '2026-10-26T00:10:00.000Z',
+    );
+  });
+
   it('väärä laji, vaikeus tai mahdoton paino hylätään', () => {
     expect(parseSoloRecord({ ...valid, species: 'whale' }, now)).toBeNull();
     expect(parseSoloRecord({ ...valid, difficulty: 'cheat' }, now)).toBeNull();

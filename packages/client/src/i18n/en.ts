@@ -344,7 +344,7 @@ export const en: Record<keyof typeof fi, string> = {
   'records.title': 'Lunkinjärvi records',
   'records.loading': 'Fetching records…',
   'records.noServer':
-    'The records live on the game server, which is not running right now. Single player catches do not reach the list meanwhile.',
+    'The records live on the game server, which is not running right now. Single player catches are saved on this device and sent to the list when the server is back up.',
   'records.soloMissing': 'The game server does not have the single player records yet.',
   'records.raceMissing': 'Could not fetch the multiplayer records.',
   'records.raceHint': 'The list has fish weighed by the server in multiplayer competitions.',
@@ -372,6 +372,9 @@ export const en: Record<keyof typeof fi, string> = {
   'records.placeKept': 'Saved',
   'records.placeMissing': 'Not saved: the catch is from before spots were saved',
   'records.soloFirst': 'Single player record! {fish}',
+  'records.soloQueued':
+    'The server is not running: catches are saved and sent to the records later',
+  'records.fromQueue': 'Saved catch: {note}',
   'records.soloPlace': '{fish} is the {place} biggest in single player',
   'records.lakeFirst': 'Lake record! {fish}',
   'records.lakePlace': '{fish} is the {place} biggest in the lake',

@@ -506,6 +506,13 @@ textarea,
   border: 2px dashed #f6d04d;
 }
 
+.screen-panel .start-note {
+  margin: -8px 0 14px;
+  text-align: center;
+  font-size: 19px;
+  color: #f6d04d;
+}
+
 .screen-panel .hint {
   font-size: 19px;
   color: #8e99a4;

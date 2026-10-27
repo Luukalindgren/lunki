@@ -143,3 +143,47 @@ test('kutsulinkki palvelimen ollessa kiinni avaa moninpelivalikon koodin kanssa'
   await expect(page.getByRole('button', { name: 'Yksinpeli' })).toBeVisible();
   errors.check();
 });
+
+test('yksinpelin saalis odottaa laitteella ja pääsee listalle saantipäivällään', async ({
+  page,
+}, info) => {
+  const errors = watchAppErrors(page);
+  // Saalis kolmen päivän takaa, tallentunut palvelimen ollessa kiinni.
+  const day = new Date(Date.now() - 3 * 24 * 3600_000);
+  day.setUTCHours(12, 0, 0, 0);
+  const angler = `Jono-${info.project.name}`.slice(0, 16);
+  const pending = [
+    {
+      species: 'perch',
+      weight: 1.6 - info.workerIndex / 1000,
+      angler,
+      difficulty: 'normal',
+      at: day.toISOString(),
+    },
+  ];
+  await page.addInitScript((list) => {
+    if (!sessionStorage.getItem('jono')) {
+      sessionStorage.setItem('jono', '1');
+      localStorage.setItem('lunki.solo.pending', JSON.stringify(list));
+    }
+  }, pending);
+  const queued = () => page.evaluate(() => localStorage.getItem('lunki.solo.pending'));
+
+  // Palvelin kiinni: saalis pysyy tallessa, ja ennätysnäkymä kertoo sen.
+  await serverOff(page, 'refused');
+  await page.goto('/?view=top');
+  await page.getByRole('button', { name: 'Ennätykset' }).click();
+  await expect(page.getByText(/tallentuvat tälle laitteelle/)).toBeVisible();
+  expect(await queued()).toContain(angler);
+
+  // Palvelin palaa: avaus lähettää saaliin, ja päävalikko kertoo sijan.
+  await page.unroute(SERVER);
+  await page.reload();
+  await expect(page.locator('.start-note')).toContainText(/Tallessa ollut saalis: .*Ahven/);
+  await expect.poll(queued).toBeNull();
+  await page.getByRole('button', { name: 'Ennätykset' }).click();
+  await page.locator('.choice').first().getByRole('button', { name: 'Yksinpeli' }).click();
+  const date = `${day.getUTCDate()}.${day.getUTCMonth() + 1}.${day.getUTCFullYear()}`;
+  await expect(page.locator('li.record-row', { hasText: angler }).first()).toContainText(date);
+  errors.check();
+});

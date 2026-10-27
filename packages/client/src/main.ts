@@ -47,6 +47,13 @@ import {
   submitSoloRecord,
 } from './net/session';
 import { NetWorld } from './net/netWorld';
+import {
+  flushSoloCatches,
+  pendingSoloCatches,
+  queueSoloCatch,
+  type QueuedPlace,
+  type SoloCatch,
+} from './net/soloQueue';
 import { flushFeedback, installErrorReporting, reportContext, sendFeedback } from './net/report';
 import { formatWeight, ordinal, t } from './i18n';
 import { speciesName } from './i18n/names';
@@ -203,21 +210,32 @@ function startGame(s: CompetitionSettings, seed = devSeed) {
   soloRecordNotes = [];
   // Kehitystilan valitulla siemenellä saalis ei ole reilu ennätys.
   if (!session && devSeed === undefined) {
-    g.onSoloCatch = (entry) =>
-      void submitSoloRecord({
+    /** Palvelin kiinni: kerrotaan kerran kisan aikana, että saaliit odottavat. */
+    let queuedNotice = false;
+    g.onSoloCatch = (entry) => {
+      const c: SoloCatch = {
         ...entry,
         angler: loadIdentity().name,
         appearance: loadAppearance(),
-      }).then((place) => {
-        if (place === null || game !== g) return;
-        const fish = `${speciesName(entry.species)} ${formatWeight(entry.weight)}`;
-        const note =
-          place === 1
-            ? t('records.soloFirst', { fish })
-            : t('records.soloPlace', { fish, place: ordinal(place) });
+        at: new Date().toISOString(),
+      };
+      void submitSoloRecord(c).then((result) => {
+        if (result === 'offline') {
+          queueSoloCatch(c);
+          if (!queuedNotice && game === g && !g.competition.finished)
+            hud.showMessage(t('records.soloQueued'), 4);
+          queuedNotice = true;
+          return;
+        }
+        if (result === 'rejected') return;
+        // Palvelin vastaa taas: myös aiemmin tallentuneet saaliit listalle.
+        if (pendingSoloCatches()) void flushSoloCatches().then(showQueuedPlaces);
+        if (result.place === null || game !== g) return;
+        const note = soloPlaceNote(c, result.place);
         soloRecordNotes.push(note);
         if (!g.competition.finished) hud.showMessage(note, 3.5);
       });
+    };
   }
   hud.setHelpMode(session !== null, game.spectating);
   if (session) chat?.mount(hud.root, 'hud');
@@ -227,6 +245,23 @@ function startGame(s: CompetitionSettings, seed = devSeed) {
   paused = false;
   screens.hide();
   hud.setVisible(true);
+}
+
+function soloPlaceNote(c: SoloCatch, place: number): string {
+  const fish = `${speciesName(c.species)} ${formatWeight(c.weight)}`;
+  return place === 1
+    ? t('records.soloFirst', { fish })
+    : t('records.soloPlace', { fish, place: ordinal(place) });
+}
+
+/** Palvelimen ollessa kiinni tallentuneet saaliit, jotka pääsivät nyt listalle. */
+function showQueuedPlaces(placed: QueuedPlace[]) {
+  const notes = placed.map((p) =>
+    t('records.fromQueue', { note: soloPlaceNote(p.entry, p.place) }),
+  );
+  if (!notes.length) return;
+  if (game && !game.competition.finished) hud.showMessage(notes.join(' · '), 5);
+  else screens.showStartNotes(notes);
 }
 
 function showMenu() {
@@ -653,6 +688,8 @@ const paletteModes: PaletteMode[] = ['palette', 'dither', 'off'];
 // Pelin tiedostot laitteelle (#328). Uusi versio otetaan käyttöön vasta
 // pelaajan painaessa valikon nappia, ei kesken kisan.
 registerServiceWorker((apply) => screens.setUpdate(apply));
+// Palvelimen ollessa kiinni tallentuneet yksinpelin saaliit ennätyslistalle.
+void flushSoloCatches().then(showQueuedPlaces);
 
 startLoop({
   update(dt) {
