@@ -1,3 +1,4 @@
+import { BOAT_WAVE_FACTOR } from '../physics/boat';
 import { Rng } from '../rng';
 import type { Vec2 } from '../vec2';
 import { fetchDistance, waveHeight } from './waves';
@@ -88,4 +89,13 @@ export function capsizes(heading: number, waveDir: number, height: number): bool
   const from = waveDir + Math.PI;
   const off = Math.abs(Math.atan2(Math.sin(heading - from), Math.cos(heading - from)));
   return off > BIG_WAVE.safeAngle;
+}
+
+/**
+ * Vene (#263) kestää korkeamman aallon kuin rengas ja kestää sen myös perä tai
+ * keula edellä; kaatuu vain, kun aalto tulee kyljen puolelta.
+ */
+export function boatCapsizes(heading: number, waveDir: number, height: number): boolean {
+  if (height < BIG_WAVE.capsizeHeight * BOAT_WAVE_FACTOR) return false;
+  return Math.abs(Math.sin(heading - waveDir)) > Math.sin(BIG_WAVE.safeAngle);
 }

@@ -1,3 +1,4 @@
+import { CRAFTS, type CraftSpec } from '../physics/boat';
 import { collideTubeWithShore, stepTube, type TubeInput, type TubeState } from '../physics/tube';
 import { collideTubePair } from '../physics/tubeCollision';
 import { REEDS } from '../map/reeds';
@@ -57,16 +58,26 @@ export function decodeInputs(data: unknown): NetInput[] {
   return out;
 }
 
-/** Yksi askel: fysiikka, kaislikon vastus ja rantatörmäys. Sama asiakkaalla ja palvelimella. */
+/**
+ * Yksi askel: fysiikka, kaislikon vastus ja rantatörmäys. Sama asiakkaalla ja
+ * palvelimella. `craft` = rengas tai vene (CRAFTS).
+ */
 export function stepPlayerTube(
   tube: TubeState,
   input: TubeInput,
   water: WaterBody,
   dt = NET_DT,
   wind?: Vec2,
+  craft: CraftSpec = CRAFTS.tube,
 ): TubeState {
   const drag = water.reedsAt(tube.pos) ? REEDS.drag : 1;
-  return collideTubeWithShore(tube, stepTube(tube, input, dt, wind, drag), water);
+  return collideTubeWithShore(
+    tube,
+    stepTube(tube, input, dt, wind, drag, craft.physics),
+    water,
+    craft.radius,
+    craft.physics.shoreBounce,
+  );
 }
 
 /**
@@ -124,11 +135,12 @@ export function collideWithOthers(
   tube: TubeState,
   others: readonly TubeState[],
   water: WaterBody,
+  craft: CraftSpec = CRAFTS.tube,
 ): TubeState {
   let t = tube;
   for (const o of others) {
-    const r = collideTubePair(t, o);
-    if (r) t = collideTubeWithShore(t, r[0], water);
+    const r = collideTubePair(t, o, craft.radius);
+    if (r) t = collideTubeWithShore(t, r[0], water, craft.radius, craft.physics.shoreBounce);
   }
   return t;
 }
@@ -146,6 +158,11 @@ export class TubePredictor {
   private seq = 0;
   /** Viimeisimmän korjauksen suuruus (m), seurantaa varten. */
   lastCorrection = 0;
+  /**
+   * Oma alus (CRAFTS). Venekisan matkustaja ennakoi vain kääntymisensä
+   * renkaan vakioilla; hänen paikkansa tulee veneestä (seatPos).
+   */
+  craft: CraftSpec = CRAFTS.tube;
 
   constructor(
     start: TubeState,
@@ -161,9 +178,10 @@ export class TubePredictor {
 
   private advance(t: TubeState, input: TubeInput, wind?: Vec2): TubeState {
     return collideWithOthers(
-      stepPlayerTube(t, input, this.water, NET_DT, wind),
+      stepPlayerTube(t, input, this.water, NET_DT, wind, this.craft),
       this.others(),
       this.water,
+      this.craft,
     );
   }
 

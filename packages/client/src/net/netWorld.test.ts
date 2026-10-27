@@ -153,3 +153,56 @@ describe('muut lyhyessä verkkokatkossa', () => {
     expect(world.others()[0]!.pos.x).toBe(30);
   });
 });
+
+describe('venekisa (#263)', () => {
+  /** Soutaja r ja kyytiläinen p veneessä 1, toinen vene 2 (soutaja o). */
+  const boatWorld = (me: string) => {
+    const at = (x: number, y: number, heading: number) => ({ x, y, heading });
+    const players = new Map([
+      ['r', { ...player('Soutaja', 0xd23a2a, 0, 'spoon'), ...at(100, 50, 0), boat: 1, seat: 0 }],
+      ['p', { ...player('Kyyti', 0, 0, 'spoon'), ...at(101.2, 50, 2), boat: 1, seat: 1 }],
+      ['o', { ...player('Muu', 0, 0, 'spoon'), ...at(300, 50, 1), boat: 2, seat: 0 }],
+    ]);
+    const state = { players, catches: [], phase: 'playing', clock: 1 };
+    const sent: unknown[] = [];
+    const session = {
+      sessionId: me,
+      boatRace: true,
+      room: { state },
+      sendInput: (m: unknown) => sent.push(m),
+    } as unknown as NetSession;
+    const world = new NetWorld(session, new WaterBody(LUNKINJARVI), () => 10);
+    session.onState?.(state as never);
+    return { world, players, sent };
+  };
+  const row = { kick: 1, turn: 0, sprint: false };
+
+  it('kyytiläinen istuu veneessä eikä soua, mutta kääntyy', () => {
+    const { world } = boatWorld('p');
+    expect(world.passenger).toBe(true);
+    expect(world.effectiveInput(row, 0)).toEqual({ kick: 0, turn: 0, sprint: false });
+    const tube = world.stepOwn({ ...row, turn: 1 }, null, 0);
+    expect(tube.pos.x).toBeCloseTo(100 + 1.2);
+    expect(tube.pos.y).toBeCloseTo(50);
+    expect(tube.heading).toBeGreaterThan(2);
+    // Veneitä on kaksi: oma (soutaja r) ja muu.
+    expect(world.boats().map((b) => [b.boat, b.pos.x])).toEqual([
+      [1, 100],
+      [2, 300],
+    ]);
+    expect(world.boats()[0]!.color).toBe(0xd23a2a);
+  });
+
+  it('soutaja ei soua viehe vedessä, ja kyytiläinen piirretään omaan veneeseen', () => {
+    const { world } = boatWorld('r');
+    expect(world.passenger).toBe(false);
+    expect(world.effectiveInput(row, 2)).toEqual({ kick: 0, turn: 0, sprint: false });
+    expect(world.effectiveInput(row, 0)).toBe(row);
+    const own = { pos: { x: 110, y: 60 }, heading: Math.PI / 2, kickPhase: 0.3 };
+    const rider = world.others(own).find((o) => o.id === 'p')!;
+    expect(rider.pos.x).toBeCloseTo(110);
+    expect(rider.pos.y).toBeCloseTo(61.2);
+    expect(rider.boat).toBe(1);
+    expect(world.boats(own)[0]).toMatchObject({ boat: 1, pos: own.pos, kickPhase: 0.3 });
+  });
+});
