@@ -505,6 +505,16 @@ textarea,
   margin-bottom: 20px;
 }
 
+/* Uusi versio odottaa (#328): pieni keltainen nappi otsikon alla. */
+.screen button.update-notice {
+  display: block;
+  margin: -12px auto 14px;
+  font-size: 19px;
+  color: #fff3b0;
+  background: #2a3138;
+  border: 2px dashed #f6d04d;
+}
+
 .screen-panel .hint {
   font-size: 19px;
   color: #8e99a4;
