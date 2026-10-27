@@ -184,10 +184,11 @@ test('latausruutu näkyy pelin koodin latautuessa ja poistuu valikon tullessa', 
   const errors = watchErrors(page);
   // Hidas yhteys: pelin koodi viipyy matkalla.
   await page.route('**/assets/*.js', async (route) => {
-    await new Promise((r) => setTimeout(r, 1500));
+    await new Promise((r) => setTimeout(r, 3000));
     await route.continue();
   });
-  await page.goto('/');
+  // Ei odoteta load-tapahtumaa: se tulee vasta pelin koodin jälkeen.
+  await page.goto('/', { waitUntil: 'commit' });
   const boot = page.locator('#boot-loader');
   await expect(boot).toBeVisible();
   await expect(boot).toContainText('Ladataan');

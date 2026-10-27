@@ -5,7 +5,7 @@ import { Pix, bootLoaderHtml, loaderArt, loaderArtHtml, type LoaderVariant } fro
 
 describe('latausanimaatio', () => {
   it('jokainen vaihtoehto piirtyy ja liikkuu', () => {
-    for (const v of ['tube', 'pike', 'sonar'] as LoaderVariant[]) {
+    for (const v of ['pike', 'sonar'] as LoaderVariant[]) {
       const html = loaderArt(v);
       expect(html).toContain(`loader-${v}`);
       expect(html).toMatch(/<path fill="#[0-9a-f]{6}" d="M/);
@@ -19,7 +19,7 @@ describe('latausanimaatio', () => {
     const b = new Pix(4, 1);
     b.set(3, 0, '#ff0000');
     const html = loaderArtHtml({
-      id: 'tube',
+      id: 'pike',
       w: 4,
       h: 1,
       bg: '#000000',

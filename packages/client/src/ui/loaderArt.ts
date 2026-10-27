@@ -11,26 +11,18 @@
 
 type Color = string;
 
-/** Pelin paletti (ks. scripts/ikoni/piirra.py, sonar.ts ja tubeMesh.ts). */
+/** Pelin paletti (ks. scripts/ikoni/piirra.py ja sonar.ts). */
 const C = {
   lake: '#12324a',
-  deep: '#0e2638',
   wave: '#1b5a84',
   crest: '#2b7aa6',
   white: '#eef2f3',
   line: '#c3cbd2',
   metal: '#9aa3ab',
   red: '#d23a2a',
-  redLight: '#ec6a4c',
   redDark: '#8c1c1c',
   orange: '#f08a2c',
   yellow: '#f6d04d',
-  yellowDark: '#b8962c',
-  shirt: '#24502c',
-  shirtDark: '#173a1e',
-  skin: '#e0cf9c',
-  legs: '#3b4630',
-  fins: '#1c232b',
   pikeBack: '#24502c',
   pikeSide: '#4f863a',
   pikeBelly: '#e0cf9c',
@@ -139,7 +131,7 @@ export interface LoaderArt {
   layers: LoaderLayer[];
 }
 
-export type LoaderVariant = 'tube' | 'pike' | 'sonar';
+export type LoaderVariant = 'pike' | 'sonar';
 
 /** Kuvat SVG-poluiksi: yksi polku väriä kohti, vaakasuorat pikselijonot suorakaiteina. */
 function svg(images: readonly Pix[], dir: 'x' | 'y'): string {
@@ -200,123 +192,7 @@ export function loaderArtHtml(art: LoaderArt): string {
   );
 }
 
-// --- A: kelluntarengas ylhäältä, räpylät potkivat -----------------------------
-
-/** Pieni retroaalto kuten sovelluskuvakkeessa. */
-function waveMark(p: Pix, x: number, y: number): void {
-  p.stamp(x, y, ['.ab..', 'aaaaa'], { a: C.wave, b: C.crest });
-}
-
-/**
- * Rengas ja kalastaja samasta 32×32-kuvasta kuin sovelluskuvake
- * (scripts/ikoni/piirra.py, RENGAS), ilman taustan järveä.
- */
-const TUBE = [
-  '............................c...',
-  '...........................cd...',
-  '..........................c.e...',
-  '............ffffffff.....c..d...',
-  '..........ffggggggggff..c...e...',
-  '.........ffggggggggggffc....d...',
-  '........fgggggggggggggcf....e...',
-  '.......ffgggghhhhhhggcgff...d...',
-  '.......fggghh......hcgggf...h...',
-  '......fggggh..iiii..hggggf.ff...',
-  '......fgggh..jiiiij..hgggf......',
-  '......fgggh.jjkkkkjj.hgggf......',
-  '......fgggh.jjkkkkjj.hgggf......',
-  '......ffgggjjjkkkkjjjgggff......',
-  '......ffggg.jjjkkjjj.gggff......',
-  '......ffggg.jjjjjjjj.gggff......',
-  '......ffgggg.jjjjjj.ggggff......',
-  '.......ffgggg.jjjj.ggggff.......',
-  '.......fffggggggggggggfff.......',
-  '........fffggggggggggfff........',
-  '.........fffggggggggfff.........',
-  '..........ffffffffffff..........',
-  '............ffffffff............',
-];
-
-const TUBE_KEY: Record<string, Color> = {
-  c: '#3b2a1e',
-  d: C.white,
-  e: C.line,
-  f: C.red,
-  g: C.orange,
-  h: C.yellow,
-  i: C.redDark,
-  j: C.shirt,
-  k: C.skin,
-};
-
-function tubeArt(): LoaderArt {
-  const W = 40;
-  const H = 40;
-  // Järvi rullaa alas: rengas kulkee selkä edellä, poispäin räpylöistä (kuten pelissä).
-  const water = new Pix(W, H);
-  for (const [x, y] of [
-    [3, 4],
-    [27, 9],
-    [9, 17],
-    [31, 24],
-    [2, 31],
-    [21, 35],
-  ] as const)
-    waveMark(water, x, y);
-
-  // Kalastaja katsoo alas (kasvot näkyvät), joten sääret ja räpylät ovat
-  // renkaan alareunan edessä. Rengas on ylempänä, jotta räpylöille jää tilaa.
-  const ox = 4;
-  const oy = 5;
-  const ankle = oy + 24;
-  const fin = (p: Pix, x: number, len: number) => {
-    // Lyhyt räpylä = potku alas veteen: ylhäältä katsottuna se lyhenee.
-    p.rect(x, ankle, 2, 1, C.fins);
-    p.rect(x - 1, ankle + 1, 4, len - 1, C.fins);
-    // Lepattava kärki: keskeltä lovettu.
-    if (len > 4) p.set(x + 1, ankle + len - 1, null);
-  };
-  const splash = (p: Pix, x: number, y: number, big: boolean) => {
-    p.set(x - 2, y, C.white);
-    p.set(x + 3, y + 1, C.crest);
-    if (!big) return;
-    p.set(x - 1, y + 2, C.crest);
-    p.set(x + 2, y + 3, C.white);
-    p.set(x + 4, y - 1, C.wave);
-    p.set(x - 3, y - 2, C.wave);
-  };
-  // Potkut vuorotellen: vasen pitkä–keski–lyhyt–keski, oikea vastavaiheessa.
-  const lens = [7, 5, 3, 5];
-  const frames = lens.map((l, i) => {
-    const p = new Pix(W, H);
-    const r = lens[(i + 2) % 4]!;
-    p.stamp(ox, oy, TUBE, TUBE_KEY);
-    // Sääret takin helmasta renkaan yli.
-    p.rect(17, oy + 17, 2, ankle - oy - 17, C.legs);
-    p.rect(21, oy + 17, 2, ankle - oy - 17, C.legs);
-    fin(p, 17, l);
-    fin(p, 21, r);
-    // Roiske potkun pohjassa ja sen jälkeen laajeneva väre.
-    if (l === 3) splash(p, 17, ankle + 4, false);
-    if (r === 3) splash(p, 21, ankle + 4, false);
-    if (lens[(i + 3) % 4] === 3) splash(p, 17, ankle + 5, true);
-    if (lens[(i + 1) % 4] === 3) splash(p, 21, ankle + 5, true);
-    return p;
-  });
-
-  return {
-    id: 'tube',
-    w: W,
-    h: H,
-    bg: C.lake,
-    layers: [
-      { kind: 'scroll', tile: water, axis: 'y', stepMs: 120, reverse: true },
-      { kind: 'frames', frames, frameMs: 160 },
-    ],
-  };
-}
-
-// --- B: hauki iskee lusikkaan --------------------------------------------------
+// --- Hauki iskee lusikkaan --------------------------------------------------
 
 /** Hauki sivulta, kuono oikealla kohdassa (nx, cy). */
 function drawPike(p: Pix, nx: number, cy: number, open: boolean, tail: number): void {
@@ -366,18 +242,15 @@ function drawPike(p: Pix, nx: number, cy: number, open: boolean, tail: number): 
 }
 
 const SPOON = ['.s..', '.ff.', 'ffdd', 'fddf', 'ddff', '.ff.', '.s..', 's.s.'];
-/** Lusikka kääntyneenä syrjittäin: välähtää hopeisena. */
-const SPOON_EDGE = ['.s.', '.w.', '.w.', '.e.', '.w.', '.e.', '.s.', 's.s'];
+/** Lusikka kääntyneenä toisin päin: raita peilautuu ja kylki välähtää. */
+const SPOON_TURNED = ['..s.', '.ff.', 'ddff', 'fddf', 'ffdd', '.ff.', '..s.', '.s.s'];
 
 function spoon(p: Pix, x: number, y: number, flash: boolean): void {
-  const key = {
-    s: C.metal,
-    f: C.red,
-    d: C.white,
-    w: C.white,
-    e: C.line,
-  };
-  p.stamp(x, y, flash ? SPOON_EDGE : SPOON, key);
+  const key = { s: C.metal, f: C.red, d: C.white };
+  if (!flash) return p.stamp(x, y, SPOON, key);
+  // Peilikuvassa lenkki on sarakkeen oikealla: siirto pitää sen siiman kohdalla.
+  p.stamp(x - 1, y, SPOON_TURNED, key);
+  p.stamp(x + 3, y + 1, ['.w.', 'w.w', '.w.'], { w: C.white });
 }
 
 function pikeArt(): LoaderArt {
@@ -442,6 +315,18 @@ function pikeArt(): LoaderArt {
         [nx! - 3, cy - 11],
       ] as const)
         p.set(bx, by - (i - 9) * 2, (bx + by) % 2 ? C.white : C.crest);
+    // Hauki nousee pintaan: roiske ja sen jälkeen väre.
+    if (i === 13)
+      for (const [sx, sy] of [
+        [15, 1],
+        [17, 0],
+        [13, 2],
+        [50, 0],
+        [52, 1],
+        [49, 2],
+      ] as const)
+        p.set(sx, sy, C.white);
+    if (i === 14) for (let x = 14; x < 54; x += 3) p.set(x, 3, C.crest);
     return p;
   });
   return {
@@ -451,13 +336,14 @@ function pikeArt(): LoaderArt {
     bg: C.lake,
     layers: [
       { kind: 'frames', frames: [bed], frameMs: 1000 },
-      { kind: 'frames', frames, frameMs: 120 },
+      // Pinta ennen kalaa: noustessaan hauki rikkoo pinnan.
       { kind: 'scroll', tile: surface, axis: 'x', stepMs: 90 },
+      { kind: 'frames', frames, frameMs: 120 },
     ],
   };
 }
 
-// --- C: kaikuluotain rullaa ----------------------------------------------------
+// --- Vaihtoehto: kaikuluotain rullaa ----------------------------------------------------
 
 function sonarArt(): LoaderArt {
   const W = 64;
@@ -505,7 +391,6 @@ function sonarArt(): LoaderArt {
 }
 
 const ARTS: Record<LoaderVariant, () => LoaderArt> = {
-  tube: tubeArt,
   pike: pikeArt,
   sonar: sonarArt,
 };
@@ -523,7 +408,7 @@ export function loaderArt(variant: LoaderVariant): string {
 }
 
 /** Käytössä oleva animaatio (vaihtoehdot: ks. ARTS). */
-export const LOADER_VARIANT: LoaderVariant = 'tube';
+export const LOADER_VARIANT: LoaderVariant = 'pike';
 
 const DOTS = '<span class="loader-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span>';
 
