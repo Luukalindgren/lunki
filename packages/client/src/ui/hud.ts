@@ -75,6 +75,9 @@ export class Hud {
   private touch = false;
   /** Taukovalikon kokovalitsimen arvo (1 = 100 %). */
   private scale = 1;
+  /** Pystyasento (kosketuksella vieheluotain siirtyy vasempaan pinoon). */
+  private readonly portrait: { matches: boolean } =
+    typeof matchMedia === 'function' ? matchMedia('(orientation: portrait)') : { matches: false };
 
   get touchMode(): boolean {
     return this.touch;
@@ -154,6 +157,9 @@ export class Hud {
     this.relabel();
     onLangChange(() => this.relabel());
     this.updateHelpOpen();
+    if (this.portrait instanceof EventTarget) {
+      this.portrait.addEventListener('change', () => this.placeLureSonar());
+    }
     if (typeof ResizeObserver !== 'undefined') {
       const observer = new ResizeObserver(() => this.measureEdges());
       for (const e of [
@@ -183,13 +189,19 @@ export class Hud {
     s.setProperty('--left-h', px(this.topLeft.offsetHeight));
     // Kompassi, sää (1–2 riviä) ja työpöydällä kuntopalkki: ilmoitukset niiden alle.
     s.setProperty('--top-h', px(this.topCenter.offsetHeight));
+    // Pystypuhelimella kompassi kellon viereen ja sää kellon alle.
+    s.setProperty('--timer-w', px(this.timer.offsetWidth));
+    s.setProperty('--timer-h', px(this.timer.offsetHeight));
+    s.setProperty('--compass-w', px(this.compass.root.offsetWidth));
+    s.setProperty('--compass-h', px(this.compass.root.offsetHeight));
     const gauges = this.gauges.offsetWidth;
     s.setProperty('--right-w', px(gauges));
     s.setProperty('--right-h', px(this.gauges.offsetHeight));
     // Työpöydällä vieheluotain ja perhoheiton sivukuva luotaimen rinnalla vievät
     // leveyden: kapean sarakkeen sijaan ilmoitukset luotainten yläpuolelle.
+    // Ilmoitusalue on keskilinjan ympärillä, joten leveämpi reuna rajaa molemmat.
     const m = this.probeM.offsetWidth / 100;
-    const free = this.root.clientWidth - left - gauges - m * 16;
+    const free = this.root.clientWidth - 2 * Math.max(left, gauges) - m * 16;
     this.root.classList.toggle('wide-gauges', !this.touch && free < this.root.clientWidth * 0.3);
     const fly = this.flyPanel.root.offsetHeight;
     s.setProperty('--fly-h', fly > 0 ? `calc(${px(fly)} + var(--m) * 4)` : '0px');
@@ -353,6 +365,16 @@ export class Hud {
     if (!visible) this.setPenalties([]);
   }
 
+  /**
+   * Pystypuhelimella vieheluotain tilapaneelin alle: oikean reunan sarakkeessa
+   * luotainten alle ei jäisi korkeutta ilmoituksille.
+   */
+  private placeLureSonar(): void {
+    if (this.touch && this.portrait.matches) this.topLeft.appendChild(this.lureSonar.root);
+    else if (this.lureSonar.root.parentElement !== this.gauges)
+      this.sonar.root.after(this.lureSonar.root);
+  }
+
   /** Kosketusohjaimet näkyvissä: HUD väistää ne ja ohje on aluksi piilossa. */
   setTouch(touch: boolean): void {
     this.touch = touch;
@@ -367,6 +389,7 @@ export class Hud {
     // Perhoheiton sivukuva: kosketuksella renkaan alle, jotta se ei peitä siimaa.
     if (touch) this.root.insertBefore(this.flyPanel.root, this.notices);
     else this.lureSonar.root.after(this.flyPanel.root);
+    this.placeLureSonar();
     this.helpSlot.hidden = touch;
     this.setHelpMode(this.multiplayer, this.spectator);
     this.updateHelpOpen();
