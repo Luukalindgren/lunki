@@ -161,6 +161,28 @@ test.describe('yksinpeli', () => {
   });
 });
 
+test('toinen kisa ja valikon tausta piirtävät jaetun maailman (#327)', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, 'puhelimet: ks. kosketus.spec.ts');
+  const errors = watchErrors(page);
+  await startSolo(page, 'pov');
+  await expect.poll(() => canvasColors(page)).toBeGreaterThan(8);
+  const first = await canvasColors(page);
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Lopeta kisa' }).click();
+  await page.getByRole('button', { name: 'Valikkoon' }).click();
+  await expect(page.getByRole('button', { name: 'Yksinpeli' })).toBeVisible();
+  await expect.poll(() => canvasColors(page)).toBeGreaterThan(8);
+  // Maasto, puut ja rannat rakennettiin kerran; uusi kisa ottaa ne käyttöön.
+  await page.getByRole('button', { name: 'Yksinpeli' }).click();
+  await page.getByRole('button', { name: 'Aloita kisa' }).click();
+  await expect(page.locator('.hud-timer')).toBeVisible();
+  await expect.poll(() => canvasColors(page)).toBeGreaterThan(Math.max(8, first / 2));
+  errors.check();
+});
+
 test('kieli vaihtuu päävalikosta heti ja säilyy uudelleenlatauksen jälkeen', async ({
   page,
   isMobile,

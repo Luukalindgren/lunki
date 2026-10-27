@@ -52,7 +52,6 @@ import {
   stepFishPopulation,
   lerpAngle,
   LureStage,
-  LUNKINJARVI_SURROUNDINGS,
   resetFishing,
   rodTip,
   sonarPing,
@@ -93,10 +92,9 @@ import {
 import type { Input } from '../engine/input';
 import { createBottomMesh } from '../world/bottomMesh';
 import { FishShadow } from '../world/fishShadow';
-import { Ground } from '../world/ground';
-import { createShoreScenery } from '../world/shoreScenery';
-import { createMapOverlay, createTerrainMesh } from '../world/surroundingsMesh';
+import { staticWorldFor, type StaticWorld } from '../world/staticWorld';
 import type { RetroResolution } from '../engine/resolution';
+import type { RetroRenderer } from '../engine/retroRenderer';
 import { PovCamera } from './povCamera';
 import { LightningView } from './lightningView';
 import { BigWaveView } from './bigWaveView';
@@ -116,8 +114,6 @@ import {
 } from '../world/lakeMesh';
 import { SWELL_GAIN, Swell } from '../world/swell';
 import { WAVE_FACTOR_SCALE, WaveField } from '../world/waveField';
-import { createBuildings, createPiers } from '../world/buildings';
-import { createVegetation } from '../world/vegetation';
 import { WeatherView, compassIn, windFrom, windName } from './weatherView';
 import { SkyView } from './skyView';
 import { MistView } from './mistView';
@@ -190,6 +186,8 @@ export class SoloGame {
   /** Vain POV:ssa näkyvät (maasto, metsänreuna) ja vain ylhäältä näkyvät (karttapohja). */
   private readonly scenery = new THREE.Group();
   private readonly mapOverlay = new THREE.Group();
+  /** Kartan muuttumattomat osat, yhteiset kaikille peleille (#327). */
+  private readonly world: StaticWorld;
   private readonly povRod = new PovRod();
   private readonly povTube: PovTube;
   /** Pikapotku päällä (kalastajan silmin näkyvät räpylät, #230). */
@@ -400,21 +398,10 @@ export class SoloGame {
     this.scene.add(this.tubeMesh);
     this.flightShadow.visible = false;
     this.scene.add(this.flightShadow);
-    const surroundings = map === LUNKINJARVI ? LUNKINJARVI_SURROUNDINGS : undefined;
-    const ground = new Ground(map, surroundings?.terrain ?? null);
-    this.scenery.add(createShoreScenery(map, surroundings, ground));
-    this.scenery.add(createVegetation(map, surroundings, ground));
-    if (surroundings) {
-      const terrain = createTerrainMesh(ground, surroundings, map.islands);
-      if (terrain) this.scenery.add(terrain);
-      const buildings = createBuildings(surroundings, ground);
-      if (buildings) this.scenery.add(buildings);
-      const piers = createPiers(map.piers ?? []);
-      if (piers) this.scene.add(piers);
-      this.mapOverlay.add(createMapOverlay(surroundings));
-    }
+    this.world = staticWorldFor(map);
     this.scenery.visible = false;
     this.scene.add(this.scenery, this.mapOverlay);
+    this.attachWorld();
     this.povRod.group.visible = false;
     this.scene.add(this.povRod.group);
     this.povTube = new PovTube(this.appearance);
@@ -1803,14 +1790,40 @@ export class SoloGame {
     bubble.place(at, false);
   }
 
+  /**
+   * Ottaa jaetun maailman tähän kohtaukseen. Valikon tausta ja kisa käyttävät
+   * samoja verkkoja, joten ne siirretään sille, joka piirtää.
+   */
+  private attachWorld(): void {
+    if (this.world.pov.parent === this.scenery) return;
+    this.scenery.add(this.world.pov);
+    this.mapOverlay.add(this.world.top);
+    this.scene.add(this.world.always);
+  }
+
+  /**
+   * Varjostimet valmiiksi molempiin näkymiin: kalastajan silmin -näkymän sumu
+   * vaihtaa varjostimet, joten kohtaus käännetään sumulla ja ilman (#327).
+   */
+  precompile(retro: RetroRenderer): Promise<unknown> {
+    this.attachWorld();
+    const fog = this.scene.fog;
+    const done = retro.precompile([this.scene], this.camera);
+    this.scene.fog = fog ? null : new THREE.Fog(this.sky.lighting.horizon, 500, 2600);
+    const other = retro.precompile([this.scene], this.camera);
+    this.scene.fog = fog;
+    return Promise.all([done, other]);
+  }
+
   /** Vapauttaa GPU-resurssit, kun kierros päättyy. */
   dispose(): void {
     this.emoteMenu?.dispose();
     this.ownBubble?.remove();
     this.remoteView?.dispose();
     this.net?.world.dispose();
-    this.waterWaves.uWaterMask.value?.dispose();
-    this.waterWaves.uDepthTex.value?.dispose();
+    // Jaettu maailma, vesimaski ja syvyystekstuuri jäävät seuraavalle pelille.
+    if (this.world.pov.parent === this.scenery)
+      for (const g of [this.world.pov, this.world.top, this.world.always]) g.removeFromParent();
     this.scene.traverse((o) => {
       const mesh = o as THREE.Mesh;
       mesh.geometry?.dispose();
@@ -1828,6 +1841,7 @@ export class SoloGame {
 
   /** Piirtää interpoloiden edellisen ja nykyisen askeleen välillä. */
   render(alpha: number): void {
+    this.attachWorld();
     const a = this.prevTube;
     const b = this.tube;
     const offset = this.net?.world.renderOffset ?? { x: 0, y: 0 };

@@ -186,6 +186,26 @@ export class RetroRenderer {
     r.render(this.quadScene, this.quadCamera);
   }
 
+  /**
+   * Kääntää kohtauksen varjostimet etukäteen samalle piirtokohteelle kuin
+   * render(), jotta ensimmäinen ruutu ei nyi. Selain kääntää ne taustalla,
+   * jos se tukee rinnakkaista kääntämistä, muuten heti (#327).
+   */
+  precompile(scenes: readonly THREE.Scene[], camera: THREE.Camera): Promise<unknown> {
+    const r = this.renderer;
+    // Ilman laajennusta three.js varoittaisi joka kerta: käännetään silloin heti.
+    const compile = r.extensions.has('KHR_parallel_shader_compile')
+      ? (scene: THREE.Scene, cam: THREE.Camera) => r.compileAsync(scene, cam)
+      : (scene: THREE.Scene, cam: THREE.Camera) => Promise.resolve(r.compile(scene, cam));
+    const target = r.getRenderTarget();
+    r.setRenderTarget(this.sceneTarget);
+    const done = scenes.map((scene) => compile(scene, camera));
+    r.setRenderTarget(null);
+    done.push(compile(this.quadScene, this.quadCamera));
+    r.setRenderTarget(target);
+    return Promise.all(done);
+  }
+
   dispose(): void {
     window.removeEventListener('resize', this.resize);
     this.sceneTarget.dispose();

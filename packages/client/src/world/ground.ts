@@ -1,5 +1,5 @@
 import {
-  pointInRing,
+  ringWaterTest,
   terrainHeightAt,
   type LakeMap,
   type LakeSurroundings,
@@ -53,14 +53,14 @@ export class Ground {
     this.water = new Uint8Array(this.cols * this.rows);
     if (!t) return;
     const shore = new ShoreDistance([map.shore, ...map.islands]);
+    const isLake = ringWaterTest(map.shore, map.islands);
     const { minX, minY, maxX, maxY } = map.bounds;
     for (let j = 0; j < this.rows; j++) {
       for (let i = 0; i < this.cols; i++) {
         const k = j * this.cols + i;
         const p = { x: this.minX + i * GROUND_CELL, y: this.minY + j * GROUND_CELL };
         const inBounds = p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY;
-        const inLake =
-          inBounds && pointInRing(p, map.shore) && !map.islands.some((isl) => pointInRing(p, isl));
+        const inLake = inBounds && isLake(p);
         const d = shore.distance(p);
         if (inLake) {
           this.water[k] = 1;

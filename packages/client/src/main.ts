@@ -102,10 +102,18 @@ let resultsAsHost: boolean | null = null;
 /** Yksinpelin ennätyslistalle päässeet saaliit tulossivulle. */
 let soloRecordNotes: string[] = [];
 
+/** Varjostimia odotetaan enintään näin kauan ennen piirtoa (ms). */
+const WARM_TIMEOUT_MS = 3000;
+/** Kisan varjostimet käännetty: siihen asti piirretään edellinen ruutu (#327). */
+let gameWarm = false;
+/** Kisan aloituksen kesto suorituskykytestiin: rakennus ja varjostimet (ms). */
+const raceStart = { buildMs: 0, compileMs: 0 };
+
 function startGame(s: CompetitionSettings, seed = devSeed) {
   if (!session) settings = s;
   game?.dispose();
   input.dropPresses();
+  const t0 = performance.now();
   const net = session
     ? { world: new NetWorld(session, new WaterBody(LUNKINJARVI)), overlay: app!, canvas }
     : undefined;
@@ -128,12 +136,22 @@ function startGame(s: CompetitionSettings, seed = devSeed) {
       : 'pov',
     false,
   );
+  raceStart.buildMs = performance.now() - t0;
+  gameWarm = false;
+  const g = game;
+  const warm = () => {
+    if (game !== g || gameWarm) return;
+    gameWarm = true;
+    raceStart.compileMs = performance.now() - t0 - raceStart.buildMs;
+  };
+  g.precompile(retro).then(warm, warm);
+  // Varmuuden vuoksi piirto alkaa viimeistään hetken päästä.
+  setTimeout(warm, WARM_TIMEOUT_MS);
   resultsAsHost = null;
   game.onFinished = () => showResults();
   soloRecordNotes = [];
   // Kehitystilan valitulla siemenellä saalis ei ole reilu ennätys.
   if (!session && devSeed === undefined) {
-    const g = game;
     g.onSoloCatch = (entry) =>
       void submitSoloRecord({
         ...entry,
@@ -500,7 +518,7 @@ retro.onResize((r) => {
 if (params.has('bench')) {
   // Tyyni sää, jotta mittaukset ovat vertailukelpoisia.
   startGame({ durationMinutes: 10, difficulty: 'easy', winRule: 'total', weather: 'calm' });
-  bench = new Bench(game!, input, retro, app);
+  bench = new Bench(game!, input, retro, app, raceStart);
 } else if (devDifficulty) {
   startGame({
     ...settings,
@@ -557,6 +575,12 @@ const menuScene = new SoloGame(
 );
 menuScene.view.zoom(3);
 retro.onResize((r) => menuScene.view.setResolution(r));
+// Valikko piirretään, kun varjostimet on käännetty; samalla kääntyvät kisan
+// kalastajan silmin -näkymän varjostimet, joten kisan aloitus ei nyi (#327).
+let menuWarm = false;
+const menuReady = () => (menuWarm = true);
+menuScene.precompile(retro).then(menuReady, menuReady);
+setTimeout(menuReady, WARM_TIMEOUT_MS);
 
 const paletteModes: PaletteMode[] = ['palette', 'dither', 'off'];
 
@@ -583,6 +607,7 @@ startLoop({
     updateCount++;
   },
   render(alpha, frameTime) {
+    if (game ? !gameWarm : !menuWarm) return;
     const active = game ?? menuScene;
     const t0 = performance.now();
     active.render(alpha);
