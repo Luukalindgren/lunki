@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { LakeBottom } from '@lunki/shared';
-import { createDepthTexture } from './depthShade';
+import { depthTextureFor } from './depthShade';
 import { clipToSwellPatch, type WaterWaves } from './lakeMesh';
 
 /**
@@ -12,7 +12,7 @@ import { clipToSwellPatch, type WaterWaves } from './lakeMesh';
 export function createBottomMesh(bottom: LakeBottom, waves: WaterWaves): THREE.Group {
   const group = new THREE.Group();
   group.name = 'bottom';
-  const depth = createDepthTexture(bottom);
+  const depth = depthTextureFor(bottom);
   waves.uDepthTex.value = depth.texture;
   waves.uDepthBounds.value.copy(depth.bounds);
   waves.uBottomShadeOn.value = 1;

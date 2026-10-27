@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import {
   LandCover,
   pointInRing,
+  ringWaterTest,
   valueNoise,
   type AreaKind,
   type LakeMap,
@@ -117,8 +118,7 @@ export function planVegetation(
   const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   const cover = surroundings ? new LandCover(surroundings) : null;
   const yards = new BuildingIndex(surroundings);
-  const isWater = (p: Vec2) =>
-    pointInRing(p, map.shore) && !map.islands.some((isl) => pointInRing(p, isl));
+  const isWater = ringWaterTest(map.shore, map.islands);
   const plants: Plant[] = [];
   const add = (kind: SpriteKind, pos: Vec2, base: number) => {
     const { min, max } = SIZES[kind];

@@ -450,7 +450,7 @@ const SWELL_NORMAL = /* glsl */ `#ifdef SWELL_PATCH
  * Rantojen kohdalla verkko leikataan pois vesimaskilla.
  */
 export function createSwellPatch(map: LakeMap, waves: WaterWaves): THREE.Mesh {
-  const mask = createWaterMask(map);
+  const mask = waterMaskFor(map);
   waves.uWaterMask.value = mask.texture;
   waves.uWaterMaskBounds.value.copy(mask.bounds);
   const size = SWELL_PATCH_RADIUS * 2;
@@ -516,6 +516,15 @@ export function placeSwellPatch(mesh: THREE.Mesh, waves: WaterWaves, at: Vec2 | 
  * sumennettu vesialue, joka nousee rannasta selälle noin SHORE_FADE metrissä.
  * Vihreällä aallokko laantuu rantaa kohti.
  */
+const waterMasks = new WeakMap<LakeMap, { texture: THREE.Texture; bounds: THREE.Vector4 }>();
+
+/** Maski lasketaan kerran karttaa kohden; valikon tausta ja kisat jakavat sen (#327). */
+function waterMaskFor(map: LakeMap): { texture: THREE.Texture; bounds: THREE.Vector4 } {
+  let mask = waterMasks.get(map);
+  if (!mask) waterMasks.set(map, (mask = createWaterMask(map)));
+  return mask;
+}
+
 function createWaterMask(map: LakeMap): { texture: THREE.Texture; bounds: THREE.Vector4 } {
   const { minX, minY, maxX, maxY } = map.bounds;
   const pad = SHORE_FADE + MASK_METERS;

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {
   LandCover,
-  pointInRing,
+  ringWaterTest,
   signedArea,
   valueNoise,
   type AreaKind,
@@ -41,8 +41,7 @@ export function createShoreScenery(
     alphaTest: 0.5,
     side: THREE.DoubleSide,
   });
-  const isWater = (p: Vec2) =>
-    pointInRing(p, map.shore) && !map.islands.some((isl) => pointInRing(p, isl));
+  const isWater = ringWaterTest(map.shore, map.islands);
   const line = (ring: Vec2[], inland: number, heightScale: number) =>
     treeLine(ring, cover, ground, isWater, material, inland, heightScale);
   group.add(line(resample(map.shore, STEP), INLAND, 1));

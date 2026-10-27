@@ -21,6 +21,8 @@ export class Bench {
     private readonly input: Input,
     private readonly retro: RetroRenderer,
     private readonly parent: HTMLElement,
+    /** Kisan aloitus: maailman rakennus ja varjostimien kääntäminen (ms). */
+    private readonly raceStart: { buildMs: number; compileMs: number },
   ) {}
 
   /** Kutsutaan ennen pelin päivitystä kiinteällä askeleella. */
@@ -76,6 +78,8 @@ export class Bench {
       below30fps: sorted.filter((f) => f > 1000 / 30).length,
       updateMsPerStep: +(this.updateMs / Math.max(1, this.updates)).toFixed(3),
       renderMsPerFrame: +(this.renderMs / sorted.length).toFixed(3),
+      raceBuildMs: +this.raceStart.buildMs.toFixed(1),
+      raceCompileMs: +this.raceStart.compileMs.toFixed(1),
       drawCalls: info.render.calls,
       triangles: info.render.triangles,
       internal: `${width}×${height} ×${scale}`,

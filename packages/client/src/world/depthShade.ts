@@ -39,6 +39,15 @@ ${DEPTH_BANDS.map(([max, [r, g, b, a]]) => {
 }
 `;
 
+const depthTextures = new WeakMap<LakeBottom, ReturnType<typeof createDepthTexture>>();
+
+/** Syvyystekstuuri lasketaan kerran pohjaa kohden; valikon tausta ja kisat jakavat sen (#327). */
+export function depthTextureFor(bottom: LakeBottom): ReturnType<typeof createDepthTexture> {
+  let tex = depthTextures.get(bottom);
+  if (!tex) depthTextures.set(bottom, (tex = createDepthTexture(bottom)));
+  return tex;
+}
+
 /** Pohjan syvyys tekstuurina vesishaderille sekä sen rajat (minX, minY, leveys, korkeus). */
 export function createDepthTexture(bottom: LakeBottom): {
   texture: THREE.DataTexture;
