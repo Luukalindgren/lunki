@@ -48,26 +48,122 @@ export function needsHomeScreenHint(): boolean {
   return window.matchMedia?.('(pointer: coarse)').matches ?? false;
 }
 
+const keyboard = (): KeyboardLock | undefined =>
+  (navigator as Navigator & { keyboard?: KeyboardLock }).keyboard;
+
+/**
+ * Chromium (Chrome, Edge, Opera) lukitsee Escin peliin: lyhyt painallus
+ * avaa tai sulkee valikon, ja koko näytöstä poistutaan pitämällä Esciä
+ * pohjassa. Firefox ja Safari eivät tätä salli, vaan Esc poistuu aina koko
+ * näytöstä.
+ */
+let escLocked = false;
+/** Koko näyttö päällä viime tapahtumassa (Safari lähettää sekä etuliitteellisen että tavallisen). */
+let shown = false;
+/** Poistuminen tulee omasta napista, ei selaimelta. */
+let leaving = false;
+/**
+ * Selain pudotti koko näytöstä Escillä ilman lukitusta: palataan seuraavasta
+ * painalluksesta (koko näytön pyyntö vaatii käyttäjän eleen).
+ */
+let resumePending = false;
+let lastEscape = -Infinity;
+let fakeEscape = -Infinity;
+
+/** Pelaaja on valinnut koko näytön (myös hetkellisesti pudonneena). */
+export function fullscreenWanted(): boolean {
+  return isFullscreen() || resumePending;
+}
+
+/** Esc pudottaa tässä selaimessa hetkeksi pois koko näytöstä (Firefox, Safari). */
+export function escapeLeavesFullscreen(): boolean {
+  return fullscreenWanted() && !escLocked;
+}
+
+async function enterFullscreen(): Promise<void> {
+  const root = document.documentElement as WebkitElement;
+  await (root.requestFullscreen?.({ navigationUI: 'hide' }) ?? root.webkitRequestFullscreen?.());
+  escLocked = await (keyboard()
+    ?.lock?.(['Escape'])
+    .then(() => true)
+    .catch(() => false) ?? false);
+}
+
 export async function toggleFullscreen(): Promise<void> {
   try {
-    if (isFullscreen()) {
+    if (fullscreenWanted()) {
+      resumePending = false;
+      if (!isFullscreen()) return;
+      leaving = true;
       await (document.exitFullscreen?.() ?? doc().webkitExitFullscreen?.());
       return;
     }
-    const root = document.documentElement as WebkitElement;
-    await (root.requestFullscreen?.({ navigationUI: 'hide' }) ?? root.webkitRequestFullscreen?.());
-    // Chromiumissa Esc jää peliin (taukovalikko); koko näytöstä pääsee
-    // pitämällä Esciä pohjassa tai valikon napista.
-    await (navigator as Navigator & { keyboard?: KeyboardLock }).keyboard
-      ?.lock?.(['Escape'])
-      .catch(() => undefined);
+    await enterFullscreen();
   } catch {
     // Selain kieltäytyi (esim. ei käyttäjän painallusta): pysytään ikkunassa.
+    leaving = false;
   }
 }
 
+/**
+ * Ilman lukitusta selain syö Escin poistuessaan koko näytöstä. Annetaan se
+ * peliin itse, jotta valikko avautuu tai sulkeutuu kuten pelaaja halusi.
+ */
+function dispatchEscape(): void {
+  fakeEscape = performance.now();
+  const target = document.activeElement ?? document.body;
+  for (const type of ['keydown', 'keyup'])
+    target.dispatchEvent(
+      new KeyboardEvent(type, { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true }),
+    );
+}
+
+function onFullscreenChange(): void {
+  if (isFullscreen() === shown) return;
+  shown = isFullscreen();
+  if (shown) {
+    resumePending = false;
+  } else {
+    const byBrowser = !leaving && !escLocked;
+    leaving = false;
+    escLocked = false;
+    keyboard()?.unlock?.();
+    if (byBrowser && document.visibilityState === 'visible' && document.hasFocus()) {
+      resumePending = true;
+      if (performance.now() - lastEscape > 500) dispatchEscape();
+    }
+  }
+  for (const b of document.querySelectorAll<HTMLButtonElement>('.fullscreen-toggle'))
+    b.textContent = label();
+}
+
+function onKeyCapture(e: KeyboardEvent): void {
+  if (e.code !== 'Escape' || !e.isTrusted) return;
+  // Selain antoi Escin sittenkin itse koko näytön jälkeen: ei tuplana.
+  if (performance.now() - fakeEscape < 500) {
+    e.stopImmediatePropagation();
+    return;
+  }
+  lastEscape = performance.now();
+}
+
+const MODIFIERS = new Set(['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Fn']);
+
+/** Mikä tahansa painallus palauttaa Escillä pudonneen koko näytön. */
+function resumeOnGesture(e: Event): void {
+  if (!resumePending || isFullscreen() || !e.isTrusted) return;
+  if (e instanceof KeyboardEvent && (e.code === 'Escape' || MODIFIERS.has(e.key))) return;
+  // Koko näytön nappi päättää itse (sillä pysytään ikkunassa).
+  if (e.target instanceof Element && e.target.closest('.fullscreen-toggle')) return;
+  resumePending = false;
+  enterFullscreen().catch(() => {
+    // Näppäimestä ei aina saa koko näyttöä: yritetään vielä klikkauksesta.
+    if (e instanceof KeyboardEvent) resumePending = true;
+  });
+}
+
 function label(): string {
-  return isFullscreen() ? t('fullscreen.exit') : t('fullscreen.enter');
+  return fullscreenWanted() ? t('fullscreen.exit') : t('fullscreen.enter');
 }
 
 /** Koko näytön nappi valikoihin; teksti seuraa tilaa (myös Esc-poistumista). */
@@ -80,10 +176,9 @@ export function fullscreenButton(): HTMLButtonElement {
 }
 
 if (typeof document !== 'undefined') {
-  const refresh = () => {
-    for (const b of document.querySelectorAll<HTMLButtonElement>('.fullscreen-toggle'))
-      b.textContent = label();
-  };
-  document.addEventListener('fullscreenchange', refresh);
-  document.addEventListener('webkitfullscreenchange', refresh);
+  document.addEventListener('fullscreenchange', onFullscreenChange);
+  document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+  window.addEventListener('keydown', onKeyCapture, true);
+  window.addEventListener('keydown', resumeOnGesture, true);
+  window.addEventListener('pointerdown', resumeOnGesture, true);
 }

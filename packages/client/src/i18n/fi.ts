@@ -386,6 +386,8 @@ export const fi = {
   'pause.endRace': 'Lopeta kisa',
   'fullscreen.enter': 'Koko näyttö',
   'fullscreen.exit': 'Poistu koko näytöstä',
+  'fullscreen.escHint':
+    'Tässä selaimessa Esc irrottaa koko näytöstä hetkeksi: peli palaa siihen seuraavasta painalluksesta. Backspace jatkaa peliä ilman katkosta.',
   'fullscreen.homeScreenHint':
     'Koko näyttö iPhonella: Safarin Jaa-valikosta ”Lisää Koti-valikkoon” ja avaa peli kuvakkeesta.',
   'results.raceOver': 'Kisa päättyi!',
