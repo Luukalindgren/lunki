@@ -692,6 +692,8 @@ export class SoloGame {
   }
 
   private wasTangled = false;
+  /** Ukkonen tai myrsky päällä tai tulossa (ohjeen ukkosrivi). */
+  private thunderNear = false;
   private readonly knots = new KnotView();
 
   /**
@@ -1085,6 +1087,13 @@ export class SoloGame {
           ? [{ label: this.outLabel, seconds: timeOut }]
           : []),
     ]);
+    this.hud.setHelpContext({
+      fly: isFly(f.tackle),
+      pov: this.viewMode === 'pov',
+      thunder: this.thunderNear,
+      land: f.onLand && f.stage === 'water',
+      tangle: tangle !== null,
+    });
     this.hud.setStatus([
       ...(tangle
         ? [
@@ -1185,6 +1194,8 @@ export class SoloGame {
         : { metersPerPixel: this.view.metersPerPixel, width: this.view.width },
       { message: (text) => this.hud.showMessage(text, 3), rumble: () => this.sfx.rumble() },
     );
+    // Ukkosen ohje näkyy ukkosella ja kun jyrinä varoittaa sen tulosta.
+    this.thunderNear = w.sky === 'thunder' || w.sky === 'storm' || w.warnings.includes('rumble');
     this.updateSky(dt);
     this.applyWeatherLight();
     this.updateWaves(dt, w.windSpeed, w.windDir);
@@ -1575,6 +1586,13 @@ export class SoloGame {
   private updateSpectatorHud(dt: number): void {
     const name = this.followed ? this.net!.world.playerName(this.followed) : null;
     this.hud.setPower(null);
+    this.hud.setHelpContext({
+      fly: false,
+      pov: this.viewMode === 'pov',
+      thunder: false,
+      land: false,
+      tangle: false,
+    });
     this.hud.setStatus([
       t('mp.spectating'),
       name ? t('game.following', { name }) : t('game.nobody'),

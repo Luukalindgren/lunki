@@ -427,9 +427,11 @@ export const en: Record<keyof typeof fi, string> = {
   'help.spectatorTouch1': 'Tap: next angler',
   'help.spectatorTouch2': 'CAM switch view',
   'help.touchTools': '+/− zoom · ? help · II pause',
+  'help.touchToolsPov': '? help · II pause',
   'help.spectator1': '←/→, A/D or click: next angler',
   'help.spectator2': 'V switch view',
   'help.keysTools': 'Wheel = zoom · H = help · Esc = pause',
+  'help.keysToolsPov': 'H = help · Esc = pause',
   'help.chatKey': 'Enter = message the others',
   'help.touch1': 'Stick up = towards your fins · down = back first (fastest)',
   'help.touch2': 'Stick sideways = turn · all the way = sprint kick (tiring)',
@@ -452,9 +454,11 @@ export const en: Record<keyof typeof fi, string> = {
   'help.keysLand': 'Lure on land or a pier: C cuts the line',
   'help.keysTangle': 'When tangled, reel together · C cuts the line',
   'help.keysFly': 'Fly: hold mouse and drag down = strip · F slack to reel',
+  'help.keysFlyReel': 'On the reel: hold mouse or space = reel in · Q/E drag',
   'help.keysFlyCast':
     'Fly cast: mouse towards you and away · right = pick up the line · P side view',
   'help.touchFly': 'Fly: STRIP pulls in line · LIFT picks the line up for a new cast',
+  'help.touchFlyReel': 'On the reel: finger on the lake or REEL = reel in · DRG−/DRG+ drag',
   'help.touchFlyCast':
     'Fly cast: swipe down on the lake = back cast, up = forward cast · hold LINE = line hand',
   'sonar.depth': '{depth} m',

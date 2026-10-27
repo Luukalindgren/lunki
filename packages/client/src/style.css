@@ -64,10 +64,10 @@ textarea,
      samoissa kulmissa samoilla väleillä. --u-max rajaa koon siihen, mikä
      mahtuu ruudulle (kosketusnäytöllä ohjaimet vievät tilaa). */
   --m: var(--u0);
-  --hud-scale: 1;
+  --hud-scale: 0.7;
   /* Oikea sarake: kireysmittari ja sen teksti (72), luotaimet (57) ja ohje
      (--help-h) allekkain; alarivi: tilapaneeli (92) ja ohje (--help-w)
-     vierekkäin. Ohjeen mitat HUD-pikseleinä asettaa Hud.setHelpMode. */
+     vierekkäin. Ohjeen mitat HUD-pikseleinä asettaa Hud.renderHelp. */
   --help-h: 78;
   --help-w: 211;
   --u-max: max(
@@ -245,6 +245,30 @@ textarea,
   right: calc(var(--m) * 4);
   bottom: calc(var(--m) * 4);
   align-items: flex-end;
+}
+
+/* Ohjeelle varattu tila luotainten alla: kaikki tässä tilassa mahdolliset rivit
+   (Hud.renderHelp). Tilanteen rivit kasvattavat ohjetta ylöspäin tähän tilaan,
+   joten luotaimet ja ilmoitukset eivät hypi. */
+.hud-help-slot {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-end;
+  min-height: var(--help-px);
+}
+
+.hud-help-slot[hidden] {
+  display: none;
+}
+
+.hud-help-slot > .hud-panel {
+  position: relative;
+}
+
+/* Juuri nyt oleellinen ohje (ukkonen, viehe maalla, sotku) korostettuna. */
+.hud-help-now {
+  color: #fff3b0;
 }
 
 .hud-help {
@@ -1525,6 +1549,10 @@ textarea,
 }
 
 /* Ohje yläosaan sään alle, ettei se peitä nappeja, joita se selittää. */
+.hud.touch .hud-help-slot:not([hidden]) {
+  display: contents;
+}
+
 .hud.touch .hud-help {
   position: absolute;
   left: 50%;

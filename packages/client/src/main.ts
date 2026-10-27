@@ -62,12 +62,12 @@ const retro = createRenderer(canvas, app);
 const input = new Input(canvas);
 const fps = new FpsMeter(app, import.meta.env.DEV);
 const hud = new Hud(app);
-/** Pelaajan valitsema HUDin koko, tallessa selaimessa. */
-let hudScale = loadHudScale();
-hud.setScale(hudScale);
-hud.setVisible(false);
 const touch = isTouchDevice() ? new TouchControls(hud.root, input) : null;
 hud.setTouch(touch !== null);
+/** Pelaajan valitsema HUDin koko, tallessa selaimessa. */
+let hudScale = loadHudScale(touch !== null);
+hud.setScale(hudScale);
+hud.setVisible(false);
 installErrorReporting();
 // Palvelimen ollessa kiinni tallentuneet palautteet.
 void flushFeedback();

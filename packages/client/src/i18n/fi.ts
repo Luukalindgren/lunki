@@ -428,9 +428,11 @@ export const fi = {
   'help.spectatorTouch1': 'Napauta: seuraava kalastaja',
   'help.spectatorTouch2': 'KAM vaihda näkymä',
   'help.touchTools': '+/− zoom · ? ohje · II tauko',
+  'help.touchToolsPov': '? ohje · II tauko',
   'help.spectator1': '←/→, A/D tai klikkaus: seuraava kalastaja',
   'help.spectator2': 'V vaihda näkymä',
   'help.keysTools': 'Rulla = zoom · H = ohje · Esc = tauko',
+  'help.keysToolsPov': 'H = ohje · Esc = tauko',
   'help.chatKey': 'Enter = viesti muille',
   'help.touch1': 'Tatti ylös = kohti räpylöitä · alas = selkä edellä (nopein)',
   'help.touch2': 'Tatti sivuille = käänny · reunaan asti = pikapotku (vie kuntoa)',
@@ -453,9 +455,11 @@ export const fi = {
   'help.keysLand': 'Viehe maalla tai laiturilla: C katkaisee siiman',
   'help.keysTangle': 'Sotkussa kelatkaa yhdessä · C katkaisee siiman',
   'help.keysFly': 'Perho: hiiri pohjassa ja alas = veto · F löysät kelalle',
+  'help.keysFlyReel': 'Kelalla: hiiri tai välilyönti pohjassa = kelaa · Q/E jarru',
   'help.keysFlyCast':
     'Perhoheitto: hiiri itseä kohti ja poispäin · oikea = nosta siima · P sivukuva',
   'help.touchFly': 'Perho: VETO vetää siimaa · NOSTA nostaa siiman uuteen heittoon',
+  'help.touchFlyReel': 'Kelalla: sormi järvellä tai KELAA = kelaa · JAR−/JAR+ jarru',
   'help.touchFlyCast':
     'Perhoheitto: pyyhkäise järvellä alas = takaheitto, ylös = eteenheitto · SIIMA pohjassa = siimakäsi',
   'sonar.depth': '{depth} m',

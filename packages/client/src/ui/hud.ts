@@ -4,6 +4,7 @@ import { CompassDisplay } from './compass';
 import { fishImage } from './fishArt';
 import { LureSonarDisplay } from './lureSonar';
 import { FlyCastPanel } from './flyCastPanel';
+import { hudBase } from './hudScale';
 import { SonarDisplay } from './sonar';
 import { onLangChange, t, type MsgKey } from '../i18n';
 
@@ -28,6 +29,16 @@ export class Hud {
   private readonly tensionLabel: HTMLDivElement;
   private readonly staminaLabel: HTMLDivElement;
   private readonly help: HTMLDivElement;
+  /** Ohjeelle varattu tila: tilanteen rivit eivät siirrä luotaimia. */
+  private readonly helpSlot: HTMLDivElement;
+  private helpContext: HelpContext = {
+    fly: false,
+    pov: false,
+    thunder: false,
+    land: false,
+    tangle: false,
+  };
+  private helpKey = '';
   private readonly stamina: HTMLDivElement;
   private readonly staminaFill: HTMLDivElement;
   private readonly timer: HTMLDivElement;
@@ -62,6 +73,8 @@ export class Hud {
   private spectator = false;
   /** Kosketusohjaus: ohjeessa napit näppäinten sijaan. */
   private touch = false;
+  /** Taukovalikon kokovalitsimen arvo (1 = 100 %). */
+  private scale = 1;
 
   get touchMode(): boolean {
     return this.touch;
@@ -94,6 +107,8 @@ export class Hud {
     this.stamina.append(this.staminaLabel, bar);
     this.stamina.hidden = true;
     this.help = el('div', 'hud-help hud-panel');
+    this.helpSlot = el('div', 'hud-help-slot');
+    this.helpSlot.appendChild(this.help);
     this.timer = el('div', 'hud-timer hud-panel');
     this.weather = el('div', 'hud-weather hud-panel');
     this.catches = el('div', 'hud-catches hud-panel');
@@ -116,7 +131,7 @@ export class Hud {
     // alakulmassa ovat ohjaimet, joten ne nousevat kireysmittarin alle.
     const bottomRight = el('div', 'hud-bottom-right');
     this.gauges = el('div', 'hud-gauges');
-    bottomRight.append(this.gauges, this.help);
+    bottomRight.append(this.gauges, this.helpSlot);
     this.root.appendChild(bottomRight);
     this.sonar = new SonarDisplay(this.gauges);
     this.lureSonar = new LureSonarDisplay(this.gauges);
@@ -183,7 +198,8 @@ export class Hud {
 
   /** Pelaajan valitsema HUDin koko (taukovalikon kokovalitsin), 1 = oletus. */
   setScale(scale: number): void {
-    this.root.style.setProperty('--hud-scale', String(scale));
+    this.scale = scale;
+    this.root.style.setProperty('--hud-scale', String(scale * hudBase(this.touch)));
   }
 
   /**
@@ -192,7 +208,7 @@ export class Hud {
    */
   effectiveScale(): number | null {
     const m = this.probeM.getBoundingClientRect().width;
-    return m > 0 ? this.probeU.getBoundingClientRect().width / m : null;
+    return m > 0 ? this.probeU.getBoundingClientRect().width / m / hudBase(this.touch) : null;
   }
 
   setStatus(lines: string[]): void {
@@ -327,6 +343,7 @@ export class Hud {
   setTouch(touch: boolean): void {
     this.touch = touch;
     this.root.classList.toggle('touch', touch);
+    this.setScale(this.scale);
     // Kosketuksella tila vasempaan pinoon, alhaalla ovat ohjaimet.
     if (touch) this.topLeft.appendChild(this.status);
     else this.root.insertBefore(this.status, this.root.firstChild!.nextSibling);
@@ -336,7 +353,7 @@ export class Hud {
     // Perhoheiton sivukuva: kosketuksella renkaan alle, jotta se ei peitä siimaa.
     if (touch) this.root.insertBefore(this.flyPanel.root, this.notices);
     else this.lureSonar.root.after(this.flyPanel.root);
-    this.help.hidden = touch;
+    this.helpSlot.hidden = touch;
     this.setHelpMode(this.multiplayer, this.spectator);
     this.updateHelpOpen();
     this.measureEdges();
@@ -350,58 +367,83 @@ export class Hud {
     this.root.classList.toggle('mp', multiplayer);
     // Katsojalla ei ole omaa siimaa: luotaimet ja kireysmittari piiloon (#280).
     this.root.classList.toggle('spectator', spectator);
-    const lines: MsgKey[] = spectator
-      ? this.touch
-        ? ['help.spectatorTouch1', 'help.spectatorTouch2', 'help.touchTools']
-        : ['help.spectator1', 'help.spectator2', 'help.keysTools', 'help.chatKey']
-      : this.touch
-        ? [
-            'help.touch1',
-            'help.touch2',
-            'help.touch3',
-            'help.touch4',
-            'help.touch5',
-            'help.touch6',
-            'help.touch7',
-            'help.touchFly',
-            'help.touchFlyCast',
-            'help.touchTools',
-            'help.thunder',
-            'help.touchLand',
-            ...(multiplayer ? (['help.touchTangle', 'help.touchChat'] as const) : []),
-          ]
-        : [
-            'help.keys1',
-            'help.keys2',
-            'help.keysSpace',
-            'help.keys3',
-            'help.keys4',
-            'help.keys5',
-            'help.keys6',
-            'help.keysFly',
-            'help.keysFlyCast',
-            'help.keysTools',
-            'help.thunder',
-            'help.keysLand',
-            ...(multiplayer ? (['help.keysTangle', 'help.chatKey'] as const) : []),
-          ];
-    const text = lines.map((k) => t(k));
-    this.help.textContent = text.join('\n');
-    // Ohjeen koko HUD-pikseleinä (rivi 8, merkki 3,2 + täyte ja kehys 6):
+    this.renderHelp();
+  }
+
+  /**
+   * Pelitilanne ohjeelle: vain valitun välineen ohjeet, ja ukkosen, vieheen
+   * maalla ja sotkun ohjeet vain niiden aikana. Kutsutaan joka ruudulla.
+   */
+  setHelpContext(context: HelpContext): void {
+    const c = this.helpContext;
+    if (
+      c.fly === context.fly &&
+      c.pov === context.pov &&
+      c.thunder === context.thunder &&
+      c.land === context.land &&
+      c.tangle === context.tangle
+    )
+      return;
+    this.helpContext = { ...context };
+    this.renderHelp();
+  }
+
+  private renderHelp(): void {
+    const keys = this.touch ? HELP.touch : HELP.keys;
+    const mp = this.multiplayer;
+    const c = this.helpContext;
+    // Zoom toimii vain ylhäältä katsottaessa.
+    const tail: MsgKey[] = [c.pov ? keys.toolsPov : keys.tools, ...(mp ? [keys.chat] : [])];
+    // Kaikki tässä tilassa mahdolliset rivit: niiden mukaan varataan tila.
+    let bases: (readonly MsgKey[])[];
+    let situational: MsgKey[];
+    let now: MsgKey[];
+    let base: readonly MsgKey[];
+    if (this.spectator) {
+      bases = [keys.spectator];
+      base = keys.spectator;
+      situational = now = [];
+    } else {
+      bases = [keys.spin, keys.fly];
+      base = c.fly ? keys.fly : keys.spin;
+      situational = [keys.thunder, keys.land, ...(mp ? [keys.tangle] : [])];
+      now = [
+        ...(c.thunder ? [keys.thunder] : []),
+        ...(c.land ? [keys.land] : []),
+        ...(c.tangle && mp ? [keys.tangle] : []),
+      ];
+    }
+    const key = [...now, ...base, ...tail].join() + t('help.keys1');
+    if (key === this.helpKey) return;
+    this.helpKey = key;
+    // Tilanteen rivit ylimpänä korostettuina: ohje kasvaa ylöspäin varattuun tilaan.
+    const line = (k: MsgKey, current: boolean) => {
+      const row = el('div', current ? 'hud-help-now' : '');
+      row.textContent = t(k);
+      return row;
+    };
+    this.help.replaceChildren(
+      ...now.map((k) => line(k, true)),
+      ...[...base, ...tail].map((k) => line(k, false)),
+    );
+    // Varatun tilan koko HUD-pikseleinä (rivi 8, merkki 3,2 + täyte ja kehys 6):
     // tyylitiedosto rajaa HUDin koon niin, että ohje mahtuu luotainten alle.
-    const cols = Math.max(...text.map((l) => l.length));
-    this.root.style.setProperty('--help-h', String(6 + 8 * text.length));
+    // Koko ei muutu tilanteen mukana, joten HUD ei hypi.
+    const rows = Math.max(...bases.map((b) => b.length)) + situational.length + tail.length;
+    const all = [...bases.flat(), ...situational, ...tail, keys.tools].map((k) => t(k));
+    const cols = Math.max(...all.map((l) => l.length));
+    this.root.style.setProperty('--help-h', String(6 + 8 * rows));
     this.root.style.setProperty('--help-w', String(Math.ceil(6 + 3.2 * cols)));
   }
 
   toggleHelp(): void {
-    this.help.hidden = !this.help.hidden;
+    this.helpSlot.hidden = !this.helpSlot.hidden;
     this.updateHelpOpen();
   }
 
   /** Työpöydän ohje alhaalla: ilmoitukset sen yläpuolelle. */
   private updateHelpOpen(): void {
-    this.root.classList.toggle('help-open', !this.help.hidden && !this.touch);
+    this.root.classList.toggle('help-open', !this.helpSlot.hidden && !this.touch);
   }
 
   showMessage(text: string, seconds = 2.5): void {
@@ -444,6 +486,81 @@ export class Hud {
     }
   }
 }
+
+/** Pelitilanne, jonka mukaan ohje näyttää vain oleelliset rivit. */
+export interface HelpContext {
+  /** Perhovälineet (muuten virveli). */
+  fly: boolean;
+  /** Kalastajan näkymä: zoomia ei ole. */
+  pov: boolean;
+  /** Ukkonen tai myrsky päällä tai tulossa. */
+  thunder: boolean;
+  /** Viehe maalla tai laiturilla. */
+  land: boolean;
+  /** Siimat sotkussa toisen kalastajan kanssa. */
+  tangle: boolean;
+}
+
+/** Ohjeen rivit näppäimistölle ja kosketukselle. */
+const HELP = {
+  keys: {
+    spin: [
+      'help.keys1',
+      'help.keys2',
+      'help.keysSpace',
+      'help.keys3',
+      'help.keys4',
+      'help.keys5',
+      'help.keys6',
+    ],
+    fly: [
+      'help.keys1',
+      'help.keysFlyCast',
+      'help.keysFly',
+      'help.keysFlyReel',
+      'help.keys5',
+      'help.keys6',
+    ],
+    spectator: ['help.spectator1', 'help.spectator2'],
+    tools: 'help.keysTools',
+    toolsPov: 'help.keysToolsPov',
+    thunder: 'help.thunder',
+    land: 'help.keysLand',
+    tangle: 'help.keysTangle',
+    chat: 'help.chatKey',
+  },
+  touch: {
+    spin: [
+      'help.touch1',
+      'help.touch2',
+      'help.touch3',
+      'help.touch4',
+      'help.touch5',
+      'help.touch6',
+      'help.touch7',
+    ],
+    fly: [
+      'help.touch1',
+      'help.touch2',
+      'help.touchFlyCast',
+      'help.touchFly',
+      'help.touchFlyReel',
+      'help.touch6',
+      'help.touch7',
+    ],
+    spectator: ['help.spectatorTouch1', 'help.spectatorTouch2'],
+    tools: 'help.touchTools',
+    toolsPov: 'help.touchToolsPov',
+    thunder: 'help.thunder',
+    land: 'help.touchLand',
+    tangle: 'help.touchTangle',
+    chat: 'help.touchChat',
+  },
+} as const satisfies Record<
+  'keys' | 'touch',
+  Record<'spin' | 'fly' | 'spectator', readonly MsgKey[]> &
+    Record<'tools' | 'toolsPov' | 'thunder' | 'land' | 'tangle' | 'chat', MsgKey>
+>;
 
 function el(tag: 'div', className: string): HTMLDivElement {
   const e = document.createElement(tag);
