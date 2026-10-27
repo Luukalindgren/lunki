@@ -55,9 +55,13 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="apple-mobile-web-app-title" content="Lunkinjärvi" />
     <link rel="stylesheet" href="/src/style.css" />
+    <!-- Ilman JavaScriptiä latausnäkymä ei koskaan poistuisi. -->
+    <!-- prettier-ignore -->
+    <noscript><style>#boot-loader { display: none; }</style></noscript>
   </head>
   <body>
     <div id="app"></div>
+    <!-- latausnäkymä -->
     <!-- Hakukoneelle ja ilman JavaScriptiä avaavalle sama esittely tekstinä. -->
     <noscript>
       <main style="max-width: 36em; margin: 2em auto; padding: 0 1em; color: #e8e2d0">

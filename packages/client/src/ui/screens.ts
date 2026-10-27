@@ -67,6 +67,7 @@ import { SPECIES_PIN_COLORS, formatDate, recordDetails, recordTitle } from './re
 import { drawTubePreview } from './tubePreview';
 import { SPECIES_VERSION, migrateSpecies } from './speciesSettings';
 import { MenuNav } from './menuNav';
+import { createLoader } from './loader';
 import { VOLUME_LEVELS, type AudioSettings, type VolumeLevel } from '../audio/settings';
 import { MUSIC_CHOICES, type MusicChoice } from '../audio/music';
 import { DEFAULT_HUD_SCALE, HUD_SCALES } from './hudScale';
@@ -422,9 +423,10 @@ export class Screens {
     el.classList.toggle('ok', ok);
   }
 
-  showMessage(title: string, text: string, onCancel?: () => void): void {
+  /** Odotus palvelimen vastausta: otsikko, latausanimaatio ja teksti. */
+  showLoading(title: string, text: string, onCancel?: () => void): void {
     const panel = this.panel('message');
-    panel.append(h('h2', title), h('p', text));
+    panel.append(h('h2', title), createLoader(), h('p', text));
     if (onCancel) panel.append(this.buttons([[t('common.cancel'), onCancel]]));
     this.show(panel, onCancel ? { back: onCancel } : {});
   }
