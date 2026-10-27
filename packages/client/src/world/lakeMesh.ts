@@ -124,8 +124,6 @@ function createReedTexture(): THREE.Texture {
 
 /** Vesikuvion yhden toiston koko (m): UV-koordinaatit ovat metrejä / tämä. */
 const WATER_TEXTURE_METERS = 32;
-/** Pohjakuvion ruutu (m): kussakin yksi viiva. */
-const BASE_CELL = 2.2;
 
 /** Veden aaltoilun kello (s); päivitetään pelisilmukasta. */
 export const waterTime = { value: 0 };
@@ -215,6 +213,35 @@ ${DEPTH_SHADE_GLSL}
 float waterHash(vec2 p) {
   return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
 }
+// Sileä arvokohina 0–1: pohjakuvion tiheät ja harvat laikut.
+float waterNoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(
+    mix(waterHash(i), waterHash(i + vec2(1.0, 0.0)), f.x),
+    mix(waterHash(i + vec2(0.0, 1.0)), waterHash(i + vec2(1.0, 1.0)), f.x),
+    f.y);
+}
+// Pohjakuvion yksi kerros: ruudussa on viiva todennäköisyydellä chance,
+// satunnaisessa kohdassa, satunnaisen pituinen ja hieman vino. Palauttaa
+// x = viiva (0/1), y = vaalea (1) vai tumma (0).
+vec2 waterDash(vec2 p, float cell, float seed, float chance, vec2 dir, float t) {
+  vec2 c = floor(p / cell);
+  float h = waterHash(c + seed);
+  float h2 = waterHash(c.yx + seed * 1.7 + 7.3);
+  if (h > chance) return vec2(0.0);
+  vec2 l = p - (c + 0.2 + 0.6 * vec2(fract(h * 31.0), h2)) * cell;
+  float tilt = (fract(h2 * 17.0) - 0.5) * 0.4;
+  vec2 along = vec2(-dir.y, dir.x) + dir * tilt;
+  float a = dot(l, along);
+  float across = dot(l, dir - vec2(-dir.y, dir.x) * tilt)
+    + 0.12 * sin(a * 2.2 + uWaterTime * 1.1 + h2 * 6.28);
+  float r = fract(h * 13.0);
+  float halfLen = 0.15 + 0.6 * r * r;
+  float on = step(abs(a), halfLen) * step(abs(across), t);
+  return vec2(on, step(fract(h2 * 7.0), 0.6));
+}
 `;
     shader.vertexShader = (SWELL_VERTEX_HEADER + shader.vertexShader)
       .replace(
@@ -262,16 +289,14 @@ float waterHash(vec2 p) {
         // Viiva on vähintään pikselin paksuinen; kaukana viivoja harvennetaan,
         // jotteivät alle pikselin kuviot välky.
         float bt = clamp(bPix * 0.6, 0.12, 0.6);
-        vec2 bCell = floor(bxy / ${BASE_CELL.toFixed(1)});
-        float bh = waterHash(bCell + 0.5);
-        float bh2 = waterHash(bCell.yx + 7.3);
-        vec2 bl = bxy - (bCell + 0.3 + 0.4 * vec2(bh, bh2)) * ${BASE_CELL.toFixed(1)};
-        float bAlong = dot(bl, crestDir);
-        float bAcross = dot(bl, uWaveDir) + 0.12 * sin(bAlong * 2.2 + uWaterTime * 1.1 + bh * 6.28);
-        float bHalf = 0.25 + 0.4 * fract(bh * 13.0);
-        float bShown = step(fract(bh * 29.0), 1.0 - smoothstep(0.3, 0.7, bPix));
-        float bDash = step(abs(bAlong), bHalf) * step(abs(bAcross), bt) * bShown;
-        vec3 bColor = fract(bh2 * 7.0) < 0.6 ? vec3(0.024, 0.195, 0.381) : vec3(0.006, 0.042, 0.107);
+        float thin = 1.0 - smoothstep(0.3, 0.7, bPix);
+        // Kaksi eri kokoista ruudukkoa päällekkäin ja laikuittain vaihteleva
+        // tiheys: viivoissa ei näy säännöllisiä välejä.
+        float patchy = 0.3 + 1.1 * pow(waterNoise(bxy / 17.0 + 3.1), 1.5);
+        vec2 d1 = waterDash(bxy, 2.6, 0.0, 0.7 * patchy * thin, uWaveDir, bt);
+        vec2 d2 = waterDash(bxy + vec2(0.9, 1.3), 1.7, 41.0, 0.35 * patchy * thin, uWaveDir, bt);
+        float bDash = max(d1.x, d2.x);
+        vec3 bColor = (d1.x > 0.5 ? d1.y : d2.y) > 0.5 ? vec3(0.024, 0.195, 0.381) : vec3(0.006, 0.042, 0.107);
         sampledDiffuseColor.rgb = mix(sampledDiffuseColor.rgb, bColor, bDash);
       }
       vec2 depthXY = (floor(waterXY / ${DEPTH_PIXEL.toFixed(1)}) + 0.5) * ${DEPTH_PIXEL.toFixed(1)};
