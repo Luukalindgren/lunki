@@ -23,7 +23,19 @@ describe('HUDin koko', () => {
   });
 
   it('tuntematon arvo palaa oletukseen', () => {
-    localStorage.setItem('lunki.hudScale', '7');
+    localStorage.setItem('lunki.hudSize', '7');
     expect(loadHudScale()).toBe(DEFAULT_HUD_SCALE);
+  });
+
+  it('vanha asetus säilyttää koon: vanha 70 % on uusi 100 %', () => {
+    localStorage.setItem('lunki.hudScale', '0.7');
+    expect(loadHudScale()).toBe(1);
+    localStorage.setItem('lunki.hudScale', '1');
+    expect(loadHudScale()).toBe(1.5);
+    // Puhelimella 100 % ei muuttunut.
+    expect(loadHudScale(true)).toBe(1);
+    // Uusi asetus voittaa vanhan.
+    saveHudScale(0.8);
+    expect(loadHudScale()).toBe(0.8);
   });
 });
