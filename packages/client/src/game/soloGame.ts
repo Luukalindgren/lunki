@@ -523,6 +523,16 @@ export class SoloGame {
     this.pov.setResolution(r);
   }
 
+  /** Kalastajan silmin -näkymän näkökenttä (pysty-FOV asteina, #330). */
+  setPovFov(fov: number): void {
+    this.pov.setFov(fov);
+  }
+
+  /** Toteutunut pysty-FOV tällä ruudulla. */
+  get povFov(): number {
+    return this.pov.camera.fov;
+  }
+
   /** announce = false: ei ilmoitusta (kisan alussa näkymä vain asetetaan). */
   setViewMode(mode: 'top' | 'pov', announce = true): void {
     this.viewMode = mode;

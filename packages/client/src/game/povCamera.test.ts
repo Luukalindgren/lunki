@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { snapAngle, steadyRoll } from './povCamera';
+import { PovCamera, snapAngle, steadyRoll } from './povCamera';
 
 describe('POV-kameran vakautus', () => {
   const step = 0.01;
@@ -31,5 +31,23 @@ describe('POV-kameran vakautus', () => {
     expect(steadyRoll(-0.01)).toBe(-0);
     expect(steadyRoll(0.1)).toBeCloseTo(0.085);
     expect(steadyRoll(-0.1)).toBeCloseTo(-0.085);
+  });
+});
+
+describe('POV-kameran näkökenttä (#330)', () => {
+  it('pikselin koko kasvaa näkökentän mukana', () => {
+    const pov = new PovCamera();
+    pov.setResolution({ width: 480, height: 270, scale: 4 });
+    expect(pov.camera.fov).toBe(72);
+    const narrow = pov.pixelSize;
+    pov.setFov(90);
+    expect(pov.camera.fov).toBe(90);
+    expect(pov.pixelSize).toBeGreaterThan(narrow * 1.3);
+  });
+
+  it('pystyruudulla kuvaa levennetään oletuksellakin', () => {
+    const pov = new PovCamera();
+    pov.setResolution({ width: 180, height: 390, scale: 2 });
+    expect(pov.camera.fov).toBeGreaterThan(90);
   });
 });

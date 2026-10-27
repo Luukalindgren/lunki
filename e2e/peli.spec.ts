@@ -150,6 +150,40 @@ test.describe('yksinpeli', () => {
     errors.check();
   });
 
+  test('näkökentän säädin taukovalikosta ja asetuksista (#330)', async ({ page, isMobile }) => {
+    const errors = watchErrors(page);
+    await startSolo(page, 'pov');
+    const canvas = page.locator('canvas.game-canvas');
+    const label = page.locator('label[for=pov-fov]');
+    // Pystypuhelimella kuvaa levennetään jo oletuksella.
+    if (isMobile) {
+      await expect
+        .poll(async () => Number(await canvas.getAttribute('data-pov-fov')))
+        .toBeGreaterThan(90);
+      return errors.check();
+    }
+    await expect(canvas).toHaveAttribute('data-pov-fov', '72');
+
+    await page.keyboard.press('Escape');
+    await expect(label).toHaveText('Näkökenttä 72°');
+    const slider = page.locator('#pov-fov');
+    await slider.focus();
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowRight');
+    await expect(label).toHaveText('Näkökenttä 80°');
+    await expect(canvas).toHaveAttribute('data-pov-fov', '80');
+    await page.getByRole('button', { name: 'Jatka' }).click();
+
+    // Valinta säilyy uudelleenlatauksen yli ja näkyy päävalikon asetuksissa.
+    await startSolo(page, 'pov');
+    await expect(canvas).toHaveAttribute('data-pov-fov', '80');
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Asetukset' }).click();
+    await expect(label).toHaveText('Näkökenttä 80°');
+    await expect(page.getByText('Tehosteet')).toBeVisible();
+    errors.check();
+  });
+
   test('järvikartta', async ({ page }) => {
     const errors = watchErrors(page);
     await page.goto('/');

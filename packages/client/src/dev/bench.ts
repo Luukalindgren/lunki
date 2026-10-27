@@ -80,6 +80,7 @@ export class Bench {
       renderMsPerFrame: +(this.renderMs / sorted.length).toFixed(3),
       raceBuildMs: +this.raceStart.buildMs.toFixed(1),
       raceCompileMs: +this.raceStart.compileMs.toFixed(1),
+      povFov: Math.round(this.game.povFov),
       drawCalls: info.render.calls,
       triangles: info.render.triangles,
       internal: `${width}×${height} ×${scale}`,

@@ -72,6 +72,7 @@ import { createLoader } from './loader';
 import { VOLUME_LEVELS, type AudioSettings, type VolumeLevel } from '../audio/settings';
 import { MUSIC_CHOICES, type MusicChoice } from '../audio/music';
 import { DEFAULT_HUD_SCALE, HUD_SCALES } from './hudScale';
+import { DEFAULT_POV_FOV, POV_FOVS } from './povFov';
 import {
   escapeLeavesFullscreen,
   fullscreenButton,
@@ -258,7 +259,7 @@ export class Screens {
     onMultiplayer: () => void;
     onLakeMap: () => void;
     onRecords: () => void;
-    onAudio: () => void;
+    onSettings: () => void;
     onFeedback: () => void;
     onCredits: () => void;
     /** Kieli vaihtui: valikko piirretään uudelleen. */
@@ -275,7 +276,7 @@ export class Screens {
       [t('menu.multiplayer'), actions.onMultiplayer],
       [t('menu.lakeMap'), actions.onLakeMap],
       [t('menu.records'), actions.onRecords],
-      [t('menu.audio'), actions.onAudio],
+      [t('menu.settings'), actions.onSettings],
       [t('menu.feedback'), actions.onFeedback],
       [t('menu.credits'), actions.onCredits],
     ]);
@@ -635,15 +636,21 @@ export class Screens {
   }
 
   /** Äänenvoimakkuudet alkuvalikosta. */
-  showAudio(
-    current: AudioSettings,
-    onChange: (a: AudioSettings) => void,
+  /** Päävalikon asetukset: äänet ja kalastajan silmin -näkymän näkökenttä. */
+  showSettings(
+    audio: { current: AudioSettings; onChange: (a: AudioSettings) => void },
+    povFov: {
+      current: number;
+      onChange: (fov: number) => void;
+      effective: (fov: number) => number;
+    },
     onBack: () => void,
   ): void {
-    const panel = this.panel('audio');
+    const panel = this.panel('settings');
     panel.append(
-      h('h2', t('audio.title')),
-      this.audioEditor(current, onChange),
+      h('h2', t('menu.settings')),
+      this.audioEditor(audio.current, audio.onChange),
+      this.povFovSlider(povFov),
       this.buttons([[t('common.back'), onBack]]),
     );
     this.show(panel, { back: onBack });
@@ -696,7 +703,7 @@ export class Screens {
 
   /** HUDin koko portaittaisella liukusäätimellä (HUD_SCALES). */
   private hudSizeSlider({
-    current: initial,
+    current,
     onChange,
     effective,
   }: {
@@ -704,36 +711,92 @@ export class Screens {
     onChange: (scale: number) => void;
     effective: () => number | null;
   }): HTMLElement {
+    return this.stepSlider({
+      id: 'hud-size',
+      steps: HUD_SCALES,
+      current,
+      fallback: DEFAULT_HUD_SCALE,
+      onChange,
+      ends: ['A', 'A'],
+      label: (scale) => {
+        const pct = Math.round(scale * 100);
+        // Ruudulle mahtuu vain pienempi: kerrotaan, ettei liukusäädin näytä jumittuvan.
+        const fits = effective();
+        return fits !== null && fits < scale - 0.01
+          ? t('pause.hudSizeCapped', { pct, fits: Math.round(fits * 100) })
+          : t('pause.hudSize', { pct });
+      },
+    });
+  }
+
+  /** Kalastajan silmin -näkymän näkökenttä (#330). */
+  private povFovSlider({
+    current,
+    onChange,
+    effective,
+  }: {
+    current: number;
+    onChange: (fov: number) => void;
+    /** Toteutunut pysty-FOV tällä ruudulla valinnalla `fov`. */
+    effective: (fov: number) => number;
+  }): HTMLElement {
+    return this.stepSlider({
+      id: 'pov-fov',
+      steps: POV_FOVS,
+      current,
+      fallback: DEFAULT_POV_FOV,
+      onChange,
+      ends: ['-', '+'],
+      label: (fov) => {
+        // Kapea tai hyvin leveä ruutu muuttaa arvoa: näytetään toteutunut.
+        const fits = Math.round(effective(fov));
+        return fits !== fov ? t('pause.fovCapped', { fov, fits }) : t('pause.fov', { fov });
+      },
+    });
+  }
+
+  /** Portaittainen liukusäädin retrotyyliin: otsikko, päätymerkit ja portaat. */
+  private stepSlider({
+    id,
+    steps,
+    current,
+    fallback,
+    onChange,
+    label: describe,
+    ends: [smallEnd, bigEnd],
+  }: {
+    id: string;
+    steps: readonly number[];
+    current: number;
+    fallback: number;
+    onChange: (value: number) => void;
+    label: (value: number) => string;
+    ends: [string, string];
+  }): HTMLElement {
     const row = document.createElement('div');
-    row.className = 'choice hud-size';
+    row.className = `choice hud-size ${id}`;
     const label = h('label', '', 'choice-label') as HTMLLabelElement;
     const slider = document.createElement('input');
     slider.type = 'range';
     slider.min = '0';
-    slider.max = String(HUD_SCALES.length - 1);
+    slider.max = String(steps.length - 1);
     slider.step = '1';
-    const index = HUD_SCALES.indexOf(initial);
-    slider.value = String(index >= 0 ? index : HUD_SCALES.indexOf(DEFAULT_HUD_SCALE));
-    slider.id = 'hud-size';
+    const index = steps.indexOf(current);
+    slider.value = String(index >= 0 ? index : steps.indexOf(fallback));
+    slider.id = id;
     label.htmlFor = slider.id;
-    const scale = () => HUD_SCALES[Number(slider.value)] ?? DEFAULT_HUD_SCALE;
+    const value = () => steps[Number(slider.value)] ?? fallback;
     const relabel = () => {
-      const pct = Math.round(scale() * 100);
-      // Ruudulle mahtuu vain pienempi: kerrotaan, ettei liukusäädin näytä jumittuvan.
-      const fits = effective();
-      const capped = fits !== null && fits < scale() - 0.01;
-      label.textContent = capped
-        ? t('pause.hudSizeCapped', { pct, fits: Math.round(fits * 100) })
-        : t('pause.hudSize', { pct });
+      label.textContent = describe(value());
       slider.setAttribute('aria-valuetext', label.textContent);
     };
     relabel();
     slider.addEventListener('input', () => {
-      onChange(scale());
+      onChange(value());
       relabel();
     });
-    const small = h('span', 'A', 'hud-size-end small');
-    const big = h('span', 'A', 'hud-size-end');
+    const small = h('span', smallEnd, 'hud-size-end small');
+    const big = h('span', bigEnd, 'hud-size-end');
     const track = document.createElement('div');
     track.className = 'hud-size-track';
     track.append(small, slider, big);
@@ -999,6 +1062,11 @@ export class Screens {
       /** Toteutunut koko, kun ruudulle ei mahdu valittua (null = ei tiedossa). */
       effective: () => number | null;
     },
+    povFov?: {
+      current: number;
+      onChange: (fov: number) => void;
+      effective: (fov: number) => number;
+    },
   ): void {
     const panel = this.panel('pause');
     panel.append(
@@ -1008,6 +1076,7 @@ export class Screens {
       ...(tackle ? [this.tackleEditor(tackle.current, tackle.onChange, 'during')] : []),
       ...(audio ? [this.audioEditor(audio.current, audio.onChange)] : []),
       ...(hudSize ? [this.hudSizeSlider(hudSize)] : []),
+      ...(povFov ? [this.povFovSlider(povFov)] : []),
       ...this.homeScreenHint(),
       // Firefox ja Safari eivät anna Escin jäädä peliin koko näytöllä.
       ...(escapeLeavesFullscreen() ? [h('p', t('fullscreen.escHint'), 'hint')] : []),

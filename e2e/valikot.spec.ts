@@ -60,6 +60,8 @@ test.describe('valikot näppäimistöllä (#237)', () => {
     await expect(title(page)).toHaveText('Tauko');
     await expect.poll(() => focused(page)).toBe('Jatka');
     await page.keyboard.press('ArrowUp');
+    await expect.poll(() => page.evaluate(() => document.activeElement?.id)).toBe('pov-fov');
+    await page.keyboard.press('ArrowUp');
     await expect.poll(() => page.evaluate(() => document.activeElement?.id)).toBe('hud-size');
     // Liukusäädin liikkuu myös h- ja l-näppäimillä.
     const slider = page.locator('#hud-size');
@@ -68,6 +70,7 @@ test.describe('valikot näppäimistöllä (#237)', () => {
     await expect(slider).not.toHaveValue(size);
     await page.keyboard.press('h');
     await expect(slider).toHaveValue(size);
+    await page.keyboard.press('ArrowDown');
     await page.keyboard.press('ArrowDown');
     await expect.poll(() => focused(page)).toBe('Jatka');
     // Välilyönti valikossa ei heitä taustalla.
