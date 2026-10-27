@@ -54,6 +54,7 @@ export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THR
     new THREE.MeshLambertMaterial({ color: 0x1c232b }),
   );
   apron.position.set(apronTo / 2, 0.32, 0);
+  apron.name = 'apron';
   group.add(apron);
 
   // Hartiat poikittain katsesuuntaan nähden
@@ -86,6 +87,7 @@ export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THR
   for (const z of [-0.2, 0.2]) {
     const leg = new THREE.Mesh(new THREE.BoxGeometry(TUBE_RADIUS - 0.1, 0.14, 0.14), legMat);
     leg.position.set((TUBE_RADIUS + 0.2) / 2, 0.12, z);
+    leg.name = 'leg';
     group.add(leg);
     const fin = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.05, 0.22), finMat);
     fin.position.set(FIN_X, 0.05, z);
@@ -193,6 +195,16 @@ export function animateEmote(group: THREE.Group, emote: EmoteId | null, t: numbe
     }
   }
 }
+
+/** Veneessä kalastaja istuu tuhdolla näin paljon renkaan istuinta ylempänä (m). */
+export const SEATED_LIFT = 0.3;
+
+/** Venekisassa kalastaja istuu veneessä: ei rengasta, räpylöitä eikä sääriä (#263). */
+export function setSeated(group: THREE.Group, seated: boolean): void {
+  for (const child of group.children) if (TUBE_PARTS.has(child.name)) child.visible = !seated;
+}
+
+const TUBE_PARTS = new Set(['tube', 'fin', 'apron', 'leg']);
 
 /** Heiluttaa räpylöitä potkurytmin mukaan. */
 export function animateFins(group: THREE.Group, kickPhase: number): void {

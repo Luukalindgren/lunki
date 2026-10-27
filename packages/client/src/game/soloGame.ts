@@ -28,6 +28,7 @@ import {
   resolveStrike,
   distance,
   BIG_WAVE,
+  BOAT_WAVE_FACTOR,
   bigWaveDir,
   bigWaveHeight,
   capsizes,
@@ -131,7 +132,8 @@ import { PovTube } from './povTube';
 import { loadTackle, nextLure, saveTackle } from './tackle';
 import { TopDownCamera } from './topDownCamera';
 import { QuietSpot } from './quietSpot';
-import { animateEmote, animateFins, createTubeMesh } from './tubeMesh';
+import { SEATED_LIFT, animateEmote, animateFins, createTubeMesh, setSeated } from './tubeMesh';
+import { BoatsView } from './boatView';
 import { SpeechBubble, type BubbleContent } from './speechBubble';
 import { screenAnchor } from './screenAnchor';
 import { EmoteMenu } from '../ui/emoteMenu';
@@ -247,6 +249,10 @@ export class SoloGame {
   /** Yksinpelin saalis yksinpelin ennätyslistalle (moninpelissä palvelin punnitsee itse). */
   onSoloCatch: ((entry: Omit<RecordEntry, 'date' | 'at' | 'angler'>) => void) | null = null;
   private readonly remoteView: RemotePlayersView | null = null;
+  /** Venekisan veneet (#263), myös oma. */
+  private readonly boatsView: BoatsView | null = null;
+  /** Venekisassa yritys soutaa, kun soutaminen ei käy: tilanneohje. */
+  private rowHint: string | null = null;
   private readonly hemi = new THREE.HemisphereLight(0xeef2f3, 0x24502c, 1.5);
   private readonly sun = new THREE.DirectionalLight(0xfff3b0, 1.5);
   readonly weather: WeatherView;
@@ -431,6 +437,8 @@ export class SoloGame {
     if (net) {
       this.remoteView = new RemotePlayersView(net.overlay, this.hud.root);
       this.scene.add(this.remoteView.group);
+      this.boatsView = new BoatsView();
+      this.scene.add(this.boatsView.group);
       net.world.onEmote = (m) => {
         this.remoteView?.showEmote(m.from, m.emote);
         const who = net.world.others().find((o) => o.id === m.from);
@@ -691,9 +699,12 @@ export class SoloGame {
     this.bigWaveLift = until !== null ? 0.5 * SWELL_GAIN * h * Math.exp(-((until / 0.8) ** 2)) : 0;
     if (!next || next.t - now > BIG_WAVE.warning || this.warnedWave === this.nextWave) return;
     this.warnedWave = this.nextWave;
-    if (height(next) >= BIG_WAVE.capsizeHeight)
+    // Vene kaatuu vasta korkeammasta aallosta (#263).
+    if (height(next) >= BIG_WAVE.capsizeHeight * (this.inBoat ? BOAT_WAVE_FACTOR : 1))
       this.hud.showMessage(
-        t('game.bigWave', { from: windFrom(bigWaveDir(next, w.windDir)) }),
+        t(this.inBoat ? 'game.bigWaveBoat' : 'game.bigWave', {
+          from: windFrom(bigWaveDir(next, w.windDir)),
+        }),
         3,
         'alert',
       );
@@ -799,7 +810,7 @@ export class SoloGame {
     const penalty = this.punish(kind, t('game.capsizeTimeOut'));
     // Syy ja ohje kumossa-ajastimen alle; jäähy näkyy omana rivinään.
     this.setPenaltyNote(
-      `${t(cause === 'wave' ? 'game.capsized' : this.flight ? 'game.spoutGrabbed' : 'game.spoutTipped')} ${t(cause === 'wave' ? 'game.capsizeHint' : this.flight ? 'game.flightHint' : 'game.spoutHint')}`,
+      `${t(cause === 'wave' ? 'game.capsized' : this.flight ? 'game.spoutGrabbed' : 'game.spoutTipped')} ${t(cause === 'wave' ? (this.inBoat ? 'game.capsizeHintBoat' : 'game.capsizeHint') : this.flight ? 'game.flightHint' : 'game.spoutHint')}`,
       kind === 'lose-catch' ? penalty : '',
     );
   }
@@ -925,6 +936,12 @@ export class SoloGame {
               ? LureStage.water
               : LureStage.none;
       const tubeInput = frozen || capsized ? still : readTubeInput(c);
+      const w = this.net.world;
+      // Venekisa: kyytiläinen ei soua, eikä soutaja soua viehe vedessä (#263).
+      this.rowHint =
+        w.boat > 0 && tubeInput.kick !== 0 && w.effectiveInput(tubeInput, stage).kick === 0
+          ? t(w.passenger ? 'game.passengerRow' : 'game.rowFishing')
+          : null;
       this.tube = this.net.world.stepOwn(
         tubeInput,
         // Perhoheitossa muille välitetään perhon paikka ilmassa (#236).
@@ -1130,7 +1147,7 @@ export class SoloGame {
                   )}`
             : this.thunderNow && (lureOut || f.hookedId !== null)
               ? t('help.thunder')
-              : null,
+              : this.rowHint,
     );
     this.hud.setStatus([
       describeTackle(f.tackle),
@@ -1638,7 +1655,7 @@ export class SoloGame {
           : null,
     );
     if ((this.raceHudTimer = (this.raceHudTimer + 1) % 15) !== 1) return;
-    this.hud.setCatches([t('game.scoreboard'), ...scoreboardLines(w.results(), w.myId)]);
+    this.hud.setCatches([t('game.scoreboard'), ...scoreboardLines(w.standings(), w.myId)]);
   }
 
   /**
@@ -1685,7 +1702,8 @@ export class SoloGame {
    */
   private updatePovTube(pos: Vec2, heading: number, capsize: number, flying: boolean): void {
     const tube = this.povTube;
-    tube.group.visible = !this.spectating && !flying;
+    // Veneessä renkaan sijaan näkyy vene (BoatsView).
+    tube.group.visible = !this.spectating && !flying && !this.inBoat;
     if (!tube.group.visible) return;
     const f = this.fishing;
     let pull = 0;
@@ -1870,6 +1888,7 @@ export class SoloGame {
     this.emoteMenu?.dispose();
     this.ownBubble?.remove();
     this.remoteView?.dispose();
+    this.boatsView?.dispose();
     this.net?.world.dispose();
     // Jaettu maailma, vesimaski ja syvyystekstuuri jäävät seuraavalle pelille.
     if (this.world.pov.parent === this.scenery)
@@ -1889,6 +1908,11 @@ export class SoloGame {
     });
   }
 
+  /** Venekisassa oma pelaaja istuu veneessä (#263). */
+  private get inBoat(): boolean {
+    return (this.net?.world.boat ?? 0) > 0;
+  }
+
   /** Piirtää interpoloiden edellisen ja nykyisen askeleen välillä. */
   render(alpha: number): void {
     this.attachWorld();
@@ -1906,7 +1930,9 @@ export class SoloGame {
       pos = air.pos;
       heading += air.spin;
     }
-    this.tubeMesh.position.copy(toWorld(pos, air?.height ?? 0));
+    const seated = this.inBoat ? SEATED_LIFT : 0;
+    setSeated(this.tubeMesh, this.inBoat);
+    this.tubeMesh.position.copy(toWorld(pos, (air?.height ?? 0) + seated));
     this.tubeMesh.rotation.y = heading;
     const roll = this.capsizeRoll();
     this.tubeMesh.rotation.x = air ? air.tumble : roll;
@@ -1948,7 +1974,7 @@ export class SoloGame {
               pitch: -0.6 * (air.height / SPOUT.flightHeight),
             }
           : {
-              lift: this.rock.lift - 0.7 * (roll / Math.PI),
+              lift: this.rock.lift - 0.7 * (roll / Math.PI) + seated,
               roll: this.rock.roll + roll * 0.3,
               pitch: this.rock.pitch,
             },
@@ -1984,7 +2010,10 @@ export class SoloGame {
     this.shakeCamera();
     this.lightning.orient(this.camera, this.heightPx);
     if (this.net && this.remoteView) {
-      const others = this.net.world.others();
+      // Oman veneen kyytiläiset istuvat veneessä sellaisena kuin se nyt piirretään.
+      const own = this.spectating ? undefined : { pos, heading, kickPhase: b.kickPhase };
+      this.boatsView?.update(this.net.world.boats(own));
+      const others = this.net.world.others(own);
       // Katsojan silmin seurattavan oma rengas ei peitä näkymää.
       const shown =
         this.spectating && this.viewMode === 'pov'

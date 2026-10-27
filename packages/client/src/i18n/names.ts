@@ -1,5 +1,7 @@
 import {
+  BoatSeat,
   LURES,
+  type Craft,
   type Difficulty,
   type FlyId,
   type FlyLeaderId,
@@ -48,6 +50,10 @@ export const winRuleName = (w: WinRule) => t(`winRule.${w}`);
 export const penaltyName = (p: Penalty) => t(`penalty.${p}`);
 export const weatherLevelName = (w: WeatherLevel) => t(`weather.${w}`);
 export const lateJoinName = (v: LateJoin) => t(`lateJoin.${v}`);
+export const craftName = (c: Craft) => t(`craft.${c}`);
+/** Paikka veneessä (BoatSeat): soutaja, perä tai keula. */
+export const seatName = (seat: number) =>
+  t(seat === BoatSeat.stern ? 'boat.stern' : seat === BoatSeat.bow ? 'boat.bow' : 'boat.rower');
 export const warningText = (w: WeatherWarning) => t(`warning.${w}`);
 export const landPenaltyName = (seconds: number) =>
   seconds === 0 ? t('landPenalty.none') : t('landPenalty.seconds', { s: seconds });

@@ -9,12 +9,12 @@ import {
   rowerInput,
   seatPos,
 } from './boat';
-import { TUBE_PHYSICS, createTube, stepTube, type TubeState } from './tube';
+import { TUBE_PHYSICS, createTube, stepTube, type CraftPhysics, type TubeState } from './tube';
 
 const DT = 1 / 60;
 
 /** Huippunopeus jatkuvalla soudulla tai potkuilla (m/s). */
-function topSpeed(physics = TUBE_PHYSICS, seconds = 60): number {
+function topSpeed(physics: CraftPhysics = TUBE_PHYSICS, seconds = 60): number {
   let s: TubeState = createTube({ x: 0, y: 0 }, 0);
   let best = 0;
   for (let i = 0; i < seconds * 60; i++) {
@@ -38,7 +38,7 @@ describe('vene (#263)', () => {
   });
 
   it('vene liukuu airovetojen jälkeen pidemmälle kuin rengas', () => {
-    const glide = (physics: typeof BOAT_PHYSICS) => {
+    const glide = (physics: CraftPhysics) => {
       let s = { ...createTube({ x: 0, y: 0 }, 0), vel: { x: -1.5, y: 0 } };
       for (let i = 0; i < 300; i++)
         s = stepTube(s, { kick: 0, turn: 0, sprint: false }, DT, undefined, 1, physics);

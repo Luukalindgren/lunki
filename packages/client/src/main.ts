@@ -344,7 +344,7 @@ function showResults() {
     const v = s.view();
     resultsAsHost = v.amHost;
     screens.showRaceResults(
-      s.results(),
+      s.standings(),
       v.settings,
       s.sessionId,
       v.amHost,
@@ -442,6 +442,7 @@ function enterLobby(s: NetSession) {
         },
         onStart: () => s.start(),
         onSpectate: (on) => s.setSpectator(on),
+        onBoat: (boat) => s.sendBoat(boat),
         onLeave: leaveRoom,
         onSettings: (patch) => s.changeSettings(patch),
         onTackle: (t) => {

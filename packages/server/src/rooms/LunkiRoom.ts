@@ -830,9 +830,10 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     writeTube(p, tube, 0);
   }
 
-  /** Kalastaja veneen kyytiin paikalleen, katse järvelle. */
+  /** Kalastaja veneen kyytiin paikalleen, katse ulos veneestä (perästä tai keulasta). */
   private seatPassenger(id: string, p: PlayerState, boat: Sim, seat: number) {
-    const tube = createTube(seatPos(boat.tube, seat), boat.tube.heading + Math.PI);
+    const out = seat === BoatSeat.stern ? 0 : Math.PI;
+    const tube = createTube(seatPos(boat.tube, seat), boat.tube.heading + out);
     this.sims.set(id, {
       tube,
       inputs: new InputQueue(),
