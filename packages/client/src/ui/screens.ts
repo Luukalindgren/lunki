@@ -845,13 +845,19 @@ export class Screens {
         lists.append(h('p', speciesName(o.value), 'choice-label'));
         const ol = document.createElement('ol');
         ol.className = 'catch-list records';
-        for (const r of rows) {
+        rows.forEach((r, i) => {
           if (r.x !== undefined && r.y !== undefined) {
             placed.push(r);
             species.add(r.species);
           }
           const li = document.createElement('li');
-          li.textContent = `${formatWeight(r.weight).padStart(8)}  ${r.angler.padEnd(16)} ${formatDate(r.date)}`;
+          // Sarakkeet asettuvat listan ruudukkoon (style.css); pitkä nimi lyhenee "…"-merkillä
+          // ja näkyy kokonaan Tiedoissa.
+          const name = h('span', r.angler, 'record-name');
+          name.title = r.angler;
+          const when = h('span', '', 'record-when');
+          const who = document.createElement('span');
+          who.className = 'record-who';
           const info = document.createElement('button');
           info.type = 'button';
           info.className = 'record-info';
@@ -888,9 +894,16 @@ export class Screens {
           info.addEventListener('click', toggleInfo);
           li.addEventListener('click', toggleInfo);
           li.className = 'record-row';
-          li.append(info, fishImage(r.species, r.weight, LIST_FISH_SCALE));
+          when.append(h('span', formatDate(r.date), 'record-date'), info);
+          who.append(name, when);
+          li.append(
+            h('span', `${i + 1}.`, 'record-rank'),
+            h('span', formatWeight(r.weight), 'record-weight'),
+            who,
+            fishImage(r.species, r.weight, LIST_FISH_SCALE),
+          );
           ol.appendChild(li);
-        }
+        });
         if (rows.length === 0) ol.append(h('li', t('records.none'), 'hint'));
         lists.append(ol);
       }

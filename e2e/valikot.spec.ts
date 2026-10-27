@@ -122,10 +122,26 @@ test('ennätyslistan saaliskortti avautuu ja sulkeutuu (#238)', async ({
     }),
   });
   expect(res.ok()).toBe(true);
+  // Iso kala ja pisin mahdollinen nimi eivät saa vierittää listaa sivuttain.
+  const wide = await request.post('http://localhost:2567/records/solo', {
+    headers: { 'content-type': 'text/plain' },
+    data: JSON.stringify({
+      species: 'pike',
+      weight: 11.9,
+      angler: 'W'.repeat(16),
+      difficulty: 'normal',
+    }),
+  });
+  expect(wide.ok()).toBe(true);
   await page.goto('/');
   await page.getByRole('button', { name: 'Ennätykset' }).click();
   await page.locator('.choice').first().getByRole('button', { name: 'Yksinpeli' }).click();
-  await page.locator('li.record-row', { hasText: angler }).click();
+  await expect(page.locator('li.record-row', { hasText: 'W'.repeat(8) }).first()).toBeVisible();
+  const overflow = await page
+    .locator('.catch-list.records')
+    .evaluateAll((lists) => lists.filter((ol) => ol.scrollWidth > ol.clientWidth + 1).length);
+  expect(overflow).toBe(0);
+  await page.locator('li.record-row', { hasText: angler }).first().click();
   const open = page.getByRole('button', { name: 'Näytä saaliskortti' });
   await open.click();
   const modal = page.locator('.screen-modal');
