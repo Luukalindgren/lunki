@@ -22,16 +22,16 @@ Uusi ominaisuus käyttää niitä eikä tee niiden rinnalle omaa versiota.
 
 ### Issueiden tunnisteet
 
-| Tunniste            | Merkitys                                                                                                |
-| ------------------- | ------------------------------------------------------------------------------------------------------- |
-| `ehdotus`           | Kehitysidea. Toteutetaan vasta, kun Luuka hyväksyy.                                                     |
-| `hyväksytty`        | Luuka hyväksyi; öinen ajastettu tehtävä toteuttaa hyväksytyt vanhimmasta alkaen.                        |
-| `työn alla`         | Toteutus käynnissä.                                                                                     |
-| `toteutettu`        | Ehdotus on toteutettu ja yhdistetty.                                                                    |
-| `palaute`           | Pelaajan palaute pelin Palaute-napista (työnkulku _Palautteet_). Ei työn alle ennen Luukan validointia. |
-| `Tutki lisää`       | Vaatii selvitystä ennen päätöstä.                                                                       |
-| `tietoturva`        | Tietoturvalöydös.                                                                                       |
-| `vaihe 1`–`vaihe 5` | Alkuperäisen tiekartan vaiheet (prototyyppi, moninpeli, oikea järvi, sää ja fysiikka, viimeistely).     |
+| Tunniste            | Merkitys                                                                                                     |
+| ------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `ehdotus`           | Kehitysidea. Toteutetaan vasta, kun Luuka hyväksyy.                                                          |
+| `hyväksytty`        | Luuka hyväksyi; öinen ajastettu tehtävä toteuttaa hyväksytyt vanhimmasta alkaen.                             |
+| `työn alla`         | Toteutus käynnissä.                                                                                          |
+| `toteutettu`        | Ehdotus on toteutettu ja yhdistetty.                                                                         |
+| `palaute`           | Pelaajan palaute pelin Palaute-napista (työnkulku _Palautteet_). Ei työn alle ennen Luukan validointia.      |
+| `Tutki lisää`       | Selvitetään ennen päätöstä: issueen kommentti löydöksistä ja suosituksesta, ei koodia. Sitten tunniste pois. |
+| `tietoturva`        | Tietoturvalöydös.                                                                                            |
+| `vaihe 1`–`vaihe 5` | Alkuperäisen tiekartan vaiheet (prototyyppi, moninpeli, oikea järvi, sää ja fysiikka, viimeistely).          |
 
 Bugit saa korjata heti (issue + PR). Uudet ominaisuudet kirjataan
 `ehdotus`-issueiksi, eikä niitä toteuteta ilman Luukan hyväksyntää.
