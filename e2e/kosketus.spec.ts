@@ -62,7 +62,7 @@ test.describe('puhelin', () => {
 
     // Kisa alkoi kalastajan silmin; KAM-nappi vaihtaa ylhäältä katsottuun.
     await page.getByRole('button', { name: 'KAM' }).tap();
-    await expect(page.locator('.hud-message')).toHaveText('Ylhäältä (V)');
+    await expect(page.locator('.hud-message')).toHaveText('Ylhäältä (KAM)');
     await expect.poll(() => canvasColors(page)).toBeGreaterThan(8);
     await info.attach('pysty-ylhaalta', {
       body: await page.screenshot(),
@@ -124,7 +124,7 @@ test.describe('puhelin', () => {
     errors.check();
   });
 
-  test('perhoheitto pyyhkäisyllä, SIIMA- ja VETO-napit (#236)', async ({
+  test('perhoheitto pyyhkäisyllä, SIIMA-, VETO- ja PERU-napit (#236)', async ({
     page,
     isMobile,
     browserName,
@@ -143,7 +143,9 @@ test.describe('puhelin', () => {
     await page.getByRole('button', { name: 'Takaisin' }).tap();
     await page.getByRole('button', { name: 'Jatka' }).tap();
     await expect(page.getByRole('button', { name: 'SIIMA' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'VETO' })).toBeVisible();
+    // Perho valmiina iso nappi aloittaa rytmiheiton kuten välilyönti.
+    const main = page.locator('.touch-reel');
+    await expect(main).toHaveText('HEITÄ');
 
     // Pyyhkäisy alas järvellä: takaheitto. Sivukuva näyttää siiman heiton ajan. Pystypuhelimessa
     // ruudun keskilinjan alapäässä on KAM-nappi: siihen osuva pyyhkäisy vaihtaisi POV-näkymään.
@@ -160,6 +162,9 @@ test.describe('puhelin', () => {
       if (attempt === 0) {
         await expect(page.locator('.hud-fly-panel')).toBeVisible();
         await expect(page.locator('.hud-situation')).toContainText('Alas = takaheitto');
+        // Heiton aikana iso nappi on siimakäden veto ja KATKO peruu heiton.
+        await expect(main).toHaveText('VETO');
+        await expect(page.getByRole('button', { name: 'PERU' })).toBeVisible();
       }
       await page
         .locator('.hud-power.fly-now')
@@ -173,8 +178,10 @@ test.describe('puhelin', () => {
     }
     expect(cast).toBe(true);
     await expect(page.locator('.hud-fly-panel')).toBeHidden();
-    // Perho vedessä: SIIMA-nappi on NOSTA, ja ruudukko on yhä 3×3.
+    // Perho vedessä: SIIMA-nappi on NOSTA, iso nappi VETO, ja ruudukko on yhä 3×3.
     await expect(page.getByRole('button', { name: 'NOSTA' })).toBeVisible();
+    await expect(main).toHaveText('VETO');
+    await expect(page.getByRole('button', { name: 'KATKO' })).toBeVisible();
     await expect(page.locator('.touch-grid > button:visible')).toHaveCount(9);
     errors.check();
   });
