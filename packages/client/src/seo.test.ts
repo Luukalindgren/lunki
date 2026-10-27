@@ -38,13 +38,33 @@ describe('hakukoneet ja esikatselu (#239)', () => {
     expect(size).toEqual([meta('og:image:width'), meta('og:image:height')]);
   });
 
+  const jsonLd = [
+    ...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g),
+  ].map((m) => JSON.parse(m[1]!) as Record<string, unknown>);
+
   it('rakenteinen kuvaus on kelvollista JSON-LD:tä', () => {
-    const json = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(html)?.[1];
-    const data = JSON.parse(json ?? '') as Record<string, unknown>;
-    expect(data['@type']).toBe('VideoGame');
-    expect(data.name).toBe('Lunkinjärvi');
-    expect(data.url).toBe(SITE);
-    expect(data.isAccessibleForFree).toBe(true);
+    const data = jsonLd.find((d) => d['@type'] === 'VideoGame');
+    expect(data?.name).toBe('Lunkinjärvi');
+    expect(data?.url).toBe(SITE);
+    expect(data?.isAccessibleForFree).toBe(true);
+  });
+
+  it('sivuston nimi on kerrottu Googlen hakutulosta varten', () => {
+    const site = jsonLd.find((d) => d['@type'] === 'WebSite');
+    expect(site?.name).toBe('Lunkinjärvi');
+    expect(site?.url).toBe(SITE);
+  });
+
+  it('hakutuloksen favicon on 48 px:n monikerta ja tiedostot ovat olemassa', () => {
+    const icons = [
+      ...html.matchAll(/<link rel="icon" type="image\/png" sizes="(\d+)x\1" href="\/([^"]+)"/g),
+    ];
+    const googleSized = icons.filter((m) => Number(m[1]) % 48 === 0);
+    expect(googleSized.length).toBeGreaterThan(0);
+    for (const [, size, path] of icons) {
+      const png = read(`public/${path}`);
+      expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([Number(size), Number(size)]);
+    }
   });
 
   it('robots.txt sallii kaiken ja kertoo sivukartan, jossa on etusivu', () => {
