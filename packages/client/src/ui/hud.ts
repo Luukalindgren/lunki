@@ -1,5 +1,5 @@
 import '@fontsource/vt323';
-import type { SpeciesId } from '@lunki/shared';
+import { formatTime, type SpeciesId } from '@lunki/shared';
 import { CompassDisplay } from './compass';
 import { fishImage } from './fishArt';
 import { LureSonarDisplay } from './lureSonar';
@@ -35,7 +35,10 @@ export class Hud {
   private readonly catches: HTMLDivElement;
   private readonly weigh: HTMLDivElement;
   private readonly countdown: HTMLDivElement;
-  /** Ruudun keskellä allekkain: lähtölaskenta, punnitus ja ilmoitus. */
+  /** Rangaistukset (jäähy, kumossa, trombin kyydissä) ajastimineen. */
+  private readonly penalty: HTMLDivElement;
+  private penaltyKey = '';
+  /** Ruudun keskellä allekkain: lähtölaskenta, rangaistus, punnitus ja ilmoitus. */
   private readonly notices: HTMLDivElement;
   private readonly gauges: HTMLDivElement;
   private readonly flashEl: HTMLDivElement;
@@ -99,6 +102,8 @@ export class Hud {
     this.weigh.hidden = true;
     this.countdown = el('div', 'hud-countdown');
     this.countdown.hidden = true;
+    this.penalty = el('div', 'hud-penalty');
+    this.penalty.hidden = true;
     // Kulmiin ja yläreunaan pinot, jotta paneelit eivät mene päällekkäin
     // eivätkä peitä ilmoituksia keskellä ruutua.
     this.topLeft = el('div', 'hud-top-left');
@@ -116,10 +121,10 @@ export class Hud {
     this.sonar = new SonarDisplay(this.gauges);
     this.lureSonar = new LureSonarDisplay(this.gauges);
     this.flyPanel = new FlyCastPanel(this.gauges);
-    // Lähtölaskenta, punnitus ja ilmoitus allekkain reunojen paneelien välissä,
-    // jotta ne eivät mene toistensa eivätkä muiden paneelien päälle.
+    // Lähtölaskenta, rangaistus, punnitus ja ilmoitus allekkain reunojen
+    // paneelien välissä, jotta ne eivät mene toistensa eivätkä muiden päälle.
     this.notices = el('div', 'hud-notices');
-    this.notices.append(this.countdown, this.weigh, this.message);
+    this.notices.append(this.countdown, this.penalty, this.weigh, this.message);
     this.root.appendChild(this.notices);
     this.probeU = el('div', 'hud-probe');
     this.probeU.style.width = 'calc(var(--u) * 100)';
@@ -282,8 +287,40 @@ export class Hud {
     if (text !== null && this.countdown.textContent !== text) this.countdown.textContent = text;
   }
 
+  /**
+   * Rangaistukset keltaisena ilmoitusalueen yläosassa, jotta jäähyn huomaa:
+   * jokaisesta rivi ja jäljellä oleva aika (m:ss). Ilman aikaa (trombin kyydissä,
+   * kisasta pudonnut) pelkkä teksti. Tyhjä lista piilottaa.
+   */
+  setPenalties(penalties: { label: string; seconds?: number }[]): void {
+    const rows = penalties.map((p) => [
+      p.label,
+      p.seconds === undefined ? '' : formatTime(Math.max(0, p.seconds)),
+    ]);
+    const key = rows.map((r) => r.join('\t')).join('\n');
+    if (key === this.penaltyKey) return;
+    this.penaltyKey = key;
+    this.penalty.hidden = rows.length === 0;
+    this.penalty.replaceChildren(
+      ...rows.map(([label, time]) => {
+        const row = el('div', 'hud-penalty-row');
+        const name = document.createElement('span');
+        name.textContent = label!;
+        row.appendChild(name);
+        if (time) {
+          const clock = document.createElement('b');
+          clock.textContent = time;
+          row.appendChild(clock);
+        }
+        return row;
+      }),
+    );
+  }
+
   setVisible(visible: boolean): void {
     this.root.hidden = !visible;
+    // Edellisen kisan jäähy ei jää näkyviin seuraavaan.
+    if (!visible) this.setPenalties([]);
   }
 
   /** Kosketusohjaimet näkyvissä: HUD väistää ne ja ohje on aluksi piilossa. */

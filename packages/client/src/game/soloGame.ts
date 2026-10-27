@@ -1072,12 +1072,20 @@ export class SoloGame {
     } else this.hud.setPower(f.stage === 'charging' ? chargePower(f.charge) : null);
     const hold = holdForce(f, { lineHand: fly?.lineHand ?? false });
     this.hud.setTension(f.tension, Math.min(hold, f.drag), breakingStrength(f.tackle));
-    this.hud.setStatus([
+    // Rangaistukset ajastimineen isona ilmoitusalueelle, ei tilapaneelin sekaan.
+    this.hud.setPenalties([
       ...(this.flight
-        ? [t('game.flying')]
+        ? [{ label: t('game.flying') }]
         : capsized
-          ? [t('game.capsizedLeft', { s: Math.ceil(this.capsizeLeft) })]
+          ? [{ label: t('game.capsizedUpright'), seconds: this.capsizeLeft }]
           : []),
+      ...(timeOut === Infinity
+        ? [{ label: t('game.penaltyOut') }]
+        : timeOut > 0
+          ? [{ label: this.outLabel, seconds: timeOut }]
+          : []),
+    ]);
+    this.hud.setStatus([
       ...(tangle
         ? [
             t('game.tangleStatus', {
@@ -1087,11 +1095,6 @@ export class SoloGame {
             t('game.tangleHint'),
           ]
         : []),
-      ...(timeOut === Infinity
-        ? [t('game.penaltyOut')]
-        : timeOut > 0
-          ? [t('game.outLeft', { label: this.outLabel, s: Math.ceil(timeOut) })]
-          : []),
       ...(cast
         ? [
             cast.busy > 0
