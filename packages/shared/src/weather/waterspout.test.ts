@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LUNKINJARVI } from '../map/lunkinjarvi';
 import { WaterBody } from '../map/waterBody';
-import { createTube, stepTube, type TubeState } from '../physics/tube';
+import { TUBE_PHYSICS, createTube, stepTube, type TubeState } from '../physics/tube';
 import { distance } from '../vec2';
 import {
   SPOUT,
@@ -11,6 +11,8 @@ import {
   spoutCapture,
   spoutLanding,
   spoutPosition,
+  spoutPull,
+  spoutStrength,
   spoutWind,
   type Waterspout,
 } from './waterspout';
@@ -59,31 +61,62 @@ describe('trombi', () => {
     expect(spoutCapture([spout], 0, { x: SPOUT.capture + 1, y: 0 })).toBeNull();
   });
 
-  /** Ajaa renkaan minuutin: `flee` = pikapotkut poispäin trombista. */
-  function run(start: TubeState, flee: boolean): { caught: boolean; end: number } {
-    let tube = start;
+  /**
+   * Ajaa renkaan puolitoista minuuttia `start` metrin päästä trombista.
+   * `flee` = potkut poispäin trombista, pikapotkuin kunnon riittäessä.
+   */
+  function run(start: number, flee: 'none' | 'kick' | 'sprint', angle = 0): boolean {
+    let tube: TubeState = createTube({ x: Math.cos(angle) * start, y: Math.sin(angle) * start });
     const dt = 1 / 60;
-    for (let t = 0; t < 60; t += dt) {
+    for (let t = 0; t < 90; t += dt) {
       const c = spoutPosition(spout, t);
-      if (spoutCapture([spout], t, tube.pos)) return { caught: true, end: 0 };
+      if (spoutCapture([spout], t, tube.pos)) return true;
       // Kalastaja katsoo trombia kohti, jolloin potkut vievät poispäin.
       const heading = Math.atan2(c.y - tube.pos.y, c.x - tube.pos.x);
       tube = stepTube(
         { ...tube, heading },
-        { kick: flee ? 1 : 0, turn: 0, sprint: flee },
+        { kick: flee === 'none' ? 0 : 1, turn: 0, sprint: flee === 'sprint' && tube.stamina > 0.3 },
         dt,
         spoutWind([spout], t, tube.pos),
       );
     }
-    return { caught: false, end: distance(tube.pos, spoutPosition(spout, 60)) };
+    return false;
   }
+  /** Montako kahdeksasta suunnasta lähteneistä trombi nappasi. */
+  const caught = (start: number, flee: 'none' | 'kick' | 'sprint') =>
+    [...Array(8).keys()].filter((i) => run(start, flee, (i * Math.PI) / 4)).length;
 
-  it('imee paikallaan olevan, mutta karkuun ehtii', () => {
-    const start = createTube({ x: 25, y: 0 });
-    expect(run(start, false).caught).toBe(true);
-    const fled = run(start, true);
-    expect(fled.caught).toBe(false);
-    expect(fled.end).toBeGreaterThan(SPOUT.radius);
+  it('imee paikallaan ajelehtivan kaukaakin', () => {
+    expect(caught(60, 'none')).toBe(8);
+    expect(caught(80, 'none')).toBeGreaterThan(0);
+  });
+
+  it('vetää lähellä sisään, mutta kauempaa ehtii potkia karkuun', () => {
+    expect(caught(12, 'sprint')).toBe(8);
+    expect(caught(20, 'kick')).toBe(8);
+    expect(caught(45, 'sprint')).toBe(0);
+    expect(caught(55, 'kick')).toBe(0);
+  });
+
+  it('imu kovenee keskustaa kohti', () => {
+    const pull = (d: number) => -spoutPull([spout], 0, { x: d, y: 0 }).x;
+    expect(pull(10)).toBeGreaterThan(pull(30));
+    expect(pull(30)).toBeGreaterThan(pull(60));
+    expect(pull(60)).toBeGreaterThan(0);
+    // Lähellä imu voittaa pikapotkut, imualueen reunalla tavalliset potkut.
+    expect(pull(15)).toBeGreaterThan(TUBE_PHYSICS.kickAccel * TUBE_PHYSICS.sprintFactor);
+    expect(pull(60)).toBeLessThan(TUBE_PHYSICS.kickAccel);
+    expect(spoutStrength([spout], 0, { x: 0.5, y: 0 })).toBeCloseTo(1, 1);
+    expect(spoutStrength([spout], 0, { x: SPOUT.radius + 1, y: 0 })).toBe(0);
+  });
+
+  it('imu tuulena työntää rengasta juuri imun verran', () => {
+    const p = { x: 25, y: -10 };
+    const w = spoutWind([spout], 0, p);
+    const a = spoutPull([spout], 0, p);
+    const k = TUBE_PHYSICS.windPush * Math.hypot(w.x, w.y);
+    expect(w.x * k).toBeCloseTo(a.x, 6);
+    expect(w.y * k).toBeCloseTo(a.y, 6);
   });
 
   it('lennättää renkaan selälle 120–320 m päähän, poispäin trombista', () => {

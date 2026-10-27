@@ -11,6 +11,8 @@ export interface AmbienceInput {
   /** Päivänvalo 0–1 ja hämäryys 0–1 (ks. daylight); puuttuu = päivä. */
   light?: number;
   twilight?: number;
+  /** Trombin imu kuulijan kohdalla 0–1 (spoutStrength); puuttuu = ei trombia. */
+  spout?: number;
 }
 
 /** Valikon taustalla: tyyni kesäpäivä. */
@@ -36,6 +38,8 @@ export class Ambience {
   /** Rankkasade: kovat iskut ja ryöppyävä kohina. */
   private readonly rainPour: GainNode;
   private readonly rainRoar: GainNode;
+  /** Trombin matala pauhu, joka voimistuu imun mukana. */
+  private readonly spoutRoar: GainNode;
   private gust = 0;
   private gustTarget = 0;
   private gustTimer = 0;
@@ -85,6 +89,13 @@ export class Ambience {
     this.rainRoar = ctx.createGain();
     this.rainRoar.gain.value = 0;
     loop(roarFilter, this.rainRoar);
+    const spoutFilter = ctx.createBiquadFilter();
+    spoutFilter.type = 'lowpass';
+    spoutFilter.frequency.value = 220;
+    spoutFilter.Q.value = 1.2;
+    this.spoutRoar = ctx.createGain();
+    this.spoutRoar.gain.value = 0;
+    loop(spoutFilter, this.spoutRoar);
 
     this.loons = ctx.createGain();
     this.loons.connect(out);
@@ -119,6 +130,9 @@ export class Ambience {
     const sheet = 0.6 + 0.8 * this.gust;
     this.rainPour.gain.setTargetAtTime(pour * 0.3 * sheet, t, 0.3);
     this.rainRoar.gain.setTargetAtTime(pour * 0.14 * sheet, t, 0.3);
+    // Imualueen reunalla pauhu on jo selvä, keskellä se peittää kaiken muun.
+    const spout = Math.sqrt(w.spout ?? 0);
+    this.spoutRoar.gain.setTargetAtTime(spout * (1.2 + 0.4 * this.gust), t, 0.4);
 
     this.birdTimer -= dt;
     if (this.birdTimer <= 0) {

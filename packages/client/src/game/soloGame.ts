@@ -37,6 +37,7 @@ import {
   spoutAffects,
   spoutCapture,
   spoutLanding,
+  spoutStrength,
   spoutWind,
   LIGHTNING,
   SPOUT,
@@ -370,6 +371,7 @@ export class SoloGame {
       this.water,
       map.bounds,
     );
+    this.spoutView.clipToWater(map);
     this.scene.add(
       this.weather.group,
       this.lightning.group,
@@ -1141,7 +1143,11 @@ export class SoloGame {
     const left = timeLeft(this.competition);
     this.hud.setTimer(formatTime(left), left < 60);
     this.updateWeather(dt);
-    this.sfx.updateAmbience(dt, { ...this.weather.now, ...this.daylight });
+    this.sfx.updateAmbience(dt, {
+      ...this.weather.now,
+      ...this.daylight,
+      spout: spoutStrength(this.spouts, this.competition.elapsed, this.tube.pos),
+    });
     // Potkuvaihe kiertää 0–1; kumpikin räpylä loiskahtaa kerran kierroksessa.
     const strokes = Math.floor(this.tube.kickPhase * 2);
     if (strokes !== this.strokes) {
