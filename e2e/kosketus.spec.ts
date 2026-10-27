@@ -157,7 +157,7 @@ test.describe('puhelin', () => {
       await drag(page, browserName, { x, y }, { x, y: y + height * 0.3 }, 150);
       if (attempt === 0) {
         await expect(page.locator('.hud-fly-panel')).toBeVisible();
-        await expect(page.locator('.hud-status')).toContainText('Alas = takaheitto');
+        await expect(page.locator('.hud-situation')).toContainText('Alas = takaheitto');
       }
       await page
         .locator('.hud-power.fly-now')

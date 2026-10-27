@@ -441,9 +441,12 @@ export class SoloGame {
         this.hud.showMessage(
           connected ? t('game.peerBack', { name }) : t('game.peerLost', { name }),
           3,
+          'info',
         );
-      net.world.onPeerLeft = (name) => this.hud.showMessage(t('game.peerLeft', { name }), 3);
-      net.world.onPeerJoined = (name) => this.hud.showMessage(t('game.peerJoined', { name }), 3);
+      net.world.onPeerLeft = (name) =>
+        this.hud.showMessage(t('game.peerLeft', { name }), 3, 'info');
+      net.world.onPeerJoined = (name) =>
+        this.hud.showMessage(t('game.peerJoined', { name }), 3, 'info');
       net.world.onCatchRejected = () => this.hud.showMessage(t('game.catchRejected'), 2.5);
       net.world.onLightning = (m) =>
         this.onStrike({ x: m.x, y: m.y }, m.victims.includes(net.world.myId));
@@ -555,7 +558,7 @@ export class SoloGame {
     this.applyWeatherLight();
     this.fishingView.pov = pov;
     this.waterWaves.uPov.value = pov ? 1 : 0;
-    if (announce) this.hud.showMessage(pov ? t('game.viewPov') : t('game.viewTop'), 1.2);
+    if (announce) this.hud.showMessage(pov ? t('game.viewPov') : t('game.viewTop'), 1.2, 'info');
   }
 
   /** Vaihtaa varusteet heti, tai kun viehe seuraavan kerran on kelalla. */
@@ -568,6 +571,7 @@ export class SoloGame {
           ? t('game.flyLater', { fly: baitName(tk) })
           : t('game.lureLater', { lure: baitName(tk) }),
         1.5,
+        'info',
       );
   }
 
@@ -621,7 +625,7 @@ export class SoloGame {
     if (born > this.spoutsSeen) {
       this.spoutsSeen = born;
       if (spots.length > 0) {
-        this.hud.showMessage(t('game.spoutSeen'), 3);
+        this.hud.showMessage(t('game.spoutSeen'), 3, 'alert');
         this.sfx.rumble();
       }
     }
@@ -643,7 +647,7 @@ export class SoloGame {
     this.spoutWarnTimer -= dt;
     const near = spots.some((p) => distance(p, this.tube.pos) < SPOUT.radius);
     if (near && this.capsizeLeft === 0 && this.spoutWarnTimer <= 0) {
-      this.hud.showMessage(t('game.spoutPull'), 2);
+      this.hud.showMessage(t('game.spoutPull'), 2, 'alert');
       this.spoutWarnTimer = 4;
     }
   }
@@ -684,7 +688,11 @@ export class SoloGame {
     if (!next || next.t - now > BIG_WAVE.warning || this.warnedWave === this.nextWave) return;
     this.warnedWave = this.nextWave;
     if (height(next) >= BIG_WAVE.capsizeHeight)
-      this.hud.showMessage(t('game.bigWave', { from: windFrom(bigWaveDir(next, w.windDir)) }), 3);
+      this.hud.showMessage(
+        t('game.bigWave', { from: windFrom(bigWaveDir(next, w.windDir)) }),
+        3,
+        'alert',
+      );
   }
 
   /** Lähimmän trombin etäisyys ja suunta säärivillä, esim. " · trombi 320 m lounaassa". */
@@ -699,8 +707,10 @@ export class SoloGame {
   }
 
   private wasTangled = false;
-  /** Ukkonen tai myrsky päällä tai tulossa (ohjeen ukkosrivi). */
-  private thunderNear = false;
+  /** Ukkonen tai myrsky päällä: vieheen ollessa ulkona tilanneohje kehottaa kelaamaan. */
+  private thunderNow = false;
+  /** Rangaistuksen syy ja ohje (Kaaduit! Käänny aaltoa kohti…) ajastimen alle. */
+  private penaltyNote: string | null = null;
   private readonly knots = new KnotView();
 
   /**
@@ -713,7 +723,7 @@ export class SoloGame {
     const tangle = w.tangle;
     if (tangle && !this.wasTangled) {
       this.sfx.strike();
-      this.hud.showMessage(t('game.tangled', { name: tangle.with }), 3);
+      this.hud.showMessage(t('game.tangled', { name: tangle.with }), 3, 'alert');
       this.sfx.eventVoice('tangled');
     }
     this.wasTangled = tangle !== null;
@@ -781,21 +791,20 @@ export class SoloGame {
     if (!this.net) this.logCapsize(this.flight?.from ?? this.tube.pos);
     if (cause === 'spout') this.sfx.wave();
     this.sfx.eventVoice('capsized');
-    const penalty = this.punish(this.settings.capsizePenalty ?? 'none', t('game.capsizeTimeOut'));
-    this.hud.showWeighIn(
-      t(
-        cause === 'wave' ? 'game.capsized' : this.flight ? 'game.spoutGrabbed' : 'game.spoutTipped',
-      ),
-      penalty ||
-        t(
-          cause === 'wave'
-            ? 'game.capsizeHint'
-            : this.flight
-              ? 'game.flightHint'
-              : 'game.spoutHint',
-        ),
-      4,
+    const kind = this.settings.capsizePenalty ?? 'none';
+    const penalty = this.punish(kind, t('game.capsizeTimeOut'));
+    // Syy ja ohje kumossa-ajastimen alle; jäähy näkyy omana rivinään.
+    this.setPenaltyNote(
+      `${t(cause === 'wave' ? 'game.capsized' : this.flight ? 'game.spoutGrabbed' : 'game.spoutTipped')} ${t(cause === 'wave' ? 'game.capsizeHint' : this.flight ? 'game.flightHint' : 'game.spoutHint')}`,
+      kind === 'lose-catch' ? penalty : '',
     );
+  }
+
+  private penaltyNoteAt = 0;
+  /** Rangaistuskortin selitys; `extra` = seuraus, jota ajastinrivi ei kerro (saalis meni). */
+  private setPenaltyNote(note: string, extra = ''): void {
+    this.penaltyNote = extra ? `${note}\n${extra}` : note;
+    this.penaltyNoteAt = this.competition.elapsed;
   }
 
   /** Jäähyä jäljellä (s); pudonneella Infinity. */
@@ -840,11 +849,17 @@ export class SoloGame {
     this.sfx.thunder(d, d / LIGHTNING.soundSpeed);
     if (d < 150) this.sfx.eventVoice('lightning');
     if (!hitMe) return;
-    const penalty = this.punish(
-      this.settings.lightningPenalty ?? 'none',
-      t('game.lightningTimeOut'),
-    );
-    this.hud.showWeighIn(t('game.lightningHit'), penalty || t('game.lightningHint'), 4);
+    const kind = this.settings.lightningPenalty ?? 'none';
+    const penalty = this.punish(kind, t('game.lightningTimeOut'));
+    // Jäähyllä selitys ajastimen alle, muuten ilmoituksena.
+    if (kind === 'time-out' || kind === 'out')
+      this.setPenaltyNote(`${t('game.lightningHit')} ${t('game.lightningHint')}`);
+    else
+      this.hud.showMessage(
+        `${t('game.lightningHit')}\n${penalty || t('game.lightningHint')}`,
+        4,
+        'alert',
+      );
   }
 
   update(dt: number): void {
@@ -867,11 +882,13 @@ export class SoloGame {
       this.hud.showMessage(
         this.hud.flyPanel.toggle() ? t('game.flyPanelOn') : t('game.flyPanelOff'),
         1.5,
+        'info',
       );
     else if (input.wasPressed('KeyL'))
       this.hud.showMessage(
         this.hud.lureSonar.toggle() ? t('game.lureSonarOn') : t('game.lureSonarOff'),
         1.5,
+        'info',
       );
     if (input.wasPressed('KeyV')) this.setViewMode(this.viewMode === 'top' ? 'pov' : 'top');
     if (input.wasPressed('KeyG') && !this.spectating) this.toggleEmoteMenu();
@@ -1042,11 +1059,6 @@ export class SoloGame {
     this.handleEvents(events, fishEvents.follow !== undefined, reeling, dt);
     this.fishShadow.update(this.fish.fish, this.tube.pos);
     if (fishEvents.shadow !== undefined) this.hud.showMessage(t('game.bigShadow'), 2.5);
-    if (f.onLand && f.stage === 'water')
-      this.hud.showMessage(
-        t('game.stuckOnLand', { key: this.hud.touchMode ? t('touch.cut') : 'C' }),
-        0.2,
-      );
 
     // Kamera: kun viehe on ulkona, seurataan renkaan ja vieheen väliä ja loitonnetaan tarvittaessa.
     if (lureOut) {
@@ -1068,7 +1080,7 @@ export class SoloGame {
     }
     this.hud.setStamina(this.tube.stamina, STAMINA.tired);
     if (this.tube.stamina <= 0 && this.prevTube.stamina > 0)
-      this.hud.showMessage(t('game.tired'), 2.5);
+      this.hud.showMessage(t('game.tired'), 2.5, 'info');
     const cast = f.stage === 'casting' ? f.flyCast : null;
     const marker = DIFFICULTIES[this.settings.difficulty].flyCast.marker;
     this.hud.flyPanel.update(dt, cast, marker);
@@ -1082,49 +1094,55 @@ export class SoloGame {
     const hold = holdForce(f, { lineHand: fly?.lineHand ?? false });
     this.hud.setTension(f.tension, Math.min(hold, f.drag), breakingStrength(f.tackle));
     // Rangaistukset ajastimineen isona ilmoitusalueelle, ei tilapaneelin sekaan.
-    this.hud.setPenalties([
-      ...(this.flight
-        ? [{ label: t('game.flying') }]
-        : capsized
-          ? [{ label: t('game.capsizedUpright'), seconds: this.capsizeLeft }]
-          : []),
-      ...(timeOut === Infinity
-        ? [{ label: t('game.penaltyOut') }]
-        : timeOut > 0
-          ? [{ label: this.outLabel, seconds: timeOut }]
-          : []),
-    ]);
-    this.hud.setHelpContext({
-      fly: isFly(f.tackle),
-      pov: this.viewMode === 'pov',
-      thunder: this.thunderNear,
-      land: f.onLand && f.stage === 'water',
-      tangle: tangle !== null,
-    });
+    this.hud.setPenalties(
+      [
+        ...(this.flight
+          ? [{ label: t('game.flying') }]
+          : capsized
+            ? [{ label: t('game.capsizedUpright'), seconds: this.capsizeLeft }]
+            : []),
+        ...(timeOut === Infinity
+          ? [{ label: t('game.penaltyOut') }]
+          : timeOut > 0
+            ? [{ label: this.outLabel, seconds: timeOut }]
+            : []),
+      ],
+      this.penaltyNote ?? undefined,
+    );
+    // Moninpelissä kumossaolo tulee palvelimelta hetken viiveellä: selitys säilyy sen ajan.
+    if (
+      !this.flight &&
+      !capsized &&
+      timeOut === 0 &&
+      this.competition.elapsed - this.penaltyNoteAt > 1
+    )
+      this.penaltyNote = null;
+    this.hud.setHelpContext({ fly: isFly(f.tackle), pov: this.viewMode === 'pov' });
+    // Tilanneohje: mitä nyt pitää tehdä. Yksi kerrallaan, tärkein ensin.
+    const cutKey = touch ? t('touch.cut') : 'C';
+    this.hud.setSituation(
+      tangle
+        ? `${t('game.tangleStatus', { name: tangle.with, pct: Math.round(tangle.progress * 100) })}\n${t(touch ? 'help.touchTangle' : 'help.keysTangle')}`
+        : f.onLand && f.stage === 'water'
+          ? t('game.stuckOnLand', { key: cutKey })
+          : cast
+            ? [
+                cast.busy > 0
+                  ? t('game.flyUntangle', { s: Math.ceil(cast.busy) })
+                  : this.flyCastControl.keyboard
+                    ? t('game.flyCastKeys')
+                    : touch
+                      ? t('game.flyCastTouch')
+                      : t('game.flyCastMouse'),
+                ...(cast.busy > 0 || this.flyCastControl.keyboard
+                  ? []
+                  : [touch ? t('game.flyCastTouchButtons') : t('game.flyCastButtons')]),
+              ].join('\n')
+            : this.thunderNow && (lureOut || f.hookedId !== null)
+              ? t('help.thunder')
+              : null,
+    );
     this.hud.setStatus([
-      ...(tangle
-        ? [
-            t('game.tangleStatus', {
-              name: tangle.with,
-              pct: Math.round(tangle.progress * 100),
-            }),
-            t('game.tangleHint'),
-          ]
-        : []),
-      ...(cast
-        ? [
-            cast.busy > 0
-              ? t('game.flyUntangle', { s: Math.ceil(cast.busy) })
-              : this.flyCastControl.keyboard
-                ? t('game.flyCastKeys')
-                : touch
-                  ? t('game.flyCastTouch')
-                  : t('game.flyCastMouse'),
-            ...(cast.busy > 0 || this.flyCastControl.keyboard
-              ? []
-              : [touch ? t('game.flyCastTouchButtons') : t('game.flyCastButtons')]),
-          ]
-        : []),
       describeTackle(f.tackle),
       t('game.line', { m: decimal(f.lineLength, 1) }),
       isFly(f.tackle) && !f.onReel
@@ -1199,19 +1217,25 @@ export class SoloGame {
       this.viewMode === 'pov'
         ? null
         : { metersPerPixel: this.view.metersPerPixel, width: this.view.width },
-      { message: (text) => this.hud.showMessage(text, 3), rumble: () => this.sfx.rumble() },
+      {
+        message: (text) => this.hud.showMessage(text, 3, 'alert'),
+        rumble: () => this.sfx.rumble(),
+      },
     );
-    // Ukkosen ohje näkyy ukkosella ja kun jyrinä varoittaa sen tulosta.
-    this.thunderNear = w.sky === 'thunder' || w.sky === 'storm' || w.warnings.includes('rumble');
+    this.thunderNow = w.sky === 'thunder' || w.sky === 'storm';
     this.updateSky(dt);
     this.applyWeatherLight();
     this.updateWaves(dt, w.windSpeed, w.windDir);
     const hs = this.waves.heightAt(this.tube.pos, w.windSpeed);
+    // Lisätiedot toiselle riville, jotta kapeallakin ruudulla rivi mahtuu.
+    const extra = (
+      (hs >= 0.05 ? t('game.waves', { m: decimal(hs, 1) }) : '') +
+      (this.thunderNow ? t('game.lightningRisk') : '') +
+      this.spoutText()
+    ).replace(/^ · /, '');
     this.hud.setWeather(
       `${skyName(w.sky)} · ${windName(w.windDir)} ${Math.round(w.windSpeed)} m/s` +
-        (hs >= 0.05 ? t('game.waves', { m: decimal(hs, 1) }) : '') +
-        (w.sky === 'thunder' || w.sky === 'storm' ? t('game.lightningRisk') : '') +
-        this.spoutText(),
+        (extra ? `\n${extra}` : ''),
     );
   }
 
@@ -1379,7 +1403,7 @@ export class SoloGame {
       this.quietSpot.cast(this.tube.pos);
     }
     if (follow || events.strike) this.quietSpot.noticed();
-    if (events.home && this.quietSpot.home()) hud.showMessage(t('game.quiet'), 4);
+    if (events.home && this.quietSpot.home()) hud.showMessage(t('game.quiet'), 4, 'info');
     if (events.splash) {
       // Perho laskeutuu pienellä roiskeella, popperi isommalla (#236).
       const tk = this.fishing.tackle;
@@ -1422,9 +1446,10 @@ export class SoloGame {
           ? t('game.flyChanged', { fly: baitName(tk) })
           : t('game.lureChanged', { lure: baitName(tk) }),
         1.5,
+        'info',
       );
     }
-    if (events.onReel) hud.showMessage(t('game.onReel'), 2);
+    if (events.onReel) hud.showMessage(t('game.onReel'), 2, 'info');
     if (events.flyCast) this.handleFlyCast(events.flyCast);
     if (events.pickupFar) hud.showMessage(t('game.flyPickupFar', { m: FLY_CAST.pickupMax }), 2);
     if (events.flyTangle) {
@@ -1439,7 +1464,7 @@ export class SoloGame {
       sfx.eventVoice('snagged');
       hud.showMessage(flyGear ? t('game.snaggedFly') : t('game.snagged'), 2);
     }
-    if (events.unsnagged) hud.showMessage(t('game.unsnagged'), 1.5);
+    if (events.unsnagged) hud.showMessage(t('game.unsnagged'), 1.5, 'info');
     if (events.fouled) {
       hud.showMessage(t('game.fouled'), 2.5);
       sfx.eventVoice('fouled');
@@ -1457,11 +1482,9 @@ export class SoloGame {
         this.outLabel = t('game.newLure');
       }
       this.net?.world.landCut();
-      hud.showWeighIn(
-        t('game.lineCut'),
-        wait > 0 ? t('game.lureOnLandWait', { s: wait }) : t('game.lureOnLand'),
-        3,
-      );
+      // Odotus näkyy ajastimena, syy sen alla.
+      if (wait > 0) this.setPenaltyNote(`${t('game.lineCut')} · ${t('game.lureOnLand')}`);
+      else hud.showMessage(`${t('game.lineCut')}\n${t('game.lureOnLand')}`, 3);
     } else if (events.bitOff) {
       sfx.lost();
       sfx.eventVoice('bitOff');
@@ -1577,7 +1600,7 @@ export class SoloGame {
     );
     if (step !== 0) {
       i = (i + step + others.length) % others.length;
-      this.hud.showMessage(t('game.following', { name: others[i]!.name }), 1.5);
+      this.hud.showMessage(t('game.following', { name: others[i]!.name }), 1.5, 'info');
     }
     const f = others[i]!;
     // Ensimmäinen seurattava: kamera hyppää heti paikalle.
@@ -1597,13 +1620,8 @@ export class SoloGame {
   private updateSpectatorHud(dt: number): void {
     const name = this.followed ? this.net!.world.playerName(this.followed) : null;
     this.hud.setPower(null);
-    this.hud.setHelpContext({
-      fly: false,
-      pov: this.viewMode === 'pov',
-      thunder: false,
-      land: false,
-      tangle: false,
-    });
+    this.hud.setHelpContext({ fly: false, pov: this.viewMode === 'pov' });
+    this.hud.setSituation(null);
     this.hud.setStatus([
       t('mp.spectating'),
       name ? t('game.following', { name }) : t('game.nobody'),
@@ -1763,7 +1781,7 @@ export class SoloGame {
   /** Tekee käsimerkin: oma animaatio ja kupla, moninpelissä muille. */
   emote(id: EmoteId): void {
     if (!this.emoteLimiter.take(Date.now())) {
-      this.hud.showMessage(t('emote.tooMany'), 2);
+      this.hud.showMessage(t('emote.tooMany'), 2, 'info');
       return;
     }
     this.emoting = { id, start: performance.now() };

@@ -39,7 +39,8 @@ export class CompassDisplay {
 
   constructor(parent: HTMLElement) {
     this.root = div('hud-compass hud-panel');
-    this.root.style.width = `calc(var(--u) * ${WIDTH})`;
+    // Pystypuhelimella kapeampi (--compass-u), jotta mahtuu kellon viereen keskelle.
+    this.root.style.width = `calc(var(--u) * var(--compass-u, ${WIDTH}))`;
     this.strip = div('hud-compass-strip');
     for (let deg = -180; deg <= 540; deg += TICK_DEG) {
       const x = (deg + 180) / DEG_PER_U;
@@ -73,7 +74,8 @@ export class CompassDisplay {
     const offset = stripOffset(bearingDeg(heading));
     if (offset === this.offset) return;
     this.offset = offset;
-    this.strip.style.transform = `translateX(calc(var(--u) * ${offset}))`;
+    // Kaistale alkaa nauhan keskeltä (left: 50 %), joten leveys voi vaihdella.
+    this.strip.style.transform = `translateX(calc(var(--u) * ${offset - WIDTH / 2}))`;
   }
 }
 
