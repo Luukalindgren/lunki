@@ -1,0 +1,39 @@
+[
+  { "file": "1-ilta-aurinko", "time": "evening", "elapsed": 300, "heading": 2.75, "crop": 40 },
+  { "file": "2-ilta-rusko", "time": "evening", "elapsed": 480, "heading": 2.75, "crop": 40 },
+  {
+    "file": "3-ilta-rengas-ja-vapa",
+    "time": "evening",
+    "elapsed": 300,
+    "heading": 2.75,
+    "fov": 72,
+    "pitch": -0.04,
+    "rod": true,
+    "tube": true,
+    "crop": 120
+  },
+  {
+    "file": "4-aamu-saaret",
+    "time": "morning",
+    "elapsed": 525,
+    "pos": { "x": -40, "y": -100 },
+    "heading": 0.7,
+    "crop": 30
+  },
+  {
+    "file": "5-paiva-saaret",
+    "time": "day",
+    "elapsed": 60,
+    "pos": { "x": 180, "y": 330 },
+    "heading": -1.4,
+    "crop": 40
+  },
+  {
+    "file": "6-yo-kuutamo",
+    "time": "night",
+    "elapsed": 0,
+    "pos": { "x": -150, "y": 0 },
+    "heading": -0.65,
+    "crop": 40
+  }
+]
