@@ -5,7 +5,7 @@ const HEIGHT = 140;
 /** Yhtä aikaa näkyvien trombien enimmäismäärä. */
 const MAX = 3;
 /** Imuvirran vaahtojuovia trombia kohden, niiden leveys (m) ja korkeus vedestä (m). */
-const STREAKS = 260;
+const STREAKS = 140;
 const STREAK_WIDTH = 0.4;
 const STREAK_Y = 0.25;
 
@@ -112,7 +112,7 @@ export class SpoutView {
       st.r[k] = r;
       st.a[k] = a;
       // Juova piirretään taaksepäin kuljettua rataa: pidempi, kun virta on kova.
-      const back = (1 + v * 0.14) / v;
+      const back = (0.6 + v * 0.08) / v;
       const rb = r + v * back;
       const ab = a - (v * 0.8 * back) / Math.max(r, 3);
       // Kapea nelikulmio kärjestä (x1, z1) hännän (x0, z0) kautta.
