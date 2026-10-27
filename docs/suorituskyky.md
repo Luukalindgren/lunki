@@ -58,3 +58,12 @@ läppärillä (`?bench=1`, tulos issueen #11).
    resoluutiossa (n. 130 000 pikseliä), joten se on kevyt.
 4. **HUD** on DOM-elementtejä; tekstit päivitetään vain kun ne muuttuvat, ettei
    selain laske asettelua turhaan joka ruutu.
+5. **Maailman rakentaminen (korjattu, #327 / PR #333).** Järvi, ranta ja maasto
+   rakennetaan kerran (`world/staticWorld.ts`), ja sama maailma siirretään
+   valikosta kisaan. Maankäytön haku käyttää valmista ruudukkoa
+   (`RingIndex`), ja shaderit käännetään etukäteen (`SoloGame.precompile`).
+   Valikko on valmis 2,0 → 1,5 s, kisan alun nykäys 1,65 → 0,7 s.
+   `?bench=1` kertoo nämä kentissä `raceBuildMs` ja `raceCompileMs`.
+6. **Toinen avaus (#328 / PR #334).** Service worker pitää pelin tiedostot
+   laitteella, joten peli aukeaa toisella kerralla heti ja yksinpeli toimii
+   ilman nettiä, ks. [julkaisu.md](julkaisu.md).
