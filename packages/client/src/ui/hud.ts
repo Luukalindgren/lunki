@@ -161,7 +161,17 @@ export class Hud {
       this.portrait.addEventListener('change', () => this.placeLureSonar());
     }
     if (typeof ResizeObserver !== 'undefined') {
-      const observer = new ResizeObserver(() => this.measureEdges());
+      // Seuraavassa ruudussa: mitat muuttavat marginaaleja (pystyssä kellon ja
+      // sään välit), ja saman kierroksen muutos olisi ResizeObserver-silmukka.
+      let pending = false;
+      const observer = new ResizeObserver(() => {
+        if (pending) return;
+        pending = true;
+        requestAnimationFrame(() => {
+          pending = false;
+          this.measureEdges();
+        });
+      });
       for (const e of [
         this.root,
         this.topLeft,
