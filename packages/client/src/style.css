@@ -140,19 +140,22 @@ textarea,
 /* Lähtölaskenta, punnituskortti ja ilmoitus allekkain ruudun keskellä. Alue
    rajautuu reunojen paneelien väliin, joten ne eivät mene toistensa eivätkä
    muiden paneelien päälle. Paneelien mitat (--left-w, --left-h, --right-w,
-   --fly-h) asettaa Hud ja chatin korkeuden (--chat-h) ChatBox. */
+   --fly-h) asettaa Hud ja chatin korkeuden (--chat-h) ChatBox. Reunat
+   annetaan muuttujina --nl ja --nr, joiden avulla pino keskitetään ruudun
+   keskilinjaan (ks. .hud-notices-stack). */
 .hud-notices {
   position: absolute;
   z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: calc(var(--m) * 4);
   container-type: inline-size;
   /* Vasemmalla kello, saaliit ja tilapaneeli, oikealla luotaimet ja
      kireysmittarin teksti (24). */
-  left: calc(var(--m) * 8 + var(--left-w, calc(var(--u) * 92)));
-  right: calc(var(--m) * 8 + max(var(--right-w, 0px), calc(var(--u) * 24)));
+  --nl: calc(var(--m) * 8 + var(--left-w, calc(var(--u) * 92)));
+  --nr: calc(var(--m) * 8 + max(var(--right-w, 0px), calc(var(--u) * 24)));
+  left: var(--nl);
+  right: var(--nr);
   /* Kompassin (11 + 2) ja sään (7 + 4 + 2) alle. */
   top: calc(var(--m) * 12 + var(--u) * 26);
   --nb-chat: 0px;
@@ -179,7 +182,7 @@ textarea,
 /* Luotaimet rinnakkain veisivät leveyden (Hud.measureEdges): ilmoitukset
    niiden yläpuolelle kireysmittarin tekstin (24) viereen. */
 .hud.wide-gauges .hud-notices {
-  right: calc(var(--m) * 8 + var(--u) * 24);
+  --nr: calc(var(--m) * 8 + var(--u) * 24);
   --nb-gauges: calc(var(--m) * 8 + var(--right-h, 0px));
 }
 
@@ -192,7 +195,25 @@ textarea,
   --nb-gauges: calc(var(--m) * 12 + var(--help-px) + var(--right-h, 0px));
 }
 
-.hud-notices > * {
+/* Reunojen paneelit ovat eri levyisiä, joten alueen keskikohta ei ole ruudun
+   keskellä. Pino siirretään ruudun keskilinjaan ((--nr - --nl) / 2), mutta
+   vain sen verran kuin alueeseen mahtuu (100cqi = alueen leveys, 100 % =
+   pinon leveys): kapea ilmoitus on aina keskellä, eikä leveäkään mene
+   paneelien päälle. Kaikki ilmoitukset samassa pinossa, samalla keskilinjalla. */
+.hud-notices-stack {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--m) * 4);
+  transform: translateX(
+    clamp(calc((100% - 100cqi) / 2), calc((var(--nr) - var(--nl)) / 2), calc((100cqi - 100%) / 2))
+  );
+}
+
+.hud-notices-stack > * {
   flex: none;
   max-width: 100%;
   box-sizing: border-box;
@@ -668,7 +689,7 @@ textarea,
   font-size: calc(var(--u) * 8);
 }
 
-.hud-notices > .hud-weigh {
+.hud-notices-stack > .hud-weigh {
   /* Matalalla alueella kalan kuva pienenee, teksti ei. */
   flex: 0 1 auto;
   min-height: 0;
@@ -1185,7 +1206,7 @@ textarea,
 
 /* Rangaistus (jäähy, kumossa, trombin kyydissä): keltainen kehys ja iso
    ajastin ilmoitusalueen yläosassa, jotta sen huomaa kesken kalastuksen. */
-.hud-notices > .hud-penalty {
+.hud-notices-stack > .hud-penalty {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1571,8 +1592,8 @@ textarea,
 /* Ilmoitukset vasemman pinon ja oikean alakulman nappien (12 + 3 × 56 + 2 × 6
    + 8 + KELAA 88 = 288 px) väliin, chatin alle. Kaikki ohjeen päällä. */
 .hud.touch .hud-notices {
-  left: calc(64px + var(--m) * 4 + var(--left-w, calc(var(--u) * 80)));
-  right: max(
+  --nl: calc(64px + var(--m) * 4 + var(--left-w, calc(var(--u) * 80)));
+  --nr: max(
     calc(296px + env(safe-area-inset-right, 0px)),
     calc(var(--m) * 12 + var(--u) * 24 + var(--right-w, 0px))
   );
@@ -1664,22 +1685,47 @@ textarea,
     align-items: flex-end;
   }
 
-  /* Ilmoitukset vasempaan reunaan kellon, saaliiden, chatin ja oikean reunan
-     luotainten alle, oikealla olevan nappipinon (12 + 3 × 56 + 2 × 6 = 192 px) ja alhaalla
-     tatin ja kuntopalkin (150 + 9) tai perhoheiton sivukuvan yläpuolelle.
-     Ylhäällä vasemmalla nappirivi: 4 nappia, moninpelissä 5 (8 + n × 50). */
+  /* Ilmoitukset kellon, saaliiden, chatin ja oikean reunan luotainten alle,
+     koko leveydelle ruudun keskelle oikean alakulman nappien (16 + KELAA 88 + 8
+     + 3 × 44 + 2 × 6 = 256 px) ja perhoheiton sivukuvan yläpuolelle.
+     Ylhäällä vasemmalla nappirivi: 4 nappia, moninpelissä 5 (8 + n × 50).
+     Alue on kyselysäiliö: jos nappien yläpuolelle ei jää tarpeeksi korkeutta
+     (matala ruutu, moninpelin chat), pino siirtyy vasempaan reunaan nappipinon (12 + 3 × 56 + 2 × 6 = 192 px)
+     viereen, jossa se ulottuu tatin ja kuntopalkin (150 + 9) yläpuolelle asti. */
   .hud.touch .hud-notices {
-    left: calc(8px + env(safe-area-inset-left, 0px));
-    right: calc(200px + env(safe-area-inset-right, 0px));
+    --nl: calc(8px + env(safe-area-inset-left, 0px));
+    --nr: calc(8px + env(safe-area-inset-right, 0px));
+    /* Alareuna kapeassa sijainnissa nappipinon vieressä. */
+    --nb-low: calc(167px + var(--fly-on, 0) * (23px + var(--fly-h, 0px)));
+    container-type: size;
     top: max(
       calc(var(--m) * 8 + var(--left-h, calc(var(--u) * 126))),
       calc(var(--m) * 14 + var(--u) * 72 + var(--right-h, 0px)),
       calc(208px + env(safe-area-inset-top, 0px))
     );
-    bottom: calc(
-      167px + var(--fly-on, 0) * (23px + var(--fly-h, 0px)) + env(safe-area-inset-bottom, 0px)
-    );
+    bottom: calc(max(264px, var(--nb-low)) + env(safe-area-inset-bottom, 0px));
     font-size: calc(var(--u) * 9);
+  }
+
+  /* Punnituskortti on korkea: matalalla alueella kuva kutistuisi liikaa. */
+  @container (max-height: 150px) {
+    .hud.touch .hud-notices-stack:has(> .hud-weigh:not([hidden])) {
+      align-self: flex-start;
+      flex-shrink: 0;
+      max-width: calc(100% - 192px);
+      max-height: calc(100% + max(0px, 264px - var(--nb-low)));
+      transform: none;
+    }
+  }
+
+  @container (max-height: 90px) {
+    .hud.touch .hud-notices-stack {
+      align-self: flex-start;
+      max-width: calc(100% - 192px);
+      flex-shrink: 0;
+      max-height: calc(100% + max(0px, 264px - var(--nb-low)));
+      transform: none;
+    }
   }
 
   .hud.touch.mp .hud-notices {
@@ -1698,7 +1744,7 @@ textarea,
   }
 
   /* Kapealla alueella pienempänä, ettei kaksirivinen rangaistus peitä rengasta. */
-  .hud.touch .hud-notices > .hud-penalty {
+  .hud.touch .hud-notices-stack > .hud-penalty {
     font-size: calc(var(--u) * 8);
     padding: calc(var(--u) * 2) calc(var(--u) * 4);
   }
