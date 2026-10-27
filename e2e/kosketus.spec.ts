@@ -113,6 +113,8 @@ test.describe('puhelin', () => {
     await expect(page.locator('.hud-timer')).toBeVisible();
     const button = page.locator('.touch-reel');
     await expect(button).toHaveText('HEITÄ');
+    // Napit ovat 3×3-ruudukossa.
+    await expect(page.locator('.touch-grid > button:visible')).toHaveCount(9);
 
     // Pohjassa lataa kuten välilyönti, irrotus heittää: viehe lähtee ja nappi kelaa.
     const box = (await button.boundingBox())!;
@@ -169,6 +171,9 @@ test.describe('puhelin', () => {
     }
     expect(cast).toBe(true);
     await expect(page.locator('.hud-fly-panel')).toBeHidden();
+    // Perho vedessä: SIIMA-nappi on NOSTA, ja ruudukko on yhä 3×3.
+    await expect(page.getByRole('button', { name: 'NOSTA' })).toBeVisible();
+    await expect(page.locator('.touch-grid > button:visible')).toHaveCount(9);
     errors.check();
   });
 });

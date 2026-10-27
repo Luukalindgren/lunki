@@ -563,7 +563,7 @@ startLoop({
     if (game) {
       touch?.setGear(game.fishing.gear);
       touch?.setFly(isFly(game.fishing.tackle), !game.fishing.onReel);
-      touch?.setCastReady(game.fishing.stage === 'idle' || game.fishing.stage === 'charging');
+      touch?.setStage(game.fishing.stage);
     } else sfx.updateAmbience(dt, MENU_AMBIENCE);
     updateTime += performance.now() - t0;
     updateCount++;

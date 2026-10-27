@@ -1,4 +1,4 @@
-import { REEL } from '@lunki/shared';
+import { REEL, type FishingStage } from '@lunki/shared';
 import type { Input } from '../engine/input';
 import { hasKey, onLangChange, t, type MsgKey } from '../i18n';
 
@@ -27,14 +27,14 @@ export class TouchControls {
   private readonly gearButton: HTMLButtonElement;
   private readonly cutButton: HTMLButtonElement;
   private readonly chatButton: HTMLButtonElement;
-  /** Perhon siimakäsi (#236): pohjassa puristaa siimaa. */
+  /** Perhon siimakäsi (#236): pohjassa puristaa siimaa; perhon ollessa vedessä NOSTA. */
   private readonly lineButton: HTMLButtonElement;
+  private readonly lineText: { label?: MsgKey; title: MsgKey };
   private readonly reelButton: HTMLButtonElement;
   private readonly reelText: { label?: MsgKey; title: MsgKey };
   private fly = false;
   private flyInHand = false;
-  /** Viehe ei ole vielä vedessä: KELAA on HEITÄ. */
-  private castReady = false;
+  private stage: FishingStage = 'idle';
   /** VIESTI-nappi: avaa moninpelin chatin. */
   onChat: (() => void) | null = null;
   private stickPointer: number | null = null;
@@ -88,7 +88,13 @@ export class TouchControls {
       this.tapKey(`Digit${((this.gear + 1) % GEARS) + 1}`),
     );
     this.cutButton = this.tap('touch.cut', 'KeyC', 'touch.cutTitle');
-    this.lineButton = this.hold('touch.line', 'LineGrip', 'touch.lineTitle');
+    // Vedessä nosto on oikea hiiren nappi kuten tietokoneella (#236).
+    this.lineButton = this.hold(
+      'touch.line',
+      () => (this.stage === 'water' ? 'Mouse2' : 'LineGrip'),
+      'touch.lineTitle',
+    );
+    this.lineText = this.texts[this.texts.length - 1]!;
     this.lineButton.hidden = true;
     const camButton = this.tap('touch.cam', 'KeyV', 'touch.camTitle');
     camButton.classList.add('touch-cam');
@@ -103,13 +109,12 @@ export class TouchControls {
       this.tap('touch.dragMore', 'KeyE', 'touch.dragMoreTitle'),
       this.gearButton,
       this.lineButton,
-      this.hold('touch.cancel', 'Mouse2', 'touch.cancelTitle'),
       this.cutButton,
     );
     // Ennen heittoa nappi on HEITÄ ja painaa välilyöntiä: heitto katsesuuntaan (#227).
     this.reelButton = this.hold(
       'touch.reel',
-      () => (this.castReady && !this.fly ? 'Space' : 'Reel'),
+      () => (this.castReady ? 'Space' : 'Reel'),
       'touch.reelTitle',
     );
     this.reelButton.classList.add('touch-reel');
@@ -159,25 +164,34 @@ export class TouchControls {
     this.flyInHand = inHand;
     this.lineButton.hidden = !fly;
     this.gearButton.hidden = fly;
-    this.relabelReel();
+    this.relabelStage();
   }
 
   /**
-   * Viehe ei ole vielä vedessä (vapa valmiina tai heitto latautumassa): KELAA on
-   * HEITÄ ja tekee saman kuin välilyönti. Perhoa heitetään yhä pyyhkäisyllä.
+   * Kalastuksen vaihe. Ennen heittoa (vapa valmiina tai heitto latautumassa)
+   * KELAA on HEITÄ ja tekee saman kuin välilyönti; perhoa heitetään yhä
+   * pyyhkäisyllä. Perhon ollessa vedessä SIIMA on NOSTA (uusi heitto).
    */
-  setCastReady(ready: boolean): void {
-    if (ready === this.castReady) return;
-    this.castReady = ready;
-    this.relabelReel();
+  setStage(stage: FishingStage): void {
+    if (stage === this.stage) return;
+    this.stage = stage;
+    this.relabelStage();
   }
 
-  /** KELAA-napin teksti: HEITÄ ennen heittoa, perhon siima kädessä VETO. */
-  private relabelReel(): void {
-    const cast = this.castReady && !this.fly;
+  /** Ennen heittoa vieheellä HEITÄ. */
+  private get castReady(): boolean {
+    return !this.fly && (this.stage === 'idle' || this.stage === 'charging');
+  }
+
+  /** KELAA-napin teksti: HEITÄ ennen heittoa, perhon siima kädessä VETO; SIIMA vedessä NOSTA. */
+  private relabelStage(): void {
+    const cast = this.castReady;
     const strip = this.fly && this.flyInHand;
     this.reelText.label = cast ? 'touch.cast' : strip ? 'touch.strip' : 'touch.reel';
     this.reelText.title = cast ? 'touch.castTitle' : strip ? 'touch.stripTitle' : 'touch.reelTitle';
+    const lift = this.stage === 'water';
+    this.lineText.label = lift ? 'touch.lift' : 'touch.line';
+    this.lineText.title = lift ? 'touch.liftTitle' : 'touch.lineTitle';
     this.relabel();
   }
 
