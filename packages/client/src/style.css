@@ -1054,6 +1054,34 @@ textarea,
   text-shadow: calc(var(--u) * 2) calc(var(--u) * 2) 0 #8c1c1c;
 }
 
+/* Rangaistus (jäähy, kumossa, trombin kyydissä): keltainen kehys ja iso
+   ajastin ilmoitusalueen yläosassa, jotta sen huomaa kesken kalastuksen. */
+.hud-notices > .hud-penalty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--u) * 2);
+  background: rgb(11 15 20 / 75%);
+  border: var(--u) solid #f6d04d;
+  padding: calc(var(--u) * 2) calc(var(--u) * 6);
+  color: #f6d04d;
+  font-size: calc(var(--u) * 10);
+}
+
+.hud-penalty-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  column-gap: calc(var(--u) * 5);
+  text-align: center;
+}
+
+.hud-penalty-row b {
+  font-weight: normal;
+  font-size: calc(var(--u) * 20);
+}
+
 .catch-list.results li.me {
   color: #f6d04d;
 }
