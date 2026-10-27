@@ -12,7 +12,7 @@ export const ROOM_NAME = 'lunki';
  * uudelleen: asiakas ei lähetä vanhemmalle palvelimelle viestejä, joita se
  * ei tunne. Vanha palvelin ilman kenttää = 1.
  */
-export const PROTOCOL_VERSION = 5;
+export const PROTOCOL_VERSION = 6;
 /** Chat tuli versiossa 2. */
 export const CHAT_PROTOCOL = 2;
 /** Maalle juuttuneen vieheen siiman katkaisu (ClientMsg.landCut) tuli versiossa 3. */
@@ -21,6 +21,12 @@ export const LAND_CUT_PROTOCOL = 3;
 export const SPECTATE_PROTOCOL = 4;
 /** Käsimerkit (ClientMsg.emote, ServerMsg.emote) tulivat versiossa 5. */
 export const EMOTE_PROTOCOL = 5;
+/**
+ * Venekisa (RoomSettings.craft, ClientMsg.boat, PlayerState.boat/seat) tuli
+ * versiossa 6. Asiakas kertoo versionsa (JoinOptions.protocol): vanha asiakas
+ * ei osaa venettä, joten se ei pääse venekisaan.
+ */
+export const BOAT_PROTOCOL = 6;
 
 /** Oletuspelaajamäärä huoneessa. Rakenne sallii isomman. */
 export const DEFAULT_MAX_PLAYERS = 8;
@@ -78,6 +84,8 @@ export interface JoinOptions {
    * katsojaksi. Vanha palvelin ei tunne valintaa ja hylkää liittymisen.
    */
   spectate?: boolean;
+  /** Asiakkaan PROTOCOL_VERSION; vanha asiakas ei lähetä. */
+  protocol?: number;
 }
 
 /**
@@ -90,6 +98,8 @@ export const JoinRefusal = {
   full: 'room-full',
   /** Palvelimella on jo enimmäismäärä huoneita. */
   serverFull: 'server-full',
+  /** Asiakas on liian vanha huoneen kisaan (esim. venekisa). */
+  outdated: 'client-outdated',
 } as const;
 export type JoinRefusalCode = (typeof JoinRefusal)[keyof typeof JoinRefusal];
 
@@ -137,6 +147,8 @@ export const ClientMsg = {
   spectate: 'spectate',
   /** Käsimerkki muille (EmoteId). */
   emote: 'emote',
+  /** Aulassa venekisassa: siirry veneeseen n (1…) tai omaan uuteen veneeseen (0). */
+  boat: 'boat',
 } as const;
 
 /** Vieheen tila muille näytettäväksi. */
