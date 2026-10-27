@@ -179,7 +179,7 @@ export const fi = {
   'settings.difficulty': 'Kalastuksen vaikeus',
   'settings.difficultyShort': 'Vaikeus',
   'settings.difficultyHint':
-    'Helppo: kala tarttuu aina ja tulee ylös kelaamalla. Realistinen: vastaisku, jarru ja siiman kireys ratkaisevat.',
+    'Helppo: kalat tulevat vieheelle kaukaa, tarttuvat aina ja tulevat ylös kelaamalla. Realistinen: vastaisku, jarru ja siiman kireys ratkaisevat.',
   'settings.timeOfDay': 'Vuorokaudenaika',
   'settings.weather': 'Sää',
   'settings.lightning': 'Salama',

@@ -1100,9 +1100,9 @@ function randomWaterPoint(
  * Kuinka houkutteleva viehe on kalalle: nopeus lähellä mieluisaa, syvyys
  * lähellä kalan syvyyttä, kertoimena vieheen ja siiman sopivuus lajille.
  */
-export function lureAppeal(fish: Fish, lure: LureInfo): number {
+export function lureAppeal(fish: Fish, lure: LureInfo, tolerance = 1): number {
   const sp = SPECIES[fish.species];
-  const dv = Math.abs(lure.speed - sp.preferredSpeed) / sp.speedTolerance;
+  const dv = Math.abs(lure.speed - sp.preferredSpeed) / (sp.speedTolerance * tolerance);
   // Pysähtynytkin viehe kiinnostaa vähän (vajoava viehe; jigi eniten).
   const bait = lure.tackle ? baitOf(lure.tackle) : null;
   const big = !!bait && sizeClass(fish.species, fish.weight) >= 3;
@@ -1116,7 +1116,7 @@ export function lureAppeal(fish: Fish, lure: LureInfo): number {
   const still = bait ? (pause ? bait.pauseAppeal : bait.stillAppeal) : 0.25;
   const speedScore = Math.max(lure.speed < 0.05 ? still : 0, 1 - dv * dv * 0.5);
   const dd = Math.abs(lure.depth - fish.depth);
-  const depthScore = Math.max(0, 1 - dd / 2.5);
+  const depthScore = Math.max(0, 1 - dd / (2.5 * tolerance));
   const gear = lure.tackle ? tackleAppeal(lure.tackle, fish.species) : 1;
   const clean = lure.fouled ? FOULED_APPEAL : 1;
   const taste = big && bait ? bait.bigFish : 1;
@@ -1204,8 +1204,10 @@ function shoreFactor(pop: FishPopulation, pos: Vec2, sp: Species, c: FishConditi
 }
 
 /** Havaintoetäisyys: näön varassa saalistava näkee pimeällä huonommin. */
-function senseRadius(sp: Species, c: FishConditions): number {
-  return sp.senseRadius * (sp.behavior.visual ? 0.45 + 0.55 * clamp01(c.light) : 1);
+function senseRadius(sp: Species, c: FishConditions, diff: DifficultyParams): number {
+  return (
+    sp.senseRadius * diff.senseRange * (sp.behavior.visual ? 0.45 + 0.55 * clamp01(c.light) : 1)
+  );
 }
 
 /** Uintisyvyys pohjan syvyydestä: laji, valo ja myrsky. */
@@ -1251,13 +1253,13 @@ export function stepFishPopulation(
     f.cooldown = Math.max(0, f.cooldown - dt);
     // Kilpaileva parvi: kun yksi seuraa viehettä, muutkin kiinnostuvat herkemmin.
     const excite = sp.behavior.competes && school ? school.excitement : 0;
-    const sense = senseRadius(sp, cond) * (1 + 0.5 * excite);
+    const sense = senseRadius(sp, cond, diff) * (1 + 0.5 * excite);
 
     if (f.mode === 'roam') {
       move(f, school, world, cond, act[f.species], rng, dt);
       if (lure && near < sense && f.cooldown === 0) {
         const a = act[f.species] * shoreFactor(pop, f.pos, sp, cond) * (1 + 1.5 * excite);
-        const appeal = lureAppeal(f, lure);
+        const appeal = lureAppeal(f, lure, diff.appealTolerance);
         if (rng.chance(0.6 * appeal * sp.lureInterest * diff.biteRate * a, dt)) {
           f.mode = 'follow';
           f.timer = 0;
@@ -1277,16 +1279,16 @@ export function stepFishPopulation(
     if (f.mode === 'follow') {
       const size = sizeClass(f.species, f.weight);
       // Suurkala säikähtää pohjaan tarttunutta viehettä ja kalastajan läheisyyttä.
-      if (size >= 3 && (lure.snagged || distance(lure.pos, lure.tip) < BIG_FISH_SHY)) {
+      if (diff.wary && size >= 3 && (lure.snagged || distance(lure.pos, lure.tip) < BIG_FISH_SHY)) {
         if (!lure.snagged) events.shadow = f.id;
         spook(f, world, rng);
         continue;
       }
       f.timer += dt;
       // Uidaan vieheen perään ja syvyyteen.
-      swimToward(f, lure.pos, sp.chaseSpeed, 0.6, dt);
+      swimToward(f, lure.pos, sp.chaseSpeed * diff.chaseSpeed, 0.6, dt);
       f.depth += (lure.depth - f.depth) * Math.min(1, dt * 1.5);
-      const appeal = lureAppeal(f, lure);
+      const appeal = lureAppeal(f, lure, diff.appealTolerance);
       const ambush = sp.behavior.ambush;
       // Taimen seuraa pitkään ja iskee vasta harkittuaan.
       const follows = sp.behavior.follows ?? 1;
@@ -1294,8 +1296,8 @@ export function stepFishPopulation(
       // kauas paikaltaan ja ratkaisee nopeasti, iskeekö.
       if (
         distance(lure.pos, lure.tip) < 3.5 ||
-        f.timer > (ambush ? 4 : 8 * follows) ||
-        (ambush && distance(f.pos, f.home) > sp.homeRange + sp.senseRadius)
+        f.timer > (ambush ? 4 : 8 * follows) * diff.followTime ||
+        (ambush && distance(f.pos, f.home) > sp.homeRange + sp.senseRadius * diff.senseRange)
       ) {
         loseInterest(f, rng);
         continue;
@@ -1304,10 +1306,10 @@ export function stepFishPopulation(
         (Math.sqrt(act[f.species]) *
           (ambush ? 1.6 : 1) *
           (1 + excite) *
-          wariness(size, act[f.species])) /
+          (diff.wary ? wariness(size, act[f.species]) : 1)) /
         follows;
       if (
-        near < 1.2 &&
+        near < diff.strikeReach &&
         rng.chance((0.35 + appeal * 0.9) * sp.lureInterest * diff.biteRate * a, dt)
       ) {
         f.mode = 'struck';

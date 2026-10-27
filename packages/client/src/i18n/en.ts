@@ -176,7 +176,7 @@ export const en: Record<keyof typeof fi, string> = {
   'settings.difficulty': 'Fishing difficulty',
   'settings.difficultyShort': 'Difficulty',
   'settings.difficultyHint':
-    'Easy: a fish always gets hooked and comes up as you reel. Realistic: the hookset, the drag and the line tension decide.',
+    'Easy: fish come to the lure from afar, always get hooked and come up as you reel. Realistic: the hookset, the drag and the line tension decide.',
   'settings.timeOfDay': 'Time of day',
   'settings.weather': 'Weather',
   'settings.lightning': 'Lightning',

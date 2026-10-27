@@ -1,6 +1,8 @@
 import { Client, type Room } from '@colyseus/sdk';
 import { matchMaker, type Server } from '@colyseus/core';
 import {
+  catchRadius,
+  DIFFICULTIES,
   ClientMsg,
   DEFAULT_APPEARANCE,
   LUNKINJARVI,
@@ -706,8 +708,10 @@ describe('LunkiRoom', () => {
     // Viehe ei ollut kalan luona: saalis hylätään.
     const far = nearSlot(stock, [mine(guests[2]!)], [0], taken);
     const home = fishHome(stock, far, 0)!;
+    // Helpolla kalat tulevat vieheelle kauempaa, joten raja on väljempi.
+    const beyond = catchRadius(stock.fish[far]!.species, DIFFICULTIES.easy) + 20;
     land(guests[2]!, stock, far, 0, {
-      x: home.x + Math.sign(mine(guests[2]!).x - home.x) * 200,
+      x: home.x + Math.sign(mine(guests[2]!).x - home.x) * beyond,
       y: home.y,
     });
     await until(() => host.state.catches.length === 3);

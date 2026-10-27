@@ -1,5 +1,6 @@
 import { CAST, predictLanding } from '../fishing/cast';
 import { SPECIES, type SpeciesId } from '../fishing/fish';
+import { DIFFICULTIES, type DifficultyParams } from '../fishing/difficulty';
 import { MAX_CAST_FACTOR } from '../fishing/gear';
 import { distance, type Vec2 } from '../vec2';
 
@@ -38,7 +39,10 @@ export function isPlausibleSplash(tubePos: Vec2, splash: Vec2): boolean {
  * väsytyksen jäljiltä heiton päässä. Palvelin hylkää saaliin, jonka viehe
  * tarttui tätä kauempana kalan kotipaikasta.
  */
-export function catchRadius(species: SpeciesId): number {
+export function catchRadius(
+  species: SpeciesId,
+  diff: Pick<DifficultyParams, 'senseRange'> = DIFFICULTIES.normal,
+): number {
   const sp = SPECIES[species];
-  return sp.homeRange + sp.senseRadius * 1.5 + maxCastDistance() + 20;
+  return sp.homeRange + sp.senseRadius * diff.senseRange * 1.5 + maxCastDistance() + 20;
 }

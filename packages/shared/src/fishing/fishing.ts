@@ -301,13 +301,15 @@ export interface FishingEvents {
 
 /** Pohjaan tarttuminen kivikossa ja kaatuneen puun oksissa. */
 export const SNAG = {
-  /** Todennäköisyys sekunnissa, kun liikkuva viehe hipoo pohjaa rakenteen kohdalla. */
+  /**
+   * Todennäköisyys sekunnissa, kun liikkuva viehe hipoo pohjaa rakenteen
+   * kohdalla (kertoimena vaikeustason snagRate).
+   */
   rate: 0.9,
   /** Kuinka lähellä pohjaa (m) viehe voi tarttua. */
   nearBottom: 0.35,
-  /** Irrotusyrityksen kesto (s) ja onnistumisen todennäköisyys. */
+  /** Irrotusyrityksen kesto (s); onnistuminen riippuu vaikeustasosta (snagFreeChance). */
   pullTime: 1.2,
-  freeChance: 0.6,
   /** Tartuntariskin kerroin rakenteittain; kasvusto vie viehettä vain harvoin. */
   kindRisk: {
     rocks: 1,
@@ -540,7 +542,7 @@ export function stepFishing(
         const limit = Math.min(bottom, Math.max(lure.maxDepth, s.depth));
         s.depth = Math.max(0, Math.min(limit, s.depth + rate * dt));
         if (s.lureSpeed > 0.05 && s.struckId === null && fish)
-          touchBottom(s, ctx, bottom, fish.rng, events, dt);
+          touchBottom(s, ctx, bottom, fish, events, dt);
       }
       s.stillTime = s.lureSpeed < 0.05 ? s.stillTime + dt : 0;
       stepLine(s.line, tip, s.lure, s.lineLength, dt, { x: 0.15, y: 0.1 });
@@ -701,17 +703,23 @@ function touchBottom(
   s: FishingState,
   ctx: FishingContext,
   bottom: number,
-  rng: Rng,
+  fish: NonNullable<FishingContext['fish']>,
   events: FishingEvents,
   dt: number,
 ): void {
+  const { rng } = fish;
+  const often = fish.diff.snagRate;
   const lure = baitOf(s.tackle);
   const structure = ctx.structureAt?.(s.lure);
   if (structure) {
     const top = bottom - (structure.height ?? 0) - SNAG.nearBottom;
     if (structure.kind === 'reeds' || s.depth >= top) {
       const density = structure.density ?? 1;
-      if (structure.kind === 'weed' && !s.fouled && rng.chance(WEED.foulRate * density, dt)) {
+      if (
+        structure.kind === 'weed' &&
+        !s.fouled &&
+        rng.chance(WEED.foulRate * density * often, dt)
+      ) {
         s.fouled = true;
         events.fouled = true;
       }
@@ -719,7 +727,7 @@ function touchBottom(
       const risk =
         SNAG.kindRisk[structure.kind] *
         (structure.kind === 'weed' ? density * density : lure.snagRisk);
-      if (risk > 0 && rng.chance(SNAG.rate * risk, dt)) {
+      if (risk > 0 && rng.chance(SNAG.rate * risk * often, dt)) {
         snagLure(s, false, events);
         return;
       }
@@ -728,7 +736,7 @@ function touchBottom(
   if (s.depth < bottom - 0.05 || !ctx.bottomTypeAt || isFly(s.tackle) || s.tackle.lure !== 'jig')
     return;
   const floor = ctx.bottomTypeAt(s.lure);
-  if (floor === 'mud' && rng.chance(SNAG.mudRate, dt)) snagLure(s, true, events);
+  if (floor === 'mud' && rng.chance(SNAG.mudRate * often, dt)) snagLure(s, true, events);
   else if (floor === 'rock' && rng.chance(RATTLE_RATE, dt)) events.rattle = true;
 }
 
@@ -816,7 +824,8 @@ function pullSnag(
   // Liian kireä jarru katkaisee siiman heti; siimakädellä vedetään tunnustellen.
   const snap = fish?.diff.lineCanBreak === true && s.tension > lineStrength(s);
   if (!snap && s.snag < SNAG.pullTime) return;
-  if (!snap && (s.softSnag || (fish?.rng.next() ?? 0) < SNAG.freeChance)) {
+  const freeChance = (fish?.diff ?? DIFFICULTIES.normal).snagFreeChance;
+  if (!snap && (s.softSnag || (fish?.rng.next() ?? 0) < freeChance)) {
     s.snag = null;
     s.softSnag = false;
     events.unsnagged = true;
@@ -937,7 +946,7 @@ function fight(
   let tension = 0;
   if (d > s.lineLength) {
     const pulledSpeed = (d - s.lineLength) / dt;
-    raw += f.weight * FIGHT.bodyDrag * (1 + pulledSpeed * pulledSpeed);
+    raw += f.weight * FIGHT.bodyDrag * diff.bodyDrag * (1 + pulledSpeed * pulledSpeed);
     if (raw > hold) {
       // Jarru luistaa (perhossa siima sormien läpi): kala vie siimaa, ensin löysästä.
       if (handLine(s)) {
