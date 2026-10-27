@@ -110,7 +110,7 @@ test.describe('yksinpeli', () => {
     });
     await page.keyboard.press('Space');
     await expect(page.locator('.hud-power')).toBeVisible();
-    await expect(page.locator('.hud-status')).toContainText('Välilyönti, kun siima suoristuu');
+    await expect(page.locator('.hud-situation')).toContainText('Välilyönti, kun siima suoristuu');
     await expect(page.locator('.hud-message')).toContainText(/Heitto \d+ m/, { timeout: 10_000 });
     await expect.poll(metres(/Siimaa ([\d,]+) m/), { timeout: 10_000 }).toBeGreaterThan(3);
     // Välilyönti pohjassa vetää siimaa renkaan eteen löysäksi.

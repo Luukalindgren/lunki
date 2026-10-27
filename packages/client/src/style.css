@@ -156,17 +156,12 @@ textarea,
   --nr: calc(var(--m) * 8 + max(var(--right-w, 0px), calc(var(--u) * 24)));
   left: var(--nl);
   right: var(--nr);
-  /* Kompassin (11 + 2) ja sään (7 + 4 + 2) alle. */
-  top: calc(var(--m) * 12 + var(--u) * 26);
+  /* Kompassin, sään ja kuntopalkin alle (Hud mittaa --top-h). */
+  top: calc(var(--m) * 8 + var(--top-h, calc(var(--m) * 4 + var(--u) * 26)));
   --nb-chat: 0px;
   --nb-help: 0px;
   --nb-gauges: 0px;
   bottom: max(calc(var(--m) * 4), var(--nb-chat), var(--nb-help), var(--nb-gauges));
-}
-
-/* Kuntopalkki (8) sään alla. */
-.hud.tired:not(.touch) .hud-notices {
-  top: calc(var(--m) * 16 + var(--u) * 34);
 }
 
 /* Moninpelin chat tilapaneelin (5 riviä: 50 + 4 + 2) yläpuolella. */
@@ -285,11 +280,6 @@ textarea,
 
 .hud-help-slot > .hud-panel {
   position: relative;
-}
-
-/* Juuri nyt oleellinen ohje (ukkonen, viehe maalla, sotku) korostettuna. */
-.hud-help-now {
-  color: #fff3b0;
 }
 
 .hud-help {
@@ -638,7 +628,9 @@ textarea,
 
 .hud-weather {
   font-size: calc(var(--u) * 7);
-  white-space: nowrap;
+  /* Toisella rivillä aallot, salamavaara ja trombi. */
+  white-space: pre;
+  text-align: center;
 }
 
 /* Kompassinauha yläreunassa, sää sen alla. */
@@ -1242,6 +1234,24 @@ textarea,
   font-size: calc(var(--u) * 20);
 }
 
+/* Miksi rangaistus tuli ja mitä tehdä, samassa kortissa ajastimen alla. */
+.hud-penalty small {
+  font-size: calc(var(--u) * 8);
+  color: #c3cbd2;
+  text-align: center;
+}
+
+/* Tilanneohje: mitä nyt pitää tehdä. Pysyy, kunnes tilanne on ohi. */
+.hud-notices-stack > .hud-situation {
+  text-align: center;
+  white-space: pre-line;
+  font-size: calc(var(--u) * 10);
+  color: #fff3b0;
+  background: rgb(11 15 20 / 65%);
+  border: var(--u) solid #39424d;
+  padding: var(--u) calc(var(--u) * 3);
+}
+
 .catch-list.results li.me {
   color: #f6d04d;
 }
@@ -1587,8 +1597,8 @@ textarea,
 .hud.touch .hud-help {
   position: absolute;
   left: 50%;
-  /* Kompassin (11 + 2) ja sään (7 + 4 + 2) alle. */
-  top: calc(var(--m) * 12 + var(--u) * 26);
+  /* Kompassin ja sään alle. */
+  top: calc(var(--m) * 8 + var(--top-h, calc(var(--m) * 4 + var(--u) * 26)));
   transform: translateX(-50%);
   font-size: calc(var(--u) * 7);
   background: rgb(11 15 20 / 90%);
@@ -1607,7 +1617,9 @@ textarea,
     calc(296px + env(safe-area-inset-right, 0px)),
     calc(var(--m) * 12 + var(--u) * 24 + var(--right-w, 0px))
   );
-  top: calc(var(--m) * 12 + var(--u) * 26 + var(--chat-h, 0px));
+  top: calc(
+    calc(var(--m) * 8 + var(--top-h, calc(var(--m) * 4 + var(--u) * 26))) + var(--chat-h, 0px)
+  );
   bottom: calc(var(--m) * 4 + var(--fly-h, 0px) + env(safe-area-inset-bottom, 0px));
 }
 
@@ -1751,6 +1763,10 @@ textarea,
   .hud.touch .hud-message,
   .hud.touch .hud-weigh {
     font-size: calc(var(--u) * 10);
+  }
+
+  .hud.touch .hud-notices-stack > .hud-situation {
+    font-size: calc(var(--u) * 9);
   }
 
   /* Kapealla alueella pienempänä, ettei kaksirivinen rangaistus peitä rengasta. */
@@ -1955,7 +1971,7 @@ textarea,
 .hud.touch .chat-hud {
   left: 50%;
   bottom: auto;
-  top: calc(var(--m) * 12 + var(--u) * 26);
+  top: calc(var(--m) * 8 + var(--top-h, calc(var(--m) * 4 + var(--u) * 26)));
   transform: translateX(-50%);
   width: min(360px, 50%);
   font-size: max(14px, calc(var(--u) * 7));

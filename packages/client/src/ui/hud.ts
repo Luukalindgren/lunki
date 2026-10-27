@@ -29,15 +29,11 @@ export class Hud {
   private readonly tensionLabel: HTMLDivElement;
   private readonly staminaLabel: HTMLDivElement;
   private readonly help: HTMLDivElement;
-  /** Ohjeelle varattu tila: tilanteen rivit eivät siirrä luotaimia. */
+  /** Ohjeelle varattu tila: ohjeen vaihtuminen ei siirrä luotaimia. */
   private readonly helpSlot: HTMLDivElement;
-  private helpContext: HelpContext = {
-    fly: false,
-    pov: false,
-    thunder: false,
-    land: false,
-    tangle: false,
-  };
+  private helpContext: HelpContext = { fly: false, pov: false };
+  /** Tilanneohje (viehe maalla, sotku, perhoheitto): näkyy niin kauan kuin tilanne kestää. */
+  private readonly situation: HTMLDivElement;
   private helpKey = '';
   private readonly stamina: HTMLDivElement;
   private readonly staminaFill: HTMLDivElement;
@@ -64,6 +60,10 @@ export class Hud {
   private readonly probeU: HTMLDivElement;
   private readonly probeM: HTMLDivElement;
   private messageTimer = 0;
+  /** Näkyvän ilmoituksen tärkeys: vähemmän tärkeä ei korvaa sitä kesken. */
+  private messageLevel: MessageLevel = 'info';
+  /** Vähemmän tärkeä ilmoitus odottaa, kunnes näkyvä on ohi (uusin voittaa). */
+  private queued: { text: string; seconds: number; level: MessageLevel; age: number } | null = null;
   /** Pysyvä ilmoitus (yhteyskatko), joka palaa näkyviin muiden viestien jälkeen. */
   private standing: string | null = null;
   private weighTimer = 0;
@@ -119,6 +119,8 @@ export class Hud {
     this.countdown.hidden = true;
     this.penalty = el('div', 'hud-penalty');
     this.penalty.hidden = true;
+    this.situation = el('div', 'hud-situation');
+    this.situation.hidden = true;
     // Kulmiin ja yläreunaan pinot, jotta paneelit eivät mene päällekkäin
     // eivätkä peitä ilmoituksia keskellä ruutua.
     this.topLeft = el('div', 'hud-top-left');
@@ -141,7 +143,7 @@ export class Hud {
     // Pino keskitetään ruudun keskilinjaan niin pitkälle kuin alueeseen mahtuu.
     this.notices = el('div', 'hud-notices');
     const stack = el('div', 'hud-notices-stack');
-    stack.append(this.countdown, this.penalty, this.weigh, this.message);
+    stack.append(this.countdown, this.penalty, this.weigh, this.message, this.situation);
     this.notices.appendChild(stack);
     this.root.appendChild(this.notices);
     this.probeU = el('div', 'hud-probe');
@@ -154,7 +156,14 @@ export class Hud {
     this.updateHelpOpen();
     if (typeof ResizeObserver !== 'undefined') {
       const observer = new ResizeObserver(() => this.measureEdges());
-      for (const e of [this.root, this.topLeft, this.status, this.gauges, this.flyPanel.root]) {
+      for (const e of [
+        this.root,
+        this.topLeft,
+        this.topCenter,
+        this.status,
+        this.gauges,
+        this.flyPanel.root,
+      ]) {
         observer.observe(e);
       }
     }
@@ -172,6 +181,8 @@ export class Hud {
     const left = Math.max(this.topLeft.offsetWidth, status);
     s.setProperty('--left-w', px(left));
     s.setProperty('--left-h', px(this.topLeft.offsetHeight));
+    // Kompassi, sää (1–2 riviä) ja työpöydällä kuntopalkki: ilmoitukset niiden alle.
+    s.setProperty('--top-h', px(this.topCenter.offsetHeight));
     const gauges = this.gauges.offsetWidth;
     s.setProperty('--right-w', px(gauges));
     s.setProperty('--right-h', px(this.gauges.offsetHeight));
@@ -246,8 +257,6 @@ export class Hud {
   /** Kuntopalkki: piilossa täysissä voimissa, väri vaihtuu väsyessä. */
   setStamina(stamina: number, tired: number): void {
     this.stamina.hidden = stamina >= 1;
-    // Työpöydällä kuntopalkki on sään alla: ilmoitukset sen alapuolelle.
-    this.root.classList.toggle('tired', !this.stamina.hidden);
     if (this.stamina.hidden) return;
     // Portaittain kuten muukin HUD.
     this.staminaFill.style.width = `${Math.round(stamina * 20) * 5}%`;
@@ -260,7 +269,7 @@ export class Hud {
     this.timer.classList.toggle('low', low);
   }
 
-  /** Sää ajastimen alla. */
+  /** Sää kompassin alla; lisätiedot (aallot, salamavaara, trombi) omalle rivilleen. */
   setWeather(text: string): void {
     if (this.weather.textContent !== text) this.weather.textContent = text;
   }
@@ -311,12 +320,12 @@ export class Hud {
    * jokaisesta rivi ja jäljellä oleva aika (m:ss). Ilman aikaa (trombin kyydissä,
    * kisasta pudonnut) pelkkä teksti. Tyhjä lista piilottaa.
    */
-  setPenalties(penalties: { label: string; seconds?: number }[]): void {
+  setPenalties(penalties: { label: string; seconds?: number }[], note?: string): void {
     const rows = penalties.map((p) => [
       p.label,
       p.seconds === undefined ? '' : formatTime(Math.max(0, p.seconds)),
     ]);
-    const key = rows.map((r) => r.join('\t')).join('\n');
+    const key = rows.map((r) => r.join('\t')).join('\n') + (note ? `\n${note}` : '');
     if (key === this.penaltyKey) return;
     this.penaltyKey = key;
     this.penalty.hidden = rows.length === 0;
@@ -333,6 +342,8 @@ export class Hud {
         }
         return row;
       }),
+      // Miksi ja mitä tehdä (Kaaduit! Käänny aaltoa kohti…) samassa kortissa.
+      ...(note && rows.length > 0 ? [smallText(note)] : []),
     );
   }
 
@@ -374,21 +385,23 @@ export class Hud {
   }
 
   /**
-   * Pelitilanne ohjeelle: vain valitun välineen ohjeet, ja ukkosen, vieheen
-   * maalla ja sotkun ohjeet vain niiden aikana. Kutsutaan joka ruudulla.
+   * Pelitilanne ohjeelle: vain valitun välineen ohjeet. Tilanteen omat ohjeet
+   * (ukkonen, viehe maalla, sotku) ovat tilanneohjeessa. Kutsutaan joka ruudulla.
    */
   setHelpContext(context: HelpContext): void {
     const c = this.helpContext;
-    if (
-      c.fly === context.fly &&
-      c.pov === context.pov &&
-      c.thunder === context.thunder &&
-      c.land === context.land &&
-      c.tangle === context.tangle
-    )
-      return;
+    if (c.fly === context.fly && c.pov === context.pov) return;
     this.helpContext = { ...context };
     this.renderHelp();
+  }
+
+  /**
+   * Tilanneohje ilmoitusten alla: mitä nyt pitää tehdä (viehe maalla, sotku,
+   * perhoheitto, ukkonen). Pysyy näkyvissä, kunnes tilanne ohi (null).
+   */
+  setSituation(text: string | null): void {
+    this.situation.hidden = text === null;
+    if (text !== null && this.situation.textContent !== text) this.situation.textContent = text;
   }
 
   private renderHelp(): void {
@@ -398,42 +411,23 @@ export class Hud {
     // Zoom toimii vain ylhäältä katsottaessa.
     const tail: MsgKey[] = [c.pov ? keys.toolsPov : keys.tools, ...(mp ? [keys.chat] : [])];
     // Kaikki tässä tilassa mahdolliset rivit: niiden mukaan varataan tila.
-    let bases: (readonly MsgKey[])[];
-    let situational: MsgKey[];
-    let now: MsgKey[];
-    let base: readonly MsgKey[];
-    if (this.spectator) {
-      bases = [keys.spectator];
-      base = keys.spectator;
-      situational = now = [];
-    } else {
-      bases = [keys.spin, keys.fly];
-      base = c.fly ? keys.fly : keys.spin;
-      situational = [keys.thunder, keys.land, ...(mp ? [keys.tangle] : [])];
-      now = [
-        ...(c.thunder ? [keys.thunder] : []),
-        ...(c.land ? [keys.land] : []),
-        ...(c.tangle && mp ? [keys.tangle] : []),
-      ];
-    }
-    const key = [...now, ...base, ...tail].join() + t('help.keys1');
+    const bases = this.spectator ? [keys.spectator] : [keys.spin, keys.fly];
+    const base = this.spectator ? keys.spectator : c.fly ? keys.fly : keys.spin;
+    const key = [...base, ...tail].join() + t('help.keys1');
     if (key === this.helpKey) return;
     this.helpKey = key;
-    // Tilanteen rivit ylimpänä korostettuina: ohje kasvaa ylöspäin varattuun tilaan.
-    const line = (k: MsgKey, current: boolean) => {
-      const row = el('div', current ? 'hud-help-now' : '');
-      row.textContent = t(k);
-      return row;
-    };
     this.help.replaceChildren(
-      ...now.map((k) => line(k, true)),
-      ...[...base, ...tail].map((k) => line(k, false)),
+      ...[...base, ...tail].map((k) => {
+        const row = el('div', '');
+        row.textContent = t(k);
+        return row;
+      }),
     );
     // Varatun tilan koko HUD-pikseleinä (rivi 8, merkki 3,2 + täyte ja kehys 6):
     // tyylitiedosto rajaa HUDin koon niin, että ohje mahtuu luotainten alle.
-    // Koko ei muutu tilanteen mukana, joten HUD ei hypi.
-    const rows = Math.max(...bases.map((b) => b.length)) + situational.length + tail.length;
-    const all = [...bases.flat(), ...situational, ...tail, keys.tools].map((k) => t(k));
+    // Koko ei muutu välineen mukana, joten HUD ei hypi.
+    const rows = Math.max(...bases.map((b) => b.length)) + tail.length;
+    const all = [...bases.flat(), ...tail, keys.tools].map((k) => t(k));
     const cols = Math.max(...all.map((l) => l.length));
     this.root.style.setProperty('--help-h', String(6 + 8 * rows));
     this.root.style.setProperty('--help-w', String(Math.ceil(6 + 3.2 * cols)));
@@ -449,10 +443,19 @@ export class Hud {
     this.root.classList.toggle('help-open', !this.helpSlot.hidden && !this.touch);
   }
 
-  showMessage(text: string, seconds = 2.5): void {
+  /**
+   * Ilmoitus ruudun keskellä. Vähemmän tärkeä ei korvaa näkyvää kesken
+   * (esim. vinkki ei peitä salamavaroitusta), vaan näkyy sen jälkeen.
+   */
+  showMessage(text: string, seconds = 2.5, level: MessageLevel = 'event'): void {
+    if (this.messageTimer > 0 && RANK[level] < RANK[this.messageLevel]) {
+      this.queued = { text, seconds, level, age: 0 };
+      return;
+    }
     this.messageText.textContent = text;
     this.message.hidden = false;
     this.messageTimer = seconds;
+    this.messageLevel = level;
   }
 
   /**
@@ -483,9 +486,15 @@ export class Hud {
       this.weighTimer -= dt;
       if (this.weighTimer <= 0) this.hideWeighIn();
     }
+    if (this.queued) this.queued.age += dt;
     if (this.messageTimer > 0) {
       this.messageTimer -= dt;
-      if (this.messageTimer <= 0) this.setStandingMessage(this.standing);
+      if (this.messageTimer > 0) return;
+      // Odottanut ilmoitus, jos se on vielä ajankohtainen.
+      const q = this.queued;
+      this.queued = null;
+      if (q && q.age < q.seconds) this.showMessage(q.text, q.seconds - q.age, q.level);
+      else this.setStandingMessage(this.standing);
     }
   }
 }
@@ -496,12 +505,19 @@ export interface HelpContext {
   fly: boolean;
   /** Kalastajan näkymä: zoomia ei ole. */
   pov: boolean;
-  /** Ukkonen tai myrsky päällä tai tulossa. */
-  thunder: boolean;
-  /** Viehe maalla tai laiturilla. */
-  land: boolean;
-  /** Siimat sotkussa toisen kalastajan kanssa. */
-  tangle: boolean;
+}
+
+/**
+ * Ilmoituksen tärkeys: `alert` = vaara (sää, trombi, sotku), `event` = kalastuksen
+ * tapahtumat, `info` = vinkit ja vahvistukset (näkymä, viehe vaihdettu…).
+ */
+export type MessageLevel = 'alert' | 'event' | 'info';
+const RANK: Record<MessageLevel, number> = { info: 0, event: 1, alert: 2 };
+
+function smallText(text: string): HTMLElement {
+  const small = document.createElement('small');
+  small.textContent = text;
+  return small;
 }
 
 /** Ohjeen rivit näppäimistölle ja kosketukselle. */
@@ -527,9 +543,6 @@ const HELP = {
     spectator: ['help.spectator1', 'help.spectator2'],
     tools: 'help.keysTools',
     toolsPov: 'help.keysToolsPov',
-    thunder: 'help.thunder',
-    land: 'help.keysLand',
-    tangle: 'help.keysTangle',
     chat: 'help.chatKey',
   },
   touch: {
@@ -554,15 +567,12 @@ const HELP = {
     spectator: ['help.spectatorTouch1', 'help.spectatorTouch2'],
     tools: 'help.touchTools',
     toolsPov: 'help.touchToolsPov',
-    thunder: 'help.thunder',
-    land: 'help.touchLand',
-    tangle: 'help.touchTangle',
     chat: 'help.touchChat',
   },
 } as const satisfies Record<
   'keys' | 'touch',
   Record<'spin' | 'fly' | 'spectator', readonly MsgKey[]> &
-    Record<'tools' | 'toolsPov' | 'thunder' | 'land' | 'tangle' | 'chat', MsgKey>
+    Record<'tools' | 'toolsPov' | 'chat', MsgKey>
 >;
 
 function el(tag: 'div', className: string): HTMLDivElement {
