@@ -845,8 +845,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     const wind = (sim: Sim, i: number) => {
       const until = st.players.get(ids[i]!)?.capsizedUntil ?? 0;
       if (!base || !spoutAffects(until, st.clock)) return base ?? { x: 0, y: 0 };
-      const s = spoutWind(this.spouts, st.clock, sim.tube.pos);
-      return { x: base.x + s.x, y: base.y + s.y };
+      return spoutWind(base, this.spouts, st.clock, sim.tube.pos);
     };
     for (const i of stepSims(sims, water, st.phase === 'countdown', base && wind)) {
       const p = this.state.players.get(ids[i]!);

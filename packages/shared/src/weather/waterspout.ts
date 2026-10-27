@@ -1,5 +1,6 @@
 import type { LakeMap } from '../map/types';
 import type { WaterBody } from '../map/waterBody';
+import { TUBE_PHYSICS } from '../physics/tube';
 import { Rng } from '../rng';
 import type { Vec2 } from '../vec2';
 import { exposure } from './lightning';
@@ -20,11 +21,20 @@ export const SPOUT = {
   /** Etenee tuulen mukana (m/s) ja mutkittelee sivuttain (m). */
   speed: 0.6,
   wobble: 15,
-  /** Imualueen säde (m) ja suurin "tuulen" nopeus keskellä (m/s). */
-  radius: 70,
-  maxWind: 36,
-  /** Imun osuus; loput on pyörrettä vastapäivään. */
-  inflow: 0.85,
+  /** Imualueen säde (m). */
+  radius: 80,
+  /**
+   * Imu keskustaa kohti (m/s²) keskellä; reunaa kohti heikkenee jyrkästi,
+   * pull·(1 − d/radius)^pullExp. Vertailuksi potkut työntävät n. 1,3 m/s² ja
+   * pikapotkut 2,3 m/s². Sivulta 25 m päästä pääsee karkuun tavallisilla
+   * potkuilla ja 15 m päästä pikapotkuilla, mutta 10 m sisältä ei enää.
+   * Trombin edestä on vaikeampi päästä, koska se tulee perässä. Paikallaan
+   * oleva imetään sisään n. 60 m päästä noin minuutissa.
+   */
+  pull: 3.2,
+  pullExp: 1.5,
+  /** Pyörre vastapäivään, osuutena imusta. */
+  swirl: 0.45,
   /** Tätä lähempänä keskustaa (m) trombi nappaa renkaan ja lennättää sen. */
   capture: 6,
   /** Sinkoutumisen nopeus ulospäin (m/s), jos laskeutumispaikkaa ei löydy. */
@@ -114,23 +124,38 @@ export function activeSpouts(spouts: readonly Waterspout[], t: number): Vec2[] {
   return spouts.filter((s) => t >= s.t0 && t < s.t1).map((s) => spoutPosition(s, t));
 }
 
-/**
- * Trombin vaikutus kuten tuulena (m/s): imu keskustaa kohti ja pyörre.
- * Lisätään sään tuuleen, joten rengas ja heitto reagoivat samoin kuin tuuleen.
- */
-export function spoutWind(spouts: readonly Waterspout[], t: number, p: Vec2): Vec2 {
+/** Trombin imu ja pyörre renkaaseen kiihtyvyytenä (m/s²) kohdassa p. */
+export function spoutPull(spouts: readonly Waterspout[], t: number, p: Vec2): Vec2 {
   const out = { x: 0, y: 0 };
   for (const c of activeSpouts(spouts, t)) {
     const dx = c.x - p.x;
     const dy = c.y - p.y;
     const d = Math.hypot(dx, dy);
     if (d >= SPOUT.radius || d < 1e-6) continue;
-    const v = SPOUT.maxWind * Math.sqrt(1 - d / SPOUT.radius);
-    const swirl = Math.sqrt(1 - SPOUT.inflow * SPOUT.inflow);
-    out.x += (v * (dx * SPOUT.inflow - dy * swirl)) / d;
-    out.y += (v * (dy * SPOUT.inflow + dx * swirl)) / d;
+    const a = (SPOUT.pull * Math.pow(1 - d / SPOUT.radius, SPOUT.pullExp)) / d;
+    out.x += a * (dx - dy * SPOUT.swirl);
+    out.y += a * (dy + dx * SPOUT.swirl);
   }
   return out;
+}
+
+/**
+ * Renkaaseen vaikuttava tuuli trombin kohdalla: sään tuuli `base`, johon on
+ * lisätty trombin imu. Rengas ajelehtii tuulessa kiihtyvyydellä
+ * windPush·|w|·w (stepTube), joten palautetaan tuuli, jonka työntö on sään
+ * tuulen työntö + imu. Näin imu ei riipu sään tuulesta.
+ */
+export function spoutWind(base: Vec2, spouts: readonly Waterspout[], t: number, p: Vec2): Vec2 {
+  const pull = spoutPull(spouts, t, p);
+  if (pull.x === 0 && pull.y === 0) return base;
+  const k = TUBE_PHYSICS.windPush;
+  const b = Math.hypot(base.x, base.y);
+  const ax = k * b * base.x + pull.x;
+  const ay = k * b * base.y + pull.y;
+  const a = Math.hypot(ax, ay);
+  if (a < 1e-9) return { x: 0, y: 0 };
+  const s = Math.sqrt(a / k) / a;
+  return { x: ax * s, y: ay * s };
 }
 
 /** Trombi nappaa renkaan: palauttaa sinkoutumisnopeuden, tai null jos ei osu. */

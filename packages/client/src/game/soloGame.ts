@@ -286,6 +286,8 @@ export class SoloGame {
   private readonly spoutView = new SpoutView();
   private spoutsSeen = 0;
   private spoutWarnTimer = 0;
+  /** Lähimmän trombin läheisyys 0–1 pauhua varten. */
+  private spoutNear = 0;
   /** Oma lento trombin mukana (kisa-aika, s), ja yksinpelin laskeutumispaikkojen arpa. */
   private flight: (SpoutFlight & { t0: number }) | null = null;
   private readonly spoutRng: Rng;
@@ -503,8 +505,7 @@ export class SoloGame {
     const now = this.competition.elapsed;
     if (this.competition.finished) return w;
     if (!spoutAffects(this.capsizedUntilAbs, now)) return w;
-    const s = spoutWind(this.spouts, now, this.tube.pos);
-    return { x: w.x + s.x, y: w.y + s.y };
+    return spoutWind(w, this.spouts, now, this.tube.pos);
   }
 
   /** Oma rengas kumossa tähän kisa-aikaan asti. */
@@ -597,6 +598,9 @@ export class SoloGame {
     const now = this.competition.elapsed;
     const spots = activeSpouts(this.spouts, now);
     this.spoutView.update(dt, spots);
+    // Pauhu kuuluu jo kaksinkertaiselta imuetäisyydeltä.
+    const nearest = Math.min(Infinity, ...spots.map((p) => distance(p, this.tube.pos)));
+    this.spoutNear = Math.max(0, 1 - nearest / (SPOUT.radius * 2));
     const born = this.spouts.filter((s) => s.t0 <= now).length;
     if (born > this.spoutsSeen) {
       this.spoutsSeen = born;
@@ -1141,7 +1145,7 @@ export class SoloGame {
     const left = timeLeft(this.competition);
     this.hud.setTimer(formatTime(left), left < 60);
     this.updateWeather(dt);
-    this.sfx.updateAmbience(dt, { ...this.weather.now, ...this.daylight });
+    this.sfx.updateAmbience(dt, { ...this.weather.now, ...this.daylight, spout: this.spoutNear });
     // Potkuvaihe kiertää 0–1; kumpikin räpylä loiskahtaa kerran kierroksessa.
     const strokes = Math.floor(this.tube.kickPhase * 2);
     if (strokes !== this.strokes) {
