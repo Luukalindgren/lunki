@@ -73,6 +73,7 @@ import { VOLUME_LEVELS, type AudioSettings, type VolumeLevel } from '../audio/se
 import { MUSIC_CHOICES, type MusicChoice } from '../audio/music';
 import { DEFAULT_HUD_SCALE, HUD_SCALES } from './hudScale';
 import {
+  escapeLeavesFullscreen,
   fullscreenButton,
   fullscreenSupported,
   isStandalone,
@@ -987,6 +988,8 @@ export class Screens {
       ...(audio ? [this.audioEditor(audio.current, audio.onChange)] : []),
       ...(hudSize ? [this.hudSizeSlider(hudSize)] : []),
       ...this.homeScreenHint(),
+      // Firefox ja Safari eivät anna Escin jäädä peliin koko näytöllä.
+      ...(escapeLeavesFullscreen() ? [h('p', t('fullscreen.escHint'), 'hint')] : []),
       this.addFullscreen(
         this.buttons([
           [t('pause.resume'), onResume],

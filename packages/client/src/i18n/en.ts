@@ -385,6 +385,8 @@ export const en: Record<keyof typeof fi, string> = {
   'pause.endRace': 'End the competition',
   'fullscreen.enter': 'Full screen',
   'fullscreen.exit': 'Exit full screen',
+  'fullscreen.escHint':
+    'In this browser Esc briefly leaves full screen: the game returns to it on your next press. Backspace resumes without the interruption.',
   'fullscreen.homeScreenHint':
     'Full screen on iPhone: Safari’s Share menu → “Add to Home Screen”, then open the game from the icon.',
   'results.raceOver': 'The competition is over!',
