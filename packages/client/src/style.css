@@ -1341,9 +1341,17 @@ textarea,
   left: 64px;
 }
 
-/* Tilapaneeli kellon ja saaliiden alle (alhaalla ovat ohjaimet). */
+/* Tilapaneeli kellon ja saaliiden alle (alhaalla ovat ohjaimet). Pinossa
+   työpöydän kulmasijainti ei siirrä sitä, ja se on saaliiden levyinen. */
 .hud.touch .hud-status {
   font-size: calc(var(--u) * 7);
+  left: auto;
+  bottom: auto;
+}
+
+.hud.touch .hud-top-left > .hud-catches,
+.hud.touch .hud-top-left > .hud-status {
+  align-self: stretch;
 }
 
 /* Perhoheiton sivukuva alareunan keskellä tatin ja nappien välissä (#236). */
