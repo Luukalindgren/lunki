@@ -31,6 +31,7 @@ import { describeSpot } from './ui/lakeMap';
 import type { WeighCardInfo } from './ui/weighCard';
 import { ChatBox } from './ui/chat';
 import { TouchControls, isTouchDevice } from './ui/touchControls';
+import { Controls, contextActions, setControlMode } from './game/controls';
 import { Screens, loadSettings, type SettingsControls } from './ui/screens';
 import { dismissBootLoader } from './ui/loader';
 import { Bench } from './dev/bench';
@@ -64,7 +65,9 @@ const retro = createRenderer(canvas, app);
 const input = new Input(canvas);
 const fps = new FpsMeter(app, import.meta.env.DEV);
 const hud = new Hud(app);
-const touch = isTouchDevice() ? new TouchControls(hud.root, input) : null;
+const controls = new Controls(input);
+const touch = isTouchDevice() ? new TouchControls(hud.root, controls) : null;
+setControlMode(touch !== null);
 hud.setTouch(touch !== null);
 /** Pelaajan valitsema HUDin koko, tallessa selaimessa. */
 let hudScale = loadHudScale(touch !== null);
@@ -654,21 +657,23 @@ registerServiceWorker((apply) => screens.setUpdate(apply));
 startLoop({
   update(dt) {
     input.beginStep();
-    if (input.wasPressed('F2')) {
+    if (controls.wasPressed('palette')) {
       const i = paletteModes.indexOf(retro.paletteMode);
       retro.paletteMode = paletteModes[(i + 1) % paletteModes.length]!;
     }
-    if (input.wasPressed('F3')) fps.toggle();
+    if (controls.wasPressed('fps')) fps.toggle();
     // Taukovalikossa myös Backspace jatkaa peliä (muissa valikoissa se palaa takaisin).
-    if (input.wasPressed('Escape') || (paused && input.wasPressed('Backspace'))) togglePause();
+    if (controls.wasPressed('pause') || (paused && controls.wasPressed('resume'))) togglePause();
     bench?.script(dt);
     const t0 = performance.now();
     // Moninpelissä kisa jatkuu valikon ollessa auki.
     if (game && ((!paused && !screens.open) || (session && paused))) game.update(dt);
     if (game) {
-      touch?.setGear(game.fishing.gear);
-      touch?.setFly(isFly(game.fishing.tackle), !game.fishing.onReel);
-      touch?.setStage(game.fishing.stage);
+      touch?.update(
+        contextActions(game.fishing, game.flyRhythm),
+        isFly(game.fishing.tackle),
+        game.fishing.gear,
+      );
     } else sfx.updateAmbience(dt, MENU_AMBIENCE);
     updateTime += performance.now() - t0;
     updateCount++;

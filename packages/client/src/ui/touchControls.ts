@@ -1,6 +1,12 @@
-import { REEL, type FishingStage } from '@lunki/shared';
-import type { Input } from '../engine/input';
-import { hasKey, onLangChange, t, type MsgKey } from '../i18n';
+import { REEL } from '@lunki/shared';
+import {
+  CONTROLS,
+  bindingText,
+  type Action,
+  type ContextActions,
+  type Controls,
+} from '../game/controls';
+import { onLangChange, t, type MsgKey } from '../i18n';
 
 /** Tatin säde CSS-pikseleinä: näin pitkä työntö on täysi potku. */
 const STICK_RADIUS = 52;
@@ -8,7 +14,6 @@ const STICK_RADIUS = 52;
 const DEAD_ZONE = 0.35;
 /** Tätä pidempi työntö ylös tai alas = pikapotku. */
 const SPRINT_AT = 0.95;
-const GEARS = REEL.gears.length;
 
 /** Laitteessa on kosketusnäyttö pääosoittimena (tai ?kosketus kehitystä varten). */
 export function isTouchDevice(): boolean {
@@ -17,34 +22,32 @@ export function isTouchDevice(): boolean {
 }
 
 /**
- * Puhelimen ja tabletin ohjaimet HUD:n päällä. Napit syöttävät samoja
- * näppäinkoodeja kuin näppäimistö, joten peli ei erottele ohjaustapoja.
- * Pelikuvan koskettaminen toimii hiirenä (tähtäys, heitto, kelaus).
+ * Puhelimen ja tabletin ohjaimet HUD:n päällä. Napit painavat toimintokartan
+ * toimintoja (game/controls.ts) samoin kuin näppäimistö, joten peli ei erottele
+ * ohjaustapoja. Pelikuvan koskettaminen toimii hiirenä (tähtäys, heitto, kelaus).
  */
 export class TouchControls {
   readonly root: HTMLDivElement;
   private readonly knob: HTMLDivElement;
   private readonly gearButton: HTMLButtonElement;
-  private readonly cutButton: HTMLButtonElement;
   private readonly chatButton: HTMLButtonElement;
-  /** Perhon siimakäsi (#236): pohjassa puristaa siimaa; perhon ollessa vedessä NOSTA. */
-  private readonly lineButton: HTMLButtonElement;
-  private readonly lineText: { label?: MsgKey; title: MsgKey };
-  private readonly reelButton: HTMLButtonElement;
-  private readonly reelText: { label?: MsgKey; title: MsgKey };
+  /** Iso punainen nappi: HEITÄ, KELAA tai VETO kalastuksen vaiheen mukaan. */
+  private readonly mainButton: ContextButton<ContextActions['main']>;
+  /** Perhon nappi: SIIMA heitossa, NOSTA vedestä, KELALLE kalan kanssa. */
+  private readonly lineButton: ContextButton<ContextActions['line']>;
+  /** KATKO, heiton aikana PERU. */
+  private readonly toolButton: ContextButton<ContextActions['tool']>;
   private fly = false;
-  private flyInHand = false;
-  private stage: FishingStage = 'idle';
   /** VIESTI-nappi: avaa moninpelin chatin. */
   onChat: (() => void) | null = null;
   private stickPointer: number | null = null;
   private gear = 1;
-  /** Nappien tekstit ja vihjeet sanakirjasta; symbolinapeilla (+, II) vain vihje. */
-  private readonly texts: { b: HTMLButtonElement; label?: MsgKey; title: MsgKey }[] = [];
+  /** Nappien tekstit ja vihjeet nykyisellä kielellä. */
+  private readonly relabels: (() => void)[] = [];
 
   constructor(
     parent: HTMLElement,
-    private readonly input: Input,
+    private readonly controls: Controls,
   ) {
     this.root = div('touch-controls');
 
@@ -69,58 +72,42 @@ export class TouchControls {
     stick.addEventListener('pointercancel', release);
 
     // Napautus (click), jotta puhelin avaa näppäimistön kenttään siirryttäessä.
-    this.chatButton = document.createElement('button');
-    this.chatButton.type = 'button';
+    this.chatButton = this.labelled(() => 'chat');
     this.chatButton.className = 'touch-chat';
-    this.texts.push({ b: this.chatButton, label: 'touch.chat', title: 'touch.chatTitle' });
     this.chatButton.hidden = true;
     this.chatButton.addEventListener('click', () => this.onChat?.());
     const tools = div('touch-tools');
     tools.append(
-      this.tap('II', 'Escape', 'touch.pauseTitle'),
-      this.tap('?', 'KeyH', 'touch.helpTitle'),
-      this.button('+', 'common.closer', () => input.scroll(-1)),
-      this.button('−', 'common.farther', () => input.scroll(1)),
+      this.tap('pause'),
+      this.tap('help'),
+      this.button('+', 'common.closer', () => controls.input.scroll(-1)),
+      this.button('−', 'common.farther', () => controls.input.scroll(1)),
       this.chatButton,
     );
 
-    this.gearButton = this.button(null, 'touch.gearTitle', () =>
-      this.tapKey(`Digit${((this.gear + 1) % GEARS) + 1}`),
-    );
-    this.cutButton = this.tap('touch.cut', 'KeyC', 'touch.cutTitle');
-    // Vedessä nosto on oikea hiiren nappi kuten tietokoneella (#236).
-    this.lineButton = this.hold(
-      'touch.line',
-      () => (this.stage === 'water' ? 'Mouse2' : 'LineGrip'),
-      'touch.lineTitle',
-    );
-    this.lineText = this.texts[this.texts.length - 1]!;
-    this.lineButton.hidden = true;
-    const camButton = this.tap('touch.cam', 'KeyV', 'touch.camTitle');
+    this.gearButton = this.tap('gearNext');
+    this.toolButton = this.contextButton<ContextActions['tool']>('cut');
+    this.lineButton = this.contextButton<ContextActions['line']>('lineGrip');
+    this.lineButton.b.hidden = true;
+    const camButton = this.tap('view');
     camButton.classList.add('touch-cam');
     const grid = div('touch-grid');
     grid.append(
-      this.tap('touch.lure', 'KeyR', 'touch.lureTitle'),
-      this.tap('touch.sonar', 'KeyK', 'touch.sonarTitle'),
-      this.tap('touch.depth', 'KeyL', 'touch.depthTitle'),
+      this.tap('lure'),
+      this.tap('sonar'),
+      this.tap('lureSonar'),
       camButton,
-      this.tap('touch.emote', 'KeyG', 'touch.emoteTitle'),
-      this.tap('touch.dragLess', 'KeyQ', 'touch.dragLessTitle'),
-      this.tap('touch.dragMore', 'KeyE', 'touch.dragMoreTitle'),
+      this.tap('emote'),
+      this.tap('dragLess'),
+      this.tap('dragMore'),
       this.gearButton,
-      this.lineButton,
-      this.cutButton,
+      this.lineButton.b,
+      this.toolButton.b,
     );
-    // Ennen heittoa nappi on HEITÄ ja painaa välilyöntiä: heitto katsesuuntaan (#227).
-    this.reelButton = this.hold(
-      'touch.reel',
-      () => (this.castReady ? 'Space' : 'Reel'),
-      'touch.reelTitle',
-    );
-    this.reelButton.classList.add('touch-reel');
-    this.reelText = this.texts[this.texts.length - 1]!;
+    this.mainButton = this.contextButton<ContextActions['main']>('castForward');
+    this.mainButton.b.classList.add('touch-reel');
     const actions = div('touch-actions');
-    actions.append(grid, this.reelButton);
+    actions.append(grid, this.mainButton.b);
 
     this.root.append(stick, tools, actions);
     parent.appendChild(this.root);
@@ -130,10 +117,7 @@ export class TouchControls {
 
   /** Nappien tekstit pelaajan kielellä. */
   private relabel(): void {
-    for (const { b, label, title } of this.texts) {
-      if (label) b.textContent = t(label);
-      b.title = t(title);
-    }
+    for (const r of this.relabels) r();
     this.gearButton.textContent = this.gearLabel();
   }
 
@@ -155,51 +139,22 @@ export class TouchControls {
   }
 
   /**
-   * Perhovälineet (#236): SIIMA-nappi siimakädelle kelausnopeuden tilalle, ja
-   * kun siima on kädessä, KELAA on VETO (uitto, heitossa siimakäden veto).
+   * Kalastuksen tilanne joka ruudulla: tilannenapit vaihtavat toimintoa
+   * (contextActions), ja perhovälineillä SIIMA-nappi on kelausnopeuden tilalla.
    */
-  setFly(fly: boolean, inHand: boolean): void {
-    if (fly === this.fly && inHand === this.flyInHand) return;
-    this.fly = fly;
-    this.flyInHand = inHand;
-    this.lineButton.hidden = !fly;
-    this.gearButton.hidden = fly;
-    this.relabelStage();
-  }
-
-  /**
-   * Kalastuksen vaihe. Ennen heittoa (vapa valmiina tai heitto latautumassa)
-   * KELAA on HEITÄ ja tekee saman kuin välilyönti; perhoa heitetään yhä
-   * pyyhkäisyllä. Perhon ollessa vedessä SIIMA on NOSTA (uusi heitto).
-   */
-  setStage(stage: FishingStage): void {
-    if (stage === this.stage) return;
-    this.stage = stage;
-    this.relabelStage();
-  }
-
-  /** Ennen heittoa vieheellä HEITÄ. */
-  private get castReady(): boolean {
-    return !this.fly && (this.stage === 'idle' || this.stage === 'charging');
-  }
-
-  /** KELAA-napin teksti: HEITÄ ennen heittoa, perhon siima kädessä VETO; SIIMA vedessä NOSTA. */
-  private relabelStage(): void {
-    const cast = this.castReady;
-    const strip = this.fly && this.flyInHand;
-    this.reelText.label = cast ? 'touch.cast' : strip ? 'touch.strip' : 'touch.reel';
-    this.reelText.title = cast ? 'touch.castTitle' : strip ? 'touch.stripTitle' : 'touch.reelTitle';
-    const lift = this.stage === 'water';
-    this.lineText.label = lift ? 'touch.lift' : 'touch.line';
-    this.lineText.title = lift ? 'touch.liftTitle' : 'touch.lineTitle';
-    this.relabel();
-  }
-
-  /** Kelan vaihde napin tekstiin (0-pohjainen). */
-  setGear(gear: number): void {
-    if (gear === this.gear) return;
-    this.gear = gear;
-    this.gearButton.textContent = this.gearLabel();
+  update(context: ContextActions, fly: boolean, gear: number): void {
+    if (fly !== this.fly) {
+      this.fly = fly;
+      this.lineButton.b.hidden = !fly;
+      this.gearButton.hidden = fly;
+    }
+    this.mainButton.set(context.main);
+    this.lineButton.set(context.line);
+    this.toolButton.set(context.tool);
+    if (gear !== this.gear) {
+      this.gear = gear;
+      this.gearButton.textContent = this.gearLabel();
+    }
   }
 
   private moveStick(stick: HTMLElement, e: PointerEvent) {
@@ -215,45 +170,50 @@ export class TouchControls {
   }
 
   /**
-   * Tatin asento (-1…1, y alas) näppäimiksi kuten W/S: ylös liikuttaa kohti
-   * räpylöitä eli katseen suuntaan (W), alas selkä edellä (S, nopeampi potku).
+   * Tatin asento (-1…1, y alas) toiminnoiksi kuten W/S: ylös liikuttaa kohti
+   * räpylöitä eli katseen suuntaan, alas selkä edellä (nopeampi potku).
    */
   private setStick(x: number, y: number) {
     this.knob.style.transform = `translate(${x * STICK_RADIUS}px, ${y * STICK_RADIUS}px)`;
     const kicking = Math.abs(y) > DEAD_ZONE;
-    this.input.simulate('KeyW', y < -DEAD_ZONE);
-    this.input.simulate('KeyS', y > DEAD_ZONE);
-    this.input.simulate('KeyA', x < -DEAD_ZONE);
-    this.input.simulate('KeyD', x > DEAD_ZONE);
-    this.input.simulate('ShiftLeft', kicking && Math.hypot(x, y) >= SPRINT_AT);
+    this.controls.set('forward', y < -DEAD_ZONE);
+    this.controls.set('back', y > DEAD_ZONE);
+    this.controls.set('left', x < -DEAD_ZONE);
+    this.controls.set('right', x > DEAD_ZONE);
+    this.controls.set('sprint', kicking && Math.hypot(x, y) >= SPRINT_AT);
   }
 
-  private tapKey(code: string) {
-    // Painallus ja irrotus samalle askeleelle: peli näkee "painettiin juuri".
-    this.input.simulate(code, true);
-    this.input.simulate(code, false);
-  }
-
-  private tap(label: MsgKey | string, code: string, title: MsgKey): HTMLButtonElement {
-    return this.button(label, title, () => this.tapKey(code));
-  }
-
-  /** `label`: sanakirjan avain tai symboli (+, II); null = teksti asetetaan muualla. */
-  private labelled(label: MsgKey | string | null, title: MsgKey): HTMLButtonElement {
+  /** Nappi, jonka teksti ja vihje tulevat toimintokartasta; teksti seuraa kieltä. */
+  private labelled(action: () => Action): HTMLButtonElement {
     const b = document.createElement('button');
     b.type = 'button';
-    const key = label !== null && hasKey(label) ? label : undefined;
-    if (!key && label !== null) b.textContent = label;
-    this.texts.push({ b, label: key, title });
+    const relabel = () => {
+      const a = action();
+      const label = bindingText(a, true);
+      if (label !== null) b.textContent = label;
+      const title: MsgKey | undefined = (CONTROLS[a] as { title?: MsgKey }).title;
+      b.title = title ? t(title) : '';
+    };
+    this.relabels.push(relabel);
     return b;
   }
 
-  private button(
-    label: MsgKey | string | null,
-    title: MsgKey,
-    onPress: () => void,
-  ): HTMLButtonElement {
-    const b = this.labelled(label, title);
+  /** Napautus painaa toimintoa kerran. */
+  private tap(action: Action): HTMLButtonElement {
+    const b = this.labelled(() => action);
+    b.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      this.controls.tap(action);
+    });
+    return b;
+  }
+
+  /** Symbolinappi (+, −) omalla toiminnollaan. */
+  private button(label: string, title: MsgKey, onPress: () => void): HTMLButtonElement {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = label;
+    this.relabels.push(() => (b.title = t(title)));
     b.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       onPress();
@@ -262,29 +222,44 @@ export class TouchControls {
   }
 
   /**
-   * Nappi, joka pysyy pohjassa niin kauan kuin sormi on päällä. Funktiona annettu
-   * `code` valitaan painettaessa, ja irrotus päästää saman näppäimen.
+   * Tilannenappi: pysyy pohjassa niin kauan kuin sormi on päällä. Toiminto
+   * valitaan painettaessa, ja irrotus päästää saman toiminnon, vaikka teksti
+   * ehtisi vaihtua kesken (esim. HEITÄ → KELAA heiton lähtiessä).
    */
-  private hold(label: MsgKey, code: string | (() => string), title: MsgKey): HTMLButtonElement {
-    const b = this.labelled(label, title);
-    let pressed: string | null = null;
+  private contextButton<A extends Action>(initial: A): ContextButton<A> {
+    let current = initial;
+    let pressed: Action | null = null;
+    const b = this.labelled(() => current);
     b.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       b.setPointerCapture(e.pointerId);
       b.classList.add('down');
-      if (pressed) this.input.simulate(pressed, false);
-      pressed = typeof code === 'string' ? code : code();
-      this.input.simulate(pressed, true);
+      if (pressed) this.controls.set(pressed, false);
+      pressed = current;
+      this.controls.set(pressed, true);
     });
     const up = () => {
       b.classList.remove('down');
-      if (pressed) this.input.simulate(pressed, false);
+      if (pressed) this.controls.set(pressed, false);
       pressed = null;
     };
     b.addEventListener('pointerup', up);
     b.addEventListener('pointercancel', up);
-    return b;
+    const relabel = this.relabels[this.relabels.length - 1]!;
+    return {
+      b,
+      set: (a) => {
+        if (a === current) return;
+        current = a;
+        relabel();
+      },
+    };
   }
+}
+
+interface ContextButton<A extends Action> {
+  b: HTMLButtonElement;
+  set(action: A): void;
 }
 
 function div(className: string): HTMLDivElement {

@@ -90,6 +90,7 @@ import {
   type Lang,
   type MsgKey,
 } from '../i18n';
+import { controlText } from '../game/controls';
 import {
   colorName,
   describeFullTackle,
@@ -326,7 +327,7 @@ export class Screens {
       menu,
       language,
       ...this.homeScreenHint(),
-      h('p', t('menu.controls'), 'hint'),
+      h('p', controlText('menu.controls'), 'hint'),
       h('p', t('menu.mapCredit'), 'hint credit-line'),
     );
     this.show(panel);
@@ -1720,7 +1721,7 @@ export class Screens {
       else
         box.append(
           this.choice(
-            t('tackle.fly'),
+            controlText('tackle.fly'),
             FLY_IDS.map((id) => [id, flyName(id)]),
             tk.fly,
             (v) => set({ fly: v as Tackle['fly'] }),
@@ -1747,7 +1748,7 @@ export class Screens {
           tk.flyLeader,
           (v) => set({ flyLeader: v as Tackle['flyLeader'] }),
         ),
-        h('p', t('tackle.flyHint'), 'hint'),
+        h('p', controlText('tackle.flyHint'), 'hint'),
       );
     } else {
       if (mode === 'before')
@@ -1763,7 +1764,7 @@ export class Screens {
       else
         box.append(
           this.choice(
-            t('tackle.lure'),
+            controlText('tackle.lure'),
             LURE_IDS.map((id) => [id, lureName(id)]),
             tk.lure,
             (v) => set({ lure: v as Tackle['lure'] }),
@@ -1800,7 +1801,7 @@ export class Screens {
       );
       return box;
     }
-    box.append(h('p', t('tackle.lureInRace'), 'hint'));
+    box.append(h('p', controlText('tackle.lureInRace'), 'hint'));
     // Viehettä ja perhoa ei valita ennen kisaa, joten ne säilyvät ennallaan.
     const reset: Tackle = fly
       ? {

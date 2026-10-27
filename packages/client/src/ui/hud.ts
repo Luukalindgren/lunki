@@ -7,6 +7,7 @@ import { FlyCastPanel } from './flyCastPanel';
 import { hudBase } from './hudScale';
 import { SonarDisplay } from './sonar';
 import { onLangChange, t, type MsgKey } from '../i18n';
+import { controlText } from '../game/controls';
 
 /**
  * Pelin HUD DOM-elementteinä VT323-pikselifontilla. Koko skaalautuu samalla
@@ -434,29 +435,33 @@ export class Hud {
   }
 
   private renderHelp(): void {
-    const keys = this.touch ? HELP.touch : HELP.keys;
     const mp = this.multiplayer;
     const c = this.helpContext;
-    // Zoom toimii vain ylhäältä katsottaessa.
-    const tail: MsgKey[] = [c.pov ? keys.toolsPov : keys.tools, ...(mp ? [keys.chat] : [])];
+    const tail: MsgKey[] = [
+      this.spectator ? 'help.spectateBar' : 'help.bar',
+      ...(mp ? ['help.chat' as const] : []),
+    ];
     // Kaikki tässä tilassa mahdolliset rivit: niiden mukaan varataan tila.
-    const bases = this.spectator ? [keys.spectator] : [keys.spin, keys.fly];
-    const base = this.spectator ? keys.spectator : c.fly ? keys.fly : keys.spin;
-    const key = [...base, ...tail].join() + t('help.keys1');
+    const bases = this.spectator ? [HELP.spectator] : [HELP.spin, HELP.fly];
+    const base = this.spectator ? HELP.spectator : c.fly ? HELP.fly : HELP.spin;
+    // Zoom toimii vain ylhäältä katsottaessa.
+    const opts = { touch: this.touch, skip: c.pov ? (['zoom'] as const) : [] };
+    const lines = [...base, ...tail].map((k) => controlText(k, {}, opts));
+    const key = lines.join('\n');
     if (key === this.helpKey) return;
     this.helpKey = key;
     this.help.replaceChildren(
-      ...[...base, ...tail].map((k) => {
+      ...lines.map((text) => {
         const row = el('div', '');
-        row.textContent = t(k);
+        row.textContent = text;
         return row;
       }),
     );
     // Varatun tilan koko HUD-pikseleinä (rivi 8, merkki 3,2 + täyte ja kehys 6):
     // tyylitiedosto rajaa HUDin koon niin, että ohje mahtuu luotainten alle.
-    // Koko ei muutu välineen mukana, joten HUD ei hypi.
+    // Koko ei muutu välineen tai näkymän mukana, joten HUD ei hypi.
     const rows = Math.max(...bases.map((b) => b.length)) + tail.length;
-    const all = [...bases.flat(), ...tail, keys.tools].map((k) => t(k));
+    const all = [...bases.flat(), ...tail].map((k) => controlText(k, {}, { touch: this.touch }));
     const cols = Math.max(...all.map((l) => l.length));
     this.root.style.setProperty('--help-h', String(6 + 8 * rows));
     this.root.style.setProperty('--help-w', String(Math.ceil(6 + 3.2 * cols)));
@@ -537,60 +542,31 @@ function smallText(text: string): HTMLElement {
   return small;
 }
 
-/** Ohjeen rivit näppäimistölle ja kosketukselle. */
+/**
+ * Ohjeen rivit. Sama teksti näppäimistölle ja kosketukselle: {toiminto}-kohdat
+ * täytetään toimintokartasta (game/controls.ts) pelaajan ohjaustavalla.
+ */
 const HELP = {
-  keys: {
-    spin: [
-      'help.keys1',
-      'help.keys2',
-      'help.keysSpace',
-      'help.keys3',
-      'help.keys4',
-      'help.keys5',
-      'help.keys6',
-    ],
-    fly: [
-      'help.keys1',
-      'help.keysFlyCast',
-      'help.keysFly',
-      'help.keysFlyReel',
-      'help.keys5',
-      'help.keys6',
-    ],
-    spectator: ['help.spectator1', 'help.spectator2'],
-    tools: 'help.keysTools',
-    toolsPov: 'help.keysToolsPov',
-    chat: 'help.chatKey',
-  },
-  touch: {
-    spin: [
-      'help.touch1',
-      'help.touch2',
-      'help.touch3',
-      'help.touch4',
-      'help.touch5',
-      'help.touch6',
-      'help.touch7',
-    ],
-    fly: [
-      'help.touch1',
-      'help.touch2',
-      'help.touchFlyCast',
-      'help.touchFly',
-      'help.touchFlyReel',
-      'help.touch6',
-      'help.touch7',
-    ],
-    spectator: ['help.spectatorTouch1', 'help.spectatorTouch2'],
-    tools: 'help.touchTools',
-    toolsPov: 'help.touchToolsPov',
-    chat: 'help.touchChat',
-  },
-} as const satisfies Record<
-  'keys' | 'touch',
-  Record<'spin' | 'fly' | 'spectator', readonly MsgKey[]> &
-    Record<'tools' | 'toolsPov' | 'chat', MsgKey>
->;
+  spin: [
+    'help.move',
+    'help.turn',
+    'help.cast',
+    'help.castForward',
+    'help.reel',
+    'help.gear',
+    'help.tools',
+  ],
+  fly: [
+    'help.move',
+    'help.turn',
+    'help.flyCast',
+    'help.flyCast2',
+    'help.flyStrip',
+    'help.flyReel',
+    'help.tools',
+  ],
+  spectator: ['help.spectate'],
+} as const satisfies Record<'spin' | 'fly' | 'spectator', readonly MsgKey[]>;
 
 function el(tag: 'div', className: string): HTMLDivElement {
   const e = document.createElement(tag);
