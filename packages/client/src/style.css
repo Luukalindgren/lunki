@@ -1563,6 +1563,16 @@ textarea,
   .hud.touch .hud-weigh {
     font-size: calc(var(--u) * 10);
   }
+
+  /* Kapealla alueella pienempänä, ettei kaksirivinen rangaistus peitä rengasta. */
+  .hud.touch .hud-notices > .hud-penalty {
+    font-size: calc(var(--u) * 8);
+    padding: calc(var(--u) * 2) calc(var(--u) * 4);
+  }
+
+  .hud.touch .hud-penalty-row b {
+    font-size: calc(var(--u) * 14);
+  }
 }
 
 /* Järvikartta: leveämpi paneeli, kartta täyttää leveyden. */
