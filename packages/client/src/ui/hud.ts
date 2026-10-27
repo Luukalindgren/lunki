@@ -138,8 +138,11 @@ export class Hud {
     this.flyPanel = new FlyCastPanel(this.gauges);
     // Lähtölaskenta, rangaistus, punnitus ja ilmoitus allekkain reunojen
     // paneelien välissä, jotta ne eivät mene toistensa eivätkä muiden päälle.
+    // Pino keskitetään ruudun keskilinjaan niin pitkälle kuin alueeseen mahtuu.
     this.notices = el('div', 'hud-notices');
-    this.notices.append(this.countdown, this.penalty, this.weigh, this.message);
+    const stack = el('div', 'hud-notices-stack');
+    stack.append(this.countdown, this.penalty, this.weigh, this.message);
+    this.notices.appendChild(stack);
     this.root.appendChild(this.notices);
     this.probeU = el('div', 'hud-probe');
     this.probeU.style.width = 'calc(var(--u) * 100)';
