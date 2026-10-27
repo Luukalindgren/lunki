@@ -245,7 +245,7 @@ export const en: Record<keyof typeof fi, string> = {
   'mp.hint': 'Create a room and send the code or link to your friends. No sign-up needed.',
   'mp.serverOk': 'Server is up',
   'mp.serverDown':
-    'Cannot reach the server. Single player still works, but multiplayer needs the server to be up.',
+    'The multiplayer server is not running right now, so rooms cannot be created or joined. Single player works normally.',
   'mp.customServer': ' · Not the game’s own server: {url}',
   'mp.badCode': 'Check the code. It looks like LUNKI-XXXX.',
   'mp.joining': 'Joining…',
@@ -260,7 +260,8 @@ export const en: Record<keyof typeof fi, string> = {
   'mp.spectating': 'You are watching the competition',
   'mp.lateJoined': 'You joined the competition: time left {time}',
   'join.notFound': 'The room was not found, it is full or the competition has already started.',
-  'join.noServer': 'Cannot reach the server. Is it running?',
+  'join.noServer':
+    'The multiplayer server is not running right now. Try again later or play single player.',
   'join.failed': 'Joining failed: {msg}',
   'join.closed':
     'The competition is already on, and the room’s creator does not allow joining after the start.',
@@ -300,7 +301,9 @@ export const en: Record<keyof typeof fi, string> = {
   'feedback.empty': 'Write something first.',
   'feedback.sending': 'Sending…',
   'feedback.thanks': 'Thanks! Your feedback was saved.',
-  'feedback.failed': 'Sending failed: the game server is not responding. Try again later.',
+  'feedback.failed': 'Sending failed. Try again in a moment.',
+  'feedback.queued':
+    'The game server is not running right now, so your feedback was saved on this device. It is sent automatically when you open the game while the server is up.',
   'feedback.hint':
     'Luuka reads the feedback, and it is published with your nickname on the game’s GitHub.',
   'audio.title': 'Sound',
@@ -337,7 +340,8 @@ export const en: Record<keyof typeof fi, string> = {
   // --- Records ---
   'records.title': 'Lunkinjärvi records',
   'records.loading': 'Fetching records…',
-  'records.noServer': 'Could not reach the game server, so the records could not be fetched.',
+  'records.noServer':
+    'The records live on the game server, which is not running right now. Single player catches do not reach the list meanwhile.',
   'records.soloMissing': 'The game server does not have the single player records yet.',
   'records.raceMissing': 'Could not fetch the multiplayer records.',
   'records.raceHint': 'The list has fish weighed by the server in multiplayer competitions.',

@@ -51,6 +51,7 @@ import {
   type WinRule,
 } from '@lunki/shared';
 import type { LobbyView } from '../net/session';
+import type { SendResult } from '../net/report';
 import { LIBRARIES, creditText } from './credits';
 import { fishImage } from './fishArt';
 import {
@@ -421,6 +422,8 @@ export class Screens {
     if (custom) el.textContent += t('mp.customServer', { url: custom });
     el.classList.toggle('error', !ok);
     el.classList.toggle('ok', ok);
+    // Kiinni oleva palvelin isommalla: se on näkymän tärkein tieto.
+    el.classList.toggle('hint', ok);
   }
 
   /** Odotus palvelimen vastausta: otsikko, latausanimaatio ja teksti. */
@@ -561,7 +564,7 @@ export class Screens {
   /** Testaajan palaute: teksti lähetetään pelipalvelimelle. */
   showFeedback(
     name: string,
-    onSend: (f: { name: string; text: string }) => Promise<boolean>,
+    onSend: (f: { name: string; text: string }) => Promise<SendResult>,
     onBack: () => void,
   ): void {
     const panel = this.panel('feedback');
@@ -583,13 +586,16 @@ export class Screens {
         return;
       }
       status.textContent = t('feedback.sending');
-      const ok = await onSend({ name: nameInput.value, text: text.value });
-      if (ok) {
-        text.value = '';
-        status.textContent = t('feedback.thanks');
-      } else {
-        status.textContent = t('feedback.failed');
-      }
+      const result = await onSend({ name: nameInput.value, text: text.value });
+      // Kiinni olevan palvelimen palaute jää selaimeen odottamaan.
+      if (result !== 'rejected') text.value = '';
+      status.textContent = t(
+        result === 'sent'
+          ? 'feedback.thanks'
+          : result === 'offline'
+            ? 'feedback.queued'
+            : 'feedback.failed',
+      );
     };
     panel.append(
       h('h2', t('feedback.title')),

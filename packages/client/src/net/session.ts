@@ -93,11 +93,21 @@ let sdk: ReturnType<typeof importSdk> | null = null;
 const loadSdk = () => (sdk ??= importSdk());
 const client = async () => new (await loadSdk()).Client(serverUrl());
 
+/** Palvelimen HTTP-osoite (terveystarkistus, ennätykset, palaute). */
+export const serverHttpUrl = () => serverUrl().replace(/^ws/, 'http').replace(/\/$/, '');
+
+/** Pelipalvelin ei vastannut terveystarkistukseen (kone kiinni). */
+export class ServerDownError extends Error {
+  constructor() {
+    super('server down');
+  }
+}
+
 /** Onko pelipalvelin tavoitettavissa? (Colyseuksen /__healthcheck) */
-export async function checkServer(timeoutMs = 4000): Promise<boolean> {
+export async function checkServer(timeoutMs = 3000): Promise<boolean> {
   // Moninpelivalikko on auki: asiakas valmiiksi ladattavaksi liittymistä varten.
   loadSdk().catch(() => (sdk = null));
-  const http = serverUrl().replace(/^ws/, 'http').replace(/\/$/, '');
+  const http = serverHttpUrl();
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
@@ -111,6 +121,23 @@ export async function checkServer(timeoutMs = 4000): Promise<boolean> {
 }
 
 /**
+ * Yhdistäminen keskeytetään heti, kun terveystarkistus kertoo palvelimen
+ * olevan kiinni: muuten huono yhteys voisi jättää pelaajan odottamaan
+ * pitkäksi aikaa. Myöhässä onnistunut yhteys suljetaan.
+ */
+async function unlessServerDown(connecting: Promise<NetSession>): Promise<NetSession> {
+  const down = checkServer().then((ok) =>
+    ok ? new Promise<never>(() => undefined) : Promise.reject(new ServerDownError()),
+  );
+  try {
+    return await Promise.race([connecting, down]);
+  } catch (err) {
+    if (err instanceof ServerDownError) connecting.then((s) => s.leave()).catch(() => undefined);
+    throw err;
+  }
+}
+
+/**
  * Järven ennätyslista palvelimelta (moninpelin tai yksinpelin); null, jos
  * palvelinta ei tavoiteta tai se ei vielä tunne listaa.
  */
@@ -118,7 +145,7 @@ export async function fetchRecords(
   mode: RecordMode = 'race',
   timeoutMs = 4000,
 ): Promise<RecordBoard | null> {
-  const http = serverUrl().replace(/^ws/, 'http').replace(/\/$/, '');
+  const http = serverHttpUrl();
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
@@ -141,7 +168,7 @@ export async function submitSoloRecord(
   entry: Omit<RecordEntry, 'date' | 'at'>,
   timeoutMs = 6000,
 ): Promise<number | null> {
-  const http = serverUrl().replace(/^ws/, 'http').replace(/\/$/, '');
+  const http = serverHttpUrl();
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
@@ -359,20 +386,22 @@ export class NetSession {
     });
   }
 
-  static async create(options: JoinOptions): Promise<NetSession> {
-    const room = await (await client()).create<StateSchema>(ROOM_NAME, options);
-    return new NetSession(room);
+  /** Palvelimen ollessa kiinni heittää ServerDownErrorin parissa sekunnissa. */
+  static create(options: JoinOptions): Promise<NetSession> {
+    return unlessServerDown(
+      client()
+        .then((c) => c.create<StateSchema>(ROOM_NAME, options))
+        .then((room) => new NetSession(room)),
+    );
   }
 
   /** Jos kisaan ei pääse mukaan (huoneen asetus), liitytään katsojaksi. */
-  static async join(code: string, options: JoinOptions): Promise<NetSession> {
-    const room = await (
-      await client()
-    ).joinById<StateSchema>(code, {
-      ...options,
-      spectate: true,
-    });
-    return new NetSession(room);
+  static join(code: string, options: JoinOptions): Promise<NetSession> {
+    return unlessServerDown(
+      client()
+        .then((c) => c.joinById<StateSchema>(code, { ...options, spectate: true }))
+        .then((room) => new NetSession(room)),
+    );
   }
 
   /**
@@ -387,8 +416,11 @@ export class NetSession {
     const token = loadResume();
     if (!token) return null;
     try {
-      const room = await (await client()).reconnect<StateSchema>(token);
-      return new NetSession(room);
+      return await unlessServerDown(
+        client()
+          .then((c) => c.reconnect<StateSchema>(token))
+          .then((room) => new NetSession(room)),
+      );
     } catch {
       clearResume();
       return null;
@@ -602,6 +634,7 @@ const LEGACY_REFUSALS: Record<string, JoinRefusalCode> = {
 
 /** Selkokielinen virheilmoitus liittymisongelmille. */
 export function describeJoinError(err: unknown): string {
+  if (err instanceof ServerDownError) return t('join.noServer');
   const msg = err instanceof Error ? err.message : String(err);
   const code = Object.hasOwn(REFUSAL_KEYS, msg) ? (msg as JoinRefusalCode) : LEGACY_REFUSALS[msg];
   if (code) return t(REFUSAL_KEYS[code]);
