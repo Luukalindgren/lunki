@@ -26,6 +26,7 @@ import { loadTackle, saveTackle } from './game/tackle';
 import { loadAppearance, saveAppearance } from './game/appearance';
 import { Hud } from './ui/hud';
 import { loadHudScale, saveHudScale } from './ui/hudScale';
+import { effectivePovFov, loadPovFov, savePovFov } from './ui/povFov';
 import { describeSpot } from './ui/lakeMap';
 import type { WeighCardInfo } from './ui/weighCard';
 import { ChatBox } from './ui/chat';
@@ -85,6 +86,30 @@ const devDifficulty = (['easy', 'normal', 'realistic'] as const).find(
 );
 const devSeed = params.has('seed') ? Number(params.get('seed')) : undefined;
 
+/**
+ * Kalastajan silmin -näkymän näkökenttä (#330). Suorituskykytesti voi
+ * kokeilla muuta arvoa (?bench&view=pov&fov=90) tallentamatta sitä.
+ */
+let povFov = params.has('fov') ? Number(params.get('fov')) || loadPovFov() : loadPovFov();
+
+/** Toteutunut näkökenttä canvasin attribuuttiin (testit). */
+function syncPovFov(): void {
+  if (game) canvas.dataset.povFov = String(Math.round(game.povFov));
+}
+
+/** Näkökentän säädin taukovalikkoon ja asetuksiin. */
+const povFovControl = () => ({
+  current: povFov,
+  onChange: (fov: number) => {
+    povFov = fov;
+    savePovFov(fov);
+    game?.setPovFov(fov);
+    syncPovFov();
+  },
+  effective: (fov: number) =>
+    effectivePovFov(fov, retro.resolution.width / Math.max(1, retro.resolution.height)),
+});
+
 const screens = new Screens(app);
 input.menuOpen = () => screens.open;
 let settings = loadSettings(DEFAULT_SETTINGS);
@@ -129,6 +154,8 @@ function startGame(s: CompetitionSettings, seed = devSeed) {
     net,
   );
   game.setResolution(retro.resolution);
+  game.setPovFov(povFov);
+  syncPovFov();
   // Kisa alkaa kalastajan silmin; V / KAM vaihtaa ylhäältä katsottuun.
   // ?view=top (testit) ja suorituskykymittaus pysyvät ylhäällä (?bench&view=pov mittaa POV:n).
   game.setViewMode(
@@ -190,7 +217,12 @@ function showMenu() {
     onMultiplayer: () => showMultiplayer(),
     onLakeMap: () => screens.showLakeMap(showMenu),
     onRecords: () => void showRecords(),
-    onAudio: () => screens.showAudio(sfx.audioSettings, (a) => sfx.setAudioSettings(a), showMenu),
+    onSettings: () =>
+      screens.showSettings(
+        { current: sfx.audioSettings, onChange: (a) => sfx.setAudioSettings(a) },
+        povFovControl(),
+        showMenu,
+      ),
     onFeedback: () =>
       screens.showFeedback(
         loadIdentity().name,
@@ -504,6 +536,7 @@ function togglePause() {
         },
         effective: () => hud.effectiveScale(),
       },
+      povFovControl(),
     );
   } else {
     screens.hide();
@@ -513,6 +546,7 @@ function togglePause() {
 
 retro.onResize((r) => {
   game?.setResolution(r);
+  syncPovFov();
   hud.setPixelSize(r.scale / (window.devicePixelRatio || 1));
 });
 

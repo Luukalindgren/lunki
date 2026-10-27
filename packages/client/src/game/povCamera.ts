@@ -2,13 +2,13 @@ import * as THREE from 'three';
 import type { Vec2 } from '@lunki/shared';
 import type { RetroResolution } from '../engine/resolution';
 import { toWorld } from '../world/lakeMesh';
+import { DEFAULT_POV_FOV, effectivePovFov } from '../ui/povFov';
 
 /** Silmien korkeus vedenpinnasta (m) ja katseen lasku horisontin alle. */
 const EYE_HEIGHT = 0.55;
 const PITCH = -0.12;
 /** Kauimmainen tähtäyspiste (m), kun hiiri osoittaa horisontin yläpuolelle. */
 const MAX_AIM = 90;
-const FOV = 72;
 /**
  * Pienet kallistukset (rad) jätetään pois: kiertyvä pikselikuva välkkyy
  * reunoilla, vaikka kulma muuttuisi vain vähän.
@@ -42,7 +42,9 @@ export function steadyRoll(roll: number): number {
  * näkyy lähiveden liikkeenä mutta ei liikuta kaukaisia maisemia.
  */
 export class PovCamera {
-  readonly camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 3000);
+  readonly camera = new THREE.PerspectiveCamera(DEFAULT_POV_FOV, 1, 0.1, 3000);
+  /** Pelaajan valitsema pysty-FOV (#330); kamera rajaa sen kuvasuhteen mukaan. */
+  private fovSetting = DEFAULT_POV_FOV;
   private resolution: RetroResolution = { width: 1, height: 1, scale: 1 };
   private readonly raycaster = new THREE.Raycaster();
   private readonly water = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -55,14 +57,32 @@ export class PovCamera {
 
   /** Yhden pikselin koko metreinä metrin päässä kamerasta. */
   get pixelSize(): number {
-    return (2 * Math.tan(THREE.MathUtils.degToRad(FOV / 2))) / this.resolution.height;
+    return (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2))) / this.resolution.height;
   }
 
   setResolution(r: RetroResolution): void {
     this.resolution = r;
     this.camera.aspect = r.width / r.height;
+    this.updateProjection();
+  }
+
+  /** Pelaajan valitsema pysty-FOV asteina. */
+  setFov(fov: number): void {
+    this.fovSetting = fov;
+    this.updateProjection();
+  }
+
+  /**
+   * Projektio ja pikselin kulma uusiksi. Portaat nollataan, jotta kuva
+   * kääntyy taas kokonaisin pikselein (#113).
+   */
+  private updateProjection(): void {
+    const r = this.resolution;
+    this.camera.fov = effectivePovFov(this.fovSetting, this.camera.aspect);
     this.camera.updateProjectionMatrix();
-    this.pixelAngle = Math.atan((2 * Math.tan(THREE.MathUtils.degToRad(FOV / 2))) / r.height);
+    this.pixelAngle = Math.atan(
+      (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2))) / r.height,
+    );
     this.yaw = NaN;
     this.roll = NaN;
     this.pitch = NaN;
