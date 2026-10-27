@@ -417,12 +417,14 @@ textarea,
 }
 
 .screen-panel {
-  max-width: 560px;
+  /* Leveys ja korkeus reunoineen: paneeli mahtuu kapeankin puhelimen ruutuun. */
+  box-sizing: border-box;
+  max-width: 616px;
   width: 100%;
-  /* Ikkunan korkeus miinus .screen-reunus (32 px), oma täyte (40 px) ja kehys (8 px). */
-  max-height: calc(100vh - 80px);
+  /* Ikkunan korkeus miinus .screen-reunus (32 px). */
+  max-height: calc(100vh - 32px);
   /* iPhonen Safarissa 100vh ulottuu työkalupalkin alle: alimmat napit jäisivät piiloon. */
-  max-height: calc(100dvh - 80px);
+  max-height: calc(100dvh - 32px);
   overflow: auto;
   background: #1c232b;
   border: 4px solid #5f6b78;
@@ -819,12 +821,9 @@ textarea,
  * nimisarake joustaa: se kapenee "…"-lyhenteeksi ennen kuin mitään tarvitsisi
  * vierittää sivuttain, eikä levitä tyhjää nimen ja päivän väliin.
  */
-/* Leveämpi kuin muut paneelit, mutta mahtuu reunoineen puhelimenkin ruutuun. */
+/* Leveämpi kuin muut paneelit, jotta suurinkin kala mahtuu riville. */
 .screen-panel[data-screen='records'] {
-  box-sizing: border-box;
   max-width: 816px;
-  max-height: calc(100vh - 32px);
-  max-height: calc(100dvh - 32px);
 }
 
 .catch-list.records {
@@ -902,6 +901,16 @@ textarea,
     font-size: 20px;
   }
 
+  /* Kolmirivinen ennätys erottuu naapureistaan välin ja ohuen viivan avulla. */
+  .catch-list .record-row {
+    padding: 8px 0;
+  }
+
+  .catch-list .record-row + .record-row,
+  .catch-list .record-more + .record-row {
+    border-top: 2px solid #2c353f;
+  }
+
   .record-who {
     display: block;
     min-width: 0;
@@ -933,7 +942,7 @@ textarea,
 }
 
 @media (max-width: 600px) {
-  .screen-panel[data-screen='records'] {
+  .screen-panel {
     padding: 16px 14px;
   }
 }
@@ -1673,7 +1682,7 @@ textarea,
 
 /* Järvikartta: leveämpi paneeli, kartta täyttää leveyden. */
 .screen-panel.map-panel {
-  max-width: 1100px;
+  max-width: 1156px;
 }
 
 .lake-map-frame {
@@ -1987,7 +1996,7 @@ textarea,
 }
 
 .screen-modal .modal-panel {
-  max-width: 640px;
+  max-width: 696px;
 }
 
 /* Kortin painikkeet eivät jää paneelin alareunaan kuten näkymän omat. */

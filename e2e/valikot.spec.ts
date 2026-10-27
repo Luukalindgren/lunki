@@ -213,3 +213,22 @@ test('latausruutu näkyy pelin koodin latautuessa ja poistuu valikon tullessa', 
   await expect(boot).toHaveCount(0);
   errors.check();
 });
+
+test('valikkoruudut mahtuvat reunoineen ruutuun', async ({ page }) => {
+  const errors = watchErrors(page);
+  const inside = () =>
+    page.locator('.screen-panel').evaluate((panel) => {
+      const r = panel.getBoundingClientRect();
+      return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight;
+    });
+  await page.goto('/');
+  await expect(page.locator('.start-panel')).toBeVisible();
+  expect(await inside()).toBe(true);
+  for (const name of ['Yksinpeli', 'Järvikartta', 'Ennätykset', 'Palaute']) {
+    await page.getByRole('button', { name, exact: true }).click();
+    await expect(page.locator('.screen-panel h2').first()).toBeVisible();
+    expect(await inside(), name).toBe(true);
+    await page.goto('/');
+  }
+  errors.check();
+});
