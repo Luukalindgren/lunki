@@ -49,6 +49,7 @@ import { flushFeedback, installErrorReporting, reportContext, sendFeedback } fro
 import { formatWeight, ordinal, t } from './i18n';
 import { speciesName } from './i18n/names';
 import { preventTextSelection } from './ui/noSelect';
+import { registerServiceWorker } from './net/offline';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) throw new Error('#app puuttuu');
@@ -583,6 +584,10 @@ menuScene.precompile(retro).then(menuReady, menuReady);
 setTimeout(menuReady, WARM_TIMEOUT_MS);
 
 const paletteModes: PaletteMode[] = ['palette', 'dither', 'off'];
+
+// Pelin tiedostot laitteelle (#328). Uusi versio otetaan käyttöön vasta
+// pelaajan painaessa valikon nappia, ei kesken kisan.
+registerServiceWorker((apply) => screens.setUpdate(apply));
 
 startLoop({
   update(dt) {

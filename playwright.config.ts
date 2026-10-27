@@ -34,6 +34,9 @@ export default defineConfig({
     baseURL: 'http://localhost:4173',
     // Testit etsivät suomenkielisiä nappeja; englanti testataan erikseen.
     locale: 'fi-FI',
+    // Service worker (#328) ohittaisi sivun pyyntöjen sieppauksen osassa
+    // selaimista; se testataan erikseen (offline.spec.ts).
+    serviceWorkers: 'block',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },

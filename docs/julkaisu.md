@@ -176,6 +176,18 @@ Selain vaatii `wss://`-yhteyden, joten eteen tarvitaan TLS, esimerkiksi
 (`reverse_proxy localhost:2567`). Palautteet näkee kontista komennolla
 `docker exec <kontti> pnpm report`.
 
+## Pelin tiedostot laitteella (service worker)
+
+Build kirjoittaa juureen `sw.js`-tiedoston, joka tallentaa pelin koodin,
+fontit ja kuvakkeet selaimeen. Toisella avauskerralla peli aukeaa heti, ja
+yksinpeliä voi pelata ilman nettiä (moninpeli tarvitsee yhteyden). Sivu
+haetaan aina ensin verkosta, joten uusi julkaisu näkyy heti seuraavalla
+avauksella. Jos peli on auki julkaisun aikana, päävalikkoon tulee nappi
+_Uusi versio saatavilla – päivitä_. Kesken kisan versio ei vaihdu.
+
+Jos vanha versio jää jostain syystä jumiin: selaimen kehitystyökalut →
+_Application → Service workers → Unregister_ ja sivun uudelleenlataus.
+
 ## Palaute ja virheet
 
 Testaajat voivat lähettää palautetta alkuvalikon **Palaute**-napista. Julkaistu

@@ -140,6 +140,7 @@ export const en: Record<keyof typeof fi, string> = {
   'menu.feedback': 'Feedback',
   'menu.credits': 'Credits and sources',
   'menu.subtitle': 'Float tube fishing in Tammela, Finland',
+  'menu.update': 'New version available – update',
   'menu.controls':
     'W towards your fins · S back first (fastest) · A/D turn · mouse aims and casts · reel with the mouse or space · Q/E drag · Esc pause',
   'menu.mapCredit': 'Map © OpenStreetMap contributors, Copernicus DEM, Syke',

@@ -218,6 +218,26 @@ export class Screens {
     this.nav = new MenuNav(this.root, () => this.open);
   }
 
+  /** Uusi versio odottaa: päävalikkoon päivitysnappi (#328). */
+  private update: (() => void) | null = null;
+
+  /** Näyttää päivitysnapin päävalikossa nyt tai seuraavalla avauksella. */
+  setUpdate(apply: () => void): void {
+    this.update = apply;
+    const start = this.root.querySelector('[data-screen="start"]');
+    if (start && !start.querySelector('.update-notice'))
+      start.querySelector('.subtitle')?.after(...this.updateNotice());
+  }
+
+  private updateNotice(): HTMLElement[] {
+    if (!this.update) return [];
+    const b = document.createElement('button');
+    b.className = 'update-notice';
+    b.textContent = t('menu.update');
+    b.addEventListener('click', this.update);
+    return [b];
+  }
+
   get open(): boolean {
     return !this.root.hidden;
   }
@@ -275,6 +295,7 @@ export class Screens {
     panel.append(
       waveTitle('LUNKINJÄRVI'),
       h('p', t('menu.subtitle'), 'subtitle'),
+      ...this.updateNotice(),
       menu,
       language,
       ...this.homeScreenHint(),
