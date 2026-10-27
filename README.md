@@ -1,12 +1,27 @@
-# lunki
+# Lunkinjärvi
 
 Moninpeli, jossa kalastetaan kelluntarenkaalta Tammelan Lunkinjärvellä.
 Selainpeli, retrografiikka, ajastettu kilpailu ja yllättävät säät.
 
 Pelaa: <https://lunkinjarvi.com/>
 
+- Yksinpeli tai moninpeli kavereiden kanssa jaetulla koodilla, ilman
+  kirjautumista. Kisan pituus, voittoehto, sää ja rangaistukset valitaan
+  ennen kisaa.
+- Järvi, rannat ja ympäristö avoimesta kartta-aineistosta.
+- Virveli ja perho, 11 kalalajia, siimojen sotkeutuminen, pohjaan tarttuvat
+  vieheet ja hampaiden katkaisemat siimat.
+- Säätasot tyynestä täyteen kaaokseen: ukkonen, salamat, kaatavat aallot ja
+  trombit.
+- Kuvakulma ylhäältä tai kalastajan silmin, ohjaus näppäimistöllä ja hiirellä
+  tai puhelimen kosketusnapeilla. Suomeksi ja englanniksi.
+- Toimii millä tahansa selaimella. Yksinpeli toimii myös ilman nettiä ja
+  ilman pelipalvelinta; vain moninpeli tarvitsee palvelimen.
+
 Kehitys etenee GitHub Issueiden kautta: jokainen muutos omassa haarassaan ja
-PR:ssä, ja main päivittyy vain yhdistettyjen PR:ien kautta.
+PR:ssä, ja main päivittyy vain yhdistettyjen PR:ien kautta. Työtapa,
+issueiden tunnisteet ja pelin yhtenäiset järjestelmät, joita jokainen
+muutos noudattaa: [docs/kehitys.md](docs/kehitys.md).
 
 ## Ajaminen paikallisesti
 
@@ -25,38 +40,55 @@ koneeseen porttiin 2567; toisen palvelimen voi antaa osoitteella
 Valikosta "Moninpeli" luodaan huone, ja kaverit liittyvät koodilla
 (esim. `LUNKI-4F7K`) tai kutsulinkillä.
 
-Peli kavereille: asiakas on GitHub Pagesissa ja palvelin pyörii omalla
-koneella tunnelin kautta. Ohje: [docs/julkaisu.md](docs/julkaisu.md).
-Ilman nettiä samassa wifissä: `pnpm lan` tekee läppäristä palvelimen, joka
-jakaa myös pelisivun. Ohje: [docs/lan.md](docs/lan.md).
-Verkkokoodin rakenne: [docs/moninpeli.md](docs/moninpeli.md).
-Kalalajit, vieheet ja varusteet: [docs/kalalajit.md](docs/kalalajit.md).
-Järven pohja ja erikoismuodot: [docs/pohja.md](docs/pohja.md).
-Sää ja säätasot: [docs/saa.md](docs/saa.md).
+## Dokumentaatio
+
+| Ohje                                              | Sisältö                                                                |
+| ------------------------------------------------- | ---------------------------------------------------------------------- |
+| [kehitys.md](docs/kehitys.md)                     | Työtapa, issueiden tunnisteet ja yhtenäiset järjestelmät               |
+| [julkaisu.md](docs/julkaisu.md)                   | GitHub Pages, palvelin Cloudflare Tunnelin takana, service worker, SEO |
+| [windows-palvelin.md](docs/windows-palvelin.md)   | Palvelin pelikoneelle, etäkäynnistys SSH:lla, palautteet issueiksi     |
+| [lan.md](docs/lan.md)                             | LAN-peli ilman nettiä: läppäri palvelimeksi                            |
+| [moninpeli.md](docs/moninpeli.md)                 | Verkkokoodi: ennakointi, kisan kulku, katkokset, sotkut, eleet         |
+| [kalalajit.md](docs/kalalajit.md)                 | Kalalajit, käyttäytyminen, vieheet, varusteet ja perhokalastus         |
+| [pohja.md](docs/pohja.md)                         | Järven pohja ja erikoismuodot                                          |
+| [saa.md](docs/saa.md)                             | Sää, säätasot, salamat, aallot ja trombit                              |
+| [puheaanet.md](docs/puheaanet.md)                 | Kalastajan puheäänet ja niiden teko                                    |
+| [suorituskyky.md](docs/suorituskyky.md)           | Suorituskykymittaus (`?bench=1`) ja kevennykset                        |
+| [kansikuvat/README.md](docs/kansikuvat/README.md) | LinkedIn-kansikuvat ja niiden renderöinti                              |
+
+Pelipalvelin pyörii Luukan pelikoneella osoitteessa
+`wss://peli.lunkinjarvi.com` (Cloudflare Tunnel), ja pelisivu on GitHub
+Pagesissa. Pelikone on usein kiinni, joten peli ei saa vaatia palvelinta
+muuhun kuin moninpeliin.
 
 Muut komennot:
 
-| Komento           | Mitä tekee                                      |
-| ----------------- | ----------------------------------------------- |
-| `pnpm dev`        | Asiakkaan kehityspalvelin (Vite)                |
-| `pnpm dev:server` | Pelipalvelin kehitystilassa                     |
-| `pnpm run server` | Pelipalvelin pelikäyttöön (portti 2567)         |
-| `pnpm lan`        | LAN-peli: palvelin ja pelisivu samasta koneesta |
-| `pnpm test`       | Kaikkien pakettien testit (Vitest)              |
-| `pnpm lint`       | ESLint                                          |
-| `pnpm typecheck`  | TypeScript-tarkistus kaikille paketeille        |
-| `pnpm format`     | Muotoilee koodin Prettierillä                   |
-| `pnpm check`      | Lint, muotoilu, tyypitys ja testit kerralla     |
-| `pnpm build`      | Tuotantobuild (asiakas `packages/client/dist`)  |
+| Komento           | Mitä tekee                                        |
+| ----------------- | ------------------------------------------------- |
+| `pnpm dev`        | Asiakkaan kehityspalvelin (Vite)                  |
+| `pnpm dev:server` | Pelipalvelin kehitystilassa                       |
+| `pnpm run server` | Pelipalvelin pelikäyttöön (portti 2567)           |
+| `pnpm lan`        | LAN-peli: palvelin ja pelisivu samasta koneesta   |
+| `pnpm report`     | Palvelimen tietokannan palautteet ja virheet      |
+| `pnpm test`       | Kaikkien pakettien testit (Vitest)                |
+| `pnpm e2e`        | Selaintestit (Playwright, aja `pnpm build` ensin) |
+| `pnpm lint`       | ESLint                                            |
+| `pnpm typecheck`  | TypeScript-tarkistus kaikille paketeille          |
+| `pnpm format`     | Muotoilee koodin Prettierillä                     |
+| `pnpm check`      | Lint, muotoilu, tyypitys ja testit kerralla       |
+| `pnpm build`      | Tuotantobuild (asiakas `packages/client/dist`)    |
 
 ## Rakenne
 
 ```
 packages/
   client/        Selainpeli (Vite + Three.js)
-  server/        Pelipalvelin (Colyseus, vaihe 2)
-  shared/        Jaettu koodi: fysiikka, pelisäännöt, tyypit
+  server/        Pelipalvelin (Colyseus) ja ennätykset (SQLite)
+  shared/        Jaettu koodi: fysiikka, sää, kalat, pelisäännöt, tyypit
   map-pipeline/  Lunkinjärven kartta avoimesta aineistosta pelin muotoon
+e2e/             Selaintestit (Playwright)
+scripts/         Pelikoneen ja Macin apukomennot, kuvakkeet, puheäänet, kansikuvat
+docs/            Ohjeet, ks. yllä
 ```
 
 Pelin fysiikka ja säännöt ovat `shared`-paketissa, jotta asiakas ja palvelin

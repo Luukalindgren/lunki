@@ -107,15 +107,15 @@ välimuistissa jonkin aikaa.
    tai koodi (esim. `LUNKI-4F7K`). Kaverit avaavat linkin, kirjoittavat
    nimimerkin ja painavat **Valmis!**. Valitse asetukset ja **Aloita kisa**.
 
-## Vaihtoehto: Tailscale Funnel
+## Vaihtoehto: Tailscale Funnel (ei enää käytössä)
 
-Ilman omaa verkkotunnusta pysyvän osoitteen saa Tailscale Funnelilla.
-Asenna [Tailscale](https://tailscale.com/download), kirjaudu ja aja
-`tailscale funnel --bg 2567`. Jos Funnel ei ole vielä sallittu, komento antaa
-linkin, josta sen saa päälle. Osoite on muotoa
-`https://pelikone.tailabc123.ts.net` (`LUNKI_SERVER_URL`iin `wss://`-alulla).
-Funnel on beta-vaiheessa, sen kaistarajoja ei kerrota, eikä omaa
-verkkotunnusta tueta. `tailscale funnel reset` sulkee sen.
+Palvelin oli ennen omaa verkkotunnusta Tailscale Funnelin takana. Funnel
+korvattiin Cloudflare Tunnelilla lokakuussa 2026 (#245), ja sen voi sulkea
+komennolla `tailscale funnel reset`. Tailscale on edelleen käytössä
+pelikoneen etäkäyttöön (SSH), ks. [windows-palvelin.md](windows-palvelin.md).
+Funnelin saa tarvittaessa takaisin komennolla `tailscale funnel --bg 2567`
+(osoite `https://<kone>.<tailnet>.ts.net`, `LUNKI_SERVER_URL`iin
+`wss://`-alulla).
 
 ## Vaihtoehto: Cloudflaren pikatunneli
 
@@ -187,6 +187,19 @@ _Uusi versio saatavilla – päivitä_. Kesken kisan versio ei vaihdu.
 
 Jos vanha versio jää jostain syystä jumiin: selaimen kehitystyökalut →
 _Application → Service workers → Unregister_ ja sivun uudelleenlataus.
+
+## Kun pelipalvelin on kiinni
+
+Pelikone on usein kiinni, joten vain moninpeli tarvitsee palvelimen:
+
+- Moninpelivalikko kertoo "Moninpelipalvelin ei ole nyt päällä" noin kolmen
+  sekunnin kuluttua, eikä mikään muu jää odottamaan.
+- Yksinpelin saaliit jäävät selaimeen jonoon (enintään 50) ja lähtevät
+  ennätyslistalle, kun palvelin seuraavan kerran vastaa. Päävalikko kertoo
+  sinne päätyneet saaliit. Ennätys saa saaliin oikean päivämäärän, kun
+  palvelin on päivitetty vähintään versioon #344 (`lunki uudelleen`).
+- Palaute jää jonoon (enintään 10) ja lähtee seuraavalla avauskerralla.
+- Virheilmoitusten lähetys lopetetaan ensimmäisen epäonnistumisen jälkeen.
 
 ## Palaute ja virheet
 

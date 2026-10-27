@@ -75,8 +75,10 @@ karkaa. Lisäksi seuraa valittu rangaistus:
 Rangaistus valitaan yksinpelin asetuksista tai moninpelin aulasta.
 Oletuksena on jäähy.
 
-Salama näkyy siksak-viivana taivaalta veteen, ja koko ruutu välähtää.
-Isku kuuluu viiveellä etäisyyden mukaan (343 m/s): lähellä terävänä
+Salama näkyy siksak-viivana taivaalta veteen, ja kuva välähtää
+kirkkaaksi sitä voimakkaammin, mitä lähempänä salama iskee: kaukaa salaman
+näkee yhä, eikä yö muutu päiväksi. Aivan vieressä (alle 60 m) kuva kääntyy
+hetkeksi negatiiviksi, ja kamera tärisee. Isku kuuluu viiveellä etäisyyden mukaan (343 m/s): lähellä terävänä
 räsähdyksenä ja jyrinänä, kaukana hiljaisempana jyrinänä. Ukkosella ja
 myrskyllä HUD:n säärivillä lukee "salamavaara!", ja jäähyn jäljellä oleva
 aika näkyy vasemmassa alakulmassa.
@@ -87,9 +89,12 @@ aika näkyy vasemmassa alakulmassa.
   Tuuli nimetään suunnasta, josta se tulee.
 - Sade näkyy viiruina, jotka tuuli kallistaa. POV:ssa sadetta on
   kalastajan ympärillä, ylhäältä katsottuna koko näkyvällä alueella.
-- POV:ssa taivas ja sumu harmaantuvat palettisävyinä portaittain, ja valo
-  himmenee hieman. Valoa ei himmennetä enempää, koska paletissa tummat
-  vesisävyt kääntyisivät vihreiksi.
+- Pilvisellä ja ukkosella koko maisema synkkenee ja harmaantuu molemmissa
+  näkymissä, ja taivas tummuu. Kirkkaus, synkkyys ja salaman välähdys
+  lasketaan yhdessä sävytyksessä paletin jälkeen (`SkyView.grade`), joten
+  vesi ja maa pysyvät omissa väreissään. Valaistusta ei himmennetä, koska
+  paletissa tummat vesisävyt kääntyisivät vihreiksi. Uusi valoefekti
+  tehdään samaan sävytykseen, ks. [kehitys.md](kehitys.md).
 
 ## Tuuli
 

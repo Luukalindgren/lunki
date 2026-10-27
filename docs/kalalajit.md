@@ -123,8 +123,9 @@ parvet pysyvät kotipaikkansa lähellä, joten palvelimen tarkistus saaliin paik
 
 ## Vieheet ja varusteet
 
-Varusteet valitaan moninpelin aulassa ennen kisaa, ja niitä voi vaihtaa taukovalikosta
-(Esc) tai vieheen pikanäppäimellä R. Vaihto tapahtuu, kun viehe on kelalla. Valinnat
+Varusteet valitaan yksinpelin asetuksissa tai moninpelin aulassa ennen kisaa (rivi Omat
+varusteet), ja niitä voi vaihtaa taukovalikon (Esc) Varusteet-näkymästä tai vieheen
+pikanäppäimellä R. Vaihto tapahtuu, kun viehe on kelalla. Valinnat
 muistetaan selaimessa. Moninpelissä kaikkien varusteet näkyvät aulan pelaajalistassa ja
 tuloksissa. "Aloittelijan varusteet" palauttaa oletukset: perusvapa, lusikka ja 0,25 mm
 siima ilman perukkaa. Parametrit: `packages/shared/src/fishing/gear.ts`.
@@ -153,8 +154,8 @@ realistisella noin 3 % sekunnissa), mutta muut lajit tarttuvat siihen hieman har
 
 ## Perhokalastus (#234)
 
-Kalastajalla on mukana sekä virveli- että perhovälineet. Kalastustapa valitaan aulassa tai
-taukovalikossa (Kalastustapa: Virveli / Perho), ja sitä voi vaihtaa kesken kisan, kun viehe on
+Kalastajalla on mukana sekä virveli- että perhovälineet. Kalastustapa valitaan varusteista ennen kisaa tai
+taukovalikon Varusteet-näkymässä (Kalastustapa: Virveli / Perho), ja sitä voi vaihtaa kesken kisan, kun viehe on
 kelalla. Vavat valitaan ennen kisaa, perho kisan aikana (R vaihtaa perhoa). Parametrit:
 `FLY_RODS`, `FLY_LINES`, `FLY_LEADERS` ja `FLIES` tiedostossa `gear.ts`, uitto `FLY` tiedostossa
 `fishing.ts`.
