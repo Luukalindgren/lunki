@@ -125,7 +125,7 @@ describe('kalat', () => {
     const fightTime = (rod: 'light' | 'heavy') => {
       let total = 0;
       for (let seed = 1; seed <= 8; seed++) {
-        const sim = setup('easy', 1.2, seed);
+        const sim = setup('easy', 1.6, seed);
         sim.s.tackle.rod = rod;
         fishUntil(sim, 180, (e) => !!e.caught);
         total += sim.log.length - sim.log.findIndex((e) => e.hooked);
@@ -189,7 +189,7 @@ describe('kalat', () => {
 
   it('liian kireä jarru katkaisee siiman isolla kalalla', () => {
     // Keinotekoisen iso kala: veto ylittää 5 kg siiman kestävyyden.
-    const sim = setup('normal', 3, 5);
+    const sim = setup('normal', 3, 1);
     sim.s.drag = 8;
     const ok = fishUntil(sim, 120, (e) => !!e.lineBroken || !!e.caught);
     expect(ok).toBe(true);

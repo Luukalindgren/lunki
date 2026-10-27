@@ -56,6 +56,7 @@ import {
   LUNKINJARVI_BOTTOM,
   LakeBottom,
   catchRadius,
+  DIFFICULTIES,
   createFishPopulation,
   fishHome,
   stockWeight,
@@ -309,7 +310,11 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         !landed ||
         !home ||
         !hookAt ||
-        distance(hookAt, home) > catchRadius(landed.species) ||
+        distance(hookAt, home) >
+          catchRadius(
+            landed.species,
+            DIFFICULTIES[this.state.settings.difficulty as Difficulty] ?? DIFFICULTIES.normal,
+          ) ||
         !isPlausibleCatch(landed, {
           splashedSinceLastCatch: sim.splashed,
           now,
