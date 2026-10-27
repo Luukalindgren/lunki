@@ -4,6 +4,7 @@ import {
   LUNKINJARVI,
   WaterBody,
   formatClock,
+  formatRoomCode,
   formatTime,
   isTimeOfDay,
   isFly,
@@ -36,6 +37,7 @@ import { clearLastRoom, loadIdentity, loadLastRoom, saveLastRoom, saveName } fro
 import {
   NetSession,
   checkServer,
+  ServerDownError,
   customServer,
   describeJoinError,
   fetchRecords,
@@ -43,7 +45,7 @@ import {
   submitSoloRecord,
 } from './net/session';
 import { NetWorld } from './net/netWorld';
-import { installErrorReporting, reportContext, sendFeedback } from './net/report';
+import { flushFeedback, installErrorReporting, reportContext, sendFeedback } from './net/report';
 import { formatWeight, ordinal, t } from './i18n';
 import { speciesName } from './i18n/names';
 import { preventTextSelection } from './ui/noSelect';
@@ -67,6 +69,8 @@ hud.setVisible(false);
 const touch = isTouchDevice() ? new TouchControls(hud.root, input) : null;
 hud.setTouch(touch !== null);
 installErrorReporting();
+// Palvelimen ollessa kiinni tallentuneet palautteet.
+void flushFeedback();
 preventTextSelection();
 const sfx = new Sfx();
 // Kosketuksessa selain sallii äänen vasta sormen noustessa (pointerup/touchend),
@@ -257,7 +261,8 @@ function showResults() {
 
 // --- Moninpeli -------------------------------------------------------------
 
-function showMultiplayer(code = '', error?: string) {
+/** `serverDown`: yhdistäminen juuri kertoi palvelimen olevan kiinni, ei tarkisteta uudelleen. */
+function showMultiplayer(code = '', error?: string, serverDown = false) {
   hud.setVisible(false);
   const { name } = loadIdentity();
   screens.showMultiplayer(
@@ -275,7 +280,8 @@ function showMultiplayer(code = '', error?: string) {
     },
     error,
   );
-  void checkServer().then((ok) => screens.setServerStatus(ok, customServer()));
+  if (serverDown) screens.setServerStatus(false, customServer());
+  else void checkServer().then((ok) => screens.setServerStatus(ok, customServer()));
 }
 
 /** `rejoin`: päävalikon "Palaa kisaan"; epäonnistuessa huonetta ei enää tarjota. */
@@ -293,7 +299,11 @@ async function connect(name: string, code: string | null, rejoin = false) {
   } catch (err) {
     console.warn('Liittyminen epäonnistui', err);
     if (rejoin) clearLastRoom();
-    if (!cancelled) showMultiplayer(code ?? '', describeJoinError(err));
+    if (cancelled) return;
+    const shown = code ? formatRoomCode(code) : '';
+    // Kiinni oleva palvelin näkyy palvelinrivillä; samaa ilmoitusta ei toisteta.
+    if (err instanceof ServerDownError) showMultiplayer(shown, undefined, true);
+    else showMultiplayer(shown, describeJoinError(err));
   }
 }
 

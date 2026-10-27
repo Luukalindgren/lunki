@@ -246,7 +246,7 @@ export const fi = {
   'mp.hint': 'Luo huone ja lähetä koodi tai linkki kavereille. Kirjautumista ei tarvita.',
   'mp.serverOk': 'Palvelin päällä',
   'mp.serverDown':
-    'Palvelimeen ei saada yhteyttä. Yksinpeli toimii silti, mutta moninpeliin palvelimen pitää olla päällä.',
+    'Moninpelipalvelin ei ole nyt päällä, joten huoneita ei voi luoda eikä niihin liittyä. Yksinpeli toimii normaalisti.',
   'mp.customServer': ' · Muu kuin pelin oma palvelin: {url}',
   'mp.badCode': 'Tarkista koodi. Sen muoto on LUNKI-XXXX.',
   'mp.joining': 'Liitytään…',
@@ -261,7 +261,8 @@ export const fi = {
   'mp.spectating': 'Katsot kisaa',
   'mp.lateJoined': 'Mukana kisassa: aikaa jäljellä {time}',
   'join.notFound': 'Huonetta ei löytynyt, se on täynnä tai kisa on jo alkanut.',
-  'join.noServer': 'Palvelimeen ei saada yhteyttä. Onko palvelin käynnissä?',
+  'join.noServer':
+    'Moninpelipalvelin ei ole nyt päällä. Yritä myöhemmin uudelleen tai pelaa yksinpeliä.',
   'join.failed': 'Liittyminen epäonnistui: {msg}',
   'join.closed': 'Kisa on jo käynnissä, eikä huoneen luoja salli liittymistä kesken kisan.',
   'join.returnOnly': 'Kisa on jo käynnissä. Kesken kisan pääsee vain takaisin omalle paikalleen.',
@@ -299,7 +300,9 @@ export const fi = {
   'feedback.empty': 'Kirjoita ensin jotain.',
   'feedback.sending': 'Lähetetään…',
   'feedback.thanks': 'Kiitos! Palaute tallentui.',
-  'feedback.failed': 'Lähetys epäonnistui: pelipalvelin ei vastaa. Yritä myöhemmin.',
+  'feedback.failed': 'Lähetys epäonnistui. Yritä hetken päästä uudelleen.',
+  'feedback.queued':
+    'Pelipalvelin ei ole nyt päällä, joten palaute tallentui tälle laitteelle. Se lähtee itsestään, kun avaat pelin palvelimen ollessa päällä.',
   'feedback.hint':
     'Palaute menee Luukan luettavaksi ja julkaistaan nimimerkin kanssa pelin GitHubissa.',
   'audio.title': 'Äänet',
@@ -336,7 +339,8 @@ export const fi = {
   // --- Ennätykset ---
   'records.title': 'Lunkinjärven ennätykset',
   'records.loading': 'Haetaan ennätyksiä…',
-  'records.noServer': 'Pelipalvelimeen ei saatu yhteyttä, joten ennätyksiä ei voitu hakea.',
+  'records.noServer':
+    'Ennätykset ovat pelipalvelimella, joka ei ole nyt päällä. Yksinpelin saaliit eivät pääse listalle sillä aikaa.',
   'records.soloMissing': 'Pelipalvelin ei vielä tunne yksinpelin ennätyslistaa.',
   'records.raceMissing': 'Moninpelin ennätyksiä ei saatu haettua.',
   'records.raceHint': 'Listalle pääsevät moninpelikisoissa palvelimella punnitut kalat.',
