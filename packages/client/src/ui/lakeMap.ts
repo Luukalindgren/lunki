@@ -16,6 +16,7 @@ import type { RaceEventKind, RaceMapData } from '../game/raceLog';
 import { bottomFor } from '../world/lakeData';
 import { AREA_COLORS, DEFAULT_GROUND, LINE_COLORS } from '../world/surroundingsMesh';
 import { DEPTH_BANDS, MapViewport, depthBand, scaleBarMeters, type Bounds } from './mapViewport';
+import { navCode } from './menuNav';
 import { decimal, hasKey, t } from '../i18n';
 
 /** Pohjakuvan tarkkuus (m pikselille) ja maareunus järven ympärillä (m). */
@@ -281,7 +282,7 @@ export class LakeMapView {
     frame.className = 'lake-map-frame';
     this.canvas = document.createElement('canvas');
     this.canvas.className = 'lake-map-canvas';
-    // Näppäimistöllä: nuolet panoroivat, +/− zoomaa, Enter valitsee keskeltä (#237).
+    // Näppäimistöllä: nuolet (tai h/j/k/l) panoroivat, +/− zoomaa, Enter valitsee keskeltä (#237).
     this.canvas.tabIndex = 0;
     this.canvas.setAttribute('aria-label', t('map.keys'));
     const zoom = document.createElement('div');
@@ -426,7 +427,7 @@ export class LakeMapView {
     c.addEventListener('pointerup', (e) => release(e, false));
     c.addEventListener('pointercancel', (e) => release(e, true));
     c.addEventListener('keydown', (e) => {
-      if (this.onKey(e.code, e.key)) e.preventDefault();
+      if (this.onKey(navCode(e), e.key)) e.preventDefault();
     });
     // Tähtäin kartan keskellä vain näppäimistön kohdistuksessa.
     c.addEventListener('focus', () => this.draw());
