@@ -259,6 +259,9 @@ def tallenna(g: list[list[str]], kansio: Path) -> None:
     kehyksella(g, 12, 512).save(kansio / "icon-maskable-512.png", optimize=True)
     kehyksella(g, 5, 180).save(kansio / "apple-touch-icon.png", optimize=True)
     kuva(g, 1).save(kansio / "favicon-32.png", optimize=True)
+    # Google näyttää hakutuloksessa vain 48 px:n monikerran kokoisen kuvakkeen;
+    # 96 px = 3x, joten pikselit pysyvät terävinä.
+    kuva(g, 3).save(kansio / "favicon-96.png", optimize=True)
     kuva(g, 2).save(
         kansio / "favicon.ico",
         sizes=[(16, 16), (32, 32), (48, 48), (64, 64)],

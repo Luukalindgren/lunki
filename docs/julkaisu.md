@@ -66,7 +66,7 @@ kuvaus, kanoninen osoite, Open Graph -tiedot, esikatselukuva
 (`packages/client/public/esikatselu.png`, 1200×630), JSON-LD-kuvaus,
 `robots.txt` ja `sitemap.xml`. Hakutuloksen sivustonimi tulee
 JSON-LD:n `WebSite`-kuvauksesta ja kuvake 48 px:n monikertana olevista
-faviconeista (`icons/favicon-48.png`, `icons/icon-192.png`). Kanoninen osoite on aina
+faviconeista (`icons/favicon-96.png`, `icons/icon-192.png`). Kanoninen osoite on aina
 `https://lunkinjarvi.com/`, joten kutsulinkit (`?huone=…`) eivät näy
 hakutuloksissa omina sivuinaan.
 
