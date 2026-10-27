@@ -48,7 +48,22 @@ describe('vuorokaudenajan ilme', () => {
     sky.update(1, 0, 0, calm);
     expect(sky.grade.mul.y).toBeLessThan(0.7);
     sky.update(1, 0, 1, calm);
-    expect(sky.grade.mul.y).toBe(1);
+    expect(sky.grade.mul.y).toBeGreaterThan(1);
+    // Kaukainen salama (heikompi välähdys) ei muuta yötä päiväksi.
+    sky.update(1, 0, 0.3, calm);
+    expect(sky.grade.mul.y).toBeLessThan(1);
+  });
+
+  it('pilvisyys himmentää kuvan ja pilvinen yötaivas on tumma', () => {
+    const sky = new SkyView();
+    sky.update(12, 0, 0, calm);
+    const clear = sky.grade.mul.y;
+    sky.update(12, 0.75, 0, calm);
+    expect(sky.grade.mul.y).toBeLessThan(clear * 0.75);
+    expect(sky.grade.sat).toBeLessThan(1);
+    const day = sky.lighting.horizon.r;
+    sky.update(1, 0.35, 0, calm);
+    expect(sky.lighting.horizon.r).toBeLessThan(day * 0.3);
   });
 
   it('aamulla on usvaa, joka hälvenee tuulessa', () => {

@@ -48,8 +48,6 @@ export class Hud {
   /** Ruudun keskellä allekkain: lähtölaskenta, rangaistus, punnitus ja ilmoitus. */
   private readonly notices: HTMLDivElement;
   private readonly gauges: HTMLDivElement;
-  private readonly flashEl: HTMLDivElement;
-  private flashLevel = 0;
   readonly sonar: SonarDisplay;
   /** Kompassinauha ajastimen alla. */
   readonly compass: CompassDisplay;
@@ -87,8 +85,6 @@ export class Hud {
     this.root = el('div', 'hud');
     parent.appendChild(this.root);
     // Salaman välähdys pelikuvan päällä, HUD-paneelien alla.
-    this.flashEl = el('div', 'hud-flash');
-    this.root.appendChild(this.flashEl);
     this.status = el('div', 'hud-status hud-panel');
     this.power = el('div', 'hud-power hud-panel');
     this.powerFill = el('div', 'hud-power-fill');
@@ -502,19 +498,7 @@ export class Hud {
     this.message.hidden = text === null;
   }
 
-  /**
-   * Salaman välähdys: koko ruudun vaaleus tällä hetkellä (0–1). `invert` =
-   * aivan lähellä iskiessä kuva kääntyy hetkeksi negatiiviksi.
-   */
-  flash(strength: number, invert = false): void {
-    this.flashLevel = strength;
-    this.flashEl.classList.toggle('hud-flash-invert', invert && strength > 0);
-  }
-
   update(dt: number): void {
-    // Portaittain, kuten muukin retrografiikka.
-    const opacity = String(Math.round(this.flashLevel * 5) / 5);
-    if (this.flashEl.style.opacity !== opacity) this.flashEl.style.opacity = opacity;
     if (this.weighTimer > 0) {
       this.weighTimer -= dt;
       if (this.weighTimer <= 0) this.hideWeighIn();

@@ -612,21 +612,6 @@ textarea,
   font-size: calc(var(--u) * 14);
 }
 
-.hud-flash {
-  position: absolute;
-  inset: 0;
-  background: #eef2f3;
-  opacity: 0;
-  pointer-events: none;
-}
-
-/* Salama aivan vieressä: kuva kääntyy hetkeksi negatiiviksi. */
-.hud-flash.hud-flash-invert {
-  background: #fff;
-  mix-blend-mode: difference;
-  opacity: 1 !important;
-}
-
 .hud-weather {
   font-size: calc(var(--u) * 7);
   /* Toisella rivillä aallot, salamavaara ja trombi. */

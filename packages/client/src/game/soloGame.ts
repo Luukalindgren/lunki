@@ -896,10 +896,6 @@ export class SoloGame {
       this.setTackle(nextLure(this.pendingTackle ?? this.fishing.tackle));
     if (!this.net) this.strikeLightning();
     this.lightning.update(dt);
-    this.hud.flash(
-      this.lightning.flash * this.flashStrength,
-      this.flashInvert && this.lightning.sinceStrike < 0.08,
-    );
     this.updateBigWaves();
     this.updateSpouts(dt);
     const timeOut = this.timeOutLeft;
@@ -1295,7 +1291,10 @@ export class SoloGame {
   private updateSky(dt: number): void {
     const now = this.weather.now;
     const wind = windVector(now);
-    this.sky.update(this.clock, now.darkness, this.lightning.flash, wind, dt);
+    // Välähdys on sitä kirkkaampi, mitä lähempänä salama iski; aivan vieressä
+    // kuva kääntyy ensin hetkeksi negatiiviksi.
+    this.sky.update(this.clock, now.darkness, this.lightning.flash * this.flashStrength, wind, dt);
+    this.sky.grade.invert = this.flashInvert && this.lightning.sinceStrike < 0.08;
     this.mist.update(dt, this.sky.mist, wind, this.viewMode === 'pov');
     const g = this.sky.glitter;
     this.waterWaves.uGlitterDir.value.copy(g.dir);
@@ -1303,16 +1302,15 @@ export class SoloGame {
     this.waterWaves.uGlitter.value = this.viewMode === 'pov' ? g.amount : 0;
   }
 
-  /** Pilvinen taivas himmentää valon ja tummentaa taivaan ja sumun. */
+  /**
+   * Valaistus ja POV:n tausta taivaan mukaan. Kirkkaus ei muutu täällä: yö,
+   * pilvisyys ja salama tehdään paletin sävytyksellä (ks. SkyView), koska
+   * himmeämpi valo kääntäisi paletissa tummat sinisävyt vihreiksi ja harmaiksi.
+   */
   private applyWeatherLight(): void {
-    const dark = this.weather.now.darkness;
-    // Valoa himmennetään vain vähän: paletissa tummat sinisävyt kääntyisivät vihreiksi.
-    // Yö ja ilta tehdään paletin sävytyksellä (ks. SkyView).
-    const light = 1 - 0.25 * dark;
     const sky = this.sky.lighting;
-    // Salaman välähdys valaisee koko maiseman hetkeksi.
-    this.hemi.intensity = 1.5 * light * sky.ambient * (1 + 1.5 * this.lightning.flash);
-    this.sun.intensity = 1.5 * light * light * sky.direct;
+    this.hemi.intensity = 1.5 * sky.ambient;
+    this.sun.intensity = 1.5 * sky.direct;
     this.sun.position.copy(sky.lightDir).multiplyScalar(120);
     const bg = this.scene.background;
     if (!(bg instanceof THREE.Color)) return;
@@ -1323,7 +1321,7 @@ export class SoloGame {
         [this.scene.fog.near, this.scene.fog.far] = sky.fog;
       }
     } else {
-      bg.set(LAND_COLOR).multiplyScalar(1 - 0.4 * dark);
+      bg.set(LAND_COLOR);
     }
   }
 

@@ -67,7 +67,8 @@ const PATCH_FRAG = /* glsl */ `
     vec2 warp = vec2(mistFbm(p * 0.5), mistFbm(p * 0.5 + vec2(5.2, 1.3)));
     float n = mistFbm(p + 1.6 * warp);
     float edge = 0.66 - 0.16 * uAmount;
-    float a = smoothstep(edge, edge + 0.22, n) * 0.7;
+    // Ohut verho: vesi, viehe ja kalat näkyvät paksuimmankin usvan läpi.
+    float a = smoothstep(edge, edge + 0.22, n) * 0.45;
     gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0 - 0.8 * a);
   }
 `;
