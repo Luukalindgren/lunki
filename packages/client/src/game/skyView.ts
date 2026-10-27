@@ -14,6 +14,8 @@ export interface Grade {
   sat: number;
   /** Usvan väri sRGB-arvoina (ks. MistView). */
   mist: THREE.Color;
+  /** Salama aivan vieressä: kuva kääntyy hetkeksi negatiiviksi. */
+  invert: boolean;
 }
 
 export const neutralGrade = (): Grade => ({
@@ -21,6 +23,7 @@ export const neutralGrade = (): Grade => ({
   add: new THREE.Vector3(0, 0, 0),
   sat: 1,
   mist: new THREE.Color().setHex(0xc3cbd2, THREE.LinearSRGBColorSpace),
+  invert: false,
 });
 
 type Rgb = [number, number, number];
@@ -167,8 +170,9 @@ const SUNSET: Look = {
   cloudLit: 0xff8c5a,
   cloudShade: 0x563c5c,
   clouds: 0.4,
-  mul: [1.14, 0.82, 0.58],
-  add: [0.06, 0.02, 0.02],
+  // Sininen kanava jätetään riittävän vahvaksi, ettei järvi muutu vihreäksi.
+  mul: [1.12, 0.8, 0.74],
+  add: [0.06, 0.02, 0.04],
   sat: 1.05,
   fog: [300, 2000],
   mist: 0.1,
@@ -245,15 +249,31 @@ export const LOOKS: [number, Look][] = [
   [24, NIGHT],
 ];
 
-/** Pilvisen sään taivas tummuuden mukaan: vaalean harmaasta myrskyn tummaan. */
-const OVERCAST_LIGHT = new THREE.Color(0xaab2bc);
-const OVERCAST_DARK = new THREE.Color(0x2c3038);
+/**
+ * Salaman välähdys sävyttää koko kuvan (paletin jälkeen) kirkkaaksi ja
+ * kylmäksi: muodot ja itse salama näkyvät, eikä kuva peity valkoiseen.
+ */
+const FLASH_MUL: Rgb = [1.45, 1.5, 1.6];
+const FLASH_ADD: Rgb = [0.1, 0.11, 0.14];
+const FLASH_SAT = 0.55;
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const smoothstep = (a: number, b: number, x: number) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
   return t * t * (3 - 2 * t);
 };
+
+/**
+ * Pilvisen sään taivas: vuorokaudenajan taivaanranta harmaana (yöllä tumma,
+ * päivällä vaalea), ja mitä synkempi sää, sitä tummempi.
+ */
+function overcastColor(look: Look, darkness: number): THREE.Color {
+  const c = new THREE.Color(look.horizon);
+  const lum = 0.75 * (0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b);
+  return new THREE.Color(lum * 0.94, lum, lum * 1.08)
+    .lerp(c, 0.15)
+    .multiplyScalar(1 - 0.85 * smoothstep(0.3, 0.8, darkness));
+}
 
 /** Suunta taivaalle Three.js-maailmassa (y ylös, z = -pohjoinen). */
 export function skyDirection(p: CelestialPosition, out = new THREE.Vector3()): THREE.Vector3 {
@@ -527,13 +547,14 @@ export class SkyView {
 
   /**
    * Päivittää ilmeen pelikellon (tuntia 0–24), pilvisyyden (taivaan tummuus 0–1)
-   * ja salaman välähdyksen mukaan; `dt` liikuttaa pilviä ja tähtien tuiketta.
+   * ja salaman välähdyksen (0–1, jo kerrottu iskun etäisyydellä) mukaan; `dt`
+   * liikuttaa pilviä ja tähtien tuiketta.
    */
   update(hours: number, darkness: number, flash: number, wind: Vec2, dt = 0): void {
     const look = lookAt(hours);
     // Pilvisellä säällä taivas harmaantuu ja pilvet peittävät auringon, kuun ja tähdet.
     const cloud = smoothstep(0.15, 0.6, darkness);
-    const overcast = OVERCAST_LIGHT.clone().lerp(OVERCAST_DARK, smoothstep(0.3, 0.8, darkness));
+    const overcast = overcastColor(look, darkness);
     const sunPos = sunAt(hours);
     const moonPos = moonAt(hours);
     const sunDir = skyDirection(sunPos);
@@ -577,7 +598,10 @@ export class SkyView {
     this.mist = look.mist * (1 - smoothstep(3, 8, Math.hypot(wind.x, wind.y)));
 
     const l = this.lighting;
-    l.ambient = look.ambient;
+    // Pilvisellä säällä valo on hajavaloa: varjot heikkenevät, mutta vaakapinnat
+    // (vesi, maa) pysyvät yhtä kirkkaina, jotteivät niiden palettivärit vaihdu.
+    // Synkkyys tulee sävytyksestä alempana.
+    l.ambient = look.ambient + 0.4 * look.direct * cloud;
     l.direct = look.direct * (1 - 0.5 * cloud);
     // Varjostus pidetään korkealla: matala valo tummentaisi tasaisen veden ja maan.
     const shade = byMoon ? moonPos : sunPos;
@@ -595,12 +619,19 @@ export class SkyView {
         ? look.glitterAmount * (1 - cloud) * (1 - smoothstep(0.4, 0.6, bodyDir.y))
         : 0;
 
-    // Salama valaisee hetkeksi koko maiseman: sävytys palaa kohti neutraalia.
+    // Koko kuvan valo yhdessä paikassa: vuorokaudenaika, pilvisyys (himmentää
+    // ja harmaannuttaa) ja salaman välähdys (kirkastaa hetkeksi).
     const g = this.grade;
-    const k = Math.min(1, flash * 1.5);
-    g.mul.set(lerp(look.mul[0], 1, k), lerp(look.mul[1], 1, k), lerp(look.mul[2], 1, k));
-    g.add.set(lerp(look.add[0], 0, k), lerp(look.add[1], 0, k), lerp(look.add[2], 0, k));
-    g.sat = lerp(look.sat, 1, k);
+    const gloom = 1 - 0.4 * darkness;
+    const mix = (base: Rgb, scale: number, to: Rgb, out: THREE.Vector3) =>
+      out.set(
+        lerp(base[0] * scale, to[0], flash),
+        lerp(base[1] * scale, to[1], flash),
+        lerp(base[2] * scale, to[2], flash),
+      );
+    mix(look.mul, gloom, FLASH_MUL, g.mul);
+    mix(look.add, 1, FLASH_ADD, g.add);
+    g.sat = lerp(look.sat * (1 - 0.4 * darkness), FLASH_SAT, flash);
     // Usva saa taivaanrannan sävyn vaalennettuna; sRGB-arvot sellaisinaan jälkikäsittelyyn.
     g.mist
       .setHex(look.horizon, THREE.LinearSRGBColorSpace)

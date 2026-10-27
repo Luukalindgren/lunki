@@ -9,6 +9,8 @@ export interface PaletteGrade {
   sat: number;
   /** Usvan väri (sRGB); usvan tiheys tulee kuvan alfakanavasta (ks. MistView). */
   mist?: THREE.Color;
+  /** Koko kuva negatiiviksi (salama aivan vieressä). */
+  invert?: boolean;
 }
 
 export type PaletteMode = 'dither' | 'palette' | 'off';
@@ -30,6 +32,7 @@ const PALETTE_FRAG = /* glsl */ `
   uniform vec3 uGradeAdd;
   uniform float uGradeSat;
   uniform vec3 uMist;
+  uniform float uInvert;
   varying vec2 vUv;
 
   // Vuorokaudenaika sävyttää palettivärit vasta pyöristyksen jälkeen, jolloin
@@ -54,21 +57,15 @@ const PALETTE_FRAG = /* glsl */ `
     return (float(m[i]) + 0.5) / 16.0 - 0.5;
   }
 
-  void main() {
-    vec4 scene = texture2D(tScene, vUv);
+  vec3 shade(vec4 scene) {
     vec3 c = linearToSrgb(clamp(scene.rgb, 0.0, 1.0));
     // Alfa 0 = taivas (ks. SkyView): se piirretään omina sävyinään ohi paletin,
     // jotta liukuvärit ja pilvet pysyvät pehmeinä. Hieno porrastus pitää
     // ilmeen silti pikselimäisenä.
-    if (scene.a < 0.1) {
-      gl_FragColor = vec4(uMode == 2 ? c : floor(c * 40.0 + bayer4(gl_FragCoord.xy) + 0.5) / 40.0, 1.0);
-      return;
-    }
+    if (scene.a < 0.1)
+      return uMode == 2 ? c : floor(c * 40.0 + bayer4(gl_FragCoord.xy) + 0.5) / 40.0;
     float mist = clamp((1.0 - scene.a) / 0.8, 0.0, 1.0);
-    if (uMode == 2) {
-      gl_FragColor = vec4(mix(grade(c), uMist, mist), 1.0);
-      return;
-    }
+    if (uMode == 2) return mix(grade(c), uMist, mist);
     if (uMode == 0) c += bayer4(gl_FragCoord.xy) * uDitherAmount;
     vec3 best = uPalette[0];
     float bestDist = 1e9;
@@ -80,7 +77,12 @@ const PALETTE_FRAG = /* glsl */ `
         best = uPalette[i];
       }
     }
-    gl_FragColor = vec4(mix(grade(best), uMist, mist), 1.0);
+    return mix(grade(best), uMist, mist);
+  }
+
+  void main() {
+    vec3 c = shade(texture2D(tScene, vUv));
+    gl_FragColor = vec4(mix(c, 1.0 - c, uInvert), 1.0);
   }
 `;
 
@@ -141,6 +143,7 @@ export class RetroRenderer {
         uGradeAdd: { value: new THREE.Vector3(0, 0, 0) },
         uGradeSat: { value: 1 },
         uMist: { value: new THREE.Color(0xc3cbd2) },
+        uInvert: { value: 0 },
       },
       depthTest: false,
       depthWrite: false,
@@ -176,6 +179,7 @@ export class RetroRenderer {
     (u.uGradeAdd!.value as THREE.Vector3).copy(grade?.add ?? NO_GRADE.add);
     u.uGradeSat!.value = grade?.sat ?? 1;
     if (grade?.mist) (u.uMist!.value as THREE.Color).copy(grade.mist);
+    u.uInvert!.value = grade?.invert ? 1 : 0;
     r.info.reset();
     r.setRenderTarget(this.sceneTarget);
     r.render(scene, camera);

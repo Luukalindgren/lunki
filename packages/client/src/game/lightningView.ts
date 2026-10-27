@@ -11,8 +11,6 @@ const BRANCH_SEGMENTS = 5;
 const HALF_WIDTH_PX = 2;
 /** Hehkun leveys ytimeen nähden. */
 const HALO = 3;
-/** Iskukohdan valon kantama (m). */
-const LIGHT_RANGE = 600;
 /** Shokkiaalto vedessä: kesto (s) ja suurin säde (m). */
 const RING_SECONDS = 0.9;
 const RING_RADIUS = 28;
@@ -39,8 +37,9 @@ export function shakeCurve(age: number): number {
 }
 
 /**
- * Salamanisku: paksu, haarautuva salama taivaalta iskukohtaan, valo
- * iskukohdan ympärille ja välkkyvä välähdys koko maisemaan.
+ * Salamanisku: paksu, haarautuva salama taivaalta iskukohtaan, hehku ja
+ * shokkiaalto iskukohdassa. Välähdys koko maisemaan tehdään sävytyksellä
+ * (ks. SkyView), voimakkuutena `flash`.
  */
 export class LightningView {
   readonly group = new THREE.Group();
@@ -52,7 +51,6 @@ export class LightningView {
   private readonly glow: THREE.Sprite;
   /** Shokkiaalto ja höyryrengas iskukohdan vedessä. */
   private readonly ring: THREE.Mesh;
-  private readonly light = new THREE.PointLight(0xeef2f3, 0, LIGHT_RANGE, 1);
   private readonly paths: THREE.Vector3[][] = [];
   private age = Infinity;
   private seed = 1;
@@ -102,8 +100,7 @@ export class LightningView {
       new THREE.SpriteMaterial({ map: glowTexture(), alphaTest: 0.5, fog: false }),
     );
     this.glow.visible = false;
-    this.light.position.y = 30;
-    this.group.add(this.halo, this.bolt, this.glow, this.ring, this.light);
+    this.group.add(this.halo, this.bolt, this.glow, this.ring);
     this.group.name = 'lightning';
   }
 
@@ -153,8 +150,6 @@ export class LightningView {
     }
     this.glow.position.set(pos.x, 0, -pos.y);
     this.ring.position.set(pos.x, 0.08, -pos.y);
-    this.light.position.x = pos.x;
-    this.light.position.z = -pos.y;
     this.age = 0;
   }
 
@@ -165,7 +160,6 @@ export class LightningView {
     this.bolt.visible = k >= 0.3;
     this.halo.visible = k >= 0.5;
     this.glow.visible = k > 0;
-    this.light.intensity = k * 6;
     // Shokkiaalto leviää iskukohdasta ja ohenee.
     const r = this.age / RING_SECONDS;
     this.ring.visible = r < 1;
