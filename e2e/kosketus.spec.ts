@@ -100,6 +100,28 @@ test.describe('puhelin', () => {
     errors.check();
   });
 
+  test('HEITÄ-nappi heittää katsesuuntaan ja on heiton jälkeen KELAA', async ({
+    page,
+    isMobile,
+    browserName,
+  }) => {
+    test.skip(!isMobile, 'vain puhelinemuloinnit');
+    const errors = watchErrors(page);
+    await page.goto('/?view=top');
+    await page.getByRole('button', { name: 'Yksinpeli' }).tap();
+    await page.getByRole('button', { name: 'Aloita kisa' }).tap();
+    await expect(page.locator('.hud-timer')).toBeVisible();
+    const button = page.locator('.touch-reel');
+    await expect(button).toHaveText('HEITÄ');
+
+    // Pohjassa lataa kuten välilyönti, irrotus heittää: viehe lähtee ja nappi kelaa.
+    const box = (await button.boundingBox())!;
+    const centre = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    await drag(page, browserName, centre, centre, 700);
+    await expect(button).toHaveText('KELAA', { timeout: 5_000 });
+    errors.check();
+  });
+
   test('perhoheitto pyyhkäisyllä, SIIMA- ja VETO-napit (#236)', async ({
     page,
     isMobile,
@@ -180,7 +202,7 @@ test('katsojalle puhelimella vain näkymän napit (#280)', async ({
   await expect(page.locator('.hud-timer')).toBeVisible();
   await expect(page.getByRole('button', { name: 'KAM' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'VIESTI' })).toBeVisible();
-  for (const label of ['KELAA', 'VIEHE', 'LUOT', 'KATKO'])
+  for (const label of ['HEITÄ', 'VIEHE', 'LUOT', 'KATKO'])
     await expect(page.getByRole('button', { name: label })).toBeHidden();
   await expect(page.locator('.touch-stick')).toBeHidden();
   await expect(page.locator('.hud-tension')).toBeHidden();

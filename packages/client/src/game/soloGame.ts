@@ -879,7 +879,7 @@ export class SoloGame {
     const timeOut = this.timeOutLeft;
     const capsized = this.capsizeLeft > 0;
     const still = { kick: 0, turn: 0, sprint: false };
-    // `Reel` on kosketusnäytön KELAA-nappi: se kelaa, mutta ei heitä.
+    // `Reel` on kosketusnäytön KELAA-nappi: se kelaa, mutta ei heitä (HEITÄ painaa välilyöntiä).
     const reelHeld = input.isDown('Mouse0') || input.isDown('Space') || input.isDown('Reel');
     const tangle = this.updateTangle(input.wasPressed('KeyC'));
     if (!frozen) this.logRace();

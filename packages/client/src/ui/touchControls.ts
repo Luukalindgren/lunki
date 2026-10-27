@@ -33,6 +33,8 @@ export class TouchControls {
   private readonly reelText: { label?: MsgKey; title: MsgKey };
   private fly = false;
   private flyInHand = false;
+  /** Viehe ei ole vielä vedessä: KELAA on HEITÄ. */
+  private castReady = false;
   /** VIESTI-nappi: avaa moninpelin chatin. */
   onChat: (() => void) | null = null;
   private stickPointer: number | null = null;
@@ -104,7 +106,12 @@ export class TouchControls {
       this.hold('touch.cancel', 'Mouse2', 'touch.cancelTitle'),
       this.cutButton,
     );
-    this.reelButton = this.hold('touch.reel', 'Reel', 'touch.reelTitle');
+    // Ennen heittoa nappi on HEITÄ ja painaa välilyöntiä: heitto katsesuuntaan (#227).
+    this.reelButton = this.hold(
+      'touch.reel',
+      () => (this.castReady && !this.fly ? 'Space' : 'Reel'),
+      'touch.reelTitle',
+    );
     this.reelButton.classList.add('touch-reel');
     this.reelText = this.texts[this.texts.length - 1]!;
     const actions = div('touch-actions');
@@ -152,9 +159,25 @@ export class TouchControls {
     this.flyInHand = inHand;
     this.lineButton.hidden = !fly;
     this.gearButton.hidden = fly;
-    const strip = fly && inHand;
-    this.reelText.label = strip ? 'touch.strip' : 'touch.reel';
-    this.reelText.title = strip ? 'touch.stripTitle' : 'touch.reelTitle';
+    this.relabelReel();
+  }
+
+  /**
+   * Viehe ei ole vielä vedessä (vapa valmiina tai heitto latautumassa): KELAA on
+   * HEITÄ ja tekee saman kuin välilyönti. Perhoa heitetään yhä pyyhkäisyllä.
+   */
+  setCastReady(ready: boolean): void {
+    if (ready === this.castReady) return;
+    this.castReady = ready;
+    this.relabelReel();
+  }
+
+  /** KELAA-napin teksti: HEITÄ ennen heittoa, perhon siima kädessä VETO. */
+  private relabelReel(): void {
+    const cast = this.castReady && !this.fly;
+    const strip = this.fly && this.flyInHand;
+    this.reelText.label = cast ? 'touch.cast' : strip ? 'touch.strip' : 'touch.reel';
+    this.reelText.title = cast ? 'touch.castTitle' : strip ? 'touch.stripTitle' : 'touch.reelTitle';
     this.relabel();
   }
 
@@ -224,18 +247,25 @@ export class TouchControls {
     return b;
   }
 
-  /** Nappi, joka pysyy pohjassa niin kauan kuin sormi on päällä. */
-  private hold(label: MsgKey, code: string, title: MsgKey): HTMLButtonElement {
+  /**
+   * Nappi, joka pysyy pohjassa niin kauan kuin sormi on päällä. Funktiona annettu
+   * `code` valitaan painettaessa, ja irrotus päästää saman näppäimen.
+   */
+  private hold(label: MsgKey, code: string | (() => string), title: MsgKey): HTMLButtonElement {
     const b = this.labelled(label, title);
+    let pressed: string | null = null;
     b.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       b.setPointerCapture(e.pointerId);
       b.classList.add('down');
-      this.input.simulate(code, true);
+      if (pressed) this.input.simulate(pressed, false);
+      pressed = typeof code === 'string' ? code : code();
+      this.input.simulate(pressed, true);
     });
     const up = () => {
       b.classList.remove('down');
-      this.input.simulate(code, false);
+      if (pressed) this.input.simulate(pressed, false);
+      pressed = null;
     };
     b.addEventListener('pointerup', up);
     b.addEventListener('pointercancel', up);
