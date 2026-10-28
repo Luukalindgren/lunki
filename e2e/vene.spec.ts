@@ -31,9 +31,10 @@ test('vene: kaksi kalastajaa samassa veneessä', async ({ page: host, browser })
   await guest.getByRole('button', { name: 'Liity koodilla' }).click();
   await expect(guest.locator('.room-code')).toHaveText(code);
   // Vieras on ensin renkaalla, omana rivinään veneen ulkopuolella.
-  await expect(guest.locator('.player-list li', { hasText: 'Kyyti' }).first()).toContainText(
-    'kelluntarengas',
-  );
+  // (hasText ei erota kirjainkokoa: "Kyyti" löytyisi myös napista "Liity kyytiin".)
+  await expect(
+    guest.locator('.player-list li:not(.boat-crew)', { hasText: 'Kyyti (sinä)' }),
+  ).toContainText('kelluntarengas');
   await guest
     .locator('.boat-crew', { hasText: 'Vene 1' })
     .getByRole('button', { name: 'Liity kyytiin' })
