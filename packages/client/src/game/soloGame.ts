@@ -71,6 +71,8 @@ import {
   EMOTE_RATE,
   EMOTES,
   sizeClass,
+  RaceStatsCounter,
+  type RaceStats,
   type EmoteId,
   type CompetitionSettings,
   type LakeBottom,
@@ -252,6 +254,8 @@ export class SoloGame {
   readonly competition: CompetitionState;
   /** Kisan kulku tulossivun karttaan. */
   private readonly raceLog = new RaceLog();
+  /** Tulossivun tilastot ja palkinnot (#367). */
+  private readonly raceStatsCounter = new RaceStatsCounter();
   /** Moninpelin katsoja: ei omaa rengasta, kamera seuraa valittua kalastajaa. */
   readonly spectating: boolean;
   /** Seurattavan pelaajan sessionId. */
@@ -779,6 +783,7 @@ export class SoloGame {
     if (!w) return null;
     const tangle = w.tangle;
     if (tangle && !this.wasTangled) {
+      this.raceStatsCounter.tangle();
       this.sounds.play('tangled');
       this.hud.showMessage(t('game.tangled', { name: tangle.with }), 3, 'alert');
     }
@@ -843,6 +848,7 @@ export class SoloGame {
   /** Oma rengas kaatui ison aallon tai trombin takia. */
   private onCapsize(cause: 'wave' | 'spout'): void {
     this.capsizedAt = this.competition.elapsed;
+    this.raceStatsCounter.capsize(cause === 'spout' && this.flight !== null);
     // Moninpelissä kaatumiset kirjataan palvelimen viesteistä kaikille.
     if (!this.net) this.logCapsize(this.flight?.from ?? this.tube.pos);
     this.sounds.play(cause === 'spout' ? 'spoutCapsized' : 'capsized');
@@ -898,6 +904,7 @@ export class SoloGame {
     const d = hitMe ? 0 : distance(pos, this.tube.pos);
     this.lightning.strike(at);
     this.raceLog.addEvent('lightning', pos, this.competition.elapsed);
+    this.raceStatsCounter.lightning(d, hitMe);
     this.flashStrength = d < 150 ? 1 : d < 400 ? 0.9 : d < 1000 ? 0.65 : 0.45;
     this.shakeStrength = Math.max(0, 1 - d / 500);
     this.flashInvert = d < 60;
@@ -1494,6 +1501,13 @@ export class SoloGame {
     dt: number,
   ): void {
     const { hud, sounds } = this;
+    const hookedId = this.fishing.hookedId;
+    this.raceStatsCounter.fishing(
+      events,
+      this.tube.pos,
+      this.fishing.lure,
+      hookedId === null ? null : (this.fish.fish.find((x) => x.id === hookedId) ?? null),
+    );
     if (events.cast !== undefined) {
       sounds.play('cast', events.cast);
       this.quietSpot.cast(this.tube.pos);
@@ -1639,6 +1653,7 @@ export class SoloGame {
   /** Tulossivun kartta: reitit kerran sekunnissa ja moninpelin sotkut. */
   private logRace(): void {
     const now = this.competition.elapsed;
+    this.raceStatsCounter.move(this.tube.pos, now);
     const w = this.net?.world;
     if (!w) {
       this.raceLog.sample(now, [{ id: SOLO_ID, name: t('common.youCapital'), pos: this.tube.pos }]);
@@ -1660,6 +1675,11 @@ export class SoloGame {
     const counts = (m: { id: string; time: number; weight: number }) =>
       kept.some((c) => c.id === m.id && c.time === m.time && c.weight === m.weight);
     return { ...d, catches: d.catches.filter(counts) };
+  }
+
+  /** Kisan omat tilastot tulossivulle (#367). */
+  raceStats(): RaceStats {
+    return this.raceStatsCounter.stats;
   }
 
   /** Moninpeli: kello ja loppu palvelimelta. Palauttaa true, kun kisa päättyy. */

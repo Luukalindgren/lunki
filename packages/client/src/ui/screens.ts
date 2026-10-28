@@ -48,6 +48,7 @@ import {
   type SpeciesId,
   type Tackle,
   type Vec2,
+  type Award,
   FEEDBACK_LIMITS,
   mapCredits,
   type RecordBoard,
@@ -62,6 +63,8 @@ import type { SendResult } from '../net/report';
 import { LIBRARIES, creditText } from './credits';
 import { fishImage } from './fishArt';
 import { lureImage, type LureArtId } from './lureArt';
+import { awardList, statsTable, type StatsPlayer } from './raceSummary';
+import type { LifetimeStats } from '../game/lifetimeStats';
 import {
   cardBlob,
   cardFileName,
@@ -139,6 +142,20 @@ const DURATION_VERSION = 1;
 const NO_FOCUS_MEMORY = new Set(['pause', 'results', 'race-results', 'message']);
 
 /** Asetusnäkymän säätimet (päävalikko ja tauko). */
+type ResultsView = 'list' | 'stats' | 'map';
+
+/** Tulossivun palkinnot ja tilastot (#367). */
+export interface ResultsSummary {
+  awards: Award[];
+  /** Tilastot pelaajittain, oma ensin; yksinpelissä vain oma. */
+  players: StatsPlayer[];
+  myId: string;
+  /** Kaikkien kisojen yhteistilastot laitteelta (omat). */
+  life: LifetimeStats | null;
+  /** Vanha palvelin ei välitä muiden tilastoja. */
+  othersMissing?: boolean;
+}
+
 export interface SettingsControls {
   audio: { current: AudioSettings; onChange: (a: AudioSettings) => void };
   hudSize: {
@@ -266,7 +283,10 @@ export class Screens {
   /** Näkymän siivous ennen seuraavaa (esim. kartan koon seuranta). */
   private cleanup: (() => void) | null = null;
   /** Tulossivulla valittuna saaliskartta (säilyy saman näkymän uudelleenpiirrossa). */
-  private resultsOnMap = false;
+  /** Tulossivun valittu näkymä; uudelleenpiirto säilyttää sen. */
+  private resultsView: ResultsView = 'list';
+  /** Kenen tilastot tulossivulla näkyvät (moninpeli). */
+  private statsPlayer: string | null = null;
   /** Näppäimistöohjaus (#237). */
   private readonly nav: MenuNav;
   /** Kohdistettu kohde näkymittäin, jotta paluu palaa samaan kohtaan. */
@@ -1436,9 +1456,13 @@ export class Screens {
     chat?: (parent: HTMLElement) => void,
     card?: WeighCardInfo | null,
     race?: RaceMapData | null,
+    summary?: ResultsSummary | null,
   ): void {
     // Uudelleenpiirto (esim. isäntä vaihtui) säilyttää valitun näkymän.
-    if (this.scrollOf('race-results') === null) this.resultsOnMap = false;
+    if (this.scrollOf('race-results') === null) {
+      this.resultsView = 'list';
+      this.statsPlayer = null;
+    }
     const panel = this.panel('race-results');
     const winner = results[0];
     panel.append(
@@ -1475,7 +1499,7 @@ export class Screens {
     }
     const map = race ? this.raceMap(race) : null;
     panel.append(
-      ...this.resultsWithMap(panel, table, map),
+      ...this.resultsViews(panel, table, map, summary),
       h(
         'p',
         `${winRuleName(settings.winRule)} · ${difficultyName(settings.difficulty)} · ${t('common.minutes', { n: settings.durationMinutes })}`,
@@ -1506,8 +1530,10 @@ export class Screens {
     card?: WeighCardInfo | null,
     race?: RaceMapData | null,
     recordNotes: readonly string[] = [],
+    summary?: ResultsSummary | null,
   ): void {
-    this.resultsOnMap = false;
+    this.resultsView = 'list';
+    this.statsPlayer = null;
     const panel = this.panel('results');
     const sum = summarize(c.catches, c.settings.winRule);
     const map = race ? this.raceMap(race) : null;
@@ -1524,8 +1550,8 @@ export class Screens {
     );
     if (sum.count === 0) {
       panel.append(h('p', t('results.empty')));
-      // Reitistä näkee silti, missä tuli käytyä.
-      if (map) panel.append(...this.resultsWithMap(panel, h('div', ''), map));
+      // Reitistä ja tilastoista näkee silti, missä tuli käytyä ja mitä sattui.
+      panel.append(...this.resultsViews(panel, h('div', ''), map, summary));
     } else {
       const list = document.createElement('ol');
       list.className = 'catch-list';
@@ -1536,7 +1562,7 @@ export class Screens {
         list.appendChild(li);
       }
       panel.append(
-        ...this.resultsWithMap(panel, list, map),
+        ...this.resultsViews(panel, list, map, summary),
         h(
           'p',
           t('results.summary', {
@@ -1569,32 +1595,70 @@ export class Screens {
   }
 
   /**
-   * Tulosten näkymävalinta: taulukko tai saaliskartta. Palauttaa paneeliin
-   * lisättävät osat; ilman karttaa pelkän taulukon.
+   * Tulosten näkymävalinta (#367): taulukko palkintoineen, tilastot ja
+   * saaliskartta. Palauttaa paneeliin lisättävät osat; ilman karttaa ja
+   * tilastoja pelkän taulukon.
    */
-  private resultsWithMap(
+  private resultsViews(
     panel: HTMLElement,
     table: HTMLElement,
     map: { element: HTMLElement } | null,
+    summary?: ResultsSummary | null,
   ): HTMLElement[] {
-    if (!map) return [table];
+    const list = document.createElement('div');
+    list.append(table);
+    if (summary) {
+      list.append(
+        h('h3', t('results.awards'), 'awards-title'),
+        awardList(summary.awards, { myId: summary.myId, solo: summary.players.length <= 1 }),
+      );
+    }
+    const views: [ResultsView, string, HTMLElement][] = [['list', t('results.table'), list]];
+    if (summary) views.push(['stats', t('results.stats'), this.statsView(summary)]);
+    if (map) views.push(['map', t('results.catchMap'), map.element]);
+    if (views.length === 1) return [list];
+    if (!views.some(([v]) => v === this.resultsView)) this.resultsView = 'list';
     const content = document.createElement('div');
-    const setView = (onMap: boolean) => {
-      this.resultsOnMap = onMap;
-      panel.classList.toggle('map-panel', onMap);
-      content.replaceChildren(onMap ? map.element : table);
+    const setView = (view: ResultsView) => {
+      this.resultsView = view;
+      panel.classList.toggle('map-panel', view === 'map');
+      content.replaceChildren(views.find(([v]) => v === view)![2]);
     };
-    setView(this.resultsOnMap);
+    setView(this.resultsView);
     const toggle = this.choice(
       t('common.view'),
-      [
-        ['list', t('results.table')],
-        ['map', t('results.catchMap')],
-      ],
-      this.resultsOnMap ? 'map' : 'list',
-      (v) => setView(v === 'map'),
+      views.map(([v, label]) => [v, label]),
+      this.resultsView,
+      (v) => setView(v as ResultsView),
     );
     return [toggle, content];
+  }
+
+  /** Tilastot: moninpelissä valitaan pelaaja, omissa myös kaikki kisat yhteensä. */
+  private statsView(summary: ResultsSummary): HTMLElement {
+    const box = document.createElement('div');
+    const players = summary.players;
+    const selected = players.find((p) => p.id === this.statsPlayer) ?? players[0];
+    if (!selected) return box;
+    const table = document.createElement('div');
+    const show = (id: string) => {
+      this.statsPlayer = id;
+      const p = players.find((x) => x.id === id) ?? selected;
+      table.replaceChildren(statsTable(p, p.id === summary.myId ? summary.life : null));
+    };
+    if (players.length > 1)
+      box.append(
+        this.choice(
+          t('results.statsOf'),
+          players.map((p) => [p.id, p.id === summary.myId ? t('common.youCapital') : p.name]),
+          selected.id,
+          show,
+        ),
+      );
+    if (summary.othersMissing) box.append(h('p', t('results.statsOldServer'), 'hint'));
+    box.append(table);
+    show(selected.id);
+    return box;
   }
 
   /**

@@ -130,6 +130,14 @@ muut pelaajat: SnapshotBuffer, piirretään 120 ms menneisyydestä
   ankkuri) kuten soutajan lähtiessä (`passOars`). Aulassa venekunnan riveillä
   on Vaihda paikkaa -nappi. Piirrossa hahmo liukuu uudelle paikalle ja vene
   keinahtaa (`SeatSlides`).
+- **Kisan tilastot ja palkinnot** (#367, protokolla 10). Jokainen laskee
+  omat tilastonsa (`RaceStatsCounter`: heitot, tärpit, karanneet, sotkut,
+  kaatumiset, matka…) ja lähettää ne kisan lopussa `ClientMsg.stats`. Palvelin
+  ottaa ne vastaan kerran kisassa ja lähettää kaikille koko joukon
+  (`ServerMsg.stats`); uusi kisa tyhjentää. Tulossivun palkinnot (`raceAwards`)
+  ja tilastot lasketaan asiakkaalla. Tilastot ovat huvia, ne eivät vaikuta
+  tulokseen. Vanhan palvelimen kanssa näkyvät vain omat tilastot. Kaikkien
+  kisojen omat yhteistilastot ovat laitteella (`lunki.stats`).
 
 ## Testaus viiveellä
 

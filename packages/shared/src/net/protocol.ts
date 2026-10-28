@@ -1,4 +1,5 @@
 import type { SpeciesId } from '../fishing/fish';
+import type { RaceStats } from '../game/raceStats';
 import { CONTROL_CHARS, INVISIBLE_CHARS } from './text';
 
 /** Yhteiset määrittelyt asiakkaan ja palvelimen välille. */
@@ -12,7 +13,7 @@ export const ROOM_NAME = 'lunki';
  * uudelleen: asiakas ei lähetä vanhemmalle palvelimelle viestejä, joita se
  * ei tunne. Vanha palvelin ilman kenttää = 1.
  */
-export const PROTOCOL_VERSION = 9;
+export const PROTOCOL_VERSION = 10;
 /** Chat tuli versiossa 2. */
 export const CHAT_PROTOCOL = 2;
 /** Maalle juuttuneen vieheen siiman katkaisu (ClientMsg.landCut) tuli versiossa 3. */
@@ -38,6 +39,11 @@ export const ANCHOR_PROTOCOL = 8;
  * versiossa 9. Vanha palvelin ei vaihda paikkoja, joten asiakas ei tarjoa sitä.
  */
 export const SEAT_PROTOCOL = 9;
+/**
+ * Kisan tilastot tulossivulle (#367): ClientMsg.stats ja ServerMsg.stats
+ * tulivat versiossa 10. Vanhan palvelimen kanssa näkyvät vain omat tilastot.
+ */
+export const STATS_PROTOCOL = 10;
 
 /** Oletuspelaajamäärä huoneessa. Rakenne sallii isomman. */
 export const DEFAULT_MAX_PLAYERS = 8;
@@ -168,6 +174,8 @@ export const ClientMsg = {
    * siirrytään, varatusta pyydetään vaihtoa; -1 perii pyynnön.
    */
   seat: 'seat',
+  /** Kisan lopussa omat tilastot (RaceStats) muiden tulossivulle (#367). */
+  stats: 'stats',
 } as const;
 
 /** Vieheen tila muille näytettäväksi. */
@@ -224,7 +232,12 @@ export const ServerMsg = {
   chatRejected: 'chatRejected',
   /** Toisen pelaajan käsimerkki (EmoteMessage). */
   emote: 'emote',
+  /** Kisan tilastot tulossivulle: kaikki tähän mennessä saadut (RaceStatsMessage). */
+  stats: 'stats',
 } as const;
+
+/** ServerMsg.stats: pelaajien tilastot sessionId:n mukaan. */
+export type RaceStatsMessage = Record<string, RaceStats>;
 
 export interface RecordMessage {
   /** Saajan sessionId. */

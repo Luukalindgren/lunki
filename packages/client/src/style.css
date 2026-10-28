@@ -1340,6 +1340,75 @@ textarea,
   color: #f6d04d;
 }
 
+/*
+ * Tulossivun palkinnot (#367): kuva omassa sarakkeessaan, tittelin nimi ja
+ * sen alla saaja ja selite. Selite rivittyy eikä vieritä sivuttain.
+ */
+.award-list {
+  margin: 6px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.award-list > li {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  column-gap: 12px;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.award-list .award-pic {
+  grid-row: span 2;
+  display: flex;
+  justify-content: center;
+}
+
+.award-list .award-icon {
+  width: 32px;
+  height: 32px;
+  image-rendering: pixelated;
+}
+
+.award-list .award-title {
+  color: #fff3b0;
+}
+
+.award-list .award-detail {
+  grid-column: 2;
+  font-size: 20px;
+  color: #c3cbd2;
+}
+
+.award-list li.me .award-detail {
+  color: #f6d04d;
+}
+
+/* Tilastot: nimi ja luvut sarakkeissa, luvut oikeaan reunaan. */
+.stats-table {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 18px;
+  row-gap: 2px;
+  margin: 8px 0;
+  font-size: 20px;
+}
+
+.stats-table.with-life {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.stats-table .stat-head {
+  color: #c3cbd2;
+  text-align: right;
+}
+
+.stats-table .stat-value {
+  text-align: right;
+  color: #fff3b0;
+  white-space: nowrap;
+}
+
 /* Kapealla ruudulla tulosrivi rivittyy eikä leikkaudu (#278). */
 @media (max-width: 520px) {
   .catch-list.results li {
@@ -1404,7 +1473,8 @@ textarea,
 }
 
 /* Asetusnäkymän osiot: Näyttö, Äänet, Kieli. */
-.screen-panel h3.settings-section {
+.screen-panel h3.settings-section,
+.screen-panel h3.awards-title {
   margin: 22px 0 0;
   font-size: 26px;
   font-weight: normal;

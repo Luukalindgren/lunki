@@ -89,6 +89,9 @@ import {
   EMOTE_RATE,
   isEmoteId,
   type EmoteMessage,
+  type RaceStats,
+  type RaceStatsMessage,
+  parseRaceStats,
   sanitizeChat,
   type ChatMessage,
   type Waterspout,
@@ -218,6 +221,8 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   private readonly reeling = new Map<string, boolean>();
   /** Selvityksen jälkeen siima ei sotkeudu heti uudelleen (kisa-aika, s). */
   private readonly tangleFree = new Map<string, number>();
+  /** Kisan lopussa saadut pelaajien tilastot (#367). */
+  private readonly raceStats = new Map<string, RaceStats>();
   /**
    * Kisan kalakanta sellaisena kuin se alkoi: samat kalat kuin pelaajien
    * koneilla. Palvelin ottaa saaliin lajin, painon ja kotipaikan tästä.
@@ -418,6 +423,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       if (client.sessionId !== this.state.hostId || this.state.phase !== 'finished') return;
       this.setTimestep();
       this.sims.clear();
+      this.raceStats.clear();
       this.tangleFree.clear();
       this.stock = null;
       this.fishGens.clear();
@@ -478,6 +484,22 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       if (!limiter.take(Date.now())) return;
       const msg: EmoteMessage = { from: client.sessionId, emote };
       this.broadcast(ServerMsg.emote, msg, { except: client });
+    });
+
+    // Kisan huvitilastot (#367): jokainen kertoo omansa kerran kisan lopussa,
+    // ja kaikki saavat tähänastisen joukon tulossivulle. Tulokseen ne eivät vaikuta.
+    this.onMessage(ClientMsg.stats, (client, msg: unknown) => {
+      if (this.state.phase !== 'finished' || !this.state.players.has(client.sessionId)) return;
+      if (this.raceStats.has(client.sessionId)) {
+        client.send(ServerMsg.stats, Object.fromEntries(this.raceStats));
+        return;
+      }
+      this.raceStats.set(
+        client.sessionId,
+        parseRaceStats(msg, (s) => Object.hasOwn(SPECIES, s)),
+      );
+      const all: RaceStatsMessage = Object.fromEntries(this.raceStats);
+      this.broadcast(ServerMsg.stats, all);
     });
 
     // Uudemman asiakkaan tuntematon viesti ohitetaan: muuten Colyseus
