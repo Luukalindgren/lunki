@@ -1,7 +1,7 @@
 import type { SpeciesId } from './fish';
 
 /** Vieheet: uppoaminen, uinti, heitettävyys ja houkuttelevuus lajeittain. */
-export type LureId = 'spoon' | 'wobbler' | 'jig' | 'spinner';
+export type LureId = 'spoon' | 'wobbler' | 'jig' | 'spinner' | 'weedless';
 
 export interface Lure {
   id: LureId;
@@ -24,6 +24,11 @@ export interface Lure {
    * lipan pyörivä siipi suojaa koukkua.
    */
   snagRisk: number;
+  /**
+   * Ruohosuoja 0–1 (#364): koukun kärkeä suojaava lanka liukuu kasvuston,
+   * kaislojen ja risujen läpi, mutta työntää myös kalan suuta pois koukusta.
+   */
+  weedGuard: number;
   /** Lyhyt kuvaus valikkoon. */
   hint: string;
 }
@@ -51,6 +56,7 @@ export const LURES: Record<LureId, Lure> = {
     },
     stillAppeal: 0.2,
     snagRisk: 1,
+    weedGuard: 0,
     hint: 'Heittyy pitkälle ja uppoaa, monipuolinen',
   },
   wobbler: {
@@ -75,6 +81,7 @@ export const LURES: Record<LureId, Lure> = {
     },
     stillAppeal: 0.1,
     snagRisk: 0.7,
+    weedGuard: 0,
     hint: 'Kelluu, sukeltaa kelatessa n. 2,5 m:iin, hauen herkku',
   },
   jig: {
@@ -99,6 +106,7 @@ export const LURES: Record<LureId, Lure> = {
     },
     stillAppeal: 0.7,
     snagRisk: 1.4,
+    weedGuard: 0,
     hint: 'Painuu pohjaan, toimii nykien ja tauottaen',
   },
   spinner: {
@@ -123,7 +131,35 @@ export const LURES: Record<LureId, Lure> = {
     },
     stillAppeal: 0.1,
     snagRisk: 0.5,
+    weedGuard: 0,
     hint: 'Pieni lippa, ahvenen ja särjen suosikki',
+  },
+  weedless: {
+    id: 'weedless',
+    name: 'Ruoholusikka',
+    // Kevyt lapa keinuu pyörimättä ja nousee kelatessa pinnan tuntumaan.
+    sinkRate: 0.3,
+    lift: 0.7,
+    maxDepth: Infinity,
+    castFactor: 1,
+    appeal: {
+      perch: 0.6,
+      pike: 1.3,
+      roach: 0.15,
+      zander: 0.3,
+      trout: 0.5,
+      bream: 0.05,
+      ruffe: 0.1,
+      burbot: 0.1,
+      ide: 0.8,
+      rainbow: 0.6,
+      carp: 0.05,
+    },
+    stillAppeal: 0.15,
+    // Yksi koukku: kivikossakin vähemmän tarttuva kuin kolmihaarainen.
+    snagRisk: 0.6,
+    weedGuard: 0.85,
+    hint: 'Ruohosuojattu: liukuu kaislojen ja kasvuston läpi hauelle, mutta isku tarttuu harvemmin',
   },
 };
 
@@ -244,7 +280,13 @@ export const CRANK_DEPTHS: Record<CrankDepthId, LureTuning> = {
 export const CRANK_DEPTH_IDS = Object.keys(CRANK_DEPTHS) as CrankDepthId[];
 
 /** Vieheiden paino (g), kun vieheellä ei ole säätöä. */
-const LURE_GRAMS: Record<LureId, number> = { spoon: 15, wobbler: 10, jig: 10, spinner: 7 };
+const LURE_GRAMS: Record<LureId, number> = {
+  spoon: 15,
+  wobbler: 10,
+  jig: 10,
+  spinner: 7,
+  weedless: 15,
+};
 
 /** Siimat: paksumpi kestää enemmän, mutta heittyy lyhyemmälle ja näkyy kaloille. */
 export type LineId = 'thin' | 'medium' | 'thick';
@@ -416,7 +458,7 @@ export const FLY_LEADERS: Record<FlyLeaderId, FlyLeader> = {
 export const FLY_LEADER_IDS = Object.keys(FLY_LEADERS) as FlyLeaderId[];
 
 /** Perhot. */
-export type FlyId = 'pikeStreamer' | 'popper' | 'perchStreamer' | 'nymph';
+export type FlyId = 'pikeStreamer' | 'popper' | 'perchStreamer' | 'nymph' | 'weedlessStreamer';
 
 export interface Fly {
   id: FlyId;
@@ -436,6 +478,8 @@ export interface Fly {
   /** Vedon jälkeisen tauon houkuttelevuus hauelle ja suurkaloille (0–1). */
   pauseAppeal: number;
   snagRisk: number;
+  /** Ruohosuoja 0–1 (#364), kuten vieheillä. */
+  weedGuard: number;
   /** Suurkalojen mieltymys. */
   bigFish: number;
   /** Pintaperho roiskii vedettäessä. */
@@ -467,6 +511,7 @@ export const FLIES: Record<FlyId, Fly> = {
     stillAppeal: 0.45,
     pauseAppeal: 0.95,
     snagRisk: 0.6,
+    weedGuard: 0,
     bigFish: 1.5,
     surface: false,
   },
@@ -494,6 +539,7 @@ export const FLIES: Record<FlyId, Fly> = {
     stillAppeal: 0.2,
     pauseAppeal: 0.6,
     snagRisk: 0.15,
+    weedGuard: 0,
     bigFish: 1.1,
     surface: true,
   },
@@ -521,6 +567,7 @@ export const FLIES: Record<FlyId, Fly> = {
     stillAppeal: 0.3,
     pauseAppeal: 0.6,
     snagRisk: 0.8,
+    weedGuard: 0,
     bigFish: 0.8,
     surface: false,
   },
@@ -548,7 +595,36 @@ export const FLIES: Record<FlyId, Fly> = {
     stillAppeal: 0.7,
     pauseAppeal: 0.7,
     snagRisk: 1.1,
+    weedGuard: 0,
     bigFish: 0.6,
+    surface: false,
+  },
+  weedlessStreamer: {
+    id: 'weedlessStreamer',
+    name: 'Ruohostreameri',
+    size: 18,
+    sinkRate: 0.03,
+    lift: 0.15,
+    maxDepth: Infinity,
+    castFactor: 0.9,
+    appeal: {
+      perch: 0.4,
+      pike: 1.5,
+      roach: 0.1,
+      zander: 0.6,
+      trout: 0.7,
+      bream: 0.05,
+      ruffe: 0.1,
+      burbot: 0.4,
+      ide: 0.4,
+      rainbow: 0.8,
+      carp: 0.05,
+    },
+    stillAppeal: 0.45,
+    pauseAppeal: 0.95,
+    snagRisk: 0.3,
+    weedGuard: 0.85,
+    bigFish: 1.4,
     surface: false,
   },
 };
@@ -629,6 +705,7 @@ const BIG_FISH_LURE: Record<LureId, number> = {
   spoon: 1.2,
   jig: 0.8,
   spinner: 0.6,
+  weedless: 1.2,
 };
 
 /** Vieheen tai perhon ominaisuudet vedessä ja kaloille (siima ja vapa mukana). */
@@ -641,6 +718,8 @@ export interface Bait {
   /** Vedon jälkeisen tauon houkuttelevuus hauelle ja suurkaloille. */
   pauseAppeal: number;
   snagRisk: number;
+  /** Ruohosuoja 0–1 (#364). */
+  weedGuard: number;
   bigFish: number;
   /** Pintaperho (popperi). */
   surface: boolean;
@@ -693,6 +772,7 @@ export function baitOf(t: Tackle): Bait {
       stillAppeal: l.stillAppeal,
       pauseAppeal: l.stillAppeal,
       snagRisk: l.snagRisk,
+      weedGuard: LURES[t.lure].weedGuard,
       bigFish: l.bigFish,
       surface: false,
       drag: l.drag,
@@ -712,6 +792,7 @@ export function baitOf(t: Tackle): Bait {
     stillAppeal: f.stillAppeal,
     pauseAppeal: f.pauseAppeal,
     snagRisk: f.snagRisk,
+    weedGuard: f.weedGuard,
     bigFish: f.bigFish,
     surface: f.surface,
     drag: 1,

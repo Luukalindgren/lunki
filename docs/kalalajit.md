@@ -139,12 +139,13 @@ siima ilman perukkaa. Parametrit: `packages/shared/src/fishing/gear.ts`.
 Heittopainon ulkopuolinen viehe heittyy 20 % lyhyemmälle (`CAST_WEIGHT_PENALTY`), ja Varusteet-näkymä
 varoittaa siitä. Vieheiden painot: lusikka 15 g, lippa 7 g, jigi ja vaappu säädön mukaan (alla).
 
-| Viehe   | Uppoaminen                                          | Heitto   | Parhaat lajit                     |
-| ------- | --------------------------------------------------- | -------- | --------------------------------- |
-| Lusikka | uppoaa, nousee kelatessa                            | pitkä    | hauki, kirjolohi, taimen, säyne   |
-| Vaappu  | kelluu, sukeltaa kelatessa n. 2,5 m:iin             | lyhyt    | hauki, kuha, taimen               |
-| Jigi    | painuu nopeasti pohjaan, kiinnostaa myös paikallaan | pisin    | made, kuha, kiiski, lahna, karppi |
-| Lippa   | uppoaa hitaasti                                     | lyhyehkö | säyne, ahven, kirjolohi, kiiski   |
+| Viehe        | Uppoaminen                                          | Heitto   | Parhaat lajit                     |
+| ------------ | --------------------------------------------------- | -------- | --------------------------------- |
+| Lusikka      | uppoaa, nousee kelatessa                            | pitkä    | hauki, kirjolohi, taimen, säyne   |
+| Vaappu       | kelluu, sukeltaa kelatessa n. 2,5 m:iin             | lyhyt    | hauki, kuha, taimen               |
+| Jigi         | painuu nopeasti pohjaan, kiinnostaa myös paikallaan | pisin    | made, kuha, kiiski, lahna, karppi |
+| Lippa        | uppoaa hitaasti                                     | lyhyehkö | säyne, ahven, kirjolohi, kiiski   |
+| Ruoholusikka | uppoaa hitaasti, nousee kelatessa pinnan tuntumaan  | normaali | hauki, säyne                      |
 
 | Siima   | Kestävyys | Heitto   | Kalat                  |
 | ------- | --------- | -------- | ---------------------- |
@@ -176,6 +177,12 @@ Oletussäädöt (10 g, keski) ovat entinen jigi ja vaappu.
 kalastajaa ja vajoaa taas (`TWITCH` tiedostossa `fishing.ts`). Kevyt jigi nousee enemmän kuin
 raskas. Nykäisyn jälkeen vajoava viehe kiinnostaa kaloja 2,5 s tavallista enemmän, ja iskun
 aikana nykäisy on vastaisku.
+
+**Ruohosuojattu viehe ja perho (#364).** Ruoholusikan ja ruohostreamerin koukun kärkeä suojaa
+lanka (`weedGuard` 0,85). Kasvustossa, kaislikossa, risukossa ja kaatuneessa puussa ne tarttuvat
+ja keräävät rikkaa selvästi harvemmin, kivikossa suoja auttaa puoliksi (`SNAG.guardHelp`). Lanka
+työntää myös kalan suuta pois koukusta, joten isku tarttuu harvemmin (`SNAG.hookLoss`: noin 25 %
+vähemmän). Sopii kaislikon ja lumpeikon reunalla väijyvälle hauelle.
 
 Teräsperukka estää hauen hampaita katkaisemasta siimaa väsytyksessä (normaalilla ja
 realistisella noin 3 % sekunnissa), mutta muut lajit tarttuvat siihen hieman harvemmin.
@@ -215,6 +222,7 @@ aina virveliheittoa lyhyempi (palvelimen heittotarkistus pätee sellaisenaan).
 | Pintapopperi    | 8 cm   | pysyy pinnassa, pulpahtaa vedettäessä | hauki, ahven                      |
 | Ahven-streameri | 6 cm   | vajoaa hitaasti                       | ahven, taimen, kuha               |
 | Nymfi           | 1,5 cm | vajoaa pohjan tuntumaan               | särki, kirjolohi, karppi, lahna   |
+| Ruohostreameri  | 18 cm  | leijuu, vajoaa hitaasti               | hauki kaislikon reunassa          |
 
 Aloittelijan perhovälineet: #8, kelluva siima, teräsperuke ja hauki-streameri.
 
