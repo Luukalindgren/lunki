@@ -443,6 +443,7 @@ function enterLobby(s: NetSession) {
         onStart: () => s.start(),
         onSpectate: (on) => s.setSpectator(on),
         onBoat: (boat) => s.sendBoat(boat),
+        onSeat: (seat) => s.sendSeat(seat),
         onLeave: leaveRoom,
         onSettings: (patch) => s.changeSettings(patch),
         onTackle: (t) => {
@@ -712,6 +713,7 @@ startLoop({
         isFly(game.fishing.tackle),
         game.fishing.gear,
       );
+      touch?.setCrew(game.crewSeats);
     } else sfx.updateAmbience(dt, MENU_AMBIENCE);
     updateTime += performance.now() - t0;
     updateCount++;

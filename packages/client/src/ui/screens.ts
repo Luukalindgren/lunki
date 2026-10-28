@@ -570,6 +570,8 @@ export class Screens {
       onPickStart: () => void;
       /** Kulkupeli: veneeseen n, omaan uuteen veneeseen (0) tai renkaaseen (BOAT_TUBE). */
       onBoat: (boat: number) => void;
+      /** Paikanvaihto omassa veneessä (#357): toisen paikka. */
+      onSeat: (seat: number) => void;
     },
     notice?: string,
     /** Liittää chatin paneeliin (sama elementti säilyy uudelleenpiirroissa). */
@@ -633,7 +635,7 @@ export class Screens {
       );
       return li;
     };
-    if (v.canBoat) list.append(...this.crewRows(v, playerRow, actions.onBoat));
+    if (v.canBoat) list.append(...this.crewRows(v, playerRow, actions.onBoat, actions.onSeat));
     else for (const p of v.players) list.appendChild(playerRow(p));
     // Katsojat eivät vie kalastajapaikkoja (#274).
     const anglers = v.players.filter((p) => !p.spectator).length;
@@ -736,14 +738,31 @@ export class Screens {
     v: LobbyView,
     playerRow: (p: LobbyPlayer) => HTMLElement,
     onBoat: (boat: number) => void,
+    onSeat: (seat: number) => void,
   ): HTMLElement[] {
     const me = v.players.find((p) => p.me);
+    // Paikanvaihto omassa veneessä (#357): pyyntö, ja toisen pyyntöön sama nappi vastaa.
+    const swap = (p: LobbyPlayer, row: HTMLElement) => {
+      if (!v.canSwapSeats || !me || p.me || me.boat === 0 || p.boat !== me.boat) return;
+      const asked = me.seatAsk === p.seat;
+      const asks = p.seatAsk === me.seat;
+      const button = document.createElement('button');
+      button.className = 'seat-swap';
+      button.textContent = t(asked ? 'boat.swapAsked' : 'boat.swap');
+      button.disabled = asked;
+      button.addEventListener('click', () => onSeat(p.seat));
+      const line = h('div', '', 'seat-swap-row');
+      if (asks) line.append(h('span', t('boat.swapAsk'), 'player-state ok'));
+      line.append(button);
+      row.append(line);
+    };
     const crews = new Map<number, LobbyPlayer[]>();
     for (const p of v.players)
       if (!p.spectator && p.boat > 0) crews.set(p.boat, [...(crews.get(p.boat) ?? []), p]);
     const withSeat = (p: LobbyPlayer, seat: string) => {
       const row = playerRow(p);
       row.firstElementChild?.after(h('span', seat, 'player-seat'));
+      swap(p, row);
       return row;
     };
     const rows: HTMLElement[] = [];

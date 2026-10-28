@@ -12,7 +12,7 @@ export const ROOM_NAME = 'lunki';
  * uudelleen: asiakas ei lähetä vanhemmalle palvelimelle viestejä, joita se
  * ei tunne. Vanha palvelin ilman kenttää = 1.
  */
-export const PROTOCOL_VERSION = 8;
+export const PROTOCOL_VERSION = 9;
 /** Chat tuli versiossa 2. */
 export const CHAT_PROTOCOL = 2;
 /** Maalle juuttuneen vieheen siiman katkaisu (ClientMsg.landCut) tuli versiossa 3. */
@@ -33,6 +33,11 @@ export const BOAT_PROTOCOL = 7;
  * Vanha palvelin ei laske ankkuria, joten asiakas ei silloin tarjoa sitä.
  */
 export const ANCHOR_PROTOCOL = 8;
+/**
+ * Paikanvaihto veneessä (#357): ClientMsg.seat ja PlayerState.seatAsk tulivat
+ * versiossa 9. Vanha palvelin ei vaihda paikkoja, joten asiakas ei tarjoa sitä.
+ */
+export const SEAT_PROTOCOL = 9;
 
 /** Oletuspelaajamäärä huoneessa. Rakenne sallii isomman. */
 export const DEFAULT_MAX_PLAYERS = 8;
@@ -158,6 +163,11 @@ export const ClientMsg = {
    * tai kelluntarenkaalle (BOAT_TUBE).
    */
   boat: 'boat',
+  /**
+   * Veneessä paikka (BoatSeat), johon pelaaja haluaa (#357): vapaalle
+   * siirrytään, varatusta pyydetään vaihtoa; -1 perii pyynnön.
+   */
+  seat: 'seat',
 } as const;
 
 /** Vieheen tila muille näytettäväksi. */

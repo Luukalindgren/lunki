@@ -1,5 +1,6 @@
 import {
   ANCHOR_PROTOCOL,
+  SEAT_PROTOCOL,
   BIG_WAVE,
   BoatSeat,
   anchorFromNet,
@@ -183,11 +184,15 @@ export class NetWorld {
       capsizedUntil: number;
       /** Ankkuri viimeisimmästä tilasta (ei interpoloida: se on paikallaan). */
       anchor?: AnchorState;
+      /** Paikka, johon hän haluaa vaihtaa (#357); null = ei pyyntöä. */
+      seatAsk: number | null;
     }
   >();
   /** Oma paikka veneessä; 0/0 = kelluntarengas. */
   private ownBoat = 0;
   private ownSeat: number = BoatSeat.rower;
+  /** Oma paikanvaihtopyyntö (#357); null = ei pyyntöä. */
+  private ownSeatAsk: number | null = null;
   /** Muiden tilojen aikaleimat kisan kellosta, ettei verkon heittely nyi liikettä. */
   private readonly stamps = new SnapshotClock();
   private lure: [number, number, number, number] = [0, 0, LureStage.none, 0];
@@ -414,6 +419,40 @@ export class NetWorld {
     if (this.canAnchor) this.predictor.depthAt = depthAt;
   }
 
+  /** Palvelin vaihtaa paikkoja veneessä (#357); vanha ei. */
+  get canSwapSeats(): boolean {
+    return (this.session.serverProtocol ?? 1) >= SEAT_PROTOCOL;
+  }
+
+  /** Oma paikka veneessä (BoatSeat). */
+  get seat(): number {
+    return this.ownSeat;
+  }
+
+  /** Oma voimassa oleva paikanvaihtopyyntö (paikka) tai null. */
+  get seatAsk(): number | null {
+    return this.ownSeatAsk;
+  }
+
+  /** Muut oman veneen väestä: paikka, nimi ja paikanvaihtopyyntö (#357). */
+  crewmates(): { seat: number; name: string; seatAsk: number | null }[] {
+    if (!this.ownBoat) return [];
+    return [...this.remotes.values()]
+      .filter((r) => r.boat === this.ownBoat)
+      .map((r) => ({ seat: r.seat, name: r.player, seatAsk: r.seatAsk }));
+  }
+
+  /** Paikka veneessä, johon haluaa (#357), ks. Session.sendSeat. */
+  sendSeat(seat: number): void {
+    this.session.sendSeat(seat);
+  }
+
+  /** Oman veneen vauhti (m/s): soutajana ennakoitu, kyydissä soutajan. */
+  get boatSpeed(): number {
+    const v = this.passenger ? this.rowerOfOwnBoat()?.vel : this.predictor.tube.vel;
+    return v ? Math.hypot(v.x, v.y) : 0;
+  }
+
   /** Veneessä kyydissä: vain soutaja liikuttaa venettä (#263). */
   get passenger(): boolean {
     return this.ownBoat > 0 && this.ownSeat !== BoatSeat.rower;
@@ -471,6 +510,7 @@ export class NetWorld {
       if (id === this.session.sessionId) {
         this.ownBoat = p.boat ?? 0;
         this.ownSeat = this.ownBoat ? (p.seat ?? 0) : BoatSeat.rower;
+        this.ownSeatAsk = p.seatAsk ? p.seatAsk - 1 : null;
         this.predictor.craft = this.ownBoat && !this.passenger ? CRAFTS.boat : CRAFTS.tube;
         if (this.passenger) {
           // Kyydissä ennakoidaan vain kääntyminen; paikka tulee veneestä.
@@ -501,6 +541,7 @@ export class NetWorld {
           buf: new SnapshotBuffer(lerpSnap),
           boat: 0,
           seat: 0,
+          seatAsk: null,
           vel: { x: 0, y: 0 },
           capsizedUntil: 0,
         };
@@ -514,6 +555,7 @@ export class NetWorld {
       r.fly = p.method === 'fly';
       r.boat = p.boat ?? 0;
       r.seat = r.boat ? (p.seat ?? 0) : BoatSeat.rower;
+      r.seatAsk = p.seatAsk ? p.seatAsk - 1 : null;
       r.vel = { x: p.vx, y: p.vy };
       r.capsizedUntil = p.capsizedUntil;
       r.anchor = anchorFromNet(p);

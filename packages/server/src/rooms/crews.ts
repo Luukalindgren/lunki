@@ -1,4 +1,4 @@
-import { BOAT_CREW, BOAT_TUBE } from '@lunki/shared';
+import { BOAT_CREW, BOAT_TUBE, BoatSeat } from '@lunki/shared';
 
 /** Pelaajan kulkupeli aulassa (#263). */
 export interface Crewmate {
@@ -55,4 +55,35 @@ export function moveToBoat(list: readonly Crewmate[], id: string, boat: number):
     boat = Math.max(0, ...list.map((c) => c.boat)) + 1;
   } else if (crewOf(boat).length === 0 || crewOf(boat).length >= BOAT_CREW) return null;
   return packCrews(list.map((c) => (c.id === id ? { ...c, boat, seat: BOAT_CREW } : c)));
+}
+
+/** Paikanvaihdon tulos (#357): siirto vapaalle paikalle, vaihto toisen kanssa tai pyyntö. */
+export type SeatChange =
+  { kind: 'move'; seat: number } | { kind: 'swap'; with: string } | { kind: 'ask'; seat: number };
+
+/**
+ * Pelaaja `id` haluaa veneessään paikalle `seat`. Vapaalle kyytiläisen
+ * paikalle siirrytään kisassa suoraan (aulassa paikat täytetään järjestyksessä,
+ * joten siellä vain vaihdetaan). Varatusta paikasta pyydetään vaihtoa, ja
+ * vaihto tehdään, kun paikan haltija pyytää jo pyytäjän paikkaa. Soutaja ei
+ * jätä airoja tyhjiksi, eikä tyhjälle soutajan paikalle siirrytä.
+ * `asks` = pelaajan voimassa oleva pyyntö (paikka). Palauttaa null, jos
+ * pyyntö ei kelpaa.
+ */
+export function seatChange(
+  list: readonly Crewmate[],
+  id: string,
+  seat: number,
+  asks: (id: string) => number | null,
+  lobby: boolean,
+): SeatChange | null {
+  const me = list.find((c) => c.id === id);
+  if (!me || me.boat <= 0 || !Number.isInteger(seat) || seat < 0 || seat >= BOAT_CREW) return null;
+  if (seat === me.seat) return null;
+  const holder = list.find((c) => c.id !== id && c.boat === me.boat && c.seat === seat);
+  if (!holder) {
+    if (lobby || me.seat === BoatSeat.rower || seat === BoatSeat.rower) return null;
+    return { kind: 'move', seat };
+  }
+  return asks(holder.id) === me.seat ? { kind: 'swap', with: holder.id } : { kind: 'ask', seat };
 }

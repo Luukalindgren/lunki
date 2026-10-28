@@ -12,6 +12,8 @@ import {
   chargePower,
   WaterBody,
   BoatSeat,
+  SEAT_SWAP,
+  nextSeatTarget,
   CRAFTS,
   createTube,
   findLaunchPoint,
@@ -137,6 +139,7 @@ import { TopDownCamera } from './topDownCamera';
 import { QuietSpot } from './quietSpot';
 import { SEATED_LIFT, animateEmote, animateFins, createTubeMesh, setSeated } from './tubeMesh';
 import { AnchorView, type AnchoredCraft } from './anchorView';
+import { SeatSlides } from './seatSlide';
 import { BoatsView } from './boatView';
 import { SpeechBubble, type BubbleContent } from './speechBubble';
 import { screenAnchor } from './screenAnchor';
@@ -147,8 +150,8 @@ import { loadAppearance } from './appearance';
 import { RaceLog, type RaceMapData } from './raceLog';
 import { scoreboardLines } from './raceScoreboard';
 import { bottomFor } from '../world/lakeData';
-import { decimal, formatWeight, ordinal, t } from '../i18n';
-import { baitName, describeTackle, skyName, speciesName } from '../i18n/names';
+import { decimal, formatWeight, ordinal, t, type MsgKey } from '../i18n';
+import { baitName, describeTackle, seatName, skyName, speciesName } from '../i18n/names';
 
 const LAND_COLOR = 0x24502c;
 /** Yksinpelin pelaajan tunniste kisan kulussa. */
@@ -263,6 +266,12 @@ export class SoloGame {
   private anchorHint: string | null = null;
   /** Myrskyn laahaus on jo ilmoitettu tälle laskulle. */
   private anchorDragWarned = false;
+  /** Paikanvaihdon tilanneohje (#357): toinen pyytää vaihtamaan kanssasi. */
+  private seatHint: string | null = null;
+  /** Oma paikka veneessä edellisellä askeleella: vaihtuessa ilmoitus. */
+  private seenSeat: { boat: number; seat: number } | null = null;
+  /** Paikanvaihdon siirtymä ja keinahdus piirrossa (#357). */
+  private readonly seatSlides = new SeatSlides();
   /** Yksinpelin kulkupeli; moninpelissä se tulee palvelimelta (aulan valinta). */
   private readonly soloCraft = loadCraft();
   /** Veneen soutaja: airot tai vapa ja kääntyminen tuhdolla (#263). */
@@ -973,6 +982,16 @@ export class SoloGame {
       anchor = false;
     }
     const step: TubeInput = anchor ? { ...move, anchor } : move;
+    const f0 = this.fishing;
+    const lureStage =
+      f0.hookedId !== null
+        ? LureStage.hooked
+        : f0.stage === 'flight' || f0.stage === 'casting'
+          ? LureStage.flight
+          : f0.stage === 'water'
+            ? LureStage.water
+            : LureStage.none;
+    this.updateSeat(c.wasPressed('seat') && !frozen && !capsized, lureStage);
     if (oars)
       this.hud.showMessage(
         controlText(this.seat.rowing ? 'game.oarsOut' : 'game.oarsIn'),
@@ -984,14 +1003,7 @@ export class SoloGame {
       this.tube = this.followTube(step) ?? this.tube;
     } else if (this.net) {
       const f = this.fishing;
-      const stage =
-        f.hookedId !== null
-          ? LureStage.hooked
-          : f.stage === 'flight' || f.stage === 'casting'
-            ? LureStage.flight
-            : f.stage === 'water'
-              ? LureStage.water
-              : LureStage.none;
+      const stage = lureStage;
       const w = this.net.world;
       // Veneessä kyytiläinen ei soua, eikä soutaja soua heittäessään tai kelatessaan (#263).
       this.rowHint =
@@ -1185,6 +1197,7 @@ export class SoloGame {
       fly: isFly(f.tackle),
       pov: this.viewMode === 'pov',
       seat: !this.inBoat ? 'tube' : this.rower ? 'rower' : 'passenger',
+      crew: this.crewSeats,
     });
     // Tilanneohje: mitä nyt pitää tehdä. Yksi kerrallaan, tärkein ensin.
     this.hud.setSituation(
@@ -1205,7 +1218,7 @@ export class SoloGame {
                   )}`
             : this.thunderNow && (lureOut || f.hookedId !== null)
               ? t('help.thunder')
-              : (this.anchorHint ?? this.rowHint),
+              : (this.seatHint ?? this.anchorHint ?? this.rowHint),
     );
     this.hud.setStatus([
       describeTackle(f.tackle),
@@ -1972,6 +1985,60 @@ export class SoloGame {
             : null;
   }
 
+  /** Moninpelin veneessä paikkaa voi vaihtaa venekunnan kesken (#357). */
+  get crewSeats(): boolean {
+    const w = this.net?.world;
+    return !!w && w.boat > 0 && !this.spectating && w.canSwapSeats;
+  }
+
+  /**
+   * Paikanvaihto veneessä (#357). {seat} hyväksyy toisen pyynnön tai valitsee
+   * seuraavan paikan: vapaalle siirrytään, varatusta pyydetään vaihtoa.
+   * Tilanneohje kertoo, kun joku pyytää vaihtamaan kanssasi.
+   */
+  private updateSeat(pressed: boolean, lureStage: LureStage): void {
+    const w = this.net?.world;
+    if (!w || !w.boat || this.spectating) {
+      this.seatHint = null;
+      this.seenSeat = null;
+      return;
+    }
+    const was = this.seenSeat;
+    if (was && was.boat === w.boat && was.seat !== w.seat) {
+      this.seat.reset();
+      const key =
+        w.seat === BoatSeat.rower
+          ? 'game.seatRower'
+          : w.seat === BoatSeat.stern
+            ? 'game.seatStern'
+            : 'game.seatBow';
+      this.hud.showMessage(t(key), 3, 'info');
+    }
+    this.seenSeat = { boat: w.boat, seat: w.seat };
+    const crew = w.crewmates();
+    const offer = crew.find((m) => m.seatAsk === w.seat);
+    this.seatHint =
+      offer && w.canSwapSeats ? controlText('game.seatOffer', { name: offer.name }) : null;
+    if (!pressed) return;
+    const refuse = (key: MsgKey) => this.hud.showMessage(t(key), 3, 'info');
+    if (!w.canSwapSeats) return refuse('game.seatOld');
+    if (crew.length === 0) return refuse('game.seatNone');
+    if (lureStage !== LureStage.none || this.timeOutLeft > 0 || w.boatSpeed > SEAT_SWAP.maxSpeed)
+      return refuse('game.seatBusy');
+    const target = offer
+      ? offer.seat
+      : nextSeatTarget(w.seat, new Set(crew.map((m) => m.seat)), w.seatAsk);
+    if (target === null) return refuse('game.seatNone');
+    w.sendSeat(target);
+    const holder = crew.find((m) => m.seat === target);
+    if (holder && !offer)
+      this.hud.showMessage(
+        t('game.seatAsked', { name: holder.name, place: seatName(target) }),
+        3,
+        'info',
+      );
+  }
+
   /** Vapauttaa GPU-resurssit, kun kierros päättyy. */
   dispose(): void {
     this.emoteMenu?.dispose();
@@ -2034,10 +2101,16 @@ export class SoloGame {
     }
     const seated = this.inBoat ? SEATED_LIFT : 0;
     setSeated(this.tubeMesh, this.inBoat);
-    this.tubeMesh.position.copy(toWorld(pos, (air?.height ?? 0) + seated));
+    // Paikanvaihdossa (#357) hahmo liukuu uudelle paikalle ja vene keinahtaa.
+    const now = performance.now() / 1000;
+    const w = this.net?.world;
+    const boatNo = w && !this.spectating ? w.boat : 0;
+    const body = w ? this.seatSlides.place('', boatNo, w.seat, pos, now) : pos;
+    const rock = this.seatSlides.rock(boatNo, now);
+    this.tubeMesh.position.copy(toWorld(body, (air?.height ?? 0) + seated));
     this.tubeMesh.rotation.y = heading;
     const roll = this.capsizeRoll();
-    this.tubeMesh.rotation.x = air ? air.tumble : roll;
+    this.tubeMesh.rotation.x = air ? air.tumble : roll + rock;
     // Ylhäältä katsottuna korkealla lentävä rengas näkyy isompana, ja sen
     // varjo vedessä pienenee korkeuden mukana.
     this.tubeMesh.scale.setScalar(1 + (air?.height ?? 0) / 14);
@@ -2065,7 +2138,7 @@ export class SoloGame {
     if (this.viewMode === 'pov') {
       // Kumossa kamera kallistuu ja painuu veden rajaan.
       this.pov.apply(
-        pos,
+        body,
         heading,
         b.kickPhase,
         air
@@ -2077,11 +2150,11 @@ export class SoloGame {
             }
           : {
               lift: this.rock.lift - 0.7 * (roll / Math.PI) + seated,
-              roll: this.rock.roll + roll * 0.3,
+              roll: this.rock.roll + roll * 0.3 + rock,
               pitch: this.rock.pitch,
             },
       );
-      this.updatePovTube(pos, heading, roll, air !== null);
+      this.updatePovTube(body, heading, roll, air !== null);
       // Vapa oikeasta kädestä kärkeen; kärki on siiman alkupiste.
       const side = rodSideOffset(heading);
       // Perhoheitossa vapa heiluu taakse ja eteen (#235).
@@ -2135,16 +2208,26 @@ export class SoloGame {
     if (own && b.anchor && !air && !this.net?.world.passenger)
       anchored.push({ pos, heading: hull, boat: this.inBoat, anchor: b.anchor });
     if (this.net && this.remoteView) {
-      this.boatsView.update(this.net.world.boats(own));
+      this.boatsView.update(
+        this.net.world.boats(own).map((b) => ({
+          ...b,
+          roll: (b.roll ?? 0) + this.seatSlides.rock(b.boat, now),
+        })),
+      );
       const others = this.net.world.others(own);
       for (const o of others)
         if (o.anchor && o.seat === BoatSeat.rower)
           anchored.push({ pos: o.pos, heading: o.heading, boat: o.boat > 0, anchor: o.anchor });
       // Katsojan silmin seurattavan oma rengas ei peitä näkymää.
-      const shown =
+      const shown = (
         this.spectating && this.viewMode === 'pov'
           ? others.filter((o) => o.id !== this.followed)
-          : others;
+          : others
+      ).map((o) => ({
+        ...o,
+        pos: this.seatSlides.place(o.id, o.boat, o.seat, o.pos, now),
+        roll: o.roll + this.seatSlides.rock(o.boat, now),
+      }));
       this.remoteView.update(shown, this.camera, this.net.canvas);
     }
     this.anchorView.update(anchored);

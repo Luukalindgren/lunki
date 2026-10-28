@@ -12,9 +12,11 @@ import {
   SEAT_OFFSET,
   SWIVEL_RATE,
   craftCircles,
+  nextSeatTarget,
   passengerInput,
   rowerInput,
   seatPos,
+  seatedTube,
   stepSwivel,
 } from './boat';
 import { TUBE_PHYSICS, createTube, stepTube, type CraftPhysics, type TubeState } from './tube';
@@ -144,5 +146,31 @@ describe('vene (#263)', () => {
     const hull = craftCircles({ pos: { x: 0, y: 0 }, heading: 0 }, CRAFTS.boat);
     expect(Math.max(...hull.map((c) => c.x + c.r))).toBeGreaterThan(1.5);
     expect(Math.min(...hull.map((c) => c.x - c.r))).toBeLessThan(-1.7);
+  });
+});
+
+describe('paikanvaihto (#357)', () => {
+  const { rower, stern, bow } = BoatSeat;
+
+  it('kiertää muut paikat soutajasta alkaen; soutaja vain varattuihin', () => {
+    const all = new Set([rower, stern, bow]);
+    expect(nextSeatTarget(stern, all, null)).toBe(rower);
+    expect(nextSeatTarget(stern, all, rower)).toBe(bow);
+    expect(nextSeatTarget(stern, all, bow)).toBe(rower);
+    // Kaksi veneessä: kyytiläinen voi pyytää airoja tai siirtyä keulaan.
+    const two = new Set([rower, stern]);
+    expect(nextSeatTarget(stern, two, rower)).toBe(bow);
+    expect(nextSeatTarget(rower, two, null)).toBe(stern);
+    expect(nextSeatTarget(rower, two, stern)).toBe(stern);
+    expect(nextSeatTarget(rower, new Set([rower]), null)).toBeNull();
+  });
+
+  it('kalastaja istuu paikallaan katse ulos veneestä, kunto säilyy', () => {
+    const boat = { ...createTube({ x: 3, y: 4 }, 1), vel: { x: 1, y: 0 } };
+    const s = seatedTube(boat, stern, 0.4);
+    expect(s.pos).toEqual(seatPos(boat, stern));
+    expect(s.heading).toBe(1);
+    expect(s.stamina).toBe(0.4);
+    expect(seatedTube(boat, bow).heading).toBeCloseTo(1 + Math.PI);
   });
 });

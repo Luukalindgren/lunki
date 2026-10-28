@@ -45,6 +45,13 @@ test('vene: kaksi kalastajaa samassa veneessä', async ({ page: host, browser })
   await expect(crew).toContainText('Kyyti');
   await expect(crew).toContainText('perässä');
   await expect(crew).toContainText('joukkue · 2/3');
+  // Paikanvaihto aulassa (#357): vieras pyytää, isäntä vastaa samalla napilla.
+  const row = (p: Page, name: string) => p.locator('.boat-crew li', { hasText: name });
+  await row(guest, 'Soutaja').getByRole('button', { name: 'Vaihda paikkaa' }).click();
+  await expect(row(host, 'Kyyti')).toContainText('haluaa vaihtaa kanssasi');
+  await row(host, 'Kyyti').getByRole('button', { name: 'Vaihda paikkaa' }).click();
+  await expect(row(host, 'Kyyti')).toContainText('soutaja');
+  await expect(row(host, 'Soutaja (sinä)')).toContainText('perässä');
   await guest.getByRole('button', { name: 'Valmis!' }).click();
 
   await host.getByRole('button', { name: 'Aloita kisa' }).click();
@@ -54,6 +61,14 @@ test('vene: kaksi kalastajaa samassa veneessä', async ({ page: host, browser })
   await expect
     .poll(() => guest.locator('.hud-timer').innerText(), { timeout: 20_000 })
     .not.toBe(start);
+  // Kisassa paikka vaihtuu takaisin T:llä: pyyntö näkyy toiselle tilanneohjeena.
+  await guest.keyboard.press('KeyT');
+  await expect(host.locator('.hud-situation')).toContainText(
+    'Kyyti haluaa vaihtaa paikkaa kanssasi',
+  );
+  await host.keyboard.press('KeyT');
+  await expect(guest.locator('.hud-help')).toContainText('Kyydissä');
+  await expect(host.locator('.hud-help')).toContainText('souda');
   // Kyydissä ei voi soutaa: tilanneohje kertoo, että vain soutaja soutaa.
   await guest.keyboard.down('KeyS');
   await expect(guest.locator('.hud-situation')).toContainText('Vain soutaja soutaa');

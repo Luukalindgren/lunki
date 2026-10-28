@@ -3,6 +3,7 @@ import {
   TUBE_PHYSICS,
   TUBE_RADIUS,
   collideTubeWithShore,
+  createTube,
   type CraftPhysics,
   type TubeInput,
   type TubeState,
@@ -178,6 +179,47 @@ export const BOAT_WAVE_FACTOR = 2;
 export function seatPos(boat: { pos: Vec2; heading: number }, seat: number): Vec2 {
   const k = seat === BoatSeat.stern ? SEAT_OFFSET : seat === BoatSeat.bow ? -SEAT_OFFSET : 0;
   return { x: boat.pos.x + Math.cos(boat.heading) * k, y: boat.pos.y + Math.sin(boat.heading) * k };
+}
+
+/**
+ * Kalastaja paikalleen veneeseen katse ulos veneestä: perässä perään päin,
+ * keulassa keulaan päin. Kunto säilyy (`stamina`).
+ */
+export function seatedTube(boat: TubeState, seat: number, stamina = 1): TubeState {
+  const out = seat === BoatSeat.bow ? Math.PI : 0;
+  return { ...createTube(seatPos(boat, seat), boat.heading + out), stamina };
+}
+
+/**
+ * Paikanvaihto veneessä (#357). Vapaalle kyytiläisen paikalle saa siirtyä
+ * suoraan; varatusta paikasta pyydetään vaihtoa, ja vaihto tehdään, kun
+ * toinen pyytää samaa takaisin (painaa samaa toimintoa). Soutajan paikka ei
+ * jää tyhjäksi: soutaja vaihtaa aina jonkun kanssa.
+ */
+export const SEAT_SWAP = {
+  /** Vene lähes paikallaan (m/s). */
+  maxSpeed: 0.5,
+  /** Pyyntö on voimassa näin kauan kisassa (s). */
+  askSeconds: 10,
+} as const;
+
+/** Paikkojen kiertojärjestys: soutaja, perä, keula. */
+const SEAT_ORDER = [BoatSeat.rower, BoatSeat.stern, BoatSeat.bow] as const;
+
+/**
+ * Seuraava paikka, johon {seat} pyrkii: `own` = oma paikka, `taken` = varatut
+ * paikat, `current` = edellinen kohde (pyyntö voimassa). Palauttaa null, jos
+ * ei ole paikkaa, johon siirtyä tai jonka kanssa vaihtaa.
+ */
+export function nextSeatTarget(
+  own: number,
+  taken: ReadonlySet<number>,
+  current: number | null,
+): number | null {
+  const options = SEAT_ORDER.filter((k) => k !== own && (taken.has(k) || own !== BoatSeat.rower));
+  if (options.length === 0) return null;
+  const at = current === null ? -1 : options.indexOf(current as BoatSeat);
+  return options[(at + 1) % options.length]!;
 }
 
 /** Matkustaja ei soua: hän voi vain kääntyä paikallaan heittämään. */

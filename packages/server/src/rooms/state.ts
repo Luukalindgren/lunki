@@ -72,6 +72,8 @@ export const PlayerState = schema(
     anchorY: t.float64().default(0),
     anchorDepth: t.float64().default(0),
     anchorDrop: t.float64().default(0),
+    /** Paikanvaihtopyyntö veneessä (#357): haluttu paikka + 1; 0 = ei pyyntöä. */
+    seatAsk: t.uint8().default(0),
   },
   'PlayerState',
 );
