@@ -267,6 +267,18 @@ export const fi = {
   'tackle.beginner': 'Aloittelijan varusteet',
   'tackle.lureInRace': 'Vieheen vaihdat kisan aikana ({lure}) tai taukovalikosta.',
   'tackle.rodLocked': 'Vapa: {rod}. Vapa pysyy samana koko kisan.',
+  'box.title': 'Viehepakki',
+  'box.flyTitle': 'Perhorasia',
+  'box.count': '{n}/{max}',
+  'box.add': '+ Lisää',
+  'box.empty': 'Tyhjä',
+  'box.beginner': 'Aloittelijan pakki',
+  'box.hint':
+    'Enintään 6 lokeroa. {lure} kiertää ne järjestyksessä, ja {lure} pohjassa avaa pikavalikon. Saman vieheen voi ottaa eri säädöillä.',
+  'box.locked':
+    'Realistisella pakkia ei voi täydentää kesken kisan: katkenneen siiman viehe jää järveen.',
+  'box.lost': 'Pakissa jäljellä {n}',
+  'box.lastLure': 'Viimeinen viehe: se jää käyttöön varavieheenä',
   'tackle.method': 'Kalastustapa',
   'tackle.jigWeight': 'Jigin paino',
   'tackle.crankDepth': 'Vaapun uintisyvyys',
@@ -586,7 +598,8 @@ export const fi = {
   'help.castForward': '{castForward} pohjassa ja päästä = heitto katsesuuntaan · {cancel} = peru',
   'help.reel': '{pointer} tai {reel} pohjassa = kelaa · {twitch} = nykäisy',
   'help.gear': '{gear} = kelausnopeus · {gearFast} = pikakelaus · {dragLess}/{dragMore} = jarru',
-  'help.tools': '{lure} = vaihda viehe · {sonar} = kaikuluotain · {lureSonar} = vieheen syvyys',
+  'help.tools':
+    '{lure} = vaihda viehe (pohjassa: pakki) · {sonar} = kaikuluotain · {lureSonar} = vieheen syvyys',
   'help.flyCast': 'Perhoheitto: {backCast} = taakse, {forwardCast} = eteen · {swipe}',
   'help.flyCast2':
     '{castForward} = rytmiheitto · {lift} = nosta uuteen heittoon · {flyPanel} = sivukuva',
@@ -649,7 +662,7 @@ export const fi = {
   'touch.cut': 'KATKO',
   'touch.cutTitle': 'Katkaise siima',
   'touch.lure': 'VIEHE',
-  'touch.lureTitle': 'Vaihda viehe',
+  'touch.lureTitle': 'Vaihda viehe, pidä pohjassa: viehepakki',
   'touch.sonar': 'LUOT',
   'touch.sonarTitle': 'Kaikuluotain',
   'touch.depth': 'SYV',

@@ -91,6 +91,8 @@ export interface FishingHost {
   readonly wind: Vec2;
   /** Käsimerkki käynnissä: käsi on varattu. */
   readonly emoteActive: boolean;
+  /** Kisan viehepakki: realistisella menetetty viehe poistuu siitä (#365). */
+  readonly lurePicker: { lost(tk: Tackle): string | null };
   readonly onSoloCatch: ((entry: Omit<RecordEntry, 'date' | 'at' | 'angler'>) => void) | null;
 }
 
@@ -457,23 +459,35 @@ export class FishingController {
     }
     if (events.rattle) sounds.play('rattle');
     if (events.stuck) sounds.play('stuck');
+    // Realistisella menetetty viehe poistuu kisan pakista (#365): rivi ilmoituksen alle.
+    const lost =
+      events.lureLost || events.lineBroken ? host.lurePicker.lost(host.fishing.tackle) : null;
+    const withLost = (text: string) => (lost ? `${text}\n${lost}` : text);
     if (events.lineCut) {
       sounds.play('lineCut');
       const wait = host.settings.landPenalty ?? 0;
       if (wait > 0) host.penalties.wait(wait, t('game.newLure'));
       net?.landCut();
       // Odotus näkyy ajastimena, syy sen alla.
-      if (wait > 0) host.penalties.setNote(`${t('game.lineCut')} · ${t('game.lureOnLand')}`);
-      else hud.showMessage(`${t('game.lineCut')}\n${t('game.lureOnLand')}`, 3);
+      if (wait > 0) {
+        host.penalties.setNote(`${t('game.lineCut')} · ${t('game.lureOnLand')}`);
+        if (lost) hud.showMessage(lost, 3);
+      } else hud.showMessage(withLost(`${t('game.lineCut')}\n${t('game.lureOnLand')}`), 3);
     } else if (events.bitOff) {
       sounds.play('bitOff');
-      hud.showMessage(t('game.bitOff'), 3.5);
+      hud.showMessage(withLost(t('game.bitOff')), 3.5);
     } else if (events.lureLost) {
       sounds.play('lureLost');
-      hud.showMessage(events.flyCast?.flyLost ? t('game.flyLost') : t('game.lureLost'), 3);
+      hud.showMessage(
+        withLost(events.flyCast?.flyLost ? t('game.flyLost') : t('game.lureLost')),
+        3,
+      );
     } else if (events.lineBroken) {
       sounds.play('lineBroken');
-      hud.showMessage(flyGear ? controlText('game.lineBrokenFly') : t('game.lineBroken'), 3);
+      hud.showMessage(
+        withLost(flyGear ? controlText('game.lineBrokenFly') : t('game.lineBroken')),
+        3,
+      );
     }
     if (events.caught) this.onCaught(events.caught);
     if (host.fishing.dragSlipping) sounds.play('dragSlip');

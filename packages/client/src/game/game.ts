@@ -60,7 +60,8 @@ import { rodSideOffset } from './lineHang';
 import { PovRod, flyRodTip } from './povRod';
 import { PovTube } from './povTube';
 import { loadAppearance } from './appearance';
-import { loadTackle, nextLure } from './tackle';
+import { LurePicker } from './lurePicker';
+import { loadTackle } from './tackle';
 import { TopDownCamera } from './topDownCamera';
 import { SEATED_LIFT, animateEmote, animateFins, createTubeMesh, setSeated } from './tubeMesh';
 import { AnchorView, type AnchoredCraft } from './anchorView';
@@ -163,6 +164,8 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
   readonly weather: WeatherController;
   readonly craft: CraftController;
   readonly angler: FishingController;
+  /** Kisan viehepakki ja pikavalikko (#365). */
+  readonly lurePicker: LurePicker;
   private readonly presenter: HudPresenter;
   /** Moninpelin kytkentä; yksinpelissä null. */
   private readonly net: NetBridge | null = null;
@@ -204,6 +207,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     this.penalties = new Penalties(this.competition, settings, link?.world);
     this.craft = new CraftController(this);
     this.angler = new FishingController(this);
+    this.lurePicker = new LurePicker(this);
     this.presenter = new HudPresenter(this);
     if (link) {
       // Palvelin arpoi aloituspaikan.
@@ -460,7 +464,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       );
     if (c.wasPressed('view')) this.setViewMode(this.viewMode === 'top' ? 'pov' : 'top');
     if (c.wasPressed('emote') && !this.spectating) this.toggleEmoteMenu();
-    if (c.wasPressed('lure') && !this.spectating) this.setTackle(nextLure(this.tackle));
+    this.lurePicker.step(dt);
     this.weather.step(dt);
     const timeOut = this.penalties.timeOutLeft;
     const capsized = this.penalties.capsizeLeft > 0;
@@ -704,6 +708,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
   /** Vapauttaa GPU-resurssit, kun kierros päättyy. */
   dispose(): void {
     this.emoteMenu?.dispose();
+    this.lurePicker.dispose();
     this.ownBubble?.remove();
     this.boatsView.dispose();
     this.net?.dispose();

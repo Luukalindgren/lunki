@@ -54,6 +54,10 @@ import {
   type Tackle,
   type Vec2,
   type Award,
+  type CrankDepthId,
+  type FlyId,
+  type JigWeightId,
+  type LureId,
   FEEDBACK_LIMITS,
   mapCredits,
   type RecordBoard,
@@ -110,6 +114,15 @@ import { controlText, withKey } from '../game/controls';
 import { isMine } from '../game/raceScoreboard';
 import { loadCraft, saveCraft } from '../game/tackle';
 import {
+  BOX_SLOTS,
+  beginnerBox,
+  loadTackleBox,
+  saveTackleBox,
+  slotOf,
+  type LureSlot,
+  type TackleBox,
+} from '../game/tackleBox';
+import {
   colorName,
   describeFullTackle,
   difficultyName,
@@ -136,6 +149,7 @@ import {
   crankDepthName,
   crankDepthHint,
   tackleLureName,
+  lureLabel,
   speciesName,
   timeOfDayName,
   weatherLevelName,
@@ -203,6 +217,21 @@ const MODE_HINTS: Record<RecordMode, MsgKey> = {
 const LANG_NAMES: Record<Lang, string> = { fi: 'Suomi', en: 'English' };
 /** Kalojen kuvat listoissa: kapealla näytöllä pienempinä (ks. style.css). */
 const LIST_FISH_SCALE = 'var(--fish-px, 2px)';
+/** Viehepakki näkymälle: tallennettu tai kisan pakki (#365). */
+export interface BoxBinding {
+  current: TackleBox;
+  onChange: (b: TackleBox) => void;
+  /** Realistisella pakkia ei täydennetä kesken kisan (menetetyt vieheet). */
+  locked: boolean;
+}
+
+/** Varusteet näkymälle; `box` puuttuu = selaimeen tallennettu pakki. */
+export interface TackleBinding {
+  current: Tackle;
+  onChange: (t: Tackle) => void;
+  box?: BoxBinding;
+}
+
 /** Vieheen kuvan pikselikoko Varusteet-näkymässä. */
 const LURE_HINT_SCALE = '2px';
 
@@ -937,17 +966,194 @@ export class Screens {
   /** Omat varusteet omana näkymänään (tauko, yksinpelin valmistelu, aula). */
   private showTackle(
     screen: string,
-    tackle: { current: Tackle; onChange: (t: Tackle) => void },
+    tackle: TackleBinding,
     mode: 'before' | 'during',
     onBack: () => void,
   ): void {
+    // Viehepakin alanäkymästä palataan tähän viimeisimmin valituin varustein.
+    let latest = tackle.current;
+    const onChange = (next: Tackle) => {
+      latest = next;
+      tackle.onChange(next);
+    };
+    const given = tackle.box ?? {
+      current: loadTackleBox(),
+      onChange: saveTackleBox,
+      locked: false,
+    };
+    const pack: BoxBinding = {
+      ...given,
+      onChange: (b) => {
+        pack.current = b;
+        given.onChange(b);
+      },
+    };
+    const reopen = () =>
+      this.showTackle(screen, { ...tackle, current: latest, box: pack }, mode, onBack);
     const panel = this.panel(screen);
     panel.append(
       h('h2', t('settings.tackle')),
-      this.tackleEditor(tackle.current, tackle.onChange, mode),
+      this.tackleEditor(tackle.current, onChange, mode, {
+        pack,
+        open: (method) => this.showBox(`${screen}-box`, method, pack, reopen),
+      }),
       this.buttons([[t('common.back'), onBack]]),
     );
     this.show(panel, { back: onBack, focusFirst: true });
+  }
+
+  /**
+   * Viehepakki tai perhorasia omana näkymänään (#365): enintään kuusi
+   * lokeroa, joiden järjestys on R-kierron järjestys. Lokeron valinta
+   * näyttää sen vieheen ja säädön; "Tyhjä" poistaa lokeron.
+   */
+  private showBox(screen: string, method: Method, pack: BoxBinding, onBack: () => void): void {
+    const fly = method === 'fly';
+    const panel = this.panel(screen);
+    const grid = document.createElement('div');
+    grid.className = 'box-grid';
+    const editor = document.createElement('div');
+    editor.className = 'settings';
+    let selected = 0;
+    const list = (): (LureSlot | FlyId)[] => (fly ? pack.current.flies : pack.current.lures);
+    const update = (items: (LureSlot | FlyId)[]) => {
+      pack.onChange(
+        fly
+          ? { ...pack.current, flies: items as FlyId[] }
+          : { ...pack.current, lures: items as LureSlot[] },
+      );
+      render();
+    };
+    const slotLabel = (item: LureSlot | FlyId) =>
+      typeof item === 'string' ? flyName(item) : lureLabel(item.lure, item.variant);
+    const render = () => {
+      const items = list();
+      grid.replaceChildren(
+        ...Array.from({ length: BOX_SLOTS }, (_, i) => {
+          const item = items[i];
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'box-slot';
+          b.classList.toggle('selected', i === selected);
+          if (item !== undefined) {
+            b.append(
+              lureImage(typeof item === 'string' ? item : item.lure, '2px'),
+              h('span', slotLabel(item), 'box-slot-name'),
+            );
+          } else {
+            b.append(
+              h('span', i === items.length ? t('box.add') : t('box.empty'), 'box-slot-name'),
+            );
+            b.classList.add('empty');
+            // Lokerot täyttyvät järjestyksessä: tyhjän jälkeisiä ei voi valita.
+            b.disabled = i > items.length || pack.locked;
+          }
+          b.addEventListener('click', () => {
+            selected = i;
+            render();
+          });
+          return b;
+        }),
+      );
+      editor.replaceChildren();
+      if (pack.locked) {
+        editor.append(h('p', t('box.locked'), 'hint'));
+        return;
+      }
+      const item = items[selected];
+      const none: [string, string] = ['', t('box.empty')];
+      if (fly) {
+        editor.append(
+          this.choice(
+            t('tackle.fly'),
+            [
+              ...(item !== undefined ? [none] : []),
+              ...FLY_IDS.map((id): [string, string] => [id, flyName(id)]),
+            ],
+            typeof item === 'string' ? item : '',
+            (v) => {
+              const next = [...(list() as FlyId[])];
+              if (v === '') next.splice(selected, 1);
+              else next[selected] = v as FlyId;
+              update(next);
+            },
+          ),
+        );
+        return;
+      }
+      const slot = typeof item === 'object' ? item : undefined;
+      const setSlot = (next: LureSlot | null) => {
+        const all = [...(list() as LureSlot[])];
+        if (next) all[selected] = next;
+        else all.splice(selected, 1);
+        update(all);
+      };
+      editor.append(
+        this.choice(
+          t('tackle.lure'),
+          [...(slot ? [none] : []), ...LURE_IDS.map((id): [string, string] => [id, lureName(id)])],
+          slot?.lure ?? '',
+          (v) => setSlot(v === '' ? null : slotOf({ ...DEFAULT_TACKLE, lure: v as LureId })),
+        ),
+      );
+      if (slot?.lure === 'jig')
+        editor.append(
+          this.choice(
+            t('tackle.jigWeight'),
+            JIG_WEIGHT_IDS.map((id) => [id, jigWeightName(id)]),
+            slot.variant ?? DEFAULT_TACKLE.jigWeight,
+            (v) => setSlot({ lure: 'jig', variant: v as JigWeightId }),
+          ),
+        );
+      if (slot?.lure === 'wobbler')
+        editor.append(
+          this.choice(
+            t('tackle.crankDepth'),
+            CRANK_DEPTH_IDS.map((id) => {
+              const name = crankDepthName(id);
+              return [id, name.charAt(0).toUpperCase() + name.slice(1)];
+            }),
+            slot.variant ?? DEFAULT_TACKLE.crankDepth,
+            (v) => setSlot({ lure: 'wobbler', variant: v as CrankDepthId }),
+          ),
+        );
+    };
+    render();
+    panel.append(
+      h('h2', t(fly ? 'box.flyTitle' : 'box.title')),
+      h('p', controlText('box.hint'), 'hint'),
+      grid,
+      editor,
+      this.buttons([
+        ...(pack.locked
+          ? []
+          : ([
+              [
+                t('box.beginner'),
+                () => {
+                  const b = beginnerBox();
+                  update(fly ? b.flies : b.lures);
+                },
+              ],
+            ] as [string, () => void][])),
+        [t('common.back'), onBack],
+      ]),
+    );
+    this.show(panel, { back: onBack, focusFirst: true });
+  }
+
+  /** Viehepakin tai perhorasian yhteenvetorivi Varusteet-näkymässä. */
+  private boxSummary(pack: TackleBox, method: Method, onOpen: () => void): HTMLElement {
+    const fly = method === 'fly';
+    const items = fly ? pack.flies : pack.lures;
+    const icons = items.map((item) =>
+      lureImage(typeof item === 'string' ? item : item.lure, '1px'),
+    );
+    return this.summaryRow(
+      t(fly ? 'box.flyTitle' : 'box.title'),
+      [...icons, h('span', t('box.count', { n: items.length, max: BOX_SLOTS }), 'summary-text')],
+      onOpen,
+    );
   }
 
   /** Omat värit omana näkymänään (yksinpelin valmistelu, aula). */
@@ -1446,11 +1652,8 @@ export class Screens {
     }
   }
 
-  /** Tauon Varusteet-näkymä; paluu taukoon. */
-  showPauseTackle(
-    tackle: { current: Tackle; onChange: (t: Tackle) => void },
-    onBack: () => void,
-  ): void {
+  /** Tauon Varusteet-näkymä; paluu taukoon. Kisan viehepakki tulee pelistä. */
+  showPauseTackle(tackle: TackleBinding, onBack: () => void): void {
     this.showTackle('pause-tackle', tackle, 'during', onBack);
   }
 
@@ -1944,6 +2147,7 @@ export class Screens {
     initial: Tackle,
     onChange: (t: Tackle) => void,
     mode: 'before' | 'during',
+    pack: { pack: BoxBinding; open: (method: Method) => void },
   ): HTMLElement {
     const tk = { ...initial };
     const box = document.createElement('div');
@@ -1951,7 +2155,7 @@ export class Screens {
     box.dataset.tackle = mode;
     const rebuild = (next: Tackle) => {
       onChange(next);
-      box.replaceWith(this.tackleEditor(next, onChange, mode));
+      box.replaceWith(this.tackleEditor(next, onChange, mode, pack));
     };
     box.append(
       this.choice(
@@ -1962,6 +2166,8 @@ export class Screens {
       ),
     );
     const fly = tk.method === 'fly';
+    // Viehepakki tai perhorasia (#365): mitkä vieheet R kiertää.
+    box.append(this.boxSummary(pack.pack.current, tk.method, () => pack.open(tk.method)));
     // Vihjeet päivittyvät valinnan mukana.
     const hints: [HTMLElement, () => string][] = [];
     const hint = (text: () => string) => {

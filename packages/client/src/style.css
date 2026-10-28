@@ -929,6 +929,42 @@ textarea,
   margin-right: calc(var(--u) * 3);
 }
 
+/* Viehepakki (#365): kuusi lokeroa ruudukkona, isot ruudut kosketukselle. */
+.box-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.screen-panel .box-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 72px;
+  padding: 6px 4px;
+}
+
+.box-slot.empty {
+  border-style: dashed;
+}
+
+.box-slot.selected {
+  border-color: #f6d04d;
+}
+
+.box-slot-name {
+  font-size: 18px;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.summary-button .lure-art {
+  margin-right: 4px;
+}
+
 /* Varusteet-näkymä: valitun vieheen kuva vihjerivin vieressä. */
 .lure-hint {
   display: flex;
@@ -1183,8 +1219,8 @@ textarea,
   display: inline;
 }
 
-/* Käsimerkkien ympyrävalikko (#228). */
-.emote-menu {
+/* Ympyrävalikko: käsimerkit (#228) ja viehepakki (#365), ui/ringMenu.ts. */
+.ring-menu {
   position: absolute;
   left: 50%;
   top: 50%;
@@ -1198,7 +1234,7 @@ textarea,
   z-index: 3;
 }
 
-.emote-option {
+.ring-option {
   position: absolute;
   width: 64px;
   height: 64px;
@@ -1212,8 +1248,8 @@ textarea,
   cursor: pointer;
 }
 
-.emote-option.selected,
-.emote-option:hover {
+.ring-option.selected,
+.ring-option:hover {
   border-color: #f6d04d;
   background: rgb(60 50 20 / 90%);
 }
@@ -1223,7 +1259,7 @@ textarea,
   height: 48px;
 }
 
-.emote-key {
+.ring-key {
   position: absolute;
   right: 3px;
   bottom: 0;
@@ -1232,7 +1268,7 @@ textarea,
   color: #f6d04d;
 }
 
-.emote-caption {
+.ring-caption {
   position: absolute;
   left: 50%;
   top: 50%;
@@ -1245,6 +1281,16 @@ textarea,
 
 .emote-icon {
   image-rendering: pixelated;
+}
+
+/* Viehepakin pikavalikko (#365): leveämmät napit vieheen kuvalle. */
+.lure-menu .ring-option {
+  width: 76px;
+  height: 52px;
+}
+
+.lure-menu .ring-caption {
+  font-size: 20px;
 }
 
 .screen button:disabled {

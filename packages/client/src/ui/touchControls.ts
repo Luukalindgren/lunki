@@ -101,7 +101,7 @@ export class TouchControls {
     camButton.classList.add('touch-cam');
     const grid = div('touch-grid');
     grid.append(
-      this.tap('lure'),
+      this.hold('lure'),
       this.tap('sonar'),
       this.tap('lureSonar'),
       camButton,
@@ -218,6 +218,23 @@ export class TouchControls {
       e.preventDefault();
       this.controls.tap(action);
     });
+    return b;
+  }
+
+  /**
+   * Pohjassa pidettävä nappi: toiminto on pohjassa niin kauan kuin sormi on
+   * päällä (VIEHE: napautus vaihtaa, pito avaa viehepakin, #365).
+   */
+  private hold(action: Action): HTMLButtonElement {
+    const b = this.labelled(() => action);
+    b.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      b.setPointerCapture(e.pointerId);
+      this.controls.set(action, true);
+    });
+    const up = () => this.controls.set(action, false);
+    b.addEventListener('pointerup', up);
+    b.addEventListener('pointercancel', up);
     return b;
   }
 
