@@ -78,6 +78,7 @@ import { FishingController, SOLO_ID, type FishingHost } from './fishingControlle
 import { HudPresenter, type HudHost } from './hudPresenter';
 import { NetBridge, type NetHost, type NetLink } from './netBridge';
 import { Penalties } from './penalties';
+import { Guide, loadGuide } from './guide';
 import { WeatherController, type WeatherHost } from './weatherController';
 
 export type { NetLink } from './netBridge';
@@ -139,6 +140,8 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
   readonly raceLog = new RaceLog();
   /** Tulossivun tilastot ja palkinnot (#367). */
   readonly raceStatsCounter = new RaceStatsCounter();
+  /** Opastus ensimmäiseen kalaan (#370). */
+  readonly guide = new Guide(loadGuide());
   /** Moninpelin katsoja: ei omaa rengasta, kamera seuraa valittua kalastajaa. */
   readonly spectating: boolean;
   /** Kutsutaan, kun kilpailuaika loppuu. */

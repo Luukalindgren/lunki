@@ -204,6 +204,9 @@ export const en: Record<keyof typeof fi, string> = {
   'settings.tackle': 'Your tackle',
   'settings.changeColors': 'Change colours',
   'settings.display': 'Display',
+  'settings.guide': 'Guide',
+  'settings.guideOn': 'Show from start',
+  'settings.guideOff': 'Off',
   'settings.sound': 'Sound',
   'settings.winRule': 'Winner',
   'settings.maxPlayers': 'Max players',
@@ -548,6 +551,28 @@ export const en: Record<keyof typeof fi, string> = {
   'hud.tension': 'TENSION',
   'hud.stamina': 'STAMINA',
   'hud.compass': 'N,NE,E,SE,S,SW,W,NW',
+  'guide.move':
+    'Guide 1/5: kick to get moving · {forward} = towards your fins · {back} = backwards (fastest)',
+  'guide.row': 'Guide 1/5: row to get moving · {back} = row · {forward} = back water',
+  'guide.cast':
+    'Guide 2/5: cast your lure · {pointer}: aim, hold and release · {castForward} = cast where you look',
+  'guide.reel': 'Guide 3/5: reel the lure back · hold {pointer} or {reel} = reel',
+  'guide.wait':
+    'Guide 3/5: reel steadily and cast again until a fish strikes · {sonar} = sonar shows the fish',
+  'guide.again': 'Guide: cast again · {sonar} = sonar shows the fish',
+  'guide.strike': 'Guide 4/5: a strike! Reel at once ({reel}) to set the hook',
+  'guide.fight':
+    'Guide 5/5: fish on! Reel while it rests · line tight = loosen the drag {dragLess}',
+  'guide.tipLure': 'Tip: {lure} = change lure · different fish like different lures',
+  'guide.tipSonar': 'Tip: {sonar} = sonar · {lureSonar} = lure depth',
+  'guide.flyCast':
+    'Fly guide 1/3: {castForward} = rhythm cast · {backCast} = back, {forwardCast} = forward',
+  'guide.flyStrip': 'Fly guide 2/3: work the fly with strips · {strip} = strip line',
+  'guide.flyWait': 'Fly guide 2/3: strip until a fish takes · {lift} = lift for a new cast',
+  'guide.flyAgain': 'Fly guide: {castForward} = cast again',
+  'guide.flyStrike': 'Fly guide 3/3: a take! Strip line ({strip}) to set the hook',
+  'guide.flyFight':
+    'Fly guide 3/3: fish on! {reelSlack} = slack onto the reel, then reel and tire it with the drag',
   'help.thunder': 'In thunder, reel your lure in and stay close to the shore',
   'help.move': '{forward} = towards your fins · {back} = back first (fastest)',
   'help.turn': '{turn} = turn · {sprint} = sprint kick (tiring) · {anchor} = anchor',

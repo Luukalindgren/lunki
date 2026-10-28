@@ -25,6 +25,7 @@ import type { Hud } from '../ui/hud';
 import { decimal, formatWeight, t } from '../i18n';
 import { describeTackle, speciesName } from '../i18n/names';
 import { controlText } from './controls';
+import type { Guide } from './guide';
 import type { Penalties } from './penalties';
 import { scoreboardLines } from './raceScoreboard';
 
@@ -54,6 +55,7 @@ export interface HudHost {
   readonly flyKeyboard: boolean;
   /** Kulkupelin tilanneohje (paikanvaihto, ankkuri, soutu). */
   readonly craftHint: string | null;
+  readonly guide: Guide;
 }
 
 /** Kalastajan askeleen tilanne HUD:lle. */
@@ -104,6 +106,13 @@ export class HudPresenter {
       crew: host.crewSeats,
     });
     const tangle = s.tangle;
+    // Opastus seuraa pelaajaa joka askeleella, vaikka tärkeämpi ohje on näkyvissä.
+    const guide = host.guide.update(dt, {
+      fishing: f,
+      fly: isFly(f.tackle),
+      pos: tube.pos,
+      seat: !host.inBoat ? 'tube' : host.rower ? 'rower' : 'passenger',
+    });
     // Tilanneohje: mitä nyt pitää tehdä. Yksi kerrallaan, tärkein ensin.
     hud.setSituation(
       tangle
@@ -123,7 +132,7 @@ export class HudPresenter {
                   )}`
             : host.thunderNow && (s.lureOut || f.hookedId !== null)
               ? t('help.thunder')
-              : host.craftHint,
+              : (host.craftHint ?? (guide && controlText(guide))),
     );
     const lureOut = s.lureOut;
     hud.setStatus([

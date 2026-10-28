@@ -44,6 +44,7 @@ import { controlText, type Controls } from './controls';
 import { FlyCastControl, touchToRodPixels } from './flyCastControl';
 import type { FishingView } from './fishingView';
 import { FlyStrip } from './flyStrip';
+import type { Guide } from './guide';
 import type { Penalties } from './penalties';
 import type { PovCamera } from './povCamera';
 import { QuietSpot } from './quietSpot';
@@ -84,6 +85,7 @@ export interface FishingHost {
   readonly fishShadow: FishShadow;
   readonly raceLog: RaceLog;
   readonly raceStatsCounter: RaceStatsCounter;
+  readonly guide: Guide;
   readonly daylight: Daylight;
   /** Sää nyt (kalojen syönti ja ennätysten säätiedot). */
   readonly weatherNow: WeatherNow;
@@ -383,6 +385,7 @@ export class FishingController {
       host.fishing.lure,
       hookedId === null ? null : (host.fish.fish.find((x) => x.id === hookedId) ?? null),
     );
+    host.guide.onEvents(events, isFly(host.fishing.tackle));
     if (events.cast !== undefined) {
       sounds.play('cast', events.cast);
       this.quietSpot.cast(host.tube.pos);
