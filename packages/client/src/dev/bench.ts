@@ -1,6 +1,6 @@
 import type { Input } from '../engine/input';
 import type { RetroRenderer } from '../engine/retroRenderer';
-import type { SoloGame } from '../game/soloGame';
+import type { Game } from '../game/game';
 
 /**
  * Suorituskykytesti (?bench=1): ajaa käsikirjoitetun kierroksen (liikkuminen,
@@ -17,7 +17,7 @@ export class Bench {
   private readonly duration = 30;
 
   constructor(
-    private readonly game: SoloGame,
+    private readonly game: Game,
     private readonly input: Input,
     private readonly retro: RetroRenderer,
     private readonly parent: HTMLElement,

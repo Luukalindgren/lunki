@@ -61,7 +61,7 @@ läppärillä (`?bench=1`, tulos issueen #11).
 5. **Maailman rakentaminen (korjattu, #327 / PR #333).** Järvi, ranta ja maasto
    rakennetaan kerran (`world/staticWorld.ts`), ja sama maailma siirretään
    valikosta kisaan. Maankäytön haku käyttää valmista ruudukkoa
-   (`RingIndex`), ja shaderit käännetään etukäteen (`SoloGame.precompile`).
+   (`RingIndex`), ja shaderit käännetään etukäteen (`Game.precompile`).
    Valikko on valmis 2,0 → 1,5 s, kisan alun nykäys 1,65 → 0,7 s.
    `?bench=1` kertoo nämä kentissä `raceBuildMs` ja `raceCompileMs`.
 6. **Toinen avaus (#328 / PR #334).** Service worker pitää pelin tiedostot

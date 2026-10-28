@@ -153,7 +153,7 @@ export function createWaterWaves() {
     uSwellFade: { value: 0 },
     /**
      * Pohjakuvion siirtymä (m): kuvio ajelehtii tuulen mukana tuulen voimalla,
-     * tyynellä se on paikallaan. Kerätään askel kerrallaan (ks. SoloGame.updateWaves).
+     * tyynellä se on paikallaan. Kerätään askel kerrallaan (ks. WeatherController.updateWaves).
      */
     uDrift: { value: new THREE.Vector2() },
     /** 1 = kalastajan silmin: kaukana vesi vaalenee taivaan heijastuksesta, pohjan sävy vain lähellä. */

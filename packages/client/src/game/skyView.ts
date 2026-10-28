@@ -466,7 +466,7 @@ const DOME_FRAG = /* glsl */ `
   }
 `;
 
-/** Valaistus, jonka SoloGame ottaa käyttöön joka ruudulla. */
+/** Valaistus, jonka peli (WeatherController) ottaa käyttöön joka ruudulla. */
 export interface SkyLighting {
   /** Ympäristövalon ja suoran valon kertoimet. */
   ambient: number;

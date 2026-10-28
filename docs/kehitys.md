@@ -132,6 +132,22 @@ Pelikone on usein kiinni. Vain moninpeli saa vaatia palvelimen.
 - Service worker (`src/sw/`) pitää pelin koodin laitteella, joten
   yksinpeli toimii ilman nettiä, ks. [julkaisu.md](julkaisu.md).
 
+### Pelin rakenne (#371)
+
+Koodi: `packages/client/src/game/game.ts` ja sen osat.
+
+- `Game` kokoaa kisan ja kutsuu osia järjestyksessä:
+  - `WeatherController`: sää, valo, vesi, salamat, isot aallot ja trombit.
+  - `CraftController`: rengas, vene, soutu, ankkuri ja paikanvaihto.
+  - `FishingController`: heitto, kelaus, perho, tapahtumat ja saalis.
+  - `HudPresenter`: mittarit, tilanneohje, tilarivi, luotaimet ja kello.
+  - `NetBridge`: moninpelin viestit, muut pelaajat ja katsoja.
+  - `Penalties`: jäähyt, kumossaolo ja niiden selitys.
+- Uusi toiminto kuuluu siihen osaan, jota se koskee. Osat näkevät pelistä
+  vain oman `…Host`-rajapintansa.
+- Moninpelin erot ovat `NetBridge`-luokassa eivätkä `if (net)`-haaroina
+  muualla, kun se on mahdollista.
+
 ### Äänet (#371)
 
 Koodi: `packages/client/src/audio/sounds.ts`.

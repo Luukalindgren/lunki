@@ -26,7 +26,7 @@ import { startLoop } from './engine/loop';
 import { RetroRenderer, type PaletteMode } from './engine/retroRenderer';
 import { MENU_AMBIENCE } from './audio/ambience';
 import { Sfx } from './audio/sfx';
-import { SoloGame } from './game/soloGame';
+import { Game } from './game/game';
 import { loadTackle, saveTackle } from './game/tackle';
 import { loadAppearance, saveAppearance } from './game/appearance';
 import { Hud } from './ui/hud';
@@ -150,7 +150,7 @@ input.menuOpen = () => screens.open;
 input.menuBack = () => screens.hasBack;
 /** Yksinpeli alkaa oletuksena ilman aikarajaa (#360); moninpelin huoneilla on oma oletuksensa. */
 let settings = loadSettings({ ...DEFAULT_SETTINGS, durationMinutes: UNTIMED });
-let game: SoloGame | null = null;
+let game: Game | null = null;
 let paused = false;
 let bench: Bench | null = null;
 /** Moninpelihuone, jos pelaaja on sellaisessa. */
@@ -180,7 +180,7 @@ function startGame(s: CompetitionSettings, seed = devSeed) {
   const net = session
     ? { world: new NetWorld(session, new WaterBody(LUNKINJARVI)), overlay: app!, canvas }
     : undefined;
-  game = new SoloGame(
+  game = new Game(
     input,
     hud,
     sfx,
@@ -329,7 +329,7 @@ async function showRecords() {
 }
 
 /** Punnituskortti oman kisan suurimmasta kalasta; null, jos saalista ei tullut. */
-function weighCardFor(g: SoloGame): WeighCardInfo | null {
+function weighCardFor(g: Game): WeighCardInfo | null {
   const biggest = g.competition.catches.reduce<CatchRecord | null>(
     (best, c) => (!best || c.weight > best.weight ? c : best),
     null,
@@ -347,11 +347,11 @@ function weighCardFor(g: SoloGame): WeighCardInfo | null {
 }
 
 /** Peli, jonka tilastot on jo lisätty kaikkien kisojen yhteistilastoihin. */
-let lifeRecordedFor: SoloGame | null = null;
+let lifeRecordedFor: Game | null = null;
 let lifeStats: LifetimeStats | null = null;
 
 /** Tulossivun palkinnot ja tilastot (#367); kisa lisätään yhteistilastoihin kerran. */
-function resultsSummary(g: SoloGame, s: NetSession | null): ResultsSummary {
+function resultsSummary(g: Game, s: NetSession | null): ResultsSummary {
   const myId = s ? s.sessionId : 'me';
   const own = g.raceStats();
   const rows = s
@@ -717,7 +717,7 @@ function createRenderer(c: HTMLCanvasElement, parent: HTMLElement): RetroRendere
 }
 
 // Taustakohtaus valikon taakse: tyhjä järvi.
-const menuScene = new SoloGame(
+const menuScene = new Game(
   input,
   hud,
   sfx,
