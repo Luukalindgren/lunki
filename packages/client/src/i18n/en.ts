@@ -22,6 +22,9 @@ export const en: Record<keyof typeof fi, string> = {
   'lure.jig.hint': 'Sinks to the bottom, works with twitches and pauses',
   'lure.spinner': 'Spinner',
   'lure.spinner.hint': 'A small spinner, loved by perch and roach',
+  'lure.weedless': 'Weedless spoon',
+  'lure.weedless.hint':
+    'Weed guard: slides through reeds and weeds for pike, but strikes hook less often',
   'lure.withVariant': '{lure} {variant}',
   'jigWeight.g5': '5 g',
   'jigWeight.g5.hint': 'Sinks slowly and rises when twitched: perch and ruffe in mid-water',
@@ -74,6 +77,9 @@ export const en: Record<keyof typeof fi, string> = {
   'fly.perchStreamer.hint': '5–8 cm: perch, zander and trout',
   'fly.nymph': 'Nymph',
   'fly.nymph.hint': 'Small, sinks near the bottom: roach and trout',
+  'fly.weedlessStreamer': 'Weedless streamer',
+  'fly.weedlessStreamer.hint':
+    'A pike streamer with a weed guard: through reeds and weeds, but strikes hook less often',
   'sky.calm': 'Calm',
   'sky.windy': 'Windy',
   'sky.rain': 'Rain',

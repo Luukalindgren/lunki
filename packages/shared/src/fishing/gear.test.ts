@@ -397,6 +397,78 @@ describe('kivet, kasvustot, risukot ja pohjan laatu (#226)', () => {
     expect(count('jig', null, 'rattle', 'rock')).toBeGreaterThan(25);
     expect(count('jig', null, 'rattle', 'sand')).toBe(0);
   });
+
+  const reeds: Structure = { kind: 'reeds', pos: { x: 22, y: 0 }, radius: 8, height: 2 };
+
+  it('ruoholusikka ei juuri kerää rikkaa eikä tartu kasvustoon ja kaislikkoon (#364)', () => {
+    // Osuus askelista, joina viehe on rikassa.
+    const fouled = (lure: Tackle['lure']) => {
+      let n = 0;
+      let all = 0;
+      for (let seed = 1; seed <= 30; seed++) {
+        const { states } = run(seed, lure, weed);
+        n += states.filter((x) => x.fouled).length;
+        all += states.length;
+      }
+      return n / all;
+    };
+    const spoonFoul = fouled('spoon');
+    expect(spoonFoul).toBeGreaterThan(0.3);
+    expect(fouled('weedless')).toBeLessThan(spoonFoul / 2);
+    const spoonReeds = count('spoon', reeds, 'snagged');
+    expect(spoonReeds).toBeGreaterThan(5);
+    expect(count('weedless', reeds, 'snagged')).toBeLessThan(spoonReeds / 2);
+  });
+
+  it('kivikossa ruohosuoja auttaa vain osittain', () => {
+    const spoon = count('spoon', boulder, 'snagged');
+    const weedless = count('weedless', boulder, 'snagged');
+    expect(weedless).toBeLessThan(spoon);
+    expect(baitOf(tackle({ lure: 'weedless' })).weedGuard).toBeGreaterThan(0.5);
+  });
+
+  it('ruohosuojattuun vieheeseen ja perhoon isku tarttuu harvemmin', () => {
+    const hooks = (t: Tackle) => {
+      let n = 0;
+      for (let seed = 1; seed <= 150; seed++) {
+        const rng = new Rng(seed);
+        const pop: FishPopulation = { fish: [], nextId: 1, tick: 0 };
+        const f = spawnFish(pop, 'pike', { x: 20, y: 0 }, world, rng);
+        f.mode = 'struck';
+        pop.fish.push(f);
+        const s = createFishing(t);
+        s.stage = 'water';
+        s.lure = { x: 20, y: 0 };
+        s.lineLength = 19;
+        const ctx: FishingContext = {
+          tubePos: { x: 0, y: 0 },
+          heading: 0,
+          ...world,
+          fish: { pop, diff: DIFFICULTIES.realistic, rng, strike: f.id },
+        };
+        // Virvelillä kelataan, perholla vedetään siimakädellä.
+        const e = stepFishing(
+          s,
+          {
+            aim: { x: 20, y: 0 },
+            castHeld: false,
+            reel: true,
+            cancel: false,
+            lineHand: true,
+            strip: 0.02,
+          },
+          ctx,
+          DT,
+        );
+        if (e.hooked) n++;
+      }
+      return n;
+    };
+    const spoon = hooks(tackle({ lure: 'spoon' }));
+    expect(hooks(tackle({ lure: 'weedless' }))).toBeLessThan(spoon * 0.85);
+    const streamer = hooks(tackle({ method: 'fly', fly: 'pikeStreamer' }));
+    expect(hooks(tackle({ method: 'fly', fly: 'weedlessStreamer' }))).toBeLessThan(streamer * 0.9);
+  });
 });
 
 describe('jigin paino, vaapun syvyys ja vavan heittopaino (#363)', () => {

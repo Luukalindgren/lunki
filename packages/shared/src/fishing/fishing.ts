@@ -329,6 +329,13 @@ export const SNAG = {
   } satisfies Record<Structure['kind'], number>,
   /** Liejupohjaa laahaavan jigin kevyt tartunta (todennäköisyys sekunnissa). */
   mudRate: 0.15,
+  /** Kuinka paljon ruohosuoja auttaa rakenteittain (1 = täysi suoja). */
+  guardHelp: {
+    rocks: 0.5,
+    boulder: 0.5,
+  } as Partial<Record<Structure['kind'], number>>,
+  /** Ruohosuoja heikentää iskun tarttumista: kerroin = 1 − hookLoss · suoja. */
+  hookLoss: 0.3,
 } as const;
 
 /** Uposkasvustot (#226). */
@@ -759,18 +766,22 @@ function touchBottom(
     const top = bottom - (structure.height ?? 0) - SNAG.nearBottom;
     if (structure.kind === 'reeds' || s.depth >= top) {
       const density = structure.density ?? 1;
+      // Ruohosuoja (#364) auttaa täysin kasvillisuudessa ja risuissa, kivissä vähemmän.
+      // Lanka ja keinuva lapa ohjaavat kasvit ohi, joten rikkaa kertyy vain harvoin.
+      const guard = lure.weedGuard * (SNAG.guardHelp[structure.kind] ?? 1);
       if (
         structure.kind === 'weed' &&
         !s.fouled &&
-        rng.chance(WEED.foulRate * density * often, dt)
+        rng.chance(WEED.foulRate * density * often * (1 - guard) ** 2, dt)
       ) {
         s.fouled = true;
         events.fouled = true;
       }
-      // Kasvusto tarttuu vain tiheänä; vieheen muoto ei siinä auta.
+      // Kasvusto tarttuu vain tiheänä; tavallisen vieheen muoto ei siinä auta.
       const risk =
         SNAG.kindRisk[structure.kind] *
-        (structure.kind === 'weed' ? density * density : lure.snagRisk);
+        (structure.kind === 'weed' ? density * density : lure.snagRisk) *
+        (1 - guard);
       if (risk > 0 && rng.chance(SNAG.rate * risk * often, dt)) {
         snagLure(s, false, events);
         return;
@@ -936,8 +947,11 @@ function resolveStrike(
   if (diff.autoHook || (reeling && s.strikeAge <= window)) {
     s.struckId = null;
     // Vavan nosto ei pistä hauen kovaan suuhun yhtä varmasti kuin siimakäden veto.
+    // Ruohosuojan lanka työntää kalan suuta pois koukusta (#364).
     const chance =
-      diff.hookChance * (f.species === 'pike' && diff.hookChance < 0.8 ? setChance : 1);
+      diff.hookChance *
+      (f.species === 'pike' && diff.hookChance < 0.8 ? setChance : 1) *
+      (1 - SNAG.hookLoss * baitOf(s.tackle).weedGuard);
     if (diff.autoHook || rng.next() < chance) {
       f.mode = 'hooked';
       f.stamina = 1;

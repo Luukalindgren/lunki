@@ -247,11 +247,48 @@ function nymph(frame: number): Shape {
   );
 }
 
+/** Ruoholusikka (#364): lapa keinuu pyörimättä, yksi koukku ja sen suojalanka. */
+function weedless(frame: number): Shape {
+  const ry = 4 + tri(frame) * 0.8;
+  return rotate(
+    (x, y) => {
+      if (Math.abs(Math.hypot(x - 3.5, y - 8) - 1.3) < 0.5) return 0x8e99a4;
+      const r = ry * (0.6 + 0.4 * Math.min(1, (x - 5.5) / 12));
+      if (x >= 5.5 && x <= 22 && inEllipse(x, y, 14, 8, 8.5, r)) {
+        if (frame === 2 && x > 9 && x < 12 && y < 8 - r * 0.3) return 0xeef2f3;
+        return y < 8 ? 0xf6d04d : 0xf08a2c;
+      }
+      // Suojalanka lavan perästä koukun kärjen eteen.
+      if (segDist(x, y, 20.5, 6, 28, 6.5) < 0.45) return 0xeef2f3;
+      return segDist(x, y, 22, 8.5, 25, 10.5) < 0.6 || segDist(x, y, 25, 10.5, 27, 7) < 0.6
+        ? 0x8e99a4
+        : -1;
+    },
+    tri(frame) * 0.1,
+    4,
+    8,
+  );
+}
+
+/** Ruohostreameri (#364): hauki-streameri, jonka koukkua suojaa lanka. */
+function weedlessStreamer(frame: number): Shape {
+  const body = streamer(frame, {
+    head: 0x24502c,
+    from: 3,
+    to: 28,
+    top: 0xa3c45a,
+    bottom: 0xeef2f3,
+    flash: 0xf6d04d,
+  });
+  return (x, y) => (segDist(x, y, 5, 10, 11.5, 13.2) < 0.45 ? 0xc3cbd2 : body(x, y));
+}
+
 const SHAPES: Record<LureArtId, (frame: number) => Shape> = {
   spoon,
   wobbler,
   jig,
   spinner,
+  weedless,
   pikeStreamer: (f) =>
     streamer(f, {
       head: 0xd23a2a,
@@ -272,6 +309,7 @@ const SHAPES: Record<LureArtId, (frame: number) => Shape> = {
       flash: 0xf08a2c,
     }),
   nymph,
+  weedlessStreamer,
 };
 
 export const LURE_ART_IDS: LureArtId[] = [...LURE_IDS, ...FLY_IDS];

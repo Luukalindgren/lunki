@@ -23,6 +23,9 @@ export const fi = {
   'lure.jig.hint': 'Painuu pohjaan, toimii nykien ja tauottaen',
   'lure.spinner': 'Lippa',
   'lure.spinner.hint': 'Pieni lippa, ahvenen ja särjen suosikki',
+  'lure.weedless': 'Ruoholusikka',
+  'lure.weedless.hint':
+    'Ruohosuojattu: liukuu kaislojen ja kasvuston läpi hauelle, mutta isku tarttuu harvemmin',
   'lure.withVariant': '{lure} {variant}',
   'jigWeight.g5': '5 g',
   'jigWeight.g5.hint': 'Vajoaa hitaasti ja nousee nykäistessä: ahven ja kiiski välivedessä',
@@ -77,6 +80,9 @@ export const fi = {
   'fly.perchStreamer.hint': '5–8 cm: ahven, kuha ja taimen',
   'fly.nymph': 'Nymfi',
   'fly.nymph.hint': 'Pieni, vajoaa pohjan tuntumaan: särki ja taimen',
+  'fly.weedlessStreamer': 'Ruohostreameri',
+  'fly.weedlessStreamer.hint':
+    'Hauki-streameri ruohosuojalla: läpi kaislojen ja kasvuston, mutta isku tarttuu harvemmin',
   'sky.calm': 'Tyyni',
   'sky.windy': 'Tuulinen',
   'sky.rain': 'Sade',
