@@ -20,7 +20,7 @@ export const FIREFOX_WEBGL = {
   firefoxUserPrefs: { 'webgl.force-enabled': true },
 };
 
-const MULTIPLAYER = /moninpeli\.spec\.ts/;
+const MULTIPLAYER = /(moninpeli|venekisa)\.spec\.ts/;
 
 export default defineConfig({
   testDir: 'e2e',
@@ -50,9 +50,9 @@ export default defineConfig({
       { name: 'iphone', use: { ...devices['iPhone 15'] } },
       { name: 'android', use: { ...devices['Pixel 7'], launchOptions: SWIFTSHADER } },
     ].map((p) => ({ ...p, testIgnore: MULTIPLAYER })),
-    // Moninpelitesti käynnistää Chromiumin lisäksi Firefoxin ja WebKitin. Omana
-    // projektinaan (ja CI:ssä omana ajonaan), koska kolme ohjelmistorenderöivää
-    // selainta kerralla tukehdutti rinnalla ajetut testit.
+    // Moninpelitestit avaavat useita selaimia (moninpeli.spec myös Firefoxin ja
+    // WebKitin). Omana projektinaan (ja CI:ssä omana ajonaan), koska kolme
+    // ohjelmistorenderöivää selainta kerralla tukehdutti rinnalla ajetut testit.
     {
       name: 'moninpeli',
       testMatch: MULTIPLAYER,

@@ -4,15 +4,9 @@ import { watchErrors } from './apu';
 /**
  * Venekisa (#263): isäntä valitsee aulassa veneet, vieras siirtyy isännän
  * veneeseen perään, ja kisassa vieras on kyydissä: soutaminen ei onnistu,
- * ja tilanneohje kertoo sen. Ajetaan kerran, chromium-projektissa.
+ * ja tilanneohje kertoo sen. Ajetaan moninpeli-projektissa (playwright.config.ts).
  */
-test('venekisa: kaksi kalastajaa samassa veneessä', async ({
-  page: host,
-  browser,
-  browserName,
-  isMobile,
-}) => {
-  test.skip(browserName !== 'chromium' || isMobile, 'ajetaan kerran, chromium-projektissa');
+test('venekisa: kaksi kalastajaa samassa veneessä', async ({ page: host, browser }) => {
   test.setTimeout(120_000);
   const hostErrors = watchErrors(host);
   const guest: Page = await (await browser.newContext()).newPage();

@@ -173,5 +173,6 @@ mennyt testi (`flaky` CI:n lokissa) on vika, joka korjataan.
 - **Palvelin on yhteinen.** Kaikki projektit, toistot ja uusinnat käyttävät
   samaa pelipalvelinta. Testin oma ennätys tehdään painavammaksi kuin listan
   kärki (`topWeight`), ettei se putoa viiden kalan listalta.
-- **Raskaat testit erikseen.** Moninpelitesti käynnistää kolme selainta, joten
-  se on oma Playwright-projektinsa `moninpeli` ja oma CI-ajonsa.
+- **Raskaat testit erikseen.** Moninpelitestit avaavat useita selaimia, joten
+  ne ovat oma Playwright-projektinsa `moninpeli` ja oma CI-ajonsa
+  (`MULTIPLAYER` tiedostossa `playwright.config.ts`).
