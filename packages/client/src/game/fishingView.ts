@@ -25,8 +25,8 @@ import {
 import { lureColor } from './lureColor';
 import { FLY_LINE_POINTS, flyLinePose, flyLineProfile, flyLineWorld } from './flyLine';
 import { flyRodTip } from './povRod';
+import { SplashRings } from './splashRings';
 
-const SPLASH_TIME = 0.6;
 /** Siiman piirtokorkeus pinnalla. */
 const SURFACE_Y = 0.04;
 /** Siiman kärkivälit: ilmassa roikkuva osuus ja pinnalla lepäävät pisteet. */
@@ -47,10 +47,8 @@ export class FishingView {
   /** Perhosiima ja perho ilmassa heiton aikana (#236). */
   private readonly flyLine: THREE.Line;
   private readonly fly: THREE.Mesh;
-  private readonly splash: THREE.Mesh;
+  private readonly splash = new SplashRings();
   private readonly fishShadow: THREE.Mesh;
-  private splashAge = Infinity;
-  private splashSize = 1;
   private readonly flyPoints: LinePoint[] = [];
   /** Siiman kireys tasoitettuna, ettei roikkuma hypi jännityksen mukana. */
   private taut = 0;
@@ -106,12 +104,7 @@ export class FishingView {
     this.fly.visible = false;
     this.group.add(this.fly);
 
-    this.splash = new THREE.Mesh(
-      new THREE.RingGeometry(0.8, 1, 12),
-      new THREE.MeshBasicMaterial({ color: 0xeef2f3, transparent: true }),
-    );
-    this.splash.rotation.x = -Math.PI / 2;
-    this.group.add(this.splash);
+    this.group.add(this.splash.group);
 
     // Pinnan lähellä väsytettävä kala näkyy tummana varjona.
     const shape = new THREE.Shape();
@@ -137,9 +130,7 @@ export class FishingView {
 
   /** Roiske osumakohtaan; `size` < 1 = perhon pieni roiske (#236). */
   startSplash(at: Vec2, size = 1): void {
-    this.splash.position.copy(toWorld(at, 0.05));
-    this.splashAge = 0;
-    this.splashSize = size;
+    this.splash.start(at, size);
   }
 
   /** Perho ilmassa heiton aikana (muiden pelaajien tiedoksi), null = ei heittoa. */
@@ -233,13 +224,7 @@ export class FishingView {
       );
     }
 
-    this.splashAge += dt;
-    this.splash.visible = this.splashAge < SPLASH_TIME;
-    if (this.splash.visible) {
-      const t = this.splashAge / SPLASH_TIME;
-      this.splash.scale.setScalar((0.4 + t * 1.6) * this.splashSize);
-      (this.splash.material as THREE.MeshBasicMaterial).opacity = 1 - t;
-    }
+    this.splash.update(dt);
   }
 
   /** Perhoheitossa siima ilmassa silmukkana vavan kärjestä perhoon (#236). */

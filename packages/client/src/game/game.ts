@@ -862,7 +862,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
         pos: this.seatSlides.place(o.id, o.boat, o.seat, o.pos, now),
         roll: o.roll + this.seatSlides.rock(o.boat, now),
       }));
-      this.net.remoteView.update(shown, this.camera, this.net.link.canvas);
+      this.net.remoteView.update(shown, this.camera, this.net.link.canvas, this.tube.pos);
     }
     this.anchorView.update(anchored);
     this.placeOwnBubble();
