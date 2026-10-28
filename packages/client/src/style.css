@@ -223,7 +223,7 @@ textarea,
 }
 
 /* Tumma tausta tekstin kokoisena, jotta ilmoitus erottuu kaiken päällä. */
-.hud-message span {
+.hud-message > span {
   display: inline-block;
   background: rgb(11 15 20 / 55%);
   padding: 0 calc(var(--u) * 3);
@@ -900,6 +900,50 @@ textarea,
 
 .catch-list .fish-art {
   margin-left: 12px;
+}
+
+/*
+ * Vieheen kuva (#362): ikkuna, jonka takana kuvaliuska siirtyy askelin.
+ * Kuvia on 8 (LURE_FRAMES), ja liuska liikkuu oman leveytensä verran.
+ */
+.lure-art {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: middle;
+}
+
+.lure-art img {
+  display: block;
+  max-width: none;
+  image-rendering: pixelated;
+  animation: lure-strip 0.8s steps(8) infinite;
+}
+
+@keyframes lure-strip {
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+.hud-message .lure-art {
+  margin-right: calc(var(--u) * 3);
+}
+
+/* Varusteet-näkymä: valitun vieheen kuva vihjerivin vieressä. */
+.lure-hint {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lure-hint .hint {
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lure-art img {
+    animation: none;
+  }
 }
 
 /*
