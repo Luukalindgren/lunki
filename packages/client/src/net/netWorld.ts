@@ -186,6 +186,8 @@ export class NetWorld {
       anchor?: AnchorState;
       /** Paikka, johon hän haluaa vaihtaa (#357); null = ei pyyntöä. */
       seatAsk: number | null;
+      /** Vieheen vaihe edellisessä tilassa: lennosta veteen = roiske (#371). */
+      lureStage: number;
     }
   >();
   /** Oma paikka veneessä; 0/0 = kelluntarengas. */
@@ -234,7 +236,9 @@ export class NetWorld {
   onEmote: ((msg: EmoteMessage) => void) | null = null;
   onChatBubble: ((msg: ChatMessage) => void) | null = null;
   /** Uusi punnittu saalis kisan aikana ja saajan paikka (tulossivun karttaan, tunnisteena nimi). */
-  onCatchSeen: ((mark: RaceCatchMark) => void) | null = null;
+  onCatchSeen: ((mark: RaceCatchMark, own: boolean) => void) | null = null;
+  /** Toisen pelaajan viehe putosi veteen (roiskeen ääni, #371). */
+  onRemoteSplash: ((pos: Vec2) => void) | null = null;
 
   constructor(
     private readonly session: NetSession,
@@ -544,6 +548,7 @@ export class NetWorld {
           seatAsk: null,
           vel: { x: 0, y: 0 },
           capsizedUntil: 0,
+          lureStage: p.lureStage,
         };
         this.peerConnected.set(id, p.connected);
         this.remotes.set(id, r);
@@ -559,6 +564,9 @@ export class NetWorld {
       r.vel = { x: p.vx, y: p.vy };
       r.capsizedUntil = p.capsizedUntil;
       r.anchor = anchorFromNet(p);
+      if (r.lureStage === LureStage.flight && p.lureStage === LureStage.water)
+        this.onRemoteSplash?.({ x: p.lureX, y: p.lureY });
+      r.lureStage = p.lureStage;
       const was = this.peerConnected.get(id);
       if (was !== undefined && was !== p.connected) this.onPeerConnection?.(p.name, p.connected);
       this.peerConnected.set(id, p.connected);
@@ -593,14 +601,17 @@ export class NetWorld {
       // Ennen liittymistä nostettujen (ja uudelleen läpi käytävien) kalojen paikkaa ei tiedetä.
       const p = first || replay ? undefined : s.players.get(c.player);
       if (p)
-        this.onCatchSeen?.({
-          id: c.angler,
-          pos: { x: p.x, y: p.y },
-          species: c.species as RaceCatchMark['species'],
-          name: c.name,
-          weight: c.weight,
-          time: c.time,
-        });
+        this.onCatchSeen?.(
+          {
+            id: c.angler,
+            pos: { x: p.x, y: p.y },
+            species: c.species as RaceCatchMark['species'],
+            name: c.name,
+            weight: c.weight,
+            time: c.time,
+          },
+          c.player === this.session.sessionId,
+        );
     }
     this.seenCatches = catches.length;
   }

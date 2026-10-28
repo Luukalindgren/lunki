@@ -22,6 +22,8 @@ export class Sfx {
   private ambience: Ambience | null = null;
   private music: Music | null = null;
   private settings: AudioSettings = loadAudioSettings();
+  /** Tehosteiden voimakkuuskerroin `withGain`-kutsun ajan (kaukaiset äänet). */
+  private level = 1;
   muted = false;
 
   /** Kutsutaan käyttäjän syötteestä. */
@@ -88,6 +90,17 @@ export class Sfx {
   voice(id: VoiceId, opts?: VoiceOptions): void {
     if (this.muted || this.settings.voice === 0) return;
     this.voices?.play(id, opts);
+  }
+
+  /** Soittaa `play`-kutsun tehosteet voimakkuudella `gain` (0–1). */
+  withGain(gain: number, play: () => void): void {
+    const prev = this.level;
+    this.level = gain;
+    try {
+      play();
+    } finally {
+      this.level = prev;
+    }
   }
 
   /** Tapahtumien repliikit vain, jos pelaaja on ne valinnut. */
@@ -213,7 +226,7 @@ export class Sfx {
     const src = this.ctx.createBufferSource();
     src.buffer = buffer;
     const gain = this.ctx.createGain();
-    gain.gain.value = volume;
+    gain.gain.value = volume * this.level;
     src.connect(gain).connect(this.thunderBus);
     src.start(this.ctx.currentTime + delay);
   }
@@ -241,7 +254,7 @@ export class Sfx {
     osc.type = type;
     osc.frequency.setValueAtTime(freq, t);
     if (endFreq) osc.frequency.exponentialRampToValueAtTime(endFreq, t + duration);
-    gain.gain.setValueAtTime(volume, t);
+    gain.gain.setValueAtTime(volume * this.level, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
     osc.connect(gain).connect(this.master);
     osc.start(t);
@@ -259,7 +272,7 @@ export class Sfx {
     const src = this.ctx.createBufferSource();
     src.buffer = buffer;
     const gain = this.ctx.createGain();
-    gain.gain.value = volume;
+    gain.gain.value = volume * this.level;
     const filter = this.ctx.createBiquadFilter();
     filter.type = 'lowpass';
     filter.frequency.value = cutoff;

@@ -128,7 +128,8 @@ import { MistView } from './mistView';
 import { capsizeRoll, type NetWorld } from '../net/netWorld';
 import { RemotePlayersView } from './remotePlayersView';
 import type { Sfx } from '../audio/sfx';
-import { voiceFalloff, type VoiceId } from '../audio/voice';
+import { Sounds } from '../audio/sounds';
+import type { VoiceId } from '../audio/voice';
 import type { Hud } from '../ui/hud';
 import { fishLengthCm } from '../ui/fishArt';
 import { FishingView } from './fishingView';
@@ -194,6 +195,8 @@ const OUT_END_DELAY = 5;
  */
 export class SoloGame {
   readonly scene = new THREE.Scene();
+  /** Pelin äänet äänikartan kautta (audio/sounds.ts). */
+  private readonly sounds: Sounds;
   readonly view = new TopDownCamera();
   /** Näppäimet ja kosketusnapit toimintoina (game/controls.ts). */
   private readonly controls: Controls;
@@ -350,7 +353,7 @@ export class SoloGame {
   constructor(
     private readonly input: Input,
     private readonly hud: Hud,
-    private readonly sfx: Sfx,
+    sfx: Sfx,
     /** Muuntaa näytön CSS-pikselin sisäiseksi pikseliksi. */
     private readonly screenToInternal: (x: number, y: number) => { x: number; y: number },
     readonly settings: CompetitionSettings,
@@ -359,6 +362,7 @@ export class SoloGame {
     private readonly net?: NetLink,
   ) {
     this.controls = new Controls(input);
+    this.sounds = new Sounds(sfx);
     this.appearance = net?.world.ownAppearance ?? loadAppearance();
     this.tubeMesh = createTubeMesh(this.appearance);
     this.fishing = createFishing(net?.world.ownTackle ?? loadTackle());
@@ -490,7 +494,11 @@ export class SoloGame {
         for (const id of m.victims) this.logCapsize(net.world.playerPos(id));
         if (m.victims.includes(net.world.myId)) this.onCapsize('wave');
       };
-      net.world.onCatchSeen = (mark) => this.raceLog.addCatch(mark);
+      net.world.onCatchSeen = (mark, own) => {
+        this.raceLog.addCatch(mark);
+        if (!own) this.sounds.playAt('caught', mark.pos, this.ear);
+      };
+      net.world.onRemoteSplash = (pos) => this.sounds.playAt('lureSplash', pos, this.ear);
       net.world.onUntangled = (m) => this.onUntangled(m, net.world.myId);
       net.world.onRecord = (m) => this.onRecord(m, net.world.myId);
       net.world.onRemoteCatch = (tag, angler) => {
@@ -629,7 +637,7 @@ export class SoloGame {
   /** Rangaistus omasta osumasta. Moninpelissä palvelin pitää jäähyn ja saaliit. */
   private punish(penalty: Penalty, label: string): string {
     resetFishing(this.fishing, this.fishCtx);
-    this.sfx.lost();
+    this.sounds.play('penalty');
     const outcome = penaltyOutcome(penalty, this.competition.elapsed);
     if (outcome.outUntil > 0) this.outLabel = label;
     if (!this.net) this.outUntil = Math.max(this.outUntil, outcome.outUntil);
@@ -664,7 +672,7 @@ export class SoloGame {
       this.spoutsSeen = born;
       if (spots.length > 0) {
         this.hud.showMessage(t('game.spoutSeen'), 3, 'alert');
-        this.sfx.rumble();
+        this.sounds.play('spoutSeen');
       }
     }
     if (!this.net && spoutAffects(this.capsizedUntil, now)) {
@@ -712,7 +720,7 @@ export class SoloGame {
       const wave = this.bigWaves[this.nextWave++]!;
       const h = height(wave);
       // Kisaan palatessa ohi menneet aallot eivät kuulu kerralla.
-      if (felt(h) && now - wave.t < 1) this.sfx.wave();
+      if (felt(h) && now - wave.t < 1) this.sounds.play('bigWave');
       const dir = bigWaveDir(wave, w.windDir);
       const over = this.inBoat ? boatCapsizes : capsizes;
       if (!this.net && this.capsizeLeft === 0 && over(this.tube.heading, dir, h)) {
@@ -770,9 +778,8 @@ export class SoloGame {
     if (!w) return null;
     const tangle = w.tangle;
     if (tangle && !this.wasTangled) {
-      this.sfx.strike();
+      this.sounds.play('tangled');
       this.hud.showMessage(t('game.tangled', { name: tangle.with }), 3, 'alert');
-      this.sfx.eventVoice('tangled');
     }
     this.wasTangled = tangle !== null;
     this.knots.update(w.tangles());
@@ -789,7 +796,7 @@ export class SoloGame {
       this.hud.showMessage(hooked ? t('game.untangledLost') : t('game.untangled'), 2.5);
     } else if (m.by === me) {
       resetFishing(this.fishing, this.fishCtx);
-      this.sfx.lost();
+      this.sounds.play('lineCutFree');
       this.hud.showMessage(t('game.youCut'), 2);
     } else {
       this.hud.showMessage(t('game.otherCut', { name: this.net!.world.playerName(m.by) }), 2.5);
@@ -824,7 +831,7 @@ export class SoloGame {
     if (k >= 1 || k < 0) {
       this.flight = null;
       if (k >= 1) {
-        this.sfx.splash();
+        this.sounds.play('landing');
         this.fishingView.startSplash(this.tube.pos);
       }
       return null;
@@ -837,8 +844,7 @@ export class SoloGame {
     this.capsizedAt = this.competition.elapsed;
     // Moninpelissä kaatumiset kirjataan palvelimen viesteistä kaikille.
     if (!this.net) this.logCapsize(this.flight?.from ?? this.tube.pos);
-    if (cause === 'spout') this.sfx.wave();
-    this.sfx.eventVoice('capsized');
+    this.sounds.play(cause === 'spout' ? 'spoutCapsized' : 'capsized');
     const kind = this.settings.capsizePenalty ?? 'none';
     const penalty = this.punish(kind, t('game.capsizeTimeOut'));
     // Syy ja ohje kumossa-ajastimen alle; jäähy näkyy omana rivinään.
@@ -894,8 +900,8 @@ export class SoloGame {
     this.flashStrength = d < 150 ? 1 : d < 400 ? 0.9 : d < 1000 ? 0.65 : 0.45;
     this.shakeStrength = Math.max(0, 1 - d / 500);
     this.flashInvert = d < 60;
-    this.sfx.thunder(d, d / LIGHTNING.soundSpeed);
-    if (d < 150) this.sfx.eventVoice('lightning');
+    this.sounds.play('thunder', d);
+    if (d < 150) this.sounds.play('lightningClose');
     if (!hitMe) return;
     const kind = this.settings.lightningPenalty ?? 'none';
     const penalty = this.punish(kind, t('game.lightningTimeOut'));
@@ -920,7 +926,7 @@ export class SoloGame {
         ? this.syncCompetition()
         : stepCompetition(this.competition, dt) || this.outOfSession()
     ) {
-      this.sfx.caught();
+      this.sounds.play('finished');
       this.onFinished?.();
       return;
     }
@@ -1261,12 +1267,12 @@ export class SoloGame {
     }));
     this.updateTimer();
     this.updateWeather(dt);
-    this.sfx.updateAmbience(dt, { ...this.weather.now, ...this.daylight, spout: this.spoutNear });
+    this.sounds.ambience(dt, { ...this.weather.now, ...this.daylight, spout: this.spoutNear });
     // Potkuvaihe kiertää 0–1; kumpikin räpylä loiskahtaa kerran kierroksessa.
     const strokes = Math.floor(this.tube.kickPhase * 2);
     if (strokes !== this.strokes) {
       this.strokes = strokes;
-      this.sfx.paddle();
+      this.sounds.play('paddle');
     }
     if (this.net) {
       this.updateRaceHud();
@@ -1301,7 +1307,7 @@ export class SoloGame {
         : { metersPerPixel: this.view.metersPerPixel, width: this.view.width },
       {
         message: (text) => this.hud.showMessage(text, 3, 'alert'),
-        rumble: () => this.sfx.rumble(),
+        rumble: () => this.sounds.play('distantThunder'),
       },
     );
     this.thunderNow = w.sky === 'thunder' || w.sky === 'storm';
@@ -1441,23 +1447,24 @@ export class SoloGame {
     const now = performance.now();
     if (now - this.lastHiss < 90) return;
     this.lastHiss = now;
-    this.sfx.lineHiss();
+    this.sounds.play('lineHiss');
   }
 
   /** Perhoheiton tapahtumat (#235): viuhahdukset, nykäys ja virheiden ilmoitukset. */
   private handleFlyCast(ev: FlyCastEvents): void {
-    const { hud, sfx } = this;
+    const { hud, sounds } = this;
     const cast = this.fishing.flyCast;
     // Siima suhisee silmukan aukeamisen ajan (#236).
     if (ev.stop)
-      sfx.flySwish(
+      sounds.play(
+        'flySwish',
         ev.stop.speed / FLY_CAST.maxLineSpeed,
         cast?.phase === 'loop' ? cast.loopTime : 0.3,
       );
     // Siima suoristui: vaimea nykäys vavassa.
-    if (ev.straight) sfx.flyTug();
+    if (ev.straight) sounds.play('flyTug');
     if (ev.slipped) this.hiss();
-    if (ev.crack) sfx.flyCrack();
+    if (ev.crack) sounds.play('flyCrack');
     if (ev.crack && !ev.flyLost) {
       hud.showMessage(t('game.flyCrack'), 2);
     }
@@ -1465,7 +1472,7 @@ export class SoloGame {
     if (ev.collapsed) hud.showMessage(t('game.flyCollapsed'), 2);
     else if (ev.fell) hud.showMessage(t('game.flyFell'), 2);
     if (ev.snagBehind || ev.hat) {
-      sfx.strike();
+      sounds.play('flySnag');
       hud.showMessage(ev.hat ? t('game.flyHat') : t('game.flySnagBehind'), 2.5);
     }
     if (ev.landed) {
@@ -1485,9 +1492,9 @@ export class SoloGame {
     reeling: boolean,
     dt: number,
   ): void {
-    const { hud, sfx } = this;
+    const { hud, sounds } = this;
     if (events.cast !== undefined) {
-      sfx.cast(events.cast);
+      sounds.play('cast', events.cast);
       this.quietSpot.cast(this.tube.pos);
     }
     if (follow || events.strike) this.quietSpot.noticed();
@@ -1498,31 +1505,30 @@ export class SoloGame {
       const tk = this.fishing.tackle;
       const big = !isFly(tk) || tk.fly === 'popper';
       this.fishingView.startSplash(events.splash, isFly(tk) ? (big ? 0.7 : 0.4) : 1);
-      if (isFly(tk)) sfx.flyLand(big);
-      else sfx.splash();
+      if (isFly(tk)) sounds.play('flyLand', big ? 1 : 0);
+      else sounds.play('lureSplash');
       this.net?.world.sendSplash(events.splash);
     }
-    if (follow) sfx.tick();
+    if (follow) sounds.play('follow');
     if (events.strike) {
-      sfx.strike();
+      sounds.play('strike');
       hud.showMessage(t('game.strike'), 1.2);
     }
     if (events.hooked) {
-      sfx.hooked();
+      sounds.play('hooked');
       hud.showMessage(t('game.hooked'), 1.5);
     }
     const flyGear = isFly(this.fishing.tackle);
     if (events.missed) {
       hud.showMessage(flyGear ? t('game.missedFly') : t('game.missed'), 2);
-      sfx.eventVoice('missed');
+      sounds.play('missed');
     }
     if (events.jumped) {
-      sfx.splash();
+      sounds.play('jumped');
       hud.showMessage(t('game.jumped'), 1.5);
     }
     if (events.escaped) {
-      sfx.lost();
-      sfx.eventVoice('escaped');
+      sounds.play('escaped');
       hud.showMessage(t('game.escaped'), 2.5);
     }
     if (events.tackleChanged) {
@@ -1542,29 +1548,25 @@ export class SoloGame {
     if (events.flyCast) this.handleFlyCast(events.flyCast);
     if (events.pickupFar) hud.showMessage(t('game.flyPickupFar', { m: FLY_CAST.pickupMax }), 2);
     if (events.flyTangle) {
-      sfx.lost();
+      sounds.play('flyTangle');
       hud.showMessage(t('game.flyTangle'), 2.5);
     }
-    if (events.pop) sfx.pop();
+    if (events.pop) sounds.play('pop');
     // Kala vie siimaa sormien läpi.
     if (this.fishing.fingerSlip) this.hiss();
     if (events.snagged) {
-      sfx.strike();
-      sfx.eventVoice('snagged');
+      sounds.play('snagged');
       hud.showMessage(flyGear ? t('game.snaggedFly') : t('game.snagged'), 2);
     }
     if (events.unsnagged) hud.showMessage(t('game.unsnagged'), 1.5, 'info');
     if (events.fouled) {
       hud.showMessage(t('game.fouled'), 2.5);
-      sfx.eventVoice('fouled');
+      sounds.play('fouled');
     }
-    if (events.rattle) sfx.rattle();
-    if (events.stuck) {
-      sfx.strike();
-      sfx.eventVoice('stuck');
-    }
+    if (events.rattle) sounds.play('rattle');
+    if (events.stuck) sounds.play('stuck');
     if (events.lineCut) {
-      sfx.lost();
+      sounds.play('lineCut');
       const wait = this.settings.landPenalty ?? 0;
       if (wait > 0) {
         this.outUntil = Math.max(this.outUntil, this.competition.elapsed + wait);
@@ -1575,21 +1577,19 @@ export class SoloGame {
       if (wait > 0) this.setPenaltyNote(`${t('game.lineCut')} · ${t('game.lureOnLand')}`);
       else hud.showMessage(`${t('game.lineCut')}\n${t('game.lureOnLand')}`, 3);
     } else if (events.bitOff) {
-      sfx.lost();
-      sfx.eventVoice('bitOff');
+      sounds.play('bitOff');
       hud.showMessage(t('game.bitOff'), 3.5);
     } else if (events.lureLost) {
-      sfx.lost();
-      sfx.eventVoice('lureLost');
+      sounds.play('lureLost');
       hud.showMessage(events.flyCast?.flyLost ? t('game.flyLost') : t('game.lureLost'), 3);
     } else if (events.lineBroken) {
-      sfx.lost();
-      sfx.eventVoice('lineBroken');
+      sounds.play('lineBroken');
       hud.showMessage(flyGear ? controlText('game.lineBrokenFly') : t('game.lineBroken'), 3);
     }
     if (events.caught) {
-      sfx.caught();
-      if (sizeClass(events.caught.species, events.caught.weight) >= 3) sfx.eventVoice('bigCatch');
+      sounds.play(
+        sizeClass(events.caught.species, events.caught.weight) >= 3 ? 'bigCatch' : 'caught',
+      );
       this.net?.world.sendCatch(events.caught);
       const record = recordCatch(this.competition, events.caught, this.tube.pos);
       // Moninpelissä saaliit tulevat kartalle palvelimen punnitsemina (onCatchSeen).
@@ -1621,10 +1621,10 @@ export class SoloGame {
         events.caught,
       );
     }
-    if (this.fishing.dragSlipping) sfx.dragSlip();
+    if (this.fishing.dragSlipping) sounds.play('dragSlip');
     this.reelClickTimer -= dt;
     if (reeling && this.reelClickTimer <= 0) {
-      sfx.reelClick();
+      sounds.play('reelClick');
       this.reelClickTimer = 0.09 / (this.fishing.gear + 1);
     }
   }
@@ -1897,7 +1897,7 @@ export class SoloGame {
       this.emoteMenu.onPick = (id) => this.emote(id);
     }
     this.emoteMenu.toggle();
-    this.sfx.preloadVoices(EMOTES);
+    this.sounds.preloadVoices(EMOTES);
   }
 
   /** Tekee käsimerkin: oma animaatio ja kupla, moninpelissä muille. */
@@ -1908,7 +1908,7 @@ export class SoloGame {
     }
     this.emoting = { id, start: performance.now() };
     this.showOwnBubble({ emote: id });
-    this.sfx.voice(id, { speaker: 'me' });
+    this.sounds.voice(id);
     this.net?.world.sendEmote(id);
   }
 
@@ -1917,14 +1917,16 @@ export class SoloGame {
    * kuulu) ja tulee kameran suunnasta katsottuna vasemmalta tai oikealta.
    */
   private speakAt(id: VoiceId, speaker: string, at: Vec2): void {
-    // Katsoja kuulee kameran kohdalta, pelaaja oman renkaansa kohdalta.
-    const cam = this.camera.position;
-    const ear = this.spectating ? { x: cam.x, y: -cam.z } : this.tube.pos;
-    const gain = voiceFalloff(distance(at, ear));
-    if (gain <= 0) return;
+    const ear = this.ear;
     const local = toWorld(at, 1).applyMatrix4(this.camera.matrixWorldInverse);
     const side = local.x / Math.max(4, Math.hypot(local.x, local.z));
-    this.sfx.voice(id, { gain, pan: side * 0.8, speaker });
+    this.sounds.voiceAt(id, speaker, distance(at, ear), side * 0.8);
+  }
+
+  /** Kuuntelupaikka: katsoja kuulee kameran kohdalta, pelaaja oman renkaansa kohdalta. */
+  private get ear(): Vec2 {
+    const cam = this.camera.position;
+    return this.spectating ? { x: cam.x, y: -cam.z } : this.tube.pos;
   }
 
   private get emoteActive(): boolean {

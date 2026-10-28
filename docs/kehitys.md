@@ -131,6 +131,19 @@ Pelikone on usein kiinni. Vain moninpeli saa vaatia palvelimen.
 - Service worker (`src/sw/`) pitää pelin koodin laitteella, joten
   yksinpeli toimii ilman nettiä, ks. [julkaisu.md](julkaisu.md).
 
+### Äänet (#371)
+
+Koodi: `packages/client/src/audio/sounds.ts`.
+
+- **Pelin tapahtumien äänet vain äänikartan `SOUNDS` kautta**
+  (`sounds.play('escaped')`): kartta päättää tehosteen ja kalastajan
+  repliikin. Peli ei kutsu `Sfx`-tehosteita suoraan.
+- Muiden pelaajien tapahtumat soivat samoilla äänillä etäisyyden mukaan
+  hiljempaa (`sounds.playAt`, kantama `EFFECT_RANGE`), ja muiden puhe
+  kuuluu käsimerkeistä (`voiceAt`).
+- Uusi ääni on uusi rivi karttaan. Väylät (tehosteet, ympäristö, musiikki,
+  puhe, ukkonen) ja niiden voimakkuudet ovat `Sfx`-luokassa.
+
 ### Tekstit ja nimet
 
 - Pelaajan näkemät tekstit vain sanakirjoissa `packages/client/src/i18n/`
