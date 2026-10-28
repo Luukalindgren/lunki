@@ -11,6 +11,7 @@ export type Effect =
   | 'lost'
   | 'caught'
   | 'splash'
+  | 'plip'
   | 'wave'
   | 'rumble'
   | 'pop'
@@ -53,6 +54,10 @@ export const SOUNDS = {
   rattle: { effect: 'rattle' },
   pop: { effect: 'pop' },
   lureSplash: { effect: 'splash' },
+  // Kalojen merkit pinnalla (#369), kuultuina paikan mukaan (playAt)
+  fishRise: { effect: 'plip' },
+  fishFlee: { effect: 'plip' },
+  pikeStrike: { effect: 'splash' },
   lineCut: { effect: 'lost' },
   bitOff: { effect: 'lost', voice: 'bitOff' },
   lureLost: { effect: 'lost', voice: 'lureLost' },

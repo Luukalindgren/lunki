@@ -51,6 +51,7 @@ import type { RaceLog } from './raceLog';
 import { saveTackle } from './tackle';
 import type { TopDownCamera } from './topDownCamera';
 import type { FishShadow } from '../world/fishShadow';
+import type { FishSignsView } from './fishSignsView';
 
 /** Saaliin punnituskortti näkyy näin kauan, ellei pelaaja ala heittää uudelleen. */
 const CATCH_CARD_SECONDS = 6;
@@ -82,6 +83,7 @@ export interface FishingHost {
   readonly pov: PovCamera;
   readonly fishingView: FishingView;
   readonly fishShadow: FishShadow;
+  readonly fishSigns: FishSignsView;
   readonly raceLog: RaceLog;
   readonly raceStatsCounter: RaceStatsCounter;
   readonly daylight: Daylight;
@@ -268,6 +270,10 @@ export class FishingController {
       isWater: (p: Vec2) => host.water.isWater(p),
       depthAt: (p: Vec2) => host.bottom.depthAt(p),
     };
+    const conditions = fishConditions(
+      host.competition.finished ? null : host.weatherNow,
+      host.daylight,
+    );
     const fishEvents = stepFishPopulation(
       host.fish,
       lureInfo(f, this.context()),
@@ -275,7 +281,7 @@ export class FishingController {
       DIFFICULTIES[host.settings.difficulty],
       host.rng,
       dt,
-      fishConditions(host.competition.finished ? null : host.weatherNow, host.daylight),
+      conditions,
     );
     const events: ReturnType<typeof stepFishing> =
       tangled || host.spectating
@@ -305,6 +311,7 @@ export class FishingController {
     if (f.stage !== 'casting') input.unlockPointer();
     this.handleEvents(events, fishEvents.follow !== undefined, reeling, dt);
     host.fishShadow.update(host.fish.fish, host.tube.pos);
+    host.fishSigns.update(host.fish, conditions, host.tube.pos, host.settings.difficulty, dt);
     if (fishEvents.shadow !== undefined) host.hud.showMessage(t('game.bigShadow'), 2.5);
     return { lineHand: fly?.lineHand ?? false };
   }

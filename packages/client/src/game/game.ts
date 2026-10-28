@@ -45,6 +45,7 @@ import type { Input } from '../engine/input';
 import { Controls, controlText } from './controls';
 import { createBottomMesh } from '../world/bottomMesh';
 import { FishShadow } from '../world/fishShadow';
+import { FishSignsView } from './fishSignsView';
 import { staticWorldFor, type StaticWorld } from '../world/staticWorld';
 import type { RetroResolution } from '../engine/resolution';
 import type { RetroRenderer } from '../engine/retroRenderer';
@@ -132,6 +133,10 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
   private gameCanvas: HTMLCanvasElement | null = null;
   /** Suurkalan varjo veden alla (#231). */
   readonly fishShadow = new FishShadow();
+  /** Kalojen merkit pinnalla (#369), kuultuina omalta paikalta. */
+  readonly fishSigns = new FishSignsView((event, at) =>
+    this.sounds.playAt(event, at, this.tube.pos),
+  );
   readonly rng: Rng;
   readonly fish: FishPopulation;
   readonly competition: CompetitionState;
@@ -234,7 +239,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     this.weather.updateSky(0);
     this.weather.applyLight();
     this.scene.add(createBottomMesh(this.bottom, this.waterWaves));
-    this.scene.add(this.fishShadow.mesh);
+    this.scene.add(this.fishShadow.mesh, this.fishSigns.group);
     this.scene.add(this.tubeMesh, this.boatsView.group, this.anchorView.group);
     this.scene.add(flightShadow);
     this.world = staticWorldFor(map);

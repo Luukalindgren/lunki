@@ -204,6 +204,11 @@ export class Sfx {
     this.noise(0.18, 0.5);
   }
 
+  /** Kala nousi pintaan (#369): hiljainen pisaran "plip", sävel nousee. */
+  plip(): void {
+    this.tone(700 + Math.random() * 500, 0.07, 'sine', 0.35, 0, 1600);
+  }
+
   /** Kaukainen ukkonen: pehmeästi alkava, pitkä jyrinä. */
   rumble(): void {
     this.playThunder(2500 + Math.random() * 2000, 0.35, 0);
