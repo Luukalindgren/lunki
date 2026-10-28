@@ -267,6 +267,18 @@ export const en: Record<keyof typeof fi, string> = {
   'tackle.lureInRace':
     'You change the lure during the competition ({lure}) or from the pause menu.',
   'tackle.rodLocked': 'Rod: {rod}. The rod stays the same for the whole competition.',
+  'box.title': 'Tackle box',
+  'box.flyTitle': 'Fly box',
+  'box.count': '{n}/{max}',
+  'box.add': '+ Add',
+  'box.empty': 'Empty',
+  'box.beginner': 'Beginner box',
+  'box.hint':
+    'Up to 6 slots. {lure} cycles them in order, and holding {lure} opens the quick menu. The same lure can go in with different settings.',
+  'box.locked':
+    'On realistic the box cannot be refilled during a competition: a lure lost to a broken line stays in the lake.',
+  'box.lost': '{n} left in the box',
+  'box.lastLure': 'Last lure: it stays in use as a spare',
   'tackle.method': 'Method',
   'tackle.jigWeight': 'Jig weight',
   'tackle.crankDepth': 'Crankbait depth',
@@ -609,7 +621,8 @@ export const en: Record<keyof typeof fi, string> = {
   'help.castForward': 'Hold {castForward} and release = cast where you face · {cancel} = cancel',
   'help.reel': 'Hold {pointer} or {reel} = reel in · {twitch} = twitch',
   'help.gear': '{gear} = reel speed · {gearFast} = quick retrieve · {dragLess}/{dragMore} = drag',
-  'help.tools': '{lure} = change lure · {sonar} = fish finder · {lureSonar} = lure depth',
+  'help.tools':
+    '{lure} = change lure (hold: box) · {sonar} = fish finder · {lureSonar} = lure depth',
   'help.flyCast': 'Fly cast: {backCast} = back, {forwardCast} = forward · {swipe}',
   'help.flyCast2':
     '{castForward} = rhythm cast · {lift} = pick up for a new cast · {flyPanel} = side view',
@@ -672,7 +685,7 @@ export const en: Record<keyof typeof fi, string> = {
   'touch.cut': 'CUT',
   'touch.cutTitle': 'Cut the line',
   'touch.lure': 'LURE',
-  'touch.lureTitle': 'Change lure',
+  'touch.lureTitle': 'Change lure, hold: tackle box',
   'touch.sonar': 'SONAR',
   'touch.sonarTitle': 'Fish finder',
   'touch.depth': 'DEPTH',

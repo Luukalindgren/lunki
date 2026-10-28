@@ -657,7 +657,7 @@ function showPauseMenu(from?: 'tackle' | 'settings') {
       ? undefined
       : () =>
           screens.showPauseTackle(
-            { current: g.tackle, onChange: (t) => g.setTackle(t) },
+            { current: g.tackle, onChange: (t) => g.setTackle(t), box: g.lurePicker.binding() },
             back('tackle'),
           ),
     onSettings: () => {

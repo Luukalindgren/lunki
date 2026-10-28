@@ -81,6 +81,8 @@ Koodi: `packages/client/src/game/controls.ts`.
   kerralla.
 - Tilannenapit (iso nappi HEITÄ/KELAA/VETO, perhon SIIMA/NOSTA/KELALLE,
   KATKO/PERU) ratkaisee `contextActions`.
+- Kisan ympyrävalikot (käsimerkit G, viehepakki R pohjassa) ovat yksi
+  `ui/ringMenu.ts`. Uusi pikavalikko käyttää sitä.
 
 ### Valo, sää ja välähdykset (PR #341)
 

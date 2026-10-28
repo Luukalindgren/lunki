@@ -256,6 +256,49 @@ test('käsimerkit: G avaa valikon, numero tekee eleen ja Esc sulkee tauotta (#22
   errors.check();
 });
 
+test('viehepakki: R vaihtaa lokeroa, R pohjassa avaa pikavalikon (#365)', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, 'puhelimissa VIEHE-nappi');
+  const errors = watchErrors(page);
+  await page.addInitScript(() => {
+    const box = {
+      lures: [{ lure: 'jig', variant: 'g5' }, { lure: 'jig', variant: 'g20' }, { lure: 'spoon' }],
+      flies: ['nymph'],
+    };
+    localStorage.setItem('lunki.tackleBox', JSON.stringify(box));
+  });
+  await page.goto(soloUrl());
+  await page.getByRole('button', { name: 'Yksinpeli' }).click();
+  await page.getByRole('button', { name: 'Aloita kisa' }).click();
+  await expect(page.locator('.hud-timer')).toBeVisible();
+  const message = page.locator('.hud-message');
+  // Lusikka on pakin viimeinen: R kiertää ensimmäiseen.
+  await page.keyboard.press('KeyR');
+  await expect(message).toContainText('Viehe: Jigi 5 g');
+  // Pohjassa pidetty R avaa pikavalikon käytössä oleva viehe valittuna.
+  const menu = page.locator('.lure-menu');
+  await page.keyboard.down('KeyR');
+  await expect(menu).toBeVisible();
+  await page.keyboard.up('KeyR');
+  await expect(menu).toBeVisible();
+  await expect(menu.locator('.lure-option')).toHaveCount(3);
+  await expect(menu.locator('.lure-option .lure-art')).toHaveCount(3);
+  await expect(menu.locator('.lure-caption')).toHaveText('Jigi 5 g');
+  await page.keyboard.press('Digit2');
+  await expect(menu).toBeHidden();
+  await expect(message).toContainText('Viehe: Jigi 20 g');
+  // Uusi R:n painallus sulkee avoimen valikon vaihtamatta viehettä.
+  await page.keyboard.down('KeyR');
+  await expect(menu).toBeVisible();
+  await page.keyboard.up('KeyR');
+  await page.keyboard.press('KeyR');
+  await expect(menu).toBeHidden();
+  await expect(page.locator('.screen')).toBeHidden();
+  errors.check();
+});
+
 test('latausruutu näkyy pelin koodin latautuessa ja poistuu valikon tullessa', async ({ page }) => {
   const errors = watchErrors(page);
   // Hidas yhteys: pelin koodi pidetään matkalla, kunnes latausruutu on tarkistettu.

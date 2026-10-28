@@ -206,6 +206,23 @@ vähemmän). Sopii kaislikon ja lumpeikon reunalla väijyvälle hauelle.
 Teräsperukka estää hauen hampaita katkaisemasta siimaa väsytyksessä (normaalilla ja
 realistisella noin 3 % sekunnissa), mutta muut lajit tarttuvat siihen hieman harvemmin.
 
+### Viehepakki ja perhorasia (#365)
+
+Pelaaja kokoaa Varusteet-näkymän Viehepakki-rivillä enintään kuusi lokeroa (`BOX_SLOTS`), ja
+samaa viehettä voi ottaa eri säädöillä ("Jigi 5 g" ja "Jigi 20 g"). Perhoille on oma
+kuuden lokeron perhorasia. Pakki on selaimen tietoa (`lunki.tackleBox`, `game/tackleBox.ts`), ja
+palvelin näkee vain käytössä olevan vieheen kuten ennenkin. Tyhjä tai rikki tallennus antaa
+aloittelijan pakin, jossa ovat kaikki vieheet ja perhot.
+
+Kisan aikana R:n tai VIEHE-napin napautus vaihtaa pakin seuraavaan lokeroon. Pohjassa pidetty R
+(0,35 s, `LURE_HOLD`) avaa pikavalikon vieheiden kuvin (`game/lurePicker.ts`, sama
+ympyrävalikko kuin käsimerkeillä, `ui/ringMenu.ts`). Valinta tehdään numerolla, nuolilla ja
+Enterillä tai hiirellä, ja R tai Esc sulkee valikon.
+
+Realistisella vaikeustasolla siiman katketessa menetetty viehe poistuu kisan pakista, ja pakin
+seuraava viehe otetaan käyttöön. Viimeinen viehe jää varavieheeksi. Kisan aikana pakkia ei voi
+täydentää. Muilla vaikeustasoilla pakki pysyy ennallaan.
+
 ## Perhokalastus (#234)
 
 Kalastajalla on mukana sekä virveli- että perhovälineet. Kalastustapa valitaan varusteista ennen kisaa tai
