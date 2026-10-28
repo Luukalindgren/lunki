@@ -10,6 +10,7 @@ import {
   stepPlayerTube,
   wrapAngle,
   type CraftSpec,
+  type DepthAt,
   type InputQueue,
   type TubeState,
   type Vec2,
@@ -35,7 +36,7 @@ export interface Sim {
   look?: number;
 }
 
-export const FROZEN = { kick: 0, turn: 0, sprint: false };
+export const FROZEN = { kick: 0, turn: 0, sprint: false, anchor: false };
 
 /** Kulkeeko pelaaja omalla aluksellaan (rengas tai veneen soutaja) vai kyydissä. */
 export const isPassenger = (sim: Sim) => !!sim.boat && (sim.seat ?? 0) !== BoatSeat.rower;
@@ -64,6 +65,8 @@ export function stepSims(
   frozen = false,
   /** Tuuli; funktiona, kun se riippuu renkaasta (trombi). */
   wind?: Vec2 | ((sim: Sim, index: number) => Vec2),
+  /** Pohjan syvyys ankkurille (#355). */
+  depthAt?: DepthAt,
 ): Set<number> {
   const moved = new Set<number>();
   // Veneiden suunta ennen askelta: kyytiläiset kääntyvät veneen mukana.
@@ -84,6 +87,7 @@ export function stepSims(
           NET_DT,
           typeof wind === 'function' ? wind(sim, i) : wind,
           spec,
+          depthAt,
         );
     moved.add(i);
   });

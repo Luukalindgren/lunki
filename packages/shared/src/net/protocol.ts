@@ -12,7 +12,7 @@ export const ROOM_NAME = 'lunki';
  * uudelleen: asiakas ei lähetä vanhemmalle palvelimelle viestejä, joita se
  * ei tunne. Vanha palvelin ilman kenttää = 1.
  */
-export const PROTOCOL_VERSION = 7;
+export const PROTOCOL_VERSION = 8;
 /** Chat tuli versiossa 2. */
 export const CHAT_PROTOCOL = 2;
 /** Maalle juuttuneen vieheen siiman katkaisu (ClientMsg.landCut) tuli versiossa 3. */
@@ -28,6 +28,11 @@ export const EMOTE_PROTOCOL = 5;
  * venettä, joten se ei pääse huoneeseen, jossa joku on valinnut veneen.
  */
 export const BOAT_PROTOCOL = 7;
+/**
+ * Ankkuri (#355): syötteen bitti 32 ja PlayerState.anchor… tulivat versiossa 8.
+ * Vanha palvelin ei laske ankkuria, joten asiakas ei silloin tarjoa sitä.
+ */
+export const ANCHOR_PROTOCOL = 8;
 
 /** Oletuspelaajamäärä huoneessa. Rakenne sallii isomman. */
 export const DEFAULT_MAX_PLAYERS = 8;

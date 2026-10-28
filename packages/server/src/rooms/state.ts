@@ -66,6 +66,12 @@ export const PlayerState = schema(
     seat: t.uint8().default(0),
     /** Soutaja kääntyneenä tuhdolla kalastaessaan: kulma veneen suunnasta (rad). */
     look: t.float32().default(0),
+    /** Ankkuri (#355, AnchorPhase) ja sen tila; float64 ennakointia varten kuten rengas. */
+    anchor: t.uint8().default(0),
+    anchorX: t.float64().default(0),
+    anchorY: t.float64().default(0),
+    anchorDepth: t.float64().default(0),
+    anchorDrop: t.float64().default(0),
   },
   'PlayerState',
 );

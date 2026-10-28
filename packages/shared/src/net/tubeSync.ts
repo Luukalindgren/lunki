@@ -1,3 +1,4 @@
+import { stepAnchor } from '../physics/anchor';
 import { CRAFTS, collideCraftWithShore, type CraftSpec } from '../physics/boat';
 import { stepTube, type TubeInput, type TubeState } from '../physics/tube';
 import { collideTubePair } from '../physics/tubeCollision';
@@ -23,11 +24,11 @@ export interface NetInput extends TubeInput {
   seq: number;
 }
 
-/** Pakkaa syötteen yhdeksi luvuksi: potku, käännös ja pikapotku. */
+/** Pakkaa syötteen yhdeksi luvuksi: potku, käännös, pikapotku ja ankkuri. */
 export function packInput(i: TubeInput): number {
   const kick = Math.max(-1, Math.min(1, Math.round(i.kick))) + 1;
   const turn = Math.max(-1, Math.min(1, Math.round(i.turn))) + 1;
-  return kick | (turn << 2) | (i.sprint ? 16 : 0);
+  return kick | (turn << 2) | (i.sprint ? 16 : 0) | (i.anchor ? 32 : 0);
 }
 
 export function unpackInput(packed: number): TubeInput {
@@ -36,6 +37,7 @@ export function unpackInput(packed: number): TubeInput {
     kick: Math.min(2, p & 3) - 1,
     turn: Math.min(2, (p >> 2) & 3) - 1,
     sprint: (p & 16) !== 0,
+    ...((p & 32) !== 0 && { anchor: true }),
   };
 }
 
@@ -58,9 +60,13 @@ export function decodeInputs(data: unknown): NetInput[] {
   return out;
 }
 
+/** Pohjan syvyys ankkurille (LakeBottom.depthAt). */
+export type DepthAt = (p: Vec2) => number;
+
 /**
- * Yksi askel: fysiikka, kaislikon vastus ja rantatörmäys. Sama asiakkaalla ja
- * palvelimella. `craft` = rengas tai vene (CRAFTS).
+ * Yksi askel: fysiikka, kaislikon vastus, ankkuri ja rantatörmäys. Sama
+ * asiakkaalla ja palvelimella. `craft` = rengas tai vene (CRAFTS). Ilman
+ * `depthAt`:ia ankkuria ei voi laskea.
  */
 export function stepPlayerTube(
   tube: TubeState,
@@ -69,14 +75,12 @@ export function stepPlayerTube(
   dt = NET_DT,
   wind?: Vec2,
   craft: CraftSpec = CRAFTS.tube,
+  depthAt?: DepthAt,
 ): TubeState {
   const drag = water.reedsAt(tube.pos) ? REEDS.drag : 1;
-  return collideCraftWithShore(
-    tube,
-    stepTube(tube, input, dt, wind, drag, craft.physics),
-    water,
-    craft,
-  );
+  let next = stepTube(tube, input, dt, wind, drag, craft.physics);
+  if (depthAt) next = stepAnchor(next, !!input.anchor, dt, craft.anchorAt, depthAt, wind);
+  return collideCraftWithShore(tube, next, water, craft);
 }
 
 /**
@@ -123,6 +127,7 @@ export const cloneTube = (t: TubeState): TubeState => ({
   angVel: t.angVel,
   kickPhase: t.kickPhase,
   stamina: t.stamina,
+  ...(t.anchor && { anchor: { ...t.anchor, pos: { ...t.anchor.pos } } }),
 });
 
 /** Toisen pelaajan alus ennakoinnin törmäyksiin: tila ja laji (rengas tai vene). */
@@ -168,6 +173,8 @@ export class TubePredictor {
    * renkaan vakioilla; hänen paikkansa tulee veneestä (seatPos).
    */
   craft: CraftSpec = CRAFTS.tube;
+  /** Pohjan syvyys ankkurille; puuttuu = ankkuri ei käytössä (vanha palvelin). */
+  depthAt: DepthAt | null = null;
 
   constructor(
     start: TubeState,
@@ -183,7 +190,7 @@ export class TubePredictor {
 
   private advance(t: TubeState, input: TubeInput, wind?: Vec2): TubeState {
     return collideWithOthers(
-      stepPlayerTube(t, input, this.water, NET_DT, wind, this.craft),
+      stepPlayerTube(t, input, this.water, NET_DT, wind, this.craft, this.depthAt ?? undefined),
       this.others(),
       this.water,
       this.craft,

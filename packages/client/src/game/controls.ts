@@ -32,6 +32,8 @@ export const CONTROLS = {
    * heitto vie vapaan ja soutaminen airoihin.
    */
   oars: { keys: ['KeyB'] },
+  /** Ankkuri alas tai ylös: rengas ja veneen soutaja (#355). */
+  anchor: { keys: ['KeyN'], touch: '⚓', title: 'touch.anchorTitle' },
 
   // Kalastus. Hiiren vasen ja sormi järvellä tähtäävät, heittävät ja kelaavat.
   pointer: { keys: ['Mouse0'], label: 'ctl.mouse', touch: 'ctl.finger' },

@@ -1,4 +1,5 @@
 import type { Vec2 } from '../vec2';
+import type { AnchorState } from './anchor';
 
 /**
  * Kelluntarenkaan 2D-fysiikka vedenpinnalla. Jaettu asiakkaan ja palvelimen
@@ -19,6 +20,8 @@ export interface TubeState {
   kickPhase: number;
   /** Kalastajan kunto 0–1: potkiminen kuluttaa, lepo palauttaa (STAMINA). */
   stamina: number;
+  /** Ankkuri vedessä (#355); puuttuu = ylhäällä. */
+  anchor?: AnchorState;
 }
 
 export interface TubeInput {
@@ -28,6 +31,8 @@ export interface TubeInput {
   turn: number;
   /** Nopeat potkut: enemmän työntöä. */
   sprint: boolean;
+  /** Ankkuri alas tai ylös (#355): painallus, ei pidettävä. */
+  anchor?: boolean;
 }
 
 export const TUBE_RADIUS = 0.8;
@@ -110,7 +115,8 @@ export function stepTube(
   dragFactor = 1,
   P: CraftPhysics = TUBE_PHYSICS,
 ): TubeState {
-  const kick = clamp1(input.kick);
+  // Ankkurissa ei potkita eikä soudeta (köysi pitää), kääntyä voi.
+  const kick = s.anchor ? 0 : clamp1(input.kick);
   const turn = clamp1(input.turn);
 
   // Uupunut ei jaksa pikapotkuja.
@@ -146,7 +152,7 @@ export function stepTube(
   const angVel = s.angVel + angAcc * dt;
   const heading = wrapAngle(s.heading + angVel * dt);
 
-  return { pos, vel, heading, angVel, kickPhase, stamina };
+  return { pos, vel, heading, angVel, kickPhase, stamina, ...(s.anchor && { anchor: s.anchor }) };
 }
 
 /**

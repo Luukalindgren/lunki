@@ -76,6 +76,9 @@ export class TouchControls {
     this.chatButton.className = 'touch-chat';
     this.chatButton.hidden = true;
     this.chatButton.addEventListener('click', () => this.onChat?.());
+    // Ankkuri liikkumisen vieressä: tatin yllä pystyssä, oikealla vaakatasossa (#355).
+    const anchorButton = this.tap('anchor');
+    anchorButton.classList.add('touch-anchor');
     const tools = div('touch-tools');
     tools.append(
       this.tap('pause'),
@@ -109,7 +112,7 @@ export class TouchControls {
     const actions = div('touch-actions');
     actions.append(grid, this.mainButton.b);
 
-    this.root.append(stick, tools, actions);
+    this.root.append(stick, anchorButton, tools, actions);
     parent.appendChild(this.root);
     this.relabel();
     onLangChange(() => this.relabel());

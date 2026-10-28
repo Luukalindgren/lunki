@@ -1566,6 +1566,22 @@ textarea,
   pointer-events: none;
 }
 
+.touch-controls .touch-anchor {
+  position: absolute;
+  left: calc(var(--edge-l) + 132px);
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  width: 56px;
+  font-size: 20px;
+}
+
+/* Pystyssä tatin oikealla puolella ei ole tilaa: nappi tatin yläpuolelle. */
+@media (orientation: portrait) {
+  .touch-controls .touch-anchor {
+    left: var(--edge-l);
+    bottom: calc(148px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 .touch-tools {
   position: absolute;
   left: var(--edge-l);
@@ -1606,6 +1622,10 @@ textarea,
 .touch-controls.spectator .touch-stick,
 .touch-controls.spectator .touch-reel,
 .touch-controls.spectator .touch-grid > :not(.touch-cam) {
+  display: none;
+}
+
+.touch-controls.spectator .touch-anchor {
   display: none;
 }
 
