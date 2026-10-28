@@ -1951,7 +1951,7 @@ export class Screens {
 
   /**
    * Värit: rengas, räpylät, paita ja siima. Veneellä renkaan väri on veneen
-   * reunalista, eikä räpylöitä ole. Esikatselu päivittyy heti.
+   * ulkokuori ja reunalista, eikä räpylöitä ole. Esikatselu päivittyy heti.
    */
   private appearanceEditor(
     initial: Appearance | null,

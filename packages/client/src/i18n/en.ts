@@ -223,7 +223,7 @@ export const en: Record<keyof typeof fi, string> = {
   'settings.startPickedAt': 'A spot picked on the map: {spot}.',
   'settings.startRace': 'Start the competition',
   'part.tube': 'Float tube',
-  'part.boat': 'Boat trim',
+  'part.boat': 'Boat',
   'part.fins': 'Fins',
   'part.shirt': 'Shirt',
   'part.line': 'Line',

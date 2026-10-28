@@ -226,7 +226,7 @@ export const fi = {
   'settings.startPickedAt': 'Kartalta valittu kohta: {spot}.',
   'settings.startRace': 'Aloita kisa',
   'part.tube': 'Kelluntarengas',
-  'part.boat': 'Veneen reunalista',
+  'part.boat': 'Vene',
   'part.fins': 'Räpylät',
   'part.shirt': 'Paita',
   'part.line': 'Siima',
