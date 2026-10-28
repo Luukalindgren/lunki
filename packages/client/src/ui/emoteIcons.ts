@@ -119,6 +119,29 @@ export const EMOTE_ICONS: Record<EmoteId, readonly string[]> = {
   ],
 };
 
+/**
+ * Kala kiinni -merkki toisen kalastajan yllä (#368): huutomerkki ja kala.
+ * Ei käsimerkki, joten sitä ei ole ympyrävalikossa.
+ */
+export const FISH_ON_ICON: readonly string[] = [
+  '................',
+  '..yy............',
+  '..yy............',
+  '..yy......b.....',
+  '..yy.....bbb....',
+  '..yy....bbbbb..b',
+  '..yy...bbkbbbbbb',
+  '..yy...bbbbbbbbb',
+  '..yy....bbbbb..b',
+  '.........bbb....',
+  '..........b.....',
+  '..yy............',
+  '..yy............',
+  '................',
+  '................',
+  '................',
+];
+
 const COLORS: Record<string, string> = {
   s: '#e0cf9c',
   r: '#d23a2a',

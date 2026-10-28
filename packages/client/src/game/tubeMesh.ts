@@ -104,16 +104,38 @@ export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THR
 
   // Virveli osoittaa eteen
   const rod = new THREE.Mesh(
-    new THREE.BoxGeometry(2.1, 0.08, 0.08),
+    new THREE.BoxGeometry(ROD_LENGTH, 0.08, 0.08),
     new THREE.MeshLambertMaterial({ color: 0xf6d04d }),
   );
-  rod.rotation.z = 0.25;
-  rod.position.set(1.1, 1.1, 0.38);
   rod.name = 'rod';
   group.add(rod);
+  aimRod(group, 0, 0);
 
   setSeated(group, false);
   return group;
+}
+
+const ROD_LENGTH = 2.1;
+/** Vavan kahva kädessä ja lepoasennon nousukulma (rad). */
+const ROD_BUTT = new THREE.Vector3(0.083, 0.84, 0.38);
+const ROD_REST = 0.25;
+
+/**
+ * Vavan asento (#368): `bend` 0–1 nostaa vavan väsytykseen pystympään,
+ * `yaw` kääntää sen kalaa kohti (rad renkaan suunnasta). Kahva pysyy
+ * kädessä, joten vapa kiertyy kahvan ympäri.
+ */
+export function aimRod(group: THREE.Object3D, bend: number, yaw: number): void {
+  const rod = group.getObjectByName('rod');
+  if (!rod) return;
+  const pitch = ROD_REST + 0.6 * bend;
+  rod.rotation.set(0, yaw, pitch);
+  const half = ROD_LENGTH / 2;
+  rod.position.set(
+    ROD_BUTT.x + Math.cos(pitch) * Math.cos(yaw) * half,
+    ROD_BUTT.y + Math.sin(pitch) * half,
+    ROD_BUTT.z - Math.cos(pitch) * Math.sin(yaw) * half,
+  );
 }
 
 const SKIN = 0xe0cf9c;

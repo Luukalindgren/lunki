@@ -1,11 +1,20 @@
 import * as THREE from 'three';
-import { EMOTE_DURATION, LureStage, rodTip, type Appearance, type EmoteId } from '@lunki/shared';
+import {
+  EMOTE_DURATION,
+  LureStage,
+  distance,
+  rodTip,
+  type Appearance,
+  type EmoteId,
+  type Vec2,
+} from '@lunki/shared';
 import type { RemotePlayer } from '../net/netWorld';
 import { toWorld } from '../world/lakeMesh';
 import { AIR_SAMPLES, ROD_TIP_Y, flightLine, hangLine, rodSideOffset, writeLine } from './lineHang';
 import { FAR_BUBBLE, SpeechBubble, type BubbleContent } from './speechBubble';
 import {
   SEATED_LIFT,
+  aimRod,
   animateEmote,
   animateFins,
   applyAppearance,
@@ -15,6 +24,8 @@ import {
 import { FLY_LINE_POINTS, RemoteFlyLine, flyLineProfile, flyLineWorld } from './flyLine';
 import { flyRodTip } from './povRod';
 import { screenAnchor } from './screenAnchor';
+import { REMOTE_FIGHT, RemoteFight } from './remoteFight';
+import { SplashRings } from './splashRings';
 
 const cssColor = (hex: number) => `#${hex.toString(16).padStart(6, '0')}`;
 /** Muiden siiman kireyttä ei tiedetä: piirretään puolikireänä. */
@@ -35,6 +46,8 @@ interface Entry {
   emote: { id: EmoteId; start: number } | null;
   /** Viimeksi käytetyt värit: vaihdetaan vain muuttuessa. */
   appearance: Appearance;
+  /** Väsytys (#368): vavan taipuma ja kalan molskahdukset. */
+  fight: RemoteFight;
 }
 
 /** Piirtää muut pelaajat, heidän vieheensä ja nimilaput. */
@@ -45,12 +58,17 @@ export class RemotePlayersView {
   private readonly v = new THREE.Vector3();
   /** Ele tai viesti pelaajalle, jota ei vielä ole piirretty. */
   private readonly pending = new Map<string, { content: BubbleContent; at: number }>();
+  /** Muiden väsyttämien kalojen molskahdukset (#368). */
+  private readonly splashes = new SplashRings(6);
+  private readonly tip = new THREE.Vector3();
+  private lastUpdate = performance.now();
 
   /** `below`: lappukerros tämän (HUD) alle, ettei se peitä nappeja ja paneeleja (#277). */
   constructor(parent: HTMLElement, below: Element | null = null) {
     this.tags = document.createElement('div');
     this.tags.className = 'name-tags';
     parent.insertBefore(this.tags, below?.parentNode === parent ? below : null);
+    this.group.add(this.splashes.group);
   }
 
   /** Pelaajan käsimerkki: animaatio ja kupla. */
@@ -73,8 +91,17 @@ export class RemotePlayersView {
     if ('emote' in content) e.emote = { id: content.emote, start: now };
   }
 
-  update(players: RemotePlayer[], camera: THREE.Camera, canvas: HTMLCanvasElement): void {
+  /** `me` = oma paikka: kala kiinni -merkki näkyy vain lähellä oleville (#368). */
+  update(
+    players: RemotePlayer[],
+    camera: THREE.Camera,
+    canvas: HTMLCanvasElement,
+    me: Vec2 | null = null,
+  ): void {
     const now = performance.now();
+    const dt = Math.min(0.1, (now - this.lastUpdate) / 1000);
+    this.lastUpdate = now;
+    this.splashes.update(dt);
     const seen = new Set<string>();
     const rect = canvas.getBoundingClientRect();
     for (const p of players) {
@@ -96,6 +123,12 @@ export class RemotePlayersView {
       e.tube.rotation.y = p.heading + p.look;
       e.tube.rotation.x = p.tumble ?? p.roll;
       animateFins(e.tube, p.kickPhase);
+      const hooked = p.lure !== null && p.lureStage === LureStage.hooked;
+      if (hooked) this.drawFight(e, p, dt);
+      else {
+        e.fight.reset();
+        aimRod(e.tube, 0, 0);
+      }
 
       const showLure = p.lure !== null && p.lureStage !== LureStage.none;
       // Perhovälineillä lento on perhoheittoa: perho kulkee edestakaisin silmukan kärjessä.
@@ -106,7 +139,7 @@ export class RemotePlayersView {
       if (casting) this.drawFlyCast(e, p);
       else e.fly.reset();
       e.lure.scale.setScalar(casting ? 0.5 : 1);
-      if (showLure && !casting) {
+      if (showLure && !casting && !hooked) {
         const tip = rodTip(p.pos, p.heading + p.look);
         const side = rodSideOffset(p.heading + p.look);
         const flying = p.lureStage === LureStage.flight;
@@ -137,9 +170,37 @@ export class RemotePlayersView {
       }
       // Kaukana (kalastajan silmin) kupla pienenee eikä näytä viestin tekstiä.
       const far = camera.position.distanceTo(e.tube.position) > FAR_BUBBLE;
+      if (hooked && me && distance(me, p.pos) < REMOTE_FIGHT.markRange)
+        e.bubble.hold('fishOn', now);
       e.bubble.place(at, far, now);
     }
     for (const [id, e] of this.entries) if (!seen.has(id)) this.remove(id, e);
+  }
+
+  /**
+   * Toisella kala kiinni (#368): vapa taipuu kalaa kohti ja nykii kalan
+   * liikkeen mukaan, siima on kireä vavan kärjestä kalaan ja kala
+   * molskahtaa silloin tällöin. Kalan paikka on vieheen paikka.
+   */
+  private drawFight(e: Entry, p: RemotePlayer, dt: number): void {
+    const fish = p.lure!;
+    const pose = e.fight.update(fish, dt);
+    const heading = p.heading + p.look;
+    let yaw = Math.atan2(fish.y - p.pos.y, fish.x - p.pos.x) - heading;
+    yaw = Math.atan2(Math.sin(yaw), Math.cos(yaw));
+    // Vapa kääntyy enintään sivulle; takana olevaa kalaa väsytetään sivulta.
+    const clamp = Math.max(-1.2, Math.min(1.2, yaw));
+    aimRod(e.tube, Math.min(1, pose.bend + pose.jerk), clamp);
+    e.tube.updateMatrixWorld(true);
+    const rod = e.tube.getObjectByName('rod')!;
+    const w = rod.localToWorld(this.tip.set(1.05, 0, 0));
+    const pts = hangLine([{ x: w.x, y: -w.z }, fish], w.y, 1, 0.05);
+    const pos = e.line.geometry.attributes.position as THREE.BufferAttribute;
+    writeLine(pos, pts);
+    pos.needsUpdate = true;
+    e.line.geometry.computeBoundingSphere();
+    e.lure.position.copy(toWorld(fish, 0.05));
+    if (pose.splash !== null) this.splashes.start(fish, pose.splash);
   }
 
   /** Muun pelaajan perhoheitto perhon paikasta päätellen. */
@@ -200,6 +261,7 @@ export class RemotePlayersView {
       bubble,
       emote: null,
       appearance,
+      fight: new RemoteFight(),
     };
     this.entries.set(id, e);
     return e;

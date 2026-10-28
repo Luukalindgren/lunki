@@ -1,5 +1,5 @@
 import type { EmoteId } from '@lunki/shared';
-import { emoteIcon } from '../ui/emoteIcons';
+import { FISH_ON_ICON, emoteIcon, pixelIcon } from '../ui/emoteIcons';
 
 /** Kuplan kesto (ms): ele ja chat-viesti. */
 export const EMOTE_BUBBLE_MS = 3000;
@@ -8,6 +8,11 @@ export const CHAT_BUBBLE_MS = 5000;
 export const BUBBLE_CHARS = 40;
 /** Tätä kauempana (m) kupla pienenee ja näyttää viestistä vain merkin. */
 export const FAR_BUBBLE = 45;
+/** Merkki pysyy näin kauan (ms) viimeisen `hold`-kutsun jälkeen. */
+const MARK_HOLD_MS = 300;
+
+/** Pysyvä merkki niin kauan kuin tila kestää (#368: kala kiinni). */
+export type BubbleMark = 'fishOn';
 
 export type BubbleContent = { emote: EmoteId } | { text: string };
 
@@ -26,6 +31,8 @@ export class SpeechBubble {
   private until = 0;
   private readonly full: HTMLSpanElement;
   private readonly short: HTMLSpanElement;
+  /** Näkyvissä oleva merkki; ele tai viesti korvaa sen. */
+  private mark: BubbleMark | null = null;
 
   constructor(parent: HTMLElement) {
     this.el = document.createElement('div');
@@ -39,6 +46,7 @@ export class SpeechBubble {
   }
 
   show(content: BubbleContent, now = performance.now()): void {
+    this.mark = null;
     if ('emote' in content) {
       this.el.replaceChildren(emoteIcon(content.emote));
       this.until = now + EMOTE_BUBBLE_MS;
@@ -47,6 +55,19 @@ export class SpeechBubble {
       this.el.replaceChildren(this.full, this.short);
       this.until = now + CHAT_BUBBLE_MS;
     }
+  }
+
+  /**
+   * Merkki kuplaan, kun ele tai viesti ei ole näkyvissä. Kutsutaan joka
+   * ruudussa tilan kestäessä; ilman kutsua merkki häviää hetken päästä.
+   */
+  hold(mark: BubbleMark, now = performance.now()): void {
+    if (this.mark !== mark) {
+      if (now < this.until) return;
+      this.mark = mark;
+      this.el.replaceChildren(pixelIcon(FISH_ON_ICON, 'emote-icon'));
+    }
+    this.until = now + MARK_HOLD_MS;
   }
 
   /** Kuplan paikka (näytön px, `null` = ei näkyvissä) ja onko pelaaja kaukana. */
