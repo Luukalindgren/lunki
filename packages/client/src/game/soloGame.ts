@@ -132,6 +132,7 @@ import { Sounds } from '../audio/sounds';
 import type { VoiceId } from '../audio/voice';
 import type { Hud } from '../ui/hud';
 import { fishLengthCm } from '../ui/fishArt';
+import { lureImage } from '../ui/lureArt';
 import { FishingView } from './fishingView';
 import { rodSideOffset } from './lineHang';
 import { PovRod, flyRodTip } from './povRod';
@@ -1542,6 +1543,7 @@ export class SoloGame {
           : t('game.lureChanged', { lure: baitName(tk) }),
         1.5,
         'info',
+        { icon: lureImage(isFly(tk) ? tk.fly : tk.lure, 'calc(var(--u) * 1.5)') },
       );
     }
     if (events.onReel) hud.showMessage(t('game.onReel'), 2, 'info');

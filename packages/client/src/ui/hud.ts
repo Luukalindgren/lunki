@@ -62,7 +62,13 @@ export class Hud {
   /** Näkyvän ilmoituksen tärkeys: vähemmän tärkeä ei korvaa sitä kesken. */
   private messageLevel: MessageLevel = 'info';
   /** Vähemmän tärkeä ilmoitus odottaa, kunnes näkyvä on ohi (uusin voittaa). */
-  private queued: { text: string; seconds: number; level: MessageLevel; age: number } | null = null;
+  private queued: {
+    text: string;
+    seconds: number;
+    level: MessageLevel;
+    age: number;
+    options: MessageOptions;
+  } | null = null;
   /** Pysyvä ilmoitus (yhteyskatko), joka palaa näkyviin muiden viestien jälkeen. */
   private standing: string | null = null;
   private weighTimer = 0;
@@ -496,12 +502,17 @@ export class Hud {
    * Ilmoitus ruudun keskellä. Vähemmän tärkeä ei korvaa näkyvää kesken
    * (esim. vinkki ei peitä salamavaroitusta), vaan näkyy sen jälkeen.
    */
-  showMessage(text: string, seconds = 2.5, level: MessageLevel = 'event'): void {
+  showMessage(
+    text: string,
+    seconds = 2.5,
+    level: MessageLevel = 'event',
+    options: MessageOptions = {},
+  ): void {
     if (this.messageTimer > 0 && RANK[level] < RANK[this.messageLevel]) {
-      this.queued = { text, seconds, level, age: 0 };
+      this.queued = { text, seconds, level, age: 0, options };
       return;
     }
-    this.messageText.textContent = text;
+    this.messageText.replaceChildren(...(options.icon ? [options.icon] : []), text);
     this.message.hidden = false;
     this.messageTimer = seconds;
     this.messageLevel = level;
@@ -530,10 +541,15 @@ export class Hud {
       // Odottanut ilmoitus, jos se on vielä ajankohtainen.
       const q = this.queued;
       this.queued = null;
-      if (q && q.age < q.seconds) this.showMessage(q.text, q.seconds - q.age, q.level);
+      if (q && q.age < q.seconds) this.showMessage(q.text, q.seconds - q.age, q.level, q.options);
       else this.setStandingMessage(this.standing);
     }
   }
+}
+
+/** Ilmoituksen lisätiedot: kuva tekstin edessä (esim. vaihdettu viehe, #362). */
+export interface MessageOptions {
+  icon?: HTMLElement;
 }
 
 /** Pelitilanne, jonka mukaan ohje näyttää vain oleelliset rivit. */

@@ -49,7 +49,8 @@ Koodi: `packages/client/src/ui/hud.ts`, tyylit `style.css`.
   Tasot: `alert` (sää, trombi, iso aalto, sotku, salama), `event`
   (oletus, pelin tapahtumat) ja `info` (näkymän ja vieheen vaihdot,
   vinkit). Vähemmän tärkeä ilmoitus odottaa jonossa eikä peitä tärkeämpää.
-  Älä lisää omaa ilmoituslaatikkoa.
+  Kuva tekstin eteen `{ icon }`-valinnalla (esim. vieheen kuva
+  `lureImage`, `ui/lureArt.ts`). Älä lisää omaa ilmoituslaatikkoa.
 - **Tilanneohje `Hud.setSituation(text | null)`:** pysyvä ohje siihen, mitä
   pelaajan pitää nyt tehdä (sotku, viehe maalla, perhoheitto, ukkonen).
   Sama tieto ei saa toistua ilmoituksena, ohjeessa ja tilarivillä.

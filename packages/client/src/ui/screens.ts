@@ -61,6 +61,7 @@ import type { LobbyPlayer, LobbyView } from '../net/session';
 import type { SendResult } from '../net/report';
 import { LIBRARIES, creditText } from './credits';
 import { fishImage } from './fishArt';
+import { lureImage, type LureArtId } from './lureArt';
 import {
   cardBlob,
   cardFileName,
@@ -175,6 +176,8 @@ const MODE_HINTS: Record<RecordMode, MsgKey> = {
 const LANG_NAMES: Record<Lang, string> = { fi: 'Suomi', en: 'English' };
 /** Kalojen kuvat listoissa: kapealla näytöllä pienempinä (ks. style.css). */
 const LIST_FISH_SCALE = 'var(--fish-px, 2px)';
+/** Vieheen kuvan pikselikoko Varusteet-näkymässä. */
+const LURE_HINT_SCALE = '2px';
 
 const partName = (part: AppearancePart) => t(`part.${part}`);
 
@@ -1892,9 +1895,20 @@ export class Screens {
       hints.push([p, text]);
       return p;
     };
+    // Valitun vieheen tai perhon kuva vihjeen vieressä (#362).
+    const arts: [HTMLElement, () => LureArtId][] = [];
+    const lureHintRow = (id: () => LureArtId, text: () => string) => {
+      const row = document.createElement('div');
+      row.className = 'lure-hint';
+      row.append(lureImage(id(), LURE_HINT_SCALE), hint(text));
+      arts.push([row, id]);
+      return row;
+    };
     const set = (patch: Partial<Tackle>) => {
       Object.assign(tk, patch);
       for (const [p, text] of hints) p.textContent = text();
+      for (const [row, id] of arts)
+        row.firstElementChild!.replaceWith(lureImage(id(), LURE_HINT_SCALE));
       onChange({ ...tk });
     };
     if (fly) {
@@ -1916,7 +1930,10 @@ export class Screens {
             tk.fly,
             (v) => set({ fly: v as Tackle['fly'] }),
           ),
-          hint(() => flyHint(tk.fly)),
+          lureHintRow(
+            () => tk.fly,
+            () => flyHint(tk.fly),
+          ),
         );
       box.append(
         this.choice(
@@ -1959,7 +1976,10 @@ export class Screens {
             tk.lure,
             (v) => set({ lure: v as Tackle['lure'] }),
           ),
-          hint(() => lureHint(tk.lure)),
+          lureHintRow(
+            () => tk.lure,
+            () => lureHint(tk.lure),
+          ),
         );
       box.append(
         this.choice(
