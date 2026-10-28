@@ -37,6 +37,8 @@ import {
   CHAT_RATE,
   EMOTE_RATE,
   type EmoteMessage,
+  type RaceStatsMessage,
+  emptyRaceStats,
   JoinRefusal,
   type ChatMessage,
   type RoomError,
@@ -1324,6 +1326,50 @@ describe('liittyminen kesken kisan', () => {
 
     await host.leave();
     await spec.leave();
+  });
+
+  it('kisan tilastot välitetään kaikille tulossivulle ja nollataan uuteen kisaan (#367)', async () => {
+    const host = await sdk().create(ROOM_NAME, {
+      name: 'A',
+      playerId: 'a',
+      testTiming: { countdown: 0.1, duration: 0.5 },
+    });
+    const guest = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
+    await until(() => players(host).length === 2);
+    let seen: RaceStatsMessage = {};
+    guest.onMessage(ServerMsg.stats, (m: RaceStatsMessage) => (seen = m));
+    let own: RaceStatsMessage = {};
+    host.onMessage(ServerMsg.stats, (m: RaceStatsMessage) => (own = m));
+    // Kesken kisan tilastoja ei oteta vastaan.
+    guest.send(ClientMsg.ready, true);
+    await until(() => players(host).every((p) => p.ready || p.name === 'A'));
+    host.send(ClientMsg.start);
+    await until(() => host.state.phase === 'playing');
+    host.send(ClientMsg.stats, { ...emptyRaceStats(), casts: 99 });
+    await until(() => host.state.phase === 'finished', 4000);
+
+    host.send(ClientMsg.stats, { ...emptyRaceStats(), casts: 7, capsizes: -2, bogus: 1 });
+    await until(() => seen[host.sessionId] !== undefined);
+    expect(seen[host.sessionId]).toEqual({ ...emptyRaceStats(), casts: 7 });
+    // Toinen lähetys ei muuta lukuja, mutta lähettäjä saa koko joukon.
+    guest.send(ClientMsg.stats, { ...emptyRaceStats(), tangles: 2 });
+    host.send(ClientMsg.stats, { ...emptyRaceStats(), casts: 1000 });
+    await until(() => Object.keys(own).length === 2);
+    expect(own[host.sessionId]!.casts).toBe(7);
+    expect(own[guest.sessionId]!.tangles).toBe(2);
+
+    host.send(ClientMsg.restart);
+    await until(() => host.state.phase === 'lobby');
+    guest.send(ClientMsg.ready, true);
+    await until(() => players(host).every((p) => p.ready || p.name === 'A'));
+    host.send(ClientMsg.start);
+    await until(() => host.state.phase === 'finished', 4000);
+    guest.send(ClientMsg.stats, emptyRaceStats());
+    await until(() => seen[guest.sessionId]?.tangles === 0);
+    expect(Object.keys(seen)).toEqual([guest.sessionId]);
+
+    await host.leave();
+    await guest.leave();
   });
 
   it('päättyneeseen kisaan tullut katsoo tuloksia ja kalastaa uudessa kisassa (#279)', async () => {

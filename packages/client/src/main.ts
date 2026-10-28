@@ -12,6 +12,9 @@ import {
   isFly,
   isWeatherLevel,
   parseRoomCode,
+  raceAwards,
+  STATS_PROTOCOL,
+  type AwardEntrant,
   type CatchRecord,
   type CompetitionSettings,
   type TimeOfDay,
@@ -34,7 +37,8 @@ import type { WeighCardInfo } from './ui/weighCard';
 import { ChatBox } from './ui/chat';
 import { TouchControls, isTouchDevice } from './ui/touchControls';
 import { Controls, contextActions, setControlMode } from './game/controls';
-import { Screens, loadSettings, type SettingsControls } from './ui/screens';
+import { Screens, loadSettings, type ResultsSummary, type SettingsControls } from './ui/screens';
+import { addLifetimeRace, type LifetimeStats } from './game/lifetimeStats';
 import { dismissBootLoader } from './ui/loader';
 import { Bench } from './dev/bench';
 import { clearLastRoom, loadIdentity, loadLastRoom, saveLastRoom, saveName } from './net/identity';
@@ -209,7 +213,11 @@ function startGame(s: CompetitionSettings, seed = devSeed) {
   // Varmuuden vuoksi piirto alkaa viimeistään hetken päästä.
   setTimeout(warm, WARM_TIMEOUT_MS);
   resultsAsHost = null;
-  game.onFinished = () => showResults();
+  game.onFinished = () => {
+    // Moninpelissä omat tilastot muiden tulossivulle (#367).
+    if (session && game) session.sendRaceStats(game.raceStats());
+    showResults();
+  };
   soloRecordNotes = [];
   // Kehitystilan valitulla siemenellä saalis ei ole reilu ennätys.
   if (!session && devSeed === undefined) {
@@ -338,6 +346,38 @@ function weighCardFor(g: SoloGame): WeighCardInfo | null {
   };
 }
 
+/** Peli, jonka tilastot on jo lisätty kaikkien kisojen yhteistilastoihin. */
+let lifeRecordedFor: SoloGame | null = null;
+let lifeStats: LifetimeStats | null = null;
+
+/** Tulossivun palkinnot ja tilastot (#367); kisa lisätään yhteistilastoihin kerran. */
+function resultsSummary(g: SoloGame, s: NetSession | null): ResultsSummary {
+  const myId = s ? s.sessionId : 'me';
+  const own = g.raceStats();
+  const rows = s
+    ? s.results()
+    : [{ id: myId, name: t('common.youCapital'), catches: g.competition.catches }];
+  const entrants: AwardEntrant[] = rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    catches: r.catches,
+    stats: r.id === myId ? own : (s?.raceStats.get(r.id) ?? null),
+  }));
+  const mine = entrants.find((e) => e.id === myId);
+  // Katsoja ei kalastanut: kisaa ei lasketa omiin tilastoihin.
+  if (lifeRecordedFor !== g && mine) {
+    lifeRecordedFor = g;
+    lifeStats = addLifetimeRace(own, mine.catches);
+  }
+  return {
+    awards: raceAwards(entrants),
+    players: [...(mine ? [mine] : []), ...entrants.filter((e) => e !== mine)],
+    myId,
+    life: mine ? lifeStats : null,
+    othersMissing: s !== null && s.serverProtocol < STATS_PROTOCOL,
+  };
+}
+
 function showResults() {
   if (!game) return;
   const card = weighCardFor(game);
@@ -357,6 +397,7 @@ function showResults() {
       (parent) => chat?.mount(parent, 'panel'),
       card,
       game.raceMap(),
+      resultsSummary(game, s),
     );
     return;
   }
@@ -367,6 +408,7 @@ function showResults() {
     card,
     game.raceMap(),
     soloRecordNotes,
+    resultsSummary(game, null),
   );
 }
 
@@ -478,6 +520,10 @@ function enterLobby(s: NetSession) {
     );
   };
   let wasReady = false;
+  // Toisen tilastot saapuivat: tulossivu uudelleen (#367).
+  s.onRaceStats = () => {
+    if (session === s && resultsAsHost !== null) showResults();
+  };
   s.onChange = (v) => {
     // Huoneesta jo lähdetty: myöhästynyt tila ei saa aloittaa kisaa uudelleen.
     if (session !== s) return;

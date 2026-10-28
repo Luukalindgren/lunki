@@ -33,6 +33,10 @@ import {
   type EmoteId,
   type EmoteMessage,
   EMOTE_PROTOCOL,
+  STATS_PROTOCOL,
+  SPECIES,
+  parseRaceStats,
+  type RaceStats,
   isEmoteId,
   CHAT_HISTORY,
   CHAT_PROTOCOL,
@@ -361,6 +365,10 @@ export class NetSession {
   onEmote: ((msg: EmoteMessage) => void) | null = null;
   /** Viimeisimmät chat-viestit, vanhin ensin. */
   chat: ChatMessage[] = [];
+  /** Päättyneen kisan tilastot sessionId:n mukaan (#367); uusi kisa tyhjentää. */
+  raceStats = new Map<string, RaceStats>();
+  /** Joku lähetti tilastonsa: tulossivu piirretään uudelleen. */
+  onRaceStats: (() => void) | null = null;
   onStarted: ((msg: StartedMessage, view: LobbyView) => void) | null = null;
   onError: ((message: string) => void) | null = null;
   /** Yhteys katkesi muusta syystä kuin omasta lähdöstä. */
@@ -388,7 +396,18 @@ export class NetSession {
       this.onState?.(this.room.state);
       this.onChange?.(this.view());
     });
-    room.onMessage(ServerMsg.started, (m: StartedMessage) => this.onStarted?.(m, this.view()));
+    room.onMessage(ServerMsg.started, (m: StartedMessage) => {
+      this.raceStats = new Map();
+      this.onStarted?.(m, this.view());
+    });
+    room.onMessage(ServerMsg.stats, (m: unknown) => {
+      if (typeof m !== 'object' || m === null) return;
+      const isSpecies = (s: string) => Object.hasOwn(SPECIES, s);
+      this.raceStats = new Map(
+        Object.entries(m).map(([id, raw]) => [id, parseRaceStats(raw, isSpecies)]),
+      );
+      this.onRaceStats?.();
+    });
     room.onMessage(ServerMsg.error, (m: RoomError | string) =>
       this.onError?.(describeRoomError(m)),
     );
@@ -608,6 +627,11 @@ export class NetSession {
   /** Vanha palvelin ei välitä eleitä: ne näkyvät silloin vain omalla koneella. */
   sendEmote(emote: EmoteId): void {
     if (this.serverProtocol >= EMOTE_PROTOCOL) this.room.send(ClientMsg.emote, emote);
+  }
+
+  /** Omat tilastot muiden tulossivulle; vanha palvelin ei välitä niitä. */
+  sendRaceStats(stats: RaceStats): void {
+    if (this.serverProtocol >= STATS_PROTOCOL) this.room.send(ClientMsg.stats, stats);
   }
 
   sendAppearance(a: Appearance): void {

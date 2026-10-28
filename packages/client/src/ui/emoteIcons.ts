@@ -126,15 +126,20 @@ const COLORS: Record<string, string> = {
   b: '#5b8fb9',
   o: '#4f6f86',
   k: '#1c232b',
+  w: '#eef2f3',
+  g: '#6fae4f',
 };
 const OUTLINE = '#1c232b';
 
-/** Ikoni kankaana (skaalautuu CSS:llä terävänä pikseligrafiikkana). */
-export function emoteIcon(id: EmoteId): HTMLCanvasElement {
-  const rows = EMOTE_ICONS[id];
+/**
+ * Pikseli-ikoni riveistä kankaana (skaalautuu CSS:llä terävänä
+ * pikseligrafiikkana). Sama piirto käsimerkeille ja tulossivun
+ * palkinnoille (#367): w valkoinen ja g vihreä lisävärinä.
+ */
+export function pixelIcon(rows: readonly string[], className: string): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = ICON_SIZE;
-  canvas.className = 'emote-icon';
+  canvas.className = className;
   const g = canvas.getContext('2d');
   if (!g) return canvas;
   const at = (x: number, y: number) => rows[y]?.[x] ?? '.';
@@ -153,3 +158,7 @@ export function emoteIcon(id: EmoteId): HTMLCanvasElement {
     }
   return canvas;
 }
+
+/** Käsimerkin ikoni. */
+export const emoteIcon = (id: EmoteId): HTMLCanvasElement =>
+  pixelIcon(EMOTE_ICONS[id], 'emote-icon');
