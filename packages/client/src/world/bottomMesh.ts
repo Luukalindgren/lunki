@@ -23,7 +23,7 @@ export function createBottomMesh(bottom: LakeBottom, waves: WaterWaves): THREE.G
   }
   const shallow = createShallowCover(bottom);
   if (shallow) {
-    clipToSwellPatch(shallow.material as THREE.Material, waves);
+    clipToSwellPatch(shallow.material as THREE.Material, waves, true);
     group.add(shallow);
   }
   return group;

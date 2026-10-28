@@ -1337,6 +1337,10 @@ export class SoloGame {
     this.waterWaves.uGlitterDir.value.copy(g.dir);
     this.waterWaves.uGlitterColor.value.copy(g.color);
     this.waterWaves.uGlitter.value = this.viewMode === 'pov' ? g.amount : 0;
+    // Taivaan heijastus vaalentaa kaukaista vettä vain valoisalla: yöllä ja
+    // ukkospilvien alla vaalea järvenselkä korostui liikaa.
+    this.waterWaves.uSheen.value =
+      0.6 * THREE.MathUtils.smoothstep(this.daylight.light, 0.12, 0.5) * (1 - 0.6 * now.darkness);
   }
 
   /**
