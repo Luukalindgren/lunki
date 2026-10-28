@@ -80,6 +80,31 @@ test.describe('yksinpeli', () => {
     errors.check();
   });
 
+  test('opastus: tyhjällä laitteella tilanneohje vie liikkeelle ja heittoon, Asetuksista pois (#370)', async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, 'puhelimet: sama tilakone, eri näppäinnimet');
+    const errors = watchErrors(page);
+    await startSolo(page);
+    const situation = page.locator('.hud-situation');
+    await expect(situation).toContainText('Opastus 1/5');
+    await page.keyboard.down('KeyS');
+    await expect(situation).toContainText('Opastus 2/5', { timeout: 30_000 });
+    await page.keyboard.up('KeyS');
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Asetukset' }).click();
+    await page
+      .locator('.choice', { hasText: 'Opastus' })
+      .getByRole('button', { name: 'Pois' })
+      .click();
+    await page.getByRole('button', { name: 'Takaisin' }).click();
+    await page.getByRole('button', { name: 'Jatka' }).click();
+    await expect(situation).toBeHidden();
+    expect(await page.evaluate(() => localStorage.getItem('lunki.guide'))).toContain('"off":true');
+    errors.check();
+  });
+
   test('ankkuri: N laskee ja nostaa, ankkurissa ei potkita (#355)', async ({ page, isMobile }) => {
     test.skip(isMobile, 'puhelimet: ks. kosketus.spec.ts');
     const errors = watchErrors(page);

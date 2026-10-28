@@ -54,6 +54,8 @@ Koodi: `packages/client/src/ui/hud.ts`, tyylit `style.css`.
 - **Tilanneohje `Hud.setSituation(text | null)`:** pysyvä ohje siihen, mitä
   pelaajan pitää nyt tehdä (sotku, viehe maalla, perhoheitto, ukkonen).
   Sama tieto ei saa toistua ilmoituksena, ohjeessa ja tilarivillä.
+  Alimpana tasona on opastus ensimmäiseen kalaan (`game/guide.ts`, #370):
+  uusi opastettava asia on uusi askel sen tilakoneeseen, ei oma ohjeruutu.
 - **Rangaistukset `Hud.setPenalties(rows, note)`** ajastimen alle (jäähy,
   kaatuminen, salama, maalle heitto), ei erillistä korttia.
 - **Asettelu kiinteissä vyöhykkeissä.** Ylhäällä keskellä olevat osat ovat
@@ -111,7 +113,8 @@ Koodi: `packages/client/src/world/lakeMesh.ts`.
 Koodi: `packages/client/src/ui/screens.ts` (`showSettings`, `showPause`).
 
 - **Pelaajan asetukset vain jaetussa Asetukset-näkymässä**
-  (`Screens.showSettings`): Näyttö (HUD-koko, näkökenttä), Äänet ja Kieli.
+  (`Screens.showSettings`): Näyttö (HUD-koko, näkökenttä, opastus), Äänet
+  ja Kieli.
   Sama näkymä aukeaa päävalikosta ja taukovalikosta.
 - Taukovalikko on lyhyt: Jatka, Varusteet, Asetukset, Koko näyttö, Lopeta
   kisa. Varusteet ja värit ovat omina alanäkyminään, ja yksinpelin

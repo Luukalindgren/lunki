@@ -37,6 +37,7 @@ import type { WeighCardInfo } from './ui/weighCard';
 import { ChatBox } from './ui/chat';
 import { TouchControls, isTouchDevice } from './ui/touchControls';
 import { Controls, contextActions, setControlMode } from './game/controls';
+import { Guide, loadGuide } from './game/guide';
 import { Screens, loadSettings, type ResultsSummary, type SettingsControls } from './ui/screens';
 import { addLifetimeRace, type LifetimeStats } from './game/lifetimeStats';
 import { dismissBootLoader } from './ui/loader';
@@ -141,6 +142,11 @@ const settingsControls = (reopen: () => void): SettingsControls => ({
     effective: () => hud.effectiveScale(),
   },
   povFov: povFovControl(),
+  guide: {
+    current: loadGuide().off === false,
+    // Pelin aikana muutos koskee heti käynnissä olevaa kisaa.
+    onChange: (on) => (game?.guide ?? new Guide(loadGuide())).setEnabled(on),
+  },
   onLanguage: reopen,
 });
 

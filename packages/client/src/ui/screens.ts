@@ -180,6 +180,8 @@ export interface SettingsControls {
     /** Toteutunut pysty-FOV tällä ruudulla valinnalla `fov`. */
     effective: (fov: number) => number;
   };
+  /** Opastus ensimmäiseen kalaan (#370): päälle alusta tai pois. */
+  guide: { current: boolean; onChange: (on: boolean) => void };
   /** Kieli vaihtui: näkymä avataan uudelleen uudella kielellä. */
   onLanguage: () => void;
 }
@@ -925,6 +927,15 @@ export class Screens {
       h('h3', t('settings.display'), 'settings-section'),
       this.hudSizeSlider(c.hudSize),
       this.povFovSlider(c.povFov),
+      this.choice(
+        t('settings.guide'),
+        [
+          ['on', t('settings.guideOn')],
+          ['off', t('settings.guideOff')],
+        ],
+        c.guide.current ? 'on' : 'off',
+        (v) => c.guide.onChange(v === 'on'),
+      ),
       h('h3', t('settings.sound'), 'settings-section'),
       this.audioEditor(c.audio.current, c.audio.onChange),
       h('h3', t('menu.language'), 'settings-section'),

@@ -229,6 +229,9 @@ export const fi = {
   'settings.tackle': 'Omat varusteet',
   'settings.changeColors': 'Muuta värejä',
   'settings.display': 'Näyttö',
+  'settings.guide': 'Opastus',
+  'settings.guideOn': 'Näytä alusta',
+  'settings.guideOff': 'Pois',
   'settings.sound': 'Äänet',
   'settings.winRule': 'Voittaja',
   'settings.maxPlayers': 'Pelaajia enintään',
@@ -575,6 +578,28 @@ export const fi = {
   'hud.tension': 'KIREYS',
   'hud.stamina': 'KUNTO',
   'hud.compass': 'P,KO,I,KA,E,LO,L,LU',
+  'guide.move':
+    'Opastus 1/5: potki liikkeelle · {forward} = kohti räpylöitä · {back} = selkä edellä (nopein)',
+  'guide.row': 'Opastus 1/5: souda liikkeelle · {back} = souda · {forward} = huopaa',
+  'guide.cast':
+    'Opastus 2/5: heitä viehe · {pointer}: tähtää, pidä pohjassa ja päästä · {castForward} = heitto katsesuuntaan',
+  'guide.reel': 'Opastus 3/5: kelaa viehe takaisin · {pointer} tai {reel} pohjassa = kelaa',
+  'guide.wait':
+    'Opastus 3/5: kelaa tasaisesti ja heitä uudelleen, kunnes kala iskee · {sonar} = kaikuluotain näyttää kalat',
+  'guide.again': 'Opastus: heitä uudelleen · {sonar} = kaikuluotain näyttää kalat',
+  'guide.strike': 'Opastus 4/5: tärppi! Kelaa heti ({reel}), niin koukku tarttuu',
+  'guide.fight':
+    'Opastus 5/5: kala kiinni! Kelaa, kun kala lepää · siima kireällä = löysää jarrua {dragLess}',
+  'guide.tipLure': 'Vinkki: {lure} = vaihda viehe · eri kalat syövät eri vieheitä',
+  'guide.tipSonar': 'Vinkki: {sonar} = kaikuluotain · {lureSonar} = vieheen syvyys',
+  'guide.flyCast':
+    'Perho-opastus 1/3: {castForward} = rytmiheitto · {backCast} = taakse, {forwardCast} = eteen',
+  'guide.flyStrip': 'Perho-opastus 2/3: uita perhoa vedoilla · {strip} = vedä siimaa',
+  'guide.flyWait': 'Perho-opastus 2/3: vedä, kunnes kala ottaa · {lift} = nosta uuteen heittoon',
+  'guide.flyAgain': 'Perho-opastus: {castForward} = heitä uudelleen',
+  'guide.flyStrike': 'Perho-opastus 3/3: tärppi! Vedä siimaa ({strip}), niin koukku tarttuu',
+  'guide.flyFight':
+    'Perho-opastus 3/3: kala kiinni! {reelSlack} = löysät kelalle, sitten kelaa ja väsytä jarrulla',
   'help.thunder': 'Ukkosella kelaa viehe sisään ja pysy rannan lähellä',
   'help.move': '{forward} = kohti räpylöitä · {back} = selkä edellä (nopein)',
   'help.turn': '{turn} = käänny · {sprint} = pikapotku (vie kuntoa) · {anchor} = ankkuri',
