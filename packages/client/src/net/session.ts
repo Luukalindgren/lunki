@@ -19,6 +19,7 @@ import {
   rankTeams,
   rankPlayers,
   BOAT_PROTOCOL,
+  SEAT_PROTOCOL,
   PROTOCOL_VERSION,
   type Catch,
   type CatchRecord,
@@ -219,6 +220,8 @@ export interface LobbyPlayer {
   /** Kulkupeli (#263): vene 1… ja paikka (BoatSeat); 0 = kelluntarengas. */
   boat: number;
   seat: number;
+  /** Paikka, johon pelaaja haluaa vaihtaa (#357); null = ei pyyntöä. */
+  seatAsk: number | null;
 }
 
 export interface LobbyView {
@@ -234,6 +237,8 @@ export interface LobbyView {
   canSpectate: boolean;
   /** Palvelin osaa veneet kulkupelinä (vanha palvelin ei). */
   canBoat: boolean;
+  /** Palvelin vaihtaa paikkoja veneessä (#357). */
+  canSwapSeats: boolean;
 }
 
 export interface PlayerSchema {
@@ -262,6 +267,8 @@ export interface PlayerSchema {
   anchorY?: number;
   anchorDepth?: number;
   anchorDrop?: number;
+  /** Paikanvaihtopyyntö (#357): haluttu paikka + 1; puuttuu vanhalta palvelimelta. */
+  seatAsk?: number;
   ack: number;
   lureX: number;
   lureY: number;
@@ -480,6 +487,7 @@ export class NetSession {
         appearance: playerAppearance(p),
         boat: p.boat ?? 0,
         seat: p.seat ?? 0,
+        seatAsk: p.seatAsk ? p.seatAsk - 1 : null,
       }),
     );
     return {
@@ -506,6 +514,7 @@ export class NetSession {
       allReady: players.every((p) => p.host || p.ready || p.spectator || !p.connected),
       canSpectate: this.serverProtocol >= SPECTATE_PROTOCOL,
       canBoat: this.serverProtocol >= BOAT_PROTOCOL,
+      canSwapSeats: this.serverProtocol >= SEAT_PROTOCOL,
     };
   }
 
@@ -521,6 +530,14 @@ export class NetSession {
   /** Aulassa kulkupeli: veneeseen n kyytiin, omaan uuteen veneeseen (0) tai renkaalle (BOAT_TUBE). */
   sendBoat(boat: number): void {
     if (this.serverProtocol >= BOAT_PROTOCOL) this.room.send(ClientMsg.boat, boat);
+  }
+
+  /**
+   * Veneessä paikka, johon haluaa (#357): vapaalle siirrytään, varatusta
+   * pyydetään vaihtoa (-1 perii pyynnön). Vanha palvelin ei tunne viestiä.
+   */
+  sendSeat(seat: number): void {
+    if (this.serverProtocol >= SEAT_PROTOCOL) this.room.send(ClientMsg.seat, seat);
   }
 
   /** Joku kisassa on veneessä (#263): venekunnat kisaavat joukkueina. */

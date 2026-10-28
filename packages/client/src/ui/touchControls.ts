@@ -31,6 +31,8 @@ export class TouchControls {
   private readonly knob: HTMLDivElement;
   private readonly gearButton: HTMLButtonElement;
   private readonly chatButton: HTMLButtonElement;
+  /** Paikanvaihto (#357): vain moninpelin veneessä. */
+  private readonly seatButton: HTMLButtonElement;
   /** Iso punainen nappi: HEITÄ, KELAA tai VETO kalastuksen vaiheen mukaan. */
   private readonly mainButton: ContextButton<ContextActions['main']>;
   /** Perhon nappi: SIIMA heitossa, NOSTA vedestä, KELALLE kalan kanssa. */
@@ -79,6 +81,9 @@ export class TouchControls {
     // Ankkuri liikkumisen vieressä: tatin yllä pystyssä, oikealla vaakatasossa (#355).
     const anchorButton = this.tap('anchor');
     anchorButton.classList.add('touch-anchor');
+    this.seatButton = this.tap('seat');
+    this.seatButton.classList.add('touch-seat');
+    this.seatButton.hidden = true;
     const tools = div('touch-tools');
     tools.append(
       this.tap('pause'),
@@ -112,7 +117,7 @@ export class TouchControls {
     const actions = div('touch-actions');
     actions.append(grid, this.mainButton.b);
 
-    this.root.append(stick, anchorButton, tools, actions);
+    this.root.append(stick, anchorButton, this.seatButton, tools, actions);
     parent.appendChild(this.root);
     this.relabel();
     onLangChange(() => this.relabel());
@@ -134,6 +139,11 @@ export class TouchControls {
   /** Chat on vain moninpelissä. */
   setMultiplayer(multiplayer: boolean): void {
     this.chatButton.hidden = !multiplayer;
+  }
+
+  /** Paikanvaihdon nappi näkyy moninpelin veneessä (#357). */
+  setCrew(crew: boolean): void {
+    if (this.seatButton.hidden === crew) this.seatButton.hidden = !crew;
   }
 
   /** Katsojalle vain näkymän napit: kalastajan ohjaimet eivät tee mitään (#280). */

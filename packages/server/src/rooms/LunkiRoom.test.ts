@@ -1521,6 +1521,60 @@ describe('veneet (#263)', () => {
     await c.leave();
   });
 
+  it('paikanvaihto (#357): vapaalle paikalle suoraan, soutajan kanssa pyynnöstä', async () => {
+    const host = await sdk().create(ROOM_NAME, {
+      name: 'A',
+      playerId: 'A',
+      protocol: PROTOCOL_VERSION,
+      testTiming: { countdown: 0.1, duration: 30 },
+    });
+    const b = await join(host, 'B');
+    await until(() => players(host).length === 2);
+    host.send(ClientMsg.boat, 0);
+    await until(() => crew(host).boat === 1);
+    b.send(ClientMsg.boat, 1);
+    await until(() => crew(host, b.sessionId).seat === BoatSeat.stern);
+    // Aulassa: B pyytää soutajan paikkaa, A hyväksyy pyytämällä B:n paikkaa.
+    const ask = (id: string) => (host.state.players.get(id) as { seatAsk: number }).seatAsk;
+    b.send(ClientMsg.seat, BoatSeat.rower);
+    await until(() => ask(b.sessionId) === BoatSeat.rower + 1);
+    host.send(ClientMsg.seat, BoatSeat.stern);
+    await until(() => crew(host, b.sessionId).seat === BoatSeat.rower);
+    expect(crew(host).seat).toBe(BoatSeat.stern);
+    expect(ask(b.sessionId)).toBe(0);
+
+    b.send(ClientMsg.ready, true);
+    await until(() => players(host).filter((p) => p.ready).length === 1);
+    host.send(ClientMsg.start);
+    await until(() => host.state.phase === 'playing');
+    // Kisassa: A siirtyy perästä vapaaseen keulaan.
+    host.send(ClientMsg.seat, BoatSeat.bow);
+    await until(() => crew(host).seat === BoatSeat.bow);
+    const hull = crew(host, b.sessionId);
+    const bow = seatPos({ pos: hull, heading: hull.heading }, BoatSeat.bow);
+    expect(distance(crew(host), bow)).toBeLessThan(0.05);
+    // Soutaja ei jätä airoja tyhjiksi.
+    b.send(ClientMsg.seat, BoatSeat.stern);
+    // Viehe vedessä: paikkaa ei vaihdeta.
+    host.send(ClientMsg.input, { i: [], l: [hull.x + 5, hull.y, 2, 0] });
+    host.send(ClientMsg.seat, BoatSeat.rower);
+    await new Promise((r) => setTimeout(r, 200));
+    expect(ask(host.sessionId)).toBe(0);
+    expect(crew(host, b.sessionId).seat).toBe(BoatSeat.rower);
+    // Viehe kelalla: A pyytää airoja, B hyväksyy, ja A jatkaa veneen paikasta.
+    host.send(ClientMsg.input, { i: [], l: [0, 0, 0] });
+    host.send(ClientMsg.seat, BoatSeat.rower);
+    await until(() => ask(host.sessionId) === BoatSeat.rower + 1);
+    const at = { ...crew(host, b.sessionId) };
+    b.send(ClientMsg.seat, BoatSeat.bow);
+    await until(() => crew(host).seat === BoatSeat.rower);
+    expect(crew(host, b.sessionId).seat).toBe(BoatSeat.bow);
+    expect(distance(crew(host), at)).toBeLessThan(0.05);
+    expect(crew(host).heading).toBeCloseTo(at.heading, 5);
+    await b.leave();
+    await host.leave();
+  });
+
   it('vanhan asiakkaan aulassa venettä ei voi valita', async () => {
     const host = await sdk().create(ROOM_NAME, {
       name: 'A',

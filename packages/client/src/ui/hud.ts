@@ -420,7 +420,13 @@ export class Hud {
    */
   setHelpContext(context: HelpContext): void {
     const c = this.helpContext;
-    if (c.fly === context.fly && c.pov === context.pov && c.seat === context.seat) return;
+    if (
+      c.fly === context.fly &&
+      c.pov === context.pov &&
+      c.seat === context.seat &&
+      !!c.crew === !!context.crew
+    )
+      return;
     this.helpContext = { ...context };
     this.renderHelp();
   }
@@ -439,7 +445,7 @@ export class Hud {
     const c = this.helpContext;
     const tail: MsgKey[] = [
       this.spectator ? 'help.spectateBar' : 'help.bar',
-      ...(mp ? ['help.chat' as const] : []),
+      ...(mp ? [c.crew ? ('help.chatCrew' as const) : ('help.chat' as const)] : []),
     ];
     // Kaikki tässä tilassa mahdolliset rivit: niiden mukaan varataan tila.
     // Liikkumisen rivit kulkupelin mukaan: räpylät, airot tai kyyti (#263).
@@ -467,7 +473,10 @@ export class Hud {
     // tyylitiedosto rajaa HUDin koon niin, että ohje mahtuu luotainten alle.
     // Koko ei muutu välineen tai näkymän mukana, joten HUD ei hypi.
     const rows = Math.max(...bases.map((b) => b.length)) + tail.length;
-    const all = [...bases.flat(), ...tail].map((k) => controlText(k, {}, { touch: this.touch }));
+    const crew: MsgKey[] = mp ? ['help.chatCrew'] : [];
+    const all = [...bases.flat(), ...tail, ...crew].map((k) =>
+      controlText(k, {}, { touch: this.touch }),
+    );
     const cols = Math.max(...all.map((l) => l.length));
     this.root.style.setProperty('--help-h', String(6 + 8 * rows));
     this.root.style.setProperty('--help-w', String(Math.ceil(6 + 3.2 * cols)));
@@ -535,6 +544,8 @@ export interface HelpContext {
   pov: boolean;
   /** Kulkupeli: kelluntarengas, veneen soutaja tai kyytiläinen (#263). */
   seat: 'tube' | 'rower' | 'passenger';
+  /** Moninpelin veneessä paikkaa voi vaihtaa venekunnan kesken (#357). */
+  crew?: boolean;
 }
 
 /**

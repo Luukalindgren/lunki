@@ -34,6 +34,11 @@ export const CONTROLS = {
   oars: { keys: ['KeyB'] },
   /** Ankkuri alas tai ylös: rengas ja veneen soutaja (#355). */
   anchor: { keys: ['KeyN'], touch: '⚓', title: 'touch.anchorTitle' },
+  /**
+   * Paikanvaihto veneessä (#357): vapaalle paikalle tai pyyntö vaihtaa; sama
+   * toiminto hyväksyy toisen pyynnön.
+   */
+  seat: { keys: ['KeyT'], touch: '⇄', title: 'touch.seatTitle' },
 
   // Kalastus. Hiiren vasen ja sormi järvellä tähtäävät, heittävät ja kelaavat.
   pointer: { keys: ['Mouse0'], label: 'ctl.mouse', touch: 'ctl.finger' },

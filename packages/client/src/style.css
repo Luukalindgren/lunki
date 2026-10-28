@@ -876,6 +876,19 @@ textarea,
   color: #8e99a4;
 }
 
+.seat-swap-row {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px 8px;
+}
+
+.seat-swap-row button {
+  padding: 0 6px;
+}
+
 .player-state.ok {
   color: #8fd16a;
 }
@@ -1574,10 +1587,28 @@ textarea,
   font-size: 20px;
 }
 
+/* Paikanvaihto (#357) ankkurin vieressä: vaakatasossa sen yllä, pystyssä oikealla. */
+.touch-controls .touch-seat {
+  position: absolute;
+  left: calc(var(--edge-l) + 132px);
+  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  width: 56px;
+  font-size: 20px;
+}
+
+.touch-controls .touch-seat[hidden] {
+  display: none;
+}
+
 /* Pystyssä tatin oikealla puolella ei ole tilaa: nappi tatin yläpuolelle. */
 @media (orientation: portrait) {
   .touch-controls .touch-anchor {
     left: var(--edge-l);
+    bottom: calc(148px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .touch-controls .touch-seat {
+    left: calc(var(--edge-l) + 64px);
     bottom: calc(148px + env(safe-area-inset-bottom, 0px));
   }
 }
@@ -1625,7 +1656,8 @@ textarea,
   display: none;
 }
 
-.touch-controls.spectator .touch-anchor {
+.touch-controls.spectator .touch-anchor,
+.touch-controls.spectator .touch-seat {
   display: none;
 }
 

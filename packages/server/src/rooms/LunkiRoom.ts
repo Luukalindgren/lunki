@@ -28,7 +28,9 @@ import {
   boatCapsizes,
   BOAT_PROTOCOL,
   BoatSeat,
+  SEAT_SWAP,
   seatPos,
+  seatedTube,
   BOAT_TUBE,
   wrapAngle,
   isPenalty,
@@ -102,7 +104,7 @@ import {
 } from '@lunki/shared';
 import { recordStore } from '../records';
 import { releaseCode, reserveCode } from './codes';
-import { moveToBoat, packCrews } from './crews';
+import { moveToBoat, packCrews, seatChange } from './crews';
 import { FROZEN, followBoat, isPassenger, rowerOf, stepSims, type Sim } from './simulation';
 import { CatchState, LunkiState, PlayerState } from './state';
 
@@ -236,6 +238,8 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   private readonly playerIds = new Map<string, string>();
   /** Kesken kisan lähteneiden paikat (playerId); tyhjenee uuden kisan alkaessa. */
   private readonly seats = new Map<string, Seat>();
+  /** Paikanvaihtopyyntöjen loppuhetki kisassa (kisa-aika, s), #357. */
+  private readonly seatAskUntil = new Map<string, number>();
   /** Kesken kisan katsojiksi tulleet: uudessa kisassa he ovat kalastajia. */
   private readonly lateSpectators = new Set<string>();
   /** Kisan aikana vapaa ei enää vaihdeta: istunnot, joiden vapa on lukittu. */
@@ -427,8 +431,10 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         p.capsizedUntil = 0;
         p.tangledWith = '';
         p.untangle = 0;
+        p.seatAsk = 0;
       });
       this.seats.clear();
+      this.seatAskUntil.clear();
       this.spawnOrigin = null;
       // Kesken kisan tulleet katsojat pääsevät nyt mukaan; aulassa itse katsojaksi
       // valinneet katsovat edelleen.
@@ -538,10 +544,16 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         const q = anglers[i]![1];
         // Joukkue muuttui: siirtyjän ja veneiden miehistön pitää kuitata valmius uudelleen.
         if (q.boat !== c.boat || c.id === client.sessionId) q.ready = false;
+        if (q.boat !== c.boat || q.seat !== c.seat) q.seatAsk = 0;
         q.boat = c.boat;
         q.seat = c.seat;
       });
     });
+
+    // Paikanvaihto veneessä (#357): aulassa ja kisan aikana.
+    this.onMessage(ClientMsg.seat, (client, seat: unknown) =>
+      this.changeSeat(client.sessionId, seat),
+    );
 
     this.onMessage(ClientMsg.spectate, (client, on: unknown) => {
       const p = this.state.players.get(client.sessionId);
@@ -677,8 +689,110 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     });
     packCrews(anglers.map(([id, p]) => ({ id, boat: p.boat, seat: p.seat }))).forEach((c, i) => {
       const p = anglers[i]![1];
+      if (p.boat !== c.boat || p.seat !== c.seat) p.seatAsk = 0;
       p.boat = c.boat;
       p.seat = c.seat;
+    });
+  }
+
+  /** Pelaajan voimassa oleva paikanvaihtopyyntö (paikka) tai null. */
+  private seatAskOf(id: string): number | null {
+    const ask = this.state.players.get(id)?.seatAsk ?? 0;
+    return ask > 0 ? ask - 1 : null;
+  }
+
+  /**
+   * Paikanvaihto veneessä (#357), ks. seatChange. Kisassa vene on lähes
+   * paikallaan, eikä vaihtajilla ole viehettä vedessä, jäähyä tai kaatumista;
+   * asiakas kertoo pelaajalle saman. Aulassa vain vaihdetaan paikkoja.
+   */
+  private changeSeat(id: string, seat: unknown) {
+    const st = this.state;
+    const p = st.players.get(id);
+    const lobby = st.phase === 'lobby';
+    if (!p || p.spectator || !p.boat || (!lobby && st.phase !== 'playing')) return;
+    if (seat === -1) {
+      p.seatAsk = 0;
+      return;
+    }
+    if (typeof seat !== 'number' || (!lobby && !this.canChangeSeat(id))) return;
+    const crew = [...st.players.entries()]
+      .filter(([, q]) => !q.spectator)
+      .map(([pid, q]) => ({ id: pid, boat: q.boat, seat: q.seat }));
+    const change = seatChange(crew, id, seat, (pid) => this.seatAskOf(pid), lobby);
+    if (!change) return;
+    if (change.kind === 'ask') {
+      p.seatAsk = change.seat + 1;
+      this.seatAskUntil.set(id, st.clock + SEAT_SWAP.askSeconds);
+      return;
+    }
+    if (change.kind === 'move') this.moveSeat(id, change.seat);
+    else if (lobby) {
+      const q = st.players.get(change.with)!;
+      [p.seat, q.seat] = [q.seat, p.seat];
+    } else if (this.canChangeSeat(change.with)) this.swapSeats(id, change.with);
+    else return;
+    // Paikat muuttuivat: veneen pyynnöt raukeavat.
+    this.clearSeatAsks(p.boat);
+  }
+
+  /** Kisassa paikkaa voi vaihtaa: vene lähes paikallaan, viehe kelalla, ei jäähyä. */
+  private canChangeSeat(id: string): boolean {
+    const p = this.state.players.get(id);
+    const sim = this.sims.get(id);
+    if (!p || !sim?.boat || p.lureStage !== LureStage.none || this.timedOut(id)) return false;
+    const boat = rowerOf(this.sims.values(), sim.boat);
+    const v = boat?.tube.vel ?? { x: 0, y: 0 };
+    return Math.hypot(v.x, v.y) <= SEAT_SWAP.maxSpeed;
+  }
+
+  /** Kyytiläinen vapaalle paikalle veneessä. */
+  private moveSeat(id: string, seat: number) {
+    const sim = this.sims.get(id);
+    const p = this.state.players.get(id);
+    const boat = sim?.boat ? rowerOf(this.sims.values(), sim.boat) : null;
+    if (!sim || !p || !boat) return;
+    sim.seat = p.seat = seat;
+    sim.tube = seatedTube(boat.tube, seat, sim.tube.stamina);
+    writeTube(p, sim.tube, sim.inputs.lastSeq);
+  }
+
+  /**
+   * Kaksi vaihtaa paikkaa. Soutajaksi tuleva jatkaa veneen tilasta
+   * (vauhti, suunta, ankkuri) kuten passOars; kunto on kummallakin oma.
+   */
+  private swapSeats(a: string, b: string) {
+    const sa = this.sims.get(a);
+    const sb = this.sims.get(b);
+    const boat = sa?.boat ? rowerOf(this.sims.values(), sa.boat) : null;
+    if (!sa || !sb || !boat) return;
+    const hull = boat.tube;
+    const seats: [string, Sim, number][] = [
+      [a, sa, sb.seat ?? 0],
+      [b, sb, sa.seat ?? 0],
+    ];
+    for (const [id, sim, seat] of seats) {
+      sim.tube =
+        seat === BoatSeat.rower
+          ? { ...hull, stamina: sim.tube.stamina }
+          : seatedTube(hull, seat, sim.tube.stamina);
+      sim.seat = seat;
+      sim.look = 0;
+      sim.rodInHand = false;
+      const p = this.state.players.get(id);
+      if (!p) continue;
+      p.seat = seat;
+      p.look = 0;
+      writeTube(p, sim.tube, sim.inputs.lastSeq);
+    }
+  }
+
+  /** Veneen paikanvaihtopyynnöt pois (paikat muuttuivat). */
+  private clearSeatAsks(boat: number) {
+    this.state.players.forEach((p, id) => {
+      if (p.boat !== boat) return;
+      p.seatAsk = 0;
+      this.seatAskUntil.delete(id);
     });
   }
 
@@ -912,6 +1026,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     // Lähtevän soutajan vene jää kyytiläisille: seuraava tarttuu airoihin.
     const sim = this.sims.get(id);
     if (sim?.boat && !isPassenger(sim)) this.passOars(id, sim);
+    if (sim?.boat) this.clearSeatAsks(sim.boat);
     // Lähtijän rengas ei saa jäädä näkymättömäksi esteeksi.
     this.sims.delete(id);
     this.reeling.delete(id);
@@ -974,6 +1089,9 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     const taken: Vec2[] = [];
     // Veneet aloittavat venekunnittain: soutaja paikalleen, kyytiläiset hänen veneeseensä.
     this.packCrews();
+    // Aulan paikanvaihtopyynnöt eivät jatku kisaan.
+    this.state.players.forEach((p) => (p.seatAsk = 0));
+    this.seatAskUntil.clear();
     const aboard = (p: PlayerState) => p.boat > 0 && p.seat !== BoatSeat.rower;
     const crews = new Map<number, [string, PlayerState][]>();
     this.state.players.forEach((p, id) => {
@@ -1033,6 +1151,12 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     if (st.phase === 'playing') {
       this.catchInSpouts();
       this.updateTangles();
+      for (const [id, until] of this.seatAskUntil)
+        if (st.clock > until) {
+          const p = st.players.get(id);
+          if (p) p.seatAsk = 0;
+          this.seatAskUntil.delete(id);
+        }
     }
   }
 
