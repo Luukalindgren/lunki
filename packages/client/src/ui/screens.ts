@@ -8,6 +8,11 @@ import {
   LINE_IDS,
   LURE_IDS,
   ROD_IDS,
+  RODS,
+  JIG_WEIGHT_IDS,
+  CRANK_DEPTH_IDS,
+  fitsCastWeight,
+  lureTuning,
   DEFAULT_TACKLE,
   FLY_IDS,
   FLY_LEADERS,
@@ -126,6 +131,11 @@ import {
   penaltyName,
   rodHint,
   rodName,
+  jigWeightName,
+  jigWeightHint,
+  crankDepthName,
+  crankDepthHint,
+  tackleLureName,
   speciesName,
   timeOfDayName,
   weatherLevelName,
@@ -1956,6 +1966,7 @@ export class Screens {
     const hints: [HTMLElement, () => string][] = [];
     const hint = (text: () => string) => {
       const p = h('p', text(), 'hint');
+      p.hidden = p.textContent === '';
       hints.push([p, text]);
       return p;
     };
@@ -1970,7 +1981,10 @@ export class Screens {
     };
     const set = (patch: Partial<Tackle>) => {
       Object.assign(tk, patch);
-      for (const [p, text] of hints) p.textContent = text();
+      for (const [p, text] of hints) {
+        p.textContent = text();
+        p.hidden = p.textContent === '';
+      }
       for (const [row, id] of arts)
         row.firstElementChild!.replaceWith(lureImage(id(), LURE_HINT_SCALE));
       onChange({ ...tk });
@@ -2022,6 +2036,33 @@ export class Screens {
         h('p', controlText('tackle.flyHint'), 'hint'),
       );
     } else {
+      const castWeight = () => {
+        const [min, max] = RODS[tk.rod].castWeight;
+        return t('rod.castWeight', { min, max });
+      };
+      // Jigin paino ja vaapun syvyys (#363): ennen kisaa molemmat, kisan aikana käytössä olevan.
+      const jigWeight = () => [
+        this.choice(
+          t('tackle.jigWeight'),
+          JIG_WEIGHT_IDS.map((id) => [id, jigWeightName(id)]),
+          tk.jigWeight,
+          (v) => set({ jigWeight: v as Tackle['jigWeight'] }),
+        ),
+        hint(() => jigWeightHint(tk.jigWeight)),
+      ];
+      const crankDepth = () => [
+        this.choice(
+          t('tackle.crankDepth'),
+          // Valinnan nimi isolla alkukirjaimella; vieheen nimessä pienellä ("Vaappu syvä").
+          CRANK_DEPTH_IDS.map((id) => {
+            const name = crankDepthName(id);
+            return [id, name.charAt(0).toUpperCase() + name.slice(1)];
+          }),
+          tk.crankDepth,
+          (v) => set({ crankDepth: v as Tackle['crankDepth'] }),
+        ),
+        hint(() => crankDepthHint(tk.crankDepth)),
+      ];
       if (mode === 'before')
         box.append(
           this.choice(
@@ -2030,7 +2071,9 @@ export class Screens {
             tk.rod,
             (v) => set({ rod: v as Tackle['rod'] }),
           ),
-          hint(() => rodHint(tk.rod)),
+          hint(() => `${rodHint(tk.rod)}. ${castWeight()}.`),
+          ...jigWeight(),
+          ...crankDepth(),
         );
       else
         box.append(
@@ -2038,12 +2081,20 @@ export class Screens {
             withKey('tackle.lure', 'lure'),
             LURE_IDS.map((id) => [id, lureName(id)]),
             tk.lure,
-            (v) => set({ lure: v as Tackle['lure'] }),
+            (v) => rebuild({ ...tk, lure: v as Tackle['lure'] }),
           ),
           lureHintRow(
             () => tk.lure,
             () => lureHint(tk.lure),
           ),
+          ...(tk.lure === 'jig' ? jigWeight() : tk.lure === 'wobbler' ? crankDepth() : []),
+          // Vavan heittopaino (#363): varoitus, jos viehe ei sovi vapaan.
+          hint(() => {
+            if (fitsCastWeight(tk)) return '';
+            const [min, max] = RODS[tk.rod].castWeight;
+            const g = lureTuning(tk).grams;
+            return t('tackle.castWeightOff', { lure: tackleLureName(tk), g, min, max });
+          }),
         );
       box.append(
         this.choice(
@@ -2087,6 +2138,8 @@ export class Screens {
       : {
           ...tk,
           rod: DEFAULT_TACKLE.rod,
+          jigWeight: DEFAULT_TACKLE.jigWeight,
+          crankDepth: DEFAULT_TACKLE.crankDepth,
           line: DEFAULT_TACKLE.line,
           leader: DEFAULT_TACKLE.leader,
         };

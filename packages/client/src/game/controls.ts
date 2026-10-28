@@ -57,6 +57,8 @@ export const CONTROLS = {
   dragLess: { keys: ['KeyQ'], touch: 'touch.dragLess', title: 'touch.dragLessTitle' },
   dragMore: { keys: ['KeyE'], touch: 'touch.dragMore', title: 'touch.dragMoreTitle' },
   cut: { keys: ['KeyC'], touch: 'touch.cut', title: 'touch.cutTitle' },
+  /** Virvelin nykäisy (#363): hiiren oikea tai J, kosketuksella KATKO-napin paikalla. */
+  twitch: { keys: ['Mouse2', 'KeyJ'], touch: 'touch.twitch', title: 'touch.twitchTitle' },
 
   // Perho.
   backCast: { keys: [], label: 'ctl.mouseBack', touch: 'ctl.swipeDown' },
@@ -140,15 +142,16 @@ export interface ContextActions {
   main: 'castForward' | 'reel' | 'strip' | 'haul';
   /** Perhon nappi: SIIMA heitossa, NOSTA vedestä, KELALLE kalan kanssa. */
   line: 'lineGrip' | 'lift' | 'reelSlack';
-  /** KATKO, heiton aikana PERU. */
-  tool: 'cut' | 'cancel';
+  /** KATKO, heiton aikana PERU, virvelin vapaalla vieheellä NYKÄISE. */
+  tool: 'cut' | 'cancel' | 'twitch';
 }
 
 /**
  * Mitä tilannenapit tekevät nyt. `rhythm`: perhoa heitetään rytmissä
- * (välilyönti tai HEITÄ), jolloin iso nappi on yhä HEITÄ.
+ * (välilyönti tai HEITÄ), jolloin iso nappi on yhä HEITÄ. `tangled`: siima
+ * on sotkussa toisen kanssa, ja KATKO katkaisee sen.
  */
-export function contextActions(f: FishingState, rhythm: boolean): ContextActions {
+export function contextActions(f: FishingState, rhythm: boolean, tangled = false): ContextActions {
   const fly = isFly(f.tackle);
   const inHand = fly && !f.onReel;
   const casting = f.stage === 'casting';
@@ -163,7 +166,12 @@ export function contextActions(f: FishingState, rhythm: boolean): ContextActions
             ? 'strip'
             : 'reel',
     line: f.stage !== 'water' ? 'lineGrip' : inHand && !free ? 'reelSlack' : 'lift',
-    tool: f.stage === 'charging' || casting ? 'cancel' : 'cut',
+    tool:
+      f.stage === 'charging' || casting
+        ? 'cancel'
+        : !fly && f.stage === 'water' && free && !tangled
+          ? 'twitch'
+          : 'cut',
   };
 }
 

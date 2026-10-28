@@ -64,6 +64,8 @@ export interface FishingInput {
   tackle?: Tackle;
   /** Katkaisee siiman, kun viehe on juuttunut maalle (C). */
   cut?: boolean;
+  /** Virveli: vavan nykäisy (#363) nostaa viehettä, ja se vajoaa taas (jigi). */
+  twitch?: boolean;
   /** Perho: siimakäsi puristaa siimaa (hiiren vasen, välilyönti tai VEDÄ). */
   lineHand?: boolean;
   /** Perho: siimakäden veto tällä askeleella (m). */
@@ -128,6 +130,8 @@ export interface FishingState {
   fouled: boolean;
   /** Kuinka kauan viehe on ollut paikallaan vedessä (s). */
   stillTime: number;
+  /** Aika viimeisestä nykäisystä (s); Infinity = ei nykäisty tällä heitolla. */
+  twitchAge: number;
   /** Perho: renkaan eteen vedetty löysä siima (m). */
   slack: number;
   /** Perho: löysä on kelattu, ja väsytys käyttää kelan jarrua. */
@@ -219,6 +223,7 @@ export const createFishing = (tackle: Tackle = DEFAULT_TACKLE): FishingState => 
   softSnag: false,
   fouled: false,
   stillTime: 0,
+  twitchAge: Infinity,
   slack: 0,
   onReel: false,
   fingerSlip: false,
@@ -281,6 +286,8 @@ export interface FishingEvents {
   fouled?: boolean;
   /** Jigi kolahti kivikkopohjaan (ääni). */
   rattle?: boolean;
+  /** Virveli: vapaa nykäistiin, ja viehe pomppasi (#363). */
+  twitch?: boolean;
   lureLost?: boolean;
   /** Viehe juuttui maalle tai laiturille. */
   stuck?: boolean;
@@ -380,6 +387,7 @@ export function lureInfo(s: FishingState, ctx: FishingContext): LureInfo | null 
     fouled: s.fouled,
     snagged: s.snag !== null,
     pause: s.stillTime,
+    twitch: s.twitchAge,
   };
 }
 
@@ -514,8 +522,13 @@ export function stepFishing(
         reeling = input.reel && !input.cancel;
         if (reeling) s.lineLength = Math.max(minLine, s.lineLength - REEL.gears[s.gear]! * dt);
       }
+      // Nykäisy pomppauttaa vapaata viehettä ja toimii virvelissä vastaiskuna.
+      const twitch = input.twitch === true && !hand && !hooked && s.snag === null && !s.onLand;
+      s.twitchAge += dt;
+      if (twitch && s.twitchAge >= TWITCH.cooldown && s.struckId === null)
+        twitchLure(s, tip, events);
       // Vastaisku: kelaus tai perhossa siimakäden veto; vavan nosto pistää huonommin.
-      const set = reeling || (hand && input.rodLift === true);
+      const set = reeling || (hand && input.rodLift === true) || twitch;
       const setChance = hand && !reeling ? FLY.liftHookChance : 1;
 
       if (fish && s.struckId === null && !hooked && fish.strike !== undefined) {
@@ -556,6 +569,37 @@ export function stepFishing(
     }
   }
   return events;
+}
+
+/**
+ * Vavan nykäisy (#363): viehe pomppaa ylös ja kohti kalastajaa, minkä
+ * jälkeen se vajoaa löysällä siimalla. Kevyt jigi nousee enemmän kuin raskas.
+ */
+export const TWITCH = {
+  /** Nousu (m) vieheellä, joka vajoaa 0,8 m/s (10 g jigi). */
+  lift: 0.7,
+  /** Vieheen siirtymä kohti vavan kärkeä (m). */
+  pull: 0.5,
+  /** Uusi nykäisy aikaisintaan näin pian (s). */
+  cooldown: 0.4,
+} as const;
+
+function twitchLure(s: FishingState, tip: Vec2, events: FishingEvents): void {
+  const bait = baitOf(s.tackle);
+  const lift = TWITCH.lift * Math.sqrt(0.8 / Math.max(0.3, bait.sinkRate));
+  s.depth = Math.max(0, s.depth - lift);
+  const d = distance(s.lure, tip);
+  const move = Math.min(TWITCH.pull, Math.max(0, d - LURE.homeDistance));
+  if (d > 0) {
+    s.lure = {
+      x: s.lure.x + ((tip.x - s.lure.x) / d) * move,
+      y: s.lure.y + ((tip.y - s.lure.y) / d) * move,
+    };
+    s.lineLength = Math.min(s.lineLength, distance(s.lure, tip));
+  }
+  s.twitchAge = 0;
+  s.stillTime = 0;
+  events.twitch = true;
 }
 
 /** Vaihtaa kelan vaihteen; pikakelaus uudestaan valittuna palaa edelliseen. */
@@ -761,10 +805,12 @@ function pullLure(s: FishingState, tip: Vec2, dt: number, hold: number): void {
   }
   let speed = over / dt;
   const water = Math.min(speed, LURE.planeSpeed);
-  let tension = LURE.dragBase + LURE.dragCoeff * water * water;
+  // Syvän vaapun iso lippa vetää raskaammin (#363).
+  const coeff = LURE.dragCoeff * baitOf(s.tackle).drag;
+  let tension = LURE.dragBase + coeff * water * water;
   if (tension > hold) {
     // Nopeus, jolla vastus on täsmälleen jarrun suuruinen.
-    speed = Math.sqrt(Math.max(0, hold - LURE.dragBase) / LURE.dragCoeff);
+    speed = Math.sqrt(Math.max(0, hold - LURE.dragBase) / coeff);
     tension = hold;
     s.dragSlipping = true;
   }
@@ -863,6 +909,7 @@ export function resetFishing(s: FishingState, fish?: { pop: FishPopulation; rng:
   s.struckId = null;
   s.hookedId = null;
   s.stillTime = 0;
+  s.twitchAge = Infinity;
   s.onReel = false;
   s.flyCast = null;
   s.knot = false;

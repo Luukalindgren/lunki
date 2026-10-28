@@ -88,10 +88,10 @@ describe('toimintokartta', () => {
 
   it('sama ohjeteksti näppäimistölle ja kosketukselle', () => {
     expect(controlText('help.reel', {}, { touch: false })).toBe(
-      'Hiiri tai välilyönti pohjassa = kelaa',
+      'Hiiri tai välilyönti pohjassa = kelaa · hiiren oikea/J = nykäisy',
     );
     expect(controlText('help.reel', {}, { touch: true })).toBe(
-      'Sormi järvellä tai KELAA pohjassa = kelaa',
+      'Sormi järvellä tai KELAA pohjassa = kelaa · NYKÄISE = nykäisy',
     );
     expect(controlText('game.viewTop', {}, { touch: true })).toBe('Ylhäältä (KAM)');
     expect(controlText('game.viewTop', {}, { touch: false })).toBe('Ylhäältä (V)');
@@ -129,11 +129,14 @@ describe('tilannenapit kosketuksella', () => {
     });
     expect(contextActions(spin({ stage: 'charging' }), false).tool).toBe('cancel');
     expect(contextActions(spin({ stage: 'flight' }), false).main).toBe('reel');
+    // Vapaalla vieheellä KATKO-napin paikalla on NYKÄISE (#363).
     expect(contextActions(spin({ stage: 'water' }), false)).toEqual({
       main: 'reel',
       line: 'lift',
-      tool: 'cut',
+      tool: 'twitch',
     });
+    expect(contextActions(spin({ stage: 'water' }), false, true).tool).toBe('cut');
+    expect(contextActions(spin({ stage: 'water', onLand: true }), false).tool).toBe('cut');
   });
 
   it('perho: HEITÄ valmiina, heitossa VETO ja PERU, rytmiheitossa HEITÄ', () => {

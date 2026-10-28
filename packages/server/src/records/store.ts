@@ -17,6 +17,7 @@ const DETAILS = [
   ['sky', 'sky', 'TEXT'],
   ['wind', 'wind', 'REAL'],
   ['lure', 'lure', 'TEXT'],
+  ['lureVariant', 'lure_variant', 'TEXT'],
   ['rod', 'rod', 'TEXT'],
   ['line', 'line', 'TEXT'],
   ['leader', 'leader', 'INTEGER'],

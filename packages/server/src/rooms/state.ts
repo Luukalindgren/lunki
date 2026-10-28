@@ -45,6 +45,9 @@ export const PlayerState = schema(
     /** Varusteet muiden nähtäväksi (Tackle). */
     rod: t.string().default(DEFAULT_TACKLE.rod),
     lure: t.string().default(DEFAULT_TACKLE.lure),
+    /** Jigin paino ja vaapun uintisyvyys (#363). */
+    jigWeight: t.string().default(DEFAULT_TACKLE.jigWeight),
+    crankDepth: t.string().default(DEFAULT_TACKLE.crankDepth),
     line: t.string().default(DEFAULT_TACKLE.line),
     leader: t.boolean().default(DEFAULT_TACKLE.leader),
     /** Virveli tai perho, ja perhovälineet (#234). */

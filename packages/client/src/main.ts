@@ -760,7 +760,7 @@ startLoop({
     if (game && ((!paused && !screens.open) || (session && paused))) game.update(dt);
     if (game) {
       touch?.update(
-        contextActions(game.fishing, game.flyRhythm),
+        contextActions(game.fishing, game.flyRhythm, game.tangled),
         isFly(game.fishing.tackle),
         game.fishing.gear,
       );

@@ -293,6 +293,7 @@ export class FishingController {
               ...this.readGear(),
               ...(this.pendingTackle ? { tackle: this.pendingTackle } : {}),
               cut: c.wasPressed('cut'),
+              twitch: !isFly(f.tackle) && c.wasPressed('twitch'),
               ...fly,
               reelSlack: c.isDown('reelSlack'),
               ...(startFlyCast ? { startFlyCast } : {}),

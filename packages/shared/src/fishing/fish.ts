@@ -832,6 +832,9 @@ export function wariness(size: SizeClass, activity: number): number {
 
 /** Vedon jälkeinen tauko (s), jonka aikana hauki ja suurkala iskevät herkimmin. */
 const PAUSE_WINDOW = { from: 0.2, to: 4 } as const;
+/** Nykäisyn jälkeinen aika (s), jona vajoava viehe houkuttaa tavallista enemmän. */
+const TWITCH_WINDOW = 2.5;
+const TWITCH_APPEAL = 0.25;
 
 /**
  * Kalan kotipaikka: ensimmäinen sukupolvi parvessaan, myöhemmät saman lajin
@@ -886,6 +889,8 @@ export interface LureInfo {
   snagged?: boolean;
   /** Kuinka kauan viehe on ollut paikallaan (s): perhon tauko houkuttaa haukea. */
   pause?: number;
+  /** Aika viimeisestä nykäisystä (s): nykäisty, vajoava viehe houkuttaa (#363). */
+  twitch?: number;
 }
 
 export interface FishEvents {
@@ -1113,7 +1118,10 @@ export function lureAppeal(fish: Fish, lure: LureInfo, tolerance = 1): number {
     lure.pause !== undefined &&
     lure.pause >= PAUSE_WINDOW.from &&
     lure.pause <= PAUSE_WINDOW.to;
-  const still = bait ? (pause ? bait.pauseAppeal : bait.stillAppeal) : 0.25;
+  const resting = bait ? (pause ? bait.pauseAppeal : bait.stillAppeal) : 0.25;
+  // Nykäisyn jälkeen vajoava viehe näyttää pakenevalta tai haavoittuneelta kalalta.
+  const twitched = lure.twitch !== undefined && lure.twitch <= TWITCH_WINDOW;
+  const still = twitched ? Math.min(1, resting + TWITCH_APPEAL) : resting;
   const speedScore = Math.max(lure.speed < 0.05 ? still : 0, 1 - dv * dv * 0.5);
   const dd = Math.abs(lure.depth - fish.depth);
   const depthScore = Math.max(0, 1 - dd / (2.5 * tolerance));
