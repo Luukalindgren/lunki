@@ -2,13 +2,14 @@ import {
   BoatSeat,
   CRAFTS,
   NET_DT,
-  collideTubeWithShore,
+  collideCraftWithShore,
   collideTubes,
   passengerInput,
   rowerInput,
   seatPos,
   stepPlayerTube,
-  type Craft,
+  wrapAngle,
+  type CraftSpec,
   type InputQueue,
   type TubeState,
   type Vec2,
@@ -25,11 +26,13 @@ export interface Sim {
   lastCatchAt: number;
   /** Vieheen paikka, kun kala viimeksi tarttui (saaliin tarkistukseen). */
   hookAt?: Vec2 | null;
-  /** Venekisa (#263): vene 1… ja paikka (BoatSeat); puuttuu = oma rengas. */
+  /** Vene (#263): vene 1… ja paikka (BoatSeat); puuttuu = kelluntarengas. */
   boat?: number;
   seat?: number;
   /** Viehe ilmassa tai vedessä: soutaja ei voi samalla soutaa. */
   fishing?: boolean;
+  /** Soutaja kääntyneenä tuhdolla kalastaessaan (rad veneen suunnasta). */
+  look?: number;
 }
 
 export const FROZEN = { kick: 0, turn: 0, sprint: false };
@@ -43,12 +46,17 @@ export function rowerOf(sims: Iterable<Sim>, boat: number): Sim | null {
   return null;
 }
 
+/** Aluksen laji: veneen soutaja liikuttaa venettä, muut ovat renkaalla (tai kyydissä). */
+export const craftOf = (sim: Sim): CraftSpec =>
+  sim.boat && !isPassenger(sim) ? CRAFTS.boat : CRAFTS.tube;
+
 /**
  * Yksi palvelimen askel: jokainen alus etenee yhdellä syötteellään
  * (tyhjällä jonolla odottaa; `frozen` = lähtölaskenta), sitten ratkaistaan
- * alusten väliset törmäykset. Venekisassa (#263) soutaja liikuttaa venettä,
+ * alusten väliset törmäykset. Veneessä (#263) soutaja liikuttaa venettä,
  * ja kyydissä olevat vain kääntyvät paikoillaan ja seuraavat venettä.
- * Palauttaa muuttuneiden indeksit.
+ * Renkaat ja veneet voivat olla samassa kisassa. Palauttaa muuttuneiden
+ * indeksit.
  */
 export function stepSims(
   sims: Sim[],
@@ -56,14 +64,16 @@ export function stepSims(
   frozen = false,
   /** Tuuli; funktiona, kun se riippuu renkaasta (trombi). */
   wind?: Vec2 | ((sim: Sim, index: number) => Vec2),
-  craft: Craft = 'tube',
 ): Set<number> {
-  const spec = CRAFTS[craft];
   const moved = new Set<number>();
+  // Veneiden suunta ennen askelta: kyytiläiset kääntyvät veneen mukana.
+  const turnedFrom = new Map<number, number>();
+  for (const s of sims) if (s.boat && !isPassenger(s)) turnedFrom.set(s.boat, s.tube.heading);
   sims.forEach((sim, i) => {
     const input = sim.inputs.next();
     if (!input) return;
     const passenger = isPassenger(sim);
+    const spec = craftOf(sim);
     // Lähtölaskennan aikana syötteet kuitataan, mutta rengas ei liiku.
     sim.tube = frozen
       ? stepPlayerTube(sim.tube, FROZEN, water, NET_DT, undefined, spec)
@@ -73,38 +83,38 @@ export function stepSims(
           water,
           NET_DT,
           typeof wind === 'function' ? wind(sim, i) : wind,
-          passenger ? CRAFTS.tube : spec,
+          spec,
         );
     moved.add(i);
   });
   // Törmäävät vain alukset: kyydissä olevat ovat veneen sisällä.
   const crafts = sims.flatMap((s, i) => (isPassenger(s) ? [] : [i]));
+  const specs = crafts.map((i) => craftOf(sims[i]!));
   const before = crafts.map((i) => sims[i]!.tube);
   const after = [...before];
-  for (const k of collideTubes(after, spec.radius)) {
+  for (const k of collideTubes(after, specs)) {
     const i = crafts[k]!;
-    sims[i]!.tube = collideTubeWithShore(
-      before[k]!,
-      after[k]!,
-      water,
-      spec.radius,
-      spec.physics.shoreBounce,
-    );
+    sims[i]!.tube = collideCraftWithShore(before[k]!, after[k]!, water, specs[k]);
     moved.add(i);
   }
   sims.forEach((sim, i) => {
     if (!isPassenger(sim)) return;
     const boat = rowerOf(sims, sim.boat!);
     if (!boat) return;
-    sim.tube = followBoat(sim.tube, boat.tube, sim.seat!);
+    const turn = boat.tube.heading - (turnedFrom.get(sim.boat!) ?? boat.tube.heading);
+    sim.tube = followBoat(sim.tube, boat.tube, sim.seat!, turn);
     moved.add(i);
   });
   return moved;
 }
 
-/** Kyydissä oleva paikallaan veneessä: paikka ja nopeus veneestä, katse oma. */
-export const followBoat = (t: TubeState, boat: TubeState, seat: number): TubeState => ({
+/**
+ * Kyydissä oleva paikallaan veneessä: paikka ja nopeus veneestä, katse oma.
+ * `turn` = veneen kääntymä askeleen aikana (rad): kyytiläinen kääntyy mukana.
+ */
+export const followBoat = (t: TubeState, boat: TubeState, seat: number, turn = 0): TubeState => ({
   ...t,
   pos: seatPos(boat, seat),
   vel: { ...boat.vel },
+  heading: wrapAngle(t.heading + turn),
 });

@@ -94,6 +94,22 @@ muut pelaajat: SnapshotBuffer, piirretään 120 ms menneisyydestä
   sitten 1 / 2 s) ja välittää sen muille (`ServerMsg.emote`); eleitä ei
   tallenneta. Yksinpelissä eleet näkyvät vain omalla koneella.
 
+- **Vene kulkupelinä** (#263, protokolla 7). Jokainen valitsee aulassa
+  kulkupelin: kelluntarengas tai oma vene (`ClientMsg.boat`: 0 = uusi oma
+  vene, n = kyytiin veneeseen n, `BOAT_TUBE` = takaisin renkaalle). Veneessä
+  on soutaja ja enintään kaksi kalastajaa (`PlayerState.boat`, `seat`), ja
+  venekunta on yksi joukkue: tulostaulussa renkaat ovat omina riveinään ja
+  veneet joukkueina (`rankTeams`). Vene on soutajan `TubeState` (suunta
+  perään), kyydissä olevat seuraavat sitä (`seatPos`) ja kääntyvät sen mukana.
+  Soutaja joko soutaa tai kalastaa (`RowerSeat`): heitto nostaa airot, soutu
+  laskee vavan, ja B vaihtaa. Kalastaessa soutaja kääntyy tuhdolla (`look`,
+  lähetetään syötteen mukana). Runko on kolme ympyrää (`BOAT_CIRCLES`), joten
+  keula ja perä törmäävät rantaan ja muihin; raskas vene (`CRAFTS.boat.mass`)
+  tönäisee rengasta enemmän kuin rengas venettä. Vene kulkee noin 1,5 kertaa
+  renkaan vauhtia, kiihtyy hitaammin ja liukuu vetojen jälkeen pitkään
+  (`BOAT_PHYSICS`). Vanha asiakas ei pääse huoneeseen, jossa on vene, eikä
+  venettä voi valita, kun huoneessa on vanha asiakas.
+
 ## Testaus viiveellä
 
 ```sh

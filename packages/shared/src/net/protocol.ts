@@ -12,7 +12,7 @@ export const ROOM_NAME = 'lunki';
  * uudelleen: asiakas ei lähetä vanhemmalle palvelimelle viestejä, joita se
  * ei tunne. Vanha palvelin ilman kenttää = 1.
  */
-export const PROTOCOL_VERSION = 6;
+export const PROTOCOL_VERSION = 7;
 /** Chat tuli versiossa 2. */
 export const CHAT_PROTOCOL = 2;
 /** Maalle juuttuneen vieheen siiman katkaisu (ClientMsg.landCut) tuli versiossa 3. */
@@ -22,11 +22,12 @@ export const SPECTATE_PROTOCOL = 4;
 /** Käsimerkit (ClientMsg.emote, ServerMsg.emote) tulivat versiossa 5. */
 export const EMOTE_PROTOCOL = 5;
 /**
- * Venekisa (RoomSettings.craft, ClientMsg.boat, PlayerState.boat/seat) tuli
- * versiossa 6. Asiakas kertoo versionsa (JoinOptions.protocol): vanha asiakas
- * ei osaa venettä, joten se ei pääse venekisaan.
+ * Veneet (ClientMsg.boat, PlayerState.boat/seat/look) pelaajan omana
+ * kulkupelinä tulivat versiossa 7 (versiossa 6 venekisa oli huoneen asetus).
+ * Asiakas kertoo versionsa (JoinOptions.protocol): vanha asiakas ei osaa
+ * venettä, joten se ei pääse huoneeseen, jossa joku on valinnut veneen.
  */
-export const BOAT_PROTOCOL = 6;
+export const BOAT_PROTOCOL = 7;
 
 /** Oletuspelaajamäärä huoneessa. Rakenne sallii isomman. */
 export const DEFAULT_MAX_PLAYERS = 8;
@@ -98,7 +99,7 @@ export const JoinRefusal = {
   full: 'room-full',
   /** Palvelimella on jo enimmäismäärä huoneita. */
   serverFull: 'server-full',
-  /** Asiakas on liian vanha huoneen kisaan (esim. venekisa). */
+  /** Asiakas on liian vanha huoneen kisaan (esim. huoneessa on vene). */
   outdated: 'client-outdated',
 } as const;
 export type JoinRefusalCode = (typeof JoinRefusal)[keyof typeof JoinRefusal];
@@ -147,7 +148,10 @@ export const ClientMsg = {
   spectate: 'spectate',
   /** Käsimerkki muille (EmoteId). */
   emote: 'emote',
-  /** Aulassa venekisassa: siirry veneeseen n (1…) tai omaan uuteen veneeseen (0). */
+  /**
+   * Aulassa kulkupeli: veneeseen n (1…) kyytiin, omaan uuteen veneeseen (0)
+   * tai kelluntarenkaalle (BOAT_TUBE).
+   */
   boat: 'boat',
 } as const;
 
@@ -160,7 +164,12 @@ export interface InputMessage {
   i: number[];
   /** Viehe: [x, y, LureStage, kelaa (1/0)]. */
   l?: [number, number, number, number?];
+  /** Soutaja kääntyneenä tuhdolla: kulma veneen suunnasta (rad); puuttuu = 0. */
+  look?: number;
 }
+
+/** ClientMsg.boat: kelluntarenkaalle veneestä. */
+export const BOAT_TUBE = -1;
 
 export interface SplashMessage {
   x: number;

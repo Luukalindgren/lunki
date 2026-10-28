@@ -20,6 +20,7 @@ import {
   LAND_PENALTIES,
   LATE_JOIN_OPTIONS,
   BOAT_CREW,
+  BOAT_TUBE,
   CRAFT_IDS,
   type Craft,
   PENALTY_IDS,
@@ -95,6 +96,7 @@ import {
 } from '../i18n';
 import { controlText, withKey } from '../game/controls';
 import { isMine } from '../game/raceScoreboard';
+import { loadCraft, saveCraft } from '../game/tackle';
 import {
   colorName,
   describeFullTackle,
@@ -444,6 +446,13 @@ export class Screens {
         (v) => (settings.landPenalty = Number(v)),
       ),
       h('p', t('settings.hazardHint'), 'hint'),
+      this.choice(
+        t('settings.craft'),
+        CRAFT_IDS.map((c) => [c, craftName(c)]),
+        loadCraft(),
+        (v) => saveCraft(v as Craft),
+      ),
+      h('p', t('solo.craftHint'), 'hint'),
       // Varusteet ja värit omissa näkymissään; paluu säilyttää kesken olevat valinnat.
       this.tackleSummary(tackle.current, () =>
         this.showTackle(
@@ -544,7 +553,7 @@ export class Screens {
       onAppearance: (a: Appearance) => void;
       /** Isäntä avaa kartan aloituspaikan valintaan. */
       onPickStart: () => void;
-      /** Venekisa: siirry veneeseen n tai omaan uuteen veneeseen (0). */
+      /** Kulkupeli: veneeseen n, omaan uuteen veneeseen (0) tai renkaaseen (BOAT_TUBE). */
       onBoat: (boat: number) => void;
     },
     notice?: string,
@@ -579,7 +588,6 @@ export class Screens {
         () => (copy.textContent = link),
       );
     });
-    const boats = v.settings.craft === 'boat';
     const list = document.createElement('ul');
     list.className = 'player-list';
     const playerRow = (p: LobbyPlayer) => {
@@ -609,7 +617,7 @@ export class Screens {
       );
       return li;
     };
-    if (boats) list.append(...this.crewRows(v, playerRow, actions.onBoat));
+    if (v.canBoat) list.append(...this.crewRows(v, playerRow, actions.onBoat));
     else for (const p of v.players) list.appendChild(playerRow(p));
     // Katsojat eivät vie kalastajapaikkoja (#274).
     const anglers = v.players.filter((p) => !p.spectator).length;
@@ -621,6 +629,21 @@ export class Screens {
       h('p', t('lobby.players', { n: anglers, max: v.maxPlayers }), 'choice-label'),
       list,
     );
+    // Oma kulkupeli: rengas tai oma vene; kyytiin pääsee veneen Liity-napista.
+    if (v.canBoat && me && !me.spectator) {
+      const craft: Craft = me.boat > 0 ? 'boat' : 'tube';
+      panel.append(
+        this.choice(
+          t('settings.craft'),
+          CRAFT_IDS.map((c) => [c, c === 'boat' ? t('boat.own') : craftName(c)]),
+          craft,
+          (c) => {
+            if (c !== craft) actions.onBoat(c === 'boat' ? 0 : BOAT_TUBE);
+          },
+        ),
+        h('p', t('settings.craftHint'), 'hint'),
+      );
+    }
     // Esim. turnauksessa karsitut voivat katsoa seuraavaa kisaa.
     if (v.canSpectate && me)
       panel.append(
@@ -641,13 +664,7 @@ export class Screens {
     }
     panel.append(
       v.amHost
-        ? this.settingsEditor(
-            v.settings,
-            anglers,
-            actions.onSettings,
-            actions.onPickStart,
-            v.canBoat,
-          )
+        ? this.settingsEditor(v.settings, anglers, actions.onSettings, actions.onPickStart)
         : this.settingsSummary(v.settings),
       // Katsoja ei kalasta, joten varusteita ei tarvita.
       ...(me?.spectator
@@ -692,8 +709,9 @@ export class Screens {
   }
 
   /**
-   * Venekisan aulan pelaajat veneittäin (#263): veneen otsikko, miehistö
-   * paikkoineen ja oma siirto toiseen veneeseen. Katsojat lopussa.
+   * Aulan pelaajat kulkupeleittäin (#263): jokainen vene on oma joukkueensa
+   * (otsikko, miehistö paikkoineen ja Liity kyytiin), renkaalla kalastavat
+   * omina riveinään. Katsojat lopussa.
    */
   private crewRows(
     v: LobbyView,
@@ -704,33 +722,35 @@ export class Screens {
     const crews = new Map<number, LobbyPlayer[]>();
     for (const p of v.players)
       if (!p.spectator && p.boat > 0) crews.set(p.boat, [...(crews.get(p.boat) ?? []), p]);
+    const withSeat = (p: LobbyPlayer, seat: string) => {
+      const row = playerRow(p);
+      row.firstElementChild?.after(h('span', seat, 'player-seat'));
+      return row;
+    };
     const rows: HTMLElement[] = [];
     for (const [boat, crew] of [...crews].sort(([a], [b]) => a - b)) {
-      const head = h('li', '', 'boat-crew');
-      head.append(h('span', t('boat.name', { n: boat }), 'choice-label'));
-      const room = crew.length < BOAT_CREW && me && !me.spectator && me.boat !== boat;
-      if (room) {
+      const team = h('li', '', 'boat-crew');
+      const head = h('div', '', 'boat-crew-head');
+      head.append(
+        h('span', t('boat.name', { n: boat })),
+        h('span', t('boat.team', { n: crew.length, max: BOAT_CREW }), 'player-state'),
+      );
+      if (crew.length < BOAT_CREW && me && !me.spectator && me.boat !== boat) {
         const join = document.createElement('button');
         join.textContent = t('boat.join');
         join.addEventListener('click', () => onBoat(boat));
         head.append(join);
       }
-      rows.push(head);
-      for (const p of crew.sort((a, b) => a.seat - b.seat)) {
-        const row = playerRow(p);
-        row.querySelector('.player-gear')?.before(h('span', seatName(p.seat), 'player-seat'));
-        rows.push(row);
-      }
+      const members = document.createElement('ul');
+      members.className = 'player-list';
+      members.append(
+        ...crew.sort((a, b) => a.seat - b.seat).map((p) => withSeat(p, seatName(p.seat))),
+      );
+      team.append(head, members);
+      rows.push(team);
     }
-    // Oma vene, jos nyt on muiden kanssa.
-    if (me && !me.spectator && (crews.get(me.boat)?.length ?? 0) > 1) {
-      const own = h('li', '', 'boat-crew');
-      const leave = document.createElement('button');
-      leave.textContent = t('boat.own');
-      leave.addEventListener('click', () => onBoat(0));
-      own.append(leave);
-      rows.push(own);
-    }
+    for (const p of v.players)
+      if (!p.spectator && p.boat === 0) rows.push(withSeat(p, t('boat.tube')));
     rows.push(...v.players.filter((p) => p.spectator).map(playerRow));
     return rows;
   }
@@ -1365,7 +1385,7 @@ export class Screens {
       const big = r.summary.biggest;
       if (big) li.append(fishImage(big.species, big.weight, LIST_FISH_SCALE));
       if (gear) li.append(h('span', describeFullTackle(gear), 'player-gear'));
-      // Venekisa: joukkueen kalastajat veneen nimen alle.
+      // Venekunta: joukkueen kalastajat veneen nimen alle.
       if (r.members?.length)
         li.append(h('span', r.members.map((m) => m.name).join(', '), 'player-gear'));
       table.appendChild(li);
@@ -1699,21 +1719,9 @@ export class Screens {
     playerCount: number,
     change: (patch: Partial<RoomSettings>) => void,
     pickStart: () => void,
-    /** Palvelin osaa venekisan. */
-    canBoat = false,
   ): HTMLElement {
     const box = document.createElement('div');
     box.className = 'settings';
-    if (canBoat)
-      box.append(
-        this.choice(
-          t('settings.craft'),
-          CRAFT_IDS.map((c) => [c, craftName(c)]),
-          s.craft,
-          (v) => change({ craft: v as Craft }),
-        ),
-        h('p', t('settings.craftHint'), 'hint'),
-      );
     box.append(
       this.choice(t('settings.duration'), durationOptions(), String(s.durationMinutes), (v) =>
         change({ durationMinutes: Number(v) }),
@@ -2073,7 +2081,6 @@ export class Screens {
     const box = document.createElement('div');
     box.className = 'settings-summary';
     const rows: [string, string][] = [
-      [t('settings.craft'), craftName(s.craft)],
       [t('settings.duration'), t('common.minutes', { n: s.durationMinutes })],
       [t('settings.winRule'), winRuleName(s.winRule)],
       [t('settings.difficultyShort'), difficultyName(s.difficulty)],

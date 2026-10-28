@@ -1,4 +1,5 @@
 import {
+  BIG_WAVE,
   BoatSeat,
   CRAFTS,
   LureStage,
@@ -13,6 +14,7 @@ import {
   lerpAngle,
   SPOUT,
   type BigWaveMessage,
+  type CraftBody,
   type SpoutFlight,
   type SpoutMessage,
   type Catch,
@@ -65,12 +67,16 @@ export interface RemotePlayer {
   /** Trombin lennättämänä korkeus ilmassa (m) ja kieppuminen (rad). */
   lift?: number;
   tumble?: number;
-  /** Venekisa (#263): vene 1… ja paikka (BoatSeat); 0 = oma rengas. */
+  /** Vene (#263): vene 1… ja paikka (BoatSeat); 0 = kelluntarengas. */
   boat: number;
   seat: number;
+  /** Soutaja kääntyneenä tuhdolla (rad veneen suunnasta). */
+  look: number;
+  /** Kaatuneen aluksen kallistus (rad, π = kumollaan). */
+  roll: number;
 }
 
-/** Venekisan vene piirtohetkellä: soutajan paikka, suunta ja airovetojen vaihe. */
+/** Vene piirtohetkellä: soutajan paikka, suunta ja airovetojen vaihe. */
 export interface BoatPose {
   boat: number;
   pos: Vec2;
@@ -80,13 +86,17 @@ export interface BoatPose {
   color: number;
   lift?: number;
   tumble?: number;
+  /** Kaatuessa kallistus (rad). */
+  roll?: number;
 }
 
 /** Oma asento piirtohetkellä: oman veneen kyytiläiset istuvat siinä. */
 export interface OwnPose {
   pos: Vec2;
+  /** Veneellä veneen suunta (perään), ei soutajan katse. */
   heading: number;
   kickPhase: number;
+  roll?: number;
 }
 
 interface RemoteSnap {
@@ -95,6 +105,7 @@ interface RemoteSnap {
   kickPhase: number;
   lure: Vec2;
   lureStage: number;
+  look: number;
 }
 
 /**
@@ -114,7 +125,20 @@ const lerpSnap = (a: RemoteSnap, b: RemoteSnap, t: number): RemoteSnap => ({
   kickPhase: lerpKickPhase(a.kickPhase, b.kickPhase, t),
   lure: { x: a.lure.x + (b.lure.x - a.lure.x) * t, y: a.lure.y + (b.lure.y - a.lure.y) * t },
   lureStage: t < 0.5 ? a.lureStage : b.lureStage,
+  look: lerpAngle(a.look, b.look, t),
 });
+
+/**
+ * Kaatuneen aluksen kallistus `t` sekuntia kaatumisen jälkeen: kumoon puolessa
+ * sekunnissa, kumollaan jäähyn ajan ja viimeisen sekunnin aikana takaisin.
+ */
+export function capsizeRoll(t: number): number {
+  if (t < 0 || t > BIG_WAVE.recover) return 0;
+  const over = Math.min(1, t / 0.5);
+  const back = Math.max(0, (t - (BIG_WAVE.recover - 1)) / 1);
+  const k = Math.min(over, 1 - back);
+  return Math.PI * k * k * (3 - 2 * k);
+}
 
 const toTube = (p: PlayerSchema): TubeState => ({
   pos: { x: p.x, y: p.y },
@@ -145,16 +169,18 @@ export class NetWorld {
       seat: number;
       /** Viimeisin nopeus palvelimelta (kyytiläisen oma vauhti veneestä). */
       vel: Vec2;
+      /** Kumossa tähän kisa-aikaan asti (s). */
+      capsizedUntil: number;
     }
   >();
-  /** Oma paikka venekisassa; 0/0 = oma rengas. */
+  /** Oma paikka veneessä; 0/0 = kelluntarengas. */
   private ownBoat = 0;
   private ownSeat: number = BoatSeat.rower;
   /** Muiden tilojen aikaleimat kisan kellosta, ettei verkon heittely nyi liikettä. */
   private readonly stamps = new SnapshotClock();
   private lure: [number, number, number, number] = [0, 0, LureStage.none, 0];
   /** Muiden viimeisimmät palvelintilat (ennakoinnin törmäyksiin). */
-  private latestOthers: TubeState[] = [];
+  private latestOthers: CraftBody[] = [];
   /**
    * Korjauksen pehmennys: kun palvelin siirtää omaa rengasta (esim.
    * törmäyksessä), piirretään vanhasta paikasta ja liu'utaan uuteen.
@@ -349,7 +375,7 @@ export class NetWorld {
     return this.session.results();
   }
 
-  /** Kisan sijoitukset: venekisassa veneet joukkueina. */
+  /** Kisan sijoitukset: venekunnat joukkueina. */
   standings(): PlayerResult[] {
     return this.session.standings();
   }
@@ -366,12 +392,12 @@ export class NetWorld {
       }));
   }
 
-  /** Venekisassa kyydissä: vain soutaja liikuttaa venettä (#263). */
+  /** Veneessä kyydissä: vain soutaja liikuttaa venettä (#263). */
   get passenger(): boolean {
     return this.ownBoat > 0 && this.ownSeat !== BoatSeat.rower;
   }
 
-  /** Venekisassa oma vene (1…); 0 = rengaskisa tai katsoja. */
+  /** Oma vene (1…); 0 = kelluntarengas tai katsoja. */
   get boat(): number {
     return this.ownBoat;
   }
@@ -385,13 +411,17 @@ export class NetWorld {
     return this.passenger ? passengerInput(input) : rowerInput(input, lureStage !== LureStage.none);
   }
 
-  /** Oma askel: ennakoidaan heti ja lähetetään syötteet erissä. */
+  /**
+   * Oma askel: ennakoidaan heti ja lähetetään syötteet erissä. `look` =
+   * soutajan kääntyminen tuhdolla (rad veneen suunnasta), muille näytettäväksi.
+   */
   stepOwn(
     input: TubeInput,
     lure: Vec2 | null,
     lureStage: number,
     wind?: Vec2,
     reeling = false,
+    look = 0,
   ): TubeState {
     const decay = Math.exp(-NET_DT * 10);
     this.renderOffset.x *= decay;
@@ -402,20 +432,20 @@ export class NetWorld {
     if (boat) tube = { ...tube, pos: seatPos(boat.snap, this.ownSeat), vel: { ...boat.vel } };
     this.lure = lure ? [lure.x, lure.y, lureStage, reeling ? 1 : 0] : [0, 0, LureStage.none, 0];
     const out = this.predictor.takeOutgoing();
-    if (out) this.session.sendInput({ i: encodeInputs(out), l: this.lure });
+    if (out) this.session.sendInput({ i: encodeInputs(out), l: this.lure, ...(look && { look }) });
     return tube;
   }
 
   private onState(s: StateSchema): void {
     const stamp = this.stamps.stamp(this.clock(), s.phase === 'playing' ? s.clock : null);
     const seen = new Set<string>();
-    const others: TubeState[] = [];
+    const others: CraftBody[] = [];
     s.players.forEach((p, id) => {
       // Katsojalla ei ole rengasta järvellä.
       if (p.spectator) return;
-      const boatRace = this.session.boatRace;
+      const rower = (p.boat ?? 0) === 0 || (p.seat ?? 0) === BoatSeat.rower;
       if (id === this.session.sessionId) {
-        this.ownBoat = boatRace ? (p.boat ?? 0) : 0;
+        this.ownBoat = p.boat ?? 0;
         this.ownSeat = this.ownBoat ? (p.seat ?? 0) : BoatSeat.rower;
         this.predictor.craft = this.ownBoat && !this.passenger ? CRAFTS.boat : CRAFTS.tube;
         if (this.passenger) {
@@ -435,7 +465,7 @@ export class NetWorld {
         return;
       }
       // Kyytiläiset ovat veneen sisällä: törmätään vain aluksiin.
-      if (!boatRace || (p.seat ?? 0) === BoatSeat.rower) others.push(toTube(p));
+      if (rower) others.push({ tube: toTube(p), craft: p.boat ? CRAFTS.boat : CRAFTS.tube });
       seen.add(id);
       let r = this.remotes.get(id);
       if (!r) {
@@ -448,6 +478,7 @@ export class NetWorld {
           boat: 0,
           seat: 0,
           vel: { x: 0, y: 0 },
+          capsizedUntil: 0,
         };
         this.peerConnected.set(id, p.connected);
         this.remotes.set(id, r);
@@ -457,9 +488,10 @@ export class NetWorld {
       r.name = p.connected ? p.name : t('game.peerOffline', { name: p.name });
       r.appearance = playerAppearance(p);
       r.fly = p.method === 'fly';
-      r.boat = boatRace ? (p.boat ?? 0) : 0;
+      r.boat = p.boat ?? 0;
       r.seat = r.boat ? (p.seat ?? 0) : BoatSeat.rower;
       r.vel = { x: p.vx, y: p.vy };
+      r.capsizedUntil = p.capsizedUntil;
       const was = this.peerConnected.get(id);
       if (was !== undefined && was !== p.connected) this.onPeerConnection?.(p.name, p.connected);
       this.peerConnected.set(id, p.connected);
@@ -469,6 +501,7 @@ export class NetWorld {
         kickPhase: p.kickPhase,
         lure: { x: p.lureX, y: p.lureY },
         lureStage: p.lureStage,
+        look: p.look ?? 0,
       });
     });
     for (const [id, r] of this.remotes)
@@ -526,12 +559,16 @@ export class NetWorld {
     return null;
   }
 
+  /** Toisen pelaajan kallistus kaatumisen jälkeen (rad). */
+  private rollOf(r: { capsizedUntil: number }): number {
+    return capsizeRoll(this.raceClock - (r.capsizedUntil - BIG_WAVE.recover));
+  }
+
   /**
-   * Venekisan veneet piirtohetkellä soutajien mukaan. Oma vene on omassa
-   * asennossa (`own`), muut interpoloituina kuten muut pelaajat.
+   * Veneet piirtohetkellä soutajien mukaan. Oma vene on omassa asennossa
+   * (`own`), muut interpoloituina kuten muut pelaajat.
    */
   boats(own?: OwnPose): BoatPose[] {
-    if (!this.session.boatRace) return [];
     const out: BoatPose[] = [];
     const me = this.ownAppearance;
     if (this.ownBoat && !this.passenger) {
@@ -542,6 +579,7 @@ export class NetWorld {
         heading: pose.heading,
         kickPhase: pose.kickPhase,
         color: me?.tube ?? 0,
+        roll: own?.roll,
       });
     }
     for (const o of this.others())
@@ -554,12 +592,13 @@ export class NetWorld {
           color: o.appearance.tube,
           lift: o.lift,
           tumble: o.tumble,
+          roll: o.roll,
         });
     return out;
   }
 
   /**
-   * Muiden pelaajien sijainnit piirtohetkellä. Venekisan kyytiläiset istuvat
+   * Muiden pelaajien sijainnit piirtohetkellä. Veneen kyytiläiset istuvat
    * veneessä sellaisena kuin se piirretään; omassa veneessä asento `own`.
    */
   others(own?: OwnPose): RemotePlayer[] {
@@ -592,6 +631,8 @@ export class NetWorld {
         fly: r.fly,
         boat: r.boat,
         seat: r.seat,
+        look: r.boat && r.seat === BoatSeat.rower ? s.look : 0,
+        roll: this.rollOf(r),
       });
     }
     return out;

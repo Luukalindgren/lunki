@@ -28,7 +28,8 @@ import {
   BOAT_PROTOCOL,
   BoatSeat,
   seatPos,
-  type Craft,
+  BOAT_TUBE,
+  wrapAngle,
   isPenalty,
   planBigWaves,
   planWaterspouts,
@@ -153,7 +154,7 @@ interface Seat {
   outUntil: number;
   capsizedUntil: number;
   sim: Sim | null;
-  /** Venekisa: vene ja paikka lähtiessä (palaaja yrittää samaan veneeseen). */
+  /** Vene ja paikka lähtiessä (palaaja yrittää samaan veneeseen). */
   boat: number;
   seat: number;
 }
@@ -226,7 +227,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   private readonly chatLimits = new Map<string, ChatLimiter>();
   /** Käsimerkkien nopeusrajoitus pelaajittain (sessionId). */
   private readonly emoteLimits = new Map<string, ChatLimiter>();
-  /** Asiakkaan protokollaversio pelaajittain (sessionId): vanha ei osaa venekisaa. */
+  /** Asiakkaan protokollaversio pelaajittain (sessionId): vanha ei osaa venettä. */
   private readonly protocols = new Map<string, number>();
   /** Selaimen pysyvä tunniste pelaajittain (sessionId); ei jaeta muille. */
   private readonly playerIds = new Map<string, string>();
@@ -274,7 +275,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         // Kala tarttui: paikka talteen saaliin tarkistusta varten.
         if (stage === LureStage.hooked && p.lureStage !== LureStage.hooked) sim.hookAt = lure;
         p.lureStage = stage;
-        // Venekisassa soutaja ei voi soutaa, kun viehe on ilmassa tai vedessä.
+        // Veneessä soutaja ei voi soutaa, kun viehe on ilmassa tai vedessä.
         sim.fishing = stage !== LureStage.none;
         this.reeling.set(client.sessionId, l[3] === 1);
         if (ok) {
@@ -285,6 +286,10 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         p.lureStage = 0;
         sim.fishing = false;
       }
+      // Soutaja kääntyy tuhdolla kalastaessaan; vain näytettävä ja siiman lähtökohta.
+      const look = Number(msg?.look);
+      sim.look = sim.boat && !isPassenger(sim) && Number.isFinite(look) ? wrapAngle(look) : 0;
+      p.look = sim.look;
     });
 
     this.onMessage(ClientMsg.splash, (client, msg: SplashMessage) => {
@@ -431,7 +436,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       this.lateSpectators.clear();
       this.rodFixed.clear();
       this.state.phase = 'lobby';
-      // Kesken kisan tulleet saivat omat veneensä: numerot taas järjestykseen.
+      // Kisan aikana lähteneiden ja palanneiden jäljiltä veneiden numerot taas järjestykseen.
       this.packCrews();
     });
 
@@ -478,8 +483,6 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     this.onMessage(ClientMsg.settings, (client, patch: unknown) => {
       if (client.sessionId !== this.state.hostId || this.state.phase !== 'lobby') return;
       const valid = validateSettingsPatch(patch, this.anglerCount(), (p) => isValidStart(water, p));
-      // Vanha asiakas ei osaa venekisaa: ennen päivitystä kisa pysyy renkailla.
-      if (valid.craft === 'boat' && this.hasOutdatedClient()) delete valid.craft;
       const s = this.state.settings;
       let changed = false;
       for (const [key, value] of Object.entries(valid)) {
@@ -513,18 +516,19 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       }
       // Muuttuneet säännöt: muiden pitää kuitata valmius uudelleen.
       if (changed) this.state.players.forEach((p) => (p.ready = false));
-      if (valid.craft !== undefined) this.packCrews();
     });
 
-    // Venekisan aulassa: siirto toisen veneeseen tai omaan uuteen veneeseen (#263).
+    // Aulassa kulkupeli (#263): toisen veneeseen, omaan uuteen veneeseen tai renkaalle.
     this.onMessage(ClientMsg.boat, (client, boat: unknown) => {
       const p = this.state.players.get(client.sessionId);
-      if (!p || p.spectator || this.state.phase !== 'lobby' || this.craft !== 'boat') return;
+      if (!p || p.spectator || this.state.phase !== 'lobby') return;
+      // Vanha asiakas ei osaa venettä: ennen päivitystä kaikki ovat renkailla.
+      if (boat !== BOAT_TUBE && this.hasOutdatedClient()) return;
       const anglers = [...this.state.players.entries()].filter(([, q]) => !q.spectator);
       const moved = moveToBoat(
         anglers.map(([id, q]) => ({ id, boat: q.boat, seat: q.seat })),
         client.sessionId,
-        typeof boat === 'number' ? boat : -1,
+        typeof boat === 'number' ? boat : NaN,
       );
       if (!moved) return;
       moved.forEach((c, i) => {
@@ -630,7 +634,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     // Oma katkennut paikka (sama selain) vapautuu liittyessä, joten sitä ei lasketa (#309).
     const own = this.droppedSession(playerIdOf(options));
     const ownSeat = own !== undefined && !this.state.players.get(own)?.spectator ? 1 : 0;
-    const outdated = this.craft === 'boat' && clientProtocol(options) < BOAT_PROTOCOL;
+    const outdated = this.hasBoats() && clientProtocol(options) < BOAT_PROTOCOL;
     // Vanha asiakas ei osaa piirtää venettä eikä istua kyydissä.
     if (outdated) throw new ServerError(4403, JoinRefusal.outdated);
     const refusal =
@@ -645,12 +649,13 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     throw new ServerError(4403, refusal);
   }
 
-  /** Kisan alus: kelluntarenkaat tai veneet (#263). */
-  private get craft(): Craft {
-    return this.state.settings.craft === 'boat' ? 'boat' : 'tube';
+  /** Joku huoneessa on valinnut veneen (#263). */
+  private hasBoats(): boolean {
+    for (const p of this.state.players.values()) if (p.boat > 0) return true;
+    return false;
   }
 
-  /** Joku huoneessa käyttää asiakasta, joka ei osaa venekisaa. */
+  /** Joku huoneessa käyttää asiakasta, joka ei osaa venettä. */
   private hasOutdatedClient(): boolean {
     for (const id of this.state.players.keys())
       if ((this.protocols.get(id) ?? 0) < BOAT_PROTOCOL) return true;
@@ -658,13 +663,13 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   }
 
   /**
-   * Aulan veneet järjestykseen (ks. packCrews): uudelle oma vene, lähteneen
-   * paikka täyttyy. Rengaskisassa ja katsojilla ei ole venettä.
+   * Aulan veneet järjestykseen (ks. packCrews): lähteneen paikka täyttyy ja
+   * numerot pysyvät peräkkäisinä. Katsojilla ei ole kulkupeliä.
    */
   private packCrews() {
     const anglers: [string, PlayerState][] = [];
     this.state.players.forEach((p, id) => {
-      if (this.craft === 'boat' && !p.spectator) anglers.push([id, p]);
+      if (!p.spectator) anglers.push([id, p]);
       else p.boat = p.seat = 0;
     });
     packCrews(anglers.map(([id, p]) => ({ id, boat: p.boat, seat: p.seat }))).forEach((c, i) => {
@@ -766,7 +771,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   }
 
   /**
-   * Venekisaan palaaja istuu entiseen veneeseensä, jos siinä on tilaa
+   * Veneeseen palaaja istuu entiseen veneeseensä, jos siinä on tilaa
    * (mieluiten omalle paikalleen). Tyhjän veneen hän soutaa itse, ja
    * täydestä veneestä jäänyt saa oman veneen siihen, missä hän lähti.
    */
@@ -806,12 +811,13 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     let pos = findStartNear(water, origin, SPAWN_RADIUS / 2, Math.random);
     for (let k = 0; k < 400 && !free(pos); k++)
       pos = findStartNear(water, origin, SPAWN_RADIUS / 2, Math.random);
-    this.placeTube(id, p, pos, this.craft === 'boat' ? this.newBoatNumber() : 0);
+    // Kesken kisan tullut ei valinnut kulkupeliä aulassa: kelluntarengas.
+    this.placeTube(id, p, pos);
   }
 
   /**
-   * Rengas paikalleen selkä rantaan päin, katse järvelle. Venekisassa (`boat`
-   * 1…) vene keula järvelle, jotta soutaja pääsee suoraan ulos; soutaja katsoo
+   * Rengas paikalleen selkä rantaan päin, katse järvelle. Veneellä (`boat`
+   * 1…) keula järvelle, jotta soutaja pääsee suoraan ulos; soutaja katsoo
    * perään eli rantaan.
    */
   private placeTube(id: string, p: PlayerState, pos: Vec2, boat = 0) {
@@ -963,16 +969,15 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         ? findStartNear(water, chosen, SPAWN_RADIUS / 2, () => rng.next())
         : findLaunchPoint(water, LUNKINJARVI.bounds, () => rng.next());
     const taken: Vec2[] = [];
-    // Venekisassa aloituspaikka veneittäin: soutaja paikalleen, kyytiläiset hänen veneeseensä.
-    const boats = this.craft === 'boat';
-    if (boats) this.packCrews();
+    // Veneet aloittavat venekunnittain: soutaja paikalleen, kyytiläiset hänen veneeseensä.
+    this.packCrews();
+    const aboard = (p: PlayerState) => p.boat > 0 && p.seat !== BoatSeat.rower;
     const crews = new Map<number, [string, PlayerState][]>();
     this.state.players.forEach((p, id) => {
-      if (p.spectator || !boats || p.seat === BoatSeat.rower) return;
-      crews.set(p.boat, [...(crews.get(p.boat) ?? []), [id, p]]);
+      if (!p.spectator && aboard(p)) crews.set(p.boat, [...(crews.get(p.boat) ?? []), [id, p]]);
     });
     this.state.players.forEach((p, id) => {
-      if (p.spectator || (boats && p.seat !== BoatSeat.rower)) return;
+      if (p.spectator || aboard(p)) return;
       let pos = taken.length === 0 && chosen ? { ...chosen } : launch();
       if (taken.length > 0) {
         const fits = (q: Vec2) =>
@@ -981,7 +986,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         for (let k = 0; k < 400 && !fits(pos); k++) pos = launch();
       }
       taken.push(pos);
-      this.placeTube(id, p, pos, boats ? p.boat : 0);
+      this.placeTube(id, p, pos, p.boat);
       const rower = this.sims.get(id)!;
       for (const [mate, q] of crews.get(p.boat) ?? []) this.seatPassenger(mate, q, rower, q.seat);
     });
@@ -1017,7 +1022,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       if (!base || !spoutAffects(until, st.clock)) return base ?? { x: 0, y: 0 };
       return spoutWind(base, this.spouts, st.clock, sim.tube.pos);
     };
-    for (const i of stepSims(sims, water, st.phase === 'countdown', base && wind, this.craft)) {
+    for (const i of stepSims(sims, water, st.phase === 'countdown', base && wind)) {
       const p = this.state.players.get(ids[i]!);
       if (p) writeTube(p, sims[i]!.tube, sims[i]!.inputs.lastSeq);
     }
@@ -1058,7 +1063,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       return [
         {
           id,
-          tip: rodTip(sim.tube.pos, sim.tube.heading),
+          tip: rodTip(sim.tube.pos, sim.tube.heading + (sim.look ?? 0)),
           lure: { x: p.lureX, y: p.lureY },
           reeling: this.reeling.get(id) ?? false,
         },
@@ -1140,7 +1145,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     const victims: string[] = [];
     const flights: SpoutMessage['flights'] = [];
     const spots = activeSpouts(this.spouts, st.clock);
-    // Venekisassa trombi vie koko veneen kyytiläisineen.
+    // Trombi vie koko veneen kyytiläisineen.
     for (const [id, sim] of this.sims) {
       const p = st.players.get(id);
       if (!p || isPassenger(sim) || !spoutAffects(p.capsizedUntil, st.clock)) continue;

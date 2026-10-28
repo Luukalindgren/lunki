@@ -4,7 +4,7 @@ import type { BoatPose } from '../net/netWorld';
 import { toWorld } from '../world/lakeMesh';
 
 /**
- * Venekisan soutuvene (#263). Paikallinen koordinaatisto kuten
+ * Soutuvene (#263). Paikallinen koordinaatisto kuten
  * `createTubeMesh`: +x soutajan katsesuuntaan eli perään, +y ylös, origo
  * vedenpinnalla soutajan kohdalla. Keula on soutajan selän takana (-x).
  */
@@ -117,7 +117,7 @@ export function animateOars(group: THREE.Group, kickPhase: number): void {
   }
 }
 
-/** Kaikki venekisan veneet, myös oma. */
+/** Kaikki kisan veneet, myös oma. */
 export class BoatsView {
   readonly group = new THREE.Group();
   private readonly boats = new Map<number, { mesh: THREE.Group; color: number }>();
@@ -138,7 +138,7 @@ export class BoatsView {
       }
       e.mesh.position.copy(toWorld(b.pos, b.lift ?? 0));
       e.mesh.rotation.y = b.heading;
-      e.mesh.rotation.x = b.tumble ?? 0;
+      e.mesh.rotation.x = b.tumble ?? b.roll ?? 0;
       animateOars(e.mesh, b.kickPhase);
     }
     for (const id of [...this.boats.keys()]) if (!seen.has(id)) this.remove(id);

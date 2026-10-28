@@ -2,11 +2,13 @@ import { expect, test, type Page } from '@playwright/test';
 import { watchErrors } from './apu';
 
 /**
- * Venekisa (#263): isäntä valitsee aulassa veneet, vieras siirtyy isännän
- * veneeseen perään, ja kisassa vieras on kyydissä: soutaminen ei onnistu,
- * ja tilanneohje kertoo sen. Ajetaan moninpeli-projektissa (playwright.config.ts).
+ * Vene kulkupelinä (#263): isäntä valitsee aulassa oman veneen, vieras on
+ * ensin renkaalla ja nousee sitten isännän kyytiin perään. Venekunta näkyy
+ * aulassa yhtenä joukkueena. Kisassa vieras on kyydissä: soutaminen ei
+ * onnistu, ja tilanneohje kertoo sen. Ajetaan moninpeli-projektissa
+ * (playwright.config.ts).
  */
-test('venekisa: kaksi kalastajaa samassa veneessä', async ({ page: host, browser }) => {
+test('vene: kaksi kalastajaa samassa veneessä', async ({ page: host, browser }) => {
   test.setTimeout(120_000);
   const hostErrors = watchErrors(host);
   const guest: Page = await (await browser.newContext()).newPage();
@@ -18,7 +20,8 @@ test('venekisa: kaksi kalastajaa samassa veneessä', async ({ page: host, browse
   await host.getByLabel('Nimimerkki').fill('Soutaja');
   await host.getByRole('button', { name: 'Luo uusi huone' }).click();
   const code = (await host.locator('.room-code').innerText()).trim();
-  await host.getByRole('button', { name: 'Veneet joukkueina' }).click();
+  await host.getByRole('button', { name: 'Oma vene' }).click();
+  await expect(host.locator('.boat-crew', { hasText: 'Vene 1' })).toContainText('soutaja');
 
   await guest.goto('/?view=top');
   await guest.getByRole('button', { name: 'Moninpeli' }).click();
@@ -27,14 +30,19 @@ test('venekisa: kaksi kalastajaa samassa veneessä', async ({ page: host, browse
   await guest.getByLabel('Huonekoodi').fill(code);
   await guest.getByRole('button', { name: 'Liity koodilla' }).click();
   await expect(guest.locator('.room-code')).toHaveText(code);
-  // Kumpikin omassa veneessään, kunnes vieras siirtyy isännän veneeseen.
-  await expect(guest.locator('.boat-crew', { hasText: 'Vene 2' })).toBeVisible();
+  // Vieras on ensin renkaalla, omana rivinään veneen ulkopuolella.
+  // (hasText ei erota kirjainkokoa: "Kyyti" löytyisi myös napista "Liity kyytiin".)
+  await expect(
+    guest.locator('.player-list li:not(.boat-crew)', { hasText: 'Kyyti (sinä)' }),
+  ).toContainText('kelluntarengas');
   await guest
     .locator('.boat-crew', { hasText: 'Vene 1' })
-    .getByRole('button', { name: 'Siirry tähän veneeseen' })
+    .getByRole('button', { name: 'Liity kyytiin' })
     .click();
-  await expect(host.locator('.boat-crew', { hasText: 'Vene 2' })).toHaveCount(0);
-  await expect(host.locator('.player-list')).toContainText('perässä');
+  const crew = host.locator('.boat-crew', { hasText: 'Vene 1' });
+  await expect(crew).toContainText('Kyyti');
+  await expect(crew).toContainText('perässä');
+  await expect(crew).toContainText('joukkue · 2/3');
   await guest.getByRole('button', { name: 'Valmis!' }).click();
 
   await host.getByRole('button', { name: 'Aloita kisa' }).click();

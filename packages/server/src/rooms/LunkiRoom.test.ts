@@ -32,6 +32,7 @@ import {
   DEFAULT_TACKLE,
   PROTOCOL_VERSION,
   BoatSeat,
+  BOAT_TUBE,
   seatPos,
   CHAT_RATE,
   EMOTE_RATE,
@@ -1428,13 +1429,13 @@ describe('liittyminen kesken kisan', () => {
   });
 });
 
-describe('venekisa (#263)', () => {
+describe('veneet (#263)', () => {
   const refusal = (p: Promise<unknown>) =>
     p.then(
       () => 'liittyi',
       (e: unknown) => (e instanceof Error ? e.message : String(e)),
     );
-  type Crew = { boat: number; seat: number; x: number; y: number; heading: number };
+  type Crew = { boat: number; seat: number; x: number; y: number; heading: number; look: number };
   const crew = (room: Room, id = room.sessionId) => room.state.players.get(id) as Crew;
   const join = (room: Room, name: string) =>
     sdk().joinById(room.roomId, { name, playerId: name, protocol: PROTOCOL_VERSION });
@@ -1453,7 +1454,7 @@ describe('venekisa (#263)', () => {
     }
   };
 
-  it('veneet aulassa, vanha asiakas ei pääse, kyytiläinen istuu soutajan veneessä', async () => {
+  it('vene kulkupelinä, vanha asiakas ei pääse, kyytiläinen istuu soutajan veneessä', async () => {
     const host = await sdk().create(ROOM_NAME, {
       name: 'A',
       playerId: 'A',
@@ -1463,18 +1464,22 @@ describe('venekisa (#263)', () => {
     const b = await join(host, 'B');
     const c = await join(host, 'C');
     await until(() => players(host).length === 3);
-    host.send(ClientMsg.settings, { craft: 'boat' });
-    await until(() => host.state.settings.craft === 'boat' && crew(host, c.sessionId).boat === 3);
-    expect([host, b, c].map((r) => crew(host, r.sessionId).boat)).toEqual([1, 2, 3]);
+    // Aluksi kaikki renkailla; A ja B ottavat omat veneensä.
+    expect([host, b, c].map((r) => crew(host, r.sessionId).boat)).toEqual([0, 0, 0]);
+    host.send(ClientMsg.boat, 0);
+    await until(() => crew(host, host.sessionId).boat === 1);
+    b.send(ClientMsg.boat, 0);
+    await until(() => crew(host, b.sessionId).boat === 2);
     // Vanha asiakas ei osaa venettä.
     expect(await refusal(sdk().joinById(host.roomId, { name: 'D', playerId: 'D' }))).toBe(
       JoinRefusal.outdated,
     );
-    // C siirtyy A:n veneeseen perään; B:n vene on nyt 2.
+    // C siirtyy A:n veneeseen perään, sitten B jää renkaalle: veneitä on yksi.
     c.send(ClientMsg.boat, 1);
     await until(() => crew(host, c.sessionId).boat === 1);
     expect(crew(host, c.sessionId).seat).toBe(BoatSeat.stern);
-    expect(crew(host, b.sessionId).boat).toBe(2);
+    b.send(ClientMsg.boat, BOAT_TUBE);
+    await until(() => crew(host, b.sessionId).boat === 0);
 
     b.send(ClientMsg.ready, true);
     c.send(ClientMsg.ready, true);
@@ -1497,6 +1502,11 @@ describe('venekisa (#263)', () => {
     const followed = seatPos({ pos: moved, heading: moved.heading }, BoatSeat.stern);
     await until(() => distance(crew(host, c.sessionId), followed) < 0.01);
 
+    // Soutaja kääntyy tuhdolla: muut näkevät sen; kyytiläinen ei käänny näin.
+    host.send(ClientMsg.input, { i: [], l: [0, 0, 0], look: 1 });
+    c.send(ClientMsg.input, { i: [], l: [0, 0, 0], look: 1 });
+    await until(() => Math.abs(crew(host).look - 1) < 1e-6);
+    expect(crew(host, c.sessionId).look).toBe(0);
     // C:n saalis kuuluu veneelle 1.
     landNear(c);
     await until(() => host.state.catches.length === 1);
@@ -1511,7 +1521,7 @@ describe('venekisa (#263)', () => {
     await c.leave();
   });
 
-  it('vanhan asiakkaan aulassa venekisaa ei voi valita', async () => {
+  it('vanhan asiakkaan aulassa venettä ei voi valita', async () => {
     const host = await sdk().create(ROOM_NAME, {
       name: 'A',
       playerId: 'A',
@@ -1519,9 +1529,10 @@ describe('venekisa (#263)', () => {
     });
     const old = await sdk().joinById(host.roomId, { name: 'O', playerId: 'O' });
     await until(() => players(host).length === 2);
-    host.send(ClientMsg.settings, { craft: 'boat', durationMinutes: 15 });
+    host.send(ClientMsg.boat, 0);
+    host.send(ClientMsg.settings, { durationMinutes: 15 });
     await until(() => host.state.settings.durationMinutes === 15);
-    expect(host.state.settings.craft).toBe('tube');
+    expect(crew(host, host.sessionId).boat).toBe(0);
     await old.leave();
     await host.leave();
   });

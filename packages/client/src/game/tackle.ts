@@ -1,4 +1,12 @@
-import { DEFAULT_TACKLE, FLY_IDS, LURE_IDS, parseTackle, type Tackle } from '@lunki/shared';
+import {
+  DEFAULT_TACKLE,
+  FLY_IDS,
+  LURE_IDS,
+  isCraft,
+  parseTackle,
+  type Craft,
+  type Tackle,
+} from '@lunki/shared';
 
 const TACKLE_KEY = 'lunki.tackle';
 
@@ -30,4 +38,25 @@ export function nextLure(t: Tackle): Tackle {
   }
   const i = LURE_IDS.indexOf(t.lure);
   return { ...t, lure: LURE_IDS[(i + 1) % LURE_IDS.length]! };
+}
+
+const CRAFT_KEY = 'lunki.craft';
+
+/** Yksinpelin kulkupeli (#263) muistetaan selaimessa; oletus kelluntarengas. */
+export function loadCraft(): Craft {
+  try {
+    const c = localStorage.getItem(CRAFT_KEY);
+    if (isCraft(c)) return c;
+  } catch {
+    // oletus kelpaa
+  }
+  return 'tube';
+}
+
+export function saveCraft(c: Craft): void {
+  try {
+    localStorage.setItem(CRAFT_KEY, c);
+  } catch {
+    // ei haittaa
+  }
 }

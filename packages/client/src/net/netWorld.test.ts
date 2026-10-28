@@ -154,7 +154,7 @@ describe('muut lyhyessä verkkokatkossa', () => {
   });
 });
 
-describe('venekisa (#263)', () => {
+describe('vene (#263)', () => {
   /** Soutaja r ja kyytiläinen p veneessä 1, toinen vene 2 (soutaja o). */
   const boatWorld = (me: string) => {
     const at = (x: number, y: number, heading: number) => ({ x, y, heading });
@@ -167,7 +167,6 @@ describe('venekisa (#263)', () => {
     const sent: unknown[] = [];
     const session = {
       sessionId: me,
-      boatRace: true,
       room: { state },
       sendInput: (m: unknown) => sent.push(m),
     } as unknown as NetSession;

@@ -60,10 +60,12 @@ export const PlayerState = schema(
     finColor: t.uint32().default(DEFAULT_APPEARANCE.fins),
     shirtColor: t.uint32().default(DEFAULT_APPEARANCE.shirt),
     lineColor: t.uint32().default(DEFAULT_APPEARANCE.line),
-    /** Venekisa (#263): vene 1…, 0 = ei venettä (rengaskisa, katsoja). */
+    /** Vene (#263): vene 1…, 0 = kelluntarengas (tai katsoja). */
     boat: t.uint8().default(0),
     /** Paikka veneessä (BoatSeat): 0 = soutaja. */
     seat: t.uint8().default(0),
+    /** Soutaja kääntyneenä tuhdolla kalastaessaan: kulma veneen suunnasta (rad). */
+    look: t.float32().default(0),
   },
   'PlayerState',
 );
@@ -84,8 +86,6 @@ export const SettingsState = schema(
     landPenalty: t.uint8().default(DEFAULT_SETTINGS.landPenalty!),
     /** LateJoin: liittyminen kesken kisan. */
     lateJoin: t.string().default('open'),
-    /** Craft: kelluntarenkaat tai venekisa. */
-    craft: t.string().default('tube'),
     species: t.array('string').default(() => new ArraySchema<string>(...NATIVE_SPECIES)),
     /** Kartalta valittu aloituspaikka; false = satunnainen. */
     customStart: t.boolean().default(false),
@@ -110,7 +110,7 @@ export const CatchState = schema(
     /** Kala kalakannassa (FishTag); -1 = ei tiedossa. */
     fishSlot: t.int16().default(-1),
     fishGen: t.uint16().default(0),
-    /** Venekisassa saajan vene: saalis jää joukkueelle, vaikka saaja lähtisi. */
+    /** Saajan vene (0 = rengas): saalis jää venekunnalle, vaikka saaja lähtisi. */
     boat: t.uint8().default(0),
   },
   'CatchState',

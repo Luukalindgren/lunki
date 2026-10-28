@@ -842,6 +842,40 @@ textarea,
   color: #8e99a4;
 }
 
+/* Venekunta on yksi joukkue: miehistö yhtenä laatikkona aulan listassa (#263). */
+.player-list li.boat-crew {
+  display: block;
+  margin: 6px 0;
+  padding: 2px 8px;
+  border: 2px solid #4d7a99;
+  background: rgba(77, 122, 153, 0.15);
+}
+
+.boat-crew-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+
+.boat-crew-head button {
+  margin-left: auto;
+}
+
+.boat-crew .player-list {
+  margin: 2px 0 0;
+}
+
+.boat-crew .player-list li:last-child {
+  border-bottom: 0;
+}
+
+.player-seat {
+  margin-right: auto;
+  padding: 0 8px;
+  color: #8e99a4;
+}
+
 .player-state.ok {
   color: #8fd16a;
 }

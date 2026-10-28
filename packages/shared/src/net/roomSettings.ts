@@ -9,7 +9,6 @@ import {
   type TimeOfDay,
 } from '../weather/timeOfDay';
 import { WEATHER_LEVELS, WEATHER_LEVEL_IDS, type WeatherLevel } from '../weather/weather';
-import { isCraft, type Craft } from '../physics/boat';
 import type { Vec2 } from '../vec2';
 import { MAX_PLAYERS_LIMIT } from './protocol';
 
@@ -33,8 +32,6 @@ export interface RoomSettings extends CompetitionSettings {
   species: SpeciesId[];
   /** Pääseekö kisaan mukaan sen jo alettua (ks. LATE_JOIN_OPTIONS). */
   lateJoin: LateJoin;
-  /** Kelluntarenkaat vai venekisa, jossa vene on joukkue (#263). */
-  craft: Craft;
 }
 
 /**
@@ -121,7 +118,6 @@ export function validateSettingsPatch(
   if ((LAND_PENALTIES as readonly unknown[]).includes(p.landPenalty))
     out.landPenalty = p.landPenalty as number;
   if (isLateJoin(p.lateJoin)) out.lateJoin = p.lateJoin;
-  if (isCraft(p.craft)) out.craft = p.craft;
   if (Array.isArray(p.species)) {
     // Järjestys aina sama, jotta sama valinta tuottaa saman järven.
     const wanted = new Set<unknown>(p.species);
