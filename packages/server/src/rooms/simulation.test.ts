@@ -173,6 +173,30 @@ describe('palvelimen askel', () => {
       expect(sims[1]!.tube.pos.y - sims[0]!.tube.pos.y).toBeGreaterThan(0.66 + TUBE_RADIUS - 0.05);
     });
 
+    it('soutaja laskee ankkurin, kyytiläinen ei (#355)', () => {
+      const sims = boat();
+      const anchor = (s: Sim) => {
+        for (const x of sims)
+          x.inputs.push([
+            { seq: x.inputs.lastSeq + 1, kick: 0, turn: 0, sprint: false, anchor: x === s },
+          ]);
+        stepSims(sims, water, false, undefined, () => 3);
+      };
+      anchor(sims[1]!);
+      expect(sims.every((s) => !s.tube.anchor)).toBe(true);
+      anchor(sims[0]!);
+      expect(sims[0]!.tube.anchor).toMatchObject({ depth: 3, raising: false });
+      // Ankkurissa airovedot eivät liikuta venettä.
+      const at = { ...sims[0]!.tube.pos };
+      for (let k = 1; k <= 120; k++) {
+        for (const s of sims)
+          s.inputs.push([{ seq: s.inputs.lastSeq + 1, kick: 1, turn: 0, sprint: false }]);
+        stepSims(sims, water, false, undefined, () => 3);
+      }
+      expect(Math.hypot(sims[0]!.tube.pos.x - at.x, sims[0]!.tube.pos.y - at.y)).toBeLessThan(0.01);
+      expect(sims[1]!.tube.anchor).toBeUndefined();
+    });
+
     it('kyytiläinen kääntyy veneen mukana', () => {
       const sims = boat();
       row(sims, 60, { kick: 0, turn: 1, sprint: false });

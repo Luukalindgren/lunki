@@ -97,6 +97,8 @@ import {
   type TubeState,
   type Vec2,
   type WeatherPlan,
+  AnchorPhase,
+  withoutAnchor,
 } from '@lunki/shared';
 import { recordStore } from '../records';
 import { releaseCode, reserveCode } from './codes';
@@ -1023,7 +1025,8 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       if (!base || !spoutAffects(until, st.clock)) return base ?? { x: 0, y: 0 };
       return spoutWind(base, this.spouts, st.clock, sim.tube.pos);
     };
-    for (const i of stepSims(sims, water, st.phase === 'countdown', base && wind)) {
+    const depthAt = st.phase === 'playing' ? fishWorld().depthAt : undefined;
+    for (const i of stepSims(sims, water, st.phase === 'countdown', base && wind, depthAt)) {
       const p = this.state.players.get(ids[i]!);
       if (p) writeTube(p, sims[i]!.tube, sims[i]!.inputs.lastSeq);
     }
@@ -1156,9 +1159,11 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       const to = spoutLanding(from, fling, water, Math.random, spots);
       const crew = this.crewOf(id, sim);
       const start = new Map(crew.map(([mate, s]) => [mate, { ...s.tube.pos }]));
+      // Trombi repäisee ankkurin irti (#355).
+      const free = withoutAnchor(sim.tube);
       sim.tube = to
-        ? { ...sim.tube, pos: to, vel: { x: 0, y: 0 }, angVel: 0 }
-        : { ...sim.tube, vel: fling };
+        ? { ...free, pos: to, vel: { x: 0, y: 0 }, angVel: 0 }
+        : { ...free, vel: fling };
       for (const [mate, s] of crew) {
         const q = st.players.get(mate);
         if (!q) continue;
@@ -1296,5 +1301,13 @@ function writeTube(p: PlayerState, t: TubeState, ack: number) {
   p.angVel = t.angVel;
   p.kickPhase = t.kickPhase;
   p.stamina = t.stamina;
+  const a = t.anchor;
+  p.anchor = a ? (a.raising ? AnchorPhase.raising : AnchorPhase.lowered) : AnchorPhase.up;
+  if (a) {
+    p.anchorX = a.pos.x;
+    p.anchorY = a.pos.y;
+    p.anchorDepth = a.depth;
+    p.anchorDrop = a.drop;
+  }
   p.ack = ack;
 }

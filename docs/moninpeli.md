@@ -110,6 +110,16 @@ muut pelaajat: SnapshotBuffer, piirretään 120 ms menneisyydestä
   renkaan vauhtia, kiihtyy hitaammin ja liukuu vetojen jälkeen pitkään
   (`BOAT_PHYSICS`). Vanha asiakas ei pääse huoneeseen, jossa on vene, eikä
   venettä voi valita, kun huoneessa on vanha asiakas.
+- **Ankkuri** (#355, protokolla 8). Renkaalla ja veneen soutajalla on ankkuri:
+  N (kosketuksella ⚓) laskee ja nostaa sen. Painallus kulkee syötteen bittinä
+  (32), joten palvelin ja ennakointi laskevat ankkurin samoista syötteistä
+  (`stepAnchor` `stepPlayerTube`:ssa, syvyys `LakeBottom.depthAt`). Tila on
+  `TubeState.anchor` ja verkossa `PlayerState.anchor…` (`AnchorPhase`).
+  Pohjassa ankkuri pitää aluksen köyden mitan sisällä (köyttä 1,5 × syvyys),
+  vene kääntyy keula ankkuria kohti eli tuulta vasten, ja ankkurissa ei potkita
+  eikä soudeta. Myrskyssä (yli 10,5 m/s) ankkuri laahaa, ja trombi repäisee
+  sen irti. Kyytiläinen ei laske ankkuria, eikä asiakas tarjoa ankkuria
+  vanhalle palvelimelle (`ANCHOR_PROTOCOL`).
 
 ## Testaus viiveellä
 

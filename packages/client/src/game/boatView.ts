@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { BOAT_HULL, SEAT_OFFSET } from '@lunki/shared';
+import { BOAT_HULL, CRAFTS, SEAT_OFFSET } from '@lunki/shared';
 import type { BoatPose } from '../net/netWorld';
 import { toWorld } from '../world/lakeMesh';
 
@@ -161,6 +161,15 @@ export function createBoatMesh(color: number): THREE.Group {
     group.add(seat);
   }
 
+  // Ankkuri keulan pohjalla, kun se ei ole vedessä (#355).
+  const stowed = new THREE.Mesh(
+    new THREE.BoxGeometry(0.22, 0.12, 0.22),
+    new THREE.MeshLambertMaterial({ color: 0x3a3a3a }),
+  );
+  stowed.name = 'anchorStowed';
+  stowed.position.set(CRAFTS.boat.anchorAt + 0.3, FLOOR + 0.08, 0);
+  group.add(stowed);
+
   // Airot hankaimista: kääntyvät vetojen tahdissa (animateOars).
   const oarMat = new THREE.MeshLambertMaterial({ color: COLOR.oar });
   for (const side of [-1, 1] as const) {
@@ -217,6 +226,7 @@ export class BoatsView {
       e.mesh.rotation.y = b.heading;
       e.mesh.rotation.x = b.tumble ?? b.roll ?? 0;
       animateOars(e.mesh, b.kickPhase);
+      e.mesh.getObjectByName('anchorStowed')!.visible = !b.anchor;
     }
     for (const id of [...this.boats.keys()]) if (!seen.has(id)) this.remove(id);
   }

@@ -256,6 +256,12 @@ export interface PlayerSchema {
   seat?: number;
   /** Soutaja kääntyneenä tuhdolla (rad veneen suunnasta); puuttuu vanhalta palvelimelta. */
   look?: number;
+  /** Ankkuri (AnchorPhase) ja sen tila (#355); puuttuvat vanhalta palvelimelta. */
+  anchor?: number;
+  anchorX?: number;
+  anchorY?: number;
+  anchorDepth?: number;
+  anchorDrop?: number;
   ack: number;
   lureX: number;
   lureY: number;

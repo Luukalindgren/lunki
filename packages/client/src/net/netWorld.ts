@@ -1,6 +1,8 @@
 import {
+  ANCHOR_PROTOCOL,
   BIG_WAVE,
   BoatSeat,
+  anchorFromNet,
   CRAFTS,
   LureStage,
   NET_DT,
@@ -35,6 +37,8 @@ import {
   type EmoteMessage,
   type Vec2,
   type WaterBody,
+  type AnchorState,
+  type DepthAt,
 } from '@lunki/shared';
 import type { RaceCatchMark, RacePlayerSpot } from '../game/raceLog';
 import { flightPose } from '../game/spoutView';
@@ -75,6 +79,8 @@ export interface RemotePlayer {
   look: number;
   /** Kaatuneen aluksen kallistus (rad, π = kumollaan). */
   roll: number;
+  /** Renkaan tai veneen ankkuri vedessä (#355). */
+  anchor?: AnchorState;
 }
 
 /** Vene piirtohetkellä: soutajan paikka, suunta ja airovetojen vaihe. */
@@ -89,6 +95,8 @@ export interface BoatPose {
   tumble?: number;
   /** Kaatuessa kallistus (rad). */
   roll?: number;
+  /** Ankkuri vedessä (#355); puuttuu = keulassa. */
+  anchor?: AnchorState;
 }
 
 /** Oma asento piirtohetkellä: oman veneen kyytiläiset istuvat siinä. */
@@ -148,6 +156,7 @@ const toTube = (p: PlayerSchema): TubeState => ({
   angVel: p.angVel,
   kickPhase: p.kickPhase,
   stamina: p.stamina ?? 1,
+  ...(p.anchor && { anchor: anchorFromNet(p) }),
 });
 
 /**
@@ -172,6 +181,8 @@ export class NetWorld {
       vel: Vec2;
       /** Kumossa tähän kisa-aikaan asti (s). */
       capsizedUntil: number;
+      /** Ankkuri viimeisimmästä tilasta (ei interpoloida: se on paikallaan). */
+      anchor?: AnchorState;
     }
   >();
   /** Oma paikka veneessä; 0/0 = kelluntarengas. */
@@ -393,6 +404,16 @@ export class NetWorld {
       }));
   }
 
+  /** Palvelin laskee ankkurit (#355); vanha palvelin ei. */
+  get canAnchor(): boolean {
+    return (this.session.serverProtocol ?? 1) >= ANCHOR_PROTOCOL;
+  }
+
+  /** Ankkuri käyttöön ennakoinnissa, jos palvelin osaa sen. */
+  enableAnchor(depthAt: DepthAt): void {
+    if (this.canAnchor) this.predictor.depthAt = depthAt;
+  }
+
   /** Veneessä kyydissä: vain soutaja liikuttaa venettä (#263). */
   get passenger(): boolean {
     return this.ownBoat > 0 && this.ownSeat !== BoatSeat.rower;
@@ -495,6 +516,7 @@ export class NetWorld {
       r.seat = r.boat ? (p.seat ?? 0) : BoatSeat.rower;
       r.vel = { x: p.vx, y: p.vy };
       r.capsizedUntil = p.capsizedUntil;
+      r.anchor = anchorFromNet(p);
       const was = this.peerConnected.get(id);
       if (was !== undefined && was !== p.connected) this.onPeerConnection?.(p.name, p.connected);
       this.peerConnected.set(id, p.connected);
@@ -583,6 +605,7 @@ export class NetWorld {
         kickPhase: pose.kickPhase,
         color: me?.tube ?? 0,
         roll: own?.roll,
+        anchor: this.predictor.tube.anchor,
       });
     }
     for (const o of this.others())
@@ -596,6 +619,7 @@ export class NetWorld {
           lift: o.lift,
           tumble: o.tumble,
           roll: o.roll,
+          anchor: o.anchor,
         });
     return out;
   }
@@ -636,6 +660,7 @@ export class NetWorld {
         seat: r.seat,
         look: r.boat && r.seat === BoatSeat.rower ? s.look : 0,
         roll: this.rollOf(r),
+        ...(r.anchor && !air && { anchor: r.anchor }),
       });
     }
     return out;

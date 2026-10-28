@@ -78,6 +78,23 @@ test.describe('yksinpeli', () => {
     errors.check();
   });
 
+  test('ankkuri: N laskee ja nostaa, ankkurissa ei potkita (#355)', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'puhelimet: ks. kosketus.spec.ts');
+    const errors = watchErrors(page);
+    await startSolo(page);
+    const situation = page.locator('.hud-situation');
+    const message = page.locator('.hud-message');
+    await page.keyboard.press('KeyN');
+    await expect(message).toContainText('Ankkuri pohjassa', { timeout: 15_000 });
+    await page.keyboard.down('KeyS');
+    await expect(situation).toContainText('Ankkuri pitää');
+    await page.keyboard.up('KeyS');
+    await page.keyboard.press('KeyN');
+    await expect(situation).toContainText('Nostat ankkuria');
+    await expect(message).toHaveText('Ankkuri ylhäällä', { timeout: 30_000 });
+    errors.check();
+  });
+
   test('perho: kalastustapa taukovalikosta, rytmiheitto ja vedot välilyönnillä (#234, #235)', async ({
     page,
     isMobile,

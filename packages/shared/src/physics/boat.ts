@@ -81,6 +81,8 @@ export interface CraftSpec {
   /** Suhteellinen paino törmäyksissä: kevyt rengas kimpoaa raskaasta veneestä. */
   mass: number;
   physics: CraftPhysics;
+  /** Ankkuriköyden kiinnityskohta kalastajasta katsesuuntaan (m): veneellä keula (#355). */
+  anchorAt: number;
 }
 
 export const CRAFTS: Record<Craft, CraftSpec> = {
@@ -89,8 +91,15 @@ export const CRAFTS: Record<Craft, CraftSpec> = {
     circles: [{ at: 0, r: TUBE_RADIUS }],
     mass: 1,
     physics: TUBE_PHYSICS,
+    anchorAt: 0,
   },
-  boat: { radius: BOAT_RADIUS, circles: BOAT_CIRCLES, mass: 2.5, physics: BOAT_PHYSICS },
+  boat: {
+    radius: BOAT_RADIUS,
+    circles: BOAT_CIRCLES,
+    mass: 2.5,
+    physics: BOAT_PHYSICS,
+    anchorAt: -1.75,
+  },
 };
 
 /** Aluksen törmäysympyrät maailmassa. */
@@ -180,7 +189,7 @@ export const passengerInput = (i: TubeInput): TubeInput => ({
 
 /** Soutaja, jonka kädet ovat vavassa (heitto, kelaus), ei soua eikä käännä venettä. */
 export const rowerInput = (i: TubeInput, rodInHand: boolean): TubeInput =>
-  rodInHand ? { kick: 0, turn: 0, sprint: false } : i;
+  rodInHand ? { kick: 0, turn: 0, sprint: false, ...(i.anchor && { anchor: true }) } : i;
 
 /**
  * Soutaja kääntyy tuhdolla kalastaessaan (rad/s). Kääntyminen on kulma

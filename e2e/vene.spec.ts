@@ -20,6 +20,8 @@ test('vene: kaksi kalastajaa samassa veneessä', async ({ page: host, browser })
   await host.getByLabel('Nimimerkki').fill('Soutaja');
   await host.getByRole('button', { name: 'Luo uusi huone' }).click();
   const code = (await host.locator('.room-code').innerText()).trim();
+  // Tyyni sää: tuulivaroitus ei peitä ankkurin ilmoituksia.
+  await host.getByRole('button', { name: 'Aina tyyni' }).click();
   await host.getByRole('button', { name: 'Oma vene' }).click();
   await expect(host.locator('.boat-crew', { hasText: 'Vene 1' })).toContainText('soutaja');
 
@@ -46,14 +48,26 @@ test('vene: kaksi kalastajaa samassa veneessä', async ({ page: host, browser })
   await guest.getByRole('button', { name: 'Valmis!' }).click();
 
   await host.getByRole('button', { name: 'Aloita kisa' }).click();
-  for (const p of [host, guest]) await expect(p.locator('.hud-timer')).toBeVisible();
+  for (const p of [host, guest]) await expect(p.locator('.hud-timer')).toHaveText(/\d+:\d\d/);
+  // Lähtölaskennan jälkeen kello käy (lähtölaskennan aikana syötteet eivät vaikuta).
+  const start = await guest.locator('.hud-timer').innerText();
   await expect
     .poll(() => guest.locator('.hud-timer').innerText(), { timeout: 20_000 })
-    .not.toBe('10:00');
+    .not.toBe(start);
   // Kyydissä ei voi soutaa: tilanneohje kertoo, että vain soutaja soutaa.
   await guest.keyboard.down('KeyS');
-  await expect(guest.getByText('Vain soutaja soutaa')).toBeVisible();
+  await expect(guest.locator('.hud-situation')).toContainText('Vain soutaja soutaa');
   await guest.keyboard.up('KeyS');
+  // Ankkurin laskee vain soutaja (#355). Kisan alun ilmoitus menee ensin ohi:
+  // tärkeämmän ilmoituksen aikana vinkki jäisi jonoon.
+  await expect(guest.locator('.hud-message')).toBeHidden();
+  await guest.keyboard.press('KeyN');
+  await expect(guest.locator('.hud-message')).toHaveText('Vain soutaja laskee ankkurin');
+  await expect(host.locator('.hud-message')).toBeHidden();
+  await host.keyboard.press('KeyN');
+  await expect(host.locator('.hud-message')).toContainText('Ankkuri pohjassa', {
+    timeout: 15_000,
+  });
   // Tulostaulussa vene on yksi rivi.
   await expect(host.getByText('Vene 1').first()).toBeVisible();
 

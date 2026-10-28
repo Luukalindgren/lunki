@@ -11,7 +11,7 @@ import {
   LUNKINJARVI,
   chargePower,
   WaterBody,
-  collideCraftWithShore,
+  BoatSeat,
   CRAFTS,
   createTube,
   findLaunchPoint,
@@ -59,8 +59,8 @@ import {
   rodTip,
   sonarPing,
   stepFishing,
-  stepTube,
-  REEDS,
+  stepPlayerTube,
+  withoutAnchor,
   STAMINA,
   ChatLimiter,
   EMOTE_DURATION,
@@ -136,6 +136,7 @@ import { RowerSeat } from './rowing';
 import { TopDownCamera } from './topDownCamera';
 import { QuietSpot } from './quietSpot';
 import { SEATED_LIFT, animateEmote, animateFins, createTubeMesh, setSeated } from './tubeMesh';
+import { AnchorView, type AnchoredCraft } from './anchorView';
 import { BoatsView } from './boatView';
 import { SpeechBubble, type BubbleContent } from './speechBubble';
 import { screenAnchor } from './screenAnchor';
@@ -256,6 +257,12 @@ export class SoloGame {
   private readonly boatsView = new BoatsView();
   /** Yritys soutaa, kun soutaminen ei käy (kyydissä tai viehe ulkona): tilanneohje. */
   private rowHint: string | null = null;
+  /** Ankkuriköydet (#355), myös oma. */
+  private readonly anchorView = new AnchorView();
+  /** Ankkurin tilanneohje: vajoaa, nousee tai pitää paikallaan. */
+  private anchorHint: string | null = null;
+  /** Myrskyn laahaus on jo ilmoitettu tälle laskulle. */
+  private anchorDragWarned = false;
   /** Yksinpelin kulkupeli; moninpelissä se tulee palvelimelta (aulan valinta). */
   private readonly soloCraft = loadCraft();
   /** Veneen soutaja: airot tai vapa ja kääntyminen tuhdolla (#263). */
@@ -418,7 +425,7 @@ export class SoloGame {
     this.applyWeatherLight();
     this.scene.add(createBottomMesh(this.bottom, this.waterWaves));
     this.scene.add(this.fishShadow.mesh);
-    this.scene.add(this.tubeMesh, this.boatsView.group);
+    this.scene.add(this.tubeMesh, this.boatsView.group, this.anchorView.group);
     this.flightShadow.visible = false;
     this.scene.add(this.flightShadow);
     this.world = staticWorldFor(map);
@@ -445,6 +452,7 @@ export class SoloGame {
     const left = timeLeft(this.competition);
     hud.setTimer(formatTime(left), left < 60);
     if (net) {
+      net.world.enableAnchor((p) => this.bottom.depthAt(p));
       this.remoteView = new RemotePlayersView(net.overlay, this.hud.root);
       this.scene.add(this.remoteView.group);
       net.world.onEmote = (m) => {
@@ -655,9 +663,11 @@ export class SoloGame {
         const from = { ...this.tube.pos };
         const to = spoutLanding(from, fling, this.water, () => this.spoutRng.next(), spots);
         // Rengas on heti perillä; lento piirretään kaarena lähtöpaikasta.
+        // Trombi repäisee ankkurin irti (#355).
+        const free = withoutAnchor(this.tube);
         this.tube = to
-          ? { ...this.tube, pos: to, vel: { x: 0, y: 0 }, angVel: 0 }
-          : { ...this.tube, vel: fling };
+          ? { ...free, pos: to, vel: { x: 0, y: 0 }, angVel: 0 }
+          : { ...free, vel: fling };
         this.prevTube = this.tube;
         this.capsizedUntil = now + (to ? SPOUT.flight : 0) + BIG_WAVE.recover;
         this.startFlight(to ? { from, to } : null);
@@ -948,6 +958,21 @@ export class SoloGame {
       (rodStage === 'water' && reelHeld && !frozen);
     const oars = this.rower && c.wasPressed('oars') && !rodInHand && !frozen;
     const move = this.rower ? this.seat.step(raw, rodInHand, oars, dt) : raw;
+    // Ankkuri (#355): renkaalla ja veneen soutajalla, ei kyydissä eikä vanhalla palvelimella.
+    let anchor = c.wasPressed('anchor') && !frozen && !capsized && !this.spectating;
+    const refused =
+      !anchor || !this.net
+        ? null
+        : this.net.world.passenger
+          ? 'game.anchorPassenger'
+          : this.net.world.canAnchor
+            ? null
+            : 'game.anchorOld';
+    if (refused) {
+      this.hud.showMessage(t(refused), 2, 'info');
+      anchor = false;
+    }
+    const step: TubeInput = anchor ? { ...move, anchor } : move;
     if (oars)
       this.hud.showMessage(
         controlText(this.seat.rowing ? 'game.oarsOut' : 'game.oarsIn'),
@@ -974,7 +999,7 @@ export class SoloGame {
           ? t(w.passenger ? 'game.passengerRow' : 'game.rowFishing')
           : null;
       this.tube = this.net.world.stepOwn(
-        move,
+        step,
         // Perhoheitossa muille välitetään perhon paikka ilmassa (#236).
         (f.stage === 'casting' && this.fishingView.flyInAir) || f.lure,
         stage,
@@ -983,12 +1008,13 @@ export class SoloGame {
         this.rower ? this.seat.look : 0,
       );
     } else {
-      const drag = this.water.reedsAt(this.tube.pos) ? REEDS.drag : 1;
       const craft = this.inBoat ? CRAFTS.boat : CRAFTS.tube;
-      const next = stepTube(this.tube, move, dt, this.tubeWind, drag, craft.physics);
-      this.tube = collideCraftWithShore(this.tube, next, this.water, craft);
+      this.tube = stepPlayerTube(this.tube, step, this.water, dt, this.tubeWind, craft, (p) =>
+        this.bottom.depthAt(p),
+      );
       this.rowHint = this.inBoat && raw.kick !== 0 && move.kick === 0 ? t('game.rowFishing') : null;
     }
+    this.updateAnchor(!this.spectating && raw.kick !== 0);
     this.sprinting = !capsized && readTubeInput(c).sprint;
 
     const f = this.fishing;
@@ -1179,7 +1205,7 @@ export class SoloGame {
                   )}`
             : this.thunderNow && (lureOut || f.hookedId !== null)
               ? t('help.thunder')
-              : this.rowHint,
+              : (this.anchorHint ?? this.rowHint),
     );
     this.hud.setStatus([
       describeTackle(f.tackle),
@@ -1915,6 +1941,37 @@ export class SoloGame {
     return Promise.all([done, other]);
   }
 
+  /**
+   * Ankkurin ilmoitukset ja tilanneohje (#355): pohjaan ja ylös ilmoituksena,
+   * vajoaminen, nosto ja potkuyritys ankkurissa tilanneohjeena.
+   */
+  private updateAnchor(kicking: boolean): void {
+    const was = this.prevTube.anchor;
+    const a = this.tube.anchor;
+    const m = (v: number) => decimal(v, 1);
+    const bottom = (x: typeof a) => !!x && !x.raising && x.drop >= x.depth;
+    if (was?.raising && !a) this.hud.showMessage(t('game.anchorUp'), 2, 'info');
+    if (bottom(a) && was && !bottom(was))
+      this.hud.showMessage(t('game.anchorDown', { m: m(a!.depth) }), 3, 'info');
+    if (!bottom(a)) this.anchorDragWarned = false;
+    else if (bottom(was) && !this.anchorDragWarned) {
+      const moved = Math.hypot(a!.pos.x - was!.pos.x, a!.pos.y - was!.pos.y);
+      if (moved > 0) {
+        this.anchorDragWarned = true;
+        this.hud.showMessage(t('game.anchorDrag'), 3, 'alert');
+      }
+    }
+    this.anchorHint = !a
+      ? null
+      : a.raising
+        ? controlText('game.anchorRaising', { m: m(a.drop) })
+        : a.drop < a.depth
+          ? t('game.anchorSinking', { m: m(a.drop), depth: m(a.depth) })
+          : kicking
+            ? controlText('game.anchorHold')
+            : null;
+  }
+
   /** Vapauttaa GPU-resurssit, kun kierros päättyy. */
   dispose(): void {
     this.emoteMenu?.dispose();
@@ -2068,13 +2125,21 @@ export class SoloGame {
                 color: this.appearance.tube,
                 lift: air?.height,
                 tumble: air?.tumble,
+                anchor: this.tube.anchor,
               },
             ]
           : [],
       );
+    // Ankkuriköydet: oma alus (kyydissä vene on soutajan) ja muut.
+    const anchored: AnchoredCraft[] = [];
+    if (own && b.anchor && !air && !this.net?.world.passenger)
+      anchored.push({ pos, heading: hull, boat: this.inBoat, anchor: b.anchor });
     if (this.net && this.remoteView) {
       this.boatsView.update(this.net.world.boats(own));
       const others = this.net.world.others(own);
+      for (const o of others)
+        if (o.anchor && o.seat === BoatSeat.rower)
+          anchored.push({ pos: o.pos, heading: o.heading, boat: o.boat > 0, anchor: o.anchor });
       // Katsojan silmin seurattavan oma rengas ei peitä näkymää.
       const shown =
         this.spectating && this.viewMode === 'pov'
@@ -2082,6 +2147,7 @@ export class SoloGame {
           : others;
       this.remoteView.update(shown, this.camera, this.net.canvas);
     }
+    this.anchorView.update(anchored);
     this.placeOwnBubble();
   }
 }
