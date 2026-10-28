@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { watchErrors } from './apu';
+import { SERVER_URL, soloUrl, topWeight, watchErrors } from './apu';
 
 /** Kohdistetun elementin teksti (napit) tai tunniste. */
 const focused = (page: Page) =>
@@ -18,7 +18,7 @@ test.describe('valikot näppäimistöllä (#237)', () => {
   }) => {
     test.skip(isMobile, 'puhelimissa ei näppäimistöä');
     const errors = watchErrors(page);
-    await page.goto('/');
+    await page.goto(soloUrl('pov'));
     await expect.poll(() => focused(page)).toBe('Yksinpeli');
 
     // Ensimmäinen nuoli vain näyttää kohdistuksen, seuraava liikkuu.
@@ -167,13 +167,25 @@ test('ennätyslistan saaliskortti avautuu ja sulkeutuu (#238)', async ({
   isMobile,
 }, info) => {
   const errors = watchErrors(page);
-  // Oma ennätys yksinpelin listalle, kalastajan värit mukana.
-  const angler = `Kortti-${info.project.name}`.slice(0, 16);
-  const res = await request.post('http://localhost:2567/records/solo', {
+  // Iso kala ja pisin mahdollinen nimi eivät saa vierittää listaa sivuttain.
+  const wideWeight = await topWeight(request, 'pike', 11);
+  const wide = await request.post(`${SERVER_URL}/records/solo`, {
     headers: { 'content-type': 'text/plain' },
     data: JSON.stringify({
       species: 'pike',
-      weight: 3 + info.workerIndex / 100,
+      weight: wideWeight,
+      angler: 'W'.repeat(16),
+      difficulty: 'normal',
+    }),
+  });
+  expect(wide.ok()).toBe(true);
+  // Oma ennätys listan kärkeen, kalastajan värit mukana.
+  const angler = `Kortti-${info.project.name}`.slice(0, 16);
+  const res = await request.post(`${SERVER_URL}/records/solo`, {
+    headers: { 'content-type': 'text/plain' },
+    data: JSON.stringify({
+      species: 'pike',
+      weight: wideWeight + 0.001,
       angler,
       difficulty: 'normal',
       timeOfDay: 'evening',
@@ -181,17 +193,6 @@ test('ennätyslistan saaliskortti avautuu ja sulkeutuu (#238)', async ({
     }),
   });
   expect(res.ok()).toBe(true);
-  // Iso kala ja pisin mahdollinen nimi eivät saa vierittää listaa sivuttain.
-  const wide = await request.post('http://localhost:2567/records/solo', {
-    headers: { 'content-type': 'text/plain' },
-    data: JSON.stringify({
-      species: 'pike',
-      weight: 11.9,
-      angler: 'W'.repeat(16),
-      difficulty: 'normal',
-    }),
-  });
-  expect(wide.ok()).toBe(true);
   await page.goto('/');
   await page.getByRole('button', { name: 'Ennätykset' }).click();
   await page.locator('.choice').first().getByRole('button', { name: 'Yksinpeli' }).click();
@@ -223,7 +224,7 @@ test('käsimerkit: G avaa valikon, numero tekee eleen ja Esc sulkee tauotta (#22
 }) => {
   test.skip(isMobile, 'puhelimissa ELE-nappi, ks. kosketus.spec');
   const errors = watchErrors(page);
-  await page.goto('/?view=top'); // oma kupla näkyy vain ylhäältä katsottuna
+  await page.goto(soloUrl()); // oma kupla näkyy vain ylhäältä katsottuna
   await page.getByRole('button', { name: 'Yksinpeli' }).click();
   await page.getByRole('button', { name: 'Aloita kisa' }).click();
   await expect(page.locator('.hud-timer')).toBeVisible();
@@ -257,9 +258,12 @@ test('käsimerkit: G avaa valikon, numero tekee eleen ja Esc sulkee tauotta (#22
 
 test('latausruutu näkyy pelin koodin latautuessa ja poistuu valikon tullessa', async ({ page }) => {
   const errors = watchErrors(page);
-  // Hidas yhteys: pelin koodi viipyy matkalla.
+  // Hidas yhteys: pelin koodi pidetään matkalla, kunnes latausruutu on tarkistettu.
+  // (Kiinteä viive ei riitä: kuormitetussa CI:ssä tarkistukset ehtivät kestää pidempään.)
+  let release!: () => void;
+  const held = new Promise<void>((r) => (release = r));
   await page.route('**/assets/*.js', async (route) => {
-    await new Promise((r) => setTimeout(r, 3000));
+    await held;
     await route.continue();
   });
   // Ei odoteta load-tapahtumaa: se tulee vasta pelin koodin jälkeen.
@@ -268,6 +272,7 @@ test('latausruutu näkyy pelin koodin latautuessa ja poistuu valikon tullessa', 
   await expect(boot).toBeVisible();
   await expect(boot).toContainText('Ladataan');
   await expect(boot.locator('.loader-art')).toBeVisible();
+  release();
   await expect(page.getByRole('button', { name: 'Yksinpeli' })).toBeVisible();
   await expect(boot).toHaveCount(0);
   errors.check();

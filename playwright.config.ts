@@ -20,6 +20,8 @@ export const FIREFOX_WEBGL = {
   firefoxUserPrefs: { 'webgl.force-enabled': true },
 };
 
+const MULTIPLAYER = /(moninpeli|venekisa)\.spec\.ts/;
+
 export default defineConfig({
   testDir: 'e2e',
   timeout: 90_000,
@@ -41,11 +43,21 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'], launchOptions: SWIFTSHADER } },
-    { name: 'firefox', use: { ...devices['Desktop Firefox'], launchOptions: FIREFOX_WEBGL } },
-    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
-    { name: 'iphone', use: { ...devices['iPhone 15'] } },
-    { name: 'android', use: { ...devices['Pixel 7'], launchOptions: SWIFTSHADER } },
+    ...[
+      { name: 'chromium', use: { ...devices['Desktop Chrome'], launchOptions: SWIFTSHADER } },
+      { name: 'firefox', use: { ...devices['Desktop Firefox'], launchOptions: FIREFOX_WEBGL } },
+      { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+      { name: 'iphone', use: { ...devices['iPhone 15'] } },
+      { name: 'android', use: { ...devices['Pixel 7'], launchOptions: SWIFTSHADER } },
+    ].map((p) => ({ ...p, testIgnore: MULTIPLAYER })),
+    // Moninpelitestit avaavat useita selaimia (moninpeli.spec myös Firefoxin ja
+    // WebKitin). Omana projektinaan (ja CI:ssä omana ajonaan), koska kolme
+    // ohjelmistorenderöivää selainta kerralla tukehdutti rinnalla ajetut testit.
+    {
+      name: 'moninpeli',
+      testMatch: MULTIPLAYER,
+      use: { ...devices['Desktop Chrome'], launchOptions: SWIFTSHADER },
+    },
   ],
   webServer: [
     {

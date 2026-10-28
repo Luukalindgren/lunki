@@ -149,3 +149,30 @@ asiakas ja palvelin laskevat ne samalla koodilla samasta siemenestä
 lajit lisätään `SPECIES`-listan loppuun: muuten samalla siemenellä saadaan eri
 kalat kuin vanhalla palvelimella. `fish.test.ts` vartioi tätä sormenjäljellä.
 Vaikeustasojen saalismäärät tarkistetaan simulaatiolla `naiveAngler.test.ts`.
+
+## Selaintestit (e2e)
+
+CI ajaa selaintestit ohjelmistorenderöinnillä (SwiftShader, Mesa), joten
+kuvat piirtyvät hitaasti ja kone voi olla kuormitettu. Testin pitää kestää
+se ilman uusintaa; `retries: 1` on vain varaverkko, ja uusinnalla läpi
+mennyt testi (`flaky` CI:n lokissa) on vika, joka korjataan.
+
+- **Kisa kiinteällä siemenellä.** `startSolo` ja `soloUrl()`
+  (`e2e/apu.ts`) lisäävät osoitteeseen `?seed=8`: aloituspaikka ja sää ovat
+  joka kerta samat (tyyntä 18 minuuttia, avovettä selän takana). Ilman
+  siementä tuulivaroitus voi peittää testin odottaman ilmoituksen, koska
+  tärkeämpi ilmoitus vie vähemmän tärkeän paikan.
+- **Kanvaasin kuva luetaan sivulla** (`canvasColors`), ei
+  ruutukaappauksella: Chromiumin kaappaus WebGL-kuvasta kestää CI:ssä
+  5–25 s.
+- **Odota tilaa, älä aikaa.** Ei kiinteitä viiveitä (`waitForTimeout`)
+  tilan odottamiseen; käytä `expect.poll`- ja `toHaveText`-odotuksia.
+  Hidastettu verkko pidetään auki lupauksella, kunnes tarkistus on tehty.
+  Hetken näkyvään tilaan reagoidaan sivulla (MutationObserver), ks. perhon
+  rytmiheitto `peli.spec.ts`:ssä.
+- **Palvelin on yhteinen.** Kaikki projektit, toistot ja uusinnat käyttävät
+  samaa pelipalvelinta. Testin oma ennätys tehdään painavammaksi kuin listan
+  kärki (`topWeight`), ettei se putoa viiden kalan listalta.
+- **Raskaat testit erikseen.** Moninpelitestit avaavat useita selaimia, joten
+  ne ovat oma Playwright-projektinsa `moninpeli` ja oma CI-ajonsa
+  (`MULTIPLAYER` tiedostossa `playwright.config.ts`).

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { watchErrors } from './apu';
+import { topWeight, watchErrors } from './apu';
 
 /**
  * Pelipalvelin (Luukan pelikone) on usein kiinni. Silloin kaiken muun kuin
@@ -146,6 +146,7 @@ test('kutsulinkki palvelimen ollessa kiinni avaa moninpelivalikon koodin kanssa'
 
 test('yksinpelin saalis odottaa laitteella ja pääsee listalle saantipäivällään', async ({
   page,
+  request,
 }, info) => {
   const errors = watchAppErrors(page);
   // Saalis kolmen päivän takaa, tallentunut palvelimen ollessa kiinni.
@@ -155,7 +156,8 @@ test('yksinpelin saalis odottaa laitteella ja pääsee listalle saantipäiväll�
   const pending = [
     {
       species: 'perch',
-      weight: 1.6 - info.workerIndex / 1000,
+      // Ahvenen enimmäispaino on 1,6 kg: aloitetaan kauempaa, jotta toistoille jää tilaa.
+      weight: await topWeight(request, 'perch', 0.5),
       angler,
       difficulty: 'normal',
       at: day.toISOString(),

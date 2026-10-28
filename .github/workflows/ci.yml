@@ -33,8 +33,9 @@ jobs:
 
   selaimet:
     # Peli Chromiumilla, Firefoxilla ja WebKitillä (Safari) sekä puhelinemuloinneilla (e2e/).
-    # Jokainen projekti omana rinnakkaisena ajonaan; moninpelitesti ajetaan
-    # chromium-projektissa ja käynnistää itse myös Firefoxin ja iPhone-WebKitin.
+    # Jokainen projekti omana rinnakkaisena ajonaan. Moninpelitesti käynnistää
+    # Chromiumin, Firefoxin ja iPhone-WebKitin, joten se ajetaan erikseen: samalla
+    # koneella se hidasti muut testit aikakatkaisuun asti.
     name: selaimet (${{ matrix.projekti }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -43,6 +44,8 @@ jobs:
       matrix:
         include:
           - projekti: chromium
+            selaimet: chromium
+          - projekti: moninpeli
             selaimet: chromium firefox webkit
           - projekti: firefox
             selaimet: firefox

@@ -14,8 +14,8 @@ import { watchErrors } from './apu';
 /**
  * Sama huone kolmella selainmoottorilla: Chromium luo huoneen, Firefox ja
  * iPhone-Safari (WebKit) liittyvät koodilla. iPhone pelaa englanniksi, muut
- * suomeksi. Ajetaan vain chromium-projektissa, koska testi käynnistää muut
- * selaimet itse.
+ * suomeksi. Ajetaan omassa moninpeli-projektissaan (playwright.config.ts),
+ * koska testi käynnistää muut selaimet itse.
  */
 
 /** Liittyjän napit ja tekstit kielen mukaan. */
@@ -37,12 +37,7 @@ const GUEST_TEXT = {
     ready: 'Ready!',
   },
 };
-test('moninpeli: Chromium, Firefox ja iPhone samassa huoneessa', async ({
-  page: host,
-  browserName,
-  isMobile,
-}) => {
-  test.skip(browserName !== 'chromium' || isMobile, 'ajetaan kerran, chromium-projektissa');
+test('moninpeli: Chromium, Firefox ja iPhone samassa huoneessa', async ({ page: host }) => {
   test.setTimeout(180_000);
   const others: Browser[] = [];
   try {
