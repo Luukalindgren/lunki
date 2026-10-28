@@ -190,7 +190,8 @@ export class FishingView {
     this.updateFlyLine(s, ctx, side);
 
     const out = s.stage === 'flight' || s.stage === 'water';
-    this.lure.visible = out;
+    // Nostossa kala itse näkyy pinnassa; vieheen merkki peittäisi sen POV:ssa.
+    this.lure.visible = out && !s.landing;
     this.line.visible = out;
     this.lureShadow.visible = s.stage === 'flight';
     if (out) {

@@ -7,6 +7,7 @@ import {
   SPECIES,
   fishHome,
   spawnFish,
+  sizeClass,
   stepHookedFish,
   type FishPopulation,
   type LureInfo,
@@ -79,6 +80,8 @@ export interface FishingInput {
    * enintään `FLY_CAST.pickupMax` metrin siiman vedestä.
    */
   startFlyCast?: boolean;
+  /** Nosto (#366): pelaaja nostaa pinnassa olevan kalan tällä askeleella. */
+  land?: boolean;
   /** Perho: vavan liike ja siimakäsi heiton aikana. */
   flyCast?: FlyCastInput;
 }
@@ -142,6 +145,20 @@ export interface FishingState {
   flyCast: FlyCastState | null;
   /** Perho: tuulisolmu heikentää siimaa, kunnes siima kelataan kotiin. */
   knot: boolean;
+  /** Väsytetty kala pinnassa renkaan vieressä odottaa nostoa (#366). */
+  landing: LandingState | null;
+  /** Riuhtaisun jälkeen kala ei ole heti uudelleen nostettavissa (s). */
+  landCooldown: number;
+}
+
+/** Nostovaihe (#366): kala pinnassa, pelaaja nostaa käsin tai haaviin. */
+export interface LandingState {
+  /** Aika pinnassa (s). */
+  age: number;
+  /** Iso kala otetaan haaviin, muut käsin. */
+  net: boolean;
+  /** Riuhtaisu käynnissä: aikaa jäljellä ennen kuin kala syöksyy pois (s). */
+  lunge: number;
 }
 
 export interface FishingContext {
@@ -229,6 +246,8 @@ export const createFishing = (tackle: Tackle = DEFAULT_TACKLE): FishingState => 
   fingerSlip: false,
   flyCast: null,
   knot: false,
+  landing: null,
+  landCooldown: 0,
 });
 
 /** Kalan tunniste kalakannassa: paikka (indeksi) ja sukupolvi. */
@@ -303,6 +322,10 @@ export interface FishingEvents {
   pickupFar?: boolean;
   /** Pelaaja katkaisi siiman maalle juuttuneen vieheen takia. */
   lineCut?: boolean;
+  /** Nosto (#366): väsytetty kala nousi pintaan nostettavaksi. */
+  surfaced?: boolean;
+  /** Nosto: kala riuhtaisee viimeisen kerran. */
+  lunged?: boolean;
   caught?: Catch;
 }
 
@@ -369,6 +392,27 @@ export const FLY = {
   liftHookChance: 0.6,
   /** Popperi pulpahtaa, kun veto alkaa. */
   popSpeed: 0.3,
+} as const;
+
+/**
+ * Nosto väsytyksen lopuksi (#366). Pienin kokoluokka heilautetaan heti
+ * kyytiin, isommat nostetaan käsin ja suurimmat haaviin. Voimissaan oleva
+ * kala voi riuhtaista viimeisen kerran, ja nosto juuri silloin voi päästää
+ * sen irti.
+ */
+export const LANDING = {
+  /** Kokoluokasta (`sizeClass`) alkaen nostetaan käsin; pienemmät heilautetaan heti. */
+  handSize: 1,
+  /** Kokoluokasta alkaen haaviin (suurkala ja jättikala). */
+  netSize: 3,
+  /** Pintaan noussut kala on näin kauan rauhallinen (s). */
+  calm: 0.6,
+  /** Riuhtaisun alku (roiske) ennen kuin kala syöksyy pois (s). */
+  lungeTime: 0.7,
+  /** Riuhtaisun jälkeen kalaa ei voi nostaa näin kauan (s). */
+  cooldown: 1.5,
+  /** Pinnassa lepäävä kala toipuu (voimia sekunnissa): odottelu kostautuu. */
+  recover: 0.03,
 } as const;
 
 export const FIGHT = {
@@ -549,7 +593,7 @@ export function stepFishing(
         holdStuck(s, tip, reeling, input.cut === true, events, holdForce(s, input));
         if (s.stage !== 'water') break;
       } else if (hooked && fish) {
-        fight(s, hooked, tip, ctx, fish, events, dt, holdForce(s, input));
+        fight(s, hooked, tip, ctx, fish, events, dt, holdForce(s, input), input.land === true);
       } else if (s.snag !== null) {
         pullSnag(s, tip, reeling, fish, events, dt, holdForce(s, input));
         if (s.stage !== 'water') break;
@@ -924,6 +968,8 @@ export function resetFishing(s: FishingState, fish?: { pop: FishPopulation; rng:
   s.onReel = false;
   s.flyCast = null;
   s.knot = false;
+  s.landing = null;
+  s.landCooldown = 0;
 }
 
 /** Iskun jälkeen: tarttuuko kala (vastaisku = kelaus ajoissa) vai sylkeekö se vieheen. */
@@ -983,9 +1029,15 @@ function fight(
   events: FishingEvents,
   dt: number,
   hold: number,
+  land: boolean,
 ): void {
   const { diff, rng, pop } = fish;
   const world = { isWater: ctx.isWater, depthAt: ctx.depthAt };
+  if (s.landing) {
+    stepLanding(s, f, tip, fish, world, events, dt, land);
+    return;
+  }
+  s.landCooldown = Math.max(0, s.landCooldown - dt);
   const res = stepHookedFish(f, tip, s.tension, world, diff, rng, dt, rodPower(s.tackle));
 
   const speed = res.outSpeed;
@@ -1060,17 +1112,101 @@ function fight(
     return;
   }
 
-  if (distance(f.pos, tip) <= FIGHT.landDistance && f.depth <= FIGHT.landDepth) {
-    const sp = SPECIES[f.species];
-    const slot = pop.fish.indexOf(f);
-    events.caught = {
-      species: f.species,
-      name: sp.name,
-      weight: f.weight,
-      fish: { slot, gen: f.gen },
+  if (
+    distance(f.pos, tip) <= FIGHT.landDistance &&
+    f.depth <= FIGHT.landDepth &&
+    s.landCooldown === 0
+  ) {
+    const size = sizeClass(f.species, f.weight);
+    if (size < LANDING.handSize) landFish(s, f, pop, world, rng, events);
+    else {
+      s.landing = { age: 0, net: size >= LANDING.netSize, lunge: 0 };
+      events.surfaced = true;
+    }
+  }
+}
+
+/** Kala kyytiin: saalis ja tilalle uusi kala kantaan. */
+function landFish(
+  s: FishingState,
+  f: FishPopulation['fish'][number],
+  pop: FishPopulation,
+  world: Parameters<typeof spawnFish>[3],
+  rng: Rng,
+  events: FishingEvents,
+): void {
+  const slot = pop.fish.indexOf(f);
+  events.caught = {
+    species: f.species,
+    name: SPECIES[f.species].name,
+    weight: f.weight,
+    fish: { slot, gen: f.gen },
+  };
+  replaceFish(pop, slot, world, rng);
+  resetFishing(s);
+}
+
+/**
+ * Nostovaihe (#366): kala lepää pinnassa vavan kärjen edessä. Nosto onnistuu,
+ * ellei kala ole riuhtaisemassa; riuhtaisun aikana yritys voi päästää kalan
+ * irti (`landing.lungeEscape`). Riuhtaisu vie kalan takaisin väsytykseen.
+ * Arvonnat väsytyksen rng:llä kuten hypyt, ei kalakannan arvonnoilla.
+ */
+function stepLanding(
+  s: FishingState,
+  f: FishPopulation['fish'][number],
+  tip: Vec2,
+  fish: NonNullable<FishingContext['fish']>,
+  world: Parameters<typeof spawnFish>[3],
+  events: FishingEvents,
+  dt: number,
+  land: boolean,
+): void {
+  const l = s.landing!;
+  const { diff, rng, pop } = fish;
+  l.age += dt;
+  // Kala pysyy pinnassa kärjen ulottuvilla, vaikka rengas liikkuu.
+  const d = distance(f.pos, tip);
+  if (d > FIGHT.landDistance)
+    f.pos = {
+      x: tip.x + ((f.pos.x - tip.x) / d) * FIGHT.landDistance,
+      y: tip.y + ((f.pos.y - tip.y) / d) * FIGHT.landDistance,
     };
-    replaceFish(pop, slot, world, rng);
-    resetFishing(s);
+  f.depth = 0;
+  f.slack = 0;
+  f.stamina = Math.min(1, f.stamina + LANDING.recover * dt);
+  s.lure = { ...f.pos };
+  s.depth = 0;
+  s.lureSpeed = 0;
+  s.tension = 0;
+  s.dragSlipping = false;
+
+  if (l.lunge > 0) {
+    if (land && rng.next() < diff.landing.lungeEscape) {
+      events.escaped = true;
+      release(f, rng);
+      s.hookedId = null;
+      s.landing = null;
+      return;
+    }
+    l.lunge -= dt;
+    if (l.lunge <= 0) {
+      // Syöksy takaisin väsytykseen: pakoretki poispäin kalastajasta.
+      s.landing = null;
+      s.landCooldown = LANDING.cooldown;
+      f.running = true;
+      f.timer = rng.range(0.8, 1.6);
+      f.heading = Math.atan2(f.pos.y - tip.y, f.pos.x - tip.x) + rng.normal(0, 0.6);
+    }
+    return;
+  }
+  if (land) {
+    landFish(s, f, pop, world, rng, events);
+    return;
+  }
+  if (l.age > LANDING.calm && rng.chance(diff.landing.lungeRate * f.stamina, dt)) {
+    l.lunge = LANDING.lungeTime;
+    events.lunged = true;
   }
 }
 

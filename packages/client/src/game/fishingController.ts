@@ -304,6 +304,7 @@ export class FishingController {
               ...(this.pendingTackle ? { tackle: this.pendingTackle } : {}),
               cut: c.wasPressed('cut'),
               twitch: !isFly(f.tackle) && c.wasPressed('twitch'),
+              land: f.landing !== null && (c.wasPressed('land') || c.wasPressed('landNet')),
               ...fly,
               reelSlack: c.isDown('reelSlack'),
               ...(startFlyCast ? { startFlyCast } : {}),
@@ -429,6 +430,14 @@ export class FishingController {
     if (events.jumped) {
       sounds.play('jumped');
       hud.showMessage(t('game.jumped'), 1.5);
+    }
+    if (events.surfaced) {
+      sounds.play('surfaced');
+      host.fishingView.startSplash(host.fishing.lure, 0.6);
+    }
+    if (events.lunged) {
+      sounds.play('lunged');
+      host.fishingView.startSplash(host.fishing.lure, 1.2);
     }
     if (events.escaped) {
       sounds.play('escaped');

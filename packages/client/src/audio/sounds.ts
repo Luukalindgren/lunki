@@ -47,6 +47,9 @@ export const SOUNDS = {
   hooked: { effect: 'hooked' },
   missed: { voice: 'missed' },
   jumped: { effect: 'splash' },
+  // Nosto (#366): kala pintaan ja viimeinen riuhtaisu
+  surfaced: { effect: 'plip' },
+  lunged: { effect: 'splash' },
   escaped: { effect: 'lost', voice: 'escaped' },
   snagged: { effect: 'strike', voice: 'snagged' },
   fouled: { voice: 'fouled' },

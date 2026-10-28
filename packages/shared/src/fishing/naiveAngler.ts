@@ -16,6 +16,9 @@ import {
 } from './fish';
 import { createFishing, lureInfo, stepFishing, type FishingContext } from './fishing';
 
+/** Reaktioaika (s), jonka jälkeen tavallinen pelaaja nostaa pintaan tulleen kalan (#366). */
+const NAIVE_LAND_DELAY = 0.8;
+
 /** Kalastusta tuntemattoman pelaajan saldo simulaatiosta. */
 export interface NaiveResult {
   minutes: number;
@@ -135,6 +138,8 @@ export function simulateNaiveAngler(
         reel: s.stage === 'water',
         cancel: false,
         cut: s.stage === 'water' && s.onLand,
+        // Nosto (#366): tavallinen pelaaja nostaa, kun on huomannut kalan pinnassa.
+        land: s.landing !== null && s.landing.age > NAIVE_LAND_DELAY,
       },
       { ...ctx, fish: { pop, diff, rng, strike: fe.strike } },
       dt,
