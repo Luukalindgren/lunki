@@ -210,10 +210,10 @@ export const fi = {
   'settings.lateJoinHint':
     'Sallittu: kaverit pääsevät mukaan vielä kisan alettua, ja yhteyden katkettua pääsee takaisin omalle paikalleen. Vain paluu: vain takaisin. Ei: kumpikaan. Kisaan pääsemättömät voivat silti katsoa kisaa.',
   'solo.craftHint':
-    'Vene kulkee rengasta kovempaa mutta kiihtyy hitaammin ja liukuu pitkään. Soutaessa et voi kalastaa: heitä, niin airot nousevat.',
+    'Vene kulkee rengasta kovempaa mutta kiihtyy hitaammin ja liukuu pitkään. Heittäessä ja kelatessa et voi soutaa, mutta viehe vedessä voit soutaa ja uistella.',
   'settings.craft': 'Kulkupeli',
   'settings.craftHint':
-    'Veneessä on soutaja ja enintään kaksi kalastajaa. Venekunta on yksi joukkue: sen saaliit lasketaan yhteen. Soutaja ei voi soutaa ja kalastaa yhtä aikaa.',
+    'Veneessä on soutaja ja enintään kaksi kalastajaa. Venekunta on yksi joukkue: sen saaliit lasketaan yhteen. Soutaja ei voi soutaa ja kelata yhtä aikaa, mutta voi soutu-uistella.',
   'settings.species': 'Kalalajit',
   'settings.notNative': 'Ei elä Lunkinjärvessä',
   'settings.notNativeHint': '* Ei Lunkinjärven oma laji, lisätään huvin vuoksi.',
@@ -226,6 +226,7 @@ export const fi = {
   'settings.startPickedAt': 'Kartalta valittu kohta: {spot}.',
   'settings.startRace': 'Aloita kisa',
   'part.tube': 'Kelluntarengas',
+  'part.boat': 'Veneen reunalista',
   'part.fins': 'Räpylät',
   'part.shirt': 'Paita',
   'part.line': 'Siima',
@@ -595,7 +596,7 @@ export const fi = {
   'game.capsizeHint': 'Käänny aaltoa kohti, niin pysyt pystyssä',
   'game.capsizeHintBoat': 'Pidä keula tai perä aaltoa kohti, niin vene pysyy pystyssä',
   'game.bigWaveBoat': 'Iso aalto {from}! Käännä keula tai perä aaltoa kohti',
-  'game.rowFishing': 'Soutaja ei voi kalastaa ja soutaa yhtä aikaa: kelaa viehe ensin sisään.',
+  'game.rowFishing': 'Soutaja ei voi soutaa ja kelata yhtä aikaa: päästä kela, niin voit soutaa.',
   'game.oarsIn': 'Airot lepäävät: kalastat ja käännyt tuhdolla ({turn})',
   'game.oarsOut': 'Tartuit airoihin',
   'game.passengerRow': 'Vain soutaja soutaa. Voit kääntyä paikallasi heittämään.',

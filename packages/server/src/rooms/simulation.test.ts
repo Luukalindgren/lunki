@@ -124,9 +124,9 @@ describe('palvelimen askel', () => {
       expect(sims[0]!.tube.heading).toBeGreaterThan(0);
     });
 
-    it('soutaja ei voi soutaa, kun viehe on vedessä', () => {
+    it('soutaja ei voi soutaa heittäessään tai kelatessaan', () => {
       const sims = boat();
-      sims[0]!.fishing = true;
+      sims[0]!.rodInHand = true;
       row(sims, 120);
       expect(sims[0]!.tube.pos.x).toBeCloseTo(center.x, 6);
       expect(sims[0]!.tube.heading).toBe(0);

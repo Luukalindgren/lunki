@@ -1491,12 +1491,12 @@ describe('veneet (#263)', () => {
     expect(crew(host, c.sessionId).x).toBeCloseTo(seat.x, 3);
     expect(crew(host, c.sessionId).y).toBeCloseTo(seat.y, 3);
 
-    // Viehe vedessä: soutaja ei liikuta venettä.
+    // Kelatessa soutaja ei liikuta venettä.
     const start = { x: boat.x, y: boat.y };
-    await row(host, 1, 60, [start.x + 10, start.y, 2]);
+    await row(host, 1, 60, [start.x + 10, start.y, 2, 1]);
     expect(distance(crew(host), start)).toBeLessThan(0.05);
-    // Viehe sisään: vene lähtee, ja kyytiläinen kulkee mukana.
-    await row(host, 61, 60, [0, 0, 0]);
+    // Viehe vedessä ilman kelausta: soutu-uistelu, vene lähtee ja kyytiläinen kulkee mukana.
+    await row(host, 61, 60, [start.x + 10, start.y, 2, 0]);
     await until(() => distance(crew(host), start) > 0.3);
     const moved = crew(host);
     const followed = seatPos({ pos: moved, heading: moved.heading }, BoatSeat.stern);

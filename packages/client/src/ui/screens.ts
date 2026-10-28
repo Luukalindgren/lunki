@@ -69,7 +69,7 @@ import {
 import { LakeMapView, RACE_EVENT_STYLE, describeSpot } from './lakeMap';
 import type { RaceEventKind, RaceMapData } from '../game/raceLog';
 import { SPECIES_PIN_COLORS, formatDate, recordDetails, recordTitle } from './recordDetails';
-import { drawTubePreview } from './tubePreview';
+import { drawCraftPreview } from './tubePreview';
 import { SPECIES_VERSION, migrateSpecies } from './speciesSettings';
 import { MenuNav } from './menuNav';
 import { createLoader } from './loader';
@@ -393,6 +393,20 @@ export class Screens {
     };
     const reopen = () =>
       this.showSoloSetup({ ...settings }, onStart, onBack, onPickStart, appearance, tackle);
+    let craft = loadCraft();
+    const colors = () =>
+      this.colorsSummary(
+        appearance.current,
+        () =>
+          this.showColors(
+            'solo-colors',
+            { current: appearance.current, onChange: setAppearance },
+            reopen,
+            craft,
+          ),
+        craft,
+      );
+    let current = colors();
     const panel = this.panel('solo');
     panel.append(
       h('h2', t('solo.title')),
@@ -449,8 +463,15 @@ export class Screens {
       this.choice(
         t('settings.craft'),
         CRAFT_IDS.map((c) => [c, craftName(c)]),
-        loadCraft(),
-        (v) => saveCraft(v as Craft),
+        craft,
+        (v) => {
+          craft = v as Craft;
+          saveCraft(craft);
+          // Värien kuva ja valinnat kulkupelin mukaan (veneessä ei räpylöitä).
+          const next = colors();
+          current.replaceWith(next);
+          current = next;
+        },
       ),
       h('p', t('solo.craftHint'), 'hint'),
       // Varusteet ja värit omissa näkymissään; paluu säilyttää kesken olevat valinnat.
@@ -462,13 +483,7 @@ export class Screens {
           reopen,
         ),
       ),
-      this.colorsSummary(appearance.current, () =>
-        this.showColors(
-          'solo-colors',
-          { current: appearance.current, onChange: setAppearance },
-          reopen,
-        ),
-      ),
+      current,
       this.buttons([
         [
           t('settings.startRace'),
@@ -574,6 +589,7 @@ export class Screens {
     const scroll = this.scrollOf('lobby');
     const panel = this.panel('lobby');
     const me = v.players.find((p) => p.me);
+    const myCraft: Craft = (me?.boat ?? 0) > 0 ? 'boat' : 'tube';
     const code = h('p', formatRoomCode(v.code), 'room-code');
     const copy = document.createElement('button');
     copy.textContent = t('lobby.copyLink');
@@ -631,14 +647,13 @@ export class Screens {
     );
     // Oma kulkupeli: rengas tai oma vene; kyytiin pääsee veneen Liity-napista.
     if (v.canBoat && me && !me.spectator) {
-      const craft: Craft = me.boat > 0 ? 'boat' : 'tube';
       panel.append(
         this.choice(
           t('settings.craft'),
           CRAFT_IDS.map((c) => [c, c === 'boat' ? t('boat.own') : craftName(c)]),
-          craft,
+          myCraft,
           (c) => {
-            if (c !== craft) actions.onBoat(c === 'boat' ? 0 : BOAT_TUBE);
+            if (c !== myCraft) actions.onBoat(c === 'boat' ? 0 : BOAT_TUBE);
           },
         ),
         h('p', t('settings.craftHint'), 'hint'),
@@ -681,12 +696,16 @@ export class Screens {
           ]),
       ...(me
         ? [
-            this.colorsSummary(me.appearance, () =>
-              this.showColors(
-                'lobby-colors',
-                { current: me.appearance, onChange: actions.onAppearance },
-                back,
-              ),
+            this.colorsSummary(
+              me.appearance,
+              () =>
+                this.showColors(
+                  'lobby-colors',
+                  { current: me.appearance, onChange: actions.onAppearance },
+                  back,
+                  myCraft,
+                ),
+              myCraft,
             ),
           ]
         : []),
@@ -856,11 +875,12 @@ export class Screens {
     screen: string,
     appearance: { current: Appearance; onChange: (a: Appearance) => void },
     onBack: () => void,
+    craft: Craft,
   ): void {
     const panel = this.panel(screen);
     panel.append(
       h('h2', t('settings.colors')),
-      this.appearanceEditor(appearance.current, appearance.onChange),
+      this.appearanceEditor(appearance.current, appearance.onChange, craft),
       this.buttons([[t('common.back'), onBack]]),
     );
     this.show(panel, { back: onBack, focusFirst: true });
@@ -887,13 +907,17 @@ export class Screens {
     );
   }
 
-  /** Värien yhteenvetorivi: pieni renkaan kuva. */
-  private colorsSummary(appearance: Appearance | null, onOpen: () => void): HTMLElement {
+  /** Värien yhteenvetorivi: pieni kuva renkaasta tai veneestä. */
+  private colorsSummary(
+    appearance: Appearance | null,
+    onOpen: () => void,
+    craft: Craft,
+  ): HTMLElement {
     const preview = document.createElement('canvas');
     preview.className = 'tube-preview small';
     preview.width = preview.height = 40;
     preview.setAttribute('aria-hidden', 'true');
-    if (appearance) drawTubePreview(preview, appearance);
+    if (appearance) drawCraftPreview(preview, appearance, craft);
     return this.summaryRow(
       t('settings.colors'),
       [preview, h('span', t('settings.changeColors'), 'summary-text')],
@@ -1925,10 +1949,14 @@ export class Screens {
     return box;
   }
 
-  /** Värit: rengas, räpylät, paita ja siima. Esikatselu päivittyy heti. */
+  /**
+   * Värit: rengas, räpylät, paita ja siima. Veneellä renkaan väri on veneen
+   * reunalista, eikä räpylöitä ole. Esikatselu päivittyy heti.
+   */
   private appearanceEditor(
     initial: Appearance | null,
     onChange: (a: Appearance) => void,
+    craft: Craft,
   ): HTMLElement {
     const box = document.createElement('div');
     box.className = 'settings appearance';
@@ -1938,13 +1966,16 @@ export class Screens {
     preview.className = 'tube-preview';
     preview.width = preview.height = 40;
     preview.setAttribute('aria-label', t('appearance.preview'));
-    drawTubePreview(preview, a);
+    drawCraftPreview(preview, a, craft);
     const rows = document.createElement('div');
     rows.className = 'appearance-rows';
+    const label = (part: AppearancePart) =>
+      craft === 'boat' && part === 'tube' ? t('part.boat') : partName(part);
     for (const part of APPEARANCE_PARTS) {
+      if (craft === 'boat' && part === 'fins') continue;
       const row = document.createElement('div');
       row.className = 'choice';
-      row.append(h('span', partName(part), 'choice-label'));
+      row.append(h('span', label(part), 'choice-label'));
       const group = document.createElement('div');
       group.className = 'choice-options swatches';
       for (const c of colorOptions(part)) {
@@ -1955,7 +1986,7 @@ export class Screens {
         b.style.background = cssColor(c.hex);
         const color = colorName(c.hex, c.name);
         b.title = color;
-        b.setAttribute('aria-label', `${partName(part)}: ${color}`);
+        b.setAttribute('aria-label', `${label(part)}: ${color}`);
         const select = (on: boolean) => {
           b.classList.toggle('selected', on);
           b.setAttribute('aria-pressed', String(on));
@@ -1968,7 +1999,7 @@ export class Screens {
           });
           select(true);
           a[part] = c.hex;
-          drawTubePreview(preview, a);
+          drawCraftPreview(preview, a, craft);
           onChange({ ...a });
         });
         group.appendChild(b);

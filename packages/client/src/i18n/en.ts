@@ -207,10 +207,10 @@ export const en: Record<keyof typeof fi, string> = {
   'settings.lateJoinHint':
     'Allowed: friends can still join after the competition has started, and anyone who loses their connection can return to their spot. Return only: only returning. No: neither. Those who cannot join can still watch the competition.',
   'solo.craftHint':
-    'A boat is faster than a float tube but slower to get going, and it glides a long way. You cannot fish while rowing: cast and the oars come in.',
+    'A boat is faster than a float tube but slower to get going, and it glides a long way. You cannot row while casting or reeling, but with the lure in the water you can row and troll.',
   'settings.craft': 'Craft',
   'settings.craftHint':
-    'A boat carries a rower and up to two anglers. Each boat crew is one team: its catches are added together. The rower cannot row and fish at the same time.',
+    'A boat carries a rower and up to two anglers. Each boat crew is one team: its catches are added together. The rower cannot row and reel at the same time, but can troll while rowing.',
   'settings.species': 'Fish species',
   'settings.notNative': 'Does not live in Lunkinjärvi',
   'settings.notNativeHint': '* Not native to Lunkinjärvi, added just for fun.',
@@ -223,6 +223,7 @@ export const en: Record<keyof typeof fi, string> = {
   'settings.startPickedAt': 'A spot picked on the map: {spot}.',
   'settings.startRace': 'Start the competition',
   'part.tube': 'Float tube',
+  'part.boat': 'Boat trim',
   'part.fins': 'Fins',
   'part.shirt': 'Shirt',
   'part.line': 'Line',
@@ -594,7 +595,7 @@ export const en: Record<keyof typeof fi, string> = {
   'game.capsizeHint': 'Face the wave to stay upright',
   'game.capsizeHintBoat': 'Keep the bow or stern towards the wave and the boat stays upright',
   'game.bigWaveBoat': 'Big wave {from}! Turn the bow or stern towards it',
-  'game.rowFishing': 'The rower cannot fish and row at the same time: reel in the lure first.',
+  'game.rowFishing': 'The rower cannot row and reel at the same time: let go of the reel to row.',
   'game.oarsIn': 'Oars resting: you fish and turn on the seat ({turn})',
   'game.oarsOut': 'You took the oars',
   'game.passengerRow': 'Only the rower rows. You can turn in your seat to cast.',

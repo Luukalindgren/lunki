@@ -192,10 +192,14 @@ describe('vene (#263)', () => {
     expect(world.boats()[0]!.color).toBe(0xd23a2a);
   });
 
-  it('soutaja ei soua viehe vedessä, ja kyytiläinen piirretään omaan veneeseen', () => {
+  it('soutaja ei soua heittäessään tai kelatessaan, ja kyytiläinen piirretään omaan veneeseen', () => {
     const { world } = boatWorld('r');
     expect(world.passenger).toBe(false);
-    expect(world.effectiveInput(row, 2)).toEqual({ kick: 0, turn: 0, sprint: false });
+    const still = { kick: 0, turn: 0, sprint: false };
+    expect(world.effectiveInput(row, 1)).toEqual(still);
+    expect(world.effectiveInput(row, 2, true)).toEqual(still);
+    // Viehe vedessä kelaamatta: soutu-uistelu.
+    expect(world.effectiveInput(row, 2)).toBe(row);
     expect(world.effectiveInput(row, 0)).toBe(row);
     const own = { pos: { x: 110, y: 60 }, heading: Math.PI / 2, kickPhase: 0.3 };
     const rider = world.others(own).find((o) => o.id === 'p')!;
