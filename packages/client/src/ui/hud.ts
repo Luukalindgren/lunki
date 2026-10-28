@@ -32,7 +32,7 @@ export class Hud {
   private readonly help: HTMLDivElement;
   /** Ohjeelle varattu tila: ohjeen vaihtuminen ei siirrä luotaimia. */
   private readonly helpSlot: HTMLDivElement;
-  private helpContext: HelpContext = { fly: false, pov: false };
+  private helpContext: HelpContext = { fly: false, pov: false, seat: 'tube' };
   /** Tilanneohje (viehe maalla, sotku, perhoheitto): näkyy niin kauan kuin tilanne kestää. */
   private readonly situation: HTMLDivElement;
   private helpKey = '';
@@ -420,7 +420,7 @@ export class Hud {
    */
   setHelpContext(context: HelpContext): void {
     const c = this.helpContext;
-    if (c.fly === context.fly && c.pov === context.pov) return;
+    if (c.fly === context.fly && c.pov === context.pov && c.seat === context.seat) return;
     this.helpContext = { ...context };
     this.renderHelp();
   }
@@ -442,8 +442,14 @@ export class Hud {
       ...(mp ? ['help.chat' as const] : []),
     ];
     // Kaikki tässä tilassa mahdolliset rivit: niiden mukaan varataan tila.
-    const bases = this.spectator ? [HELP.spectator] : [HELP.spin, HELP.fly];
-    const base = this.spectator ? HELP.spectator : c.fly ? HELP.fly : HELP.spin;
+    // Liikkumisen rivit kulkupelin mukaan: räpylät, airot tai kyyti (#263).
+    const moves = Object.values(MOVE_HELP);
+    const bases = this.spectator
+      ? [HELP.spectator]
+      : [HELP.spin, HELP.fly].flatMap((b) => moves.map((m) => [...m, ...b]));
+    const base = this.spectator
+      ? HELP.spectator
+      : [...MOVE_HELP[c.seat], ...(c.fly ? HELP.fly : HELP.spin)];
     // Zoom toimii vain ylhäältä katsottaessa.
     const opts = { touch: this.touch, skip: c.pov ? (['zoom'] as const) : [] };
     const lines = [...base, ...tail].map((k) => controlText(k, {}, opts));
@@ -527,6 +533,8 @@ export interface HelpContext {
   fly: boolean;
   /** Kalastajan näkymä: zoomia ei ole. */
   pov: boolean;
+  /** Kulkupeli: kelluntarengas, veneen soutaja tai kyytiläinen (#263). */
+  seat: 'tube' | 'rower' | 'passenger';
 }
 
 /**
@@ -547,26 +555,17 @@ function smallText(text: string): HTMLElement {
  * täytetään toimintokartasta (game/controls.ts) pelaajan ohjaustavalla.
  */
 const HELP = {
-  spin: [
-    'help.move',
-    'help.turn',
-    'help.cast',
-    'help.castForward',
-    'help.reel',
-    'help.gear',
-    'help.tools',
-  ],
-  fly: [
-    'help.move',
-    'help.turn',
-    'help.flyCast',
-    'help.flyCast2',
-    'help.flyStrip',
-    'help.flyReel',
-    'help.tools',
-  ],
+  spin: ['help.cast', 'help.castForward', 'help.reel', 'help.gear', 'help.tools'],
+  fly: ['help.flyCast', 'help.flyCast2', 'help.flyStrip', 'help.flyReel', 'help.tools'],
   spectator: ['help.spectate'],
 } as const satisfies Record<'spin' | 'fly' | 'spectator', readonly MsgKey[]>;
+
+/** Liikkumisen ohjeet kulkupelin mukaan. */
+const MOVE_HELP = {
+  tube: ['help.move', 'help.turn'],
+  rower: ['help.row', 'help.rowTurn'],
+  passenger: ['help.passenger', 'help.passengerTurn'],
+} as const satisfies Record<HelpContext['seat'], readonly MsgKey[]>;
 
 function el(tag: 'div', className: string): HTMLDivElement {
   const e = document.createElement(tag);

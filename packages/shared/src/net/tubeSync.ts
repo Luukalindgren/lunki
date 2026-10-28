@@ -1,5 +1,5 @@
-import { CRAFTS, type CraftSpec } from '../physics/boat';
-import { collideTubeWithShore, stepTube, type TubeInput, type TubeState } from '../physics/tube';
+import { CRAFTS, collideCraftWithShore, type CraftSpec } from '../physics/boat';
+import { stepTube, type TubeInput, type TubeState } from '../physics/tube';
 import { collideTubePair } from '../physics/tubeCollision';
 import { REEDS } from '../map/reeds';
 import type { WaterBody } from '../map/waterBody';
@@ -71,12 +71,11 @@ export function stepPlayerTube(
   craft: CraftSpec = CRAFTS.tube,
 ): TubeState {
   const drag = water.reedsAt(tube.pos) ? REEDS.drag : 1;
-  return collideTubeWithShore(
+  return collideCraftWithShore(
     tube,
     stepTube(tube, input, dt, wind, drag, craft.physics),
     water,
-    craft.radius,
-    craft.physics.shoreBounce,
+    craft,
   );
 }
 
@@ -126,21 +125,27 @@ export const cloneTube = (t: TubeState): TubeState => ({
   stamina: t.stamina,
 });
 
+/** Toisen pelaajan alus ennakoinnin törmäyksiin: tila ja laji (rengas tai vene). */
+export interface CraftBody {
+  tube: TubeState;
+  craft: CraftSpec;
+}
+
 /**
- * Törmäyttää renkaan muihin (joita ei liikuteta) ja pitää sen vedessä.
+ * Törmäyttää aluksen muihin (joita ei liikuteta) ja pitää sen vedessä.
  * Palvelin liikuttaa molempia; ennakoinnissa muut ovat paikallaan, joten
  * törmäyksessä syntyy pieni korjaus, joka pehmennetään piirrossa.
  */
 export function collideWithOthers(
   tube: TubeState,
-  others: readonly TubeState[],
+  others: readonly CraftBody[],
   water: WaterBody,
   craft: CraftSpec = CRAFTS.tube,
 ): TubeState {
   let t = tube;
   for (const o of others) {
-    const r = collideTubePair(t, o, craft.radius);
-    if (r) t = collideTubeWithShore(t, r[0], water, craft.radius, craft.physics.shoreBounce);
+    const r = collideTubePair(t, o.tube, craft, o.craft);
+    if (r) t = collideCraftWithShore(t, r[0], water, craft);
   }
   return t;
 }
@@ -159,7 +164,7 @@ export class TubePredictor {
   /** Viimeisimmän korjauksen suuruus (m), seurantaa varten. */
   lastCorrection = 0;
   /**
-   * Oma alus (CRAFTS). Venekisan matkustaja ennakoi vain kääntymisensä
+   * Oma alus (CRAFTS). Veneen kyytiläinen ennakoi vain kääntymisensä
    * renkaan vakioilla; hänen paikkansa tulee veneestä (seatPos).
    */
   craft: CraftSpec = CRAFTS.tube;
@@ -168,7 +173,7 @@ export class TubePredictor {
     start: TubeState,
     private readonly water: WaterBody,
     /** Muiden pelaajien viimeisimmät palvelintilat törmäyksiä varten. */
-    private readonly others: () => readonly TubeState[] = () => [],
+    private readonly others: () => readonly CraftBody[] = () => [],
     /** Uudelleenyhdistäessä numerointi jatkuu palvelimen kuittauksesta. */
     startSeq = 0,
   ) {

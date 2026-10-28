@@ -11,7 +11,8 @@ import {
   LUNKINJARVI,
   chargePower,
   WaterBody,
-  collideTubeWithShore,
+  collideCraftWithShore,
+  CRAFTS,
   createTube,
   findLaunchPoint,
   isValidStart,
@@ -29,6 +30,7 @@ import {
   distance,
   BIG_WAVE,
   BOAT_WAVE_FACTOR,
+  boatCapsizes,
   bigWaveDir,
   bigWaveHeight,
   capsizes,
@@ -119,7 +121,7 @@ import { WAVE_FACTOR_SCALE, WaveField } from '../world/waveField';
 import { WeatherView, compassIn, windFrom, windName } from './weatherView';
 import { SkyView } from './skyView';
 import { MistView } from './mistView';
-import type { NetWorld } from '../net/netWorld';
+import { capsizeRoll, type NetWorld } from '../net/netWorld';
 import { RemotePlayersView } from './remotePlayersView';
 import type { Sfx } from '../audio/sfx';
 import { voiceFalloff, type VoiceId } from '../audio/voice';
@@ -129,7 +131,8 @@ import { FishingView } from './fishingView';
 import { rodSideOffset } from './lineHang';
 import { PovRod, flyRodTip } from './povRod';
 import { PovTube } from './povTube';
-import { loadTackle, nextLure, saveTackle } from './tackle';
+import { loadCraft, loadTackle, nextLure, saveTackle } from './tackle';
+import { RowerSeat } from './rowing';
 import { TopDownCamera } from './topDownCamera';
 import { QuietSpot } from './quietSpot';
 import { SEATED_LIFT, animateEmote, animateFins, createTubeMesh, setSeated } from './tubeMesh';
@@ -249,10 +252,16 @@ export class SoloGame {
   /** Yksinpelin saalis yksinpelin ennätyslistalle (moninpelissä palvelin punnitsee itse). */
   onSoloCatch: ((entry: Omit<RecordEntry, 'date' | 'at' | 'angler'>) => void) | null = null;
   private readonly remoteView: RemotePlayersView | null = null;
-  /** Venekisan veneet (#263), myös oma. */
-  private readonly boatsView: BoatsView | null = null;
-  /** Venekisassa yritys soutaa, kun soutaminen ei käy: tilanneohje. */
+  /** Veneet (#263), myös oma. */
+  private readonly boatsView = new BoatsView();
+  /** Yritys soutaa, kun soutaminen ei käy (kyydissä tai viehe ulkona): tilanneohje. */
   private rowHint: string | null = null;
+  /** Yksinpelin kulkupeli; moninpelissä se tulee palvelimelta (aulan valinta). */
+  private readonly soloCraft = loadCraft();
+  /** Veneen soutaja: airot tai vapa ja kääntyminen tuhdolla (#263). */
+  private readonly seat = new RowerSeat();
+  /** Tuhdolla kääntyminen edellisellä askeleella (piirron interpolointiin). */
+  private prevLook = 0;
   private readonly hemi = new THREE.HemisphereLight(0xeef2f3, 0x24502c, 1.5);
   private readonly sun = new THREE.DirectionalLight(0xfff3b0, 1.5);
   readonly weather: WeatherView;
@@ -359,9 +368,10 @@ export class SoloGame {
         chosen && isValidStart(this.water, chosen)
           ? { ...chosen }
           : findLaunchPoint(this.water, map.bounds, () => this.rng.next());
-      // Selkä rantaan päin, katse järvelle.
+      // Selkä rantaan päin, katse järvelle. Veneellä keula järvelle: soutaja katsoo rantaan.
       const shore = this.water.closestShorePoint(start)?.point ?? start;
-      this.tube = createTube(start, Math.atan2(start.y - shore.y, start.x - shore.x));
+      const out = Math.atan2(start.y - shore.y, start.x - shore.x);
+      this.tube = createTube(start, this.soloCraft === 'boat' ? out + Math.PI : out);
     }
     this.prevTube = this.tube;
 
@@ -408,7 +418,7 @@ export class SoloGame {
     this.applyWeatherLight();
     this.scene.add(createBottomMesh(this.bottom, this.waterWaves));
     this.scene.add(this.fishShadow.mesh);
-    this.scene.add(this.tubeMesh);
+    this.scene.add(this.tubeMesh, this.boatsView.group);
     this.flightShadow.visible = false;
     this.scene.add(this.flightShadow);
     this.world = staticWorldFor(map);
@@ -437,8 +447,6 @@ export class SoloGame {
     if (net) {
       this.remoteView = new RemotePlayersView(net.overlay, this.hud.root);
       this.scene.add(this.remoteView.group);
-      this.boatsView = new BoatsView();
-      this.scene.add(this.boatsView.group);
       net.world.onEmote = (m) => {
         this.remoteView?.showEmote(m.from, m.emote);
         const who = net.world.others().find((o) => o.id === m.from);
@@ -502,7 +510,7 @@ export class SoloGame {
   private fishingContext(strike?: number): FishingContext {
     return {
       tubePos: this.tube.pos,
-      heading: this.tube.heading,
+      heading: this.facing,
       isWater: (p) => this.water.isWater(p),
       depthAt: (p) => this.bottom.depthAt(p),
       structureAt: (p) => this.bottom.structureAt(p),
@@ -659,7 +667,11 @@ export class SoloGame {
     this.spoutWarnTimer -= dt;
     const near = spots.some((p) => distance(p, this.tube.pos) < SPOUT.radius);
     if (near && this.capsizeLeft === 0 && this.spoutWarnTimer <= 0) {
-      this.hud.showMessage(t('game.spoutPull'), 2, 'alert');
+      this.hud.showMessage(
+        controlText(this.inBoat ? 'game.spoutPullBoat' : 'game.spoutPull'),
+        2,
+        'alert',
+      );
       this.spoutWarnTimer = 4;
     }
   }
@@ -682,7 +694,8 @@ export class SoloGame {
       // Kisaan palatessa ohi menneet aallot eivät kuulu kerralla.
       if (felt(h) && now - wave.t < 1) this.sfx.wave();
       const dir = bigWaveDir(wave, w.windDir);
-      if (!this.net && this.capsizeLeft === 0 && capsizes(this.tube.heading, dir, h)) {
+      const over = this.inBoat ? boatCapsizes : capsizes;
+      if (!this.net && this.capsizeLeft === 0 && over(this.tube.heading, dir, h)) {
         this.capsizedUntil = now + BIG_WAVE.recover;
         this.onCapsize('wave');
       }
@@ -854,7 +867,7 @@ export class SoloGame {
   /** Salama iski kohtaan `pos`; `hitMe` = osui omaan vapaan. */
   private onStrike(pos: Vec2, hitMe: boolean): void {
     // Osuma iskee vavan kärkeen, joten salama näkyy myös kalastajan silmin.
-    const at = hitMe ? rodTip(this.tube.pos, this.tube.heading) : pos;
+    const at = hitMe ? rodTip(this.tube.pos, this.facing) : pos;
     const d = hitMe ? 0 : distance(pos, this.tube.pos);
     this.lightning.strike(at);
     this.raceLog.addEvent('lightning', pos, this.competition.elapsed);
@@ -922,6 +935,19 @@ export class SoloGame {
     if (!frozen) this.logRace();
 
     this.prevTube = this.tube;
+    this.prevLook = this.seat.look;
+    // Veneen soutaja airoissa soutaa ja kääntää venettä; vavassa (heitto tai
+    // viehe ulkona) vene liukuu ja soutaja kääntyy tuhdolla (#263).
+    const raw = frozen || capsized ? still : readTubeInput(c);
+    const fishingBusy = this.fishing.stage !== 'idle' || this.fishing.hookedId !== null;
+    const oars = this.rower && c.wasPressed('oars') && !fishingBusy && !frozen;
+    const move = this.rower ? this.seat.step(raw, fishingBusy, oars, dt) : raw;
+    if (oars)
+      this.hud.showMessage(
+        controlText(this.seat.rowing ? 'game.oarsOut' : 'game.oarsIn'),
+        2,
+        'info',
+      );
     if (this.spectating) {
       const step = c.wasPressed('next') ? 1 : c.wasPressed('prev') ? -1 : 0;
       this.tube = this.followTube(step) ?? this.tube;
@@ -935,31 +961,27 @@ export class SoloGame {
             : f.stage === 'water'
               ? LureStage.water
               : LureStage.none;
-      const tubeInput = frozen || capsized ? still : readTubeInput(c);
       const w = this.net.world;
-      // Venekisa: kyytiläinen ei soua, eikä soutaja soua viehe vedessä (#263).
+      // Veneessä kyytiläinen ei soua, eikä soutaja soua viehe vedessä (#263).
       this.rowHint =
-        w.boat > 0 && tubeInput.kick !== 0 && w.effectiveInput(tubeInput, stage).kick === 0
+        this.inBoat && raw.kick !== 0 && w.effectiveInput(move, stage).kick === 0
           ? t(w.passenger ? 'game.passengerRow' : 'game.rowFishing')
           : null;
       this.tube = this.net.world.stepOwn(
-        tubeInput,
+        move,
         // Perhoheitossa muille välitetään perhon paikka ilmassa (#236).
         (f.stage === 'casting' && this.fishingView.flyInAir) || f.lure,
         stage,
         frozen ? undefined : this.tubeWind,
         !frozen && reelHeld,
+        this.rower ? this.seat.look : 0,
       );
     } else {
       const drag = this.water.reedsAt(this.tube.pos) ? REEDS.drag : 1;
-      const next = stepTube(
-        this.tube,
-        capsized ? still : readTubeInput(c),
-        dt,
-        this.tubeWind,
-        drag,
-      );
-      this.tube = collideTubeWithShore(this.tube, next, this.water);
+      const craft = this.inBoat ? CRAFTS.boat : CRAFTS.tube;
+      const next = stepTube(this.tube, move, dt, this.tubeWind, drag, craft.physics);
+      this.tube = collideCraftWithShore(this.tube, next, this.water, craft);
+      this.rowHint = this.inBoat && raw.kick !== 0 && move.kick === 0 ? t('game.rowFishing') : null;
     }
     this.sprinting = !capsized && readTubeInput(c).sprint;
 
@@ -1018,7 +1040,7 @@ export class SoloGame {
     this.aim = this.castControl.aim(
       (this.viewMode === 'pov' ? this.pov : this.view).internalToWorld(internal.x, internal.y),
       this.tube.pos,
-      this.tube.heading,
+      this.facing,
     );
     const lureOut = f.stage === 'flight' || f.stage === 'water';
     // Perho vedessä ja siima kädessä: hiiri tai välilyönti pitää siimaa ja vetää sitä.
@@ -1127,7 +1149,11 @@ export class SoloGame {
       this.competition.elapsed - this.penaltyNoteAt > 1
     )
       this.penaltyNote = null;
-    this.hud.setHelpContext({ fly: isFly(f.tackle), pov: this.viewMode === 'pov' });
+    this.hud.setHelpContext({
+      fly: isFly(f.tackle),
+      pov: this.viewMode === 'pov',
+      seat: !this.inBoat ? 'tube' : this.rower ? 'rower' : 'passenger',
+    });
     // Tilanneohje: mitä nyt pitää tehdä. Yksi kerrallaan, tärkein ensin.
     this.hud.setSituation(
       tangle
@@ -1168,7 +1194,7 @@ export class SoloGame {
       }),
     );
     this.hud.lureSonar.update(dt, f.stage === 'water' && !f.onLand, () => ({
-      tip: rodTip(this.tube.pos, this.tube.heading),
+      tip: rodTip(this.tube.pos, this.facing),
       lure: f.lure,
       depth: f.depth,
       depthAt: (p) => this.bottom.depthAt(p),
@@ -1273,7 +1299,7 @@ export class SoloGame {
     );
     const shore = this.water.closestShorePoint(p, SHORE_FADE)?.distance ?? SHORE_FADE;
     const s = this.swell.sample(p, hs * shoreFade(shore) * fade.value);
-    const h = this.tube.heading;
+    const h = this.facing;
     const ahead = s.slope.x * Math.cos(h) + s.slope.y * Math.sin(h);
     const side = s.slope.x * Math.sin(h) - s.slope.y * Math.cos(h);
     // Rengas ei seuraa pintaa jäykästi: se kelluu hieman jäljessä ja loivemmin.
@@ -1412,7 +1438,8 @@ export class SoloGame {
       this.quietSpot.cast(this.tube.pos);
     }
     if (follow || events.strike) this.quietSpot.noticed();
-    if (events.home && this.quietSpot.home()) hud.showMessage(t('game.quiet'), 4, 'info');
+    if (events.home && this.quietSpot.home())
+      hud.showMessage(controlText(this.inBoat ? 'game.quietBoat' : 'game.quiet'), 4, 'info');
     if (events.splash) {
       // Perho laskeutuu pienellä roiskeella, popperi isommalla (#236).
       const tk = this.fishing.tackle;
@@ -1618,7 +1645,7 @@ export class SoloGame {
     return {
       pos: { ...f.pos },
       vel: { x: 0, y: 0 },
-      heading: f.heading,
+      heading: f.heading + f.look,
       angVel: 0,
       kickPhase: f.kickPhase,
       stamina: 1,
@@ -1629,7 +1656,7 @@ export class SoloGame {
   private updateSpectatorHud(dt: number): void {
     const name = this.followed ? this.net!.world.playerName(this.followed) : null;
     this.hud.setPower(null);
-    this.hud.setHelpContext({ fly: false, pov: this.viewMode === 'pov' });
+    this.hud.setHelpContext({ fly: false, pov: this.viewMode === 'pov', seat: 'tube' });
     this.hud.setSituation(null);
     this.hud.setStatus([
       t('mp.spectating'),
@@ -1663,12 +1690,7 @@ export class SoloGame {
    * kumossa ja kääntyy lopuksi takaisin pystyyn.
    */
   private capsizeRoll(): number {
-    const t = this.competition.elapsed - this.capsizedAt;
-    if (t < 0 || t > BIG_WAVE.recover) return 0;
-    const over = Math.min(1, t / 0.5);
-    const back = Math.max(0, (t - (BIG_WAVE.recover - 1)) / 1);
-    const k = Math.min(over, 1 - back);
-    return Math.PI * k * k * (3 - 2 * k);
+    return capsizeRoll(this.competition.elapsed - this.capsizedAt);
   }
 
   /**
@@ -1888,7 +1910,7 @@ export class SoloGame {
     this.emoteMenu?.dispose();
     this.ownBubble?.remove();
     this.remoteView?.dispose();
-    this.boatsView?.dispose();
+    this.boatsView.dispose();
     this.net?.world.dispose();
     // Jaettu maailma, vesimaski ja syvyystekstuuri jäävät seuraavalle pelille.
     if (this.world.pov.parent === this.scenery)
@@ -1908,9 +1930,19 @@ export class SoloGame {
     });
   }
 
-  /** Venekisassa oma pelaaja istuu veneessä (#263). */
+  /** Oma kalastaja istuu veneessä (#263): moninpelissä aulan valinta, yksinpelissä oma. */
   private get inBoat(): boolean {
-    return (this.net?.world.boat ?? 0) > 0;
+    return this.net ? this.net.world.boat > 0 : this.soloCraft === 'boat';
+  }
+
+  /** Oma kalastaja soutaa venettä (yksinpelissä aina, moninpelissä soutajan paikalla). */
+  private get rower(): boolean {
+    return this.inBoat && !this.spectating && !this.net?.world.passenger;
+  }
+
+  /** Kalastajan katsesuunta: soutaja voi kääntyä tuhdolla veneen suunnasta. */
+  private get facing(): number {
+    return this.tube.heading + (this.rower ? this.seat.look : 0);
   }
 
   /** Piirtää interpoloiden edellisen ja nykyisen askeleen välillä. */
@@ -1923,7 +1955,10 @@ export class SoloGame {
       x: a.pos.x + (b.pos.x - a.pos.x) * alpha + offset.x,
       y: a.pos.y + (b.pos.y - a.pos.y) * alpha + offset.y,
     };
-    let heading = lerpAngle(a.heading, b.heading, alpha);
+    // Veneen suunta; soutajan katse voi olla käännetty tuhdolla (`look`).
+    const hull = lerpAngle(a.heading, b.heading, alpha);
+    const look = this.rower ? lerpAngle(this.prevLook, this.seat.look, alpha) : 0;
+    let heading = hull + look;
     // Trombin mukana rengas lentää kieppuen kaarena perille.
     const air = this.flight ? this.flightNow() : null;
     if (air) {
@@ -2009,10 +2044,26 @@ export class SoloGame {
     }
     this.shakeCamera();
     this.lightning.orient(this.camera, this.heightPx);
+    // Oma vene sellaisena kuin se nyt piirretään: kyytiläiset istuvat siinä.
+    const own = this.spectating
+      ? undefined
+      : { pos, heading: hull + (air?.spin ?? 0), kickPhase: b.kickPhase, roll };
+    if (!this.net)
+      this.boatsView.update(
+        this.inBoat
+          ? [
+              {
+                boat: 1,
+                ...own!,
+                color: this.appearance.tube,
+                lift: air?.height,
+                tumble: air?.tumble,
+              },
+            ]
+          : [],
+      );
     if (this.net && this.remoteView) {
-      // Oman veneen kyytiläiset istuvat veneessä sellaisena kuin se nyt piirretään.
-      const own = this.spectating ? undefined : { pos, heading, kickPhase: b.kickPhase };
-      this.boatsView?.update(this.net.world.boats(own));
+      this.boatsView.update(this.net.world.boats(own));
       const others = this.net.world.others(own);
       // Katsojan silmin seurattavan oma rengas ei peitä näkymää.
       const shown =

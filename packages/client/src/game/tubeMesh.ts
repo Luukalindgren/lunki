@@ -95,6 +95,9 @@ export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THR
     group.add(fin);
   }
 
+  // Veneessä istuva alavartalo (#263): renkaassa sen peittää rengas ja siimataso.
+  for (const part of createSeatedBody(appearance.shirt, legMat)) group.add(part);
+
   // Kädet käsimerkkejä varten (#228): vasen on vapaa, oikea pitää vapaa.
   const skin = new THREE.MeshLambertMaterial({ color: SKIN });
   for (const side of [-1, 1] as const) group.add(createArm(side, appearance.shirt, skin));
@@ -109,6 +112,7 @@ export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THR
   rod.name = 'rod';
   group.add(rod);
 
+  setSeated(group, false);
   return group;
 }
 
@@ -198,10 +202,42 @@ export function animateEmote(group: THREE.Group, emote: EmoteId | null, t: numbe
 
 /** Veneessä kalastaja istuu tuhdolla näin paljon renkaan istuinta ylempänä (m). */
 export const SEATED_LIFT = 0.3;
+/** Veneen pohja istujan paikallisessa koordinaatistossa (tuhto 0,32 m, pohja 0,1 m). */
+const BOAT_FLOOR = 0.1 - SEATED_LIFT;
 
-/** Venekisassa kalastaja istuu veneessä: ei rengasta, räpylöitä eikä sääriä (#263). */
+/**
+ * Tuhdolla istuvan vartalo ja jalat laatikoina: vartalo hartioista
+ * istuimelle, reidet eteen ja sääret alas veneen pohjaan, jotta kalastaja
+ * ei leiju. Piilossa renkaassa (setSeated).
+ */
+function createSeatedBody(shirt: number, legMat: THREE.Material): THREE.Mesh[] {
+  const torso = new THREE.Mesh(
+    new THREE.BoxGeometry(0.26, 0.43, 0.56),
+    new THREE.MeshLambertMaterial({ color: shirt }),
+  );
+  torso.name = 'shirt';
+  torso.position.y = 0.235;
+  const parts: THREE.Mesh[] = [torso];
+  const boot = new THREE.MeshLambertMaterial({ color: 0x2a2622 });
+  for (const z of [-0.13, 0.13]) {
+    const thigh = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.14, 0.16), legMat);
+    thigh.position.set(0.16, 0.09, z);
+    const shin = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.16 - BOAT_FLOOR, 0.14), legMat);
+    shin.position.set(0.34, (0.16 + BOAT_FLOOR) / 2, z);
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.06, 0.14), boot);
+    foot.position.set(0.4, BOAT_FLOOR + 0.03, z);
+    parts.push(thigh, shin, foot);
+  }
+  for (const part of parts) part.userData.seated = true;
+  return parts;
+}
+
+/** Veneessä kalastaja istuu tuhdolla: ei rengasta, räpylöitä eikä sääriä vedessä (#263). */
 export function setSeated(group: THREE.Group, seated: boolean): void {
-  for (const child of group.children) if (TUBE_PARTS.has(child.name)) child.visible = !seated;
+  for (const child of group.children) {
+    if (TUBE_PARTS.has(child.name)) child.visible = !seated;
+    else if (child.userData.seated) child.visible = seated;
+  }
 }
 
 const TUBE_PARTS = new Set(['tube', 'fin', 'apron', 'leg']);

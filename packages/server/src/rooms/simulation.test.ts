@@ -1,5 +1,4 @@
 import {
-  BOAT_RADIUS,
   BoatSeat,
   CRAFTS,
   InputQueue,
@@ -65,7 +64,9 @@ describe('palvelimen askel', () => {
   it('ennakointi päätyy palvelimen tilaan korjauksen jälkeen', () => {
     const sims = setup();
     const ownStart: TubeState = sims[0]!.tube;
-    const predictor = new TubePredictor(ownStart, water, () => [sims[1]!.tube]);
+    const predictor = new TubePredictor(ownStart, water, () => [
+      { tube: sims[1]!.tube, craft: CRAFTS.tube },
+    ]);
     for (let step = 1; step <= 300; step++) {
       const own: NetInput = { seq: step, kick: 1, turn: 0, sprint: true };
       predictor.step(own);
@@ -78,7 +79,7 @@ describe('palvelimen askel', () => {
     }
   });
 
-  describe('venekisa (#263)', () => {
+  describe('vene (#263)', () => {
     /** Vene (soutaja) ja kaksi kalastajaa perässä ja keulassa. */
     function boat(): Sim[] {
       const rower = createTube({ ...center }, 0);
@@ -99,7 +100,7 @@ describe('palvelimen askel', () => {
     const row = (sims: Sim[], steps: number, input = { kick: 1, turn: 0, sprint: false }) => {
       for (let k = 1; k <= steps; k++) {
         for (const s of sims) s.inputs.push([{ seq: s.inputs.lastSeq + 1, ...input }]);
-        stepSims(sims, water, false, undefined, 'boat');
+        stepSims(sims, water);
       }
     };
 
@@ -131,17 +132,54 @@ describe('palvelimen askel', () => {
       expect(sims[0]!.tube.heading).toBe(0);
     });
 
-    it('veneet törmäävät veneen säteellä, kyytiläiset eivät törmää', () => {
+    it('veneet törmäävät rungoillaan, kyytiläiset eivät törmää', () => {
       const a = boat();
+      // Toinen vene rinnalla, kyljet 0,3 m päällekkäin.
       const b = boat().map((s) => ({
         ...s,
         boat: 2,
-        tube: { ...s.tube, pos: { x: s.tube.pos.x + BOAT_RADIUS * 1.5, y: s.tube.pos.y } },
+        tube: { ...s.tube, pos: { x: s.tube.pos.x, y: s.tube.pos.y + 1 } },
       }));
       const sims = [...a, ...b];
-      stepSims(sims, water, false, undefined, 'boat');
-      const gap = sims[3]!.tube.pos.x - sims[0]!.tube.pos.x;
-      expect(gap).toBeGreaterThanOrEqual(CRAFTS.boat.radius * 2 - 1e-9);
+      stepSims(sims, water);
+      const gap = sims[3]!.tube.pos.y - sims[0]!.tube.pos.y;
+      // Erilleen rungon leveyden verran, ei koko veneen pituuden säteellä.
+      expect(gap).toBeGreaterThanOrEqual(1.3 - 1e-9);
+      expect(gap).toBeLessThan(1.5);
+      expect(sims[1]!.tube.pos).toEqual(seatPos(sims[0]!.tube, BoatSeat.stern));
+    });
+
+    it('rengas ja vene samassa kisassa: kevyt rengas kimpoaa raskaasta veneestä', () => {
+      const [rower] = boat();
+      // Rengas tulee kohti veneen kylkeä.
+      const tube = createTube({ x: center.x, y: center.y + 1.6 }, Math.PI / 2);
+      const sims: Sim[] = [
+        rower!,
+        {
+          tube: { ...tube, vel: { x: 0, y: -1 } },
+          inputs: new InputQueue(),
+          splashed: false,
+          lastCatchAt: 0,
+        },
+      ];
+      for (let k = 1; k <= 30; k++) {
+        for (const s of sims) s.inputs.push([{ seq: k, kick: 0, turn: 0, sprint: false }]);
+        stepSims(sims, water);
+      }
+      // Rengas kimpoaa takaisin, ja sen vauhti muuttuu enemmän kuin veneen.
+      expect(sims[1]!.tube.vel.y).toBeGreaterThan(0);
+      expect(Math.abs(sims[0]!.tube.vel.y)).toBeLessThan(sims[1]!.tube.vel.y + 1);
+      expect(sims[0]!.tube.vel.y).toBeLessThan(0);
+      expect(sims[1]!.tube.pos.y - sims[0]!.tube.pos.y).toBeGreaterThan(0.66 + TUBE_RADIUS - 0.05);
+    });
+
+    it('kyytiläinen kääntyy veneen mukana', () => {
+      const sims = boat();
+      row(sims, 60, { kick: 0, turn: 1, sprint: false });
+      // Kyytiläinen ei itse käänny (syöte välitetään hänellekin, mutta testataan ero).
+      const turned = sims[0]!.tube.heading;
+      expect(turned).toBeGreaterThan(0.1);
+      expect(sims[2]!.tube.pos).toEqual(seatPos(sims[0]!.tube, BoatSeat.bow));
     });
   });
 });

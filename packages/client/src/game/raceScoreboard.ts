@@ -16,7 +16,7 @@ export function scoreboardLines(results: readonly PlayerResult[], myId: string):
   return lines;
 }
 
-/** Oma rivi: oma tulos tai venekisassa oma vene. */
+/** Oma rivi: oma tulos tai oman venekunnan rivi. */
 export const isMine = (r: PlayerResult, myId: string) =>
   r.id === myId || (r.members?.some((m) => m.id === myId) ?? false);
 

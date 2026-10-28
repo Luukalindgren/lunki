@@ -16,11 +16,10 @@ import {
   type Appearance,
   type Tackle,
   type Difficulty,
-  rankBoats,
+  rankTeams,
   rankPlayers,
   BOAT_PROTOCOL,
   PROTOCOL_VERSION,
-  isCraft,
   type Catch,
   type CatchRecord,
   type InputMessage,
@@ -217,7 +216,7 @@ export interface LobbyPlayer {
   spectator: boolean;
   tackle: Tackle;
   appearance: Appearance;
-  /** Venekisa (#263): vene 1… ja paikka (BoatSeat); 0 = ei venettä. */
+  /** Kulkupeli (#263): vene 1… ja paikka (BoatSeat); 0 = kelluntarengas. */
   boat: number;
   seat: number;
 }
@@ -233,7 +232,7 @@ export interface LobbyView {
   allReady: boolean;
   /** Palvelin tuntee katsojat (vanha palvelin ei). */
   canSpectate: boolean;
-  /** Palvelin osaa venekisan (vanha palvelin ei). */
+  /** Palvelin osaa veneet kulkupelinä (vanha palvelin ei). */
   canBoat: boolean;
 }
 
@@ -252,9 +251,11 @@ export interface PlayerSchema {
   stamina?: number;
   /** Katsoja; puuttuu vanhalta palvelimelta. */
   spectator?: boolean;
-  /** Venekisan vene ja paikka; puuttuvat vanhalta palvelimelta. */
+  /** Vene ja paikka; puuttuvat vanhalta palvelimelta. */
   boat?: number;
   seat?: number;
+  /** Soutaja kääntyneenä tuhdolla (rad veneen suunnasta); puuttuu vanhalta palvelimelta. */
+  look?: number;
   ack: number;
   lureX: number;
   lureY: number;
@@ -299,8 +300,6 @@ export interface StateSchema {
     landPenalty?: number;
     /** Puuttuu vanhalta palvelimelta. */
     lateJoin?: string;
-    /** Craft; puuttuu vanhalta palvelimelta. */
-    craft?: string;
     species: Iterable<string>;
     customStart: boolean;
     startX: number;
@@ -323,7 +322,7 @@ export interface CatchSchema {
   time: number;
   fishSlot: number;
   fishGen: number;
-  /** Venekisassa saajan vene; puuttuu vanhalta palvelimelta. */
+  /** Saajan vene (0 = rengas); puuttuu vanhalta palvelimelta. */
   boat?: number;
 }
 
@@ -493,7 +492,6 @@ export class NetSession {
         capsizePenalty: s.settings.capsizePenalty as Penalty,
         landPenalty: s.settings.landPenalty ?? 0,
         lateJoin: isLateJoin(s.settings.lateJoin) ? s.settings.lateJoin : 'closed',
-        craft: isCraft(s.settings.craft) ? s.settings.craft : 'tube',
         species: [...s.settings.species].filter(isSpeciesId),
         start: s.settings.customStart ? { x: s.settings.startX, y: s.settings.startY } : null,
       },
@@ -514,14 +512,17 @@ export class NetSession {
     if (this.serverProtocol >= SPECTATE_PROTOCOL) this.room.send(ClientMsg.spectate, on);
   }
 
-  /** Venekisan aulassa: veneeseen n tai omaan uuteen veneeseen (0). */
+  /** Aulassa kulkupeli: veneeseen n kyytiin, omaan uuteen veneeseen (0) tai renkaalle (BOAT_TUBE). */
   sendBoat(boat: number): void {
     if (this.serverProtocol >= BOAT_PROTOCOL) this.room.send(ClientMsg.boat, boat);
   }
 
-  /** Venekisa (#263): veneet kisaavat joukkueina. */
-  get boatRace(): boolean {
-    return this.room.state?.settings?.craft === 'boat';
+  /** Joku kisassa on veneessä (#263): venekunnat kisaavat joukkueina. */
+  get hasBoats(): boolean {
+    if (this.serverProtocol < BOAT_PROTOCOL) return false;
+    let any = false;
+    this.room.state?.players?.forEach((p) => (any ||= (p.boat ?? 0) > 0));
+    return any;
   }
 
   /** Oma pelaaja katsoo kisaa osallistumatta. */
@@ -620,15 +621,16 @@ export class NetSession {
   }
 
   /**
-   * Kisan sijoitukset: venekisassa veneet joukkueina (rankBoats), muuten
-   * pelaajat (results).
+   * Kisan sijoitukset: venekunnat joukkueina ja renkailla kukin itse
+   * (rankTeams). Ilman veneitä sama kuin results().
    */
   standings(): PlayerResult[] {
-    if (!this.boatRace) return this.results();
     const s = this.room.state;
-    const crews: { id: string; name: string; boat: number }[] = [];
+    const boatCatch = [...s.catches].some((c) => (c.boat ?? 0) > 0);
+    if (!this.hasBoats && !boatCatch) return this.results();
+    const players: { id: string; name: string; boat: number }[] = [];
     s.players.forEach((p, id) => {
-      if (!p.spectator) crews.push({ id, name: p.name, boat: p.boat ?? 0 });
+      if (!p.spectator) players.push({ id, name: p.name, boat: p.boat ?? 0 });
     });
     const catches = [...s.catches].map((c) => ({
       species: c.species as SpeciesId,
@@ -636,8 +638,10 @@ export class NetSession {
       weight: c.weight,
       time: c.time,
       boat: c.boat ?? 0,
+      player: c.player,
+      angler: c.angler,
     }));
-    return rankBoats(catches, crews, s.settings.winRule as WinRule, (n) => t('boat.name', { n }));
+    return rankTeams(catches, players, s.settings.winRule as WinRule, (n) => t('boat.name', { n }));
   }
 
   async leave(): Promise<void> {

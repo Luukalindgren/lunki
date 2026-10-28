@@ -20,7 +20,7 @@ export const FIREFOX_WEBGL = {
   firefoxUserPrefs: { 'webgl.force-enabled': true },
 };
 
-const MULTIPLAYER = /(moninpeli|venekisa)\.spec\.ts/;
+const MULTIPLAYER = /(moninpeli|vene)\.spec\.ts/;
 
 export default defineConfig({
   testDir: 'e2e',

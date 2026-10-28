@@ -27,6 +27,11 @@ export const CONTROLS = {
   right: { keys: ['KeyD', 'ArrowRight'] },
   turn: { keys: [], label: 'ctl.turnKeys', touch: 'ctl.stickSide' },
   sprint: { keys: ['ShiftLeft', 'ShiftRight'], touch: 'ctl.stickEdge' },
+  /**
+   * Veneen soutaja: airot tai vapa (#263). Kosketuksella asento vaihtuu itse:
+   * heitto vie vapaan ja soutaminen airoihin.
+   */
+  oars: { keys: ['KeyB'] },
 
   // Kalastus. Hiiren vasen ja sormi järvellä tähtäävät, heittävät ja kelaavat.
   pointer: { keys: ['Mouse0'], label: 'ctl.mouse', touch: 'ctl.finger' },

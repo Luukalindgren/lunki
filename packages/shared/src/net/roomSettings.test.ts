@@ -80,9 +80,7 @@ describe('validateSettingsPatch', () => {
     expect(validateSettingsPatch({ start: { x: 5, y: 0 } }, 1)).toEqual({});
   });
 
-  it('alus: kelluntarengas tai venekisa (#263)', () => {
-    expect(validateSettingsPatch({ craft: 'boat' }, 1)).toEqual({ craft: 'boat' });
-    expect(validateSettingsPatch({ craft: 'tube' }, 1)).toEqual({ craft: 'tube' });
-    expect(validateSettingsPatch({ craft: 'kayak' }, 1)).toEqual({});
+  it('kulkupeli ei ole kisan asetus vaan pelaajan valinta (#263)', () => {
+    expect(validateSettingsPatch({ craft: 'boat' }, 1)).toEqual({});
   });
 });

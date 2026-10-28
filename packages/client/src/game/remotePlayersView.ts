@@ -89,11 +89,12 @@ export class RemotePlayersView {
       if (age > EMOTE_DURATION) e.emote = null;
       animateEmote(e.tube, e.emote?.id ?? null, age);
       if (!sameAppearance(e.appearance, p.appearance)) this.recolor(e, p.appearance);
-      // Venekisassa kalastaja istuu veneessä (vene piirretään BoatsView'ssa).
+      // Veneessä kalastaja istuu (vene piirretään BoatsView'ssa); soutaja voi
+      // kääntyä tuhdolla (look), ja kaatuessa koko miehistö kallistuu veneen mukana.
       setSeated(e.tube, p.boat > 0);
       e.tube.position.copy(toWorld(p.pos, (p.lift ?? 0) + (p.boat > 0 ? SEATED_LIFT : 0)));
-      e.tube.rotation.y = p.heading;
-      e.tube.rotation.x = p.tumble ?? 0;
+      e.tube.rotation.y = p.heading + p.look;
+      e.tube.rotation.x = p.tumble ?? p.roll;
       animateFins(e.tube, p.kickPhase);
 
       const showLure = p.lure !== null && p.lureStage !== LureStage.none;
@@ -106,8 +107,8 @@ export class RemotePlayersView {
       else e.fly.reset();
       e.lure.scale.setScalar(casting ? 0.5 : 1);
       if (showLure && !casting) {
-        const tip = rodTip(p.pos, p.heading);
-        const side = rodSideOffset(p.heading);
+        const tip = rodTip(p.pos, p.heading + p.look);
+        const side = rodSideOffset(p.heading + p.look);
         const flying = p.lureStage === LureStage.flight;
         const lure = toWorld(p.lure!, flying ? 1 : 0.05);
         e.lure.position.copy(lure);
@@ -143,18 +144,18 @@ export class RemotePlayersView {
 
   /** Muun pelaajan perhoheitto perhon paikasta päätellen. */
   private drawFlyCast(e: Entry, p: RemotePlayer): void {
-    const side = rodSideOffset(p.heading);
+    const heading = p.heading + p.look;
+    const side = rodSideOffset(heading);
     const tip0 = flyRodTip(1);
     const tip = {
-      x: p.pos.x + side.x + Math.cos(p.heading) * tip0.forward,
-      y: p.pos.y + side.y + Math.sin(p.heading) * tip0.forward,
+      x: p.pos.x + side.x + Math.cos(heading) * tip0.forward,
+      y: p.pos.y + side.y + Math.sin(heading) * tip0.forward,
     };
-    const along =
-      (p.lure!.x - tip.x) * Math.cos(p.heading) + (p.lure!.y - tip.y) * Math.sin(p.heading);
+    const along = (p.lure!.x - tip.x) * Math.cos(heading) + (p.lure!.y - tip.y) * Math.sin(heading);
     const prev = e.fly.pose(along, tip0);
     // Vapa on silmukan suunnan pysäytysasennossa.
     const pose = { ...prev, ...posed(flyRodTip(prev.dir)) };
-    const pts = flyLineWorld(flyLineProfile(pose), p.pos, p.heading, p.heading, side);
+    const pts = flyLineWorld(flyLineProfile(pose), p.pos, heading, heading, side);
     const pos = e.flyLine.geometry.attributes.position as THREE.BufferAttribute;
     writeLine(pos, pts);
     pos.needsUpdate = true;
