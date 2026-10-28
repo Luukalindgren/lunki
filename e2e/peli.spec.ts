@@ -314,7 +314,7 @@ test('kieli vaihtuu päävalikosta heti ja säilyy uudelleenlatauksen jälkeen',
   await expect(page.locator('.hud-compass')).toContainText('N');
   if (!isMobile) {
     await page.keyboard.press('Escape');
-    await page.getByRole('button', { name: 'End the competition' }).click();
+    await page.getByRole('button', { name: 'Stop and weigh in' }).click();
     await page.getByRole('button', { name: 'Main menu' }).click();
     await page.getByRole('button', { name: 'Suomi' }).click();
     await expect(page.getByRole('button', { name: 'Yksinpeli' })).toBeVisible();
