@@ -158,6 +158,8 @@ export function createWaterWaves() {
     uDrift: { value: new THREE.Vector2() },
     /** 1 = kalastajan silmin: kaukana vesi vaalenee taivaan heijastuksesta, pohjan sävy vain lähellä. */
     uPov: { value: 0 },
+    /** Kaukaisen veden vaalennus (0 = ei): päivällä täysi, hämärässä ja yöllä pois. */
+    uSheen: { value: 0.6 },
     /** Vesialue tekstuurina (punainen = vettä) ja sen rajat: minX, minY, leveys, korkeus. */
     uWaterMask: { value: null as THREE.Texture | null },
     uWaterMaskBounds: { value: new THREE.Vector4(0, 0, 1, 1) },
@@ -173,10 +175,15 @@ export function createWaterWaves() {
 }
 export type WaterWaves = ReturnType<typeof createWaterWaves>;
 
+/** Kalastajan silmin pohja näkyy vain lähelle: hiipuu pois tällä matkalla (m). */
+const POV_NEAR: [number, number] = [18, 32];
+/** GLSL: 1 lähellä, 0 kaukana vaakaetäisyydestä `xy` (ks. POV_NEAR). */
+const POV_NEAR_GLSL = (xy: string) =>
+  `(1.0 - smoothstep(${POV_NEAR[0].toFixed(1)}, ${POV_NEAR[1].toFixed(1)}, length(${xy})))`;
+
 /**
- * Vesi aaltoilee: kuviota luetaan hitaasti vaeltavilla siniaalloilla
- * vääristettynä, jolloin aallonharjat kiemurtelevat ja välkehtivät.
- * Tuulella pintaan nousee vaahtopäitä.
+ * Vesi: pinnan viivakuvio (aallonharjojen suuntaiset viivat, kulkevat tuulen
+ * mukana), tuulella vaahtopäät ja kalastajan silmin lähiveden mainingit.
  */
 function createWaterMaterial(waves: WaterWaves, patch = false): THREE.MeshLambertMaterial {
   const material = new THREE.MeshLambertMaterial({ color: 0xffffff, map: createWaterTexture() });
@@ -201,6 +208,7 @@ uniform vec4 uDepthBounds;
 uniform float uBottomShadeOn;
 uniform vec2 uDrift;
 uniform float uPov;
+uniform float uSheen;
 #ifdef SWELL_PATCH
 varying float vSwell;
 varying float vSwellK;
@@ -395,7 +403,7 @@ vec2 waterDash(vec2 p, float cell, float seed, float chance, vec2 dir, float t) 
       // Kalastajan silmin pohjaa näkee vain lähelle: kauempana pinta heijastaa
       // taivaanrantaa, ja sävy vaalenee horisonttia kohti.
       vec3 toEyeW = cameraPosition - vGlitterPos;
-      float povNear = uPov > 0.5 ? 1.0 - smoothstep(18.0, 32.0, length(toEyeW.xz)) : 1.0;
+      float povNear = uPov > 0.5 ? ${POV_NEAR_GLSL('toEyeW.xz')} : 1.0;
       if (uBottomShadeOn > 0.5) {
         vec4 bottomShade = depthShade(waterDepth);
         outgoingLight = mix(outgoingLight, bottomShade.rgb, bottomShade.a * (1.0 - waterTrough) * povNear);
@@ -405,7 +413,7 @@ vec2 waterDash(vec2 p, float cell, float seed, float chance, vec2 dir, float t) 
       if (uPov > 0.5) {
         float grazing = toEyeW.y / max(length(toEyeW), 1e-3);
         float sheen = 1.0 - smoothstep(0.01, 0.06, grazing);
-        outgoingLight *= 1.0 + 0.6 * sheen * (1.0 - waterFoam);
+        outgoingLight *= 1.0 + uSheen * sheen * (1.0 - waterFoam);
       }
       outgoingLight = mix(outgoingLight, vec3(0.9, 0.95, 1.0), waterFoam);
       // Auringon tai kuun silta pikselitaiteen tapaan: vaakasuoria viivoja,
@@ -549,9 +557,20 @@ export function createSwellPatch(map: LakeMap, waves: WaterWaves): THREE.Mesh {
 /**
  * Veden pinnassa makaavat kerrokset (kivet ja rungot) jätetään
  * pois aaltoilevan lähiveden kohdalta: muuten ne kelluisivat aallonpohjien yllä.
+ * `povFade`: kalastajan silmin kerros hiipuu pois kauempana kuten pohjan
+ * syvyyssävy (läpikuultavat kasvustot vaalean kaukoveden päällä näyttivät
+ * paletissa vihreiltä viivoilta).
  */
-export function clipToSwellPatch(material: THREE.Material, waves: WaterWaves): void {
+export function clipToSwellPatch(
+  material: THREE.Material,
+  waves: WaterWaves,
+  povFade = false,
+): void {
+  // Three.js tunnistaa ohjelman onBeforeCompile-funktion lähdekoodista, joten
+  // ilman omaa avainta hiipuva ja hiipumaton versio jakaisivat saman shaderin.
+  material.customProgramCacheKey = () => (povFade ? 'swell-clip-fade' : 'swell-clip');
   material.onBeforeCompile = (shader) => {
+    shader.uniforms.uPov = waves.uPov;
     shader.uniforms.uPatch = waves.uPatch;
     shader.uniforms.uWaterMask = waves.uWaterMask;
     shader.uniforms.uWaterMaskBounds = waves.uWaterMaskBounds;
@@ -564,15 +583,24 @@ export function clipToSwellPatch(material: THREE.Material, waves: WaterWaves): v
     shader.fragmentShader = (
       `varying vec2 vPatchXY;
 uniform vec3 uPatch;
+uniform float uPov;
 uniform sampler2D uWaterMask;
 uniform vec4 uWaterMaskBounds;
 ` + shader.fragmentShader
-    ).replace(
-      'void main() {',
-      `void main() {
+    )
+      .replace(
+        'void main() {',
+        `void main() {
       if (uPatch.z > 0.0 && length(vPatchXY - uPatch.xy) < uPatch.z &&
         texture2D(uWaterMask, (vPatchXY - uWaterMaskBounds.xy) / uWaterMaskBounds.zw).r > 0.5) discard;`,
-    );
+      )
+      .replace(
+        '#include <opaque_fragment>',
+        povFade
+          ? `if (uPov > 0.5) diffuseColor.a *= ${POV_NEAR_GLSL('vPatchXY - vec2(cameraPosition.x, -cameraPosition.z)')};
+      #include <opaque_fragment>`
+          : '#include <opaque_fragment>',
+      );
   };
 }
 
