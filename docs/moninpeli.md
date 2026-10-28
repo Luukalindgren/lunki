@@ -120,6 +120,16 @@ muut pelaajat: SnapshotBuffer, piirretään 120 ms menneisyydestä
   eikä soudeta. Myrskyssä (yli 10,5 m/s) ankkuri laahaa, ja trombi repäisee
   sen irti. Kyytiläinen ei laske ankkuria, eikä asiakas tarjoa ankkuria
   vanhalle palvelimelle (`ANCHOR_PROTOCOL`).
+- **Paikanvaihto veneessä** (#357, protokolla 9). T (kosketuksella ⇄)
+  lähettää `ClientMsg.seat` halutulla paikalla. Vapaalle kyytiläisen paikalle
+  siirrytään suoraan; varatusta pyydetään vaihtoa (`PlayerState.seatAsk` =
+  paikka + 1), ja vaihto tehdään, kun paikan haltija pyytää pyytäjän paikkaa
+  (`seatChange`). Soutajan paikka ei jää tyhjäksi. Kisassa vene on lähes
+  paikallaan (`SEAT_SWAP.maxSpeed`), viehe kelalla eikä jäähyä ole, ja pyyntö
+  raukeaa 10 sekunnissa. Uusi soutaja jatkaa veneen tilasta (vauhti, suunta,
+  ankkuri) kuten soutajan lähtiessä (`passOars`). Aulassa venekunnan riveillä
+  on Vaihda paikkaa -nappi. Piirrossa hahmo liukuu uudelle paikalle ja vene
+  keinahtaa (`SeatSlides`).
 
 ## Testaus viiveellä
 
