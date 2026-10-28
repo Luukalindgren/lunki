@@ -11,6 +11,7 @@ import {
   SPECIES,
   TIME_OF_DAY_NAMES,
   formatTime,
+  isLureVariant,
   type FlyId,
   type FlyLeaderId,
   type FlyLineId,
@@ -31,7 +32,7 @@ import {
   flyName,
   flyRodName,
   lineName,
-  lureName,
+  lureLabel,
   methodName,
   rodName,
   skyName,
@@ -99,7 +100,13 @@ export function recordDetails(r: RecordEntry, spot?: string | null): [string, st
   // Virveli vai perho (#233): vanhat saaliit ovat virvelillä.
   if (r.method) rows.push([t('records.method'), known<Method>(METHODS, r.method, methodName)]);
   if (r.fly) rows.push([t('records.fly'), known<FlyId>(FLIES, r.fly, flyName)]);
-  if (r.lure) rows.push([t('records.lure'), known<LureId>(LURES, r.lure, lureName)]);
+  if (r.lure)
+    rows.push([
+      t('records.lure'),
+      known<LureId>(LURES, r.lure, (id) =>
+        lureLabel(id, isLureVariant(r.lureVariant) ? r.lureVariant : null),
+      ),
+    ]);
   const gear =
     r.method === 'fly'
       ? [

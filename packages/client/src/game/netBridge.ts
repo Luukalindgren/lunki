@@ -153,6 +153,11 @@ export class NetBridge {
     this.host.raceLog.tangles(this.world.tangleSpots(), now);
   }
 
+  /** Oma siima on sotkussa (kosketuksen KATKO-nappi). */
+  get tangled(): boolean {
+    return this.wasTangled;
+  }
+
   /**
    * Siimasotku: ilmoitus sotkeutumisesta, sotkujen merkit järvellä ja siiman
    * katkaisu (C). Palauttaa oman sotkun tai null.

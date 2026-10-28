@@ -105,6 +105,17 @@ describe('yksinpelin saaliin tarkistus', () => {
     expect(parseSoloRecord({ ...valid, method: 'net', fly: 'popper' }, now)!.fly).toBeUndefined();
   });
 
+  it('jigin paino ja vaapun syvyys tallentuvat vieheen säätönä (#363)', () => {
+    const jig = recordTackle({ ...DEFAULT_TACKLE, lure: 'jig', jigWeight: 'g20' });
+    expect(jig.lureVariant).toBe('g20');
+    expect(parseSoloRecord({ ...valid, ...jig }, now)!.lureVariant).toBe('g20');
+    const deep = recordTackle({ ...DEFAULT_TACKLE, lure: 'wobbler', crankDepth: 'deep' });
+    expect(parseSoloRecord({ ...valid, ...deep }, now)!.lureVariant).toBe('deep');
+    expect(parseSoloRecord({ ...valid, lure: 'jig', lureVariant: 'g99' }, now)!.lureVariant).toBe(
+      undefined,
+    );
+  });
+
   it('ulkonäkö tallennetaan punnituskorttiin, tuntemattomat värit oletuksiksi', () => {
     const look = { ...DEFAULT_APPEARANCE, tube: 0xf6d04d };
     expect(parseSoloRecord({ ...valid, appearance: look }, now)!.appearance).toEqual(look);

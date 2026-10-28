@@ -9,10 +9,14 @@ import {
   LURES,
   METHODS,
   RODS,
+  isLureVariant,
+  lureVariant,
+  type CrankDepthId,
   type FlyId,
   type FlyLeaderId,
   type FlyLineId,
   type FlyRodId,
+  type JigWeightId,
   type LineId,
   type LureId,
   type Method,
@@ -51,6 +55,8 @@ export interface RecordEntry {
   method?: Method;
   /** Virvelin varusteet. */
   lure?: LureId;
+  /** Jigin paino tai vaapun uintisyvyys (#363), kun vieheellä on säätö. */
+  lureVariant?: JigWeightId | CrankDepthId;
   rod?: RodId;
   line?: LineId;
   leader?: boolean;
@@ -116,11 +122,34 @@ export function recordTackle(
   t: Tackle,
 ): Pick<
   RecordEntry,
-  'method' | 'lure' | 'rod' | 'line' | 'leader' | 'fly' | 'flyRod' | 'flyLine' | 'flyLeader'
+  | 'method'
+  | 'lure'
+  | 'lureVariant'
+  | 'rod'
+  | 'line'
+  | 'leader'
+  | 'fly'
+  | 'flyRod'
+  | 'flyLine'
+  | 'flyLeader'
 > {
-  return t.method === 'fly'
-    ? { method: 'fly', fly: t.fly, flyRod: t.flyRod, flyLine: t.flyLine, flyLeader: t.flyLeader }
-    : { method: 'spin', lure: t.lure, rod: t.rod, line: t.line, leader: t.leader };
+  if (t.method === 'fly')
+    return {
+      method: 'fly',
+      fly: t.fly,
+      flyRod: t.flyRod,
+      flyLine: t.flyLine,
+      flyLeader: t.flyLeader,
+    };
+  const variant = lureVariant(t);
+  return {
+    method: 'spin',
+    lure: t.lure,
+    ...(variant ? { lureVariant: variant } : {}),
+    rod: t.rod,
+    line: t.line,
+    leader: t.leader,
+  };
 }
 
 /**
@@ -162,6 +191,7 @@ export function parseSoloRecord(v: unknown, now = new Date()): RecordEntry | nul
     if (has(FLY_LEADERS, o.flyLeader)) e.flyLeader = o.flyLeader;
   } else {
     if (has(LURES, o.lure)) e.lure = o.lure;
+    if (isLureVariant(o.lureVariant)) e.lureVariant = o.lureVariant;
     if (has(RODS, o.rod)) e.rod = o.rod;
     if (has(LINES, o.line)) e.line = o.line;
     if (typeof o.leader === 'boolean') e.leader = o.leader;

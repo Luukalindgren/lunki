@@ -129,6 +129,123 @@ export const LURES: Record<LureId, Lure> = {
 
 export const LURE_IDS = Object.keys(LURES) as LureId[];
 
+/**
+ * Vieheen säädöt (#363): jigin paino ja vaapun uintisyvyys. Säätö on vieheen
+ * parametri eikä uusi viehe, joten R-kierto ja ennätysten viehe pysyvät
+ * ennallaan. Oletussäätö (10 g, keski) antaa täsmälleen LURES-taulun arvot.
+ */
+export interface LureTuning {
+  /** Vieheen paino (g): vavan heittopaino ratkaisee, heittyykö se hyvin. */
+  grams: number;
+  sinkRate: number;
+  lift: number;
+  maxDepth: number;
+  castFactor: number;
+  snagRisk: number;
+  stillAppeal: number;
+  /** Suurkalojen mieltymys. */
+  bigFish: number;
+  /** Vieheen vastus vedessä (iso lippa vetää raskaammin). */
+  drag: number;
+  /** Lajikohtaiset houkuttelevuuden kertoimet vieheen omien päälle. */
+  appeal: Partial<Record<SpeciesId, number>>;
+}
+
+/** Jigin paino: kevyt vajoaa hitaasti välivedessä, raskas pysyy pohjassa. */
+export type JigWeightId = 'g5' | 'g10' | 'g20';
+
+export const JIG_WEIGHTS: Record<JigWeightId, LureTuning> = {
+  g5: {
+    grams: 5,
+    sinkRate: 0.45,
+    lift: 0.9,
+    maxDepth: Infinity,
+    castFactor: 1,
+    snagRisk: 1.1,
+    // Hidas vajoaminen kiinnostaa ahventa ja kiiskeä.
+    stillAppeal: 0.8,
+    bigFish: 0.7,
+    drag: 1,
+    appeal: { perch: 1.15, ruffe: 1.15 },
+  },
+  g10: {
+    grams: 10,
+    sinkRate: 0.8,
+    lift: 0.7,
+    maxDepth: Infinity,
+    castFactor: 1.15,
+    snagRisk: 1.4,
+    stillAppeal: 0.7,
+    bigFish: 0.8,
+    drag: 1,
+    appeal: {},
+  },
+  g20: {
+    grams: 20,
+    sinkRate: 1.2,
+    lift: 0.5,
+    maxDepth: Infinity,
+    castFactor: 1.25,
+    snagRisk: 1.7,
+    stillAppeal: 0.65,
+    // Syvänteen kuha ja made sekä suurkalat.
+    bigFish: 1.1,
+    drag: 1,
+    appeal: { zander: 1.15, burbot: 1.15, perch: 0.9 },
+  },
+};
+
+export const JIG_WEIGHT_IDS = Object.keys(JIG_WEIGHTS) as JigWeightId[];
+
+/** Vaapun uintisyvyys lipan koon mukaan. */
+export type CrankDepthId = 'shallow' | 'mid' | 'deep';
+
+export const CRANK_DEPTHS: Record<CrankDepthId, LureTuning> = {
+  shallow: {
+    grams: 7,
+    sinkRate: -0.1,
+    lift: -0.8,
+    maxDepth: 0.8,
+    castFactor: 0.9,
+    // Uii kasvustojen päältä ja kaislikon reunasta.
+    snagRisk: 0.5,
+    stillAppeal: 0.1,
+    bigFish: 1.2,
+    drag: 0.8,
+    appeal: {},
+  },
+  mid: {
+    grams: 10,
+    sinkRate: -0.1,
+    lift: -1.1,
+    maxDepth: 2.5,
+    castFactor: 0.85,
+    snagRisk: 0.7,
+    stillAppeal: 0.1,
+    bigFish: 1.3,
+    drag: 1,
+    appeal: {},
+  },
+  deep: {
+    grams: 16,
+    sinkRate: -0.1,
+    lift: -1.4,
+    maxDepth: 4.5,
+    castFactor: 0.8,
+    snagRisk: 0.8,
+    stillAppeal: 0.1,
+    bigFish: 1.35,
+    // Iso lippa: kelaaminen on raskaampaa, ja syvänteen reunan kuha kiinnostuu.
+    drag: 1.5,
+    appeal: { zander: 1.2 },
+  },
+};
+
+export const CRANK_DEPTH_IDS = Object.keys(CRANK_DEPTHS) as CrankDepthId[];
+
+/** Vieheiden paino (g), kun vieheellä ei ole säätöä. */
+const LURE_GRAMS: Record<LureId, number> = { spoon: 15, wobbler: 10, jig: 10, spinner: 7 };
+
 /** Siimat: paksumpi kestää enemmän, mutta heittyy lyhyemmälle ja näkyy kaloille. */
 export type LineId = 'thin' | 'medium' | 'thick';
 
@@ -164,6 +281,8 @@ export interface Rod {
   flex: number;
   /** Kalan väsymisen kerroin. */
   power: number;
+  /** Heittopaino (g): tätä kevyempi tai painavampi viehe heittyy lyhyemmälle. */
+  castWeight: readonly [number, number];
   hint: string;
 }
 
@@ -174,6 +293,7 @@ export const RODS: Record<RodId, Rod> = {
     castFactor: 1.05,
     flex: 1.15,
     power: 0.8,
+    castWeight: [3, 15],
     hint: 'Pitkä heitto ja armollinen siimalle, mutta väsytys kestää kauan',
   },
   medium: {
@@ -182,6 +302,7 @@ export const RODS: Record<RodId, Rod> = {
     castFactor: 1,
     flex: 1,
     power: 1,
+    castWeight: [7, 25],
     hint: 'Tasapainoinen kaikkeen kalastukseen',
   },
   heavy: {
@@ -190,6 +311,7 @@ export const RODS: Record<RodId, Rod> = {
     castFactor: 0.94,
     flex: 0.9,
     power: 1.3,
+    castWeight: [15, 60],
     hint: 'Väsyttää isonkin kalan nopeasti, mutta siima katkeaa helpommin',
   },
 };
@@ -446,6 +568,9 @@ export const FLY_CAST_FACTOR = 0.5;
 export interface Tackle {
   rod: RodId;
   lure: LureId;
+  /** Jigin paino ja vaapun uintisyvyys (#363); muut vieheet eivät käytä niitä. */
+  jigWeight: JigWeightId;
+  crankDepth: CrankDepthId;
   line: LineId;
   /** Teräsperuke: hauki ei katkaise siimaa, mutta muut lajit arkailevat. */
   leader: boolean;
@@ -463,6 +588,8 @@ export interface Tackle {
 export const DEFAULT_TACKLE: Tackle = {
   rod: 'medium',
   lure: 'spoon',
+  jigWeight: 'g10',
+  crankDepth: 'mid',
   line: 'medium',
   leader: false,
   method: 'spin',
@@ -517,22 +644,58 @@ export interface Bait {
   bigFish: number;
   /** Pintaperho (popperi). */
   surface: boolean;
+  /** Vastuksen kerroin vedessä (syvän vaapun iso lippa). */
+  drag: number;
+}
+
+/** Heiton kerroin, kun viehe ei sovi vavan heittopainoon (kuten liian iso perho). */
+export const CAST_WEIGHT_PENALTY = 0.8;
+
+/** Virvelin vieheen ominaisuudet säätöineen (jigin paino, vaapun syvyys). */
+export function lureTuning(t: Pick<Tackle, 'lure' | 'jigWeight' | 'crankDepth'>): LureTuning {
+  if (t.lure === 'jig') return JIG_WEIGHTS[t.jigWeight];
+  if (t.lure === 'wobbler') return CRANK_DEPTHS[t.crankDepth];
+  const l = LURES[t.lure];
+  return {
+    grams: LURE_GRAMS[t.lure],
+    sinkRate: l.sinkRate,
+    lift: l.lift,
+    maxDepth: l.maxDepth,
+    castFactor: l.castFactor,
+    snagRisk: l.snagRisk,
+    stillAppeal: l.stillAppeal,
+    bigFish: BIG_FISH_LURE[t.lure],
+    drag: 1,
+    appeal: {},
+  };
+}
+
+/** Viehe sopii vavan heittopainoon. */
+export function fitsCastWeight(t: Tackle): boolean {
+  const g = lureTuning(t).grams;
+  const [min, max] = RODS[t.rod].castWeight;
+  return g >= min && g <= max;
 }
 
 /** Käytössä olevan vieheen tai perhon ominaisuudet. */
 export function baitOf(t: Tackle): Bait {
   if (!isFly(t)) {
-    const l = LURES[t.lure];
+    const l = lureTuning(t);
+    const rod = RODS[t.rod];
+    // Vavan heittopainon ulkopuolinen viehe: vapa ei lataudu tai ei jaksa heittää.
+    const fits = l.grams >= rod.castWeight[0] && l.grams <= rod.castWeight[1];
     return {
       sinkRate: l.sinkRate,
       lift: l.lift,
       maxDepth: l.maxDepth,
-      castFactor: l.castFactor * LINES[t.line].castFactor * RODS[t.rod].castFactor,
+      castFactor:
+        l.castFactor * LINES[t.line].castFactor * rod.castFactor * (fits ? 1 : CAST_WEIGHT_PENALTY),
       stillAppeal: l.stillAppeal,
       pauseAppeal: l.stillAppeal,
       snagRisk: l.snagRisk,
-      bigFish: BIG_FISH_LURE[t.lure],
+      bigFish: l.bigFish,
       surface: false,
+      drag: l.drag,
     };
   }
   const f = FLIES[t.fly];
@@ -551,6 +714,7 @@ export function baitOf(t: Tackle): Bait {
     snagRisk: f.snagRisk,
     bigFish: f.bigFish,
     surface: f.surface,
+    drag: 1,
   };
 }
 
@@ -561,7 +725,8 @@ export function tackleAppeal(t: Tackle, species: SpeciesId): number {
     return FLIES[t.fly].appeal[species] * leader;
   }
   const leader = t.leader && species !== 'pike' ? LEADER_SHYNESS : 1;
-  return LURES[t.lure].appeal[species] * LINES[t.line].appeal * leader;
+  const tuning = lureTuning(t).appeal[species] ?? 1;
+  return LURES[t.lure].appeal[species] * tuning * LINES[t.line].appeal * leader;
 }
 
 export function tackleCastFactor(t: Tackle): number {
@@ -572,10 +737,19 @@ export function tackleCastFactor(t: Tackle): number {
  * Suurin mahdollinen heittokerroin millä tahansa varusteilla (palvelimen
  * tarkistus). Perhoheitto jää aina virveliheittoa lyhyemmäksi.
  */
-export const MAX_CAST_FACTOR =
-  Math.max(...LURE_IDS.map((l) => LURES[l].castFactor)) *
-  Math.max(...LINE_IDS.map((l) => LINES[l].castFactor)) *
-  Math.max(...ROD_IDS.map((r) => RODS[r].castFactor));
+export const MAX_CAST_FACTOR = Math.max(
+  ...ROD_IDS.flatMap((rod) =>
+    LINE_IDS.flatMap((line) =>
+      LURE_IDS.flatMap((lure) =>
+        JIG_WEIGHT_IDS.flatMap((jigWeight) =>
+          CRANK_DEPTH_IDS.map((crankDepth) =>
+            tackleCastFactor({ ...DEFAULT_TACKLE, rod, line, lure, jigWeight, crankDepth }),
+          ),
+        ),
+      ),
+    ),
+  ),
+);
 
 const isKey = (table: object, v: unknown) => typeof v === 'string' && Object.hasOwn(table, v);
 
@@ -585,6 +759,8 @@ export function isTackle(v: unknown): v is Tackle {
   return (
     isKey(RODS, t.rod) &&
     isKey(LURES, t.lure) &&
+    isKey(JIG_WEIGHTS, t.jigWeight) &&
+    isKey(CRANK_DEPTHS, t.crankDepth) &&
     isKey(LINES, t.line) &&
     typeof t.leader === 'boolean' &&
     isKey(METHODS, t.method) &&
@@ -608,6 +784,8 @@ export function parseTackle(v: unknown): Tackle | null {
   return {
     rod: t.rod,
     lure: t.lure,
+    jigWeight: t.jigWeight,
+    crankDepth: t.crankDepth,
     line: t.line,
     leader: t.leader,
     method: t.method,
@@ -618,11 +796,37 @@ export function parseTackle(v: unknown): Tackle | null {
   };
 }
 
+/** Säätö palvelimen lokeihin: "5 g", "syvä". */
+const VARIANT_NAMES: Record<JigWeightId | CrankDepthId, string> = {
+  g5: '5 g',
+  g10: '10 g',
+  g20: '20 g',
+  shallow: 'matala',
+  mid: 'keski',
+  deep: 'syvä',
+};
+
+/** Vieheen säätö, jos vieheellä on sellainen (jigi ja vaappu). */
+export function lureVariant(
+  t: Pick<Tackle, 'lure' | 'jigWeight' | 'crankDepth'>,
+): JigWeightId | CrankDepthId | null {
+  return t.lure === 'jig' ? t.jigWeight : t.lure === 'wobbler' ? t.crankDepth : null;
+}
+
+export const isLureVariant = (v: unknown): v is JigWeightId | CrankDepthId =>
+  isKey(VARIANT_NAMES, v);
+
+/** Vieheen nimi säätöineen: "Jigi 20 g", "Vaappu syvä". */
+function lureLabel(t: Tackle): string {
+  const v = lureVariant(t);
+  return v ? `${LURES[t.lure].name} ${VARIANT_NAMES[v]}` : LURES[t.lure].name;
+}
+
 /** Varusteet lyhyesti HUD:iin. */
 export function describeTackle(t: Tackle): string {
   if (isFly(t))
     return `${FLIES[t.fly].name} · ${FLY_LINES[t.flyLine].name} · ${FLY_LEADERS[t.flyLeader].name}`;
-  return `${LURES[t.lure].name} · ${LINES[t.line].name}${t.leader ? ' · peruke' : ''}`;
+  return `${lureLabel(t)} · ${LINES[t.line].name}${t.leader ? ' · peruke' : ''}`;
 }
 
 /** Varusteet kokonaan, vapa mukaan lukien (aula ja tulostaulu). */

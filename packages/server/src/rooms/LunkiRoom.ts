@@ -116,6 +116,8 @@ const playerTackle = (p: PlayerState): Tackle =>
   parseTackle({
     rod: p.rod,
     lure: p.lure,
+    jigWeight: p.jigWeight,
+    crankDepth: p.crankDepth,
     line: p.line,
     leader: p.leader,
     method: p.method,
@@ -401,6 +403,8 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       }
       if (this.state.phase !== 'lobby') this.rodFixed.add(client.sessionId);
       p.lure = t.lure;
+      p.jigWeight = t.jigWeight;
+      p.crankDepth = t.crankDepth;
       p.line = t.line;
       p.leader = t.leader;
       p.method = t.method;

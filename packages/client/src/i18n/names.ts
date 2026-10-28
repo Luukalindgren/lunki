@@ -1,6 +1,9 @@
 import {
   BoatSeat,
   LURES,
+  lureVariant,
+  type CrankDepthId,
+  type JigWeightId,
   type Craft,
   type Difficulty,
   type FlyId,
@@ -31,6 +34,20 @@ import { hasKey, t } from './index';
 export const speciesName = (id: SpeciesId) => t(`species.${id}`);
 export const lureName = (id: LureId) => t(`lure.${id}`);
 export const lureHint = (id: LureId) => t(`lure.${id}.hint`);
+export const jigWeightName = (id: JigWeightId) => t(`jigWeight.${id}`);
+export const jigWeightHint = (id: JigWeightId) => t(`jigWeight.${id}.hint`);
+export const crankDepthName = (id: CrankDepthId) => t(`crankDepth.${id}`);
+export const crankDepthHint = (id: CrankDepthId) => t(`crankDepth.${id}.hint`);
+/** Vieheen säädön nimi: "20 g" tai "syvä". */
+export const lureVariantName = (v: JigWeightId | CrankDepthId) =>
+  v.startsWith('g') ? jigWeightName(v as JigWeightId) : crankDepthName(v as CrankDepthId);
+/** Vieheen nimi säätöineen (#363): "Jigi 20 g", "Vaappu syvä". */
+export function lureLabel(lure: LureId, variant?: JigWeightId | CrankDepthId | null): string {
+  if (!variant) return lureName(lure);
+  return t('lure.withVariant', { lure: lureName(lure), variant: lureVariantName(variant) });
+}
+/** Käytössä olevan vieheen nimi säätöineen. */
+export const tackleLureName = (tk: Tackle) => lureLabel(tk.lure, lureVariant(tk));
 export const rodName = (id: RodId) => t(`rod.${id}`);
 export const rodHint = (id: RodId) => t(`rod.${id}.hint`);
 /** Siiman paksuus, esim. "0,25 mm". */
@@ -68,14 +85,15 @@ export function colorName(hex: number, fallback: string): string {
 export const describeTackle = (tk: Tackle) =>
   tk.method === 'fly'
     ? `${flyName(tk.fly)} · ${flyLineName(tk.flyLine)} · ${flyLeaderName(tk.flyLeader)}`
-    : `${lureName(tk.lure)} · ${lineName(tk.line)}${tk.leader ? ` · ${t('tackle.leaderShort')}` : ''}`;
+    : `${tackleLureName(tk)} · ${lineName(tk.line)}${tk.leader ? ` · ${t('tackle.leaderShort')}` : ''}`;
 
 /** Varusteet kokonaan, vapa mukaan lukien (aula ja tulostaulu). */
 export const describeFullTackle = (tk: Tackle) =>
   `${tk.method === 'fly' ? flyRodName(tk.flyRod) : rodName(tk.rod)} · ${describeTackle(tk)}`;
 
 /** Käytössä oleva viehe tai perho nimeltä. */
-export const baitName = (tk: Tackle) => (tk.method === 'fly' ? flyName(tk.fly) : lureName(tk.lure));
+export const baitName = (tk: Tackle) =>
+  tk.method === 'fly' ? flyName(tk.fly) : tackleLureName(tk);
 
 /** Viehe tunnetaan, vaikka nimeä ei näytettäisi (tallennetut ennätykset). */
 export const isLure = (v: string): v is LureId => Object.hasOwn(LURES, v);

@@ -285,6 +285,8 @@ export interface PlayerSchema {
   untangle: number;
   rod: string;
   lure: string;
+  jigWeight: string;
+  crankDepth: string;
   line: string;
   leader: boolean;
   method: string;
@@ -779,6 +781,8 @@ export const playerTackle = (p: PlayerSchema): Tackle =>
   parseTackle({
     rod: p.rod,
     lure: p.lure,
+    jigWeight: p.jigWeight,
+    crankDepth: p.crankDepth,
     line: p.line,
     leader: p.leader,
     method: p.method,

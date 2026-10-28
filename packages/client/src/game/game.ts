@@ -414,6 +414,11 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     return this.craft.crewSeats;
   }
 
+  /** Siima on sotkussa toisen kalastajan siiman kanssa (KATKO-nappi). */
+  get tangled(): boolean {
+    return this.net?.tangled ?? false;
+  }
+
   /** Perhoa heitetään rytmissä (välilyönti tai HEITÄ): kosketuksen iso nappi on yhä HEITÄ. */
   get flyRhythm(): boolean {
     return this.angler.flyRhythm;

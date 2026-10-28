@@ -13,8 +13,14 @@ import {
   type FishingEvents,
 } from './fishing';
 import {
+  CRANK_DEPTHS,
   DEFAULT_TACKLE,
+  JIG_WEIGHTS,
+  LURES,
   LURE_IDS,
+  MAX_CAST_FACTOR,
+  baitOf,
+  fitsCastWeight,
   breakingStrength,
   isTackle,
   parseTackle,
@@ -390,5 +396,117 @@ describe('kivet, kasvustot, risukot ja pohjan laatu (#226)', () => {
   it('kivikkopohjassa jigi kolisee, hiekalla ei', () => {
     expect(count('jig', null, 'rattle', 'rock')).toBeGreaterThan(25);
     expect(count('jig', null, 'rattle', 'sand')).toBe(0);
+  });
+});
+
+describe('jigin paino, vaapun syvyys ja vavan heittopaino (#363)', () => {
+  it('oletussäädöt antavat samat arvot kuin ennen', () => {
+    for (const lure of ['jig', 'wobbler'] as const) {
+      const b = baitOf(tackle({ lure }));
+      const l = LURES[lure];
+      expect(b.sinkRate).toBe(l.sinkRate);
+      expect(b.lift).toBe(l.lift);
+      expect(b.maxDepth).toBe(l.maxDepth);
+      expect(b.snagRisk).toBe(l.snagRisk);
+      expect(b.stillAppeal).toBe(l.stillAppeal);
+      expect(b.drag).toBe(1);
+    }
+    expect(JIG_WEIGHTS.g10.castFactor).toBe(LURES.jig.castFactor);
+    expect(CRANK_DEPTHS.mid.castFactor).toBe(LURES.wobbler.castFactor);
+  });
+
+  it('20 g jigi uppoaa nopeammin, heittyy pidemmälle ja tarttuu herkemmin kuin 5 g', () => {
+    const light = tackle({ lure: 'jig', jigWeight: 'g5' });
+    const heavy = tackle({ lure: 'jig', jigWeight: 'g20' });
+    expect(depthAfter(heavy, 0, 2)).toBeGreaterThan(depthAfter(light, 0, 2) * 2);
+    expect(castLength(heavy)).toBeGreaterThan(castLength(light) + 5);
+    expect(baitOf(heavy).snagRisk).toBeGreaterThan(baitOf(light).snagRisk);
+    // Palvelimen heittotarkistus hyväksyy pisimmänkin heiton.
+    expect(
+      tackleCastFactor(tackle({ lure: 'jig', jigWeight: 'g20', line: 'thin', rod: 'light' })),
+    ).toBeLessThanOrEqual(MAX_CAST_FACTOR);
+  });
+
+  it('matala vaappu ei mene 0,8 m:ä syvemmälle, syvä sukeltaa keskiä syvemmälle', () => {
+    expect(depthAfter(tackle({ lure: 'wobbler', crankDepth: 'shallow' }), 10)).toBeLessThanOrEqual(
+      0.8,
+    );
+    const mid = depthAfter(tackle({ lure: 'wobbler', crankDepth: 'mid' }), 8);
+    const deep = depthAfter(tackle({ lure: 'wobbler', crankDepth: 'deep' }), 8);
+    expect(deep).toBeGreaterThan(mid + 1);
+    expect(deep).toBeLessThanOrEqual(4.5);
+    expect(baitOf(tackle({ lure: 'wobbler', crankDepth: 'deep' })).drag).toBeGreaterThan(1);
+  });
+
+  it('viehe vavan heittopainon ulkopuolella heittyy lyhyemmälle', () => {
+    expect(fitsCastWeight(tackle({ rod: 'medium', lure: 'spinner' }))).toBe(true);
+    expect(fitsCastWeight(tackle({ rod: 'heavy', lure: 'spinner' }))).toBe(false);
+    expect(fitsCastWeight(tackle({ rod: 'light', lure: 'jig', jigWeight: 'g20' }))).toBe(false);
+    expect(fitsCastWeight(tackle({ rod: 'heavy', lure: 'jig', jigWeight: 'g20' }))).toBe(true);
+    // Oletusvavalla kaikki vieheet oletussäädöillä sopivat.
+    for (const lure of LURE_IDS) expect(fitsCastWeight(tackle({ lure }))).toBe(true);
+    expect(castLength(tackle({ rod: 'heavy', lure: 'spinner' }))).toBeLessThan(
+      castLength(tackle({ rod: 'medium', lure: 'spinner' })) * 0.85,
+    );
+  });
+
+  it('vanha tallennus ilman säätöjä saa oletukset, ja tuntematon säätö hylätään', () => {
+    const old = parseTackle({ rod: 'light', lure: 'jig', line: 'thin', leader: false });
+    expect(old?.jigWeight).toBe('g10');
+    expect(old?.crankDepth).toBe('mid');
+    expect(parseTackle({ ...DEFAULT_TACKLE, jigWeight: 'g50' })).toBeNull();
+  });
+});
+
+describe('vavan nykäisy (#363)', () => {
+  const ctx: FishingContext = { tubePos: { x: 0, y: 0 }, heading: 0, ...world };
+  const base = { aim: { x: 30, y: 0 }, castHeld: false, cancel: false, reel: false };
+  function sunk(t: Tackle) {
+    const s = createFishing(t);
+    s.stage = 'water';
+    s.lure = { x: 30, y: 0 };
+    s.lineLength = 28.4;
+    for (let i = 0; i < 8 / DT; i++) stepFishing(s, base, ctx, DT);
+    return s;
+  }
+
+  it('viehe pomppaa ylös ja kohti kalastajaa ja vajoaa taas', () => {
+    const s = sunk(tackle({ lure: 'jig' }));
+    const depth = s.depth;
+    const x = s.lure.x;
+    const e = stepFishing(s, { ...base, twitch: true }, ctx, DT);
+    expect(e.twitch).toBe(true);
+    expect(s.depth).toBeLessThan(depth - 0.5);
+    expect(s.lure.x).toBeLessThan(x - 0.3);
+    expect(lureInfo(s, ctx)?.twitch).toBeLessThan(0.1);
+    for (let i = 0; i < 2 / DT; i++) stepFishing(s, base, ctx, DT);
+    expect(s.depth).toBe(depth);
+    // Heti perään nykäisy ei tee mitään (vapa palaa ensin alas).
+    stepFishing(s, { ...base, twitch: true }, ctx, DT);
+    expect(stepFishing(s, { ...base, twitch: true }, ctx, DT).twitch).toBeUndefined();
+  });
+
+  it('kevyt jigi nousee nykäistessä enemmän kuin raskas', () => {
+    const lift = (jigWeight: Tackle['jigWeight']) => {
+      const s = sunk(tackle({ lure: 'jig', jigWeight }));
+      const d = s.depth;
+      stepFishing(s, { ...base, twitch: true }, ctx, DT);
+      return d - s.depth;
+    };
+    expect(lift('g5')).toBeGreaterThan(lift('g20') + 0.2);
+  });
+
+  it('nykäisyn jälkeen vajoava viehe kiinnostaa kalaa enemmän kuin paikallaan oleva', () => {
+    const lure: LureInfo = {
+      pos: { x: 0, y: 0 },
+      depth: 3,
+      speed: 0,
+      fishable: true,
+      tip: { x: 30, y: 0 },
+      tackle: tackle({ lure: 'jig' }),
+    };
+    const fish = { species: 'perch', depth: 3, weight: 0.2 } as Parameters<typeof lureAppeal>[0];
+    expect(lureAppeal(fish, { ...lure, twitch: 1 })).toBeGreaterThan(lureAppeal(fish, lure));
+    expect(lureAppeal(fish, { ...lure, twitch: 5 })).toBe(lureAppeal(fish, lure));
   });
 });

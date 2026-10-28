@@ -130,11 +130,14 @@ muistetaan selaimessa. Moninpelissä kaikkien varusteet näkyvät aulan pelaajal
 tuloksissa. "Aloittelijan varusteet" palauttaa oletukset: perusvapa, lusikka ja 0,25 mm
 siima ilman perukkaa. Parametrit: `packages/shared/src/fishing/gear.ts`.
 
-| Vapa       | Heitto   | Siiman kestävyys | Kalan väsytys |
-| ---------- | -------- | ---------------- | ------------- |
-| Kevyt vapa | +5 %     | +15 % (joustaa)  | −20 %         |
-| Perusvapa  | normaali | normaali         | normaali      |
-| Järeä vapa | −6 %     | −10 %            | +30 %         |
+| Vapa       | Heitto   | Siiman kestävyys | Kalan väsytys | Heittopaino |
+| ---------- | -------- | ---------------- | ------------- | ----------- |
+| Kevyt vapa | +5 %     | +15 % (joustaa)  | −20 %         | 3–15 g      |
+| Perusvapa  | normaali | normaali         | normaali      | 7–25 g      |
+| Järeä vapa | −6 %     | −10 %            | +30 %         | 15–60 g     |
+
+Heittopainon ulkopuolinen viehe heittyy 20 % lyhyemmälle (`CAST_WEIGHT_PENALTY`), ja Varusteet-näkymä
+varoittaa siitä. Vieheiden painot: lusikka 15 g, lippa 7 g, jigi ja vaappu säädön mukaan (alla).
 
 | Viehe   | Uppoaminen                                          | Heitto   | Parhaat lajit                     |
 | ------- | --------------------------------------------------- | -------- | --------------------------------- |
@@ -148,6 +151,31 @@ siima ilman perukkaa. Parametrit: `packages/shared/src/fishing/gear.ts`.
 | 0,20 mm | 3,5 kg    | +7 %     | kiinnostuvat herkemmin |
 | 0,25 mm | 5 kg      | normaali | normaali               |
 | 0,30 mm | 7 kg      | −8 %     | arkailevat             |
+
+### Jigin paino ja vaapun uintisyvyys (#363)
+
+Säätö on vieheen parametri (`Tackle.jigWeight`, `Tackle.crankDepth`, taulut `JIG_WEIGHTS` ja
+`CRANK_DEPTHS`), ei uusi viehe: R kiertää vieheet kuten ennen. Ennen kisaa Varusteet-näkymässä
+valitaan molemmat, kisan aikana käytössä olevan vieheen säätö. Nimi näkyy säätöineen ("Jigi 20 g",
+"Vaappu syvä") HUD:ssa, ilmoituksissa, aulassa, tuloksissa ja ennätyksissä (`lure_variant`).
+Oletussäädöt (10 g, keski) ovat entinen jigi ja vaappu.
+
+| Jigi | Uppoaminen | Heitto | Tartunta | Kalat                                        |
+| ---- | ---------- | ------ | -------- | -------------------------------------------- |
+| 5 g  | 0,45 m/s   | 1,0    | 1,1      | ahven ja kiiski, vajoaa hitaasti välivedessä |
+| 10 g | 0,8 m/s    | 1,15   | 1,4      | entinen jigi                                 |
+| 20 g | 1,2 m/s    | 1,25   | 1,7      | kuha, made ja suurkalat syvänteessä          |
+
+| Vaappu | Syvin uinti | Heitto | Vastus | Käyttö                                  |
+| ------ | ----------- | ------ | ------ | --------------------------------------- |
+| matala | 0,8 m       | 0,9    | 0,8    | kasvustojen päältä, tarttuu harvoin     |
+| keski  | 2,5 m       | 0,85   | 1      | entinen vaappu                          |
+| syvä   | 4,5 m       | 0,8    | 1,5    | syvänteen reunat ja kuha, raskas kelata |
+
+**Nykäisy** (hiiren oikea tai J, kosketuksella NYKÄISE): viehe pomppaa ylös ja 0,5 m kohti
+kalastajaa ja vajoaa taas (`TWITCH` tiedostossa `fishing.ts`). Kevyt jigi nousee enemmän kuin
+raskas. Nykäisyn jälkeen vajoava viehe kiinnostaa kaloja 2,5 s tavallista enemmän, ja iskun
+aikana nykäisy on vastaisku.
 
 Teräsperukka estää hauen hampaita katkaisemasta siimaa väsytyksessä (normaalilla ja
 realistisella noin 3 % sekunnissa), mutta muut lajit tarttuvat siihen hieman harvemmin.
