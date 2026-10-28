@@ -596,7 +596,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       }
       this.state.seed = (Math.random() * 2 ** 32) >>> 0;
       this.spawnPlayers(this.state.seed);
-      // Sama kalakanta kuin pelaajilla (SoloGame: Rng(seed) ja huoneen lajisto).
+      // Sama kalakanta kuin pelaajilla (Game: Rng(seed) ja huoneen lajisto).
       this.stock = createFishPopulation(
         fishWorld(),
         LUNKINJARVI.bounds,
