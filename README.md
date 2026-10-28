@@ -1,5 +1,7 @@
 # Lunkinjärvi
 
+![Ilta Lunkinjärvellä kelluntarenkaasta katsottuna](docs/kansikuvat/1-ilta-aurinko.png)
+
 Moninpeli, jossa kalastetaan kelluntarenkaalta Tammelan Lunkinjärvellä.
 Selainpeli, retrografiikka, ajastettu kilpailu ja yllättävät säät.
 
@@ -17,6 +19,12 @@ Pelaa: <https://lunkinjarvi.com/>
   tai puhelimen kosketusnapeilla. Suomeksi ja englanniksi.
 - Toimii millä tahansa selaimella. Yksinpeli toimii myös ilman nettiä ja
   ilman pelipalvelinta; vain moninpeli tarvitsee palvelimen.
+
+| Kalastajan silmin                                                                    | Ylhäältä                                                        |
+| ------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| ![Heitto kalastajan silmin: vapa, siima ja rengas](docs/kuvat/kalastajan-silmin.png) | ![Ylhäältä katsottuna saarten välissä](docs/kuvat/ylhaalta.png) |
+
+![Puhelimella vaakatasossa: kosketusnapit ja ilta-aurinko](docs/kuvat/puhelin.png)
 
 Kehitys etenee GitHub Issueiden kautta: jokainen muutos omassa haarassaan ja
 PR:ssä, ja main päivittyy vain yhdistettyjen PR:ien kautta. Työtapa,

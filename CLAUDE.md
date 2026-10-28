@@ -14,5 +14,7 @@ Lyhyesti:
 - Haara ja PR jokaiselle muutokselle, main vain yhdistettyjen PR:ien kautta.
 - Käyttöliittymämuutoksiin ennen/jälkeen-kuvakaappaukset.
 - `pnpm check` ennen PR:ää; selaintestit ajetaan CI:ssä.
+- Kun työ odottaa CI:tä, tarkista tila itse muutaman minuutin välein ja vie
+  PR loppuun (korjaa, aja uudelleen, yhdistä). Älä jää odottamaan ilmoitusta.
 - `ehdotus`- ja `palaute`-issueita ei toteuteta ilman Luukan hyväksyntää.
 - Muut ohjeet: [README.md](README.md) ja `docs/`.
