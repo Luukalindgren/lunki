@@ -41,7 +41,7 @@ for (const s of shots) {
     const rod = s.rod ?? false;
     const tube = s.tube ?? false;
     g.setViewMode('pov', false);
-    g.weather.plan.segments = [{ start: 0, sky: 'calm', windSpeed: 0, windDir: 0.6 }];
+    g.weather.view.plan.segments = [{ start: 0, sky: 'calm', windSpeed: 0, windDir: 0.6 }];
     g.competition.elapsed = s.elapsed;
     const pos = s.pos ?? g.tube.pos;
     g.tube = { ...g.tube, pos, vel: { x: 0, y: 0 }, heading: s.heading, angVel: 0 };
