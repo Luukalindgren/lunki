@@ -33,6 +33,9 @@ import {
   WIN_RULE_NAMES,
   formatRoomCode,
   DURATIONS,
+  SOLO_DURATIONS,
+  UNTIMED,
+  isUntimed,
   formatTime,
   isTimeOfDay,
   isWeatherLevel,
@@ -126,6 +129,11 @@ import {
 } from '../i18n/names';
 
 const SETTINGS_KEY = 'lunki.soloSettings';
+/**
+ * Tallennettujen kestojen versio: ennen aikarajatonta sessiota (#360)
+ * tallennettu kesto oli vanha oletus, joten se vaihtuu kerran Vapaaksi.
+ */
+const DURATION_VERSION = 1;
 /** Näkymät, jotka avautuvat aina alusta eivätkä muista kohdistusta. */
 const NO_FOCUS_MEMORY = new Set(['pause', 'results', 'race-results', 'message']);
 
@@ -171,8 +179,13 @@ const LIST_FISH_SCALE = 'var(--fish-px, 2px)';
 const partName = (part: AppearancePart) => t(`part.${part}`);
 
 /** Asetusten vaihtoehdot valintariveiksi pelaajan kielellä. */
+const durationName = (d: number) =>
+  d === UNTIMED ? t('settings.untimed') : t('common.minutes', { n: d });
 const durationOptions = (): [string, string][] =>
-  DURATIONS.map((d) => [String(d), t('common.minutes', { n: d })]);
+  DURATIONS.map((d) => [String(d), durationName(d)]);
+/** Yksinpelissä myös aikarajaton sessio. */
+const soloDurationOptions = (): [string, string][] =>
+  SOLO_DURATIONS.map((d) => [String(d), durationName(d)]);
 const difficultyOptions = (): [string, string][] =>
   (Object.keys(DIFFICULTY_NAMES) as Difficulty[]).map((d) => [d, difficultyName(d)]);
 const timeOfDayOptions = (): [string, string][] =>
@@ -193,10 +206,18 @@ export function loadSettings(defaults: CompetitionSettings): CompetitionSettings
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (raw) {
-      const saved = JSON.parse(raw) as Partial<CompetitionSettings> & { speciesVersion?: number };
-      const { speciesVersion, ...s } = { ...defaults, ...saved };
+      const saved = JSON.parse(raw) as Partial<CompetitionSettings> & {
+        speciesVersion?: number;
+        durationVersion?: number;
+      };
+      const { speciesVersion, durationVersion, ...s } = { ...defaults, ...saved };
       return {
         ...s,
+        durationMinutes:
+          durationVersion === DURATION_VERSION &&
+          (SOLO_DURATIONS as readonly unknown[]).includes(s.durationMinutes)
+            ? s.durationMinutes
+            : defaults.durationMinutes,
         species: saved.species ? migrateSpecies(saved.species, speciesVersion) : defaults.species,
         weather: isWeatherLevel(s.weather) ? s.weather : defaults.weather,
         timeOfDay: isTimeOfDay(s.timeOfDay) ? s.timeOfDay : defaults.timeOfDay,
@@ -221,7 +242,14 @@ const isPoint = (v: unknown): v is Vec2 =>
 
 function saveSettings(s: CompetitionSettings): void {
   try {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...s, speciesVersion: SPECIES_VERSION }));
+    localStorage.setItem(
+      SETTINGS_KEY,
+      JSON.stringify({
+        ...s,
+        speciesVersion: SPECIES_VERSION,
+        durationVersion: DURATION_VERSION,
+      }),
+    );
   } catch {
     // ei haittaa
   }
@@ -412,7 +440,7 @@ export class Screens {
       h('h2', t('solo.title')),
       this.choice(
         t('settings.duration'),
-        durationOptions(),
+        soloDurationOptions(),
         String(settings.durationMinutes),
         (v) => (settings.durationMinutes = Number(v)),
       ),
@@ -1341,6 +1369,8 @@ export class Screens {
     onResume: () => void;
     onQuit: () => void;
     multiplayer: boolean;
+    /** Aikarajaton yksinpelin sessio: lopetus punnitsee saaliin (#360). */
+    untimed?: boolean;
     /** Pelikellon aika järvellä, esim. 05:12. */
     clock?: string;
     /** Varusteet-näkymä; puuttuu katsojalta, joka ei kalasta. */
@@ -1354,7 +1384,14 @@ export class Screens {
       [t('pause.resume'), p.onResume],
       ...(p.onTackle ? ([[t('pause.tackle'), p.onTackle]] as [string, () => void][]) : []),
       [t('menu.settings'), p.onSettings],
-      [p.multiplayer ? t('pause.leaveRace') : t('pause.endRace'), p.onQuit],
+      [
+        p.multiplayer
+          ? t('pause.leaveRace')
+          : p.untimed
+            ? t('pause.endSession')
+            : t('pause.endRace'),
+        p.onQuit,
+      ],
     ]);
     // Koko näyttö ennen kisan lopetusta, joka pysyy viimeisenä.
     this.addFullscreen(menu, menu.lastElementChild);
@@ -1471,10 +1508,15 @@ export class Screens {
     const panel = this.panel('results');
     const sum = summarize(c.catches, c.settings.winRule);
     const map = race ? this.raceMap(race) : null;
+    const untimed = isUntimed(c.settings);
     panel.append(
       h(
         'h2',
-        c.elapsed >= c.settings.durationMinutes * 60 ? t('results.timeUp') : t('results.ended'),
+        untimed
+          ? t('results.sessionOver')
+          : c.elapsed >= c.settings.durationMinutes * 60
+            ? t('results.timeUp')
+            : t('results.ended'),
       ),
     );
     if (sum.count === 0) {
@@ -1508,7 +1550,11 @@ export class Screens {
     panel.append(
       h(
         'p',
-        `${difficultyName(c.settings.difficulty)} · ${t('common.minutes', { n: c.settings.durationMinutes })}`,
+        `${difficultyName(c.settings.difficulty)} · ${
+          untimed
+            ? t('results.sessionLength', { time: formatTime(Math.floor(c.elapsed)) })
+            : t('common.minutes', { n: c.settings.durationMinutes })
+        }`,
         'hint',
       ),
       this.buttons([

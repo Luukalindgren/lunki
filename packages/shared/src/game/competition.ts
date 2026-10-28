@@ -10,6 +10,22 @@ import type { WeatherLevel } from '../weather/weather';
 export const DURATIONS = [10, 15, 30] as const;
 export type Duration = (typeof DURATIONS)[number];
 
+/**
+ * Aikaraja puuttuu: yksinpelin sessio kestää, kunnes pelaaja lopettaa (#360).
+ * Vain yksinpelissä; moninpelin huone hyväksyy pelkät `DURATIONS`.
+ */
+export const UNTIMED = 0;
+/** Yksinpelin kestot: vapaa ensin, koska se on yksinpelin oletus. */
+export const SOLO_DURATIONS = [UNTIMED, ...DURATIONS] as const;
+/** Sää ja ilmiöt suunnitellaan aikarajattomaan sessioon näin pitkälle (s). */
+export const UNTIMED_PLAN_S = 12 * 3600;
+
+export const isUntimed = (s: { durationMinutes: number }): boolean => s.durationMinutes === UNTIMED;
+
+/** Ajanjakso, jolle sää, salamat ja trombit suunnitellaan (s). */
+export const planSeconds = (s: { durationMinutes: number }): number =>
+  isUntimed(s) ? UNTIMED_PLAN_S : s.durationMinutes * 60;
+
 /** Voittoehto: suurin yhteispaino tai suurin yksittäinen kala. */
 export type WinRule = 'total' | 'biggest';
 
@@ -71,7 +87,9 @@ export const createCompetition = (settings: CompetitionSettings): CompetitionSta
   finished: false,
 });
 
+/** Aikaa jäljellä (s); aikarajattomassa sessiossa Infinity. */
 export function timeLeft(c: CompetitionState): number {
+  if (isUntimed(c.settings)) return Infinity;
   return Math.max(0, c.settings.durationMinutes * 60 - c.elapsed);
 }
 
@@ -120,5 +138,7 @@ export function summarize(catches: readonly CatchRecord[], rule: WinRule): Catch
 /** Aika muodossa m:ss. */
 export function formatTime(seconds: number): string {
   const s = Math.ceil(seconds);
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  const ss = String(s % 60).padStart(2, '0');
+  if (s < 3600) return `${Math.floor(s / 60)}:${ss}`;
+  return `${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, '0')}:${ss}`;
 }

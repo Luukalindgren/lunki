@@ -187,6 +187,7 @@ export const en: Record<keyof typeof fi, string> = {
   // --- Competition settings ---
   'solo.title': 'Single player',
   'settings.duration': 'Competition length',
+  'settings.untimed': 'Free',
   'settings.difficulty': 'Fishing difficulty',
   'settings.difficultyShort': 'Difficulty',
   'settings.difficultyHint':
@@ -413,6 +414,7 @@ export const en: Record<keyof typeof fi, string> = {
   'pause.tackle': 'Tackle',
   'pause.leaveRace': 'Leave the competition',
   'pause.endRace': 'End the competition',
+  'pause.endSession': 'Stop and weigh in',
   'fullscreen.enter': 'Full screen',
   'fullscreen.exit': 'Exit full screen',
   'fullscreen.escHint':
@@ -427,6 +429,8 @@ export const en: Record<keyof typeof fi, string> = {
   'results.hostRestarts': 'The room’s creator can start a new competition.',
   'results.timeUp': 'Time’s up!',
   'results.ended': 'The competition is over',
+  'results.sessionOver': 'Session over',
+  'results.sessionLength': 'free, {time}',
   'results.empty':
     'No catch this time. If you get no bites, kick over to a new spot: the sonar (K) shows the fish.',
   'results.summary': 'Fish {count} · total {total} · biggest {biggest}',
