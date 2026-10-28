@@ -5,6 +5,7 @@ import {
   LureStage,
   NET_DT,
   passengerInput,
+  rodInHand,
   rowerInput,
   seatPos,
   SnapshotBuffer,
@@ -404,11 +405,13 @@ export class NetWorld {
 
   /**
    * Syöte, joka veneessä oikeasti liikuttaa: kyytiläinen vain kääntyy, ja
-   * soutaja ei soua, kun viehe on ilmassa tai vedessä. Palvelin tekee samoin.
+   * soutaja ei soua heiton aikana eikä kelatessa. Palvelin tekee samoin.
    */
-  effectiveInput(input: TubeInput, lureStage: number): TubeInput {
+  effectiveInput(input: TubeInput, lureStage: number, reeling = false): TubeInput {
     if (!this.ownBoat) return input;
-    return this.passenger ? passengerInput(input) : rowerInput(input, lureStage !== LureStage.none);
+    return this.passenger
+      ? passengerInput(input)
+      : rowerInput(input, rodInHand(lureStage, reeling));
   }
 
   /**
@@ -426,7 +429,7 @@ export class NetWorld {
     const decay = Math.exp(-NET_DT * 10);
     this.renderOffset.x *= decay;
     this.renderOffset.y *= decay;
-    let tube = this.predictor.step(this.effectiveInput(input, lureStage), wind);
+    let tube = this.predictor.step(this.effectiveInput(input, lureStage, reeling), wind);
     // Kyydissä paikka tulee veneestä, sellaisena kuin se piirretään.
     const boat = this.passenger ? this.rowerOfOwnBoat() : null;
     if (boat) tube = { ...tube, pos: seatPos(boat.snap, this.ownSeat), vel: { ...boat.vel } };

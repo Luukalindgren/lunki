@@ -936,12 +936,18 @@ export class SoloGame {
 
     this.prevTube = this.tube;
     this.prevLook = this.seat.look;
-    // Veneen soutaja airoissa soutaa ja kääntää venettä; vavassa (heitto tai
-    // viehe ulkona) vene liukuu ja soutaja kääntyy tuhdolla (#263).
+    // Veneen soutaja airoissa soutaa ja kääntää venettä, myös viehe vedessä
+    // (soutu-uistelu). Heittäessä ja kelatessa kädet ovat vavassa: vene liukuu
+    // ja soutaja kääntyy tuhdolla (#263).
     const raw = frozen || capsized ? still : readTubeInput(c);
-    const fishingBusy = this.fishing.stage !== 'idle' || this.fishing.hookedId !== null;
-    const oars = this.rower && c.wasPressed('oars') && !fishingBusy && !frozen;
-    const move = this.rower ? this.seat.step(raw, fishingBusy, oars, dt) : raw;
+    const rodStage = this.fishing.stage;
+    const rodInHand =
+      rodStage === 'charging' ||
+      rodStage === 'casting' ||
+      rodStage === 'flight' ||
+      (rodStage === 'water' && reelHeld && !frozen);
+    const oars = this.rower && c.wasPressed('oars') && !rodInHand && !frozen;
+    const move = this.rower ? this.seat.step(raw, rodInHand, oars, dt) : raw;
     if (oars)
       this.hud.showMessage(
         controlText(this.seat.rowing ? 'game.oarsOut' : 'game.oarsIn'),
@@ -962,9 +968,9 @@ export class SoloGame {
               ? LureStage.water
               : LureStage.none;
       const w = this.net.world;
-      // Veneessä kyytiläinen ei soua, eikä soutaja soua viehe vedessä (#263).
+      // Veneessä kyytiläinen ei soua, eikä soutaja soua heittäessään tai kelatessaan (#263).
       this.rowHint =
-        this.inBoat && raw.kick !== 0 && w.effectiveInput(move, stage).kick === 0
+        this.inBoat && raw.kick !== 0 && w.effectiveInput(move, stage, rodInHand).kick === 0
           ? t(w.passenger ? 'game.passengerRow' : 'game.rowFishing')
           : null;
       this.tube = this.net.world.stepOwn(

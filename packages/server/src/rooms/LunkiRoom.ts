@@ -18,6 +18,7 @@ import {
   isValidStart,
   BIG_WAVE,
   LureStage,
+  rodInHand,
   TANGLE,
   findTangles,
   rodTip,
@@ -275,8 +276,8 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         // Kala tarttui: paikka talteen saaliin tarkistusta varten.
         if (stage === LureStage.hooked && p.lureStage !== LureStage.hooked) sim.hookAt = lure;
         p.lureStage = stage;
-        // Veneessä soutaja ei voi soutaa, kun viehe on ilmassa tai vedessä.
-        sim.fishing = stage !== LureStage.none;
+        // Veneessä soutaja ei voi soutaa heiton aikana eikä kelatessa (#263).
+        sim.rodInHand = rodInHand(stage, l[3] === 1);
         this.reeling.set(client.sessionId, l[3] === 1);
         if (ok) {
           p.lureX = lure.x;
@@ -284,7 +285,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         }
       } else {
         p.lureStage = 0;
-        sim.fishing = false;
+        sim.rodInHand = false;
       }
       // Soutaja kääntyy tuhdolla kalastaessaan; vain näytettävä ja siiman lähtökohta.
       const look = Number(msg?.look);
@@ -373,7 +374,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       // Uuden vieheen solmiminen: kalastaa ei voi ennen sakon loppua.
       p.outUntil = Math.max(p.outUntil, this.state.clock + this.state.settings.landPenalty);
       p.lureStage = 0;
-      sim.fishing = false;
+      sim.rodInHand = false;
       sim.splashed = false;
     });
 
@@ -1206,7 +1207,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     const outcome = penaltyOutcome(penalty, st.clock);
     p.outUntil = Math.max(p.outUntil, outcome.outUntil);
     p.lureStage = 0;
-    sim.fishing = false;
+    sim.rodInHand = false;
     sim.splashed = false;
     if (outcome.loseCatch)
       for (let i = st.catches.length - 1; i >= 0; i--)

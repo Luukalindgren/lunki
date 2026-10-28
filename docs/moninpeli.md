@@ -101,9 +101,10 @@ muut pelaajat: SnapshotBuffer, piirretään 120 ms menneisyydestä
   venekunta on yksi joukkue: tulostaulussa renkaat ovat omina riveinään ja
   veneet joukkueina (`rankTeams`). Vene on soutajan `TubeState` (suunta
   perään), kyydissä olevat seuraavat sitä (`seatPos`) ja kääntyvät sen mukana.
-  Soutaja joko soutaa tai kalastaa (`RowerSeat`): heitto nostaa airot, soutu
-  laskee vavan, ja B vaihtaa. Kalastaessa soutaja kääntyy tuhdolla (`look`,
-  lähetetään syötteen mukana). Runko on kolme ympyrää (`BOAT_CIRCLES`), joten
+  Soutaja ei voi soutaa heittäessään eikä kelatessaan (`rodInHand`, `RowerSeat`),
+  mutta viehe vedessä hän voi soutaa ja uistella. Heitto ja kelaus nostavat
+  airot, soutu laskee vavan, ja B vaihtaa. Vavassa soutaja kääntyy tuhdolla
+  (`look`, lähetetään syötteen mukana). Runko on kolme ympyrää (`BOAT_CIRCLES`), joten
   keula ja perä törmäävät rantaan ja muihin; raskas vene (`CRAFTS.boat.mass`)
   tönäisee rengasta enemmän kuin rengas venettä. Vene kulkee noin 1,5 kertaa
   renkaan vauhtia, kiihtyy hitaammin ja liukuu vetojen jälkeen pitkään

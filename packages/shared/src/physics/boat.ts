@@ -178,9 +178,9 @@ export const passengerInput = (i: TubeInput): TubeInput => ({
   sprint: false,
 });
 
-/** Soutaja, jonka viehe on vedessä tai ilmassa, ei soua eikä käännä venettä. */
-export const rowerInput = (i: TubeInput, fishing: boolean): TubeInput =>
-  fishing ? { kick: 0, turn: 0, sprint: false } : i;
+/** Soutaja, jonka kädet ovat vavassa (heitto, kelaus), ei soua eikä käännä venettä. */
+export const rowerInput = (i: TubeInput, rodInHand: boolean): TubeInput =>
+  rodInHand ? { kick: 0, turn: 0, sprint: false } : i;
 
 /**
  * Soutaja kääntyy tuhdolla kalastaessaan (rad/s). Kääntyminen on kulma

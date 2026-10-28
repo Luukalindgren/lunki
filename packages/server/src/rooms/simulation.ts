@@ -29,8 +29,8 @@ export interface Sim {
   /** Vene (#263): vene 1… ja paikka (BoatSeat); puuttuu = kelluntarengas. */
   boat?: number;
   seat?: number;
-  /** Viehe ilmassa tai vedessä: soutaja ei voi samalla soutaa. */
-  fishing?: boolean;
+  /** Viehe ilmassa tai soutaja kelaa: kädet vavassa, soutaa ei voi (#263). */
+  rodInHand?: boolean;
   /** Soutaja kääntyneenä tuhdolla kalastaessaan (rad veneen suunnasta). */
   look?: number;
 }
@@ -79,7 +79,7 @@ export function stepSims(
       ? stepPlayerTube(sim.tube, FROZEN, water, NET_DT, undefined, spec)
       : stepPlayerTube(
           sim.tube,
-          passenger ? passengerInput(input) : rowerInput(input, !!sim.boat && !!sim.fishing),
+          passenger ? passengerInput(input) : rowerInput(input, !!sim.boat && !!sim.rodInHand),
           water,
           NET_DT,
           typeof wind === 'function' ? wind(sim, i) : wind,

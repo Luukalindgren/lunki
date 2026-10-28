@@ -20,7 +20,8 @@ const FLOOR = 0.08;
 const OARLOCK_X = 0.3;
 const OAR = 2.3;
 
-const COLOR = { hull: 0xd9d3c3, wood: 0x8a5a32, oar: 0xb98a4e } as const;
+// Puuvene: laidat vaaleampaa ruskeaa kuin pohja ja tuhdot (varjossakin ruskea, ei harmaa).
+const COLOR = { hull: 0xd2a56c, wood: 0x8a5a32, oar: 0xb98a4e } as const;
 
 /** Rungon ääriviiva ylhäältä (x, z): perälauta suora, keula suippo. */
 function outline(inset: number): THREE.Shape {
@@ -48,6 +49,23 @@ function extrude(shape: THREE.Shape, height: number): THREE.BufferGeometry {
   return g;
 }
 
+/**
+ * Kallistaa pintojen normaaleja ylöspäin (`lift` 0 = ennallaan, ≥ 10 = kaikki
+ * ylös): varjon puolen pinnat eivät tummu mustiksi, kun aurinko on toisella
+ * puolella. Valaistus seuraa yhä vuorokaudenaikaa, joten vene ei hehku yöllä.
+ */
+function liftNormals(g: THREE.BufferGeometry, lift: number): THREE.BufferGeometry {
+  const n = g.getAttribute('normal') as THREE.BufferAttribute;
+  const v = new THREE.Vector3();
+  for (let i = 0; i < n.count; i++) {
+    v.fromBufferAttribute(n, i);
+    v.y += lift;
+    v.normalize();
+    n.setXYZ(i, v.x, v.y, v.z);
+  }
+  return g;
+}
+
 export function createBoatMesh(stripe: number): THREE.Group {
   const group = new THREE.Group();
   const hullMat = new THREE.MeshLambertMaterial({ color: COLOR.hull });
@@ -56,7 +74,8 @@ export function createBoatMesh(stripe: number): THREE.Group {
   // Laidat: ulkoääriviiva, josta sisäosa on leikattu pois.
   const walls = outline(0);
   walls.holes.push(outline(WALL));
-  const hull = new THREE.Mesh(extrude(walls, GUNWALE + 0.1), hullMat);
+  // Laitojen sisäpinnat pysyvät varjossakin ruskeina.
+  const hull = new THREE.Mesh(liftNormals(extrude(walls, GUNWALE + 0.1), 1), hullMat);
   hull.position.y = -0.1;
   group.add(hull);
   const floor = new THREE.Mesh(extrude(outline(WALL), 0.02), wood);
@@ -66,8 +85,9 @@ export function createBoatMesh(stripe: number): THREE.Group {
   // Reunalista soutajan värillä: vene tunnistetaan kaukaa.
   const rim = outline(0);
   rim.holes.push(outline(WALL * 0.6));
+  // Lista on ohut: sen kaikki pinnat valaistaan kuin yläpinta, ettei reuna mustu varjossa.
   const strip = new THREE.Mesh(
-    extrude(rim, 0.05),
+    liftNormals(extrude(rim, 0.05), 100),
     new THREE.MeshLambertMaterial({ color: stripe }),
   );
   strip.name = 'stripe';

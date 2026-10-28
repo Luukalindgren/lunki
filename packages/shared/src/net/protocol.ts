@@ -159,6 +159,13 @@ export const ClientMsg = {
 export const LureStage = { none: 0, flight: 1, water: 2, hooked: 3 } as const;
 export type LureStage = (typeof LureStage)[keyof typeof LureStage];
 
+/**
+ * Soutajan kädet ovat vavassa: viehe lentää tai hän kelaa. Silloin soutaa ei
+ * voi; viehe vedessä soutaa saa (soutu-uistelu, #263).
+ */
+export const rodInHand = (stage: number, reeling: boolean): boolean =>
+  stage === LureStage.flight || reeling;
+
 export interface InputMessage {
   /** encodeInputs()-muodossa. */
   i: number[];
