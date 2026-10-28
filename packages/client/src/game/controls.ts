@@ -44,6 +44,12 @@ export const CONTROLS = {
   pointer: { keys: ['Mouse0'], label: 'ctl.mouse', touch: 'ctl.finger' },
   castForward: { keys: ['Space'], touch: 'touch.cast', title: 'touch.castTitle' },
   reel: { keys: ['Space'], touch: 'touch.reel', title: 'touch.reelTitle' },
+  /**
+   * Nosto väsytyksen lopuksi (#366): uusi painallus, kun kala on pinnassa.
+   * Pohjassa pidetty kelaus ei nosta. Haavi isoimmille kaloille.
+   */
+  land: { keys: ['Space', 'Mouse0'], touch: 'touch.land', title: 'touch.landTitle' },
+  landNet: { keys: ['Space', 'Mouse0'], touch: 'touch.landNet', title: 'touch.landNetTitle' },
   cancel: { keys: ['KeyX'], touch: 'touch.cancel', title: 'touch.cancelTitle' },
   /** Hiiren oikea peruu latauksen; heitossa se on veto ja vedessä perhon nosto. */
   cancelCharge: { keys: ['Mouse2'] },
@@ -138,8 +144,8 @@ export class Controls {
  * katkaisunappi tekevät eri asioita kalastuksen vaiheen mukaan.
  */
 export interface ContextActions {
-  /** Iso punainen nappi: HEITÄ, KELAA tai VETO. */
-  main: 'castForward' | 'reel' | 'strip' | 'haul';
+  /** Iso punainen nappi: HEITÄ, KELAA, VETO tai nostossa NOSTA/HAAVI. */
+  main: 'castForward' | 'reel' | 'strip' | 'haul' | 'land' | 'landNet';
   /** Perhon nappi: SIIMA heitossa, NOSTA vedestä, KELALLE kalan kanssa. */
   line: 'lineGrip' | 'lift' | 'reelSlack';
   /** KATKO, heiton aikana PERU, virvelin vapaalla vieheellä NYKÄISE. */
@@ -157,8 +163,11 @@ export function contextActions(f: FishingState, rhythm: boolean, tangled = false
   const casting = f.stage === 'casting';
   const free = f.hookedId === null && f.struckId === null && f.snag === null && !f.onLand;
   return {
-    main:
-      f.stage === 'idle' || f.stage === 'charging' || (casting && rhythm)
+    main: f.landing
+      ? f.landing.net
+        ? 'landNet'
+        : 'land'
+      : f.stage === 'idle' || f.stage === 'charging' || (casting && rhythm)
         ? 'castForward'
         : casting
           ? 'haul'

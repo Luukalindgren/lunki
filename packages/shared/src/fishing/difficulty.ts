@@ -50,6 +50,13 @@ export interface DifficultyParams {
   slackEscape: number;
   /** Perhoheiton ajoitusikkunat ja avut (#235). */
   flyCast: FlyCastAssist;
+  /** Nosto väsytyksen lopuksi (#366). */
+  landing: {
+    /** Riuhtaisuja sekunnissa täysin voimissaan olevalla kalalla (kerrotaan voimilla). */
+    lungeRate: number;
+    /** Todennäköisyys, että nosto riuhtaisun aikana päästää kalan irti. */
+    lungeEscape: number;
+  };
 }
 
 export const DIFFICULTIES: Record<Difficulty, DifficultyParams> = {
@@ -80,6 +87,8 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyParams> = {
       harsh: false,
       errors: false,
     },
+    // Helpolla anteeksiantava: harva riuhtaisu, eikä kala karkaa nostossa.
+    landing: { lungeRate: 0.08, lungeEscape: 0 },
   },
   normal: {
     fishStrength: 1,
@@ -108,6 +117,7 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyParams> = {
       harsh: false,
       errors: true,
     },
+    landing: { lungeRate: 0.5, lungeEscape: 0.5 },
   },
   realistic: {
     fishStrength: 1.3,
@@ -136,6 +146,7 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyParams> = {
       harsh: true,
       errors: true,
     },
+    landing: { lungeRate: 0.8, lungeEscape: 0.8 },
   },
 };
 

@@ -129,6 +129,14 @@ describe('tilannenapit kosketuksella', () => {
     });
     expect(contextActions(spin({ stage: 'charging' }), false).tool).toBe('cancel');
     expect(contextActions(spin({ stage: 'flight' }), false).main).toBe('reel');
+    // Nosto (#366): kala pinnassa, iso nappi on NOSTA tai isoimmille HAAVI.
+    const landing = (net: boolean) =>
+      contextActions(
+        spin({ stage: 'water', hookedId: 1, landing: { age: 0, net, lunge: 0 } }),
+        false,
+      ).main;
+    expect(landing(false)).toBe('land');
+    expect(landing(true)).toBe('landNet');
     // Vapaalla vieheellä KATKO-napin paikalla on NYKÄISE (#363).
     expect(contextActions(spin({ stage: 'water' }), false)).toEqual({
       main: 'reel',

@@ -93,7 +93,8 @@ function step(sim: Sim, input: Partial<FishingInput>) {
 function fishUntil(sim: Sim, seconds: number, done: (e: FishingEvents) => boolean): boolean {
   for (let i = 0; i < seconds / DT; i++) {
     const reel = sim.s.hookedId !== null || Math.floor(i / 90) % 2 === 0;
-    step(sim, { reel });
+    // Pintaan noussut kala nostetaan hetken päästä (#366).
+    step(sim, { reel, land: sim.s.landing !== null && sim.s.landing.age > 0.3 });
     if (done(sim.log[sim.log.length - 1]!)) return true;
     if (sim.s.stage === 'idle') return false;
   }
@@ -842,5 +843,76 @@ describe('uudet lajit (#225)', () => {
   it('taimen seuraa viehettä pidempään ennen kuin luovuttaa', () => {
     expect(SPECIES.trout.behavior.follows).toBeGreaterThan(1);
     expect(SPECIES.carp.behavior.runs).toBeGreaterThan(1);
+  });
+});
+
+describe('nosto väsytyksen lopuksi (#366)', () => {
+  /** Väsytetään kelaamalla, mutta ei nosteta: palauttaa, nousiko kala pintaan. */
+  function untilSurface(sim: Sim, seconds: number): boolean {
+    for (let i = 0; i < seconds / DT; i++) {
+      step(sim, { reel: sim.s.hookedId !== null || Math.floor(i / 90) % 2 === 0 });
+      if (sim.s.landing) return true;
+      if (sim.s.stage === 'idle') return false;
+    }
+    return false;
+  }
+
+  it('pieni kala heilautetaan kyytiin ilman nostoa', () => {
+    const sim = setup('easy', 0.1, 2);
+    expect(untilSurface(sim, 120)).toBe(false);
+    expect(sim.log.some((e) => e.caught)).toBe(true);
+    expect(sim.log.some((e) => e.surfaced)).toBe(false);
+  });
+
+  it('isompi kala jää pintaan odottamaan nostoa, ja nosto tuo sen kyytiin', () => {
+    const sim = setup('easy', 0.42, 2);
+    expect(untilSurface(sim, 120)).toBe(true);
+    expect(sim.log.some((e) => e.surfaced)).toBe(true);
+    expect(sim.s.landing!.net).toBe(false);
+    // Pelkkä kelaus ei nosta.
+    for (let i = 0; i < 30; i++) step(sim, { reel: true });
+    expect(sim.log.some((e) => e.caught)).toBe(false);
+    expect(sim.s.hookedId).not.toBeNull();
+    if (sim.s.landing!.lunge > 0) sim.s.landing!.lunge = 0;
+    step(sim, { land: true });
+    expect(sim.log.at(-1)!.caught?.weight).toBe(0.42);
+    expect(sim.s.stage).toBe('idle');
+    expect(sim.s.landing).toBeNull();
+  });
+
+  it('vain isoimmat otetaan haaviin', () => {
+    const sim = setup('easy', 1.3, 4);
+    expect(untilSurface(sim, 180)).toBe(true);
+    expect(sim.s.landing!.net).toBe(true);
+  });
+
+  it('nosto riuhtaisun aikana voi päästää kalan irti, helpolla ei koskaan', () => {
+    const lungeAndLift = (lungeEscape: number) => {
+      const sim = setup('easy', 0.42, 2);
+      expect(untilSurface(sim, 120)).toBe(true);
+      const diff = sim.ctx.fish!.diff;
+      sim.ctx.fish!.diff = { ...diff, landing: { lungeRate: 0, lungeEscape } };
+      sim.s.landing!.lunge = 0.5;
+      step(sim, { land: true });
+      return sim;
+    };
+    const lost = lungeAndLift(1);
+    expect(lost.log.at(-1)!.escaped).toBe(true);
+    expect(lost.s.hookedId).toBeNull();
+    const easy = lungeAndLift(DIFFICULTIES.easy.landing.lungeEscape);
+    expect(easy.log.at(-1)!.escaped).toBeFalsy();
+    expect(easy.s.hookedId).not.toBeNull();
+    // Riuhtaisun jälkeen kala syöksyy takaisin väsytykseen.
+    for (let i = 0; i < 40; i++) step(easy, {});
+    expect(easy.s.landing).toBeNull();
+    expect(easy.s.landCooldown).toBeGreaterThan(0);
+  });
+
+  it('helpolla riuhtaisuja on harvoin, realistisella usein', () => {
+    expect(DIFFICULTIES.easy.landing.lungeRate).toBeLessThan(DIFFICULTIES.normal.landing.lungeRate);
+    expect(DIFFICULTIES.normal.landing.lungeRate).toBeLessThan(
+      DIFFICULTIES.realistic.landing.lungeRate,
+    );
+    expect(DIFFICULTIES.easy.landing.lungeEscape).toBe(0);
   });
 });

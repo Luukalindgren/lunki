@@ -117,22 +117,26 @@ export class HudPresenter {
     hud.setSituation(
       tangle
         ? `${t('game.tangleStatus', { name: tangle.with, pct: Math.round(tangle.progress * 100) })}\n${controlText('help.tangle')}`
-        : f.onLand && f.stage === 'water'
-          ? controlText('game.stuckOnLand')
-          : cast
-            ? cast.busy > 0
-              ? t('game.flyUntangle', { s: Math.ceil(cast.busy) })
-              : host.flyKeyboard
-                ? controlText('game.flyCastKeys')
-                : `${controlText('game.flyCastSwing')}\n${controlText(
-                    'game.flyCastButtons',
-                    {},
-                    // Kosketuksella PERU-nappi kertoo itse itsestään: rivi mahtuu pystyruudulle.
-                    { skip: touch ? ['cancel'] : [] },
-                  )}`
-            : host.thunderNow && (s.lureOut || f.hookedId !== null)
-              ? t('help.thunder')
-              : (host.craftHint ?? (guide && controlText(guide))),
+        : f.landing
+          ? f.landing.lunge > 0
+            ? t('game.lunge')
+            : controlText(f.landing.net ? 'game.landNet' : 'game.landHand')
+          : f.onLand && f.stage === 'water'
+            ? controlText('game.stuckOnLand')
+            : cast
+              ? cast.busy > 0
+                ? t('game.flyUntangle', { s: Math.ceil(cast.busy) })
+                : host.flyKeyboard
+                  ? controlText('game.flyCastKeys')
+                  : `${controlText('game.flyCastSwing')}\n${controlText(
+                      'game.flyCastButtons',
+                      {},
+                      // Kosketuksella PERU-nappi kertoo itse itsestään: rivi mahtuu pystyruudulle.
+                      { skip: touch ? ['cancel'] : [] },
+                    )}`
+              : host.thunderNow && (s.lureOut || f.hookedId !== null)
+                ? t('help.thunder')
+                : (host.craftHint ?? (guide && controlText(guide))),
     );
     const lureOut = s.lureOut;
     hud.setStatus([
