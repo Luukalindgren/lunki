@@ -66,29 +66,38 @@ function liftNormals(g: THREE.BufferGeometry, lift: number): THREE.BufferGeometr
   return g;
 }
 
-export function createBoatMesh(stripe: number): THREE.Group {
+export function createBoatMesh(color: number): THREE.Group {
   const group = new THREE.Group();
   const hullMat = new THREE.MeshLambertMaterial({ color: COLOR.hull });
   const wood = new THREE.MeshLambertMaterial({ color: COLOR.wood });
 
-  // Laidat: ulkoääriviiva, josta sisäosa on leikattu pois.
-  const walls = outline(0);
-  walls.holes.push(outline(WALL));
-  // Laitojen sisäpinnat pysyvät varjossakin ruskeina.
-  const hull = new THREE.Mesh(liftNormals(extrude(walls, GUNWALE + 0.1), 1), hullMat);
+  // Laidat kahtena kerroksena: ulkokuori soutajan värillä, jotta vene
+  // tunnistetaan kaukaa kuten rengas, ja sisäpinta puuta. Normaalit ylös
+  // kallistettuina pinnat pysyvät varjossakin värissään.
+  const skin = outline(0);
+  skin.holes.push(outline(WALL * 0.4));
+  const shell = new THREE.Mesh(
+    liftNormals(extrude(skin, GUNWALE + 0.1), 1),
+    new THREE.MeshLambertMaterial({ color }),
+  );
+  shell.name = 'shell';
+  shell.position.y = -0.1;
+  const lining = outline(WALL * 0.4);
+  lining.holes.push(outline(WALL));
+  const hull = new THREE.Mesh(liftNormals(extrude(lining, GUNWALE + 0.1), 1), hullMat);
   hull.position.y = -0.1;
-  group.add(hull);
+  group.add(shell, hull);
   const floor = new THREE.Mesh(extrude(outline(WALL), 0.02), wood);
   floor.position.y = FLOOR;
   group.add(floor);
 
-  // Reunalista soutajan värillä: vene tunnistetaan kaukaa.
+  // Reunalista soutajan värillä: väri näkyy myös ylhäältä ja veneen sisältä.
   const rim = outline(0);
   rim.holes.push(outline(WALL * 0.6));
   // Lista on ohut: sen kaikki pinnat valaistaan kuin yläpinta, ettei reuna mustu varjossa.
   const strip = new THREE.Mesh(
     liftNormals(extrude(rim, 0.05), 100),
-    new THREE.MeshLambertMaterial({ color: stripe }),
+    new THREE.MeshLambertMaterial({ color }),
   );
   strip.name = 'stripe';
   strip.position.y = GUNWALE;

@@ -83,7 +83,7 @@ export interface BoatPose {
   pos: Vec2;
   heading: number;
   kickPhase: number;
-  /** Soutajan renkaan väri: veneen reunalista. */
+  /** Soutajan renkaan väri: veneen ulkokuori ja reunalista. */
   color: number;
   lift?: number;
   tumble?: number;

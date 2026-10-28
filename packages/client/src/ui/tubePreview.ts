@@ -63,7 +63,7 @@ export function drawCraftPreview(canvas: HTMLCanvasElement, a: Appearance, craft
 
 /**
  * Pieni pikselikuva omasta veneestä ylhäältä, keula ylhäällä: renkaan väri
- * on veneen reunalista, soutaja tuhdolla airot sivuilla ja siima perästä
+ * on veneen ulkokuori, soutaja tuhdolla airot sivuilla ja siima perästä
  * veteen. Mittasuhteet kuten `drawTubePreview`.
  */
 export function drawBoatPreview(canvas: HTMLCanvasElement, a: Appearance): void {
@@ -80,7 +80,7 @@ export function drawBoatPreview(canvas: HTMLCanvasElement, a: Appearance): void 
   fill(0xb98a4e, 1, 20, 4, 3);
   fill(0xb98a4e, 35, 20, 4, 3);
 
-  // Runko: reunalista, laidat ja pohja; keula suippenee ylös, perä suora.
+  // Runko: ulkokuori, laidat ja pohja; keula suippenee ylös, perä suora.
   const hull = (inset: number, hex: number) => {
     for (let y = 3 + inset; y < 37 - inset; y++) {
       const bow = Math.min(1, (y - 3) / 12);
@@ -89,8 +89,8 @@ export function drawBoatPreview(canvas: HTMLCanvasElement, a: Appearance): void 
     }
   };
   hull(0, a.tube);
-  hull(1, 0x9c6b3c);
-  hull(2, 0x8a5a32);
+  hull(2, 0x9c6b3c);
+  hull(3, 0x8a5a32);
   // Tuhdot keulassa, keskellä ja perässä.
   for (const y of [11, 21, 31]) fill(0x5e3a1e, 14, y, 12, 2);
 
