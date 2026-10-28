@@ -105,11 +105,10 @@ test('moninpeli: Chromium, Firefox ja iPhone samassa huoneessa', async ({ page: 
 
     await host.getByRole('button', { name: 'Aloita kisa' }).click();
     for (const p of [host, ff, ios]) await expect(p.locator('.hud-timer')).toBeVisible();
-    // Kisan kello käy kaikilla.
-    for (const p of [host, ff, ios]) {
-      const t = await p.locator('.hud-timer').innerText();
-      await expect.poll(() => p.locator('.hud-timer').innerText(), { timeout: 20_000 }).not.toBe(t);
-    }
+    // Kisan kello käy kaikilla: lähtölaskennan jälkeen alle 15:00. Pelkkä
+    // muutos ei riitä, sillä ennen kisaa HUDissa voi olla valikon taustan aika.
+    for (const p of [host, ff, ios])
+      await expect(p.locator('.hud-timer')).toHaveText(/^14:\d\d$/, { timeout: 30_000 });
 
     // Käsimerkki ja kisan aikainen chat kulkevat muille kuplina (#228).
     await host.keyboard.press('KeyG');

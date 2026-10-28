@@ -4,6 +4,8 @@ Sää lasketaan koko kisan ajaksi etukäteen kisan siemenestä
 (`planWeather` kansiossa `packages/shared/src/weather`). Palvelin ja kaikki
 pelaajat laskevat saman suunnitelman, joten säätä ei lähetetä verkossa.
 Palvelin pitää tilassa vain nykyisen säätilan (`sky`) kellonsa mukaan.
+Yksinpelin aikarajattomaan sessioon sää, salamat, isot aallot ja trombit
+suunnitellaan 12 tunniksi (`planSeconds`, `UNTIMED_PLAN_S`).
 
 ## Säätilat
 

@@ -50,6 +50,8 @@ import {
   recordCatch,
   stepCompetition,
   timeLeft,
+  isUntimed,
+  planSeconds,
   createFishing,
   clockAt,
   daylight,
@@ -183,6 +185,8 @@ export interface NetLink {
 
 /** Saaliin punnituskortti näkyy näin kauan, ellei pelaaja ala heittää uudelleen. */
 const CATCH_CARD_SECONDS = 6;
+/** Aikarajattomasta sessiosta pudonneen tulossivu aukeaa näin monen sekunnin päästä (#360). */
+const OUT_END_DELAY = 5;
 
 /**
  * Pelikierros järvellä. Yksinpelissä rengas liikkuu paikallisesti;
@@ -306,6 +310,8 @@ export class SoloGame {
   private nextStrike = 0;
   /** Yksinpelin salaman jäähy (kisa-aika, s). */
   private outUntil = 0;
+  /** Kisa-aika, jolloin pelaaja putosi kisasta (rangaistus `out`). */
+  private outAt = 0;
   /** Mistä jäähy tuli (tilarivin teksti). */
   private outLabel = t('game.timeOut');
   private readonly bigWaveView = new BigWaveView();
@@ -397,18 +403,13 @@ export class SoloGame {
     this.sky = new SkyView();
     this.mist = new MistView((p) => this.water.isWater(p), map.bounds);
     this.scene.add(this.sky.dome, this.mist.group);
-    const plan = planWeather(seed, settings.weather ?? 'realistic', settings.durationMinutes * 60);
+    const planS = planSeconds(settings);
+    const plan = planWeather(seed, settings.weather ?? 'realistic', planS);
     this.weather = new WeatherView(plan);
-    this.strikes = net ? [] : planLightning(plan, seed, settings.durationMinutes * 60);
-    this.bigWaves = planBigWaves(plan, seed, settings.durationMinutes * 60);
+    this.strikes = net ? [] : planLightning(plan, seed, planS);
+    this.bigWaves = planBigWaves(plan, seed, planS);
     this.rings = [map.shore, ...map.islands];
-    this.spouts = planWaterspouts(
-      plan,
-      seed,
-      settings.durationMinutes * 60,
-      this.water,
-      map.bounds,
-    );
+    this.spouts = planWaterspouts(plan, seed, planS, this.water, map.bounds);
     this.scene.add(
       this.weather.group,
       this.lightning.group,
@@ -458,8 +459,7 @@ export class SoloGame {
     this.view.snapTo(this.tube.pos);
     hud.setCountdown(null);
     // Kello näkyy heti HUDin tullessa esiin, ennen ensimmäistä päivitystä.
-    const left = timeLeft(this.competition);
-    hud.setTimer(formatTime(left), left < 60);
+    this.updateTimer();
     if (net) {
       net.world.enableAnchor((p) => this.bottom.depthAt(p));
       this.remoteView = new RemotePlayersView(net.overlay, this.hud.root);
@@ -633,6 +633,7 @@ export class SoloGame {
     const outcome = penaltyOutcome(penalty, this.competition.elapsed);
     if (outcome.outUntil > 0) this.outLabel = label;
     if (!this.net) this.outUntil = Math.max(this.outUntil, outcome.outUntil);
+    if (outcome.outUntil >= OUT_OF_RACE) this.outAt = this.competition.elapsed;
     if (outcome.loseCatch) this.competition.catches.length = 0;
     return {
       none: '',
@@ -914,7 +915,11 @@ export class SoloGame {
     const c = this.controls;
     waterTime.value += dt;
     if (this.competition.finished) return;
-    if (this.net ? this.syncCompetition() : stepCompetition(this.competition, dt)) {
+    if (
+      this.net
+        ? this.syncCompetition()
+        : stepCompetition(this.competition, dt) || this.outOfSession()
+    ) {
       this.sfx.caught();
       this.onFinished?.();
       return;
@@ -1254,8 +1259,7 @@ export class SoloGame {
       snag: f.snag !== null,
       fouled: f.fouled,
     }));
-    const left = timeLeft(this.competition);
-    this.hud.setTimer(formatTime(left), left < 60);
+    this.updateTimer();
     this.updateWeather(dt);
     this.sfx.updateAmbience(dt, { ...this.weather.now, ...this.daylight, spout: this.spoutNear });
     // Potkuvaihe kiertää 0–1; kumpikin räpylä loiskahtaa kerran kierroksessa.
@@ -1713,11 +1717,32 @@ export class SoloGame {
       controlText('game.next'),
       controlText('game.viewToggle'),
     ]);
-    const left = timeLeft(this.competition);
-    this.hud.setTimer(formatTime(left), left < 60);
+    this.updateTimer();
     this.updateWeather(dt);
     this.updateRaceHud();
     this.hud.update(dt);
+  }
+
+  /**
+   * Aikarajattomasta sessiosta pudonnut (#360): sessio päättyy tulossivulle,
+   * kun rangaistuksen ilmoitus on ehditty lukea. Ajastetussa kisassa odotetaan
+   * ajan loppumista.
+   */
+  private outOfSession(): boolean {
+    if (!isUntimed(this.settings) || this.outUntil < OUT_OF_RACE) return false;
+    if (this.competition.elapsed - this.outAt < OUT_END_DELAY) return false;
+    this.competition.finished = true;
+    return true;
+  }
+
+  /** Kisan kello: jäljellä oleva aika, aikarajattomassa sessiossa kulunut aika (#360). */
+  private updateTimer(): void {
+    if (isUntimed(this.settings)) {
+      this.hud.setTimer(formatTime(Math.floor(this.competition.elapsed)), false);
+      return;
+    }
+    const left = timeLeft(this.competition);
+    this.hud.setTimer(formatTime(left), left < 60);
   }
 
   private updateRaceHud(): void {

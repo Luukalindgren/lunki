@@ -9,7 +9,8 @@ Pelaa: <https://lunkinjarvi.com/>
 
 - Yksinpeli tai moninpeli kavereiden kanssa jaetulla koodilla, ilman
   kirjautumista. Kisan pituus, voittoehto, sää ja rangaistukset valitaan
-  ennen kisaa.
+  ennen kisaa. Yksinpelin oletus on aikarajaton sessio, joka kestää, kunnes
+  pelaaja lopettaa ja punnitsee saaliin.
 - Järvi, rannat ja ympäristö avoimesta kartta-aineistosta.
 - Virveli ja perho, 11 kalalajia, siimojen sotkeutuminen, pohjaan tarttuvat
   vieheet ja hampaiden katkaisemat siimat.

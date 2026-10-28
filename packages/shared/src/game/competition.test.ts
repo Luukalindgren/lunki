@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   createCompetition,
+  UNTIMED,
   formatTime,
+  planSeconds,
   recordCatch,
   stepCompetition,
   summarize,
@@ -18,6 +20,16 @@ describe('kilpailu', () => {
     expect(ended).toBe(1);
     expect(c.finished).toBe(true);
     expect(timeLeft(c)).toBe(0);
+  });
+
+  it('aikarajaton sessio ei pääty itsestään (#360)', () => {
+    const c = createCompetition({ durationMinutes: UNTIMED, difficulty: 'easy', winRule: 'total' });
+    for (let i = 0; i < 5 * 3600; i++) expect(stepCompetition(c, 1)).toBe(false);
+    expect(c.finished).toBe(false);
+    expect(timeLeft(c)).toBe(Infinity);
+    expect(recordCatch(c, perch(0.2))?.time).toBe(5 * 3600);
+    expect(planSeconds(c.settings)).toBeGreaterThanOrEqual(12 * 3600);
+    expect(planSeconds({ durationMinutes: 15 })).toBe(900);
   });
 
   it('saaliit kirjataan vain kilpailun aikana', () => {
@@ -45,5 +57,8 @@ describe('kilpailu', () => {
     expect(formatTime(600)).toBe('10:00');
     expect(formatTime(65.2)).toBe('1:06');
     expect(formatTime(0)).toBe('0:00');
+    expect(formatTime(3599)).toBe('59:59');
+    expect(formatTime(3600)).toBe('1:00:00');
+    expect(formatTime(4325)).toBe('1:12:05');
   });
 });

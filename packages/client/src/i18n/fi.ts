@@ -190,6 +190,7 @@ export const fi = {
   // --- Kisan asetukset ---
   'solo.title': 'Yksinpeli',
   'settings.duration': 'Kilpailuaika',
+  'settings.untimed': 'Vapaa',
   'settings.difficulty': 'Kalastuksen vaikeus',
   'settings.difficultyShort': 'Vaikeus',
   'settings.difficultyHint':
@@ -414,6 +415,7 @@ export const fi = {
   'pause.tackle': 'Varusteet',
   'pause.leaveRace': 'Poistu kisasta',
   'pause.endRace': 'Lopeta kisa',
+  'pause.endSession': 'Lopeta ja punnitse',
   'fullscreen.enter': 'Koko näyttö',
   'fullscreen.exit': 'Poistu koko näytöstä',
   'fullscreen.escHint':
@@ -428,6 +430,8 @@ export const fi = {
   'results.hostRestarts': 'Huoneen luoja voi aloittaa uuden kisan.',
   'results.timeUp': 'Aika loppui!',
   'results.ended': 'Kisa päättyi',
+  'results.sessionOver': 'Sessio päättyi',
+  'results.sessionLength': 'vapaa, kesto {time}',
   'results.empty':
     'Ei saalista tällä kertaa. Jos tärppejä ei tule, potki uuteen paikkaan: kaikuluotain (K) näyttää kalat.',
   'results.summary': 'Kaloja {count} · yhteensä {total} · suurin {biggest}',

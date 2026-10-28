@@ -3,6 +3,8 @@ import {
   audioStates,
   canvasColors,
   compassOffset,
+  raceRunning,
+  soloUrl,
   startSolo,
   timer,
   trackAudio,
@@ -228,7 +230,7 @@ test('toinen kisa ja valikon tausta piirtävät jaetun maailman (#327)', async (
   await expect.poll(() => canvasColors(page)).toBeGreaterThan(8);
   const first = await canvasColors(page);
   await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: 'Lopeta kisa' }).click();
+  await page.getByRole('button', { name: 'Lopeta ja punnitse' }).click();
   await page.getByRole('button', { name: 'Valikkoon' }).click();
   await expect(page.getByRole('button', { name: 'Yksinpeli' })).toBeVisible();
   await expect.poll(() => canvasColors(page)).toBeGreaterThan(8);
@@ -237,6 +239,40 @@ test('toinen kisa ja valikon tausta piirtävät jaetun maailman (#327)', async (
   await page.getByRole('button', { name: 'Aloita kisa' }).click();
   await expect(page.locator('.hud-timer')).toBeVisible();
   await expect.poll(() => canvasColors(page)).toBeGreaterThan(Math.max(8, first / 2));
+  errors.check();
+});
+
+test('yksinpeli ilman aikarajaa ja ajastettuna (#360)', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'puhelimet: sama näkymä, tauko kosketusnapista');
+  const errors = watchErrors(page);
+  const seconds = async () => {
+    const [m, s] = (await timer(page)).split(':').map(Number);
+    return m! * 60 + s!;
+  };
+  // Yksinpelin oletus on Vapaa: kello laskee kulunutta aikaa ylöspäin.
+  await page.goto(soloUrl());
+  await page.getByRole('button', { name: 'Yksinpeli' }).click();
+  await expect(page.getByRole('button', { name: 'Vapaa', exact: true })).toHaveClass(/selected/);
+  await page.getByRole('button', { name: 'Aloita kisa' }).click();
+  await raceRunning(page);
+  await expect.poll(seconds, { timeout: 15_000 }).toBeGreaterThan(0);
+  const s0 = await seconds();
+  await expect.poll(seconds, { timeout: 15_000 }).toBeGreaterThan(s0);
+  // Sessio päättyy vasta pelaajan lopettaessa, ja tulossivu kertoo keston.
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Lopeta ja punnitse' }).click();
+  await expect(page.getByRole('heading', { name: 'Sessio päättyi' })).toBeVisible();
+  await expect(page.getByText(/vapaa, kesto \d+:\d\d/)).toBeVisible();
+  await page.getByRole('button', { name: 'Valikkoon' }).click();
+
+  // Ajastettu kisa on yhä valittavissa: kello laskee alaspäin.
+  await page.getByRole('button', { name: 'Yksinpeli' }).click();
+  await page.getByRole('button', { name: '10 min', exact: true }).click();
+  await page.getByRole('button', { name: 'Aloita kisa' }).click();
+  await raceRunning(page);
+  await expect.poll(seconds, { timeout: 15_000 }).toBeLessThan(600);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: 'Lopeta kisa' })).toBeVisible();
   errors.check();
 });
 
@@ -278,7 +314,7 @@ test('kieli vaihtuu päävalikosta heti ja säilyy uudelleenlatauksen jälkeen',
   await expect(page.locator('.hud-compass')).toContainText('N');
   if (!isMobile) {
     await page.keyboard.press('Escape');
-    await page.getByRole('button', { name: 'End the competition' }).click();
+    await page.getByRole('button', { name: 'Stop and weigh in' }).click();
     await page.getByRole('button', { name: 'Main menu' }).click();
     await page.getByRole('button', { name: 'Suomi' }).click();
     await expect(page.getByRole('button', { name: 'Yksinpeli' })).toBeVisible();

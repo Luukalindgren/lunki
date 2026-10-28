@@ -1,5 +1,7 @@
 import {
   DEFAULT_SETTINGS,
+  UNTIMED,
+  isUntimed,
   GAME_NAME,
   LUNKINJARVI,
   WaterBody,
@@ -142,7 +144,8 @@ const screens = new Screens(app);
 input.menuOpen = () => screens.open;
 // Alinäkymän (esim. tauon asetukset) Esc palaa takaisin eikä jatka peliä.
 input.menuBack = () => screens.hasBack;
-let settings = loadSettings(DEFAULT_SETTINGS);
+/** Yksinpeli alkaa oletuksena ilman aikarajaa (#360); moninpelin huoneilla on oma oletuksensa. */
+let settings = loadSettings({ ...DEFAULT_SETTINGS, durationMinutes: UNTIMED });
 let game: SoloGame | null = null;
 let paused = false;
 let bench: Bench | null = null;
@@ -595,6 +598,7 @@ function showPauseMenu(from?: 'tackle' | 'settings') {
           showResults();
         },
     multiplayer: session !== null,
+    untimed: !session && isUntimed(g.settings),
     clock: formatClock(g.clock),
     // Katsoja ei kalasta.
     onTackle: g.spectating
@@ -672,8 +676,9 @@ const menuScene = new SoloGame(
   hud,
   sfx,
   (x, y) => retro.screenToInternal(x, y),
-  // Valikon taustalla aina päivä, vaikka viime kisa olisi ollut yöllä.
-  { ...settings, timeOfDay: 'day' },
+  // Valikon taustalla aina päivä, vaikka viime kisa olisi ollut yöllä. Kesto
+  // ajastettu: aikarajattoman session 12 tunnin säätä ei lasketa turhaan.
+  { ...settings, timeOfDay: 'day', durationMinutes: DEFAULT_SETTINGS.durationMinutes },
   1,
 );
 menuScene.view.zoom(3);
