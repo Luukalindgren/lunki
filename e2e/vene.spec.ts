@@ -55,12 +55,11 @@ test('vene: kaksi kalastajaa samassa veneessä', async ({ page: host, browser })
   await guest.getByRole('button', { name: 'Valmis!' }).click();
 
   await host.getByRole('button', { name: 'Aloita kisa' }).click();
-  for (const p of [host, guest]) await expect(p.locator('.hud-timer')).toHaveText(/\d+:\d\d/);
   // Lähtölaskennan jälkeen kello käy (lähtölaskennan aikana syötteet eivät vaikuta).
-  const start = await guest.locator('.hud-timer').innerText();
-  await expect
-    .poll(() => guest.locator('.hud-timer').innerText(), { timeout: 20_000 })
-    .not.toBe(start);
+  // Odotetaan kisan kelloa alle 15:00: ennen kisan alkua HUDissa voi olla
+  // valikon taustakohtauksen aika.
+  for (const p of [host, guest])
+    await expect(p.locator('.hud-timer')).toHaveText(/^14:\d\d$/, { timeout: 30_000 });
   // Kisassa paikka vaihtuu takaisin T:llä: pyyntö näkyy toiselle tilanneohjeena.
   await guest.keyboard.press('KeyT');
   await expect(host.locator('.hud-situation')).toContainText(

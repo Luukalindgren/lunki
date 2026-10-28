@@ -676,8 +676,9 @@ const menuScene = new SoloGame(
   hud,
   sfx,
   (x, y) => retro.screenToInternal(x, y),
-  // Valikon taustalla aina päivä, vaikka viime kisa olisi ollut yöllä.
-  { ...settings, timeOfDay: 'day' },
+  // Valikon taustalla aina päivä, vaikka viime kisa olisi ollut yöllä. Kesto
+  // ajastettu: aikarajattoman session 12 tunnin säätä ei lasketa turhaan.
+  { ...settings, timeOfDay: 'day', durationMinutes: DEFAULT_SETTINGS.durationMinutes },
   1,
 );
 menuScene.view.zoom(3);
