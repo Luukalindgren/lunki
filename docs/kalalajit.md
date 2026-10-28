@@ -121,6 +121,25 @@ Vuorokaudenaika annetaan kaloille valona ja hämäryytenä (`fishConditions`). K
 liike ei vaikuta saaliin painoon tai lajiin: ne tulevat edelleen kalakannan siemenestä, ja
 parvet pysyvät kotipaikkansa lähellä, joten palvelimen tarkistus saaliin paikasta pätee.
 
+### Merkit pinnalla (#369)
+
+Kalojen käytös näkyy pinnalla kaikilla vaikeustasoilla (`game/fishSigns.ts`). Merkit ovat
+roiskerenkaita samalla tyylillä kuin vieheen molskahdus, ja niillä on hiljainen ääni:
+
+- **Pintakäynti**: pinnan lähellä (alle 1 m) uiva säyne, särki, taimen tai kirjolohi
+  jättää hitaan, vaimean renkaan. Hämärässä merkkejä on noin seitsemän kertaa enemmän kuin
+  päivällä.
+- **Särkiparven pako**: hauen ajama parvi väreilee pinnassa. Kun pako alkaa, hauki iskee
+  usein samalla pintaan.
+- **Ahvenparven syönti**: innostunut parvi pulahtelee.
+- **Hauen pintaisku**: matalassa (alle 1,5 m) väijyvä hauki molskahtaa harvoin, iso
+  kaksoisrengas.
+
+Ennen ukkosta merkkejä on 1,8-kertaisesti ja ukkosella vain viidesosa. Helpolla merkkejä on
+1,4-kertaisesti ja realistisella 0,7-kertaisesti. Merkit lasketaan 120 m:n säteeltä, ja
+enintään neljä uutta merkkiä syntyy sekunnissa, joten pinta ei käy levottomaksi. Arvonta on
+näkymän omaa (`Math.random`), joten kalakanta ja saaliit pysyvät samoina samalla siemenellä.
+
 ## Vieheet ja varusteet
 
 Varusteet valitaan yksinpelin asetuksissa tai moninpelin aulassa ennen kisaa (rivi Omat
