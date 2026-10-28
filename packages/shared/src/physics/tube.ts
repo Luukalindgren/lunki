@@ -59,6 +59,9 @@ export const TUBE_PHYSICS = {
   shoreBounce: 0.2,
 } as const;
 
+/** Aluksen liikkeen vakiot: kelluntarengas (TUBE_PHYSICS) tai vene (BOAT_PHYSICS). */
+export type CraftPhysics = { readonly [K in keyof typeof TUBE_PHYSICS]: number };
+
 /**
  * Kalastajan kunto. Tavallinen potkiminen kuluttaa hitaasti ja pikapotkut
  * nopeasti; levossa (ei potkuja) kunto palautuu. Väsyneenä potkut heikkenevät,
@@ -96,7 +99,8 @@ const clamp1 = (v: number) => Math.max(-1, Math.min(1, v));
 /**
  * Etenee yhden kiinteän askeleen. Ei käsittele rantaa (ks. collideTubeWithShore).
  * `wind` = tuulen nopeusvektori (m/s); tuuli ajattaa rengasta. `dragFactor`
- * kertoo vedenvastuksen, esim. kaislikossa (REEDS.drag).
+ * kertoo vedenvastuksen, esim. kaislikossa (REEDS.drag). `P` = aluksen
+ * vakiot: veneellä (BOAT_PHYSICS) potku on airoveto.
  */
 export function stepTube(
   s: TubeState,
@@ -104,8 +108,8 @@ export function stepTube(
   dt: number,
   wind?: Vec2,
   dragFactor = 1,
+  P: CraftPhysics = TUBE_PHYSICS,
 ): TubeState {
-  const P = TUBE_PHYSICS;
   const kick = clamp1(input.kick);
   const turn = clamp1(input.turn);
 
@@ -145,22 +149,27 @@ export function stepTube(
   return { pos, vel, heading, angVel, kickPhase, stamina };
 }
 
-/** Rantakorjaus: siirtää renkaan veteen ja poistaa rantaan päin olevan nopeuden. */
+/**
+ * Rantakorjaus: siirtää renkaan veteen ja poistaa rantaan päin olevan nopeuden.
+ * `radius` ja `bounce` aluksen mukaan (vene: BOAT_RADIUS).
+ */
 export function collideTubeWithShore(
   prev: TubeState,
   next: TubeState,
   water: {
     moveCircle(from: Vec2, to: Vec2, radius: number): { position: Vec2; normal: Vec2 } | null;
   },
+  radius = TUBE_RADIUS,
+  bounce: number = TUBE_PHYSICS.shoreBounce,
 ): TubeState {
-  const hit = water.moveCircle(prev.pos, next.pos, TUBE_RADIUS);
+  const hit = water.moveCircle(prev.pos, next.pos, radius);
   if (!hit) return next;
   const vn = next.vel.x * hit.normal.x + next.vel.y * hit.normal.y;
   const vel =
     vn < 0
       ? {
-          x: next.vel.x - (1 + TUBE_PHYSICS.shoreBounce) * vn * hit.normal.x,
-          y: next.vel.y - (1 + TUBE_PHYSICS.shoreBounce) * vn * hit.normal.y,
+          x: next.vel.x - (1 + bounce) * vn * hit.normal.x,
+          y: next.vel.y - (1 + bounce) * vn * hit.normal.y,
         }
       : next.vel;
   return { ...next, pos: hit.position, vel };

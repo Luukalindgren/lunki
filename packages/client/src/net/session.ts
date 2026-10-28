@@ -16,7 +16,11 @@ import {
   type Appearance,
   type Tackle,
   type Difficulty,
+  rankBoats,
   rankPlayers,
+  BOAT_PROTOCOL,
+  PROTOCOL_VERSION,
+  isCraft,
   type Catch,
   type CatchRecord,
   type InputMessage,
@@ -213,6 +217,9 @@ export interface LobbyPlayer {
   spectator: boolean;
   tackle: Tackle;
   appearance: Appearance;
+  /** Venekisa (#263): vene 1… ja paikka (BoatSeat); 0 = ei venettä. */
+  boat: number;
+  seat: number;
 }
 
 export interface LobbyView {
@@ -226,6 +233,8 @@ export interface LobbyView {
   allReady: boolean;
   /** Palvelin tuntee katsojat (vanha palvelin ei). */
   canSpectate: boolean;
+  /** Palvelin osaa venekisan (vanha palvelin ei). */
+  canBoat: boolean;
 }
 
 export interface PlayerSchema {
@@ -243,6 +252,9 @@ export interface PlayerSchema {
   stamina?: number;
   /** Katsoja; puuttuu vanhalta palvelimelta. */
   spectator?: boolean;
+  /** Venekisan vene ja paikka; puuttuvat vanhalta palvelimelta. */
+  boat?: number;
+  seat?: number;
   ack: number;
   lureX: number;
   lureY: number;
@@ -287,6 +299,8 @@ export interface StateSchema {
     landPenalty?: number;
     /** Puuttuu vanhalta palvelimelta. */
     lateJoin?: string;
+    /** Craft; puuttuu vanhalta palvelimelta. */
+    craft?: string;
     species: Iterable<string>;
     customStart: boolean;
     startX: number;
@@ -309,6 +323,8 @@ export interface CatchSchema {
   time: number;
   fishSlot: number;
   fishGen: number;
+  /** Venekisassa saajan vene; puuttuu vanhalta palvelimelta. */
+  boat?: number;
 }
 
 /** Yhteys yhteen huoneeseen. */
@@ -394,7 +410,7 @@ export class NetSession {
   static create(options: JoinOptions): Promise<NetSession> {
     return unlessServerDown(
       client()
-        .then((c) => c.create<StateSchema>(ROOM_NAME, options))
+        .then((c) => c.create<StateSchema>(ROOM_NAME, { ...options, protocol: PROTOCOL_VERSION }))
         .then((room) => new NetSession(room)),
     );
   }
@@ -403,7 +419,13 @@ export class NetSession {
   static join(code: string, options: JoinOptions): Promise<NetSession> {
     return unlessServerDown(
       client()
-        .then((c) => c.joinById<StateSchema>(code, { ...options, spectate: true }))
+        .then((c) =>
+          c.joinById<StateSchema>(code, {
+            ...options,
+            spectate: true,
+            protocol: PROTOCOL_VERSION,
+          }),
+        )
         .then((room) => new NetSession(room)),
     );
   }
@@ -451,6 +473,8 @@ export class NetSession {
         spectator: p.spectator === true,
         tackle: playerTackle(p),
         appearance: playerAppearance(p),
+        boat: p.boat ?? 0,
+        seat: p.seat ?? 0,
       }),
     );
     return {
@@ -469,6 +493,7 @@ export class NetSession {
         capsizePenalty: s.settings.capsizePenalty as Penalty,
         landPenalty: s.settings.landPenalty ?? 0,
         lateJoin: isLateJoin(s.settings.lateJoin) ? s.settings.lateJoin : 'closed',
+        craft: isCraft(s.settings.craft) ? s.settings.craft : 'tube',
         species: [...s.settings.species].filter(isSpeciesId),
         start: s.settings.customStart ? { x: s.settings.startX, y: s.settings.startY } : null,
       },
@@ -476,6 +501,7 @@ export class NetSession {
       // Katkennutta ei odoteta, kuten palvelinkaan ei (#275).
       allReady: players.every((p) => p.host || p.ready || p.spectator || !p.connected),
       canSpectate: this.serverProtocol >= SPECTATE_PROTOCOL,
+      canBoat: this.serverProtocol >= BOAT_PROTOCOL,
     };
   }
 
@@ -486,6 +512,16 @@ export class NetSession {
   /** Aulassa: seuraava kisa katsojana. Vanha palvelin ei tunne viestiä. */
   setSpectator(on: boolean): void {
     if (this.serverProtocol >= SPECTATE_PROTOCOL) this.room.send(ClientMsg.spectate, on);
+  }
+
+  /** Venekisan aulassa: veneeseen n tai omaan uuteen veneeseen (0). */
+  sendBoat(boat: number): void {
+    if (this.serverProtocol >= BOAT_PROTOCOL) this.room.send(ClientMsg.boat, boat);
+  }
+
+  /** Venekisa (#263): veneet kisaavat joukkueina. */
+  get boatRace(): boolean {
+    return this.room.state?.settings?.craft === 'boat';
   }
 
   /** Oma pelaaja katsoo kisaa osallistumatta. */
@@ -583,6 +619,27 @@ export class NetSession {
     return rankPlayers([...rows.values()], s.settings.winRule as WinRule);
   }
 
+  /**
+   * Kisan sijoitukset: venekisassa veneet joukkueina (rankBoats), muuten
+   * pelaajat (results).
+   */
+  standings(): PlayerResult[] {
+    if (!this.boatRace) return this.results();
+    const s = this.room.state;
+    const crews: { id: string; name: string; boat: number }[] = [];
+    s.players.forEach((p, id) => {
+      if (!p.spectator) crews.push({ id, name: p.name, boat: p.boat ?? 0 });
+    });
+    const catches = [...s.catches].map((c) => ({
+      species: c.species as SpeciesId,
+      name: c.name,
+      weight: c.weight,
+      time: c.time,
+      boat: c.boat ?? 0,
+    }));
+    return rankBoats(catches, crews, s.settings.winRule as WinRule, (n) => t('boat.name', { n }));
+  }
+
   async leave(): Promise<void> {
     this.leaving = true;
     clearResume();
@@ -622,6 +679,7 @@ const REFUSAL_KEYS: Record<JoinRefusalCode, MsgKey> = {
   [JoinRefusal.returnOnly]: 'join.returnOnly',
   [JoinRefusal.full]: 'join.full',
   [JoinRefusal.serverFull]: 'join.serverFull',
+  [JoinRefusal.outdated]: 'join.outdated',
 };
 
 /**

@@ -6,12 +6,17 @@ export const TUBE_RESTITUTION = 0.6;
 /**
  * Kahden renkaan törmäys (ympyrä–ympyrä, yhtä painavat). Työntää renkaat
  * erilleen ja vaihtaa nopeuden normaalikomponentin kimmoisuuden mukaan.
- * Palauttaa uudet tilat tai null, jos renkaat eivät kosketa.
+ * Palauttaa uudet tilat tai null, jos renkaat eivät kosketa. Kisassa kaikki
+ * alukset ovat samaa lajia, joten säde on yhteinen (vene: BOAT_RADIUS).
  */
-export function collideTubePair(a: TubeState, b: TubeState): [TubeState, TubeState] | null {
+export function collideTubePair(
+  a: TubeState,
+  b: TubeState,
+  radius = TUBE_RADIUS,
+): [TubeState, TubeState] | null {
   let dx = b.pos.x - a.pos.x;
   let dy = b.pos.y - a.pos.y;
-  const min = TUBE_RADIUS * 2;
+  const min = radius * 2;
   const d2 = dx * dx + dy * dy;
   if (d2 >= min * min) return null;
   let d = Math.sqrt(d2);
@@ -47,11 +52,11 @@ export function collideTubePair(a: TubeState, b: TubeState): [TubeState, TubeSta
  * Ratkaisee kaikki parit kiinteässä järjestyksessä (sama tulos palvelimella
  * ja testeissä). Muokkaa taulukkoa paikallaan; palauttaa törmänneiden indeksit.
  */
-export function collideTubes(tubes: TubeState[]): Set<number> {
+export function collideTubes(tubes: TubeState[], radius = TUBE_RADIUS): Set<number> {
   const hit = new Set<number>();
   for (let i = 0; i < tubes.length; i++)
     for (let k = i + 1; k < tubes.length; k++) {
-      const r = collideTubePair(tubes[i]!, tubes[k]!);
+      const r = collideTubePair(tubes[i]!, tubes[k]!, radius);
       if (!r) continue;
       tubes[i] = r[0];
       tubes[k] = r[1];

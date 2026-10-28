@@ -1,5 +1,9 @@
 import {
+  BOAT_RADIUS,
+  BoatSeat,
+  CRAFTS,
   InputQueue,
+  seatPos,
   LUNKINJARVI,
   TUBE_RADIUS,
   TubePredictor,
@@ -72,5 +76,72 @@ describe('palvelimen askel', () => {
       predictor.reconcile(sims[0]!.tube, sims[0]!.inputs.lastSeq);
       expect(predictor.tube.pos.x).toBe(sims[0]!.tube.pos.x);
     }
+  });
+
+  describe('venekisa (#263)', () => {
+    /** Vene (soutaja) ja kaksi kalastajaa perässä ja keulassa. */
+    function boat(): Sim[] {
+      const rower = createTube({ ...center }, 0);
+      const sim = (tube: TubeState, seat: number): Sim => ({
+        tube,
+        inputs: new InputQueue(),
+        splashed: false,
+        lastCatchAt: 0,
+        boat: 1,
+        seat,
+      });
+      return [
+        sim(rower, BoatSeat.rower),
+        sim(createTube(seatPos(rower, BoatSeat.stern), Math.PI), BoatSeat.stern),
+        sim(createTube(seatPos(rower, BoatSeat.bow), Math.PI / 2), BoatSeat.bow),
+      ];
+    }
+    const row = (sims: Sim[], steps: number, input = { kick: 1, turn: 0, sprint: false }) => {
+      for (let k = 1; k <= steps; k++) {
+        for (const s of sims) s.inputs.push([{ seq: s.inputs.lastSeq + 1, ...input }]);
+        stepSims(sims, water, false, undefined, 'boat');
+      }
+    };
+
+    it('soutaja liikuttaa venettä ja kyytiläiset pysyvät paikoillaan veneessä', () => {
+      const sims = boat();
+      row(sims, 120);
+      const [rower, stern, bow] = sims.map((s) => s.tube);
+      expect(rower!.pos.x).toBeLessThan(center.x - 0.5);
+      expect(stern!.pos).toEqual(seatPos(rower!, BoatSeat.stern));
+      expect(bow!.pos).toEqual(seatPos(rower!, BoatSeat.bow));
+      // Kyytiläinen ei soua, vaikka potkisi: katse ei kääntynyt eikä vauhti ole omaa.
+      expect(stern!.heading).toBe(Math.PI);
+      expect(stern!.vel).toEqual(rower!.vel);
+    });
+
+    it('kyytiläinen kääntyy paikallaan heittämään', () => {
+      const sims = boat();
+      row(sims, 30, { kick: 0, turn: 1, sprint: false });
+      expect(sims[1]!.tube.heading).not.toBe(Math.PI);
+      // Soutaja kääntää venettä, kyytiläiset vain itseään.
+      expect(sims[0]!.tube.heading).toBeGreaterThan(0);
+    });
+
+    it('soutaja ei voi soutaa, kun viehe on vedessä', () => {
+      const sims = boat();
+      sims[0]!.fishing = true;
+      row(sims, 120);
+      expect(sims[0]!.tube.pos.x).toBeCloseTo(center.x, 6);
+      expect(sims[0]!.tube.heading).toBe(0);
+    });
+
+    it('veneet törmäävät veneen säteellä, kyytiläiset eivät törmää', () => {
+      const a = boat();
+      const b = boat().map((s) => ({
+        ...s,
+        boat: 2,
+        tube: { ...s.tube, pos: { x: s.tube.pos.x + BOAT_RADIUS * 1.5, y: s.tube.pos.y } },
+      }));
+      const sims = [...a, ...b];
+      stepSims(sims, water, false, undefined, 'boat');
+      const gap = sims[3]!.tube.pos.x - sims[0]!.tube.pos.x;
+      expect(gap).toBeGreaterThanOrEqual(CRAFTS.boat.radius * 2 - 1e-9);
+    });
   });
 });

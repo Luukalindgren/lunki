@@ -4,7 +4,14 @@ import type { RemotePlayer } from '../net/netWorld';
 import { toWorld } from '../world/lakeMesh';
 import { AIR_SAMPLES, ROD_TIP_Y, flightLine, hangLine, rodSideOffset, writeLine } from './lineHang';
 import { FAR_BUBBLE, SpeechBubble, type BubbleContent } from './speechBubble';
-import { animateEmote, animateFins, applyAppearance, createTubeMesh } from './tubeMesh';
+import {
+  SEATED_LIFT,
+  animateEmote,
+  animateFins,
+  applyAppearance,
+  createTubeMesh,
+  setSeated,
+} from './tubeMesh';
 import { FLY_LINE_POINTS, RemoteFlyLine, flyLineProfile, flyLineWorld } from './flyLine';
 import { flyRodTip } from './povRod';
 import { screenAnchor } from './screenAnchor';
@@ -82,7 +89,9 @@ export class RemotePlayersView {
       if (age > EMOTE_DURATION) e.emote = null;
       animateEmote(e.tube, e.emote?.id ?? null, age);
       if (!sameAppearance(e.appearance, p.appearance)) this.recolor(e, p.appearance);
-      e.tube.position.copy(toWorld(p.pos, p.lift ?? 0));
+      // Venekisassa kalastaja istuu veneessä (vene piirretään BoatsView'ssa).
+      setSeated(e.tube, p.boat > 0);
+      e.tube.position.copy(toWorld(p.pos, (p.lift ?? 0) + (p.boat > 0 ? SEATED_LIFT : 0)));
       e.tube.rotation.y = p.heading;
       e.tube.rotation.x = p.tumble ?? 0;
       animateFins(e.tube, p.kickPhase);

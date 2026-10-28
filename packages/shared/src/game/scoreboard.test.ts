@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CatchRecord } from './competition';
-import { MIN_CATCH_INTERVAL, isPlausibleCatch, rankPlayers } from './scoreboard';
+import { MIN_CATCH_INTERVAL, isPlausibleCatch, rankBoats, rankPlayers } from './scoreboard';
 
 const perch = (weight: number, time: number): CatchRecord => ({
   species: 'perch',
@@ -87,5 +87,39 @@ describe('saaliin tarkistus', () => {
     const pike = { species: 'pike' as const, name: 'Hauki', weight: 2 };
     expect(isPlausibleCatch(pike, { ...ok, species: ['perch', 'pike'] })).toBe(true);
     expect(isPlausibleCatch(pike, { ...ok, species: ['perch'] })).toBe(false);
+  });
+});
+
+describe('venekisan tulostaulu (#263)', () => {
+  const crews = [
+    { id: 'a', name: 'Aino', boat: 1 },
+    { id: 'b', name: 'Bertta', boat: 2 },
+    { id: 'c', name: 'Cecilia', boat: 1 },
+    { id: 's', name: 'Katsoja', boat: 0 },
+  ];
+  const name = (n: number) => `Vene ${n}`;
+
+  it('veneen saaliit lasketaan yhteen ja miehistö näkyy', () => {
+    const r = rankBoats(
+      [
+        { ...perch(0.4, 10), boat: 1 },
+        { ...perch(0.6, 30), boat: 2 },
+        { ...perch(0.3, 50), boat: 1 },
+      ],
+      crews,
+      'total',
+      name,
+    );
+    expect(r.map((t) => [t.name, t.rank, t.summary.score])).toEqual([
+      ['Vene 1', 1, 0.7],
+      ['Vene 2', 2, 0.6],
+    ]);
+    expect(r[0]!.members?.map((m) => m.name)).toEqual(['Aino', 'Cecilia']);
+  });
+
+  it('lähteneen saalis jää veneelle, eikä katsoja ole joukkue', () => {
+    const r = rankBoats([{ ...perch(0.5, 10), boat: 3 }], crews, 'biggest', name);
+    expect(r.map((t) => t.id)).toEqual(['boat:3', 'boat:1', 'boat:2']);
+    expect(r[0]!.members).toEqual([]);
   });
 });

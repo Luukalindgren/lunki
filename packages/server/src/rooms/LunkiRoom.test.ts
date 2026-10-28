@@ -31,6 +31,8 @@ import {
   CHAT_MAX_LENGTH,
   DEFAULT_TACKLE,
   PROTOCOL_VERSION,
+  BoatSeat,
+  seatPos,
   CHAT_RATE,
   EMOTE_RATE,
   type EmoteMessage,
@@ -1423,5 +1425,104 @@ describe('liittyminen kesken kisan', () => {
 
     await host.leave();
     await c.leave();
+  });
+});
+
+describe('venekisa (#263)', () => {
+  const refusal = (p: Promise<unknown>) =>
+    p.then(
+      () => 'liittyi',
+      (e: unknown) => (e instanceof Error ? e.message : String(e)),
+    );
+  type Crew = { boat: number; seat: number; x: number; y: number; heading: number };
+  const crew = (room: Room, id = room.sessionId) => room.state.players.get(id) as Crew;
+  const join = (room: Room, name: string) =>
+    sdk().joinById(room.roomId, { name, playerId: name, protocol: PROTOCOL_VERSION });
+  /** Soutaa n askelta 30 syötteen erissä (palvelimen jono) ja odottaa kuittauksen. */
+  const row = async (room: Room, from: number, n: number, l: number[]) => {
+    const ack = () => (room.state.players.get(room.sessionId) as { ack: number }).ack;
+    for (let k = 0; k < n; k += 30) {
+      const i = Array.from({ length: 30 }, (_, j) => ({
+        seq: from + k + j,
+        kick: 1,
+        turn: 0,
+        sprint: false,
+      }));
+      room.send(ClientMsg.input, { i: encodeInputs(i), l });
+      await until(() => ack() === from + k + 29);
+    }
+  };
+
+  it('veneet aulassa, vanha asiakas ei pääse, kyytiläinen istuu soutajan veneessä', async () => {
+    const host = await sdk().create(ROOM_NAME, {
+      name: 'A',
+      playerId: 'A',
+      protocol: PROTOCOL_VERSION,
+      testTiming: { countdown: 0.1, duration: 30 },
+    });
+    const b = await join(host, 'B');
+    const c = await join(host, 'C');
+    await until(() => players(host).length === 3);
+    host.send(ClientMsg.settings, { craft: 'boat' });
+    await until(() => host.state.settings.craft === 'boat' && crew(host, c.sessionId).boat === 3);
+    expect([host, b, c].map((r) => crew(host, r.sessionId).boat)).toEqual([1, 2, 3]);
+    // Vanha asiakas ei osaa venettä.
+    expect(await refusal(sdk().joinById(host.roomId, { name: 'D', playerId: 'D' }))).toBe(
+      JoinRefusal.outdated,
+    );
+    // C siirtyy A:n veneeseen perään; B:n vene on nyt 2.
+    c.send(ClientMsg.boat, 1);
+    await until(() => crew(host, c.sessionId).boat === 1);
+    expect(crew(host, c.sessionId).seat).toBe(BoatSeat.stern);
+    expect(crew(host, b.sessionId).boat).toBe(2);
+
+    b.send(ClientMsg.ready, true);
+    c.send(ClientMsg.ready, true);
+    await until(() => players(host).filter((p) => p.ready).length === 2);
+    host.send(ClientMsg.start);
+    await until(() => host.state.phase === 'playing');
+    const boat = crew(host);
+    const seat = seatPos({ pos: boat, heading: boat.heading }, BoatSeat.stern);
+    expect(crew(host, c.sessionId).x).toBeCloseTo(seat.x, 3);
+    expect(crew(host, c.sessionId).y).toBeCloseTo(seat.y, 3);
+
+    // Viehe vedessä: soutaja ei liikuta venettä.
+    const start = { x: boat.x, y: boat.y };
+    await row(host, 1, 60, [start.x + 10, start.y, 2]);
+    expect(distance(crew(host), start)).toBeLessThan(0.05);
+    // Viehe sisään: vene lähtee, ja kyytiläinen kulkee mukana.
+    await row(host, 61, 60, [0, 0, 0]);
+    await until(() => distance(crew(host), start) > 0.3);
+    const moved = crew(host);
+    const followed = seatPos({ pos: moved, heading: moved.heading }, BoatSeat.stern);
+    await until(() => distance(crew(host, c.sessionId), followed) < 0.01);
+
+    // C:n saalis kuuluu veneelle 1.
+    landNear(c);
+    await until(() => host.state.catches.length === 1);
+    expect(host.state.catches[0]!.boat).toBe(1);
+
+    // Soutaja lähtee: kyytiläinen tarttuu airoihin samasta kohdasta.
+    const at = { ...crew(host) };
+    await host.leave();
+    await until(() => crew(c).seat === BoatSeat.rower);
+    expect(distance(crew(c), at)).toBeLessThan(0.5);
+    await b.leave();
+    await c.leave();
+  });
+
+  it('vanhan asiakkaan aulassa venekisaa ei voi valita', async () => {
+    const host = await sdk().create(ROOM_NAME, {
+      name: 'A',
+      playerId: 'A',
+      protocol: PROTOCOL_VERSION,
+    });
+    const old = await sdk().joinById(host.roomId, { name: 'O', playerId: 'O' });
+    await until(() => players(host).length === 2);
+    host.send(ClientMsg.settings, { craft: 'boat', durationMinutes: 15 });
+    await until(() => host.state.settings.durationMinutes === 15);
+    expect(host.state.settings.craft).toBe('tube');
+    await old.leave();
+    await host.leave();
   });
 });

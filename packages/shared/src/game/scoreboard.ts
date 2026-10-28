@@ -11,6 +11,8 @@ export interface PlayerCatches {
   id: string;
   name: string;
   catches: readonly CatchRecord[];
+  /** Venekisan joukkueen kalastajat (sessionId ja nimi). */
+  members?: readonly { id: string; name: string }[];
 }
 
 export interface PlayerResult extends PlayerCatches {
@@ -40,6 +42,34 @@ export function rankPlayers(players: readonly PlayerCatches[], rule: WinRule): P
     r.rank = prev && prev.summary.score === r.summary.score && prev.at === r.at ? prev.rank : i + 1;
   });
   return rows.map(({ at: _at, ...r }) => r);
+}
+
+/**
+ * Venekisan tulostaulu (#263): vene on joukkue, jonka saaliit lasketaan
+ * yhteen riippumatta siitä, kuka veneestä kalan nosti. Saalis kuuluu
+ * veneelle, jossa se saatiin, vaikka nostaja olisi jo lähtenyt.
+ */
+export function rankBoats(
+  catches: readonly (CatchRecord & { boat: number })[],
+  crews: readonly { id: string; name: string; boat: number }[],
+  rule: WinRule,
+  boatName: (boat: number) => string,
+): PlayerResult[] {
+  type Member = { id: string; name: string };
+  const teams = new Map<
+    number,
+    { id: string; name: string; catches: CatchRecord[]; members: Member[] }
+  >();
+  const team = (boat: number) => {
+    let t = teams.get(boat);
+    if (!t)
+      teams.set(boat, (t = { id: `boat:${boat}`, name: boatName(boat), catches: [], members: [] }));
+    return t;
+  };
+  for (const c of [...crews].filter((c) => c.boat > 0).sort((a, b) => a.boat - b.boat))
+    team(c.boat).members.push({ id: c.id, name: c.name });
+  for (const { boat, ...c } of catches) team(boat).catches.push(c);
+  return rankPlayers([...teams.values()], rule);
 }
 
 /**
