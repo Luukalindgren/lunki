@@ -16,6 +16,17 @@ const BOW_X = STERN_X - BOAT_HULL.length;
 const GUNWALE = 0.42;
 const WALL = 0.07;
 const FLOOR = 0.08;
+/**
+ * Limisaumaiset kylkilankut: kukin lankku on alempaa leveämpi (LAP), joten
+ * saumat näkyvät varjoviivoina, ja alemmat lankut ovat kiinteästi tummempia.
+ */
+const STRAKE_SHADE = [0.62, 0.85, 1] as const;
+/** Sauman varjo lankun alareunassa: tummempi maali ja korkeus (m). */
+const SEAM_SHADE = 0.45;
+const SEAM = 0.03;
+const LAP = 0.022;
+/** Reunalista työntyy ylimmän lankun ulkopuolelle (m). */
+const RAIL_OUT = 0.05;
 /** Hankaimet soutajan vieressä ja airon pituus (m). */
 const OARLOCK_X = 0.3;
 const OAR = 2.3;
@@ -66,49 +77,86 @@ function liftNormals(g: THREE.BufferGeometry, lift: number): THREE.BufferGeometr
   return g;
 }
 
+/**
+ * Tumma varjojuova kyljessä korkeudella y: lankun limisauman tai reunalistan
+ * alla. `inset` = kyljen ääriviiva, jonka päälle juova tulee.
+ */
+function seam(inset: number, y: number, color: number): THREE.Mesh {
+  const band = outline(inset - 0.006);
+  band.holes.push(outline(WALL * 0.4));
+  const mesh = new THREE.Mesh(
+    liftNormals(extrude(band, SEAM), 100),
+    new THREE.MeshLambertMaterial({ color: new THREE.Color(color).multiplyScalar(SEAM_SHADE) }),
+  );
+  mesh.name = 'shell';
+  mesh.position.y = y;
+  return mesh;
+}
+
+/** Monikulmion puolileveys kohdassa x (suurin |y| pystysuoran leikkauksista). */
+function halfWidthAt(poly: readonly THREE.Vector2[], x: number): number {
+  let half = 0;
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i]!;
+    const b = poly[(i + 1) % poly.length]!;
+    if ((a.x - x) * (b.x - x) > 0 || a.x === b.x) continue;
+    const t = (x - a.x) / (b.x - a.x);
+    half = Math.max(half, Math.abs(a.y + (b.y - a.y) * t));
+  }
+  return half;
+}
+
 export function createBoatMesh(color: number): THREE.Group {
   const group = new THREE.Group();
   const hullMat = new THREE.MeshLambertMaterial({ color: COLOR.hull });
   const wood = new THREE.MeshLambertMaterial({ color: COLOR.wood });
 
-  // Laidat kahtena kerroksena: ulkokuori soutajan värillä, jotta vene
-  // tunnistetaan kaukaa kuten rengas, ja sisäpinta puuta. Normaalit ylös
-  // kallistettuina pinnat pysyvät varjossakin värissään.
-  const skin = outline(0);
-  skin.holes.push(outline(WALL * 0.4));
-  const shell = new THREE.Mesh(
-    liftNormals(extrude(skin, GUNWALE + 0.1), 1),
-    new THREE.MeshLambertMaterial({ color }),
-  );
-  shell.name = 'shell';
-  shell.position.y = -0.1;
+  // Laidat kahtena kerroksena: ulkokuori soutajan värillä maalattuina
+  // lankkuina, jotta vene tunnistetaan kaukaa kuten rengas, ja sisäpinta
+  // puuta. Normaalit ylös kallistettuina pinnat pysyvät varjossakin värissään.
+  const height = (GUNWALE + 0.1) / STRAKE_SHADE.length;
+  STRAKE_SHADE.forEach((shade, k) => {
+    const skin = outline(-k * LAP);
+    skin.holes.push(outline(WALL * 0.4));
+    const plank = new THREE.Mesh(
+      // Alempi reuna jää edellisen lankun päälle: sauma varjostuu.
+      liftNormals(extrude(skin, height + (k ? 0.015 : 0)), 0.6),
+      new THREE.MeshLambertMaterial({ color: new THREE.Color(color).multiplyScalar(shade) }),
+    );
+    plank.name = 'shell';
+    plank.position.y = -0.1 + k * height - (k ? 0.015 : 0);
+    group.add(plank);
+    // Lankun alle varjo: palettiin kvantisoitu kuva ei näytä pelkkää sävyeroa.
+    if (k) group.add(seam(-(k - 1) * LAP, -0.1 + k * height - 0.015 - SEAM, color));
+  });
   const lining = outline(WALL * 0.4);
   lining.holes.push(outline(WALL));
   const hull = new THREE.Mesh(liftNormals(extrude(lining, GUNWALE + 0.1), 1), hullMat);
   hull.position.y = -0.1;
-  group.add(shell, hull);
+  group.add(hull);
   const floor = new THREE.Mesh(extrude(outline(WALL), 0.02), wood);
   floor.position.y = FLOOR;
   group.add(floor);
 
-  // Reunalista soutajan värillä: väri näkyy myös ylhäältä ja veneen sisältä.
-  const rim = outline(0);
+  // Reunalista soutajan värillä työntyy kyljen ulkopuolelle kuten oikeissa
+  // veneissä; väri näkyy myös ylhäältä ja veneen sisältä.
+  const rim = outline(-(STRAKE_SHADE.length - 1) * LAP - RAIL_OUT);
   rim.holes.push(outline(WALL * 0.6));
   // Lista on ohut: sen kaikki pinnat valaistaan kuin yläpinta, ettei reuna mustu varjossa.
   const strip = new THREE.Mesh(
-    liftNormals(extrude(rim, 0.05), 100),
+    liftNormals(extrude(rim, 0.06), 100),
     new THREE.MeshLambertMaterial({ color }),
   );
   strip.name = 'stripe';
-  strip.position.y = GUNWALE;
-  group.add(strip);
+  strip.position.y = GUNWALE - 0.01;
+  group.add(strip, seam(-(STRAKE_SHADE.length - 1) * LAP, GUNWALE - 0.01 - SEAM, color));
 
-  // Tuhdot: perä, soutaja ja keula.
+  // Tuhdot: perä, soutaja ja keula, laidasta laitaan rungon levyisinä
+  // (keulan kapeneva runko ei saa jäädä tuhdon sisään).
+  const inside = outline(WALL).getPoints(12);
   for (const x of [SEAT_OFFSET, 0, -SEAT_OFFSET]) {
-    const seat = new THREE.Mesh(
-      new THREE.BoxGeometry(0.28, 0.04, BOAT_HULL.beam - WALL * 2 - 0.12),
-      wood,
-    );
+    const width = 2 * Math.min(halfWidthAt(inside, x - 0.14), halfWidthAt(inside, x + 0.14));
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.04, width), wood);
     seat.position.set(x, 0.3, 0);
     group.add(seat);
   }
