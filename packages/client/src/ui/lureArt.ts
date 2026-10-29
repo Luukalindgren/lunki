@@ -1,15 +1,18 @@
-import { FLY_IDS, LURE_IDS, type FlyId, type LureId } from '@lunki/shared';
+import { FLY_IDS, LURE_IDS, type FlyId, type LureId, type Method } from '@lunki/shared';
 
 /**
- * Vieheiden ja perhojen pikselikuvat (#362) samaan tyyliin kuin kalojen
- * kuvat (`fishArt.ts`): kuva lasketaan koodista, värit ovat pelin paletista
- * ja reunassa on tumma ääriviiva. Jokaisella vieheellä on lyhyt animaatio
- * (lipan siipi pyörii, jigin pyrstö heiluu), joka piirretään kerran
- * vaakaliuskaksi. CSS siirtää liuskaa askelin, joten animaatio ei tarvitse
- * JavaScript-silmukkaa.
+ * Vieheiden, perhojen ja vapojen pikselikuvat (#362) samaan tyyliin kuin
+ * kalojen kuvat (`fishArt.ts`): kuva lasketaan koodista, värit ovat pelin
+ * paletista ja reunassa on tumma ääriviiva. Jokaisella kuvalla on lyhyt
+ * animaatio (lipan siipi pyörii, jigin pyrstö heiluu, kelan kampi pyörii),
+ * joka piirretään kerran vaakaliuskaksi. CSS siirtää liuskaa askelin, joten
+ * animaatio ei tarvitse JavaScript-silmukkaa.
  */
 
 export type LureArtId = LureId | FlyId;
+/** Kalastustavan vapa: virvelivapa kelalla tai perhovapa siimalenkkeineen. */
+export type RodArtId = `${Method}Rod`;
+type ArtId = LureArtId | RodArtId;
 
 /** Kuvan koko pikseleinä ja animaation kuvien määrä. */
 export const LURE_ART_W = 32;
@@ -283,7 +286,94 @@ function weedlessStreamer(frame: number): Shape {
   return (x, y) => (segDist(x, y, 5, 10, 11.5, 13.2) < 0.45 ? 0xc3cbd2 : body(x, y));
 }
 
-const SHAPES: Record<LureArtId, (frame: number) => Shape> = {
+/** Vavan pisteet kahvasta (k = 0) kärkeen (k = 1); taivutus painaa kärkeä. */
+function rodPoints(
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  bend: number,
+): [number, number][] {
+  const len = Math.hypot(x1 - x0, y1 - y0);
+  // Kohtisuora suunta, joka osoittaa vavan alapuolelle.
+  const nx = (y0 - y1) / len;
+  const ny = (x1 - x0) / len;
+  const pts: [number, number][] = [];
+  for (let i = 0; i <= 10; i++) {
+    const k = i / 10;
+    const off = bend * k * k;
+    pts.push([x0 + (x1 - x0) * k + nx * off, y0 + (y1 - y0) * k + ny * off]);
+  }
+  return pts;
+}
+
+/** Kohta k, jossa piste osuu vapaan (paksuus `width(k)`), tai -1. */
+function onRod(x: number, y: number, pts: [number, number][], width: (k: number) => number) {
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [ax, ay] = pts[i]!;
+    const [bx, by] = pts[i + 1]!;
+    const k = (i + 0.5) / (pts.length - 1);
+    if (segDist(x, y, ax, ay, bx, by) < width(k)) return k;
+  }
+  return -1;
+}
+
+/** Virvelivapa: kärki nyökkii, kelan kampi pyörii ja viehe heiluu siiman päässä. */
+function spinRod(frame: number): Shape {
+  const phase = (frame / LURE_FRAMES) * Math.PI * 2;
+  const pts = rodPoints(2.5, 11, 26.5, 3, 1.4 + Math.sin(phase) * 1.4);
+  const [tx, ty] = pts[pts.length - 1]!;
+  const lx = tx + tri(frame) * 1.3;
+  const ly = 11.5;
+  // Kampi kiertää akselin ympäri: sivulta katsottuna nuppi kulkee ylös ja alas.
+  const knobX = 11.2 + Math.sin(phase) * 0.7;
+  const knobY = 12.6 - Math.cos(phase) * 1.6;
+  return (x, y) => {
+    // Lusikka siiman päässä.
+    if (inEllipse(x, y, lx, ly + 0.8, 1, 1.6)) return y < ly + 0.8 ? 0xf6d04d : 0xd23a2a;
+    if (segDist(x, y, tx, ty, lx, ly) < 0.55) return 0xeef2f3;
+    if (Math.hypot(x - knobX, y - knobY) < 0.8) return 0xf6d04d;
+    if (segDist(x, y, 10, 12.6, knobX, knobY) < 0.5) return 0x8e99a4;
+    // Kelan kela: raidat kiertävät rummun ympäri.
+    if (inEllipse(x, y, 7.8, 12.6, 2.1, 1.6))
+      return (Math.floor(x) + frame) % 3 === 0 ? 0x5f6b78 : 0xc3cbd2;
+    if (segDist(x, y, 7.8, 9, 7.8, 11) < 0.55) return 0x8e99a4;
+    const k = onRod(x, y, pts, (k) => (k < 0.2 ? 0.85 : 0.6));
+    if (k < 0) return -1;
+    if (k < 0.2) return 0xb99a68;
+    return k < 0.26 ? 0x8e99a4 : 0x8c1c1c;
+  };
+}
+
+/** Perhovapa: vapa joustaa, ja siiman lenkki aukeaa taaksepäin perho kärjessä. */
+function flyRod(frame: number): Shape {
+  const phase = (frame / LURE_FRAMES) * Math.PI * 2;
+  const p = frame / LURE_FRAMES;
+  const pts = rodPoints(2.5, 11.2, 25, 3.8, 0.6 + Math.sin(phase) * 1.6);
+  const [tx, ty] = pts[pts.length - 1]!;
+  // Lenkki kulkee vasemmalle; ylempi perhon puoleinen haara lyhenee.
+  const loopX = 17 - p * 9;
+  const flyX = loopX + 1 + (1 - p) * 8;
+  const spoke = phase * 0.5;
+  return (x, y) => {
+    if (Math.hypot(x - flyX, y - 1.6) < 0.9) return 0xd23a2a;
+    if (segDist(x, y, tx, ty, loopX, 4.8) < 0.55) return 0xf6d04d;
+    if (x <= loopX && Math.abs(Math.hypot(x - loopX, y - 3.2) - 1.6) < 0.55) return 0xf6d04d;
+    if (segDist(x, y, loopX, 1.6, flyX, 1.6) < 0.55) return 0xf6d04d;
+    // Perhokela kahvan perässä, puola pyörii.
+    const r = Math.hypot(x - 5.2, y - 12.6);
+    if (r < 2) {
+      if (segDist(x, y, 5.2, 12.6, 5.2 + Math.cos(spoke) * 1.6, 12.6 + Math.sin(spoke) * 1.6) < 0.5)
+        return 0xc3cbd2;
+      return r > 1.2 ? 0x5f6b78 : 0x8e99a4;
+    }
+    const k = onRod(x, y, pts, (k) => (k < 0.22 ? 0.8 : 0.55));
+    if (k < 0) return -1;
+    return k < 0.22 ? 0xb99a68 : 0x6a9a3e;
+  };
+}
+
+const SHAPES: Record<ArtId, (frame: number) => Shape> = {
   spoon,
   wobbler,
   jig,
@@ -310,9 +400,12 @@ const SHAPES: Record<LureArtId, (frame: number) => Shape> = {
     }),
   nymph,
   weedlessStreamer,
+  spinRod,
+  flyRod,
 };
 
 export const LURE_ART_IDS: LureArtId[] = [...LURE_IDS, ...FLY_IDS];
+export const ROD_ART_IDS: RodArtId[] = ['spinRod', 'flyRod'];
 
 export interface LurePixels {
   width: number;
@@ -321,8 +414,8 @@ export interface LurePixels {
   data: number[];
 }
 
-/** Vieheen yksi animaatiokuva pikseleinä, reunassa tumma ääriviiva. */
-export function lurePixels(id: LureArtId, frame: number): LurePixels {
+/** Vieheen tai vavan yksi animaatiokuva pikseleinä, reunassa tumma ääriviiva. */
+export function lurePixels(id: ArtId, frame: number): LurePixels {
   const W = LURE_ART_W;
   const H = LURE_ART_H;
   const shape = SHAPES[id](((frame % LURE_FRAMES) + LURE_FRAMES) % LURE_FRAMES);
@@ -349,10 +442,10 @@ export function lurePixels(id: LureArtId, frame: number): LurePixels {
   return { width: W, height: H, data };
 }
 
-const cache = new Map<LureArtId, string>();
+const cache = new Map<ArtId, string>();
 
 /** Kaikki animaatiokuvat vierekkäin yhtenä data-URL:na (välimuistissa). */
-function lureStrip(id: LureArtId): string {
+function lureStrip(id: ArtId): string {
   const hit = cache.get(id);
   if (hit) return hit;
   const canvas = document.createElement('canvas');
@@ -382,7 +475,7 @@ function lureStrip(id: LureArtId): string {
  * CSS-lausekkeena, esim. 'calc(var(--u) * 1.5)' tai '3px'. Kuva on ikkuna,
  * jonka takana liuska liikkuu askelin (`style.css`, `.lure-art`).
  */
-export function lureImage(id: LureArtId, scale = '2px'): HTMLElement {
+export function lureImage(id: ArtId, scale = '2px'): HTMLElement {
   const box = document.createElement('span');
   box.className = 'lure-art';
   box.dataset.lure = id;
@@ -396,4 +489,9 @@ export function lureImage(id: LureArtId, scale = '2px'): HTMLElement {
   img.style.height = `calc(${scale} * ${LURE_ART_H})`;
   box.appendChild(img);
   return box;
+}
+
+/** Kalastustavan vavan animoitu kuva (kalastustavan pikavalikko). */
+export function rodImage(method: Method, scale = '4px'): HTMLElement {
+  return lureImage(`${method}Rod`, scale);
 }

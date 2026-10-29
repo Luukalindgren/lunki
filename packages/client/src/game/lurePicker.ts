@@ -2,7 +2,7 @@ import { METHODS, isFly, type Difficulty, type Method, type Tackle } from '@lunk
 import { t } from '../i18n';
 import { baitName, methodName } from '../i18n/names';
 import type { Hud } from '../ui/hud';
-import { lureImage } from '../ui/lureArt';
+import { lureImage, rodImage } from '../ui/lureArt';
 import { RingMenu } from '../ui/ringMenu';
 import { CONTROLS, type Controls } from './controls';
 import { HeldMenu } from './heldMenu';
@@ -130,17 +130,11 @@ export class LurePicker {
       closeKeys: [...CONTROLS.method.keys, ...CONTROLS.pause.keys],
     });
     const methods = Object.keys(METHODS) as Method[];
-    const options = methods.map((m) => this.withMethod(m));
     this.methodMenu.onPick = (i) => {
       const next = this.withMethod(methods[i]!);
       if (next.method !== this.host.tackle.method) this.host.setTackle(next);
     };
-    this.methodMenu.setItems(
-      options.map((v) => ({
-        icon: lureImage(isFly(v) ? v.fly : v.lure, '2px'),
-        label: methodName(v.method),
-      })),
-    );
+    this.methodMenu.setItems(methods.map((m) => ({ icon: rodImage(m), label: methodName(m) })));
     this.methodMenu.show(Math.max(0, methods.indexOf(this.host.tackle.method)));
   }
 

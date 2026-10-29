@@ -1,13 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { PALETTE_HEX } from '../engine/palette';
-import { LURE_ART_H, LURE_ART_IDS, LURE_ART_W, LURE_FRAMES, lurePixels } from './lureArt';
+import {
+  LURE_ART_H,
+  LURE_ART_IDS,
+  LURE_ART_W,
+  LURE_FRAMES,
+  ROD_ART_IDS,
+  lurePixels,
+} from './lureArt';
 
 const OUTLINE = 0x0b0f14;
+/** Vieheet, perhot ja kalastustapojen vavat. */
+const ART_IDS = [...LURE_ART_IDS, ...ROD_ART_IDS];
 
-describe('vieheiden kuvat', () => {
-  it('jokaisella vieheellä ja perholla on samankokoiset animaatiokuvat paletin väreillä', () => {
+describe('vieheiden ja vapojen kuvat', () => {
+  it('jokaisella vieheellä, perholla ja vavalla on samankokoiset animaatiokuvat paletin väreillä', () => {
     const palette = new Set<number>(PALETTE_HEX);
-    for (const id of LURE_ART_IDS) {
+    for (const id of ART_IDS) {
       for (let f = 0; f < LURE_FRAMES; f++) {
         const px = lurePixels(id, f);
         expect(px.width).toBe(LURE_ART_W);
@@ -30,7 +39,7 @@ describe('vieheiden kuvat', () => {
   });
 
   it('animaatio liikkuu: peräkkäiset kuvat eroavat', () => {
-    for (const id of LURE_ART_IDS) {
+    for (const id of ART_IDS) {
       for (let f = 0; f < LURE_FRAMES; f++) {
         const a = lurePixels(id, f).data.join(',');
         const b = lurePixels(id, f + 1).data.join(',');
@@ -39,9 +48,9 @@ describe('vieheiden kuvat', () => {
     }
   });
 
-  it('vieheet näyttävät erilaisilta', () => {
+  it('kuvat näyttävät erilaisilta', () => {
     const seen = new Set<string>();
-    for (const id of LURE_ART_IDS) {
+    for (const id of ART_IDS) {
       const key = lurePixels(id, 0).data.join(',');
       expect(seen.has(key)).toBe(false);
       seen.add(key);
