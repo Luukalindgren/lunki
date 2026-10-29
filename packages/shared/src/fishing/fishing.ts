@@ -397,13 +397,13 @@ export const FLY = {
 } as const;
 
 /**
- * Nosto väsytyksen lopuksi (#366). Pienin kokoluokka heilautetaan heti
- * kyytiin, isommat nostetaan käsin ja suurimmat haaviin. Voimissaan oleva
- * kala voi riuhtaista viimeisen kerran, ja nosto juuri silloin voi päästää
- * sen irti.
+ * Nosto väsytyksen lopuksi (#366). Jokainen kala nostetaan omalla
+ * painalluksella: pienin kokoluokka heilautetaan kyytiin, isommat nostetaan
+ * käsin ja suurimmat haaviin. Voimissaan oleva kala voi riuhtaista viimeisen
+ * kerran, ja nosto juuri silloin voi päästää sen irti.
  */
 export const LANDING = {
-  /** Kokoluokasta (`sizeClass`) alkaen nostetaan käsin; pienemmät heilautetaan heti. */
+  /** Kokoluokasta (`sizeClass`) alkaen nostetaan käsin; pienemmät heilautetaan kyytiin. */
   handSize: 1,
   /** Kokoluokasta alkaen haaviin (suurkala ja jättikala). */
   netSize: 3,
@@ -1033,7 +1033,7 @@ function fight(
   hold: number,
   land: boolean,
 ): void {
-  const { diff, rng, pop } = fish;
+  const { diff, rng } = fish;
   const world = { isWater: ctx.isWater, depthAt: ctx.depthAt };
   if (s.landing) {
     stepLanding(s, f, tip, fish, world, events, dt, land);
@@ -1119,12 +1119,10 @@ function fight(
     f.depth <= FIGHT.landDepth &&
     s.landCooldown === 0
   ) {
-    const size = sizeClass(f.species, f.weight);
-    if (size < LANDING.handSize) landFish(s, f, pop, world, rng, events, 'swing');
-    else {
-      s.landing = { age: 0, net: size >= LANDING.netSize, lunge: 0 };
-      events.surfaced = true;
-    }
+    // Pintaan noussut kala odottaa aina erillistä nostopainallusta: pohjassa
+    // pidetty kelaus ei nosta pientäkään kalaa.
+    s.landing = { age: 0, net: sizeClass(f.species, f.weight) >= LANDING.netSize, lunge: 0 };
+    events.surfaced = true;
   }
 }
 
@@ -1205,7 +1203,8 @@ function stepLanding(
     return;
   }
   if (land) {
-    landFish(s, f, pop, world, rng, events, l.net ? 'net' : 'hand');
+    const by = l.net ? 'net' : sizeClass(f.species, f.weight) < LANDING.handSize ? 'swing' : 'hand';
+    landFish(s, f, pop, world, rng, events, by);
     return;
   }
   if (l.age > LANDING.calm && rng.chance(diff.landing.lungeRate * f.stamina, dt)) {
