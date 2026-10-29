@@ -24,12 +24,15 @@ import {
   writeLine,
   type LinePoint,
 } from './lineHang';
-import { lureColor } from './lureColor';
+import { lureLook } from './lureColor';
 import { FLY_LINE_POINTS, flyLinePose, flyLineProfile, flyLineWorld } from './flyLine';
 import { flyRodTip } from './povRod';
 import { SplashRings } from './splashRings';
 import { LandingView } from './landingView';
 import { strikeTaut } from './rodMotion';
+
+/** Vieheen merkkien tahti (s), pohjakosketuksen raja (m) ja pohjan pölläys. */
+const LURE_SIGNS = { followEvery: 0.8, bottomEvery: 0.7, touch: 0.05, mud: 0x8a6a42 } as const;
 
 /** Siiman piirtokorkeus pinnalla. */
 const SURFACE_Y = 0.04;
@@ -54,6 +57,12 @@ export class FishingView {
   private readonly flyLine: THREE.Line;
   private readonly fly: THREE.Mesh;
   private readonly splash = new SplashRings();
+  /** Vieheen merkit: seuraava kala, pohjakosketus ja tärpin pyörre. */
+  private readonly lureSigns = new SplashRings(5);
+  private followTimer = 0;
+  private bottomTimer = 0;
+  /** Viehettä seuraavan kalan paikka (pyörteet vieheen takana), null = ei seuraajaa. */
+  follower: Vec2 | null = null;
   private readonly fishShadow: THREE.Mesh;
   /** Väsynyt kala pinnassa ja nosto kyytiin (#366). */
   private readonly landing = new LandingView();
@@ -112,7 +121,7 @@ export class FishingView {
     this.fly.visible = false;
     this.group.add(this.fly);
 
-    this.group.add(this.splash.group);
+    this.group.add(this.splash.group, this.lureSigns.group);
 
     // Pinnan lähellä väsytettävä kala näkyy tummana varjona.
     const shape = new THREE.Shape();
@@ -228,8 +237,18 @@ export class FishingView {
           : toWorld({ x: s.lure.x, y: s.lure.y + height * 0.35 }, 0.3),
       );
       this.lureShadow.position.copy(toWorld(s.lure, 0.03));
-      (this.lure.material as THREE.MeshBasicMaterial).color.setHex(lureColor(s.depth, s.onLand));
-      this.lure.scale.setScalar(1 + height * 0.08);
+      // Merkki kertoo vieheen tilan ilman luotainta: syvyys, pohja, rikka, tartunta.
+      const bottom = ctx.depthAt(s.lure);
+      const look = lureLook({
+        depth: s.stage === 'water' ? s.depth : 0,
+        bottom,
+        onLand: s.onLand,
+        snag: s.snag !== null,
+        fouled: s.fouled,
+      });
+      (this.lure.material as THREE.MeshBasicMaterial).color.setHex(look.color);
+      this.lure.scale.setScalar(look.scale * (1 + height * 0.08));
+      if (s.stage === 'water') this.updateLureSigns(s, bottom, dt);
       // Siima roikkuu vavan kärjestä kaarena veteen ja jatkaa pinnalla fysiikan muotoa.
       this.taut += (tautness(s.tension) - this.taut) * Math.min(1, dt * 4);
       // Tärppi: kala nykii viehettä, ja siima kiristyy ja löystyy nykäyksittäin.
@@ -262,6 +281,32 @@ export class FishingView {
       ctx.heading,
     );
     this.splash.update(dt);
+    this.lureSigns.update(dt);
+  }
+
+  /** Tärppi: pyörre vieheen kohdalla, kuin kala kääntyisi vieheen perässä. */
+  strikeSwirl(at: Vec2): void {
+    this.lureSigns.start(at, 0.8, 0.8);
+    this.lureSigns.start(at, 0.45, 0.6);
+  }
+
+  /**
+   * Seuraava kala nostaa pieniä pyörteitä vieheen taakse, ja pohjaa
+   * hipova viehe pöllyttää ruskeaa rengasta.
+   */
+  private updateLureSigns(s: FishingState, bottom: number, dt: number): void {
+    const free = s.hookedId === null && s.snag === null && !s.onLand;
+    this.followTimer -= dt;
+    if (free && this.follower && this.followTimer <= 0) {
+      this.followTimer = LURE_SIGNS.followEvery;
+      this.lureSigns.start(this.follower, 0.7, 0.9);
+    }
+    this.bottomTimer -= dt;
+    const touching = s.depth >= bottom - LURE_SIGNS.touch && s.lureSpeed > 0.05;
+    if (free && touching && this.bottomTimer <= 0) {
+      this.bottomTimer = LURE_SIGNS.bottomEvery;
+      this.lureSigns.start(s.lure, 0.6, 0.7, LURE_SIGNS.mud);
+    }
   }
 
   /** Perhoheitossa siima ilmassa silmukkana vavan kärjestä perhoon (#236). */

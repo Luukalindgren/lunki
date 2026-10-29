@@ -431,6 +431,7 @@ export class FishingController {
     }
     if (follow) sounds.play('follow');
     if (events.strike) {
+      host.fishingView.strikeSwirl(host.fishing.lure);
       sounds.play('strike');
       hud.showMessage(t('game.strike'), 1.2);
     }
