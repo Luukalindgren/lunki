@@ -920,7 +920,7 @@ export const fi = {
     '{anchor} = laske tai nosta ankkuri. Pohjassa se pitää paikallaan köyden mitan sisällä (köyttä 1,5 kertaa syvyys).\nAnkkurissa ei potkita eikä soudeta. Myrskyssä ankkuri laahaa, ja trombi repäisee sen irti.',
   'manual.move.boat': 'Vene',
   'manual.move.boatText':
-    'Moninpelin aulassa voi valita oman veneen tai mennä toisen kyytiin. Veneessä on soutaja ja enintään kaksi kalastajaa, ja venekunta on yksi joukkue.\nSoutaja: {back} = souda, {forward} = huopaa, {turn} = käännä venettä.\n{oars} = airot tai vapa. Heittäessä ja kelatessa ei voi soutaa, mutta viehe vedessä voi uistella.\n{seat} = vaihda paikkaa, kun vene on lähes paikallaan.',
+    'Yksinpelin asetuksissa voi lähteä veneellä renkaan sijaan. Moninpelin aulassa voi valita oman veneen tai mennä toisen kyytiin. Veneessä on soutaja ja enintään kaksi kalastajaa, ja venekunta on yksi joukkue.\nSoutaja: {back} = souda, {forward} = huopaa, {turn} = käännä venettä.\n{oars} = airot tai vapa. Heittäessä ja kelatessa ei voi soutaa, mutta viehe vedessä voi uistella.\n{seat} = vaihda paikkaa, kun vene on lähes paikallaan.',
   'manual.move.wind': 'Tuuli ja törmäykset',
   'manual.move.windText':
     'Tuuli ajelehtii rengasta myötätuuleen, myrskyssä selvästi. Potkimalla pääsee vastatuuleenkin.\nRantaan ja kaislikkoon ei pääse, ja kalastajat tönäisevät toisiaan törmätessään. Raskas vene tönäisee rengasta enemmän kuin rengas venettä.',
