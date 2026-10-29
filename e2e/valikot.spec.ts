@@ -340,11 +340,27 @@ test('valikkoruudut mahtuvat reunoineen ruutuun', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('.start-panel')).toBeVisible();
   expect(await inside()).toBe(true);
-  for (const name of ['Yksinpeli', 'Järvikartta', 'Ennätykset', 'Palaute']) {
+  for (const name of ['Yksinpeli', 'Järvikartta', 'Ennätykset', 'Ohjeet', 'Palaute']) {
     await page.getByRole('button', { name, exact: true }).click();
     await expect(page.locator('.screen-panel h2').first()).toBeVisible();
     expect(await inside(), name).toBe(true);
     await page.goto('/');
   }
+  errors.check();
+});
+
+test('Ohjeet: osiot päävalikosta, ohjaus laitteen mukaan (#401)', async ({ page, isMobile }) => {
+  const errors = watchErrors(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Ohjeet', exact: true }).click();
+  await expect(page.locator('.screen-panel h2').first()).toHaveText('Ohjeet');
+  await expect(page.locator('.manual h3').first()).toHaveText('Kelluntarengas');
+  await page.getByRole('button', { name: 'Perho', exact: true }).click();
+  await expect(page.locator('.manual h3').first()).toHaveText('Perhoheitto');
+  await expect(page.locator('.manual')).toContainText(
+    isMobile ? 'SIIMA pohjassa = siimakäsi' : 'Hiiren vasen/välilyönti pohjassa = siimakäsi',
+  );
+  await page.getByRole('button', { name: 'Takaisin' }).click();
+  await expect(page.locator('.start-panel')).toBeVisible();
   errors.check();
 });

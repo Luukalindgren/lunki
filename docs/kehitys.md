@@ -120,7 +120,11 @@ Koodi: `packages/client/src/ui/screens.ts` (`showSettings`, `showPause`).
   (`Screens.showSettings`): Näyttö (HUD-koko, näkökenttä, opastus), Äänet
   ja Kieli.
   Sama näkymä aukeaa päävalikosta ja taukovalikosta.
-- Taukovalikko on lyhyt: Jatka, Asetukset, Koko näyttö, Lopeta kisa.
+- Taukovalikko on lyhyt: Jatka, Asetukset, Ohjeet, Koko näyttö, Lopeta kisa.
+- **Ohjeet** (`Screens.showManual`, sisältö `ui/manual.ts`, #401) kertovat
+  mekaniikat osioittain päävalikosta ja tauolta. Ohjaus täytetään
+  `CONTROLS`-kartasta ja vaikeustason luvut `DIFFICULTIES`-taulukosta. Kun
+  mekaniikka muuttuu, päivitä sen kuvaus samassa PR:ssä.
 - Varusteet laitetaan kuntoon vain päävalikon Varusteet-näkymässä (#383).
   Yksinpelin asetuksissa ja aulassa ne näkyvät vain yhteenvetona, ja kisassa
   vieheet vaihdetaan viehepakin pikavalikosta (R) ja kalastustapa omasta

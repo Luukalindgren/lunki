@@ -111,6 +111,7 @@ import {
   type MsgKey,
 } from '../i18n';
 import { controlText } from '../game/controls';
+import { MANUAL_SECTIONS, manualTopics, type ManualSection } from './manual';
 import { isMine } from '../game/raceScoreboard';
 import { loadCraft, saveCraft } from '../game/tackle';
 import {
@@ -326,6 +327,8 @@ export class Screens {
   private resultsView: ResultsView = 'list';
   /** Kenen tilastot tulossivulla näkyvät (moninpeli). */
   private statsPlayer: string | null = null;
+  /** Ohjeiden viimeksi luettu osio. */
+  private manualSection: ManualSection = 'move';
   /** Näppäimistöohjaus (#237). */
   private readonly nav: MenuNav;
   /** Kohdistettu kohde näkymittäin, jotta paluu palaa samaan kohtaan. */
@@ -402,6 +405,8 @@ export class Screens {
     onTackle: () => void;
     onLakeMap: () => void;
     onRecords: () => void;
+    /** Ohjeet: kalastuksen mekaniikat ja ohjaus (#401). */
+    onManual: () => void;
     onSettings: () => void;
     onFeedback: () => void;
     onCredits: () => void;
@@ -420,6 +425,7 @@ export class Screens {
       [t('menu.tackle'), actions.onTackle],
       [t('menu.lakeMap'), actions.onLakeMap],
       [t('menu.records'), actions.onRecords],
+      [t('menu.manual'), actions.onManual],
       [t('menu.settings'), actions.onSettings],
       [t('menu.feedback'), actions.onFeedback],
       [t('menu.credits'), actions.onCredits],
@@ -1373,6 +1379,49 @@ export class Screens {
     return row;
   }
 
+  /**
+   * Ohjeet (#401): kalastuksen mekaniikat osioittain. Ohjaus näkyy pelaajan
+   * ohjaustavalla, ja valittu osio säilyy, kun näkymä avataan uudelleen.
+   */
+  showManual(onBack: () => void): void {
+    const panel = this.panel('manual');
+    panel.classList.add('manual-panel');
+    const content = document.createElement('div');
+    content.className = 'manual';
+    const render = () => {
+      content.replaceChildren(
+        ...manualTopics(this.manualSection).map((topic) => {
+          const section = document.createElement('section');
+          const list = document.createElement('ul');
+          for (const line of topic.lines) list.append(h('li', line));
+          section.append(h('h3', topic.title), list);
+          return section;
+        }),
+      );
+    };
+    const sections = this.choice(
+      '',
+      MANUAL_SECTIONS.map((id) => [id, t(`manual.section.${id}` as const)]),
+      this.manualSection,
+      (v) => {
+        this.manualSection = v as ManualSection;
+        render();
+        // Uusi osio alkaa alusta; osiot pysyvät näkyvissä vieritettäessä.
+        panel.scrollTop = 0;
+      },
+    );
+    sections.classList.add('manual-sections');
+    render();
+    panel.append(
+      h('h2', t('manual.title')),
+      h('p', t('manual.intro'), 'hint'),
+      sections,
+      content,
+      this.buttons([[t('common.back'), onBack]]),
+    );
+    this.show(panel, { back: onBack });
+  }
+
   /** Tekijät, kartta-aineistojen lähdemaininnat ja kirjastojen lisenssit. */
   showCredits(onBack: () => void): void {
     const panel = this.panel('credits');
@@ -1627,13 +1676,15 @@ export class Screens {
     /** Pelikellon aika järvellä, esim. 05:12. */
     clock?: string;
     onSettings: () => void;
+    onManual: () => void;
     /** Paluu alinäkymästä: kohdistus sen napille Jatka-napin sijaan. */
-    from?: 'settings';
+    from?: 'settings' | 'manual';
   }): void {
     const panel = this.panel('pause');
     const menu = this.buttons([
       [t('pause.resume'), p.onResume],
       [t('menu.settings'), p.onSettings],
+      [t('menu.manual'), p.onManual],
       [
         p.multiplayer
           ? t('pause.leaveRace')
@@ -1658,7 +1709,7 @@ export class Screens {
     );
     this.show(panel);
     if (p.from) {
-      const label = t('menu.settings');
+      const label = t(p.from === 'manual' ? 'menu.manual' : 'menu.settings');
       [...menu.querySelectorAll('button')].find((b) => b.textContent === label)?.focus();
     }
   }
