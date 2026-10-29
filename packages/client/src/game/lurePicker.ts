@@ -4,7 +4,6 @@ import { baitName } from '../i18n/names';
 import type { Hud } from '../ui/hud';
 import { lureImage } from '../ui/lureArt';
 import { RingMenu } from '../ui/ringMenu';
-import type { BoxBinding } from '../ui/screens';
 import { CONTROLS, type Controls } from './controls';
 import {
   boxTackles,
@@ -12,7 +11,6 @@ import {
   loadTackleBox,
   loseFromBox,
   nextInBox,
-  saveTackleBox,
   type TackleBox,
 } from './tackleBox';
 
@@ -34,6 +32,7 @@ export interface LurePickerHost {
  * seuraavaan lokeroon, pohjassa pitäminen avaa pikavalikon vieheiden
  * kuvin. Realistisella menetetty viehe poistuu kisan pakista; muilla
  * vaikeustasoilla pakki on sama kuin Varusteet-näkymässä tallennettu.
+ * Kisassa pakkia ei muokata; se laitetaan kuntoon päävalikon Varusteissa (#383).
  */
 export class LurePicker {
   box: TackleBox = loadTackleBox();
@@ -41,10 +40,15 @@ export class LurePicker {
   /** Kuinka kauan R on ollut pohjassa, tai -1 kun ei odoteta. */
   private held = -1;
 
-  constructor(private readonly host: LurePickerHost) {}
+  constructor(private readonly host: LurePickerHost) {
+    // Kisa alkaa pakin vieheellä: muuten R:n kierto alkaisi pakin ulkopuolelta.
+    const tk = host.tackle;
+    const first = boxTackles(tk, this.box)[0];
+    if (!host.spectating && first && currentSlot(tk, this.box) < 0) host.setTackle(first);
+  }
 
-  /** Realistisella pakkia ei täydennetä kesken kisan. */
-  private get locked(): boolean {
+  /** Realistisella menetetty viehe on poissa loppukisan. */
+  private get realistic(): boolean {
     return this.host.difficulty === 'realistic';
   }
 
@@ -103,24 +107,12 @@ export class LurePicker {
    * otetaan käyttöön; palauttaa ilmoitukseen lisättävän rivin tai null.
    */
   lost(tk: Tackle): string | null {
-    if (!this.locked) return null;
+    if (!this.realistic) return null;
     const { box, next, left } = loseFromBox(tk, this.box);
     if (!next) return currentSlot(tk, this.box) >= 0 ? t('box.lastLure') : null;
     this.box = box;
     this.host.setTackle(next);
     return t('box.lost', { n: left });
-  }
-
-  /** Tauon Varusteet-näkymälle: kisan pakki. */
-  binding(): BoxBinding {
-    return {
-      current: this.box,
-      onChange: (b) => {
-        this.box = b;
-        if (!this.locked) saveTackleBox(b);
-      },
-      locked: this.locked,
-    };
   }
 
   dispose(): void {

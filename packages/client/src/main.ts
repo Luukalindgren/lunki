@@ -290,6 +290,7 @@ function showMenu() {
       : undefined,
     onSolo: () => showSoloSetup(settings),
     onMultiplayer: () => showMultiplayer(),
+    onTackle: () => screens.showTackle({ current: loadTackle(), onChange: saveTackle }, showMenu),
     onLakeMap: () => screens.showLakeMap(showMenu),
     onRecords: () => void showRecords(),
     onSettings: showMenuSettings,
@@ -320,7 +321,7 @@ function showSoloSetup(s: CompetitionSettings) {
         () => showSoloSetup(current),
       ),
     { current: loadAppearance(), onChange: saveAppearance },
-    { current: loadTackle(), onChange: saveTackle },
+    loadTackle(),
   );
 }
 
@@ -497,10 +498,6 @@ function enterLobby(s: NetSession) {
         onSeat: (seat) => s.sendSeat(seat),
         onLeave: leaveRoom,
         onSettings: (patch) => s.changeSettings(patch),
-        onTackle: (t) => {
-          saveTackle(t);
-          s.sendTackle(t);
-        },
         onAppearance: (a) => {
           saveAppearance(a);
           s.sendAppearance(a);
@@ -634,10 +631,10 @@ function togglePause() {
 }
 
 /** Taukovalikko; `from` kohdistaa alinäkymän napin, josta palattiin. */
-function showPauseMenu(from?: 'tackle' | 'settings') {
+function showPauseMenu(from?: 'settings') {
   const g = game;
   if (!g) return;
-  const back = (sub: 'tackle' | 'settings') => () => {
+  const back = (sub: 'settings') => () => {
     // Moninpelin kisa voi päättyä alinäkymän ollessa auki.
     if (paused && game === g) showPauseMenu(sub);
   };
@@ -652,14 +649,6 @@ function showPauseMenu(from?: 'tackle' | 'settings') {
     multiplayer: session !== null,
     untimed: !session && isUntimed(g.settings),
     clock: formatClock(g.clock),
-    // Katsoja ei kalasta.
-    onTackle: g.spectating
-      ? undefined
-      : () =>
-          screens.showPauseTackle(
-            { current: g.tackle, onChange: (t) => g.setTackle(t), box: g.lurePicker.binding() },
-            back('tackle'),
-          ),
     onSettings: () => {
       const open = () => screens.showSettings(settingsControls(open), back('settings'));
       open();

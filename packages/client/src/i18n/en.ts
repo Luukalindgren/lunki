@@ -168,6 +168,7 @@ export const en: Record<keyof typeof fi, string> = {
   'menu.rejoin': 'Back to competition {code}',
   'menu.solo': 'Single player',
   'menu.multiplayer': 'Multiplayer',
+  'menu.tackle': 'Tackle',
   'menu.lakeMap': 'Lake map',
   'menu.records': 'Records',
   'menu.settings': 'Settings',
@@ -223,6 +224,7 @@ export const en: Record<keyof typeof fi, string> = {
     'In a thunderstorm lightning can strike if your rod is up: reel your lure in. A big wave tips the tube over from the side: turn to face the wave. A lure cast onto land or a pier gets stuck, and the line has to be cut.',
   'settings.colors': 'Your colours',
   'settings.tackle': 'Your tackle',
+  'settings.tackleAtHome': 'Tackle: {tackle}. Change it in the Tackle view of the main menu.',
   'settings.changeColors': 'Change colours',
   'settings.display': 'Display',
   'settings.guide': 'Guide',
@@ -265,8 +267,7 @@ export const en: Record<keyof typeof fi, string> = {
     'Thin line casts further but snaps more easily. A pike can bite through the line without a leader.',
   'tackle.beginner': 'Beginner tackle',
   'tackle.lureInRace':
-    'You change the lure during the competition ({lure}) or from the pause menu.',
-  'tackle.rodLocked': 'Rod: {rod}. The rod stays the same for the whole competition.',
+    'In the competition your lures are in the box: {lure} switches to the next, and holding {lure} opens the quick menu.',
   'box.title': 'Tackle box',
   'box.flyTitle': 'Fly box',
   'box.count': '{n}/{max}',
@@ -274,9 +275,7 @@ export const en: Record<keyof typeof fi, string> = {
   'box.empty': 'Empty',
   'box.beginner': 'Beginner box',
   'box.hint':
-    'Up to 6 slots. {lure} cycles them in order, and holding {lure} opens the quick menu. The same lure can go in with different settings.',
-  'box.locked':
-    'On realistic the box cannot be refilled during a competition: a lure lost to a broken line stays in the lake.',
+    'Up to {max} slots. {lure} cycles them in order, and holding {lure} opens the quick menu. The same lure can go in with different settings.',
   'box.lost': '{n} left in the box',
   'box.lastLure': 'Last lure: it stays in use as a spare',
   'tackle.method': 'Method',
@@ -291,8 +290,6 @@ export const en: Record<keyof typeof fi, string> = {
   'tackle.flyLeaderOption': '{name} ({kg} kg)',
   'tackle.flyHint':
     'A fly is not reeled but stripped ({strip}). Let go of the line and a fish takes it through your fingers. Reel the slack onto the reel ({reelSlack}) and then fight the fish with the drag.',
-  'tackle.methodInRace':
-    'You can switch between spinning and fly during the competition while the lure is in.',
 
   // --- Starting spot ---
   'startPicker.choose': 'Choose this',
@@ -451,7 +448,6 @@ export const en: Record<keyof typeof fi, string> = {
   'pause.fovCapped': 'Field of view {fov}° ({fits}° on this screen)',
   'pause.continues': 'The competition goes on for the others.',
   'pause.resume': 'Continue',
-  'pause.tackle': 'Tackle',
   'pause.leaveRace': 'Leave the competition',
   'pause.endRace': 'End the competition',
   'pause.endSession': 'Stop and weigh in',

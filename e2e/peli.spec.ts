@@ -122,22 +122,25 @@ test.describe('yksinpeli', () => {
     errors.check();
   });
 
-  test('perho: kalastustapa taukovalikosta, rytmiheitto ja vedot välilyönnillä (#234, #235)', async ({
+  test('perho: kalastustapa päävalikon Varusteista, rytmiheitto ja vedot välilyönnillä (#234, #235)', async ({
     page,
     isMobile,
   }) => {
     test.skip(isMobile, 'puhelimet: ks. kosketus.spec.ts');
     const errors = watchErrors(page);
-    await startSolo(page);
     const status = async () => (await page.locator('.hud-status').textContent()) ?? '';
     const metres = (re: RegExp) => async () =>
       Number(re.exec(await status())?.[1]?.replace(',', '.') ?? 0);
 
-    await page.keyboard.press('Escape');
+    // Varusteet laitetaan kuntoon päävalikossa ennen kisaa (#383).
+    await page.goto(soloUrl());
     await page.getByRole('button', { name: 'Varusteet' }).click();
     await page.getByRole('button', { name: 'Perho', exact: true }).click();
     await page.getByRole('button', { name: 'Takaisin' }).click();
-    await page.getByRole('button', { name: 'Jatka' }).click();
+    await page.getByRole('button', { name: 'Yksinpeli' }).click();
+    await expect(page.getByText(/Varusteet: Perho/)).toBeVisible();
+    await page.getByRole('button', { name: 'Aloita kisa' }).click();
+    await raceRunning(page);
     await expect.poll(status).toContain('Hauki-streameri');
     await expect.poll(status).toContain('Löysää 0,0 m');
 

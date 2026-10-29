@@ -15,15 +15,15 @@ import {
 } from '@lunki/shared';
 
 /**
- * Viehepakki (#365): pelaaja valitsee mukaan enintään kuusi viehettä
+ * Viehepakki (#365): pelaaja valitsee mukaan enintään kahdeksan viehettä
  * säätöineen ("Jigi 5 g", "Jigi 20 g", "Vaappu syvä") ja perhorasiaan
- * enintään kuusi perhoa. R ja viehenappi kiertävät pakin lokerot
+ * enintään kahdeksan perhoa. R ja viehenappi kiertävät pakin lokerot
  * järjestyksessä, ja pikavalikko näyttää ne. Pakki on vain selaimen tietoa:
  * palvelin näkee käytössä olevan vieheen (Tackle) kuten ennenkin.
  */
 
-/** Lokeroiden enimmäismäärä (Luuka 2026-10-28). */
-export const BOX_SLOTS = 6;
+/** Lokeroiden enimmäismäärä (Luuka 2026-10-29: kahdeksan, #383). */
+export const BOX_SLOTS = 8;
 
 /** Virvelin lokero: viehe ja sen säätö (jigillä paino, vaapulla syvyys). */
 export interface LureSlot {

@@ -1,5 +1,32 @@
-/** Valikon napit ympyrällä: säde osuutena valikon koosta. */
-const RING = 0.38;
+/** Mittasuhteet valikon säteestä: keskireikä, lohkojen sisäreuna ja kuvien paikka. */
+const HOLE = 0.36;
+const INNER = 0.34;
+const ICON = (INNER + 1) / 2;
+const KEY = 0.9;
+/** Lohkojen väli (viiva) puolikkaana, osuutena säteestä. */
+const GAP = 0.012;
+/** Valittu lohko nousee näin monta pikseliä ulospäin. */
+const LIFT = 5;
+
+/** Piste valikon laatikossa prosentteina: kulma ja etäisyys keskeltä (osuus säteestä). */
+const at = (angle: number, r: number) =>
+  `${(50 + Math.cos(angle) * r * 50).toFixed(2)}% ${(50 + Math.sin(angle) * r * 50).toFixed(2)}%`;
+
+/**
+ * Lohkon muoto (clip-path): rengaslohko kulmasta a0 kulmaan a1. Reunat
+ * siirretään puoli väliä sisään, joten lohkojen väliin jää tasapaksu viiva.
+ */
+function sectorPath(a0: number, a1: number): string {
+  const pts: string[] = [];
+  const steps = 12;
+  const outer = Math.asin(GAP);
+  for (let k = 0; k <= steps; k++)
+    pts.push(at(a0 + outer + ((a1 - a0 - 2 * outer) * k) / steps, 1));
+  const inner = Math.asin(GAP / INNER);
+  for (let k = steps; k >= 0; k--)
+    pts.push(at(a0 + inner + ((a1 - a0 - 2 * inner) * k) / steps, INNER));
+  return `polygon(${pts.join(', ')})`;
+}
 
 export interface RingItem {
   icon: HTMLElement;
@@ -28,6 +55,7 @@ export class RingMenu {
   onPick: ((index: number) => void) | null = null;
   private buttons: HTMLButtonElement[] = [];
   private items: RingItem[] = [];
+  private readonly hole: HTMLDivElement;
   private readonly caption: HTMLDivElement;
   private selected = 0;
 
@@ -41,37 +69,55 @@ export class RingMenu {
     this.root.setAttribute('role', 'menu');
     // Klikkaus valikossa ei tähtää eikä heitä pelissä.
     this.root.addEventListener('pointerdown', (e) => e.stopPropagation());
+    // Keskellä valitun kohdan nimi.
+    this.hole = document.createElement('div');
+    this.hole.className = 'ring-hole';
+    this.hole.style.width = this.hole.style.height = `${HOLE * 100}%`;
     this.caption = document.createElement('div');
     this.caption.className = `ring-caption ${opts.captionClass}`;
-    this.root.appendChild(this.caption);
+    this.hole.appendChild(this.caption);
+    this.root.appendChild(this.hole);
     parent.appendChild(this.root);
     window.addEventListener('keydown', this.onKey, true);
   }
 
-  /** Valikon kohdat; vanhat napit korvataan. */
+  /** Valikon kohdat; vanhat lohkot korvataan. */
   setItems(items: RingItem[]): void {
     for (const b of this.buttons) b.remove();
     this.items = items;
+    const n = items.length;
     this.buttons = items.map((item, i) => {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = `ring-option ${this.opts.optionClass}`;
       b.setAttribute('role', 'menuitem');
-      const angle = -Math.PI / 2 + (i / items.length) * Math.PI * 2;
-      b.style.left = `${50 + Math.cos(angle) * RING * 100}%`;
-      b.style.top = `${50 + Math.sin(angle) * RING * 100}%`;
+      // Ensimmäinen lohko ylhäällä, sitten myötäpäivään.
+      const mid = -Math.PI / 2 + (i / n) * Math.PI * 2;
+      const half = Math.PI / n;
+      b.style.clipPath = sectorPath(mid - half, mid + half);
+      b.style.setProperty('--lx', `${(Math.cos(mid) * LIFT).toFixed(1)}px`);
+      b.style.setProperty('--ly', `${(Math.sin(mid) * LIFT).toFixed(1)}px`);
+      const place = (el: HTMLElement, r: number) => {
+        const [x, y] = at(mid, r).split(' ');
+        el.style.left = x!;
+        el.style.top = y!;
+        return el;
+      };
+      const cell = document.createElement('span');
+      cell.className = 'ring-cell';
+      cell.append(item.icon);
       const key = document.createElement('span');
       key.className = 'ring-key';
       key.textContent = String(i + 1);
-      b.append(item.icon, key);
+      b.append(place(cell, ICON), place(key, KEY));
       b.title = item.label;
       b.setAttribute('aria-label', `${i + 1} ${item.label}`);
       b.addEventListener('click', () => this.pick(i));
       b.addEventListener('pointerenter', () => this.select(i));
-      this.root.appendChild(b);
+      this.root.insertBefore(b, this.hole);
       return b;
     });
-    this.select(Math.min(this.selected, Math.max(0, items.length - 1)));
+    this.select(Math.min(this.selected, Math.max(0, n - 1)));
   }
 
   get open(): boolean {

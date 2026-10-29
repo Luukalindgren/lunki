@@ -80,7 +80,7 @@ test.describe('puhelin', () => {
     // ELE-nappi avaa käsimerkit; napautus tekee eleen (#228).
     await page.getByRole('button', { name: 'ELE' }).tap();
     await expect(page.locator('.emote-menu')).toBeVisible();
-    await page.locator('.emote-option').first().tap();
+    await page.locator('.emote-option .ring-cell').first().tap();
     await expect(page.locator('.emote-menu')).toBeHidden();
 
     // NOP-nappi kiertää kelausnopeudet ja pikakelauksen.
@@ -140,16 +140,15 @@ test.describe('puhelin', () => {
     test.skip(!isMobile, 'vain puhelinemuloinnit');
     const errors = watchErrors(page);
     await page.goto(soloUrl());
+    // Perho valitaan päävalikon Varusteista ennen kisaa (#383).
+    await page.getByRole('button', { name: 'Varusteet' }).tap();
+    await page.getByRole('button', { name: 'Perho', exact: true }).tap();
+    await page.getByRole('button', { name: 'Takaisin' }).tap();
     await page.getByRole('button', { name: 'Yksinpeli' }).tap();
     // Helpolla ajoitusikkuna on leveä, joten testin viive ei myöhästytä heittoa.
     await page.getByRole('button', { name: 'Helppo' }).tap();
     await page.getByRole('button', { name: 'Aloita kisa' }).tap();
     await expect(page.locator('.hud-timer')).toBeVisible();
-    await page.getByRole('button', { name: 'II' }).tap();
-    await page.getByRole('button', { name: 'Varusteet' }).tap();
-    await page.getByRole('button', { name: 'Perho', exact: true }).tap();
-    await page.getByRole('button', { name: 'Takaisin' }).tap();
-    await page.getByRole('button', { name: 'Jatka' }).tap();
     await expect(page.getByRole('button', { name: 'SIIMA' })).toBeVisible();
     // Perho valmiina iso nappi aloittaa rytmiheiton kuten välilyönti.
     const main = page.locator('.touch-reel');
