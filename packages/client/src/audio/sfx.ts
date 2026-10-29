@@ -144,6 +144,12 @@ export class Sfx {
     this.tone(1400, 0.02, 'square', 0.2);
   }
 
+  /** Siimakäden veto osui heittoon (#398): nopea siiman sujahdus ohjaimien läpi. */
+  flyHaul(): void {
+    this.noise(0.06, 0.22, 3200);
+    this.tone(420, 0.06, 'square', 0.18, 0, 840);
+  }
+
   /** Perho laskeutuu veteen: kevyt lipsahdus, popperi isommin. */
   flyLand(big: boolean): void {
     this.noise(big ? 0.16 : 0.09, big ? 0.35 : 0.14, big ? 1600 : 1100);

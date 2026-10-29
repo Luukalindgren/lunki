@@ -33,6 +33,8 @@ export const FLY_CAST = {
   crispStop: 0.15,
   /** Siimakäden veto (haul) lisää siiman nopeutta. */
   haulBoost: 1.25,
+  /** Näin vähän (s) ennen liikkeen alkua painettu veto lasketaan liikkeeseen (#398). */
+  haulEarly: 0.15,
   /** Kesken liikkeen auki ollut siimakäsi: vapa ei lataudu. */
   looseGrip: 0.35,
   /** Siimaa luistaa silmukan auetessa tällä osuudella siiman nopeudesta. */
@@ -95,6 +97,8 @@ export interface FlyCastState {
   peakAt: number;
   gripLost: boolean;
   hauled: boolean;
+  /** Ennen liikettä painettu veto odottaa liikkeen alkua (s jäljellä). */
+  haulQueued: number;
   /** Silmukka: siiman nopeus (m/s), ikä ja aukeamisaika (s). */
   lineSpeed: number;
   loopAge: number;
@@ -133,6 +137,8 @@ export interface FlyCastEnv {
 }
 
 export interface FlyCastEvents {
+  /** Siimakäden veto osui liikkeeseen (#398). */
+  haul?: boolean;
   /** Pysäytys: suunta ja siiman nopeus. */
   stop?: { dir: -1 | 1; speed: number };
   /** Siima suoristui (nykäys): nyt pitää vaihtaa suuntaa. */
@@ -172,6 +178,7 @@ export function createFlyCast(aerial: number, inWater: boolean): FlyCastState {
     peakAt: 0,
     gripLost: false,
     hauled: false,
+    haulQueued: 0,
     lineSpeed: 0,
     loopAge: 0,
     loopTime: 0,
@@ -208,6 +215,8 @@ export function stepFlyCast(
     return ev;
   }
   c.aim = Math.max(-Math.PI / 6, Math.min(Math.PI / 6, c.aim + (input.aim ?? 0)));
+  c.haulQueued = Math.max(0, c.haulQueued - dt);
+  if (input.haul && c.phase !== 'stroke') c.haulQueued = FLY_CAST.haulEarly;
   const before = c.rod;
   c.rod = Math.max(-1, Math.min(1, c.rod + input.rod));
   const v = (c.rod - before) / dt;
@@ -228,7 +237,11 @@ export function stepFlyCast(
   if (c.phase === 'stroke') {
     c.strokeTime += dt;
     if (!input.grip) c.gripLost = true;
-    if (input.haul) c.hauled = true;
+    if ((input.haul || c.haulQueued > 0) && !c.hauled) {
+      c.hauled = true;
+      c.haulQueued = 0;
+      ev.haul = true;
+    }
     const along = v * c.dir;
     // Lähes huippunopeus lasketaan huipuksi: tasainen liike pysähtyy terävästi.
     if (along >= c.peak * 0.98) {

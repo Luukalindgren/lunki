@@ -231,8 +231,14 @@ export class FishingController {
       if (f.stage === 'idle' && (mouse || c.wasPressed('castForward'))) {
         startFlyCast = true;
         this.flyCastControl.start(mouse ? (touch ? 'touch' : 'mouse') : 'keyboard');
-      } else if (f.stage === 'water' && c.wasPressed('lift')) {
-        // Siiman nosto vedestä uuteen heittoon (kosketuksella NOSTA).
+      } else if (
+        f.stage === 'water' &&
+        f.struckId === null &&
+        f.hookedId === null &&
+        c.wasPressed('lift')
+      ) {
+        // Siiman nosto vedestä uuteen heittoon (kosketuksella NOSTA). Tärpissä
+        // sama nosto on vastaisku (#399), ks. readFlyHand.
         startFlyCast = true;
         this.flyCastControl.start(touch ? 'touch' : 'mouse');
       }
@@ -373,6 +379,8 @@ export class FishingController {
       );
     // Siima suoristui: vaimea nykäys vavassa.
     if (ev.straight) sounds.play('flyTug');
+    // Siimakäden veto osui liikkeeseen (#398).
+    if (ev.haul) sounds.play('flyHaul');
     if (ev.slipped) this.hiss();
     if (ev.crack) sounds.play('flyCrack');
     if (ev.crack && !ev.flyLost) {
@@ -629,7 +637,8 @@ export class FishingController {
   /**
    * Perhon siimakäsi (#234): hiiren vasen tai välilyönti pitää siimaa. Hiiren
    * veto alas vetää siimaa liikkeen verran, ylös nostaa vapaa (vastaisku).
-   * Välilyönti ja kosketusnäytön KELAA vetävät tasaisesti.
+   * Välilyönti ja kosketusnäytön VETO vetävät tasaisesti. Tärpissä myös
+   * noston toiminto (hiiren oikea, NOSTA) nostaa vapaa (#399).
    */
   private readFlyHand(
     dt: number,
@@ -641,6 +650,7 @@ export class FishingController {
     const lineHand = !blocked && (mouse || steady);
     const pull = this.flyStrip.read(mouse && !blocked, input.mouseY, window.innerHeight, dt);
     const strip = (steady ? FLY.steadyStrip * dt : 0) + pull.strip;
-    return { lineHand, strip: blocked ? 0 : strip, rodLift: pull.rodLift };
+    const liftSet = !blocked && this.host.fishing.struckId !== null && controls.wasPressed('lift');
+    return { lineHand, strip: blocked ? 0 : strip, rodLift: pull.rodLift || liftSet };
   }
 }

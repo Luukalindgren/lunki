@@ -143,9 +143,11 @@ function labelFor(cast: FlyCastState, now: boolean): string {
   if (cast.busy > 0) return t('flyPanel.busy');
   if (now) return t('game.flyNow');
   if (cast.phase === 'ready') return t(cast.inWater ? 'flyPanel.pickup' : 'flyPanel.ready');
-  return t(cast.dir < 0 ? 'flyPanel.back' : 'flyPanel.forward', {
+  const stroke = t(cast.dir < 0 ? 'flyPanel.back' : 'flyPanel.forward', {
     m: Math.round(cast.aerial),
   });
+  // Siimakäden veto osui tähän liikkeeseen (#398).
+  return cast.hauled ? `${stroke} · ${t('flyPanel.haul')}` : stroke;
 }
 
 /** Pikselin levyinen viiva kahden pisteen välille. */

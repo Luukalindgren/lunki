@@ -606,7 +606,8 @@ export const fi = {
   'guide.flyStrip': 'Perho-opastus 2/3: uita perhoa vedoilla · {strip} = vedä siimaa',
   'guide.flyWait': 'Perho-opastus 2/3: vedä, kunnes kala ottaa · {lift} = nosta uuteen heittoon',
   'guide.flyAgain': 'Perho-opastus: {castForward} = heitä uudelleen',
-  'guide.flyStrike': 'Perho-opastus 3/3: tärppi! Vedä siimaa ({strip}), niin koukku tarttuu',
+  'guide.flyStrike':
+    'Perho-opastus 3/3: tärppi! Vedä siimaa ({strip}) tai nosta vapaa ({lift}), niin koukku tarttuu',
   'guide.flyFight':
     'Perho-opastus 3/3: kala kiinni! {reelSlack} = löysät kelalle, sitten kelaa ja väsytä jarrulla',
   'help.thunder': 'Ukkosella kelaa viehe sisään ja pysy rannan lähellä',
@@ -624,7 +625,7 @@ export const fi = {
     '{lure} = vaihda viehe (pohjassa: pakki) · {method} = virveli/perho · {sonar} = luotain · {lureSonar} = syvyys',
   'help.flyCast': 'Perhoheitto: {backCast} = taakse, {forwardCast} = eteen · {swipe}',
   'help.flyCast2':
-    '{castForward} = rytmiheitto · {lift} = nosta uuteen heittoon · {flyPanel} = sivukuva',
+    '{castForward} = rytmiheitto · {lift} = nosto (tärpissä vastaisku) · {flyPanel} = sivukuva',
   'help.flyStrip': 'Perho vedessä: {strip} = vedä siimaa · {reelSlack} = löysät kelalle',
   'help.flyReel': 'Kelalla: {pointer} tai {reel} pohjassa = kelaa · {dragLess}/{dragMore} = jarru',
   'help.bar':
@@ -708,7 +709,7 @@ export const fi = {
   'touch.line': 'SIIMA',
   'touch.lineTitle': 'Siimakäsi: pohjassa pitää siimaa, irti päästää sitä luistamaan',
   'touch.lift': 'NOSTA',
-  'touch.liftTitle': 'Nosta siima vedestä uuteen heittoon',
+  'touch.liftTitle': 'Nosta siima vedestä uuteen heittoon, tärpissä vastaisku',
   'touch.strip': 'VETO',
   'touch.stripTitle': 'Vedä siimaa (heitossa siimakäden veto)',
   'touch.emote': 'ELE',
@@ -842,6 +843,7 @@ export const fi = {
   'flyPanel.pickup': 'Nosto vedestä',
   'flyPanel.back': 'Takaheitto · {m} m',
   'flyPanel.forward': 'Eteenheitto · {m} m',
+  'flyPanel.haul': 'veto',
   'game.flyCrack': 'Läimäys! Odota, että siima suoristuu ennen suunnanvaihtoa.',
   'game.flyLost': 'Piiskan läimäys katkaisi perhon!',
   'game.flyFell': 'Takaheitto putosi veteen. Nosta siima uudelleen.',
@@ -853,7 +855,7 @@ export const fi = {
   'game.flyCastLength': 'Heitto {m} m',
   'game.flyRollCast': 'Rullaheitto {m} m',
   'game.flyLater': 'Perho vaihtuu, kun se on sisällä: {fly}',
-  'game.missedFly': 'Ohi meni – vedä siimasta heti tärpin jälkeen',
+  'game.missedFly': 'Ohi meni – vedä siimaa tai nosta vapaa heti tärpin jälkeen',
   'game.snaggedFly': 'Pohjatartunta! Vedä siimasta irrottaaksesi',
   'game.lineBrokenFly': 'Peruke katkesi! Päästä siimaa sormien läpi tai kelaa löysät ({reelSlack})',
   'game.biggestSoFar': 'kisan suurin tähän asti!',

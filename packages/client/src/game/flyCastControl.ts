@@ -2,7 +2,10 @@ import { idealArc, type FlyCastInput, type FlyCastState } from '@lunki/shared';
 
 /** Hiiren pystyliike (px), joka vastaa vavan koko liikerataa (2). */
 export const ROD_PIXELS = 400;
-/** Heittosuunnan siirto hiiren sivuliikkeestä (rad/px). */
+/**
+ * Heittosuunnan siirto hiiren sivuliikkeestä (rad/px). Kulma kasvaa
+ * vasemmalle, joten liike oikealle pienentää sitä (#397).
+ */
 export const AIM_PER_PIXEL = 0.002;
 /** Näppäimistön rytmiheitossa yksi liike kestää näin kauan (s). */
 export const KEY_STROKE_TIME = 0.15;
@@ -65,7 +68,7 @@ export class FlyCastControl {
         rod: -b.dy * (2 / ROD_PIXELS),
         grip,
         haul: b.haul,
-        aim: b.dx * AIM_PER_PIXEL,
+        aim: -b.dx * AIM_PER_PIXEL,
       };
     }
     if (b.key) this.queued = true;
