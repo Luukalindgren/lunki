@@ -612,6 +612,8 @@ textarea,
 
 .screen.kb .choice:has(:focus) > .choice-label::before {
   content: '▶ ';
+  /* Koriste: ei osaksi napin tai otsikon saavutettavaa nimeä. */
+  content: '▶ ' / '';
   color: #f6d04d;
   animation: cursor-blink 0.8s steps(1) infinite;
 }
@@ -1649,6 +1651,8 @@ textarea,
 .main-menu button:hover::before,
 .screen.kb .main-menu button:focus::before {
   content: '▶';
+  /* Koriste: hiiren alla oleva nappi ei saa nimeä "▶ Ohjeet". */
+  content: '▶' / '';
   position: absolute;
   left: 12px;
   top: 50%;
