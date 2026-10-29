@@ -6,6 +6,8 @@ import {
   type Appearance,
   type EmoteId,
 } from '@lunki/shared';
+import { toWorld } from '../world/lakeMesh';
+import { REST_POSE, bendRod, type RodPose } from './rodMotion';
 
 /** Räpylöiden lepokohta renkaan etureunan edessä (paikallinen x). */
 const FIN_X = TUBE_RADIUS + 0.15;
@@ -102,40 +104,68 @@ export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THR
   const skin = new THREE.MeshLambertMaterial({ color: SKIN });
   for (const side of [-1, 1] as const) group.add(createArm(side, appearance.shirt, skin));
 
-  // Virveli osoittaa eteen
-  const rod = new THREE.Mesh(
-    new THREE.BoxGeometry(ROD_LENGTH, 0.08, 0.08),
-    new THREE.MeshLambertMaterial({ color: 0xf6d04d }),
-  );
+  // Virveli osoittaa eteen; aihio on paloina, jotta se taipuu (#368).
+  const rod = new THREE.Group();
   rod.name = 'rod';
+  const rodMat = new THREE.MeshLambertMaterial({ color: 0xf6d04d });
+  for (let i = 0; i < ROD_SEGMENTS; i++)
+    rod.add(
+      new THREE.Mesh(new THREE.BoxGeometry(ROD_LENGTH / ROD_SEGMENTS + 0.04, 0.08, 0.08), rodMat),
+    );
   group.add(rod);
-  aimRod(group, 0, 0);
+  aimRod(group);
 
   setSeated(group, false);
   return group;
 }
 
 const ROD_LENGTH = 2.1;
+const ROD_SEGMENTS = 6;
 /** Vavan kahva kädessä ja lepoasennon nousukulma (rad). */
 const ROD_BUTT = new THREE.Vector3(0.083, 0.84, 0.38);
 const ROD_REST = 0.25;
+/** Vapa kääntyy kalaa kohti enintään näin paljon (rad); takana olevaa kalaa väsytetään sivulta. */
+const ROD_YAW = 1.2;
+const X_AXIS = new THREE.Vector3(1, 0, 0);
+const rodPts = Array.from({ length: ROD_SEGMENTS + 1 }, () => new THREE.Vector3());
+const rodV = { dir: new THREE.Vector3(), pull: new THREE.Vector3(), d: new THREE.Vector3() };
 
 /**
- * Vavan asento (#368): `bend` 0–1 nostaa vavan väsytykseen pystympään,
- * `yaw` kääntää sen kalaa kohti (rad renkaan suunnasta). Kahva pysyy
- * kädessä, joten vapa kiertyy kahvan ympäri.
+ * Vavan asento (#368): `pose` nostaa vapaa ja taivuttaa aihiota vedon
+ * suuntaan, ja kuormitettu vapa kääntyy kalaa kohti. Kahva pysyy kädessä.
+ * Palauttaa kärjen maailmassa (`out`), josta siima lähtee.
  */
-export function aimRod(group: THREE.Object3D, bend: number, yaw: number): void {
+export function aimRod(
+  group: THREE.Object3D,
+  pose: RodPose = REST_POSE,
+  out = new THREE.Vector3(),
+): THREE.Vector3 {
   const rod = group.getObjectByName('rod');
-  if (!rod) return;
-  const pitch = ROD_REST + 0.6 * bend;
-  rod.rotation.set(0, yaw, pitch);
-  const half = ROD_LENGTH / 2;
-  rod.position.set(
-    ROD_BUTT.x + Math.cos(pitch) * Math.cos(yaw) * half,
-    ROD_BUTT.y + Math.sin(pitch) * half,
-    ROD_BUTT.z - Math.cos(pitch) * Math.sin(yaw) * half,
-  );
+  if (!rod) return out;
+  group.updateMatrixWorld(true);
+  const pitch = ROD_REST + pose.lift;
+  const target = pose.pull
+    ? group.worldToLocal(toWorld(pose.pull, -Math.max(0, pose.pull.depth)))
+    : null;
+  const yaw = target
+    ? Math.max(-ROD_YAW, Math.min(ROD_YAW, Math.atan2(-target.z, target.x))) *
+      Math.min(1, pose.bend / 0.6)
+    : 0;
+  const { dir, pull, d } = rodV;
+  dir.set(Math.cos(pitch) * Math.cos(yaw), Math.sin(pitch), -Math.cos(pitch) * Math.sin(yaw));
+  let pullDir: THREE.Vector3 | null = null;
+  if (target) {
+    pull.copy(target).sub(d.copy(ROD_BUTT).addScaledVector(dir, ROD_LENGTH));
+    if (pull.lengthSq() > 1e-6) pullDir = pull.normalize();
+  }
+  bendRod(ROD_BUTT, dir, ROD_LENGTH, pullDir, pose.bend, pose.flex, rodPts);
+  rod.children.forEach((seg, i) => {
+    const a = rodPts[i]!;
+    const b = rodPts[i + 1]!;
+    seg.position.lerpVectors(a, b, 0.5);
+    seg.quaternion.setFromUnitVectors(X_AXIS, d.subVectors(b, a).normalize());
+  });
+  return group.localToWorld(out.copy(rodPts[ROD_SEGMENTS]!));
 }
 
 const SKIN = 0xe0cf9c;

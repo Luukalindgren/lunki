@@ -1,7 +1,16 @@
 import * as THREE from 'three';
 import { CAST, REEL, type FishingState, type Vec2 } from '@lunki/shared';
 import { toWorld } from '../world/lakeMesh';
-import { ROD_TIP_Y } from './lineHang';
+import { ROD_TIP_Y, type LinePoint } from './lineHang';
+import {
+  REST_POSE,
+  bearing,
+  bendRod,
+  lakePoint,
+  liftRod,
+  pullDirection,
+  type RodPose,
+} from './rodMotion';
 
 /** Vavan ja kelan värit paletista. */
 const COLOR = {
@@ -87,8 +96,17 @@ interface RodPiece {
   to: Station;
 }
 
-/** Aihio on paloina, jotta perhovapa taipuu heitossa kaarelle (#236). */
-const BLANK_SEGMENTS = 6;
+/** Aihio on paloina, jotta vapa taipuu kaarelle (#236). */
+const BLANK_SEGMENTS = 12;
+/** Taipuneen aihion pisteet (tasavälein etukahvasta kärkeen). */
+const BLANK_POINTS = 24;
+/**
+ * Väsytyksessä vapa kääntyy kalaa kohti enintään näin paljon (rad), jottei
+ * se karkaa kuvasta; loppu näkyy taipumana sivulle.
+ */
+const POV_YAW = 0.3;
+/** Käsi nousee vavan noston mukana (m/rad). */
+const SEAT_RAISE = 0.25;
 const blank = (off: number): RodPiece[] =>
   Array.from({ length: BLANK_SEGMENTS }, (_, i) => ({
     off,
@@ -149,6 +167,8 @@ export class PovRod {
   private readonly spoolLine: THREE.Mesh;
   private readonly crank = new THREE.Group();
   private readonly lineMaterials: { color: THREE.Color }[] = [];
+  /** Taipuneen aihion keskiviiva. */
+  private readonly blankPts = Array.from({ length: BLANK_POINTS + 1 }, () => new THREE.Vector3());
 
   private prevLength = 0;
   private rate = 0;
@@ -168,6 +188,7 @@ export class PovRod {
     camAxis: new THREE.Vector3(),
     a: new THREE.Vector3(),
     b: new THREE.Vector3(),
+    pull: new THREE.Vector3(),
     m: new THREE.Matrix4(),
   };
 
@@ -307,10 +328,12 @@ export class PovRod {
   }
 
   /**
-   * `tip` = piirretyn kärjen paikka (oikeassa kädessä), `pixelSize` = pikselin
+   * `tip` = kärjen lepopaikka (oikeassa kädessä), `pixelSize` = pikselin
    * koko metrin päässä kamerasta, `cranking` = pelaaja kelaa. `style`:
-   * kärjen korkeus perhoheitossa, perhovapa (#236) ja taipuma (m, neljäsosa
-   * näkyy vavan keskellä, + = vavan yläpuolelle).
+   * kärjen korkeus perhoheitossa, perhovapa (#236), heiton taipuma (m,
+   * neljäsosa näkyy vavan keskellä, + = vavan yläpuolelle) ja vavan liike
+   * (`pose`: nosto ja kuorman taipuma). Palauttaa piirretyn kärjen, josta
+   * siima lähtee.
    */
   update(
     camera: THREE.PerspectiveCamera,
@@ -321,11 +344,12 @@ export class PovRod {
     s: FishingState,
     cranking: boolean,
     lineColor: number,
-    style: { tipY?: number; fly?: boolean; bend?: number } = {},
-  ): void {
+    style: { tipY?: number; fly?: boolean; bend?: number; pose?: RodPose } = {},
+  ): LinePoint {
     const tipY = style.tipY ?? ROD_TIP_Y;
     const fly = style.fly === true;
     const bend = style.bend ?? 0;
+    const pose = style.pose ?? REST_POSE;
     const now = performance.now() / 1000;
     const dt = Number.isFinite(this.lastTime) ? Math.min(0.1, Math.max(0, now - this.lastTime)) : 0;
     this.lastTime = now;
@@ -342,20 +366,49 @@ export class PovRod {
     v.tip.copy(toWorld(tip, tipY));
     const length = v.seat.distanceTo(v.tip);
     v.f.subVectors(v.tip, v.seat).normalize();
+    // Nykäisyssä ja nostossa käsi nousee: koko vapa kelaa myöten liikkuu ylös.
+    v.seat.y += Math.max(-0.05, pose.lift) * SEAT_RAISE;
+    // Nosto ja kääntö kalaa kohti kahvan ympäri; kuorma taivuttaa aihion vedon suuntaan.
+    const yaw = pose.pull
+      ? Math.max(-POV_YAW, Math.min(POV_YAW, bearing(pos, pose.pull, heading))) *
+        Math.min(1, pose.bend / 0.6)
+      : 0;
+    liftRod(v.f, pose.lift, yaw, v.f);
     v.u.set(0, 1, 0).addScaledVector(v.f, -v.f.y).normalize();
     v.r.crossVectors(v.f, v.u);
+    const blankLength = length - ROD.foreGrip;
+    const pts = this.blankPts;
+    v.a.copy(v.seat).addScaledVector(v.f, length);
+    const pull = pullDirection(v.a, pose.pull, v.pull);
+    bendRod(
+      v.b.copy(v.seat).addScaledVector(v.f, ROD.foreGrip),
+      v.f,
+      blankLength,
+      pull,
+      pose.bend,
+      pose.flex,
+      pts,
+    );
+    // Perhoheiton taipuma kaarena kahvan ja kärjen välissä; kärki pysyy paikallaan.
+    if (bend !== 0)
+      pts.forEach((p, i) => {
+        const k = i / BLANK_POINTS;
+        p.addScaledVector(v.u, bend * k * (1 - k));
+      });
+    v.tip.copy(pts[BLANK_POINTS]!);
 
     camera.updateMatrixWorld();
     camera.getWorldDirection(v.camFwd);
     const sign = this.chooseAxis(camera);
-    // Taipuva vapa kaartuu kahvan ja kärjen välissä; kärki pysyy siiman alkupisteessä.
+    // Kahva on suora; aihio seuraa taipunutta keskiviivaa.
     const along = (sAlong: number, out: THREE.Vector3) => {
-      out.copy(v.seat).addScaledVector(v.f, sAlong);
-      const k = Math.max(0, sAlong - ROD.foreGrip) / Math.max(1e-3, length - ROD.foreGrip);
-      return out.addScaledVector(v.u, bend * k * (1 - k));
+      if (sAlong <= ROD.foreGrip) return out.copy(v.seat).addScaledVector(v.f, sAlong);
+      const at = Math.min(1, (sAlong - ROD.foreGrip) / Math.max(1e-3, blankLength)) * BLANK_POINTS;
+      const i = Math.min(BLANK_POINTS - 1, Math.floor(at));
+      return out.lerpVectors(pts[i]!, pts[i + 1]!, at - i);
     };
     const station = (st: Station) =>
-      typeof st === 'number' ? st : ROD.foreGrip + st.blank * (length - ROD.foreGrip);
+      typeof st === 'number' ? st : ROD.foreGrip + st.blank * blankLength;
     // Siirtää pisteen `px` pikseliä valitulla ruudun akselilla.
     const shift = (p: THREE.Vector3, px: number) => {
       const depth = Math.max(0.05, v.a.subVectors(p, camera.position).dot(v.camFwd));
@@ -413,6 +466,7 @@ export class PovRod {
     attr.needsUpdate = true;
 
     this.updateCoil(bailOpen && this.rate > 0.5, now);
+    return lakePoint(v.tip);
   }
 
   /**

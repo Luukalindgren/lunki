@@ -54,6 +54,7 @@ import type { TopDownCamera } from './topDownCamera';
 import type { FishShadow } from '../world/fishShadow';
 import type { FishSignsView } from './fishSignsView';
 import { liftTime } from './landingView';
+import { OwnRodMotion, type RodPose } from './rodMotion';
 
 /** Saaliin punnituskortti näkyy näin kauan, ellei pelaaja ala heittää uudelleen. */
 const CATCH_CARD_SECONDS = 6;
@@ -143,6 +144,9 @@ export class FishingController {
   private bendRod: number | null = null;
   private bend = 0;
   private bendTime = performance.now();
+  /** Vavan nosto ja taipuma piirtoa varten. */
+  private readonly rod = new OwnRodMotion();
+  private rodTime = performance.now();
 
   constructor(private readonly host: FishingHost) {}
 
@@ -317,11 +321,20 @@ export class FishingController {
             dt,
           );
     if (f.stage !== 'casting') input.unlockPointer();
+    this.rod.onEvents(events, f, fly?.rodLift === true);
     this.handleEvents(events, fishEvents.follow !== undefined, reeling, dt);
     host.fishShadow.update(host.fish.fish, host.tube.pos);
     host.fishSigns.update(host.fish, conditions, host.tube.pos, host.settings.difficulty, dt);
     if (fishEvents.shadow !== undefined) host.hud.showMessage(t('game.bigShadow'), 2.5);
     return { lineHand: fly?.lineHand ?? false };
+  }
+
+  /** Vavan asento tällä ruudulla: nosto, taipuma ja vedon suunta. */
+  rodPose(): RodPose {
+    const now = performance.now();
+    const dt = (now - this.rodTime) / 1000;
+    this.rodTime = now;
+    return this.rod.pose(this.host.fishing, dt);
   }
 
   /**
