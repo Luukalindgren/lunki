@@ -180,8 +180,6 @@ export const en: Record<keyof typeof fi, string> = {
   'menu.credits': 'Credits and sources',
   'menu.subtitle': 'Float tube fishing in Tammela, Finland',
   'menu.update': 'New version available – update',
-  'menu.controls':
-    '{forward} = towards your fins · {back} = back first (fastest) · {turn} = turn · {pointer} = aim and cast · {pointer} or {reel} = reel in · {dragLess}/{dragMore} = drag · {pause} = pause',
   'menu.mapCredit': 'Map © OpenStreetMap contributors, Copernicus DEM, Syke',
   'menu.language': 'Language',
 

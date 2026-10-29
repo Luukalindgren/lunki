@@ -452,7 +452,6 @@ export class Screens {
       menu,
       language,
       ...this.homeScreenHint(),
-      h('p', controlText('menu.controls'), 'hint'),
       h('p', t('menu.mapCredit'), 'hint credit-line'),
       ...this.fullscreenCorner(),
     );
