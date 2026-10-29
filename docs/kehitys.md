@@ -81,8 +81,10 @@ Koodi: `packages/client/src/game/controls.ts`.
   kerralla.
 - Tilannenapit (iso nappi HEITÄ/KELAA/VETO, perhon SIIMA/NOSTA/KELALLE,
   KATKO/PERU) ratkaisee `contextActions`.
-- Kisan ympyrävalikot (käsimerkit G, viehepakki R pohjassa) ovat yksi
-  `ui/ringMenu.ts`. Uusi pikavalikko käyttää sitä.
+- Kisan ympyrävalikot (käsimerkit G, viehepakki R pohjassa, kalastustapa M)
+  ovat yksi `ui/ringMenu.ts`. Uusi pikavalikko käyttää sitä ja pidon
+  `game/heldMenu.ts`: valikko on auki napin ollessa pohjassa, ja irrotus
+  valitsee osoitetun lohkon.
 
 ### Valo, sää ja välähdykset (PR #341)
 
@@ -121,7 +123,8 @@ Koodi: `packages/client/src/ui/screens.ts` (`showSettings`, `showPause`).
 - Taukovalikko on lyhyt: Jatka, Asetukset, Koko näyttö, Lopeta kisa.
 - Varusteet laitetaan kuntoon vain päävalikon Varusteet-näkymässä (#383).
   Yksinpelin asetuksissa ja aulassa ne näkyvät vain yhteenvetona, ja kisassa
-  vieheet vaihdetaan viehepakin pikavalikosta (R). Värit ovat omana
+  vieheet vaihdetaan viehepakin pikavalikosta (R) ja kalastustapa omasta
+  pikavalikostaan (M). Värit ovat omana
   alanäkymänään yksinpelin asetusten ja aulan yhteenvetoriviltä.
 - Kisan säännöt (kesto, sää, rangaistukset, lajit) kuuluvat yksinpelin
   asetuksiin ja moninpelin aulaan, eivät Asetukset-näkymään.

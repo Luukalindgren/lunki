@@ -218,8 +218,15 @@ aloittelijan pakin, jossa ovat kaikki vieheet ja perhot.
 Kisan aikana R:n tai VIEHE-napin napautus vaihtaa pakin seuraavaan lokeroon. Pohjassa pidetty R
 (0,35 s, `LURE_HOLD`) avaa pikavalikon vieheiden kuvin (`game/lurePicker.ts`, sama
 ympyrävalikko kuin käsimerkeillä, `ui/ringMenu.ts`). Valikko on jaettu lohkoihin, ja valittu
-lohko nousee ja vaihtaa väriä. Valinta tehdään numerolla, nuolilla ja Enterillä tai hiirellä, ja R
-tai Esc sulkee valikon.
+lohko nousee ja vaihtaa väriä. Valikko on auki niin kauan kuin R tai VIEHE on pohjassa, ja
+irrotus valitsee lohkon, jota hiiri, sormi tai nuolet osoittavat (#387, `game/heldMenu.ts`).
+Irrotus osoittamatta pitää käytössä olevan vieheen. Myös numero, Enter ja klikkaus valitsevat, ja
+Esc sulkee valikon.
+
+Kalastustapa vaihdetaan kesken kisan omasta pikavalikosta (#386): M tai VAPA avaa kaksi lohkoa,
+Virveli ja Perho. Uusi tapa ottaa käyttöön pakin ensimmäisen vieheen tai perhon, jos edellinen
+ei ole pakissa. Pikavalikot (M, G) toimivat samoin pitäen, ja lyhyt napautus jättää ne auki
+klikkausta tai numeroa varten.
 
 Realistisella vaikeustasolla siiman katketessa menetetty viehe poistuu kisan pakista, ja pakin
 seuraava viehe otetaan käyttöön. Viimeinen viehe jää varavieheeksi. Kisan aikana pakkia ei

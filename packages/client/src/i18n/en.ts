@@ -267,7 +267,7 @@ export const en: Record<keyof typeof fi, string> = {
     'Thin line casts further but snaps more easily. A pike can bite through the line without a leader.',
   'tackle.beginner': 'Beginner tackle',
   'tackle.lureInRace':
-    'In the competition your lures are in the box: {lure} switches to the next, and holding {lure} opens the quick menu.',
+    'In the competition your lures are in the box: {lure} switches to the next, and holding {lure} opens the quick menu. {method} switches between spinning and fly.',
   'box.title': 'Tackle box',
   'box.flyTitle': 'Fly box',
   'box.count': '{n}/{max}',
@@ -618,7 +618,7 @@ export const en: Record<keyof typeof fi, string> = {
   'help.reel': 'Hold {pointer} or {reel} = reel in · {twitch} = twitch',
   'help.gear': '{gear} = reel speed · {gearFast} = quick retrieve · {dragLess}/{dragMore} = drag',
   'help.tools':
-    '{lure} = change lure (hold: box) · {sonar} = fish finder · {lureSonar} = lure depth',
+    '{lure} = change lure (hold: box) · {method} = spin/fly · {sonar} = finder · {lureSonar} = depth',
   'help.flyCast': 'Fly cast: {backCast} = back, {forwardCast} = forward · {swipe}',
   'help.flyCast2':
     '{castForward} = rhythm cast · {lift} = pick up for a new cast · {flyPanel} = side view',
@@ -682,6 +682,8 @@ export const en: Record<keyof typeof fi, string> = {
   'touch.cutTitle': 'Cut the line',
   'touch.lure': 'LURE',
   'touch.lureTitle': 'Change lure, hold: tackle box',
+  'touch.method': 'ROD',
+  'touch.methodTitle': 'Fishing method: spinning or fly',
   'touch.sonar': 'SONAR',
   'touch.sonarTitle': 'Fish finder',
   'touch.depth': 'DEPTH',

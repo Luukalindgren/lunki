@@ -1,10 +1,11 @@
-import { isFly, type Difficulty, type Tackle } from '@lunki/shared';
+import { METHODS, isFly, type Difficulty, type Method, type Tackle } from '@lunki/shared';
 import { t } from '../i18n';
-import { baitName } from '../i18n/names';
+import { baitName, methodName } from '../i18n/names';
 import type { Hud } from '../ui/hud';
 import { lureImage } from '../ui/lureArt';
 import { RingMenu } from '../ui/ringMenu';
 import { CONTROLS, type Controls } from './controls';
+import { HeldMenu } from './heldMenu';
 import {
   boxTackles,
   currentSlot,
@@ -33,10 +34,16 @@ export interface LurePickerHost {
  * kuvin. Realistisella menetetty viehe poistuu kisan pakista; muilla
  * vaikeustasoilla pakki on sama kuin Varusteet-näkymässä tallennettu.
  * Kisassa pakkia ei muokata; se laitetaan kuntoon päävalikon Varusteissa (#383).
+ * Kalastustapa vaihdetaan omasta pikavalikosta (M tai VAPA): virveli tai perho.
  */
 export class LurePicker {
   box: TackleBox = loadTackleBox();
   private menu: RingMenu | null = null;
+  /** Kalastustavan pikavalikko: virveli tai perho. */
+  private methodMenu: RingMenu | null = null;
+  /** Pohjassa pidetty R tai M valitsee irrotettaessa osoitetun kohdan (#387). */
+  private readonly lureHold = new HeldMenu(() => this.menu, 'lure');
+  private readonly methodHold = new HeldMenu(() => this.methodMenu, 'method', LURE_HOLD);
   /** Kuinka kauan R on ollut pohjassa, tai -1 kun ei odoteta. */
   private held = -1;
 
@@ -55,6 +62,15 @@ export class LurePicker {
   step(dt: number): void {
     const { controls: c, spectating } = this.host;
     if (spectating) return;
+    if (c.wasPressed('method')) {
+      if (this.methodMenu?.open) this.methodMenu.close();
+      else {
+        this.openMethodMenu();
+        this.methodHold.opened(c);
+      }
+    }
+    this.methodHold.step(c);
+    this.lureHold.step(c);
     if (c.wasPressed('lure')) {
       // Kosketusnappi auki olevan valikon päällä sulkee sen.
       if (this.menu?.open) {
@@ -71,6 +87,7 @@ export class LurePicker {
     } else if ((this.held += dt) >= LURE_HOLD) {
       this.held = -1;
       this.openMenu();
+      this.lureHold.opened(c);
     }
   }
 
@@ -79,6 +96,7 @@ export class LurePicker {
   }
 
   private openMenu(): void {
+    this.methodMenu?.close();
     const tk = this.host.tackle;
     const all = boxTackles(tk, this.box);
     if (!this.menu) {
@@ -91,7 +109,8 @@ export class LurePicker {
     }
     this.menu.onPick = (i) => {
       const next = boxTackles(this.host.tackle, this.box)[i];
-      if (next) this.host.setTackle(next);
+      // Irrotus ilman osoitusta valitsee käytössä olevan: ei vaihtoa.
+      if (next && i !== currentSlot(this.host.tackle, this.box)) this.host.setTackle(next);
     };
     this.menu.setItems(
       all.map((v) => ({
@@ -100,6 +119,36 @@ export class LurePicker {
       })),
     );
     this.menu.show(Math.max(0, currentSlot(tk, this.box)));
+  }
+
+  private openMethodMenu(): void {
+    this.menu?.close();
+    this.methodMenu ??= new RingMenu(this.host.hud.root, {
+      className: 'method-menu',
+      optionClass: 'method-option',
+      captionClass: 'method-caption',
+      closeKeys: [...CONTROLS.method.keys, ...CONTROLS.pause.keys],
+    });
+    const methods = Object.keys(METHODS) as Method[];
+    const options = methods.map((m) => this.withMethod(m));
+    this.methodMenu.onPick = (i) => {
+      const next = this.withMethod(methods[i]!);
+      if (next.method !== this.host.tackle.method) this.host.setTackle(next);
+    };
+    this.methodMenu.setItems(
+      options.map((v) => ({
+        icon: lureImage(isFly(v) ? v.fly : v.lure, '2px'),
+        label: methodName(v.method),
+      })),
+    );
+    this.methodMenu.show(Math.max(0, methods.indexOf(this.host.tackle.method)));
+  }
+
+  /** Varusteet toisella kalastustavalla: viehe tai perho pakista, jos nykyinen ei ole siellä. */
+  private withMethod(m: Method): Tackle {
+    const tk = { ...this.host.tackle, method: m };
+    const first = boxTackles(tk, this.box)[0];
+    return currentSlot(tk, this.box) >= 0 || !first ? tk : first;
   }
 
   /**
@@ -117,5 +166,6 @@ export class LurePicker {
 
   dispose(): void {
     this.menu?.dispose();
+    this.methodMenu?.dispose();
   }
 }

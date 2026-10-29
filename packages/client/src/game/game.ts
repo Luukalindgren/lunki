@@ -61,7 +61,6 @@ import { rodSideOffset } from './lineHang';
 import { PovRod, flyRodTip } from './povRod';
 import { PovTube } from './povTube';
 import { loadAppearance } from './appearance';
-import { LurePicker } from './lurePicker';
 import { loadTackle } from './tackle';
 import { TopDownCamera } from './topDownCamera';
 import { SEATED_LIFT, animateEmote, animateFins, createTubeMesh, setSeated } from './tubeMesh';
@@ -71,6 +70,8 @@ import { BoatsView } from './boatView';
 import { SpeechBubble, type BubbleContent } from './speechBubble';
 import { screenAnchor } from './screenAnchor';
 import { EmoteMenu } from '../ui/emoteMenu';
+import { HeldMenu } from './heldMenu';
+import { LURE_HOLD, LurePicker } from './lurePicker';
 import { YouMarker } from './youMarker';
 import { RaceLog, type RaceMapData } from './raceLog';
 import { bottomFor } from '../world/lakeData';
@@ -129,6 +130,8 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
   readonly fishingView = new FishingView();
   /** Käsimerkit (#228): valikko, käynnissä oleva ele (alku ms) ja oma kupla. */
   private emoteMenu: EmoteMenu | null = null;
+  /** Pohjassa pidetty G valitsee irrotettaessa osoitetun eleen (#387). */
+  private readonly emoteHold = new HeldMenu(() => this.emoteMenu, 'emote', LURE_HOLD);
   private emoting: { id: EmoteId; start: number } | null = null;
   private readonly emoteLimiter = new ChatLimiter(EMOTE_RATE);
   private ownBubble: SpeechBubble | null = null;
@@ -472,6 +475,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       );
     if (c.wasPressed('view')) this.setViewMode(this.viewMode === 'top' ? 'pov' : 'top');
     if (c.wasPressed('emote') && !this.spectating) this.toggleEmoteMenu();
+    this.emoteHold.step(c);
     this.lurePicker.step(dt);
     this.weather.step(dt);
     const timeOut = this.penalties.timeOutLeft;
@@ -629,6 +633,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       this.emoteMenu.onPick = (id) => this.emote(id);
     }
     this.emoteMenu.toggle();
+    if (this.emoteMenu.open) this.emoteHold.opened(this.controls);
     this.sounds.preloadVoices(EMOTES);
   }
 

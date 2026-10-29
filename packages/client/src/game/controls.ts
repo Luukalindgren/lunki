@@ -86,6 +86,8 @@ export const CONTROLS = {
 
   // Työkalut.
   lure: { keys: ['KeyR'], touch: 'touch.lure', title: 'touch.lureTitle' },
+  /** Kalastustavan pikavalikko kisan aikana: virveli tai perho. */
+  method: { keys: ['KeyM'], touch: 'touch.method', title: 'touch.methodTitle' },
   sonar: { keys: ['KeyK'], touch: 'touch.sonar', title: 'touch.sonarTitle' },
   lureSonar: { keys: ['KeyL'], touch: 'touch.depth', title: 'touch.depthTitle' },
   view: { keys: ['KeyV'], touch: 'touch.cam', title: 'touch.camTitle' },
