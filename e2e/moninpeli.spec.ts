@@ -84,10 +84,11 @@ test('moninpeli: Chromium, Firefox ja iPhone samassa huoneessa', async ({ page: 
     }
     for (const [[guest, touch], name] of guests.map((g, i) => [g, `Vieras${i + 1}`] as const)) {
       const text = GUEST_TEXT[touch ? 'en' : 'fi'];
+      // Tarkka nimi: englanniksi Play osuisi myös How to play -nappiin.
       const press = (label: string) =>
         touch
-          ? guest.getByRole('button', { name: label }).tap()
-          : guest.getByRole('button', { name: label }).click();
+          ? guest.getByRole('button', { name: label, exact: true }).tap()
+          : guest.getByRole('button', { name: label, exact: true }).click();
       await guest.goto('/?view=top');
       await press(text.play);
       await press(text.multiplayer);
