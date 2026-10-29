@@ -917,7 +917,7 @@ export const en: Record<keyof typeof fi, string> = {
     '{anchor} = drop or raise the anchor. On the bottom it holds you within the rope length (1.5 times the depth).\nAt anchor you cannot kick or row. In a storm the anchor drags, and a waterspout tears it loose.',
   'manual.move.boat': 'Boat',
   'manual.move.boatText':
-    "In the multiplayer lobby you can take your own boat or board someone else's. A boat has a rower and up to two anglers, and its crew is one team.\nRower: {back} = row, {forward} = back water, {turn} = turn the boat.\n{oars} = oars or rod. You cannot row while casting or reeling, but with the lure in the water you can troll.\n{seat} = change seats when the boat is nearly still.",
+    "In the single-player settings you can go out in a boat instead of a float tube. In the multiplayer lobby you can take your own boat or board someone else's. A boat has a rower and up to two anglers, and its crew is one team.\nRower: {back} = row, {forward} = back water, {turn} = turn the boat.\n{oars} = oars or rod. You cannot row while casting or reeling, but with the lure in the water you can troll.\n{seat} = change seats when the boat is nearly still.",
   'manual.move.wind': 'Wind and collisions',
   'manual.move.windText':
     'Wind drifts the tube downwind, clearly so in a storm. Kicking still takes you upwind.\nYou cannot go ashore or into reeds, and anglers bump each other when they collide. A heavy boat pushes a tube more than the other way round.',
