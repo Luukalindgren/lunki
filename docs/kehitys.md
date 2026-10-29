@@ -176,11 +176,10 @@ Koodi: `packages/client/src/audio/sounds.ts`.
 - Kalastuksen vaikeustaso (`settings.difficulty`) päättää myös näkyvät
   avut: helpolla saa olla pelimäisiä apuja, realistisella vain se, minkä
   oikeakin kalastaja näkee.
-- Vieheen merkki järvellä on `game/lureMarker.ts` (`LURE_MARKER`,
-  `markerParts`): helpolla tilan värinen pikselimerkki, normaalilla siiman
-  vesiraja ja vieheen kuva läheltä ja matalalta, realistisella silmin vain
-  siima. Sama merkki piirtää muiden pelaajien vieheet.
-- Muut avut ovat samoin tasoittain: kalan merkit (`FISH_SIGNS.difficulty`),
+- Vieheen merkki järvellä on `game/lureMarker.ts`: tilan värinen
+  pikselitimantti kaikilla tasoilla (Luuka testasi vesirajan ja vieheen
+  kuvan, ja valitsi timantin). Sama merkki piirtää muiden pelaajien vieheet.
+- Avut ovat tasoittain: kalan merkit (`FISH_SIGNS.difficulty`),
   vieheen pyörteet (`LURE_MARKER.signs`) ja perhoheiton merkki
   (`DIFFICULTIES[…].flyCast.marker`). Uusi apu lisätään näiden rinnalle eikä
   omaksi asetuksekseen.

@@ -935,7 +935,6 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       const remote = this.net.remoteView;
       remote.pov = this.viewMode === 'pov';
       remote.pixel = remote.pov ? this.pov.pixelSize : this.view.metersPerPixel;
-      remote.difficulty = this.difficulty;
       remote.update(shown, this.camera, this.net.link.canvas, this.tube.pos);
     }
     this.anchorView.update(anchored);
