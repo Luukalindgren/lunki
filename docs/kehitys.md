@@ -171,6 +171,22 @@ Koodi: `packages/client/src/audio/sounds.ts`.
 - Uusi ääni on uusi rivi karttaan. Väylät (tehosteet, ympäristö, musiikki,
   puhe, ukkonen) ja niiden voimakkuudet ovat `Sfx`-luokassa.
 
+### Vaikeustaso ja avut (#391)
+
+- Kalastuksen vaikeustaso (`settings.difficulty`) päättää myös näkyvät
+  avut: helpolla saa olla pelimäisiä apuja, realistisella vain se, minkä
+  oikeakin kalastaja näkee.
+- Vieheen merkki järvellä on `game/lureMarker.ts` (`LURE_MARKER`,
+  `markerParts`): helpolla tilan värinen pikselimerkki, normaalilla siiman
+  vesiraja ja vieheen kuva läheltä ja matalalta, realistisella silmin vain
+  siima. Sama merkki piirtää muiden pelaajien vieheet.
+- Muut avut ovat samoin tasoittain: kalan merkit (`FISH_SIGNS.difficulty`),
+  vieheen pyörteet (`LURE_MARKER.signs`) ja perhoheiton merkki
+  (`DIFFICULTIES[…].flyCast.marker`). Uusi apu lisätään näiden rinnalle eikä
+  omaksi asetuksekseen.
+- Pikselikuvat järvellä tehdään `game/pixelSprite.ts`:n tekstuureina
+  (`alphaTest`, ei puoliläpinäkyvyyttä).
+
 ### Tekstit ja nimet
 
 - Pelaajan näkemät tekstit vain sanakirjoissa `packages/client/src/i18n/`

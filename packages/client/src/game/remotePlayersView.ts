@@ -4,6 +4,7 @@ import {
   LureStage,
   distance,
   type Appearance,
+  type Difficulty,
   type EmoteId,
   type Vec2,
 } from '@lunki/shared';
@@ -26,6 +27,8 @@ import { screenAnchor } from './screenAnchor';
 import { REMOTE_FIGHT, RemoteFight } from './remoteFight';
 import { SplashRings } from './splashRings';
 import { ROD_MOTION, RodMotion } from './rodMotion';
+import { LureMarker, markerPosition } from './lureMarker';
+import { lureColor } from './lureColor';
 
 const cssColor = (hex: number) => `#${hex.toString(16).padStart(6, '0')}`;
 /** Muiden siiman kireyttä ei tiedetä: piirretään puolikireänä. */
@@ -35,7 +38,8 @@ const LINE_VERTS = AIR_SAMPLES + 2;
 
 interface Entry {
   tube: THREE.Group;
-  lure: THREE.Mesh;
+  /** Vieheen merkki oman vaikeustason mukaan; vieheen lajia ja tilaa ei tiedetä. */
+  lure: LureMarker;
   line: THREE.Line;
   /** Perhoheiton siima silmukkana (#236). */
   flyLine: THREE.Line;
@@ -66,6 +70,10 @@ export class RemotePlayersView {
   private readonly splashes = new SplashRings(6);
   private readonly tip = new THREE.Vector3();
   private lastUpdate = performance.now();
+  /** Näkymä ja vaikeustaso vieheiden merkkejä varten (kuten `FishingView`). */
+  pov = false;
+  pixel = 0.125;
+  difficulty: Difficulty = 'normal';
 
   /** `below`: lappukerros tämän (HUD) alle, ettei se peitä nappeja ja paneeleja (#277). */
   constructor(parent: HTMLElement, below: Element | null = null) {
@@ -145,22 +153,21 @@ export class RemotePlayersView {
       const showLure = p.lure !== null && p.lureStage !== LureStage.none;
       // Perhovälineillä lento on perhoheittoa: perho kulkee edestakaisin silmukan kärjessä.
       const casting = showLure && p.fly === true && p.lureStage === LureStage.flight;
-      e.lure.visible = showLure;
+      if (!showLure) e.lure.hide();
       e.line.visible = showLure && !casting;
       e.flyLine.visible = casting;
       if (casting) this.drawFlyCast(e, p);
       else e.fly.reset();
-      e.lure.scale.setScalar(casting ? 0.5 : 1);
       if (showLure && !casting && !hooked) {
         // Siima lähtee hahmon vavan kärjestä.
         const from = { x: tip.x, y: -tip.z };
         const flying = p.lureStage === LureStage.flight;
-        const lure = toWorld(p.lure!, flying ? 1 : 0.05);
-        e.lure.position.copy(lure);
+        const lure = markerPosition(p.lure!, flying ? 1 : 0, this.pov);
+        this.mark(e, p, p.lure!, flying ? 1 : 0);
         const pts = flying
           ? flightLine(
               { ...from, h: tip.y },
-              { x: p.lure!.x, y: p.lure!.y, h: 1 },
+              { x: lure.x, y: -lure.z, h: lure.y },
               LINE_VERTS,
               0.05,
             )
@@ -210,7 +217,7 @@ export class RemotePlayersView {
     writeLine(pos, pts);
     pos.needsUpdate = true;
     e.line.geometry.computeBoundingSphere();
-    e.lure.position.copy(toWorld(fish, 0.05));
+    this.mark(e, p, fish, 0);
     if (pose.splash !== null) this.splashes.start(fish, pose.splash);
     return w;
   }
@@ -233,15 +240,30 @@ export class RemotePlayersView {
     writeLine(pos, pts);
     pos.needsUpdate = true;
     const end = pts[pts.length - 1]!;
-    e.lure.position.set(end.x, end.h, -end.y);
+    this.mark(e, p, end, end.h);
+  }
+
+  /** Vieheen merkki: muiden vieheen lajia, syvyyttä ja tilaa ei tiedetä. */
+  private mark(e: Entry, p: RemotePlayer, at: Vec2, height: number): void {
+    e.lure.update({
+      at,
+      height,
+      depth: 0,
+      from: p.pos,
+      onLand: false,
+      flying: height > 0,
+      moving: false,
+      color: lureColor(0),
+      art: null,
+      difficulty: this.difficulty,
+      pov: this.pov,
+      pixel: this.pixel,
+    });
   }
 
   private add(id: string, appearance: Appearance): Entry {
     const tube = createTubeMesh(appearance);
-    const lure = new THREE.Mesh(
-      new THREE.BoxGeometry(0.5, 0.5, 0.5),
-      new THREE.MeshBasicMaterial({ color: 0xf08a2c }),
-    );
+    const lure = new LureMarker();
     const line = new THREE.Line(
       new THREE.BufferGeometry().setFromPoints(
         Array.from({ length: LINE_VERTS }, () => new THREE.Vector3()),
@@ -257,7 +279,7 @@ export class RemotePlayersView {
     );
     flyLine.frustumCulled = false;
     flyLine.visible = false;
-    this.group.add(tube, lure, line, flyLine);
+    this.group.add(tube, lure.group, line, flyLine);
     const tag = document.createElement('div');
     tag.className = 'name-tag';
     tag.style.borderColor = cssColor(appearance.tube);
@@ -289,7 +311,7 @@ export class RemotePlayersView {
   }
 
   private remove(id: string, e: Entry): void {
-    this.group.remove(e.tube, e.lure, e.line, e.flyLine);
+    this.group.remove(e.tube, e.lure.group, e.line, e.flyLine);
     e.tag.remove();
     e.bubble.remove();
     this.entries.delete(id);

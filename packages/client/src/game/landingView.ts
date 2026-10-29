@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { Fish, FishingEvents, SpeciesId, Vec2 } from '@lunki/shared';
 import { toWorld } from '../world/lakeMesh';
 import { fishLengthCm, fishPixels, fishSpriteWidth } from '../ui/fishArt';
+import { pixelTexture } from './pixelSprite';
 
 type Landed = NonNullable<FishingEvents['landed']>;
 
@@ -239,25 +240,7 @@ export class LandingView {
     let entry = this.textures.get(key);
     if (!entry) {
       const px = fishPixels(species, width);
-      const canvas = document.createElement('canvas');
-      canvas.width = px.width;
-      canvas.height = px.height;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        const img = ctx.createImageData(px.width, px.height);
-        px.data.forEach((c, i) => {
-          if (c < 0) return;
-          img.data[i * 4] = (c >> 16) & 0xff;
-          img.data[i * 4 + 1] = (c >> 8) & 0xff;
-          img.data[i * 4 + 2] = c & 0xff;
-          img.data[i * 4 + 3] = 255;
-        });
-        ctx.putImageData(img, 0, 0);
-      }
-      const tex = new THREE.CanvasTexture(canvas);
-      tex.magFilter = THREE.NearestFilter;
-      tex.minFilter = THREE.NearestFilter;
-      tex.colorSpace = THREE.SRGBColorSpace;
+      const tex = pixelTexture(px);
       entry = { tex, aspect: px.height / px.width };
       this.textures.set(key, entry);
     }

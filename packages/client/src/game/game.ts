@@ -866,6 +866,8 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     }
     const hooked = this.fish.fish.find((x) => x.id === this.fishing.hookedId) ?? null;
     this.fishingView.metersPerPixel = this.view.metersPerPixel;
+    this.fishingView.povPixel = this.pov.pixelSize;
+    this.fishingView.difficulty = this.difficulty;
     // Lähin viehettä seuraava kala näkyy pyörteinä vieheen takana.
     const lure = this.fishing.lure;
     let follower: Fish | null = null;
@@ -930,7 +932,11 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
         pos: this.seatSlides.place(o.id, o.boat, o.seat, o.pos, now),
         roll: o.roll + this.seatSlides.rock(o.boat, now),
       }));
-      this.net.remoteView.update(shown, this.camera, this.net.link.canvas, this.tube.pos);
+      const remote = this.net.remoteView;
+      remote.pov = this.viewMode === 'pov';
+      remote.pixel = remote.pov ? this.pov.pixelSize : this.view.metersPerPixel;
+      remote.difficulty = this.difficulty;
+      remote.update(shown, this.camera, this.net.link.canvas, this.tube.pos);
     }
     this.anchorView.update(anchored);
     this.placeOwnBubble();
