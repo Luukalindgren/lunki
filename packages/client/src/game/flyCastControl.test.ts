@@ -21,7 +21,8 @@ describe('perhoheiton ohjaus (#235)', () => {
     expect(ctl.read(c, { ...none, dy: 100 }, DT).rod).toBeLessThan(0);
     const input = ctl.read(c, { ...none, grip: false, haul: true, dx: 50 }, DT);
     expect(input).toMatchObject({ grip: false, haul: true });
-    expect(input.aim).toBeGreaterThan(0);
+    // Kulma kasvaa vasemmalle: liike oikealle vie heiton oikealle (#397).
+    expect(input.aim).toBeLessThan(0);
   });
 
   it('näppäimistön rytmiheitto: painallus suoristuneelle siimalle vuorottelee suuntaa', () => {

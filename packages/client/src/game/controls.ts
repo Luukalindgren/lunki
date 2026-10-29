@@ -148,7 +148,7 @@ export class Controls {
 export interface ContextActions {
   /** Iso punainen nappi: HEITÄ, KELAA, VETO tai nostossa NOSTA/HAAVI. */
   main: 'castForward' | 'reel' | 'strip' | 'haul' | 'land' | 'landNet';
-  /** Perhon nappi: SIIMA heitossa, NOSTA vedestä, KELALLE kalan kanssa. */
+  /** Perhon nappi: SIIMA heitossa, NOSTA vedestä ja tärpissä, KELALLE kalan kanssa. */
   line: 'lineGrip' | 'lift' | 'reelSlack';
   /** KATKO, heiton aikana PERU, virvelin vapaalla vieheellä NYKÄISE. */
   tool: 'cut' | 'cancel' | 'twitch';
@@ -176,7 +176,13 @@ export function contextActions(f: FishingState, rhythm: boolean, tangled = false
           : inHand && f.stage === 'water'
             ? 'strip'
             : 'reel',
-    line: f.stage !== 'water' ? 'lineGrip' : inHand && !free ? 'reelSlack' : 'lift',
+    // Tärpissä NOSTA on vastaisku (#399).
+    line:
+      f.stage !== 'water'
+        ? 'lineGrip'
+        : inHand && !free && f.struckId === null
+          ? 'reelSlack'
+          : 'lift',
     tool:
       f.stage === 'charging' || casting
         ? 'cancel'

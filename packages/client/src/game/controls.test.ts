@@ -161,6 +161,8 @@ describe('tilannenapit kosketuksella', () => {
     const water = fly({ stage: 'water', onReel: false });
     expect(contextActions(water, false)).toEqual({ main: 'strip', line: 'lift', tool: 'cut' });
     expect(contextActions({ ...water, hookedId: 3 }, false).line).toBe('reelSlack');
+    // Tärpissä NOSTA on vastaisku (#399).
+    expect(contextActions({ ...water, struckId: 3 }, false).line).toBe('lift');
     // Kelalla kalaa väsytetään kelaamalla.
     expect(contextActions({ ...water, hookedId: 3, onReel: true }, false).main).toBe('reel');
   });

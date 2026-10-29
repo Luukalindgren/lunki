@@ -21,7 +21,8 @@ export type Effect =
   | 'dragSlip'
   | 'lineHiss'
   | 'flyCrack'
-  | 'flyTug';
+  | 'flyTug'
+  | 'flyHaul';
 
 /** Tehoste, joka riippuu tapahtuman luvuista (heiton voima, salaman etäisyys …). */
 type Play = (sfx: Sfx, a: number, b: number) => void;
@@ -73,6 +74,7 @@ export const SOUNDS = {
   // Perhokalastus (#235, #236)
   flySwish: { effect: (s, speed, duration) => s.flySwish(speed, duration) },
   flyTug: { effect: 'flyTug' },
+  flyHaul: { effect: 'flyHaul' },
   flyCrack: { effect: 'flyCrack' },
   flyLand: { effect: (s, big) => s.flyLand(big > 0) },
   flySnag: { effect: 'strike' },

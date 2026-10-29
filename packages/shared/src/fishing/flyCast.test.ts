@@ -232,6 +232,22 @@ describe('perhoheiton virheet (#235)', () => {
     expect(speed({ haul: true })).toBeCloseTo(base * FLY_CAST.haulBoost);
   });
 
+  it('veto hetkeä ennen liikettä lasketaan, ja osunut veto ilmoitetaan (#398)', () => {
+    const speed = (early: number) => {
+      const c = createFlyCast(10, false);
+      const ev = stepFlyCast(c, { rod: 0, grip: true, haul: true }, env(), DT);
+      expect(ev.haul).toBeUndefined();
+      wait(c, env(), early);
+      const all = stroke(c, env(), -idealArc(10) / 2, 0.3);
+      return { speed: all.stop!.speed, haul: all.haul === true };
+    };
+    const base = speed(1).speed;
+    expect(speed(1).haul).toBe(false);
+    const early = speed(FLY_CAST.haulEarly / 2);
+    expect(early.haul).toBe(true);
+    expect(early.speed).toBeCloseTo(base * FLY_CAST.haulBoost);
+  });
+
   it('realistisella äkkinäinen kiihdytys lopussa tekee tuulisolmun', () => {
     const e = env('realistic');
     const c = createFlyCast(10, false);

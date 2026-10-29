@@ -603,7 +603,8 @@ export const en: Record<keyof typeof fi, string> = {
   'guide.flyStrip': 'Fly guide 2/3: work the fly with strips · {strip} = strip line',
   'guide.flyWait': 'Fly guide 2/3: strip until a fish takes · {lift} = lift for a new cast',
   'guide.flyAgain': 'Fly guide: {castForward} = cast again',
-  'guide.flyStrike': 'Fly guide 3/3: a take! Strip line ({strip}) to set the hook',
+  'guide.flyStrike':
+    'Fly guide 3/3: a take! Strip line ({strip}) or lift the rod ({lift}) to set the hook',
   'guide.flyFight':
     'Fly guide 3/3: fish on! {reelSlack} = slack onto the reel, then reel and tire it with the drag',
   'help.thunder': 'In thunder, reel your lure in and stay close to the shore',
@@ -621,7 +622,7 @@ export const en: Record<keyof typeof fi, string> = {
     '{lure} = change lure (hold: box) · {method} = spin/fly · {sonar} = finder · {lureSonar} = depth',
   'help.flyCast': 'Fly cast: {backCast} = back, {forwardCast} = forward · {swipe}',
   'help.flyCast2':
-    '{castForward} = rhythm cast · {lift} = pick up for a new cast · {flyPanel} = side view',
+    '{castForward} = rhythm cast · {lift} = pick up (on a take: set the hook) · {flyPanel} = side view',
   'help.flyStrip': 'Fly on the water: {strip} = strip line · {reelSlack} = slack to reel',
   'help.flyReel': 'On the reel: hold {pointer} or {reel} = reel in · {dragLess}/{dragMore} = drag',
   'help.bar':
@@ -705,7 +706,7 @@ export const en: Record<keyof typeof fi, string> = {
   'touch.line': 'LINE',
   'touch.lineTitle': 'Line hand: hold to grip the line, release to let it slip',
   'touch.lift': 'LIFT',
-  'touch.liftTitle': 'Lift the line off the water for a new cast',
+  'touch.liftTitle': 'Lift the line off the water for a new cast, on a take set the hook',
   'touch.strip': 'STRIP',
   'touch.stripTitle': 'Strip line (haul while casting)',
   'touch.emote': 'EMO',
@@ -839,6 +840,7 @@ export const en: Record<keyof typeof fi, string> = {
   'flyPanel.pickup': 'Pick-up',
   'flyPanel.back': 'Back cast · {m} m',
   'flyPanel.forward': 'Forward cast · {m} m',
+  'flyPanel.haul': 'haul',
   'game.flyCrack': 'Crack! Wait for the line to straighten before changing direction.',
   'game.flyLost': 'The whip crack snapped off the fly!',
   'game.flyFell': 'The back cast hit the water. Pick up the line again.',
@@ -850,7 +852,7 @@ export const en: Record<keyof typeof fi, string> = {
   'game.flyCastLength': 'Cast {m} m',
   'game.flyRollCast': 'Roll cast {m} m',
   'game.flyLater': 'The fly changes when it is in: {fly}',
-  'game.missedFly': 'Missed – strip the line right after the strike',
+  'game.missedFly': 'Missed – strip or lift the rod right after the strike',
   'game.snaggedFly': 'Snagged! Strip the line to free it',
   'game.lineBrokenFly':
     'The leader snapped! Let line slip through your fingers or reel the slack ({reelSlack})',
