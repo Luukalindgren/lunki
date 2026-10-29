@@ -29,6 +29,7 @@ import { FLY_LINE_POINTS, flyLinePose, flyLineProfile, flyLineWorld } from './fl
 import { flyRodTip } from './povRod';
 import { SplashRings } from './splashRings';
 import { LandingView } from './landingView';
+import { strikeTaut } from './rodMotion';
 
 /** Siiman piirtokorkeus pinnalla. */
 const SURFACE_Y = 0.04;
@@ -163,6 +164,7 @@ export class FishingView {
     aim: Vec2,
     dt: number,
     hooked: Fish | null = null,
+    rodEnd: LinePoint | null = null,
   ): void {
     // Nostovaiheessa kala näkyy kuvana pinnassa, ei varjona.
     this.fishShadow.visible = !!hooked && hooked.depth < 1.6 && !s.landing;
@@ -173,9 +175,14 @@ export class FishingView {
       this.fishShadow.rotation.z = hooked.heading;
     }
     const tip = rodTip(ctx.tubePos, ctx.heading);
-    // Piirretty kärki on oikeassa kädessä pidetyn vavan päässä.
+    // Piirretty kärki on oikeassa kädessä pidetyn vavan päässä; vavan liike
+    // (`rodEnd`, nosto ja taipuma) siirtää sitä, ja siima lähtee siitä.
     const side = rodSideOffset(ctx.heading);
-    const shownTip = { x: tip.x + side.x, y: tip.y + side.y };
+    const shownTip = rodEnd
+      ? { x: rodEnd.x, y: rodEnd.y }
+      : { x: tip.x + side.x, y: tip.y + side.y };
+    const tipY = rodEnd?.h ?? ROD_TIP_Y;
+    const offset = { x: shownTip.x - tip.x, y: shownTip.y - tip.y };
 
     // Tähtäys näkyy aina, kun vapa on valmiina; latauksessa osumakohta seuraa voimaa.
     // Kalastajan silmin tähtäimenä on hiiri; osumakohta näkyy vasta latauksessa.
@@ -198,7 +205,7 @@ export class FishingView {
               x: tip.x + Math.cos(angle) * Math.hypot(aim.x - tip.x, aim.y - tip.y),
               y: tip.y + Math.sin(angle) * Math.hypot(aim.x - tip.x, aim.y - tip.y),
             };
-      setLine(this.aimLine, toWorld(shownTip, ROD_TIP_Y), toWorld(target, 0.05));
+      setLine(this.aimLine, toWorld(shownTip, tipY), toWorld(target, 0.05));
       this.aimLine.computeLineDistances();
       this.aimMarker.position.copy(toWorld(target, 0.04));
       const mat = this.aimMarker.material as THREE.MeshBasicMaterial;
@@ -225,15 +232,17 @@ export class FishingView {
       this.lure.scale.setScalar(1 + height * 0.08);
       // Siima roikkuu vavan kärjestä kaarena veteen ja jatkaa pinnalla fysiikan muotoa.
       this.taut += (tautness(s.tension) - this.taut) * Math.min(1, dt * 4);
+      // Tärppi: kala nykii viehettä, ja siima kiristyy ja löystyy nykäyksittäin.
+      if (s.struckId !== null && s.hookedId === null) this.taut = strikeTaut(s.strikeAge);
       const pts =
         s.stage === 'flight'
           ? flightLine(
-              { x: shownTip.x, y: shownTip.y, h: ROD_TIP_Y },
+              { x: shownTip.x, y: shownTip.y, h: tipY },
               { x: this.lure.position.x, y: -this.lure.position.z, h: this.lure.position.y },
               LINE_VERTS,
               SURFACE_Y,
             )
-          : hangLine(s.line.points, ROD_TIP_Y, this.taut, SURFACE_Y, side);
+          : hangLine(s.line.points, tipY, this.taut, SURFACE_Y, offset);
       const pos = this.line.geometry.getAttribute('position') as THREE.BufferAttribute;
       writeLine(pos, pts);
       pos.needsUpdate = true;
@@ -248,7 +257,7 @@ export class FishingView {
     this.landing.update(
       s.landing ? hooked : null,
       !!s.landing?.net,
-      toWorld(shownTip, ROD_TIP_Y),
+      toWorld(shownTip, tipY),
       ctx.tubePos,
       ctx.heading,
     );

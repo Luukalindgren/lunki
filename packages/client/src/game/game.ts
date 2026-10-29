@@ -57,14 +57,22 @@ import { Sounds } from '../audio/sounds';
 import type { VoiceId } from '../audio/voice';
 import type { Hud } from '../ui/hud';
 import { FishingView } from './fishingView';
-import { rodSideOffset } from './lineHang';
-import { PovRod, flyRodTip } from './povRod';
+import { rodSideOffset, type LinePoint } from './lineHang';
+import { PovRod, flyRodAngle, flyRodTip } from './povRod';
+import { REST_POSE, lakePoint } from './rodMotion';
 import { PovTube } from './povTube';
 import { loadAppearance } from './appearance';
 import { LurePicker } from './lurePicker';
 import { loadTackle } from './tackle';
 import { TopDownCamera } from './topDownCamera';
-import { SEATED_LIFT, animateEmote, animateFins, createTubeMesh, setSeated } from './tubeMesh';
+import {
+  SEATED_LIFT,
+  aimRod,
+  animateEmote,
+  animateFins,
+  createTubeMesh,
+  setSeated,
+} from './tubeMesh';
 import { AnchorView, type AnchoredCraft } from './anchorView';
 import { SeatSlides } from './seatSlide';
 import { BoatsView } from './boatView';
@@ -111,6 +119,8 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
   /** Kartan muuttumattomat osat, yhteiset kaikille peleille (#327). */
   private readonly world: StaticWorld;
   private readonly povRod = new PovRod();
+  /** Oman vavan kärki ylhäältä-näkymässä (hahmon vapa). */
+  private readonly rodEnd = new THREE.Vector3();
   private readonly povTube: PovTube;
   readonly water: WaterBody;
   readonly bottom: LakeBottom;
@@ -778,9 +788,19 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     const emoteAge = this.emoting ? (performance.now() - this.emoting.start) / 1000 : Infinity;
     if (emoteAge > EMOTE_DURATION) this.emoting = null;
     animateEmote(this.tubeMesh, this.emoting?.id ?? null, emoteAge);
-    const hooked = this.fish.fish.find((x) => x.id === this.fishing.hookedId) ?? null;
-    this.fishingView.metersPerPixel = this.view.metersPerPixel;
-    this.fishingView.update(this.fishing, this.angler.context(), this.angler.aim, 1 / 60, hooked);
+    // Vavan liike (nosto, taipuma); siima lähtee piirretyn vavan kärjestä.
+    const rodPose = this.angler.rodPose();
+    const flyCast = this.fishing.stage === 'casting' ? this.fishing.flyCast : null;
+    let rodEnd: LinePoint | null = null;
+    if (this.viewMode !== 'pov')
+      rodEnd = lakePoint(
+        aimRod(
+          this.tubeMesh,
+          // Ylhäältä perhovapa heiluu heitossa kuten kalastajan silmin.
+          flyCast ? { ...REST_POSE, lift: flyRodAngle(flyCast.rod) - flyRodAngle(1) } : rodPose,
+          this.rodEnd,
+        ),
+      );
     this.view.apply();
     this.weather.render(pos, air);
     this.youMarker.update(pos, heading, this.view.metersPerPixel, this.viewMode === 'top');
@@ -809,8 +829,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       // Vapa oikeasta kädestä kärkeen; kärki on siiman alkupiste.
       const side = rodSideOffset(heading);
       // Perhoheitossa vapa heiluu taakse ja eteen (#235).
-      const cast = this.fishing.stage === 'casting' ? this.fishing.flyCast : null;
-      const swing = cast ? flyRodTip(cast.rod) : null;
+      const swing = flyCast ? flyRodTip(flyCast.rod) : null;
       const tip = swing
         ? {
             x: pos.x + Math.cos(heading) * swing.forward,
@@ -819,7 +838,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
         : rodTip(pos, heading);
       tip.x += side.x;
       tip.y += side.y;
-      this.povRod.update(
+      rodEnd = this.povRod.update(
         this.pov.camera,
         this.pov.pixelSize,
         pos,
@@ -831,11 +850,22 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
         {
           tipY: swing?.height,
           fly: isFly(this.fishing.tackle),
-          bend: this.angler.flyRodBend(cast),
+          bend: this.angler.flyRodBend(flyCast),
+          pose: rodPose,
         },
       );
       this.weather.follow(this.pov.camera.position);
     }
+    const hooked = this.fish.fish.find((x) => x.id === this.fishing.hookedId) ?? null;
+    this.fishingView.metersPerPixel = this.view.metersPerPixel;
+    this.fishingView.update(
+      this.fishing,
+      this.angler.context(),
+      this.angler.aim,
+      1 / 60,
+      hooked,
+      rodEnd,
+    );
     this.weather.shakeCamera(this.camera);
     // Oma vene sellaisena kuin se nyt piirretään: kyytiläiset istuvat siinä.
     const own = this.spectating
