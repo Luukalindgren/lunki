@@ -142,10 +142,10 @@ näkymän omaa (`Math.random`), joten kalakanta ja saaliit pysyvät samoina sama
 
 ## Vieheet ja varusteet
 
-Varusteet valitaan yksinpelin asetuksissa tai moninpelin aulassa ennen kisaa (rivi Omat
-varusteet), ja niitä voi vaihtaa taukovalikon (Esc) Varusteet-näkymästä tai vieheen
-pikanäppäimellä R. Vaihto tapahtuu, kun viehe on kelalla. Valinnat
-muistetaan selaimessa. Moninpelissä kaikkien varusteet näkyvät aulan pelaajalistassa ja
+Varusteet laitetaan kuntoon "kotona" päävalikon Varusteet-näkymässä (#383): kalastustapa,
+viehepakki tai perhorasia, vapa ja siima. Yksinpelin asetuksissa ja moninpelin aulassa ne näkyvät
+vain yhteenvetona. Kisassa vieheet vaihdetaan pakista pikanäppäimellä R (ks. viehepakki alla), ja
+vaihto tapahtuu, kun viehe on kelalla. Valinnat muistetaan selaimessa. Moninpelissä kaikkien varusteet näkyvät aulan pelaajalistassa ja
 tuloksissa. "Aloittelijan varusteet" palauttaa oletukset: perusvapa, lusikka ja 0,25 mm
 siima ilman perukkaa. Parametrit: `packages/shared/src/fishing/gear.ts`.
 
@@ -175,8 +175,8 @@ varoittaa siitä. Vieheiden painot: lusikka 15 g, lippa 7 g, jigi ja vaappu sä�
 ### Jigin paino ja vaapun uintisyvyys (#363)
 
 Säätö on vieheen parametri (`Tackle.jigWeight`, `Tackle.crankDepth`, taulut `JIG_WEIGHTS` ja
-`CRANK_DEPTHS`), ei uusi viehe: R kiertää vieheet kuten ennen. Ennen kisaa Varusteet-näkymässä
-valitaan molemmat, kisan aikana käytössä olevan vieheen säätö. Nimi näkyy säätöineen ("Jigi 20 g",
+`CRANK_DEPTHS`), ei uusi viehe. Säätö valitaan viehepakin lokerolle (#383), joten samaa
+viehettä voi ottaa mukaan eri säädöillä. Nimi näkyy säätöineen ("Jigi 20 g",
 "Vaappu syvä") HUD:ssa, ilmoituksissa, aulassa, tuloksissa ja ennätyksissä (`lure_variant`).
 Oletussäädöt (10 g, keski) ovat entinen jigi ja vaappu.
 
@@ -208,26 +208,28 @@ realistisella noin 3 % sekunnissa), mutta muut lajit tarttuvat siihen hieman har
 
 ### Viehepakki ja perhorasia (#365)
 
-Pelaaja kokoaa Varusteet-näkymän Viehepakki-rivillä enintään kuusi lokeroa (`BOX_SLOTS`), ja
-samaa viehettä voi ottaa eri säädöillä ("Jigi 5 g" ja "Jigi 20 g"). Perhoille on oma
-kuuden lokeron perhorasia. Pakki on selaimen tietoa (`lunki.tackleBox`, `game/tackleBox.ts`), ja
+Pelaaja kokoaa päävalikon Varusteet-näkymän Viehepakki-rivillä enintään kahdeksan lokeroa
+(`BOX_SLOTS`, #383), ja samaa viehettä voi ottaa eri säädöillä ("Jigi 5 g" ja "Jigi 20 g").
+Lokeron vihje varoittaa, jos viehe ei sovi vavan heittopainoon. Perhoille on oma kahdeksan
+lokeron perhorasia. Kisa alkaa pakin vieheellä. Pakki on selaimen tietoa (`lunki.tackleBox`, `game/tackleBox.ts`), ja
 palvelin näkee vain käytössä olevan vieheen kuten ennenkin. Tyhjä tai rikki tallennus antaa
 aloittelijan pakin, jossa ovat kaikki vieheet ja perhot.
 
 Kisan aikana R:n tai VIEHE-napin napautus vaihtaa pakin seuraavaan lokeroon. Pohjassa pidetty R
 (0,35 s, `LURE_HOLD`) avaa pikavalikon vieheiden kuvin (`game/lurePicker.ts`, sama
-ympyrävalikko kuin käsimerkeillä, `ui/ringMenu.ts`). Valinta tehdään numerolla, nuolilla ja
-Enterillä tai hiirellä, ja R tai Esc sulkee valikon.
+ympyrävalikko kuin käsimerkeillä, `ui/ringMenu.ts`). Valikko on jaettu lohkoihin, ja valittu
+lohko nousee ja vaihtaa väriä. Valinta tehdään numerolla, nuolilla ja Enterillä tai hiirellä, ja R
+tai Esc sulkee valikon.
 
 Realistisella vaikeustasolla siiman katketessa menetetty viehe poistuu kisan pakista, ja pakin
-seuraava viehe otetaan käyttöön. Viimeinen viehe jää varavieheeksi. Kisan aikana pakkia ei voi
-täydentää. Muilla vaikeustasoilla pakki pysyy ennallaan.
+seuraava viehe otetaan käyttöön. Viimeinen viehe jää varavieheeksi. Kisan aikana pakkia ei
+muokata millään tasolla. Muilla vaikeustasoilla pakki pysyy ennallaan.
 
 ## Perhokalastus (#234)
 
-Kalastajalla on mukana sekä virveli- että perhovälineet. Kalastustapa valitaan varusteista ennen kisaa tai
-taukovalikon Varusteet-näkymässä (Kalastustapa: Virveli / Perho), ja sitä voi vaihtaa kesken kisan, kun viehe on
-kelalla. Vavat valitaan ennen kisaa, perho kisan aikana (R vaihtaa perhoa). Parametrit:
+Kalastustapa valitaan päävalikon Varusteet-näkymässä (Kalastustapa: Virveli / Perho) ennen kisaa
+(#383). Vavat ja siimat valitaan samassa näkymässä, perhot perhorasiaan, josta R vaihtaa perhoa
+kisan aikana. Parametrit:
 `FLY_RODS`, `FLY_LINES`, `FLY_LEADERS` ja `FLIES` tiedostossa `gear.ts`, uitto `FLY` tiedostossa
 `fishing.ts`.
 

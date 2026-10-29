@@ -1219,39 +1219,54 @@ textarea,
   display: inline;
 }
 
-/* Ympyrävalikko: käsimerkit (#228) ja viehepakki (#365), ui/ringMenu.ts. */
+/* Ympyrävalikko: käsimerkit (#228) ja viehepakki (#365), ui/ringMenu.ts.
+   Reunat ja värit kuten pelin muissa valikoissa (.screen-panel, .screen button);
+   lohkojen väliin jää reunan värinen viiva, ja valittu lohko nousee ulospäin. */
 .ring-menu {
+  --ring-size: min(360px, 88vmin);
   position: absolute;
   left: 50%;
   top: 50%;
-  width: min(300px, 80vw);
-  height: min(300px, 80vw);
+  box-sizing: border-box;
+  width: var(--ring-size);
+  height: var(--ring-size);
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  background: rgb(11 15 20 / 70%);
-  border: 3px solid #f6d04d;
+  background: #5f6b78;
+  border: 4px solid #5f6b78;
+  box-shadow: 8px 8px 0 #0b0f14;
   pointer-events: auto;
   z-index: 3;
 }
 
 .ring-option {
   position: absolute;
-  width: 64px;
-  height: 64px;
+  inset: 0;
   padding: 0;
-  transform: translate(-50%, -50%);
-  display: grid;
-  place-items: center;
-  background: rgb(28 35 43 / 90%);
-  border: 2px solid #4f6f86;
-  border-radius: 8px;
+  border: 0;
+  background: #39424d;
   cursor: pointer;
+  transition:
+    transform 0.12s,
+    background 0.12s;
 }
 
-.ring-option.selected,
-.ring-option:hover {
-  border-color: #f6d04d;
-  background: rgb(60 50 20 / 90%);
+.ring-option.selected {
+  z-index: 1;
+  background: #1b5a84;
+  transform: translate(var(--lx), var(--ly));
+}
+
+.ring-cell,
+.ring-key {
+  position: absolute;
+  transform: translate(-50%, -50%);
+}
+
+/* Kuva on lohkon sisällä, joten napautus kuvaan osuu aina oikeaan lohkoon. */
+.ring-cell {
+  display: grid;
+  place-items: center;
 }
 
 .emote-option .emote-icon {
@@ -1260,37 +1275,38 @@ textarea,
 }
 
 .ring-key {
-  position: absolute;
-  right: 3px;
-  bottom: 0;
+  pointer-events: none;
   font-family: 'VT323', monospace;
   font-size: 16px;
   color: #f6d04d;
 }
 
-.ring-caption {
+.ring-hole {
   position: absolute;
   left: 50%;
   top: 50%;
+  box-sizing: border-box;
   transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #1c232b;
+  border: 4px solid #5f6b78;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.ring-caption {
+  max-width: 90%;
   font-family: 'VT323', monospace;
-  font-size: 22px;
+  font-size: 20px;
+  line-height: 1;
+  text-align: center;
   color: #eef2f3;
-  white-space: nowrap;
 }
 
 .emote-icon {
   image-rendering: pixelated;
-}
-
-/* Viehepakin pikavalikko (#365): leveämmät napit vieheen kuvalle. */
-.lure-menu .ring-option {
-  width: 76px;
-  height: 52px;
-}
-
-.lure-menu .ring-caption {
-  font-size: 20px;
 }
 
 .screen button:disabled {

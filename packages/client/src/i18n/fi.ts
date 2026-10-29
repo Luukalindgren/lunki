@@ -171,6 +171,7 @@ export const fi = {
   'menu.rejoin': 'Palaa kisaan {code}',
   'menu.solo': 'Yksinpeli',
   'menu.multiplayer': 'Moninpeli',
+  'menu.tackle': 'Varusteet',
   'menu.lakeMap': 'Järvikartta',
   'menu.records': 'Ennätykset',
   'menu.settings': 'Asetukset',
@@ -227,6 +228,7 @@ export const fi = {
     'Ukkosella salama voi iskeä, jos vapa on ylhäällä: kelaa viehe sisään. Iso aalto kaataa renkaan sivulta: käänny aaltoa kohti. Maalle tai laiturille heitetty viehe juuttuu, ja siima on katkaistava.',
   'settings.colors': 'Omat värit',
   'settings.tackle': 'Omat varusteet',
+  'settings.tackleAtHome': 'Varusteet: {tackle}. Vaihda ne päävalikon Varusteet-näkymässä.',
   'settings.changeColors': 'Muuta värejä',
   'settings.display': 'Näyttö',
   'settings.guide': 'Opastus',
@@ -268,8 +270,8 @@ export const fi = {
   'tackle.hint':
     'Ohut siima heittyy pidemmälle mutta katkeaa helpommin. Hauki voi purra siiman poikki ilman peruketta.',
   'tackle.beginner': 'Aloittelijan varusteet',
-  'tackle.lureInRace': 'Vieheen vaihdat kisan aikana ({lure}) tai taukovalikosta.',
-  'tackle.rodLocked': 'Vapa: {rod}. Vapa pysyy samana koko kisan.',
+  'tackle.lureInRace':
+    'Kisassa vieheet ovat pakissa: {lure} vaihtaa seuraavaan, ja {lure} pohjassa avaa pikavalikon.',
   'box.title': 'Viehepakki',
   'box.flyTitle': 'Perhorasia',
   'box.count': '{n}/{max}',
@@ -277,9 +279,7 @@ export const fi = {
   'box.empty': 'Tyhjä',
   'box.beginner': 'Aloittelijan pakki',
   'box.hint':
-    'Enintään 6 lokeroa. {lure} kiertää ne järjestyksessä, ja {lure} pohjassa avaa pikavalikon. Saman vieheen voi ottaa eri säädöillä.',
-  'box.locked':
-    'Realistisella pakkia ei voi täydentää kesken kisan: katkenneen siiman viehe jää järveen.',
+    'Enintään {max} lokeroa. {lure} kiertää ne järjestyksessä, ja {lure} pohjassa avaa pikavalikon. Saman vieheen voi ottaa eri säädöillä.',
   'box.lost': 'Pakissa jäljellä {n}',
   'box.lastLure': 'Viimeinen viehe: se jää käyttöön varavieheenä',
   'tackle.method': 'Kalastustapa',
@@ -294,8 +294,6 @@ export const fi = {
   'tackle.flyLeaderOption': '{name} ({kg} kg)',
   'tackle.flyHint':
     'Perhoa ei kelata vaan uitetaan vedoilla ({strip}). Kun siimasta päästää irti, kala vie sitä sormien läpi. Löysät kelataan kelalle ({reelSlack}), minkä jälkeen kalaa väsytetään jarrulla.',
-  'tackle.methodInRace':
-    'Virvelin ja perhon välillä voi vaihtaa kisan aikana, kun viehe on kelalla.',
 
   // --- Aloituspaikan valinta ---
   'startPicker.choose': 'Valitse tämä',
@@ -453,7 +451,6 @@ export const fi = {
   'pause.fovCapped': 'Näkökenttä {fov}° (tällä ruudulla {fits}°)',
   'pause.continues': 'Kisa jatkuu muilla taustalla.',
   'pause.resume': 'Jatka',
-  'pause.tackle': 'Varusteet',
   'pause.leaveRace': 'Poistu kisasta',
   'pause.endRace': 'Lopeta kisa',
   'pause.endSession': 'Lopeta ja punnitse',

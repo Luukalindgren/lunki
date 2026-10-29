@@ -60,8 +60,6 @@ test.describe('valikot näppäimistöllä (#237)', () => {
     await expect(title(page)).toHaveText('Tauko');
     await expect.poll(() => focused(page)).toBe('Jatka');
     await page.keyboard.press('ArrowDown');
-    await expect.poll(() => focused(page)).toBe('Varusteet');
-    await page.keyboard.press('ArrowDown');
     await expect.poll(() => focused(page)).toBe('Asetukset');
     await page.keyboard.press('Enter');
     await expect(title(page)).toHaveText('Asetukset');
@@ -80,7 +78,6 @@ test.describe('valikot näppäimistöllä (#237)', () => {
     await page.keyboard.press('Escape');
     await expect(title(page)).toHaveText('Tauko');
     await expect.poll(() => focused(page)).toBe('Asetukset');
-    await page.keyboard.press('ArrowUp');
     await page.keyboard.press('ArrowUp');
     await expect.poll(() => focused(page)).toBe('Jatka');
     // Välilyönti valikossa ei heitä taustalla.
@@ -251,7 +248,8 @@ test('käsimerkit: G avaa valikon, numero tekee eleen ja Esc sulkee tauotta (#22
   // Hiirellä: klikkaus valitsee.
   await page.keyboard.press('KeyG');
   await expect(menu).toBeVisible();
-  await menu.locator('.emote-option').nth(5).click();
+  // Lohkot ovat ympyrän sektoreita: klikkaus lohkon kuvaan.
+  await menu.locator('.emote-option').nth(5).locator('.ring-cell').click();
   await expect(menu).toBeHidden();
   errors.check();
 });

@@ -110,7 +110,7 @@ import {
   type Lang,
   type MsgKey,
 } from '../i18n';
-import { controlText, withKey } from '../game/controls';
+import { controlText } from '../game/controls';
 import { isMine } from '../game/raceScoreboard';
 import { loadCraft, saveCraft } from '../game/tackle';
 import {
@@ -119,6 +119,7 @@ import {
   loadTackleBox,
   saveTackleBox,
   slotOf,
+  withSlot,
   type LureSlot,
   type TackleBox,
 } from '../game/tackleBox';
@@ -219,19 +220,16 @@ const MODE_HINTS: Record<RecordMode, MsgKey> = {
 const LANG_NAMES: Record<Lang, string> = { fi: 'Suomi', en: 'English' };
 /** Kalojen kuvat listoissa: kapealla näytöllä pienempinä (ks. style.css). */
 const LIST_FISH_SCALE = 'var(--fish-px, 2px)';
-/** Viehepakki näkymälle: tallennettu tai kisan pakki (#365). */
-export interface BoxBinding {
+/** Viehepakki näkymälle: selaimeen tallennettu pakki (#365). */
+interface BoxBinding {
   current: TackleBox;
   onChange: (b: TackleBox) => void;
-  /** Realistisella pakkia ei täydennetä kesken kisan (menetetyt vieheet). */
-  locked: boolean;
 }
 
-/** Varusteet näkymälle; `box` puuttuu = selaimeen tallennettu pakki. */
+/** Varusteet näkymälle. */
 export interface TackleBinding {
   current: Tackle;
   onChange: (t: Tackle) => void;
-  box?: BoxBinding;
 }
 
 /** Vieheen kuvan pikselikoko Varusteet-näkymässä. */
@@ -400,6 +398,8 @@ export class Screens {
     rejoin?: { code: string; run: () => void };
     onSolo: () => void;
     onMultiplayer: () => void;
+    /** Varusteet "kotona" ennen kalaan lähtöä (#383). */
+    onTackle: () => void;
     onLakeMap: () => void;
     onRecords: () => void;
     onSettings: () => void;
@@ -417,6 +417,7 @@ export class Screens {
         : []),
       [t('menu.solo'), actions.onSolo],
       [t('menu.multiplayer'), actions.onMultiplayer],
+      [t('menu.tackle'), actions.onTackle],
       [t('menu.lakeMap'), actions.onLakeMap],
       [t('menu.records'), actions.onRecords],
       [t('menu.settings'), actions.onSettings],
@@ -472,13 +473,10 @@ export class Screens {
     /** Avaa kartan aloituspaikan valintaan; saa asetukset sellaisinaan. */
     onPickStart: (s: CompetitionSettings) => void,
     appearance: { current: Appearance; onChange: (a: Appearance) => void },
-    tackle: { current: Tackle; onChange: (t: Tackle) => void },
+    /** Varusteet näkyvät yhteenvetona; ne vaihdetaan päävalikossa (#383). */
+    tackle: Tackle,
   ): void {
     const settings = { ...initial };
-    const setTackle = (next: Tackle) => {
-      tackle = { ...tackle, current: next };
-      tackle.onChange(next);
-    };
     const setAppearance = (next: Appearance) => {
       appearance = { ...appearance, current: next };
       appearance.onChange(next);
@@ -566,15 +564,9 @@ export class Screens {
         },
       ),
       h('p', t('solo.craftHint'), 'hint'),
-      // Varusteet ja värit omissa näkymissään; paluu säilyttää kesken olevat valinnat.
-      this.tackleSummary(tackle.current, () =>
-        this.showTackle(
-          'solo-tackle',
-          { current: tackle.current, onChange: setTackle },
-          'before',
-          reopen,
-        ),
-      ),
+      // Värit omassa näkymässään; paluu säilyttää kesken olevat valinnat.
+      // Varusteet laitetaan kuntoon päävalikossa (#383).
+      this.tackleNote(tackle),
       current,
       this.buttons([
         [
@@ -656,7 +648,6 @@ export class Screens {
       onSpectate: (on: boolean) => void;
       onLeave: () => void;
       onSettings: (patch: Partial<RoomSettings>) => void;
-      onTackle: (t: Tackle) => void;
       onAppearance: (a: Appearance) => void;
       /** Isäntä avaa kartan aloituspaikan valintaan. */
       onPickStart: () => void;
@@ -775,19 +766,8 @@ export class Screens {
       v.amHost
         ? this.settingsEditor(v.settings, anglers, actions.onSettings, actions.onPickStart)
         : this.settingsSummary(v.settings),
-      // Katsoja ei kalasta, joten varusteita ei tarvita.
-      ...(me?.spectator
-        ? []
-        : [
-            this.tackleSummary(me?.tackle ?? DEFAULT_TACKLE, () =>
-              this.showTackle(
-                'lobby-tackle',
-                { current: me?.tackle ?? DEFAULT_TACKLE, onChange: actions.onTackle },
-                'before',
-                back,
-              ),
-            ),
-          ]),
+      // Katsoja ei kalasta, joten varusteita ei tarvita. Varusteet päävalikosta (#383).
+      ...(me?.spectator ? [] : [this.tackleNote(me?.tackle ?? DEFAULT_TACKLE)]),
       ...(me
         ? [
             this.colorsSummary(
@@ -974,39 +954,31 @@ export class Screens {
     this.show(panel, { back: onBack });
   }
 
-  /** Omat varusteet omana näkymänään (tauko, yksinpelin valmistelu, aula). */
-  private showTackle(
-    screen: string,
-    tackle: TackleBinding,
-    mode: 'before' | 'during',
-    onBack: () => void,
-  ): void {
+  /**
+   * Omat varusteet omana näkymänään päävalikosta (#383): välineet laitetaan
+   * kuntoon kotona. Kisassa vieheet vaihdetaan vain viehepakista (R).
+   */
+  showTackle(tackle: TackleBinding, onBack: () => void): void {
     // Viehepakin alanäkymästä palataan tähän viimeisimmin valituin varustein.
     let latest = tackle.current;
     const onChange = (next: Tackle) => {
       latest = next;
       tackle.onChange(next);
     };
-    const given = tackle.box ?? {
-      current: loadTackleBox(),
-      onChange: saveTackleBox,
-      locked: false,
-    };
     const pack: BoxBinding = {
-      ...given,
+      current: loadTackleBox(),
       onChange: (b) => {
         pack.current = b;
-        given.onChange(b);
+        saveTackleBox(b);
       },
     };
-    const reopen = () =>
-      this.showTackle(screen, { ...tackle, current: latest, box: pack }, mode, onBack);
-    const panel = this.panel(screen);
+    const reopen = () => this.showTackle({ ...tackle, current: latest }, onBack);
+    const panel = this.panel('tackle');
     panel.append(
       h('h2', t('settings.tackle')),
-      this.tackleEditor(tackle.current, onChange, mode, {
+      this.tackleEditor(tackle.current, onChange, {
         pack,
-        open: (method) => this.showBox(`${screen}-box`, method, pack, reopen),
+        open: (method) => this.showBox('tackle-box', method, latest, pack, reopen),
       }),
       this.buttons([[t('common.back'), onBack]]),
     );
@@ -1014,11 +986,19 @@ export class Screens {
   }
 
   /**
-   * Viehepakki tai perhorasia omana näkymänään (#365): enintään kuusi
+   * Viehepakki tai perhorasia omana näkymänään (#365): enintään kahdeksan
    * lokeroa, joiden järjestys on R-kierron järjestys. Lokeron valinta
-   * näyttää sen vieheen ja säädön; "Tyhjä" poistaa lokeron.
+   * näyttää sen vieheen ja säädön; "Tyhjä" poistaa lokeron. Jigin paino ja
+   * vaapun syvyys valitaan lokerolle (#383), ja vihje varoittaa, jos viehe ei
+   * sovi vavan heittopainoon.
    */
-  private showBox(screen: string, method: Method, pack: BoxBinding, onBack: () => void): void {
+  private showBox(
+    screen: string,
+    method: Method,
+    tackle: Tackle,
+    pack: BoxBinding,
+    onBack: () => void,
+  ): void {
     const fly = method === 'fly';
     const panel = this.panel(screen);
     const grid = document.createElement('div');
@@ -1057,7 +1037,7 @@ export class Screens {
             );
             b.classList.add('empty');
             // Lokerot täyttyvät järjestyksessä: tyhjän jälkeisiä ei voi valita.
-            b.disabled = i > items.length || pack.locked;
+            b.disabled = i > items.length;
           }
           b.addEventListener('click', () => {
             selected = i;
@@ -1067,10 +1047,6 @@ export class Screens {
         }),
       );
       editor.replaceChildren();
-      if (pack.locked) {
-        editor.append(h('p', t('box.locked'), 'hint'));
-        return;
-      }
       const item = items[selected];
       const none: [string, string] = ['', t('box.empty')];
       if (fly) {
@@ -1090,6 +1066,7 @@ export class Screens {
             },
           ),
         );
+        if (typeof item === 'string') editor.append(this.lureHintRow(item, flyHint(item)));
         return;
       }
       const slot = typeof item === 'object' ? item : undefined;
@@ -1107,6 +1084,7 @@ export class Screens {
           (v) => setSlot(v === '' ? null : slotOf({ ...DEFAULT_TACKLE, lure: v as LureId })),
         ),
       );
+      if (slot) editor.append(this.lureHintRow(slot.lure, lureHint(slot.lure)));
       if (slot?.lure === 'jig')
         editor.append(
           this.choice(
@@ -1128,25 +1106,40 @@ export class Screens {
             (v) => setSlot({ lure: 'wobbler', variant: v as CrankDepthId }),
           ),
         );
+      if (slot?.variant)
+        editor.append(
+          h(
+            'p',
+            slot.lure === 'jig'
+              ? jigWeightHint(slot.variant as JigWeightId)
+              : crankDepthHint(slot.variant as CrankDepthId),
+            'hint',
+          ),
+        );
+      // Vavan heittopaino (#363): varoitus, jos lokeron viehe ei sovi vapaan.
+      const rigged = slot ? withSlot(tackle, slot) : null;
+      if (rigged && !fitsCastWeight(rigged)) {
+        const [min, max] = RODS[rigged.rod].castWeight;
+        const g = lureTuning(rigged).grams;
+        editor.append(
+          h('p', t('tackle.castWeightOff', { lure: tackleLureName(rigged), g, min, max }), 'hint'),
+        );
+      }
     };
     render();
     panel.append(
       h('h2', t(fly ? 'box.flyTitle' : 'box.title')),
-      h('p', controlText('box.hint'), 'hint'),
+      h('p', controlText('box.hint', { max: BOX_SLOTS }), 'hint'),
       grid,
       editor,
       this.buttons([
-        ...(pack.locked
-          ? []
-          : ([
-              [
-                t('box.beginner'),
-                () => {
-                  const b = beginnerBox();
-                  update(fly ? b.flies : b.lures);
-                },
-              ],
-            ] as [string, () => void][])),
+        [
+          t('box.beginner'),
+          () => {
+            const b = beginnerBox();
+            update(fly ? b.flies : b.lures);
+          },
+        ],
         [t('common.back'), onBack],
       ]),
     );
@@ -1195,13 +1188,23 @@ export class Screens {
     return row;
   }
 
-  /** Varusteiden yhteenvetorivi. */
-  private tackleSummary(tackle: Tackle, onOpen: () => void): HTMLElement {
-    return this.summaryRow(
-      t('settings.tackle'),
-      [h('span', `${methodName(tackle.method)} · ${describeFullTackle(tackle)}`, 'summary-text')],
-      onOpen,
+  /** Varusteet yhteenvetona yksinpelin asetuksissa ja aulassa: vaihto päävalikosta (#383). */
+  private tackleNote(tackle: Tackle): HTMLElement {
+    return h(
+      'p',
+      t('settings.tackleAtHome', {
+        tackle: `${methodName(tackle.method)} · ${describeFullTackle(tackle)}`,
+      }),
+      'hint',
     );
+  }
+
+  /** Vieheen tai perhon kuva ja vihje rinnakkain (#362). */
+  private lureHintRow(id: LureArtId, text: string): HTMLElement {
+    const row = document.createElement('div');
+    row.className = 'lure-hint';
+    row.append(lureImage(id, LURE_HINT_SCALE), h('p', text, 'hint'));
+    return row;
   }
 
   /** Värien yhteenvetorivi: pieni kuva renkaasta tai veneestä. */
@@ -1623,16 +1626,13 @@ export class Screens {
     untimed?: boolean;
     /** Pelikellon aika järvellä, esim. 05:12. */
     clock?: string;
-    /** Varusteet-näkymä; puuttuu katsojalta, joka ei kalasta. */
-    onTackle?: () => void;
     onSettings: () => void;
     /** Paluu alinäkymästä: kohdistus sen napille Jatka-napin sijaan. */
-    from?: 'tackle' | 'settings';
+    from?: 'settings';
   }): void {
     const panel = this.panel('pause');
     const menu = this.buttons([
       [t('pause.resume'), p.onResume],
-      ...(p.onTackle ? ([[t('pause.tackle'), p.onTackle]] as [string, () => void][]) : []),
       [t('menu.settings'), p.onSettings],
       [
         p.multiplayer
@@ -1658,14 +1658,9 @@ export class Screens {
     );
     this.show(panel);
     if (p.from) {
-      const label = t(p.from === 'tackle' ? 'pause.tackle' : 'menu.settings');
+      const label = t('menu.settings');
       [...menu.querySelectorAll('button')].find((b) => b.textContent === label)?.focus();
     }
-  }
-
-  /** Tauon Varusteet-näkymä; paluu taukoon. Kisan viehepakki tulee pelistä. */
-  showPauseTackle(tackle: TackleBinding, onBack: () => void): void {
-    this.showTackle('pause-tackle', tackle, 'during', onBack);
   }
 
   /** Moninpelin lopputulokset voittoehdon mukaan. */
@@ -2150,23 +2145,21 @@ export class Screens {
   }
 
   /**
-   * Varusteet: kalastustapa (virveli tai perho) ja sen välineet. Ennen kisaa
-   * valitaan vavat (viehe tai perho vaihdetaan kisan aikana), kisan aikana
-   * viehe tai perho (vavat pysyvät samoina). Tavan voi vaihtaa milloin vain.
+   * Varusteet: kalastustapa (virveli tai perho), viehepakki tai perhorasia
+   * ja vavat siimoineen. Vieheet säätöineen ovat pakissa, josta R valitsee
+   * kisan aikana (#383).
    */
   private tackleEditor(
     initial: Tackle,
     onChange: (t: Tackle) => void,
-    mode: 'before' | 'during',
     pack: { pack: BoxBinding; open: (method: Method) => void },
   ): HTMLElement {
     const tk = { ...initial };
     const box = document.createElement('div');
     box.className = 'settings';
-    box.dataset.tackle = mode;
     const rebuild = (next: Tackle) => {
       onChange(next);
-      box.replaceWith(this.tackleEditor(next, onChange, mode, pack));
+      box.replaceWith(this.tackleEditor(next, onChange, pack));
     };
     box.append(
       this.choice(
@@ -2183,54 +2176,23 @@ export class Screens {
     const hints: [HTMLElement, () => string][] = [];
     const hint = (text: () => string) => {
       const p = h('p', text(), 'hint');
-      p.hidden = p.textContent === '';
       hints.push([p, text]);
       return p;
     };
-    // Valitun vieheen tai perhon kuva vihjeen vieressä (#362).
-    const arts: [HTMLElement, () => LureArtId][] = [];
-    const lureHintRow = (id: () => LureArtId, text: () => string) => {
-      const row = document.createElement('div');
-      row.className = 'lure-hint';
-      row.append(lureImage(id(), LURE_HINT_SCALE), hint(text));
-      arts.push([row, id]);
-      return row;
-    };
     const set = (patch: Partial<Tackle>) => {
       Object.assign(tk, patch);
-      for (const [p, text] of hints) {
-        p.textContent = text();
-        p.hidden = p.textContent === '';
-      }
-      for (const [row, id] of arts)
-        row.firstElementChild!.replaceWith(lureImage(id(), LURE_HINT_SCALE));
+      for (const [p, text] of hints) p.textContent = text();
       onChange({ ...tk });
     };
     if (fly) {
-      if (mode === 'before')
-        box.append(
-          this.choice(
-            t('tackle.flyRod'),
-            FLY_ROD_IDS.map((id) => [id, flyRodName(id)]),
-            tk.flyRod,
-            (v) => set({ flyRod: v as Tackle['flyRod'] }),
-          ),
-          hint(() => flyRodHint(tk.flyRod)),
-        );
-      else
-        box.append(
-          this.choice(
-            withKey('tackle.fly', 'lure'),
-            FLY_IDS.map((id) => [id, flyName(id)]),
-            tk.fly,
-            (v) => set({ fly: v as Tackle['fly'] }),
-          ),
-          lureHintRow(
-            () => tk.fly,
-            () => flyHint(tk.fly),
-          ),
-        );
       box.append(
+        this.choice(
+          t('tackle.flyRod'),
+          FLY_ROD_IDS.map((id) => [id, flyRodName(id)]),
+          tk.flyRod,
+          (v) => set({ flyRod: v as Tackle['flyRod'] }),
+        ),
+        hint(() => flyRodHint(tk.flyRod)),
         this.choice(
           t('tackle.flyLine'),
           FLY_LINE_IDS.map((id) => [id, flyLineName(id)]),
@@ -2253,67 +2215,17 @@ export class Screens {
         h('p', controlText('tackle.flyHint'), 'hint'),
       );
     } else {
-      const castWeight = () => {
-        const [min, max] = RODS[tk.rod].castWeight;
-        return t('rod.castWeight', { min, max });
-      };
-      // Jigin paino ja vaapun syvyys (#363): ennen kisaa molemmat, kisan aikana käytössä olevan.
-      const jigWeight = () => [
-        this.choice(
-          t('tackle.jigWeight'),
-          JIG_WEIGHT_IDS.map((id) => [id, jigWeightName(id)]),
-          tk.jigWeight,
-          (v) => set({ jigWeight: v as Tackle['jigWeight'] }),
-        ),
-        hint(() => jigWeightHint(tk.jigWeight)),
-      ];
-      const crankDepth = () => [
-        this.choice(
-          t('tackle.crankDepth'),
-          // Valinnan nimi isolla alkukirjaimella; vieheen nimessä pienellä ("Vaappu syvä").
-          CRANK_DEPTH_IDS.map((id) => {
-            const name = crankDepthName(id);
-            return [id, name.charAt(0).toUpperCase() + name.slice(1)];
-          }),
-          tk.crankDepth,
-          (v) => set({ crankDepth: v as Tackle['crankDepth'] }),
-        ),
-        hint(() => crankDepthHint(tk.crankDepth)),
-      ];
-      if (mode === 'before')
-        box.append(
-          this.choice(
-            t('tackle.rod'),
-            ROD_IDS.map((id) => [id, rodName(id)]),
-            tk.rod,
-            (v) => set({ rod: v as Tackle['rod'] }),
-          ),
-          hint(() => `${rodHint(tk.rod)}. ${castWeight()}.`),
-          ...jigWeight(),
-          ...crankDepth(),
-        );
-      else
-        box.append(
-          this.choice(
-            withKey('tackle.lure', 'lure'),
-            LURE_IDS.map((id) => [id, lureName(id)]),
-            tk.lure,
-            (v) => rebuild({ ...tk, lure: v as Tackle['lure'] }),
-          ),
-          lureHintRow(
-            () => tk.lure,
-            () => lureHint(tk.lure),
-          ),
-          ...(tk.lure === 'jig' ? jigWeight() : tk.lure === 'wobbler' ? crankDepth() : []),
-          // Vavan heittopaino (#363): varoitus, jos viehe ei sovi vapaan.
-          hint(() => {
-            if (fitsCastWeight(tk)) return '';
-            const [min, max] = RODS[tk.rod].castWeight;
-            const g = lureTuning(tk).grams;
-            return t('tackle.castWeightOff', { lure: tackleLureName(tk), g, min, max });
-          }),
-        );
       box.append(
+        this.choice(
+          t('tackle.rod'),
+          ROD_IDS.map((id) => [id, rodName(id)]),
+          tk.rod,
+          (v) => set({ rod: v as Tackle['rod'] }),
+        ),
+        hint(() => {
+          const [min, max] = RODS[tk.rod].castWeight;
+          return `${rodHint(tk.rod)}. ${t('rod.castWeight', { min, max })}.`;
+        }),
         this.choice(
           t('tackle.line'),
           LINE_IDS.map((id) => [
@@ -2335,16 +2247,8 @@ export class Screens {
         h('p', t('tackle.hint'), 'hint'),
       );
     }
-    if (mode === 'during') {
-      const rod = fly ? flyRodName(tk.flyRod) : rodName(tk.rod);
-      box.append(
-        h('p', t('tackle.rodLocked', { rod }), 'hint'),
-        h('p', t('tackle.methodInRace'), 'hint'),
-      );
-      return box;
-    }
     box.append(h('p', controlText('tackle.lureInRace'), 'hint'));
-    // Viehettä ja perhoa ei valita ennen kisaa, joten ne säilyvät ennallaan.
+    // Vieheet ja perhot ovat pakissa, joten ne säilyvät ennallaan.
     const reset: Tackle = fly
       ? {
           ...tk,
@@ -2355,8 +2259,6 @@ export class Screens {
       : {
           ...tk,
           rod: DEFAULT_TACKLE.rod,
-          jigWeight: DEFAULT_TACKLE.jigWeight,
-          crankDepth: DEFAULT_TACKLE.crankDepth,
           line: DEFAULT_TACKLE.line,
           leader: DEFAULT_TACKLE.leader,
         };

@@ -118,9 +118,11 @@ Koodi: `packages/client/src/ui/screens.ts` (`showSettings`, `showPause`).
   (`Screens.showSettings`): Näyttö (HUD-koko, näkökenttä, opastus), Äänet
   ja Kieli.
   Sama näkymä aukeaa päävalikosta ja taukovalikosta.
-- Taukovalikko on lyhyt: Jatka, Varusteet, Asetukset, Koko näyttö, Lopeta
-  kisa. Varusteet ja värit ovat omina alanäkyminään, ja yksinpelin
-  asetuksissa sekä aulassa ne näkyvät yhteenvetoriveinä.
+- Taukovalikko on lyhyt: Jatka, Asetukset, Koko näyttö, Lopeta kisa.
+- Varusteet laitetaan kuntoon vain päävalikon Varusteet-näkymässä (#383).
+  Yksinpelin asetuksissa ja aulassa ne näkyvät vain yhteenvetona, ja kisassa
+  vieheet vaihdetaan viehepakin pikavalikosta (R). Värit ovat omana
+  alanäkymänään yksinpelin asetusten ja aulan yhteenvetoriviltä.
 - Kisan säännöt (kesto, sää, rangaistukset, lajit) kuuluvat yksinpelin
   asetuksiin ja moninpelin aulaan, eivät Asetukset-näkymään.
 
