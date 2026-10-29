@@ -673,7 +673,7 @@ export const en: Record<keyof typeof fi, string> = {
   'lureSonar.bite': 'BITE!',
   'lureSonar.snag': 'Snagged on the bottom!',
   'lureSonar.fouled': 'Weed on the lure',
-  'lureSonar.depth': 'Lure {lure} / bottom {bottom} m',
+  'lureSonar.depth': 'Lure\u00a0{lure}\u00a0/ bottom\u00a0{bottom}\u00a0m',
 
   // --- Touch controls ---
   'touch.chat': 'CHAT',

@@ -2140,6 +2140,21 @@ textarea,
     align-items: flex-end;
   }
 
+  /* Vasemman pinon vieheluotain on samalla korkeudella kuin oikean reunan
+     luotain: kapealla ruudulla se kapenee luotaimen vasemmalle puolelle. */
+  .hud.touch .hud-top-left > .hud-lure-sonar canvas {
+    width: min(
+      calc(var(--u) * 96),
+      calc(100vw - var(--col2) - var(--edge-r) - var(--right-w, 0px) - var(--m) * 4 - var(--u) * 4)
+    );
+  }
+
+  /* Teksti ei levennä paneelia kuvan ohi: isolla HUDilla se rivittyy. */
+  .hud.touch .hud-top-left > .hud-lure-sonar .hud-sonar-label {
+    width: 0;
+    min-width: 100%;
+  }
+
   /* Ilmoitukset kellon, saaliiden, chatin ja oikean reunan luotaimen alle,
      koko leveydelle ruudun keskelle oikean alakulman nappien (16 + KELAA 88 + 8
      + 3 × 44 + 2 × 6 = 256 px) yläpuolelle. Ylhäällä vasemmalla nappirivi:

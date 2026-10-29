@@ -676,7 +676,8 @@ export const fi = {
   'lureSonar.bite': 'TÄRPPI!',
   'lureSonar.snag': 'Pohjassa kiinni!',
   'lureSonar.fouled': 'Rikkaa vieheessä',
-  'lureSonar.depth': 'Viehe {lure} / pohja {bottom} m',
+  // Sitovat välilyönnit: kapealla ruudulla rivi katkeaa vain kauttaviivan jälkeen.
+  'lureSonar.depth': 'Viehe\u00a0{lure}\u00a0/ pohja\u00a0{bottom}\u00a0m',
 
   // --- Kosketusohjaimet ---
   'touch.chat': 'VIESTI',
