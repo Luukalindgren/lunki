@@ -15,6 +15,7 @@ test('vene: kaksi kalastajaa samassa veneessä', async ({ page: host, browser })
   const guestErrors = watchErrors(guest);
 
   await host.goto('/?view=top');
+  await host.getByRole('button', { name: 'Pelaa' }).click();
   await host.getByRole('button', { name: 'Moninpeli' }).click();
   await expect(host.getByText('Palvelin päällä')).toBeVisible();
   await host.getByLabel('Nimimerkki').fill('Soutaja');
@@ -26,6 +27,7 @@ test('vene: kaksi kalastajaa samassa veneessä', async ({ page: host, browser })
   await expect(host.locator('.boat-crew', { hasText: 'Vene 1' })).toContainText('soutaja');
 
   await guest.goto('/?view=top');
+  await guest.getByRole('button', { name: 'Pelaa' }).click();
   await guest.getByRole('button', { name: 'Moninpeli' }).click();
   await expect(guest.getByText('Palvelin päällä')).toBeVisible();
   await guest.getByLabel('Nimimerkki').fill('Kyyti');

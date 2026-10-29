@@ -19,11 +19,18 @@ test.describe('valikot näppäimistöllä (#237)', () => {
     test.skip(isMobile, 'puhelimissa ei näppäimistöä');
     const errors = watchErrors(page);
     await page.goto(soloUrl('pov'));
-    await expect.poll(() => focused(page)).toBe('Yksinpeli');
+    await expect.poll(() => focused(page)).toBe('Pelaa');
 
     // Ensimmäinen nuoli vain näyttää kohdistuksen, seuraava liikkuu.
     await page.keyboard.press('ArrowDown');
     await expect(page.locator('.screen.kb')).toHaveCount(1);
+    await expect.poll(() => focused(page)).toBe('Pelaa');
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(() => focused(page)).toBe('Varusteet');
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('Enter');
+    // Pelaa-alavalikko: Yksinpeli ja Moninpeli.
+    await expect(title(page)).toHaveText('Pelaa');
     await expect.poll(() => focused(page)).toBe('Yksinpeli');
     await page.keyboard.press('ArrowDown');
     await expect.poll(() => focused(page)).toBe('Moninpeli');
@@ -42,8 +49,9 @@ test.describe('valikot näppäimistöllä (#237)', () => {
     const chosen = await duration.innerText();
     await expect.poll(() => focused(page)).toBe(chosen);
 
-    // Esc palaa päävalikkoon samaan kohtaan, ja paluu yksinpeliin jatkaa samasta napista.
+    // Esc palaa Pelaa-valikkoon samaan kohtaan, ja paluu yksinpeliin jatkaa samasta napista.
     await page.keyboard.press('Escape');
+    await expect(title(page)).toHaveText('Pelaa');
     await expect.poll(() => focused(page)).toBe('Yksinpeli');
     await page.keyboard.press('Enter');
     await expect(title(page)).toHaveText('Yksinpeli');
@@ -100,6 +108,7 @@ test.describe('valikot näppäimistöllä (#237)', () => {
     test.skip(isMobile, 'puhelimissa ei näppäimistöä');
     const errors = watchErrors(page);
     await page.goto('/');
+    await page.getByRole('button', { name: 'Pelaa' }).click();
     await page.getByRole('button', { name: 'Yksinpeli' }).click();
     await page.getByRole('button', { name: 'Valitse kartalta' }).click();
     const map = page.locator('canvas.lake-map-canvas');
@@ -125,12 +134,14 @@ test.describe('valikot näppäimistöllä (#237)', () => {
     test.skip(isMobile, 'puhelimissa ei näppäimistöä');
     const errors = watchErrors(page);
     await page.goto('/');
-    await expect.poll(() => focused(page)).toBe('Yksinpeli');
+    await expect.poll(() => focused(page)).toBe('Pelaa');
     await page.keyboard.press('j');
     await expect(page.locator('.screen.kb')).toHaveCount(1);
     await page.keyboard.press('j');
-    await expect.poll(() => focused(page)).toBe('Moninpeli');
+    await expect.poll(() => focused(page)).toBe('Varusteet');
     await page.keyboard.press('k');
+    await expect.poll(() => focused(page)).toBe('Pelaa');
+    await page.keyboard.press('Enter');
     await expect.poll(() => focused(page)).toBe('Yksinpeli');
     await page.keyboard.press('Enter');
     await expect(title(page)).toHaveText('Yksinpeli');
@@ -222,6 +233,7 @@ test('käsimerkit: G avaa valikon, numero tekee eleen ja Esc sulkee tauotta (#22
   test.skip(isMobile, 'puhelimissa ELE-nappi, ks. kosketus.spec');
   const errors = watchErrors(page);
   await page.goto(soloUrl()); // oma kupla näkyy vain ylhäältä katsottuna
+  await page.getByRole('button', { name: 'Pelaa' }).click();
   await page.getByRole('button', { name: 'Yksinpeli' }).click();
   await page.getByRole('button', { name: 'Aloita kisa' }).click();
   await expect(page.locator('.hud-timer')).toBeVisible();
@@ -268,6 +280,7 @@ test('viehepakki: R vaihtaa lokeroa, R pohjassa avaa pikavalikon (#365, #387)', 
     localStorage.setItem('lunki.tackleBox', JSON.stringify(box));
   });
   await page.goto(soloUrl());
+  await page.getByRole('button', { name: 'Pelaa' }).click();
   await page.getByRole('button', { name: 'Yksinpeli' }).click();
   await page.getByRole('button', { name: 'Aloita kisa' }).click();
   await expect(page.locator('.hud-timer')).toBeVisible();
@@ -325,7 +338,7 @@ test('latausruutu näkyy pelin koodin latautuessa ja poistuu valikon tullessa', 
   await expect(boot).toContainText('Ladataan');
   await expect(boot.locator('.loader-art')).toBeVisible();
   release();
-  await expect(page.getByRole('button', { name: 'Yksinpeli' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pelaa' })).toBeVisible();
   await expect(boot).toHaveCount(0);
   errors.check();
 });
@@ -340,7 +353,7 @@ test('valikkoruudut mahtuvat reunoineen ruutuun', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('.start-panel')).toBeVisible();
   expect(await inside()).toBe(true);
-  for (const name of ['Yksinpeli', 'Järvikartta', 'Ennätykset', 'Ohjeet', 'Palaute']) {
+  for (const name of ['Pelaa', 'Järvikartta', 'Ennätykset', 'Ohjeet', 'Tietoa ja palaute']) {
     await page.getByRole('button', { name, exact: true }).click();
     await expect(page.locator('.screen-panel h2').first()).toBeVisible();
     expect(await inside(), name).toBe(true);

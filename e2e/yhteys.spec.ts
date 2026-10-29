@@ -41,6 +41,7 @@ test('lyhyt verkkojumi kesken kisan ei pudota pelaajaa (#273)', async ({
   const errors = watchErrors(page);
   await stallableSocket(page);
   await page.goto('/?view=top');
+  await page.getByRole('button', { name: 'Pelaa' }).click();
   await page.getByRole('button', { name: 'Moninpeli' }).click();
   await expect(page.getByText('Palvelin päällä')).toBeVisible();
   await page.getByLabel('Nimimerkki').fill('Jumittaja');

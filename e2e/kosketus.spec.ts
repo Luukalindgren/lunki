@@ -51,6 +51,7 @@ test.describe('puhelin', () => {
     const errors = watchErrors(page);
     await trackAudio(page);
     await page.goto(soloUrl('pov'));
+    await page.getByRole('button', { name: 'Pelaa' }).tap();
     await page.getByRole('button', { name: 'Yksinpeli' }).tap();
     await page.getByRole('button', { name: 'Aloita kisa' }).tap();
     await expect(page.locator('.hud-timer')).toBeVisible();
@@ -116,6 +117,7 @@ test.describe('puhelin', () => {
     test.skip(!isMobile, 'vain puhelinemuloinnit');
     const errors = watchErrors(page);
     await page.goto(soloUrl());
+    await page.getByRole('button', { name: 'Pelaa' }).tap();
     await page.getByRole('button', { name: 'Yksinpeli' }).tap();
     await page.getByRole('button', { name: 'Aloita kisa' }).tap();
     await expect(page.locator('.hud-timer')).toBeVisible();
@@ -144,6 +146,7 @@ test.describe('puhelin', () => {
     await page.getByRole('button', { name: 'Varusteet' }).tap();
     await page.getByRole('button', { name: 'Perho', exact: true }).tap();
     await page.getByRole('button', { name: 'Takaisin' }).tap();
+    await page.getByRole('button', { name: 'Pelaa' }).tap();
     await page.getByRole('button', { name: 'Yksinpeli' }).tap();
     // Helpolla ajoitusikkuna on leveä, joten testin viive ei myöhästytä heittoa.
     await page.getByRole('button', { name: 'Helppo' }).tap();
@@ -204,6 +207,7 @@ test('katsojalle puhelimella vain näkymän napit (#280)', async ({
   const errors = watchErrors(page);
   const host = await (await browser.newContext({ baseURL: 'http://localhost:4173' })).newPage();
   await host.goto('/?view=top');
+  await host.getByRole('button', { name: 'Pelaa' }).click();
   await host.getByRole('button', { name: 'Moninpeli' }).click();
   await expect(host.getByText('Palvelin päällä')).toBeVisible();
   await host.getByLabel('Nimimerkki').fill('Isäntä');
@@ -211,6 +215,7 @@ test('katsojalle puhelimella vain näkymän napit (#280)', async ({
   const code = (await host.locator('.room-code').innerText()).trim();
 
   await page.goto('/?view=top');
+  await page.getByRole('button', { name: 'Pelaa' }).tap();
   await page.getByRole('button', { name: 'Moninpeli' }).tap();
   await expect(page.getByText('Palvelin päällä')).toBeVisible();
   await page.getByLabel('Nimimerkki').fill('Katsoja');

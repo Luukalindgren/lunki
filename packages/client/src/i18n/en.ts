@@ -168,6 +168,8 @@ export const en: Record<keyof typeof fi, string> = {
   'menu.rejoin': 'Back to competition {code}',
   'menu.solo': 'Single player',
   'menu.multiplayer': 'Multiplayer',
+  'menu.play': 'Play',
+  'menu.about': 'About and feedback',
   'menu.tackle': 'Tackle',
   'menu.lakeMap': 'Lake map',
   'menu.records': 'Records',

@@ -395,12 +395,16 @@ export class Screens {
     this.root.replaceChildren();
   }
 
-  /** Päävalikko: pelimuodot ja muut näkymät allekkain. */
+  /**
+   * Päävalikko: näkymät allekkain. Pelimuodot ovat Pelaa-napin takana, ja
+   * palaute ja tekijät Tietoa ja palaute -napin takana; koko näyttö on
+   * kuvake nurkassa.
+   */
   showStart(actions: {
     /** Edellinen moninpelihuone, johon voi palata. */
     rejoin?: { code: string; run: () => void };
-    onSolo: () => void;
-    onMultiplayer: () => void;
+    /** Pelimuodot: yksinpeli ja moninpeli. */
+    onPlay: () => void;
     /** Varusteet "kotona" ennen kalaan lähtöä (#383). */
     onTackle: () => void;
     onLakeMap: () => void;
@@ -408,8 +412,8 @@ export class Screens {
     /** Ohjeet: kalastuksen mekaniikat ja ohjaus (#401). */
     onManual: () => void;
     onSettings: () => void;
-    onFeedback: () => void;
-    onCredits: () => void;
+    /** Palaute sekä tekijät ja lähteet. */
+    onAbout: () => void;
     /** Kieli vaihtui: valikko piirretään uudelleen. */
     onLanguage: () => void;
   }): void {
@@ -420,17 +424,14 @@ export class Screens {
             [t('menu.rejoin', { code: formatRoomCode(actions.rejoin.code) }), actions.rejoin.run],
           ] as [string, () => void][])
         : []),
-      [t('menu.solo'), actions.onSolo],
-      [t('menu.multiplayer'), actions.onMultiplayer],
+      [t('menu.play'), actions.onPlay],
       [t('menu.tackle'), actions.onTackle],
       [t('menu.lakeMap'), actions.onLakeMap],
       [t('menu.records'), actions.onRecords],
       [t('menu.manual'), actions.onManual],
       [t('menu.settings'), actions.onSettings],
-      [t('menu.feedback'), actions.onFeedback],
-      [t('menu.credits'), actions.onCredits],
+      [t('menu.about'), actions.onAbout],
     ]);
-    this.addFullscreen(menu);
     const language = this.choice(
       t('menu.language'),
       LANGS.map((l) => [l, LANG_NAMES[l]]),
@@ -453,8 +454,35 @@ export class Screens {
       ...this.homeScreenHint(),
       h('p', controlText('menu.controls'), 'hint'),
       h('p', t('menu.mapCredit'), 'hint credit-line'),
+      ...this.fullscreenCorner(),
     );
     this.show(panel);
+  }
+
+  /** Pelimuodot päävalikon Pelaa-napin takana. */
+  showPlay(actions: { onSolo: () => void; onMultiplayer: () => void }, onBack: () => void): void {
+    const panel = this.panel('play');
+    const menu = this.buttons([
+      [t('menu.solo'), actions.onSolo],
+      [t('menu.multiplayer'), actions.onMultiplayer],
+      [t('common.back'), onBack],
+    ]);
+    menu.classList.add('main-menu');
+    panel.append(h('h2', t('menu.play')), menu);
+    this.show(panel, { back: onBack });
+  }
+
+  /** Palaute sekä tekijät ja lähteet yhden päävalikon napin takana. */
+  showAbout(actions: { onFeedback: () => void; onCredits: () => void }, onBack: () => void): void {
+    const panel = this.panel('about');
+    const menu = this.buttons([
+      [t('menu.feedback'), actions.onFeedback],
+      [t('menu.credits'), actions.onCredits],
+      [t('common.back'), onBack],
+    ]);
+    menu.classList.add('main-menu');
+    panel.append(h('h2', t('menu.about')), menu);
+    this.show(panel, { back: onBack });
   }
 
   /** Koko Lunkinjärvi karttana: syvyydet, pohjan muodot, laiturit ja rakennukset. */
@@ -1694,8 +1722,6 @@ export class Screens {
         p.onQuit,
       ],
     ]);
-    // Koko näyttö ennen kisan lopetusta, joka pysyy viimeisenä.
-    this.addFullscreen(menu, menu.lastElementChild);
     menu.classList.add('main-menu', 'pause-menu');
     panel.classList.add('pause-panel');
     panel.append(
@@ -1706,6 +1732,7 @@ export class Screens {
       ...this.homeScreenHint(),
       // Firefox ja Safari eivät anna Escin jäädä peliin koko näytöllä.
       ...(escapeLeavesFullscreen() ? [h('p', t('fullscreen.escHint'), 'hint')] : []),
+      ...this.fullscreenCorner(),
     );
     this.show(panel);
     if (p.from) {
@@ -2522,15 +2549,12 @@ export class Screens {
     return row;
   }
 
-  /** Koko näytön nappi rivin loppuun, jos selain sen osaa eikä peli jo ole sovelluksena. */
-  private addFullscreen(row: HTMLElement, before: Element | null = null): HTMLElement {
-    if (fullscreenSupported() && !isStandalone()) {
-      const b = fullscreenButton();
-      row.insertBefore(b, before);
-      // Porrastettu sisääntulo järjestyksessä.
-      [...row.children].forEach((c, i) => (c as HTMLElement).style.setProperty('--i', String(i)));
-    }
-    return row;
+  /**
+   * Koko näytön kuvake paneelin oikeaan yläkulmaan, jos selain sen osaa eikä
+   * peli jo ole sovelluksena.
+   */
+  private fullscreenCorner(): HTMLElement[] {
+    return fullscreenSupported() && !isStandalone() ? [fullscreenButton()] : [];
   }
 
   /** iPhonella koko näyttö onnistuu vain Koti-valikon kuvakkeesta. */

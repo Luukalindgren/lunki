@@ -171,6 +171,8 @@ export const fi = {
   'menu.rejoin': 'Palaa kisaan {code}',
   'menu.solo': 'Yksinpeli',
   'menu.multiplayer': 'Moninpeli',
+  'menu.play': 'Pelaa',
+  'menu.about': 'Tietoa ja palaute',
   'menu.tackle': 'Varusteet',
   'menu.lakeMap': 'Järvikartta',
   'menu.records': 'Ennätykset',
