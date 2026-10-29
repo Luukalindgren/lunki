@@ -857,12 +857,17 @@ describe('nosto väsytyksen lopuksi (#366)', () => {
     return false;
   }
 
-  it('pieni kala heilautetaan kyytiin ilman nostoa', () => {
+  it('pienikin kala odottaa pinnassa omaa nostoa, ja nosto heilauttaa sen kyytiin', () => {
     const sim = setup('easy', 0.1, 2);
-    expect(untilSurface(sim, 120)).toBe(false);
-    expect(sim.log.some((e) => e.caught)).toBe(true);
-    expect(sim.log.some((e) => e.surfaced)).toBe(false);
-    expect(sim.log.find((e) => e.caught)!.landed?.by).toBe('swing');
+    expect(untilSurface(sim, 120)).toBe(true);
+    expect(sim.s.landing!.net).toBe(false);
+    // Pohjassa pidetty kelaus ei nosta.
+    for (let i = 0; i < 30; i++) step(sim, { reel: true });
+    expect(sim.log.some((e) => e.caught)).toBe(false);
+    if (sim.s.landing!.lunge > 0) sim.s.landing!.lunge = 0;
+    step(sim, { land: true });
+    expect(sim.log.at(-1)!.caught?.weight).toBe(0.1);
+    expect(sim.log.at(-1)!.landed?.by).toBe('swing');
   });
 
   it('isompi kala jää pintaan odottamaan nostoa, ja nosto tuo sen kyytiin', () => {
