@@ -183,8 +183,6 @@ export const fi = {
   'menu.credits': 'Tekijät ja lähteet',
   'menu.subtitle': 'Kelluntarengaskalastusta Tammelassa',
   'menu.update': 'Uusi versio saatavilla – päivitä',
-  'menu.controls':
-    '{forward} = kohti räpylöitä · {back} = selkä edellä (nopein) · {turn} = käänny · {pointer} = tähtää ja heitä · {pointer} tai {reel} = kelaa · {dragLess}/{dragMore} = jarru · {pause} = tauko',
   'menu.mapCredit': 'Kartta © OpenStreetMapin tekijät, Copernicus DEM, Syke',
   'menu.language': 'Kieli',
 
