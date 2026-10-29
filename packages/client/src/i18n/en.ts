@@ -43,11 +43,13 @@ export const en: Record<keyof typeof fi, string> = {
   'line.medium': '0.25 mm',
   'line.thick': '0.30 mm',
   'rod.light': 'Light rod',
-  'rod.light.hint': 'Long casts and gentle on the line, but fights take a long time',
+  'rod.light.hint':
+    'Long casts and gentle on the line, but fights take a long time and the hook set is soft',
   'rod.medium': 'Standard rod',
   'rod.medium.hint': 'Balanced for all kinds of fishing',
   'rod.heavy': 'Heavy rod',
-  'rod.heavy.hint': 'Tires even a big fish quickly, but the line snaps more easily',
+  'rod.heavy.hint':
+    'Tires even a big fish quickly and drives the hook into a pike, but the line snaps more easily',
   'rod.castWeight': 'Casting weight {min}–{max} g',
   'tackle.leaderShort': 'leader',
   'method.spin': 'Spinning',
@@ -594,6 +596,7 @@ export const en: Record<keyof typeof fi, string> = {
     'Guide 3/5: reel steadily and cast again until a fish strikes · {sonar} = sonar shows the fish',
   'guide.again': 'Guide: cast again · {sonar} = sonar shows the fish',
   'guide.strike': 'Guide 4/5: a strike! Reel at once ({reel}) to set the hook',
+  'guide.strikeBig': 'Guide 4/5: a heavy strike! Twitch the rod at once ({twitch}) to set the hook',
   'guide.fight':
     'Guide 5/5: fish on! Reel while it rests · line tight = loosen the drag {dragLess}',
   'guide.tipLure': 'Tip: {lure} = change lure · different fish like different lures',
@@ -616,7 +619,8 @@ export const en: Record<keyof typeof fi, string> = {
   'help.passengerTurn': '{turn} = turn in your seat to cast',
   'help.cast': '{pointer}: aim, hold and release = cast',
   'help.castForward': 'Hold {castForward} and release = cast where you face · {cancel} = cancel',
-  'help.reel': 'Hold {pointer} or {reel} = reel in · {twitch} = twitch',
+  'help.reel':
+    'Hold {pointer} or {reel} = reel in · {twitch} = twitch, sets the hook in a big fish',
   'help.gear': '{gear} = reel speed · {gearFast} = quick retrieve · {dragLess}/{dragMore} = drag',
   'help.tools':
     '{lure} = change lure (hold: box) · {method} = spin/fly · {sonar} = finder · {lureSonar} = depth',
@@ -665,6 +669,7 @@ export const en: Record<keyof typeof fi, string> = {
   'sonar.fishOne': ' · 1 fish',
   'sonar.fishMany': ' · {n} fish',
   'lureSonar.biteReel': 'BITE! REEL!',
+  'lureSonar.biteTwitch': 'BITE! TWITCH!',
   'lureSonar.bite': 'BITE!',
   'lureSonar.snag': 'Snagged on the bottom!',
   'lureSonar.fouled': 'Weed on the lure',
@@ -808,9 +813,12 @@ export const en: Record<keyof typeof fi, string> = {
   'game.quiet': 'Quiet here – kick somewhere else, {sonar} shows the fish',
   'game.quietBoat': 'Quiet here – row somewhere else, {sonar} shows the fish',
   'game.strike': 'Bite!',
+  'game.strikeBig': 'Heavy bite – twitch ({twitch})!',
   'game.hooked': 'Fish on!',
   'game.bigShadow': 'A big shadow followed the lure!',
   'game.missed': 'Missed – reel right after the bite',
+  'game.missedTwitch': 'Missed – a big fish only hooks on a twitch ({twitch})',
+  'game.spooked': 'You twitched too early – the fish spooked',
   'game.jumped': 'The fish jumps – keep the line tight!',
   'game.escaped': 'The fish got off – keep the line tight',
   'game.landHand': 'Fish at the surface! {land} = lift it aboard',
@@ -921,7 +929,7 @@ export const en: Record<keyof typeof fi, string> = {
     'Hold {pointer} or {reel} = reel\n{gear} = reel speed, {gearFast} = fast retrieve. A lure that fast hardly interests fish.\n{twitch} = twitch: the lure hops up and sinks enticingly.\nA pause after a pull tempts pike and big fish.\nEach species likes its own speed and depth. A crankbait swims at its lip depth, and jigs and spoons sink.',
   'manual.spin.strike': 'Setting the hook',
   'manual.spin.strikeText':
-    'You notice a take by the sound, the message, the swirl and the twitch of the line.\nStrike by reeling ({reel}) or twitching ({twitch}). You have {normalWindow} s on Normal and {realisticWindow} s on Realistic, less for zander.\nThe hook sets {normalHook} % of the time on Normal and {realisticHook} % on Realistic. On Easy it sets by itself.\nAfter a late strike the fish stays away for a while.',
+    'You notice a take by the sound, the message, the swirl and the twitch of the line.\nStrike by reeling ({reel}) or twitching ({twitch}). You have {normalWindow} s on Normal and {realisticWindow} s on Realistic, less for zander.\nOn Normal and Realistic big fish (e.g. pike from {pikeKg} kg, perch from {perchKg} kg) only hook on a twitch: reeling tightens the line but does not set the hook. On a heavy bite the rod nods deeper.\nThe hook sets {normalHook} % of the time on Normal and {realisticHook} % on Realistic. On Easy it sets by itself.\nOn a twitch the rod stiffness matters: on Realistic a pike hooks {pikeLight} % of the time with a light rod and {pikeHeavy} % with a heavy one.\nDo not twitch while a big fish is only following the lure: it may spook.\nAfter a late strike the fish stays away for a while.',
   'manual.spin.fight': 'Playing the fish',
   'manual.spin.fightText':
     '{dragLess} and {dragMore} = loosen and tighten the drag. When the fish pulls harder than the drag, the drag slips and the fish takes line.\nThe line breaks when the pull exceeds its strength: 0.20 mm {thin} kg, 0.25 mm {medium} kg and 0.30 mm {thick} kg. On Easy the line does not break.\nA pike bites through the line unless you have a steel leader.\nA slack line lets the fish go: after {normalSlack} s of slack on Normal and {realisticSlack} s on Realistic.',

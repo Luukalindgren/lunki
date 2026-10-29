@@ -64,6 +64,8 @@ export interface LureSonarFrame {
   fish: readonly LureSonarFish[];
   /** Kala iski: kelaa nyt. */
   bite: boolean;
+  /** Iskenyt kala on iso: nykäise (#402). */
+  biteBig?: boolean;
   /** Kala on kiinni. */
   hooked: boolean;
   /** Viehe on tarttunut pohjaan. */
@@ -309,8 +311,10 @@ export class LureSonarDisplay {
 }
 
 function labelFor(frame: LureSonarFrame, bottom: number, blink: number): string {
-  if (frame.bite)
-    return t(Math.floor(blink / 0.3) % 2 === 0 ? 'lureSonar.biteReel' : 'lureSonar.bite');
+  if (frame.bite) {
+    const act = frame.biteBig ? 'lureSonar.biteTwitch' : 'lureSonar.biteReel';
+    return t(Math.floor(blink / 0.3) % 2 === 0 ? act : 'lureSonar.bite');
+  }
   if (frame.snag) return t('lureSonar.snag');
   if (frame.fouled) return t('lureSonar.fouled');
   return t('lureSonar.depth', { lure: decimal(frame.depth, 1), bottom: decimal(bottom, 1) });

@@ -169,6 +169,7 @@ export class HudPresenter {
         (x) => x.mode === 'follow' || x.mode === 'struck' || x.id === f.hookedId,
       ),
       bite: f.struckId !== null,
+      biteBig: f.struckId !== null && f.strikeBig,
       hooked: f.hookedId !== null,
       snag: f.snag !== null,
       fouled: f.fouled,

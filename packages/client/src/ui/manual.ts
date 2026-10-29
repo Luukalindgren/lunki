@@ -1,4 +1,4 @@
-import { DIFFICULTIES, FLY_CAST, LINES } from '@lunki/shared';
+import { DIFFICULTIES, FLY_CAST, LINES, RODS, SPECIES } from '@lunki/shared';
 import { controlText } from '../game/controls';
 import { shortDecimal, t, type MsgKey } from '../i18n';
 
@@ -27,6 +27,11 @@ interface Topic {
 
 const pct = (v: number) => Math.round(v * 100);
 const { normal, realistic } = DIFFICULTIES;
+/** Raja (kg), josta alkaen kala tarttuu Normaalilla vain nykäisyyn (#402). */
+const twitchKg = (id: 'pike' | 'perch') => shortDecimal(SPECIES[id].sizes[normal.reelHookSize]!);
+/** Hauen tarttuminen Realistisella nykäisyyn: vavan jäykkyys toiseen potenssiin (#402). */
+const pikeHook = (rod: keyof typeof RODS) =>
+  pct(1 - (1 - realistic.hookChance) * RODS[rod].hookMiss ** 2);
 
 const TOPICS: Record<ManualSection, readonly Topic[]> = {
   move: [
@@ -46,6 +51,10 @@ const TOPICS: Record<ManualSection, readonly Topic[]> = {
         realisticWindow: shortDecimal(realistic.hookWindow),
         normalHook: pct(normal.hookChance),
         realisticHook: pct(realistic.hookChance),
+        pikeKg: twitchKg('pike'),
+        perchKg: twitchKg('perch'),
+        pikeLight: pikeHook('light'),
+        pikeHeavy: pikeHook('heavy'),
       }),
     },
     {

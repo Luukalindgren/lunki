@@ -45,11 +45,13 @@ export const fi = {
   'line.medium': '0,25 mm',
   'line.thick': '0,30 mm',
   'rod.light': 'Kevyt vapa',
-  'rod.light.hint': 'Pitkä heitto ja armollinen siimalle, mutta väsytys kestää kauan',
+  'rod.light.hint':
+    'Pitkä heitto ja armollinen siimalle, mutta väsytys kestää kauan ja vastaisku jää pehmeäksi',
   'rod.medium': 'Perusvapa',
   'rod.medium.hint': 'Tasapainoinen kaikkeen kalastukseen',
   'rod.heavy': 'Järeä vapa',
-  'rod.heavy.hint': 'Väsyttää isonkin kalan nopeasti, mutta siima katkeaa helpommin',
+  'rod.heavy.hint':
+    'Väsyttää isonkin kalan nopeasti ja pistää koukun hauenkin suuhun, mutta siima katkeaa helpommin',
   'rod.castWeight': 'Heittopaino {min}–{max} g',
   'tackle.leaderShort': 'peruke',
   'method.spin': 'Virveli',
@@ -597,6 +599,8 @@ export const fi = {
     'Opastus 3/5: kelaa tasaisesti ja heitä uudelleen, kunnes kala iskee · {sonar} = kaikuluotain näyttää kalat',
   'guide.again': 'Opastus: heitä uudelleen · {sonar} = kaikuluotain näyttää kalat',
   'guide.strike': 'Opastus 4/5: tärppi! Kelaa heti ({reel}), niin koukku tarttuu',
+  'guide.strikeBig':
+    'Opastus 4/5: raskas tärppi! Nykäise vapaa heti ({twitch}), niin koukku tarttuu',
   'guide.fight':
     'Opastus 5/5: kala kiinni! Kelaa, kun kala lepää · siima kireällä = löysää jarrua {dragLess}',
   'guide.tipLure': 'Vinkki: {lure} = vaihda viehe · eri kalat syövät eri vieheitä',
@@ -619,7 +623,7 @@ export const fi = {
   'help.passengerTurn': '{turn} = käänny paikallasi heittämään',
   'help.cast': '{pointer}: tähtää, pidä ja päästä = heitto',
   'help.castForward': '{castForward} pohjassa ja päästä = heitto katsesuuntaan · {cancel} = peru',
-  'help.reel': '{pointer} tai {reel} pohjassa = kelaa · {twitch} = nykäisy',
+  'help.reel': '{pointer} tai {reel} pohjassa = kelaa · {twitch} = nykäisy, ison kalan vastaisku',
   'help.gear': '{gear} = kelausnopeus · {gearFast} = pikakelaus · {dragLess}/{dragMore} = jarru',
   'help.tools':
     '{lure} = vaihda viehe (pohjassa: pakki) · {method} = virveli/perho · {sonar} = luotain · {lureSonar} = syvyys',
@@ -668,6 +672,7 @@ export const fi = {
   'sonar.fishOne': ' · 1 kala',
   'sonar.fishMany': ' · {n} kalaa',
   'lureSonar.biteReel': 'TÄRPPI! KELAA!',
+  'lureSonar.biteTwitch': 'TÄRPPI! NYKÄISE!',
   'lureSonar.bite': 'TÄRPPI!',
   'lureSonar.snag': 'Pohjassa kiinni!',
   'lureSonar.fouled': 'Rikkaa vieheessä',
@@ -811,9 +816,12 @@ export const fi = {
   'game.quiet': 'Hiljaista – potki muualle, {sonar} näyttää kalat',
   'game.quietBoat': 'Hiljaista – souda muualle, {sonar} näyttää kalat',
   'game.strike': 'Tärppi!',
+  'game.strikeBig': 'Raskas tärppi – nykäise ({twitch})!',
   'game.hooked': 'Kala kiinni!',
   'game.bigShadow': 'Iso varjo seurasi viehettä!',
   'game.missed': 'Ohi meni – kelaa heti tärpin jälkeen',
+  'game.missedTwitch': 'Ohi meni – iso kala tarttuu vain nykäisyyn ({twitch})',
+  'game.spooked': 'Nykäisit liian aikaisin – kala säikähti',
   'game.jumped': 'Kala hyppää – pidä siima kireällä!',
   'game.escaped': 'Kala irtosi – pidä siima kireällä',
   'game.landHand': 'Kala pinnassa! {land} = nosta kyytiin',
@@ -923,7 +931,7 @@ export const fi = {
     '{pointer} tai {reel} pohjassa = kelaa\n{gear} = kelausnopeus, {gearFast} = pikakelaus. Niin nopea viehe ei juuri kiinnosta kaloja.\n{twitch} = nykäisy: viehe pomppaa ylös ja vajoaa houkuttelevasti.\nTauko vedon jälkeen houkuttaa haukea ja suuria kaloja.\nKalat pitävät oman lajinsa mieluisasta nopeudesta ja syvyydestä. Vaappu uii lippansa syvyydessä, ja jigi ja lusikka vajoavat.',
   'manual.spin.strike': 'Vastaisku',
   'manual.spin.strikeText':
-    'Tärpin tunnistaa äänestä, ilmoituksesta, pyörteestä ja siiman nykäyksestä.\nIske kelaamalla ({reel}) tai nykäisemällä ({twitch}). Aikaa on Normaalilla {normalWindow} s ja Realistisella {realisticWindow} s, kuhalla vähemmän.\nKoukku tarttuu Normaalilla {normalHook} %:lla ja Realistisella {realisticHook} %:lla. Helpolla koukku tarttuu itsestään.\nMyöhästyneen iskun jälkeen kala ei palaa hetkeen.',
+    'Tärpin tunnistaa äänestä, ilmoituksesta, pyörteestä ja siiman nykäyksestä.\nIske kelaamalla ({reel}) tai nykäisemällä ({twitch}). Aikaa on Normaalilla {normalWindow} s ja Realistisella {realisticWindow} s, kuhalla vähemmän.\nIsot kalat (esim. hauki {pikeKg} kg ja ahven {perchKg} kg alkaen) tarttuvat Normaalilla ja Realistisella vain nykäisyyn: kelaus kiristää siiman mutta ei pistä koukkua. Raskaassa tärpissä vapa nyökkää syvemmälle.\nKoukku tarttuu Normaalilla {normalHook} %:lla ja Realistisella {realisticHook} %:lla. Helpolla koukku tarttuu itsestään.\nNykäisyssä vavan jäykkyys ratkaisee: Realistisella hauki tarttuu kevyellä vavalla {pikeLight} %:lla ja järeällä {pikeHeavy} %:lla.\nÄlä nykäise, kun iso kala vasta seuraa viehettä: se voi säikähtää.\nMyöhästyneen iskun jälkeen kala ei palaa hetkeen.',
   'manual.spin.fight': 'Väsytys',
   'manual.spin.fightText':
     '{dragLess} ja {dragMore} = löysää ja kiristä jarrua. Kun kala vetää jarrua kovemmin, jarru luistaa ja kala vie siimaa.\nSiima katkeaa, kun veto ylittää sen lujuuden: 0,20 mm {thin} kg, 0,25 mm {medium} kg ja 0,30 mm {thick} kg. Helpolla siima ei katkea.\nHauki katkaisee siiman hampaillaan, jos teräsperuketta ei ole.\nLöysä siima päästää kalan irti: Normaalilla {normalSlack} s ja Realistisella {realisticSlack} s löysän jälkeen.',

@@ -898,6 +898,8 @@ export interface FishEvents {
   follow?: number;
   /** Kala iski vieheeseen. */
   strike?: number;
+  /** Liian aikainen nykäisy säikytti seuraavan ison kalan (#402). */
+  spooked?: number;
   /** Suurkala seurasi viehettä kalastajan lähelle ja kääntyi pois ("iso varjo"). */
   shadow?: number;
 }
@@ -1292,6 +1294,20 @@ export function stepFishPopulation(
         spook(f, world, rng);
         continue;
       }
+      // Liian aikainen vastaisku: nykäisy ennen iskua voi säikyttää lähellä
+      // seuraavan ison kalan, joka olisi vaatinut nykäisyn (#402).
+      if (
+        lure.twitch !== undefined &&
+        lure.twitch < dt &&
+        size > diff.reelHookSize &&
+        !diff.autoHook &&
+        near < diff.strikeReach * 2 &&
+        rng.next() < EARLY_TWITCH_SPOOK
+      ) {
+        events.spooked = f.id;
+        spook(f, world, rng);
+        continue;
+      }
       f.timer += dt;
       // Uidaan vieheen perään ja syvyyteen.
       swimToward(f, lure.pos, sp.chaseSpeed * diff.chaseSpeed, 0.6, dt);
@@ -1434,6 +1450,9 @@ function steerSchool(
     s.heading = Math.atan2(lure.pos.y - s.center.y, lure.pos.x - s.center.x);
   }
 }
+
+/** Todennäköisyys, että nykäisy ennen iskua säikyttää lähellä seuraavan ison kalan. */
+export const EARLY_TWITCH_SPOOK = 0.4;
 
 /** Suurkala kääntyy pois näin kaukana (m) kalastajasta: iso varjo vieheen perässä. */
 const BIG_FISH_SHY = 6;

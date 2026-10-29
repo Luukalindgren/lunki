@@ -88,10 +88,10 @@ describe('toimintokartta', () => {
 
   it('sama ohjeteksti näppäimistölle ja kosketukselle', () => {
     expect(controlText('help.reel', {}, { touch: false })).toBe(
-      'Hiiri tai välilyönti pohjassa = kelaa · hiiren oikea/J = nykäisy',
+      'Hiiri tai välilyönti pohjassa = kelaa · hiiren oikea/J = nykäisy, ison kalan vastaisku',
     );
     expect(controlText('help.reel', {}, { touch: true })).toBe(
-      'Sormi järvellä tai KELAA pohjassa = kelaa · NYKÄISE = nykäisy',
+      'Sormi järvellä tai KELAA pohjassa = kelaa · NYKÄISE = nykäisy, ison kalan vastaisku',
     );
     expect(controlText('game.viewTop', {}, { touch: true })).toBe('Ylhäältä (KAM)');
     expect(controlText('game.viewTop', {}, { touch: false })).toBe('Ylhäältä (V)');
@@ -144,6 +144,9 @@ describe('tilannenapit kosketuksella', () => {
       tool: 'twitch',
     });
     expect(contextActions(spin({ stage: 'water' }), false, true).tool).toBe('cut');
+    // Tärpissä NYKÄISE on vastaisku: iso kala tarttuu vain siihen (#402).
+    expect(contextActions(spin({ stage: 'water', struckId: 1 }), false).tool).toBe('twitch');
+    expect(contextActions(spin({ stage: 'water', hookedId: 1 }), false).tool).toBe('cut');
     expect(contextActions(spin({ stage: 'water', onLand: true }), false).tool).toBe('cut');
   });
 

@@ -160,7 +160,7 @@ export interface ContextActions {
   main: 'castForward' | 'reel' | 'strip' | 'haul' | 'land' | 'landNet';
   /** Perhon nappi: SIIMA heitossa, NOSTA vedestä ja tärpissä, KELALLE kalan kanssa. */
   line: 'lineGrip' | 'lift' | 'reelSlack';
-  /** KATKO, heiton aikana PERU, virvelin vapaalla vieheellä NYKÄISE. */
+  /** KATKO, heiton aikana PERU, virvelin vapaalla vieheellä ja tärpissä NYKÄISE. */
   tool: 'cut' | 'cancel' | 'twitch';
 }
 
@@ -196,7 +196,7 @@ export function contextActions(f: FishingState, rhythm: boolean, tangled = false
     tool:
       f.stage === 'charging' || casting
         ? 'cancel'
-        : !fly && f.stage === 'water' && free && !tangled
+        : !fly && f.stage === 'water' && (free || f.struckId !== null) && !tangled
           ? 'twitch'
           : 'cut',
   };
