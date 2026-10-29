@@ -8,7 +8,9 @@ import {
   tackleCastFactor,
   type Fish,
   type FishingContext,
+  type FishingEvents,
   type FishingState,
+  type SpeciesId,
   type Vec2,
 } from '@lunki/shared';
 import { toWorld } from '../world/lakeMesh';
@@ -26,6 +28,7 @@ import { lureColor } from './lureColor';
 import { FLY_LINE_POINTS, flyLinePose, flyLineProfile, flyLineWorld } from './flyLine';
 import { flyRodTip } from './povRod';
 import { SplashRings } from './splashRings';
+import { LandingView } from './landingView';
 
 /** Siiman piirtokorkeus pinnalla. */
 const SURFACE_Y = 0.04;
@@ -37,6 +40,8 @@ export class FishingView {
   readonly group = new THREE.Group();
   /** Kalastajan silmin -näkymä. */
   pov = false;
+  /** Ylhäältä-näkymän mittakaava (m kuvapisteelle). */
+  metersPerPixel = 0.125;
   /** Pelaajan valitsema siiman väri. */
   lineColor = 0xc3cbd2;
   private readonly aimLine: THREE.Line;
@@ -49,6 +54,8 @@ export class FishingView {
   private readonly fly: THREE.Mesh;
   private readonly splash = new SplashRings();
   private readonly fishShadow: THREE.Mesh;
+  /** Väsynyt kala pinnassa ja nosto kyytiin (#366). */
+  private readonly landing = new LandingView();
   private readonly flyPoints: LinePoint[] = [];
   /** Siiman kireys tasoitettuna, ettei roikkuma hypi jännityksen mukana. */
   private taut = 0;
@@ -118,6 +125,7 @@ export class FishingView {
     );
     this.fishShadow.rotation.x = -Math.PI / 2;
     this.group.add(this.fishShadow);
+    this.group.add(this.landing.group);
   }
 
   /** Siiman näkyvä väri (katkeamisvaroitus mukaan lukien). */
@@ -131,6 +139,15 @@ export class FishingView {
   /** Roiske osumakohtaan; `size` < 1 = perhon pieni roiske (#236). */
   startSplash(at: Vec2, size = 1): void {
     this.splash.start(at, size);
+  }
+
+  /** Kala nousi kyytiin: nostoanimaatio siimasta tai haavilla. */
+  startLanding(
+    landed: NonNullable<FishingEvents['landed']>,
+    species: SpeciesId,
+    weight: number,
+  ): void {
+    this.landing.start(landed, species, weight);
   }
 
   /** Perho ilmassa heiton aikana (muiden pelaajien tiedoksi), null = ei heittoa. */
@@ -147,7 +164,8 @@ export class FishingView {
     dt: number,
     hooked: Fish | null = null,
   ): void {
-    this.fishShadow.visible = !!hooked && hooked.depth < 1.6;
+    // Nostovaiheessa kala näkyy kuvana pinnassa, ei varjona.
+    this.fishShadow.visible = !!hooked && hooked.depth < 1.6 && !s.landing;
     if (hooked) {
       const len = Math.cbrt(hooked.weight / 0.012) / 10; // ahvenen pituus (m) painosta
       this.fishShadow.scale.setScalar(len / 1.1);
@@ -225,6 +243,15 @@ export class FishingView {
       );
     }
 
+    this.landing.pov = this.pov;
+    this.landing.metersPerPixel = this.metersPerPixel;
+    this.landing.update(
+      s.landing ? hooked : null,
+      !!s.landing?.net,
+      toWorld(shownTip, ROD_TIP_Y),
+      ctx.tubePos,
+      ctx.heading,
+    );
     this.splash.update(dt);
   }
 

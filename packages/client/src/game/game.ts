@@ -779,6 +779,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     if (emoteAge > EMOTE_DURATION) this.emoting = null;
     animateEmote(this.tubeMesh, this.emoting?.id ?? null, emoteAge);
     const hooked = this.fish.fish.find((x) => x.id === this.fishing.hookedId) ?? null;
+    this.fishingView.metersPerPixel = this.view.metersPerPixel;
     this.fishingView.update(this.fishing, this.angler.context(), this.angler.aim, 1 / 60, hooked);
     this.view.apply();
     this.weather.render(pos, air);
