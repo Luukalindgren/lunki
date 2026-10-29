@@ -271,7 +271,7 @@ export const fi = {
     'Ohut siima heittyy pidemmälle mutta katkeaa helpommin. Hauki voi purra siiman poikki ilman peruketta.',
   'tackle.beginner': 'Aloittelijan varusteet',
   'tackle.lureInRace':
-    'Kisassa vieheet ovat pakissa: {lure} vaihtaa seuraavaan, ja {lure} pohjassa avaa pikavalikon.',
+    'Kisassa vieheet ovat pakissa: {lure} vaihtaa seuraavaan, ja {lure} pohjassa avaa pikavalikon. {method} vaihtaa virvelin ja perhon välillä.',
   'box.title': 'Viehepakki',
   'box.flyTitle': 'Perhorasia',
   'box.count': '{n}/{max}',
@@ -621,7 +621,7 @@ export const fi = {
   'help.reel': '{pointer} tai {reel} pohjassa = kelaa · {twitch} = nykäisy',
   'help.gear': '{gear} = kelausnopeus · {gearFast} = pikakelaus · {dragLess}/{dragMore} = jarru',
   'help.tools':
-    '{lure} = vaihda viehe (pohjassa: pakki) · {sonar} = kaikuluotain · {lureSonar} = vieheen syvyys',
+    '{lure} = vaihda viehe (pohjassa: pakki) · {method} = virveli/perho · {sonar} = luotain · {lureSonar} = syvyys',
   'help.flyCast': 'Perhoheitto: {backCast} = taakse, {forwardCast} = eteen · {swipe}',
   'help.flyCast2':
     '{castForward} = rytmiheitto · {lift} = nosta uuteen heittoon · {flyPanel} = sivukuva',
@@ -685,6 +685,8 @@ export const fi = {
   'touch.cutTitle': 'Katkaise siima',
   'touch.lure': 'VIEHE',
   'touch.lureTitle': 'Vaihda viehe, pidä pohjassa: viehepakki',
+  'touch.method': 'VAPA',
+  'touch.methodTitle': 'Kalastustapa: virveli tai perho',
   'touch.sonar': 'LUOT',
   'touch.sonarTitle': 'Kaikuluotain',
   'touch.depth': 'SYV',

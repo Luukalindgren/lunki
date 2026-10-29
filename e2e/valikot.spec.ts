@@ -254,7 +254,7 @@ test('käsimerkit: G avaa valikon, numero tekee eleen ja Esc sulkee tauotta (#22
   errors.check();
 });
 
-test('viehepakki: R vaihtaa lokeroa, R pohjassa avaa pikavalikon (#365)', async ({
+test('viehepakki: R vaihtaa lokeroa, R pohjassa avaa pikavalikon (#365, #387)', async ({
   page,
   isMobile,
 }) => {
@@ -275,25 +275,36 @@ test('viehepakki: R vaihtaa lokeroa, R pohjassa avaa pikavalikon (#365)', async 
   // Lusikka on pakin viimeinen: R kiertää ensimmäiseen.
   await page.keyboard.press('KeyR');
   await expect(message).toContainText('Viehe: Jigi 5 g');
-  // Pohjassa pidetty R avaa pikavalikon käytössä oleva viehe valittuna.
+  // Pohjassa pidetty R avaa pikavalikon käytössä oleva viehe valittuna, ja
+  // irrotus valitsee osoitetun lohkon (#387).
   const menu = page.locator('.lure-menu');
   await page.keyboard.down('KeyR');
-  await expect(menu).toBeVisible();
-  await page.keyboard.up('KeyR');
   await expect(menu).toBeVisible();
   await expect(menu.locator('.lure-option')).toHaveCount(3);
   await expect(menu.locator('.lure-option .lure-art')).toHaveCount(3);
   await expect(menu.locator('.lure-caption')).toHaveText('Jigi 5 g');
-  await page.keyboard.press('Digit2');
+  await page.keyboard.press('ArrowRight');
+  await expect(menu.locator('.lure-caption')).toHaveText('Jigi 20 g');
+  await page.keyboard.up('KeyR');
   await expect(menu).toBeHidden();
   await expect(message).toContainText('Viehe: Jigi 20 g');
-  // Uusi R:n painallus sulkee avoimen valikon vaihtamatta viehettä.
-  await page.keyboard.down('KeyR');
-  await expect(menu).toBeVisible();
-  await page.keyboard.up('KeyR');
-  await page.keyboard.press('KeyR');
-  await expect(menu).toBeHidden();
   await expect(page.locator('.screen')).toBeHidden();
+  // M:n napautus jättää kalastustavan valikon auki (#386), uusi napautus sulkee.
+  const method = page.locator('.method-menu');
+  await page.keyboard.press('KeyM');
+  await expect(method).toBeVisible();
+  await expect(method.locator('.method-option')).toHaveCount(2);
+  await expect(method.locator('.method-caption')).toHaveText('Virveli');
+  await page.keyboard.press('KeyM');
+  await expect(method).toBeHidden();
+  // Pohjassa pidetty M ja irrotus perhon kohdalla: pakin ensimmäinen perho.
+  await page.keyboard.down('KeyM');
+  await expect(method).toBeVisible();
+  await page.keyboard.press('ArrowRight');
+  await expect(method.locator('.method-caption')).toHaveText('Perho');
+  await page.keyboard.up('KeyM');
+  await expect(method).toBeHidden();
+  await expect(message).toContainText('Perho: Nymfi');
   errors.check();
 });
 

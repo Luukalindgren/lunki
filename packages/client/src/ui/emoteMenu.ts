@@ -31,6 +31,14 @@ export class EmoteMenu {
     return this.menu.open;
   }
 
+  get selected(): number {
+    return this.menu.selected;
+  }
+
+  pickSelected(): void {
+    this.menu.pickSelected();
+  }
+
   toggle(): void {
     if (this.open) this.close();
     else this.show();

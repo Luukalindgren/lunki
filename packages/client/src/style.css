@@ -1219,8 +1219,8 @@ textarea,
   display: inline;
 }
 
-/* Ympyrävalikko: käsimerkit (#228) ja viehepakki (#365), ui/ringMenu.ts.
-   Reunat ja värit kuten pelin muissa valikoissa (.screen-panel, .screen button);
+/* Ympyrävalikko: käsimerkit (#228), viehepakki (#365) ja kalastustapa, ui/ringMenu.ts.
+   Värit kuten pelin muissa valikoissa (.screen-panel, .screen button);
    lohkojen väliin jää reunan värinen viiva, ja valittu lohko nousee ulospäin. */
 .ring-menu {
   --ring-size: min(360px, 88vmin);
@@ -1233,8 +1233,8 @@ textarea,
   transform: translate(-50%, -50%);
   border-radius: 50%;
   background: #5f6b78;
-  border: 4px solid #5f6b78;
-  box-shadow: 8px 8px 0 #0b0f14;
+  /* Selvä ulkoreuna keskiympyrän tummalla harmaalla, ei varjoa (Luuka 2026-10-29). */
+  border: 6px solid #1c232b;
   pointer-events: auto;
   z-index: 3;
 }
@@ -1776,6 +1776,19 @@ textarea,
   display: none;
 }
 
+/* Kalastustapa (#386) ankkurin ja paikanvaihdon yllä. */
+.touch-controls .touch-method {
+  position: absolute;
+  left: calc(var(--edge-l) + 132px);
+  bottom: calc(144px + env(safe-area-inset-bottom, 0px));
+  width: 56px;
+  font-size: 18px;
+}
+
+.touch-controls .touch-seat[hidden] ~ .touch-method {
+  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+}
+
 /* Pystyssä tatin oikealla puolella ei ole tilaa: nappi tatin yläpuolelle. */
 @media (orientation: portrait) {
   .touch-controls .touch-anchor {
@@ -1786,6 +1799,12 @@ textarea,
   .touch-controls .touch-seat {
     left: calc(var(--edge-l) + 64px);
     bottom: calc(148px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .touch-controls .touch-method,
+  .touch-controls .touch-seat[hidden] ~ .touch-method {
+    left: var(--edge-l);
+    bottom: calc(212px + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -1833,7 +1852,8 @@ textarea,
 }
 
 .touch-controls.spectator .touch-anchor,
-.touch-controls.spectator .touch-seat {
+.touch-controls.spectator .touch-seat,
+.touch-controls.spectator .touch-method {
   display: none;
 }
 

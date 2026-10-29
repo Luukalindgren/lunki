@@ -223,7 +223,7 @@ test('katsojalle puhelimella vain näkymän napit (#280)', async ({
   await expect(page.locator('.hud-timer')).toBeVisible();
   await expect(page.getByRole('button', { name: 'KAM' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'VIESTI' })).toBeVisible();
-  for (const label of ['HEITÄ', 'VIEHE', 'LUOT', 'KATKO'])
+  for (const label of ['HEITÄ', 'VIEHE', 'VAPA', 'LUOT', 'KATKO'])
     await expect(page.getByRole('button', { name: label })).toBeHidden();
   await expect(page.locator('.touch-stick')).toBeHidden();
   await expect(page.locator('.hud-tension')).toBeHidden();

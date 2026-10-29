@@ -57,7 +57,7 @@ export class RingMenu {
   private items: RingItem[] = [];
   private readonly hole: HTMLDivElement;
   private readonly caption: HTMLDivElement;
-  private selected = 0;
+  private highlighted = 0;
 
   constructor(
     parent: HTMLElement,
@@ -79,6 +79,8 @@ export class RingMenu {
     this.root.appendChild(this.hole);
     parent.appendChild(this.root);
     window.addEventListener('keydown', this.onKey, true);
+    // Hiiri tai avausnappia pitävä sormi osoittaa lohkoa suunnallaan (#387).
+    window.addEventListener('pointermove', this.onPoint);
   }
 
   /** Valikon kohdat; vanhat lohkot korvataan. */
@@ -117,7 +119,7 @@ export class RingMenu {
       this.root.insertBefore(b, this.hole);
       return b;
     });
-    this.select(Math.min(this.selected, Math.max(0, n - 1)));
+    this.select(Math.min(this.highlighted, Math.max(0, n - 1)));
   }
 
   get open(): boolean {
@@ -125,7 +127,7 @@ export class RingMenu {
   }
 
   /** Avaa valikon; `selected` korostaa kohdan (esim. käytössä oleva viehe). */
-  show(selected = this.selected): void {
+  show(selected = this.highlighted): void {
     this.root.hidden = false;
     this.select(selected);
   }
@@ -134,17 +136,28 @@ export class RingMenu {
     this.root.hidden = true;
   }
 
+  /** Valitsee korostetun kohdan: avausnäppäimen irrotus (#387). */
+  /** Korostettu kohta. */
+  get selected(): number {
+    return this.highlighted;
+  }
+
+  pickSelected(): void {
+    if (this.open) this.pick(this.highlighted);
+  }
+
   dispose(): void {
     window.removeEventListener('keydown', this.onKey, true);
+    window.removeEventListener('pointermove', this.onPoint);
     this.root.remove();
   }
 
   private select(i: number): void {
     const n = this.items.length;
     if (n === 0) return;
-    this.selected = (i + n) % n;
-    this.buttons.forEach((b, k) => b.classList.toggle('selected', k === this.selected));
-    this.caption.textContent = this.items[this.selected]!.label;
+    this.highlighted = (i + n) % n;
+    this.buttons.forEach((b, k) => b.classList.toggle('selected', k === this.highlighted));
+    this.caption.textContent = this.items[this.highlighted]!.label;
   }
 
   private pick(i: number): void {
@@ -152,14 +165,27 @@ export class RingMenu {
     this.onPick?.(i);
   }
 
+  /** Osoitin keskireiän ulkopuolella korostaa sen suunnassa olevan lohkon. */
+  private onPoint = (e: PointerEvent) => {
+    const n = this.items.length;
+    if (!this.open || n === 0) return;
+    const r = this.root.getBoundingClientRect();
+    const dx = e.clientX - (r.left + r.width / 2);
+    const dy = e.clientY - (r.top + r.height / 2);
+    if (Math.hypot(dx, dy) < (HOLE * r.width) / 2) return;
+    // Ensimmäinen lohko ylhäällä, sitten myötäpäivään.
+    const turn = (Math.atan2(dy, dx) + Math.PI / 2) / (Math.PI * 2);
+    this.select(Math.round(turn * n));
+  };
+
   private onKey = (e: KeyboardEvent) => {
     if (!this.open || e.altKey || e.ctrlKey || e.metaKey) return;
     const digit = /^(Digit|Numpad)([1-9])$/.exec(e.code);
     let handled = true;
     if (digit && Number(digit[2]) <= this.items.length) this.pick(Number(digit[2]) - 1);
-    else if (e.code === 'ArrowRight' || e.code === 'ArrowDown') this.select(this.selected + 1);
-    else if (e.code === 'ArrowLeft' || e.code === 'ArrowUp') this.select(this.selected - 1);
-    else if (e.code === 'Enter' || e.code === 'NumpadEnter') this.pick(this.selected);
+    else if (e.code === 'ArrowRight' || e.code === 'ArrowDown') this.select(this.highlighted + 1);
+    else if (e.code === 'ArrowLeft' || e.code === 'ArrowUp') this.select(this.highlighted - 1);
+    else if (e.code === 'Enter' || e.code === 'NumpadEnter') this.pick(this.highlighted);
     // Pohjassa pidetty avausnäppäin (R avaa viehevalikon) toistuu: ei sulje.
     else if (this.opts.closeKeys.includes(e.code)) {
       if (!e.repeat) this.close();

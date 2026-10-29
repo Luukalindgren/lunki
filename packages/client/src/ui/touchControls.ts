@@ -84,6 +84,9 @@ export class TouchControls {
     this.seatButton = this.tap('seat');
     this.seatButton.classList.add('touch-seat');
     this.seatButton.hidden = true;
+    // Kalastustapaa vaihdetaan harvoin: VAPA ankkurin luona, ei 3×3-ruudukossa.
+    const methodButton = this.hold('method');
+    methodButton.classList.add('touch-method');
     const tools = div('touch-tools');
     tools.append(
       this.tap('pause'),
@@ -105,7 +108,7 @@ export class TouchControls {
       this.tap('sonar'),
       this.tap('lureSonar'),
       camButton,
-      this.tap('emote'),
+      this.hold('emote'),
       this.tap('dragLess'),
       this.tap('dragMore'),
       this.gearButton,
@@ -117,7 +120,7 @@ export class TouchControls {
     const actions = div('touch-actions');
     actions.append(grid, this.mainButton.b);
 
-    this.root.append(stick, anchorButton, this.seatButton, tools, actions);
+    this.root.append(stick, anchorButton, this.seatButton, methodButton, tools, actions);
     parent.appendChild(this.root);
     this.relabel();
     onLangChange(() => this.relabel());
@@ -223,7 +226,8 @@ export class TouchControls {
 
   /**
    * Pohjassa pidettävä nappi: toiminto on pohjassa niin kauan kuin sormi on
-   * päällä (VIEHE: napautus vaihtaa, pito avaa viehepakin, #365).
+   * päällä (VIEHE: napautus vaihtaa, pito avaa viehepakin, #365). Pikavalikossa
+   * sormi liu'utetaan lohkon päälle ja irrotus valitsee sen (#387).
    */
   private hold(action: Action): HTMLButtonElement {
     const b = this.labelled(() => action);
