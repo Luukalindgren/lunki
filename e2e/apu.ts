@@ -115,6 +115,7 @@ export function soloUrl(view: 'pov' | 'top' = 'top'): string {
  */
 export async function startSolo(page: Page, view: 'pov' | 'top' = 'top'): Promise<void> {
   await page.goto(soloUrl(view));
+  await page.getByRole('button', { name: 'Pelaa' }).click();
   await page.getByRole('button', { name: 'Yksinpeli' }).click();
   await page.getByRole('button', { name: 'Aloita kisa' }).click();
   await raceRunning(page);

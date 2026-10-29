@@ -22,6 +22,7 @@ test('Esc ilman näppäinlukitusta: valikko aukeaa ja koko näyttö palaa', asyn
   await page.goto('/?view=top');
   await page.getByRole('button', { name: 'Koko näyttö' }).click();
   await expect.poll(() => fullscreen(page)).toBe(true);
+  await page.getByRole('button', { name: 'Pelaa' }).click();
   await page.getByRole('button', { name: 'Yksinpeli' }).click();
   await page.getByRole('button', { name: 'Aloita kisa' }).click();
   await expect(page.locator('.hud-timer')).toBeVisible();

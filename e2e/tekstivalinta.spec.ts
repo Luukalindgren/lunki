@@ -57,6 +57,7 @@ test('pelin painelu ei valitse HUD-tekstejä, syöttökentät toimivat (#311)', 
 
   // Nimimerkin ja huonekoodin kentissä teksti valitaan ja kopioidaan kuten ennen.
   await page.goto('/?view=top');
+  await page.getByRole('button', { name: 'Pelaa' }).click();
   await page.getByRole('button', { name: 'Moninpeli' }).click();
   const name = page.getByLabel('Nimimerkki');
   await name.fill('Valitsija');

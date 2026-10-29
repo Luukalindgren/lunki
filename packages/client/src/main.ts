@@ -288,22 +288,39 @@ function showMenu() {
     rejoin: lastRoom
       ? { code: lastRoom, run: () => void connect(loadIdentity().name, lastRoom, true) }
       : undefined,
-    onSolo: () => showSoloSetup(settings),
-    onMultiplayer: () => showMultiplayer(),
+    onPlay: showPlay,
     onTackle: () => screens.showTackle({ current: loadTackle(), onChange: saveTackle }, showMenu),
     onLakeMap: () => screens.showLakeMap(showMenu),
     onRecords: () => void showRecords(),
     onManual: () => screens.showManual(showMenu),
     onSettings: showMenuSettings,
-    onFeedback: () =>
-      screens.showFeedback(
-        loadIdentity().name,
-        (f) => sendFeedback({ ...f, context: reportContext() }),
-        showMenu,
-      ),
-    onCredits: () => screens.showCredits(showMenu),
+    onAbout: showAbout,
     onLanguage: showMenu,
   });
+}
+
+/** Pelimuodot päävalikon Pelaa-napin takana; niiden Takaisin palaa tänne. */
+function showPlay() {
+  screens.showPlay(
+    { onSolo: () => showSoloSetup(settings), onMultiplayer: () => showMultiplayer() },
+    showMenu,
+  );
+}
+
+/** Palaute sekä tekijät ja lähteet. */
+function showAbout() {
+  screens.showAbout(
+    {
+      onFeedback: () =>
+        screens.showFeedback(
+          loadIdentity().name,
+          (f) => sendFeedback({ ...f, context: reportContext() }),
+          showAbout,
+        ),
+      onCredits: () => screens.showCredits(showAbout),
+    },
+    showMenu,
+  );
 }
 
 function showMenuSettings() {
@@ -314,7 +331,7 @@ function showSoloSetup(s: CompetitionSettings) {
   screens.showSoloSetup(
     s,
     (x) => startGame(x),
-    showMenu,
+    showPlay,
     (current) =>
       screens.showStartPicker(
         current.start ?? null,
@@ -437,7 +454,7 @@ function showMultiplayer(code = '', error?: string, serverDown = false) {
     },
     () => {
       history.replaceState(null, '', location.pathname);
-      showMenu();
+      showPlay();
     },
     error,
   );
