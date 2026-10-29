@@ -57,9 +57,18 @@ export class Sfx {
       this.ambience = new Ambience(this.ctx, this.ambienceBus);
       this.music = new Music(this.ctx, this.musicBus);
       this.applySettings();
+      // Taustalla olevassa välilehdessä peli ei piirry: tuuli, sade ja musiikki
+      // vaikenevat ja jatkuvat samasta kohdasta, kun välilehti palaa esiin.
+      document.addEventListener('visibilitychange', () => this.onVisibility());
     } catch {
       this.ctx = null;
     }
+  }
+
+  private onVisibility(): void {
+    if (!this.ctx || this.ctx.state === 'closed') return;
+    if (document.visibilityState === 'hidden') void this.ctx.suspend();
+    else void this.ctx.resume();
   }
 
   get audioSettings(): AudioSettings {

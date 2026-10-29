@@ -48,7 +48,19 @@ test.describe('yksinpeli', () => {
     // että ääni yritettiin käynnistää.
     if (browserName === 'firefox' && process.env.CI)
       await expect.poll(() => audioStates(page)).toHaveLength(1);
-    else await expect.poll(() => audioStates(page)).toContain('running');
+    else {
+      await expect.poll(() => audioStates(page)).toContain('running');
+      // Taustalle siirretty välilehti vaikenee ja ääni palaa esiin tultaessa.
+      const setVisibility = (v: 'hidden' | 'visible') =>
+        page.evaluate((v) => {
+          Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => v });
+          document.dispatchEvent(new Event('visibilitychange'));
+        }, v);
+      await setVisibility('hidden');
+      await expect.poll(() => audioStates(page)).toEqual(['suspended']);
+      await setVisibility('visible');
+      await expect.poll(() => audioStates(page)).toEqual(['running']);
+    }
 
     // Tauko ja paluu. Taukovalikossa on koko näytön nappi.
     await page.keyboard.press('Escape');
