@@ -71,9 +71,19 @@ export const CONTROLS = {
   forwardCast: { keys: [], label: 'ctl.mouseForward', touch: 'ctl.swipeUp' },
   /** Perhoheitto sormella: pyyhkäisy järvellä (hiirellä vavan liike, ei erillistä nimeä). */
   swipe: { keys: [], touch: 'ctl.swipe' },
-  /** Siimakäsi heiton aikana: hiirellä vasen nappi (pointer), kosketuksella SIIMA. */
-  lineGrip: { keys: [], label: 'key.mouseLeft', touch: 'touch.line', title: 'touch.lineTitle' },
-  haul: { keys: ['Mouse2'], touch: 'touch.strip', title: 'touch.stripTitle' },
+  /**
+   * Siimakäsi heiton aikana: välilyönti tai hiiren vasen (pointer), kosketuksella
+   * SIIMA. Käsi on automaattinen, kunnes pelaaja painaa sitä (#400). Sormi
+   * järvellä on myös Mouse0, joten hiiren nappi luetaan pointerista.
+   */
+  lineGrip: {
+    keys: ['Space'],
+    label: 'ctl.lineGripKeys',
+    touch: 'touch.line',
+    title: 'touch.lineTitle',
+  },
+  /** Siimakäden veto heiton aikana: kosketuslevyllä F toisella kädellä (#400). */
+  haul: { keys: ['Mouse2', 'KeyF'], touch: 'touch.strip', title: 'touch.stripTitle' },
   strip: {
     keys: ['Space'],
     label: 'ctl.stripKeys',
