@@ -653,6 +653,7 @@ export const fi = {
   'ctl.mouse': 'hiiri',
   'ctl.finger': 'sormi järvellä',
   'ctl.gearKeys': '1/2/3',
+  'ctl.lineGripKeys': 'hiiren vasen/välilyönti',
   'ctl.gearButton': 'NOP',
   'ctl.mouseBack': 'hiiri itseä kohti',
   'ctl.mouseForward': 'poispäin',
@@ -712,7 +713,8 @@ export const fi = {
   'touch.cast': 'HEITÄ',
   'touch.castTitle': 'Heitä katsesuuntaan (pidä ja päästä)',
   'touch.line': 'SIIMA',
-  'touch.lineTitle': 'Siimakäsi: pohjassa pitää siimaa, irti päästää sitä luistamaan',
+  'touch.lineTitle':
+    'Siimakäsi: toimii itsestään, kunnes painat · pohjassa pitää siimaa, irti päästää sitä luistamaan',
   'touch.lift': 'NOSTA',
   'touch.liftTitle': 'Nosta siima vedestä uuteen heittoon, tärpissä vastaisku',
   'touch.strip': 'VETO',
@@ -840,7 +842,7 @@ export const fi = {
   'game.onReel': 'Löysät kelalla – väsytä jarrulla',
   'game.flyTangle': 'Löysä siima sotkeutui heitossa!',
   'game.flyChanged': 'Perho: {fly}',
-  'game.flyCastButtons': '{lineGrip} = siimakäsi · {haul} = veto · {cancel} = peru',
+  'game.flyCastButtons': '{lineGrip} pohjassa = siimakäsi\n{haul} = veto · {cancel} = peru',
   'game.flyCastKeys': '{castForward}, kun siima suoristuu · {cancel} = keskeytä',
   'game.flyUntangle': 'Irrotetaan perhoa… {s} s',
   'game.flyNow': 'NYT!',
@@ -898,6 +900,94 @@ export const fi = {
   'in.5': 'lounaassa',
   'in.6': 'etelässä',
   'in.7': 'kaakossa',
+
+  // --- Ohjeet (#401) ---
+  'menu.manual': 'Ohjeet',
+  'manual.title': 'Ohjeet',
+  'manual.intro':
+    'Kalastuksen mekaniikat ja niiden ohjaus. Ohjaus näkyy tämän laitteen mukaan: kosketuksella napit, koneella näppäimet.',
+  'manual.section.move': 'Liikkuminen',
+  'manual.section.spin': 'Virveli',
+  'manual.section.fly': 'Perho',
+  'manual.section.weather': 'Sää ja vaarat',
+  'manual.section.multiplayer': 'Moninpeli',
+  'manual.move.tube': 'Kelluntarengas',
+  'manual.move.tubeText':
+    '{back} = potki selkä edellä, nopein tapa liikkua\n{forward} = potki kohti räpylöitä: hitaampi, mutta näet minne menet\n{turn} = käänny\n{sprint} = pikapotku: nopeampi, mutta vie kuntoa, joka palautuu levätessä',
+  'manual.move.anchor': 'Ankkuri',
+  'manual.move.anchorText':
+    '{anchor} = laske tai nosta ankkuri. Pohjassa se pitää paikallaan köyden mitan sisällä (köyttä 1,5 kertaa syvyys).\nAnkkurissa ei potkita eikä soudeta. Myrskyssä ankkuri laahaa, ja trombi repäisee sen irti.',
+  'manual.move.boat': 'Vene',
+  'manual.move.boatText':
+    'Moninpelin aulassa voi valita oman veneen tai mennä toisen kyytiin. Veneessä on soutaja ja enintään kaksi kalastajaa, ja venekunta on yksi joukkue.\nSoutaja: {back} = souda, {forward} = huopaa, {turn} = käännä venettä.\n{oars} = airot tai vapa. Heittäessä ja kelatessa ei voi soutaa, mutta viehe vedessä voi uistella.\n{seat} = vaihda paikkaa, kun vene on lähes paikallaan.',
+  'manual.move.wind': 'Tuuli ja törmäykset',
+  'manual.move.windText':
+    'Tuuli ajelehtii rengasta myötätuuleen, myrskyssä selvästi. Potkimalla pääsee vastatuuleenkin.\nRantaan ja kaislikkoon ei pääse, ja kalastajat tönäisevät toisiaan törmätessään. Raskas vene tönäisee rengasta enemmän kuin rengas venettä.',
+  'manual.spin.cast': 'Heitto',
+  'manual.spin.castText':
+    '{pointer}: tähtää, pidä pohjassa ja päästä = heitto\n{castForward} pohjassa ja päästä = heitto katsesuuntaan\nVoimamittari täyttyy ja laskee sitten takaisin, joten ajoita irrotus täyteen mittariin.\n{cancel} = peru lataus\nTuuli kaartaa heittoa. Vieheen paino, vavan heittopaino ja siiman paksuus vaikuttavat heiton pituuteen.\nMaalle osunut viehe jää kiinni: {cut} = katkaise siima, ja viehe menetetään.',
+  'manual.spin.reel': 'Kelaus ja uitto',
+  'manual.spin.reelText':
+    '{pointer} tai {reel} pohjassa = kelaa\n{gear} = kelausnopeus, {gearFast} = pikakelaus. Niin nopea viehe ei juuri kiinnosta kaloja.\n{twitch} = nykäisy: viehe pomppaa ylös ja vajoaa houkuttelevasti.\nTauko vedon jälkeen houkuttaa haukea ja suuria kaloja.\nKalat pitävät oman lajinsa mieluisasta nopeudesta ja syvyydestä. Vaappu uii lippansa syvyydessä, ja jigi ja lusikka vajoavat.',
+  'manual.spin.strike': 'Vastaisku',
+  'manual.spin.strikeText':
+    'Tärpin tunnistaa äänestä, ilmoituksesta, pyörteestä ja siiman nykäyksestä.\nIske kelaamalla ({reel}) tai nykäisemällä ({twitch}). Aikaa on Normaalilla {normalWindow} s ja Realistisella {realisticWindow} s, kuhalla vähemmän.\nKoukku tarttuu Normaalilla {normalHook} %:lla ja Realistisella {realisticHook} %:lla. Helpolla koukku tarttuu itsestään.\nMyöhästyneen iskun jälkeen kala ei palaa hetkeen.',
+  'manual.spin.fight': 'Väsytys',
+  'manual.spin.fightText':
+    '{dragLess} ja {dragMore} = löysää ja kiristä jarrua. Kun kala vetää jarrua kovemmin, jarru luistaa ja kala vie siimaa.\nSiima katkeaa, kun veto ylittää sen lujuuden: 0,20 mm {thin} kg, 0,25 mm {medium} kg ja 0,30 mm {thick} kg. Helpolla siima ei katkea.\nHauki katkaisee siiman hampaillaan, jos teräsperuketta ei ole.\nLöysä siima päästää kalan irti: Normaalilla {normalSlack} s ja Realistisella {realisticSlack} s löysän jälkeen.',
+  'manual.spin.land': 'Nosto',
+  'manual.spin.landText':
+    'Kun kala on lähellä ja pinnassa, se odottaa nostoa. Pohjassa pidetty kelaus ei nosta.\n{land} = nosta uudella painalluksella. Isoimmat kalat nostetaan haaviin ({landNet}).\nPinnassa kala voi riuhtaista. Riuhtaisun aikana nostettu kala karkaa Normaalilla {normalLunge} %:lla ja Realistisella {realisticLunge} %:lla, joten odota, että se rauhoittuu.',
+  'manual.spin.snag': 'Pohjatartunta ja rikka',
+  'manual.spin.snagText':
+    'Pohjaa hipova viehe voi tarttua kiviin, kaatuneisiin puihin, risuihin, kaislikkoon tai kasvustoon.\nKelaa noin sekunnin ajan irrottaaksesi: viehe irtoaa Normaalilla {normalSnag} %:lla ja Realistisella {realisticSnag} %:lla, Helpolla aina. Muuten siima katkeaa.\nUposkasvustossa viehe kerää rikkaa, eikä se silloin kiinnosta kaloja. Kelaa se kotiin, niin se puhdistuu.\nRuoholusikka liukuu kasvuston läpi, mutta koukku tarttuu siitä huonommin.',
+  'manual.spin.tools': 'Varusteet ja apuvälineet',
+  'manual.spin.toolsText':
+    'Varusteet laitetaan kuntoon päävalikon Varusteet-näkymässä.\n{lure} = vaihda viehe, pohjassa viehepakki\n{method} = virveli tai perho\n{sonar} = kaikuluotain, {lureSonar} = vieheen syvyys\nVieheen kohdalla on tilan värinen timantti. Helpolla ja Normaalilla seuraavan kalan pyörteet näkyvät vedessä.',
+  'manual.fly.cast': 'Perhoheitto',
+  'manual.fly.castText':
+    'Perhoa heitetään edestakaisin: takaheitto, eteenheitto ja niin edelleen, kunnes siima laskeutuu eteen.\n{backCast} = takaheitto, {forwardCast} = eteenheitto. Sivuliike kääntää heiton suuntaa.\nJokainen liike päättyy terävään pysäytykseen. Odota, että siima suoristuu (nykäys ja sivukuvan "nyt"), ja tee sitten vastakkainen liike.\nLyhyellä siimalla tehdään pieni liike, pitkällä laaja.\n{castForward} = rytmiheitto: jokainen painallus vaihtaa suuntaa. Ajoita painallus siiman suoristumiseen.\n{cancel} = peru heitto, {flyPanel} = sivukuva heitosta',
+  'manual.fly.hand': 'Siimakäsi ja ampuminen',
+  'manual.fly.handText':
+    'Siimakäsi toimii itsestään: se pitää siimaa liikkeen ajan ja pidentää sitä silmukoiden auetessa.\n{lineGrip} pohjassa = siimakäsi on sinun. Jos käsi on auki liikkeen aikana, vapa ei lataudu.\nPäästä käsi irti silmukan auetessa, niin siimaa luistaa ulos. Viimeisen eteenheiton jälkeen irti päästetty käsi ampuu löysän siiman perään.',
+  'manual.fly.haul': 'Veto ja tuplaveto',
+  'manual.fly.haulText':
+    '{haul} vavan liikkeen aikana = siimakäden veto: siima lähtee nopeammin, ja heitto pitenee.\nTuplaveto on veto sekä takaheitossa että eteenheitossa. Hetkeä ennen liikettä painettu veto lasketaan vielä mukaan.\nOsunut veto kuuluu äänenä ja näkyy sivukuvassa. Rytmiheitossa vetoa ei ole.',
+  'manual.fly.errors': 'Heiton virheet',
+  'manual.fly.errorsText':
+    'Liian aikainen suunnan vaihto läimäyttää siimaa kuin piiskaa. Realistisella perho voi katketa.\nLiian myöhään takaheitto putoaa veteen.\nLiian heikko liike pitkälle siimalle luhistuu, ja laaja liike tai laimea pysäytys tekee leveän, heikon silmukan.\nTakaheitto rantaan tai kaislikkoon jättää perhon hetkeksi kiinni.\nHelpolla ajoitus on väljä ja siima pitenee itse. Realistisella "nyt"-merkkiä ei ole.',
+  'manual.fly.strip': 'Uitto ja nosto vedestä',
+  'manual.fly.stripText':
+    '{strip} = vedä siimaa ja uita perhoa. Popperi pulpahtaa vedon alkaessa.\nVedetty siima kertyy löysäksi, ja seuraava heitto ampuu sen. Liian paljon löysää voi sotkeutua.\n{lift} = nosta siima vedestä uuteen heittoon, kun siimaa on ulkona enintään {pickup} m.\nEteenpäin liike siiman ollessa vedessä on rullaheitto, enintään {roll} m.',
+  'manual.fly.fight': 'Vastaisku ja väsytys',
+  'manual.fly.fightText':
+    'Tärpissä iske vetämällä siimaa ({strip}) tai nostamalla vapaa ({lift}). Veto pistää koukun varmemmin.\n{reelSlack} = kelaa löysät kelalle. Sen jälkeen väsytys jatkuu kelalta kuten virvelillä.\nKädessä tiukasti pidetty siima voi katkaista perukkeen, ja irti päästetty luistaa sormien läpi.\nTeräsperuke kestää hauen hampaat.',
+  'manual.weather.sky': 'Sää',
+  'manual.weather.skyText':
+    'Sää vaihtuu kisan aikana valitun säätason mukaan: tyyni, tuulinen, sade, ukkonen tai myrsky. Ajastimen alla näkyy säätila ja tuuli.\nMuutoksesta varoitetaan hetkeä ennen: taivas tummuu, tuuli yltyy tai kaukaa kuuluu jyrinää.\nTuuli kaartaa heittoa ja nostaa selällä isompia aaltoja kuin poukamassa.',
+  'manual.weather.lightning': 'Ukkonen ja salama',
+  'manual.weather.lightningText':
+    'Salama osuu vain kalastajaan, jonka vapa on ylhäällä: viehe heitossa tai vedessä tai kala kiinni. Viehe kelalla olet turvassa.\nRiski on suurin selällä ja pienin rannan tuntumassa.\nOsuma polttaa siiman poikki, ja sitten seuraa kisan rangaistus.',
+  'manual.weather.waves': 'Isot aallot',
+  'manual.weather.wavesText':
+    'Tuulella tulee välillä iso aalto. HUD varoittaa hetkeä ennen ja kertoo, mistä aalto tulee.\nKäänny aaltoa kohti: sivulta tai takaa tuleva iso aalto kaataa renkaan.\nKumossa olet hetken: viehe palaa kelalle, ja kiinni ollut kala karkaa.',
+  'manual.weather.spout': 'Trombi',
+  'manual.weather.spoutText':
+    'Ukkosella ja myrskyllä voi syntyä trombi. Se kulkee tuulen mukana ja imee renkaita keskustaa kohti.\n{sprint} = pikapotkuilla pääset karkuun. Trombin keskelle joutunut kaatuu ja sinkoutuu.\nSäärivillä näkyy lähimmän trombin etäisyys ja suunta.',
+  'manual.weather.penalties': 'Rangaistukset',
+  'manual.weather.penaltiesText':
+    'Kisan asetuksissa valitaan rangaistus salamasta, kaatumisesta ja maalle heitosta: esimerkiksi jäähy, saaliin menetys tai kisasta putoaminen.\nVoimassa olevat rangaistukset näkyvät ajastimen alla.',
+  'manual.mp.room': 'Huone ja aula',
+  'manual.mp.roomText':
+    'Moninpeli ei vaadi kirjautumista: luo huone ja jaa sen koodi tai linkki kavereille.\nIsäntä valitsee aulassa kisan säännöt, ja jokainen valitsee kulkupelinsä.\nKesken kisan voi liittyä, jos isäntä sallii, ja katsojana voi seurata muita.',
+  'manual.mp.race': 'Kisa',
+  'manual.mp.raceText':
+    'Kaikki kalastavat samalla järvellä samassa säässä. Voittaja ratkeaa isännän valitseman säännön mukaan, esimerkiksi suurin kokonaissaalis.\nMuiden kalastajien tärpit ja väsytykset näkyvät ja kuuluvat järvellä.',
+  'manual.mp.tangle': 'Siimojen sotku',
+  'manual.mp.tangleText':
+    'Ristiin menneet siimat sotkeutuvat, kun jompikumpi kelaa. Sotkussa kalaa ei voi nostaa.\nKelatkaa yhdessä, niin sotku selviää nopeammin, tai {cut} = katkaise oma siimasi.',
+  'manual.mp.talk': 'Käsimerkit ja viestit',
+  'manual.mp.talkText': '{emote} = käsimerkit (pohjassa valikko)\n{chat} = viesti muille',
 
   // --- Virheet ---
   'error.webglTitle': 'Grafiikka ei käynnisty',

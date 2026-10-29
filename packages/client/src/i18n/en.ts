@@ -650,6 +650,7 @@ export const en: Record<keyof typeof fi, string> = {
   'ctl.mouse': 'mouse',
   'ctl.finger': 'finger on the lake',
   'ctl.gearKeys': '1/2/3',
+  'ctl.lineGripKeys': 'left mouse/space',
   'ctl.gearButton': 'SPD',
   'ctl.mouseBack': 'mouse towards you',
   'ctl.mouseForward': 'away',
@@ -709,7 +710,8 @@ export const en: Record<keyof typeof fi, string> = {
   'touch.cast': 'CAST',
   'touch.castTitle': 'Cast where you face (hold and release)',
   'touch.line': 'LINE',
-  'touch.lineTitle': 'Line hand: hold to grip the line, release to let it slip',
+  'touch.lineTitle':
+    'Line hand: works by itself until you press · hold to grip the line, release to let it slip',
   'touch.lift': 'LIFT',
   'touch.liftTitle': 'Lift the line off the water for a new cast, on a take set the hook',
   'touch.strip': 'STRIP',
@@ -837,7 +839,7 @@ export const en: Record<keyof typeof fi, string> = {
   'game.onReel': 'Slack on the reel – fight with the drag',
   'game.flyTangle': 'The slack line tangled in the cast!',
   'game.flyChanged': 'Fly: {fly}',
-  'game.flyCastButtons': '{lineGrip} = line hand · {haul} = haul · {cancel} = cancel',
+  'game.flyCastButtons': '{lineGrip} held = line hand\n{haul} = haul · {cancel} = cancel',
   'game.flyCastKeys': '{castForward} when the line straightens · {cancel} = cancel',
   'game.flyUntangle': 'Freeing the fly… {s} s',
   'game.flyNow': 'NOW!',
@@ -896,6 +898,94 @@ export const en: Record<keyof typeof fi, string> = {
   'in.5': 'to the southwest',
   'in.6': 'to the south',
   'in.7': 'to the southeast',
+
+  // --- How to play (#401) ---
+  'menu.manual': 'How to play',
+  'manual.title': 'How to play',
+  'manual.intro':
+    'Fishing mechanics and their controls. Controls are shown for this device: buttons on touch, keys on a computer.',
+  'manual.section.move': 'Moving',
+  'manual.section.spin': 'Spinning',
+  'manual.section.fly': 'Fly',
+  'manual.section.weather': 'Weather',
+  'manual.section.multiplayer': 'Multiplayer',
+  'manual.move.tube': 'Float tube',
+  'manual.move.tubeText':
+    '{back} = kick backwards, the fastest way to move\n{forward} = kick towards your fins: slower, but you see where you go\n{turn} = turn\n{sprint} = power kick: faster, but uses stamina, which recovers while resting',
+  'manual.move.anchor': 'Anchor',
+  'manual.move.anchorText':
+    '{anchor} = drop or raise the anchor. On the bottom it holds you within the rope length (1.5 times the depth).\nAt anchor you cannot kick or row. In a storm the anchor drags, and a waterspout tears it loose.',
+  'manual.move.boat': 'Boat',
+  'manual.move.boatText':
+    "In the multiplayer lobby you can take your own boat or board someone else's. A boat has a rower and up to two anglers, and its crew is one team.\nRower: {back} = row, {forward} = back water, {turn} = turn the boat.\n{oars} = oars or rod. You cannot row while casting or reeling, but with the lure in the water you can troll.\n{seat} = change seats when the boat is nearly still.",
+  'manual.move.wind': 'Wind and collisions',
+  'manual.move.windText':
+    'Wind drifts the tube downwind, clearly so in a storm. Kicking still takes you upwind.\nYou cannot go ashore or into reeds, and anglers bump each other when they collide. A heavy boat pushes a tube more than the other way round.',
+  'manual.spin.cast': 'Casting',
+  'manual.spin.castText':
+    '{pointer}: aim, hold and release = cast\nHold and release {castForward} = cast where you look\nThe power meter fills and then drops back, so time the release to a full meter.\n{cancel} = cancel the charge\nWind bends the cast. Lure weight, rod casting weight and line thickness affect the distance.\nA lure that lands ashore gets stuck: {cut} = cut the line, and the lure is lost.',
+  'manual.spin.reel': 'Reeling and retrieve',
+  'manual.spin.reelText':
+    'Hold {pointer} or {reel} = reel\n{gear} = reel speed, {gearFast} = fast retrieve. A lure that fast hardly interests fish.\n{twitch} = twitch: the lure hops up and sinks enticingly.\nA pause after a pull tempts pike and big fish.\nEach species likes its own speed and depth. A crankbait swims at its lip depth, and jigs and spoons sink.',
+  'manual.spin.strike': 'Setting the hook',
+  'manual.spin.strikeText':
+    'You notice a take by the sound, the message, the swirl and the twitch of the line.\nStrike by reeling ({reel}) or twitching ({twitch}). You have {normalWindow} s on Normal and {realisticWindow} s on Realistic, less for zander.\nThe hook sets {normalHook} % of the time on Normal and {realisticHook} % on Realistic. On Easy it sets by itself.\nAfter a late strike the fish stays away for a while.',
+  'manual.spin.fight': 'Playing the fish',
+  'manual.spin.fightText':
+    '{dragLess} and {dragMore} = loosen and tighten the drag. When the fish pulls harder than the drag, the drag slips and the fish takes line.\nThe line breaks when the pull exceeds its strength: 0.20 mm {thin} kg, 0.25 mm {medium} kg and 0.30 mm {thick} kg. On Easy the line does not break.\nA pike bites through the line unless you have a steel leader.\nA slack line lets the fish go: after {normalSlack} s of slack on Normal and {realisticSlack} s on Realistic.',
+  'manual.spin.land': 'Landing',
+  'manual.spin.landText':
+    'When the fish is close and at the surface, it waits to be landed. Holding the reel does not land it.\n{land} = land with a new press. The biggest fish go into the net ({landNet}).\nAt the surface the fish may lunge. Lifting during a lunge loses the fish {normalLunge} % of the time on Normal and {realisticLunge} % on Realistic, so wait for it to calm down.',
+  'manual.spin.snag': 'Snags and weed',
+  'manual.spin.snagText':
+    'A lure touching the bottom can snag on stones, fallen trees, brush, reeds or weed.\nReel for about a second to free it: the lure comes free {normalSnag} % of the time on Normal and {realisticSnag} % on Realistic, always on Easy. Otherwise the line breaks.\nIn submerged weed the lure collects weed and then hardly interests fish. Reel it in to clean it.\nA weedless spoon slides through weed, but strikes hook less often.',
+  'manual.spin.tools': 'Tackle and tools',
+  'manual.spin.toolsText':
+    'Set up your tackle in the main menu Tackle view.\n{lure} = change lure, hold for the tackle box\n{method} = spinning or fly\n{sonar} = sonar, {lureSonar} = lure depth\nA diamond in the state colour marks your lure. On Easy and Normal the swirls of a following fish show in the water.',
+  'manual.fly.cast': 'Fly casting',
+  'manual.fly.castText':
+    'A fly is cast back and forth: back cast, forward cast and so on, until the line lands in front.\n{backCast} = back cast, {forwardCast} = forward cast. Moving sideways turns the cast.\nEvery stroke ends in a crisp stop. Wait for the line to straighten (a tug and "now" in the side view), then make the opposite stroke.\nA short line needs a small stroke, a long line a wide one.\n{castForward} = rhythm cast: each press switches direction. Time it to the line straightening.\n{cancel} = cancel the cast, {flyPanel} = side view of the cast',
+  'manual.fly.hand': 'Line hand and shooting',
+  'manual.fly.handText':
+    'The line hand works by itself: it grips the line during strokes and lengthens it as the loops unroll.\nHold {lineGrip} = the line hand is yours. If the hand is open during a stroke, the rod does not load.\nRelease the hand as a loop unrolls to let line slip out. Releasing it after the last forward cast shoots the slack after the fly.',
+  'manual.fly.haul': 'Haul and double haul',
+  'manual.fly.haulText':
+    '{haul} during a rod stroke = haul: the line goes faster and the cast is longer.\nA double haul is a haul on both the back and the forward cast. A haul pressed just before the stroke still counts.\nA hit haul makes a sound and shows in the side view. The rhythm cast has no haul.',
+  'manual.fly.errors': 'Casting faults',
+  'manual.fly.errorsText':
+    'Changing direction too early cracks the line like a whip. On Realistic the fly may snap off.\nToo late, and the back cast falls in the water.\nA stroke too weak for a long line collapses, and a wide stroke or a soft stop makes a wide, weak loop.\nA back cast into the shore or reeds snags the fly for a moment.\nOn Easy the timing is loose and the line lengthens by itself. On Realistic there is no "now" marker.',
+  'manual.fly.strip': 'Retrieve and pick-up',
+  'manual.fly.stripText':
+    '{strip} = strip line and work the fly. A popper pops as a strip starts.\nStripped line gathers as slack, and the next cast shoots it. Too much slack can tangle.\n{lift} = lift the line off the water for a new cast when at most {pickup} m is out.\nA forward stroke with the line on the water is a roll cast, up to {roll} m.',
+  'manual.fly.fight': 'Strike and fight',
+  'manual.fly.fightText':
+    'On a take, strike by stripping ({strip}) or lifting the rod ({lift}). A strip sets the hook more surely.\n{reelSlack} = reel the slack onto the reel. Then the fight goes on from the reel like spinning.\nLine held tight in the hand can snap the leader, and released line slips through your fingers.\nA steel leader stands pike teeth.',
+  'manual.weather.sky': 'Weather',
+  'manual.weather.skyText':
+    'The weather changes during the competition according to the chosen weather level: calm, windy, rain, thunder or storm. The weather and wind show under the timer.\nA change is announced shortly before: the sky darkens, the wind picks up or thunder rumbles far away.\nWind bends casts and raises bigger waves on open water than in a cove.',
+  'manual.weather.lightning': 'Thunder and lightning',
+  'manual.weather.lightningText':
+    'Lightning only strikes an angler with the rod up: lure in flight or in the water, or a fish on. With the lure on the reel you are safe.\nThe risk is highest on open water and lowest near the shore.\nA hit burns the line through, and then the competition penalty follows.',
+  'manual.weather.waves': 'Big waves',
+  'manual.weather.wavesText':
+    'In wind a big wave comes now and then. The HUD warns shortly before and tells where it comes from.\nFace the wave: a big wave from the side or behind capsizes the tube.\nCapsized, you are out for a moment: the lure returns to the reel and a hooked fish escapes.',
+  'manual.weather.spout': 'Waterspout',
+  'manual.weather.spoutText':
+    'Thunder and storms can spawn a waterspout. It travels with the wind and sucks tubes towards its centre.\n{sprint} = escape with power kicks. Caught in the centre, you capsize and get flung out.\nThe weather line shows the distance and direction of the nearest spout.',
+  'manual.weather.penalties': 'Penalties',
+  'manual.weather.penaltiesText':
+    'The competition settings choose the penalty for lightning, capsizing and casting ashore: for example a time-out, losing the catch or dropping out of the competition.\nActive penalties show under the timer.',
+  'manual.mp.room': 'Room and lobby',
+  'manual.mp.roomText':
+    'Multiplayer needs no account: create a room and share its code or link with friends.\nThe host chooses the competition rules in the lobby, and everyone picks their craft.\nYou can join a competition already running if the host allows it, and spectators can follow others.',
+  'manual.mp.race': 'Competition',
+  'manual.mp.raceText':
+    "Everyone fishes the same lake in the same weather. The winner is decided by the rule the host chose, for example the biggest total catch.\nOther anglers' takes and fights can be seen and heard on the lake.",
+  'manual.mp.tangle': 'Tangled lines',
+  'manual.mp.tangleText':
+    'Crossed lines tangle when either angler reels. While tangled, nobody can land a fish.\nReel together to untangle faster, or {cut} = cut your own line.',
+  'manual.mp.talk': 'Gestures and messages',
+  'manual.mp.talkText': '{emote} = gestures (hold for the menu)\n{chat} = message others',
 
   // --- Errors ---
   'error.webglTitle': 'Graphics will not start',

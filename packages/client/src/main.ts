@@ -293,6 +293,7 @@ function showMenu() {
     onTackle: () => screens.showTackle({ current: loadTackle(), onChange: saveTackle }, showMenu),
     onLakeMap: () => screens.showLakeMap(showMenu),
     onRecords: () => void showRecords(),
+    onManual: () => screens.showManual(showMenu),
     onSettings: showMenuSettings,
     onFeedback: () =>
       screens.showFeedback(
@@ -631,10 +632,10 @@ function togglePause() {
 }
 
 /** Taukovalikko; `from` kohdistaa alinäkymän napin, josta palattiin. */
-function showPauseMenu(from?: 'settings') {
+function showPauseMenu(from?: 'settings' | 'manual') {
   const g = game;
   if (!g) return;
-  const back = (sub: 'settings') => () => {
+  const back = (sub: 'settings' | 'manual') => () => {
     // Moninpelin kisa voi päättyä alinäkymän ollessa auki.
     if (paused && game === g) showPauseMenu(sub);
   };
@@ -653,6 +654,7 @@ function showPauseMenu(from?: 'settings') {
       const open = () => screens.showSettings(settingsControls(open), back('settings'));
       open();
     },
+    onManual: () => screens.showManual(back('manual')),
     from,
   });
 }

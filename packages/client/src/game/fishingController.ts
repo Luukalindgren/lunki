@@ -252,12 +252,15 @@ export class FishingController {
               touch
                 ? {
                     grip: c.isDown('lineGrip'),
+                    gripPressed: c.wasPressed('lineGrip'),
                     haul: c.wasPressed('haul'),
                     key: c.wasPressed('castForward'),
                     ...this.takeSwipe(),
                   }
                 : {
-                    grip: c.isDown('pointer'),
+                    // Siimakäsi hiiren vasemmalla tai välilyönnillä (#400).
+                    grip: c.isDown('pointer') || c.isDown('lineGrip'),
+                    gripPressed: c.wasPressed('pointer') || c.wasPressed('lineGrip'),
                     haul: c.wasPressed('haul'),
                     key: c.wasPressed('castForward'),
                     dx: input.mouseDX,
