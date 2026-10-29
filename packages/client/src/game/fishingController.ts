@@ -53,6 +53,7 @@ import { saveTackle } from './tackle';
 import type { TopDownCamera } from './topDownCamera';
 import type { FishShadow } from '../world/fishShadow';
 import type { FishSignsView } from './fishSignsView';
+import { liftTime } from './landingView';
 
 /** Saaliin punnituskortti näkyy näin kauan, ellei pelaaja ala heittää uudelleen. */
 const CATCH_CARD_SECONDS = 6;
@@ -130,6 +131,8 @@ export class FishingController {
   /** Perhon vedot hiirellä. */
   private readonly flyStrip = new FlyStrip();
   private reelClickTimer = 0;
+  /** Punnituskortti odottaa, kunnes kala on nostettu kyytiin (#366). */
+  private weighIn: { left: number; show: () => void } | null = null;
   /** Pelaaja kelaa (kelan kampi pyörii kalastajan silmin). */
   cranking = false;
   /** Sormen liike pelikuvalla (CSS-pikseleinä), jota perhoheitto ei ole vielä käyttänyt. */
@@ -508,7 +511,12 @@ export class FishingController {
         3,
       );
     }
-    if (events.caught) this.onCaught(events.caught);
+    if (this.weighIn && (this.weighIn.left -= dt) <= 0) this.flushWeighIn();
+    if (events.caught) {
+      if (events.landed)
+        host.fishingView.startLanding(events.landed, events.caught.species, events.caught.weight);
+      this.onCaught(events.caught, events.landed ? liftTime(events.landed.by) : 0);
+    }
     if (host.fishing.dragSlipping) sounds.play('dragSlip');
     this.reelClickTimer -= dt;
     if (reeling && this.reelClickTimer <= 0) {
@@ -517,8 +525,20 @@ export class FishingController {
     }
   }
 
-  /** Kala nousi: ääni, kirjaus kisaan ja ennätyksiin sekä punnituskortti. */
-  private onCaught(caught: NonNullable<ReturnType<typeof stepFishing>['caught']>): void {
+  private flushWeighIn(): void {
+    const w = this.weighIn;
+    this.weighIn = null;
+    w?.show();
+  }
+
+  /**
+   * Kala nousi: ääni, kirjaus kisaan ja ennätyksiin sekä punnituskortti, joka
+   * tulee näkyviin `delay` sekunnin päästä, kun nosto on ehtinyt kalastajan eteen.
+   */
+  private onCaught(
+    caught: NonNullable<ReturnType<typeof stepFishing>['caught']>,
+    delay: number,
+  ): void {
     const host = this.host;
     const { hud, sounds } = host;
     const net = host.netWorld;
@@ -547,12 +567,19 @@ export class FishingController {
     const catches = host.competition.catches;
     const biggest = catches.every((c) => c === record || c.weight < caught.weight);
     const length = `${Math.round(fishLengthCm(caught.species, caught.weight))} cm`;
-    hud.showWeighIn(
-      `${speciesName(caught.species)} ${formatWeight(caught.weight)}`,
-      `${length} · ${catches.length > 1 && biggest ? t('game.biggestSoFar') : t('game.nthFish', { n: ordinal(catches.length) })}`,
-      CATCH_CARD_SECONDS,
-      caught,
-    );
+    const nth = `${length} · ${catches.length > 1 && biggest ? t('game.biggestSoFar') : t('game.nthFish', { n: ordinal(catches.length) })}`;
+    this.flushWeighIn();
+    this.weighIn = {
+      left: delay,
+      show: () =>
+        hud.showWeighIn(
+          `${speciesName(caught.species)} ${formatWeight(caught.weight)}`,
+          nth,
+          CATCH_CARD_SECONDS,
+          caught,
+        ),
+    };
+    if (delay <= 0) this.flushWeighIn();
   }
 
   /**

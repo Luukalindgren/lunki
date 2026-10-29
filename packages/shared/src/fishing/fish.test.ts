@@ -862,6 +862,7 @@ describe('nosto väsytyksen lopuksi (#366)', () => {
     expect(untilSurface(sim, 120)).toBe(false);
     expect(sim.log.some((e) => e.caught)).toBe(true);
     expect(sim.log.some((e) => e.surfaced)).toBe(false);
+    expect(sim.log.find((e) => e.caught)!.landed?.by).toBe('swing');
   });
 
   it('isompi kala jää pintaan odottamaan nostoa, ja nosto tuo sen kyytiin', () => {
@@ -876,6 +877,7 @@ describe('nosto väsytyksen lopuksi (#366)', () => {
     if (sim.s.landing!.lunge > 0) sim.s.landing!.lunge = 0;
     step(sim, { land: true });
     expect(sim.log.at(-1)!.caught?.weight).toBe(0.42);
+    expect(sim.log.at(-1)!.landed?.by).toBe('hand');
     expect(sim.s.stage).toBe('idle');
     expect(sim.s.landing).toBeNull();
   });
@@ -884,6 +886,9 @@ describe('nosto väsytyksen lopuksi (#366)', () => {
     const sim = setup('easy', 1.3, 4);
     expect(untilSurface(sim, 180)).toBe(true);
     expect(sim.s.landing!.net).toBe(true);
+    if (sim.s.landing!.lunge > 0) sim.s.landing!.lunge = 0;
+    step(sim, { land: true });
+    expect(sim.log.at(-1)!.landed?.by).toBe('net');
   });
 
   it('nosto riuhtaisun aikana voi päästää kalan irti, helpolla ei koskaan', () => {

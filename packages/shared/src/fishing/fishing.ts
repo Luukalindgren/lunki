@@ -326,6 +326,8 @@ export interface FishingEvents {
   surfaced?: boolean;
   /** Nosto: kala riuhtaisee viimeisen kerran. */
   lunged?: boolean;
+  /** Kala nousi kyytiin (näkymän nostoanimaatio): miten ja mistä. */
+  landed?: { by: 'swing' | 'hand' | 'net'; at: Vec2 };
   caught?: Catch;
 }
 
@@ -1118,7 +1120,7 @@ function fight(
     s.landCooldown === 0
   ) {
     const size = sizeClass(f.species, f.weight);
-    if (size < LANDING.handSize) landFish(s, f, pop, world, rng, events);
+    if (size < LANDING.handSize) landFish(s, f, pop, world, rng, events, 'swing');
     else {
       s.landing = { age: 0, net: size >= LANDING.netSize, lunge: 0 };
       events.surfaced = true;
@@ -1134,8 +1136,10 @@ function landFish(
   world: Parameters<typeof spawnFish>[3],
   rng: Rng,
   events: FishingEvents,
+  by: NonNullable<FishingEvents['landed']>['by'],
 ): void {
   const slot = pop.fish.indexOf(f);
+  events.landed = { by, at: { ...f.pos } };
   events.caught = {
     species: f.species,
     name: SPECIES[f.species].name,
@@ -1201,7 +1205,7 @@ function stepLanding(
     return;
   }
   if (land) {
-    landFish(s, f, pop, world, rng, events);
+    landFish(s, f, pop, world, rng, events, l.net ? 'net' : 'hand');
     return;
   }
   if (l.age > LANDING.calm && rng.chance(diff.landing.lungeRate * f.stamina, dt)) {
