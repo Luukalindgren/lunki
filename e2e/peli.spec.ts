@@ -137,6 +137,7 @@ test.describe('yksinpeli', () => {
     await page.getByRole('button', { name: 'Varusteet' }).click();
     await page.getByRole('button', { name: 'Perho', exact: true }).click();
     await page.getByRole('button', { name: 'Takaisin' }).click();
+    await page.getByRole('button', { name: 'Pelaa' }).click();
     await page.getByRole('button', { name: 'Yksinpeli' }).click();
     await expect(page.getByText(/Varusteet: Perho/)).toBeVisible();
     await page.getByRole('button', { name: 'Aloita kisa' }).click();
@@ -243,7 +244,7 @@ test.describe('yksinpeli', () => {
     await page.getByRole('button', { name: 'Järvikartta' }).click();
     await expect(page.locator('.map-panel canvas').first()).toBeVisible();
     await page.getByRole('button', { name: 'Takaisin' }).click();
-    await expect(page.getByRole('button', { name: 'Yksinpeli' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Pelaa' })).toBeVisible();
     errors.check();
   });
 });
@@ -260,9 +261,10 @@ test('toinen kisa ja valikon tausta piirtävät jaetun maailman (#327)', async (
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Lopeta ja punnitse' }).click();
   await page.getByRole('button', { name: 'Valikkoon' }).click();
-  await expect(page.getByRole('button', { name: 'Yksinpeli' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pelaa' })).toBeVisible();
   await expect.poll(() => canvasColors(page)).toBeGreaterThan(8);
   // Maasto, puut ja rannat rakennettiin kerran; uusi kisa ottaa ne käyttöön.
+  await page.getByRole('button', { name: 'Pelaa' }).click();
   await page.getByRole('button', { name: 'Yksinpeli' }).click();
   await page.getByRole('button', { name: 'Aloita kisa' }).click();
   await expect(page.locator('.hud-timer')).toBeVisible();
@@ -279,6 +281,7 @@ test('yksinpeli ilman aikarajaa ja ajastettuna (#360)', async ({ page, isMobile 
   };
   // Yksinpelin oletus on Vapaa: kello laskee kulunutta aikaa ylöspäin.
   await page.goto(soloUrl());
+  await page.getByRole('button', { name: 'Pelaa' }).click();
   await page.getByRole('button', { name: 'Yksinpeli' }).click();
   await expect(page.getByRole('button', { name: 'Vapaa', exact: true })).toHaveClass(/selected/);
   await page.getByRole('button', { name: 'Aloita kisa' }).click();
@@ -294,6 +297,7 @@ test('yksinpeli ilman aikarajaa ja ajastettuna (#360)', async ({ page, isMobile 
   await page.getByRole('button', { name: 'Valikkoon' }).click();
 
   // Ajastettu kisa on yhä valittavissa: kello laskee alaspäin.
+  await page.getByRole('button', { name: 'Pelaa' }).click();
   await page.getByRole('button', { name: 'Yksinpeli' }).click();
   await page.getByRole('button', { name: '10 min', exact: true }).click();
   await page.getByRole('button', { name: 'Aloita kisa' }).click();
@@ -329,12 +333,13 @@ test('kieli vaihtuu päävalikosta heti ja säilyy uudelleenlatauksen jälkeen',
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('lang', 'fi');
   await page.getByRole('button', { name: 'English' }).click();
-  await expect(page.getByRole('button', { name: 'Single player' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Single player' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 
   // Kisan HUD englanniksi.
+  await page.getByRole('button', { name: 'Play', exact: true }).click();
   await page.getByRole('button', { name: 'Single player' }).click();
   await page.getByRole('button', { name: 'Start the competition' }).click();
   await expect(page.locator('.hud-timer')).toBeVisible();
@@ -345,7 +350,7 @@ test('kieli vaihtuu päävalikosta heti ja säilyy uudelleenlatauksen jälkeen',
     await page.getByRole('button', { name: 'Stop and weigh in' }).click();
     await page.getByRole('button', { name: 'Main menu' }).click();
     await page.getByRole('button', { name: 'Suomi' }).click();
-    await expect(page.getByRole('button', { name: 'Yksinpeli' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Pelaa' })).toBeVisible();
     await expect(page.locator('html')).toHaveAttribute('lang', 'fi');
   }
   errors.check();
@@ -355,7 +360,7 @@ test('englanninkielinen selain saa pelin englanniksi', async ({ browser }) => {
   const ctx = await browser.newContext({ locale: 'en-US' });
   const page = await ctx.newPage();
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Multiplayer' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'About and feedback' })).toBeVisible();
   await ctx.close();
 });
 
@@ -380,6 +385,7 @@ test('valittu väri ei piirry kisan painikkeiden päälle', async ({ page }) => 
   await page.goto('/');
   // Matala ruutu, jotta värit vierivät alareunan painikkeen alle.
   await page.setViewportSize({ width: page.viewportSize()!.width, height: 400 });
+  await page.getByRole('button', { name: 'Pelaa' }).click();
   await page.getByRole('button', { name: 'Yksinpeli' }).click();
   await page.getByRole('button', { name: /Muuta värejä/ }).click();
   const swatch = page.locator('.settings.appearance .swatches').last().locator('button').nth(3);

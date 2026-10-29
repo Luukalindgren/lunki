@@ -21,6 +21,7 @@ import { watchErrors } from './apu';
 /** Liittyjän napit ja tekstit kielen mukaan. */
 const GUEST_TEXT = {
   fi: {
+    play: 'Pelaa',
     multiplayer: 'Moninpeli',
     serverOk: 'Palvelin päällä',
     nickname: 'Nimimerkki',
@@ -29,6 +30,7 @@ const GUEST_TEXT = {
     ready: 'Valmis!',
   },
   en: {
+    play: 'Play',
     multiplayer: 'Multiplayer',
     serverOk: 'Server is up',
     nickname: 'Nickname',
@@ -60,6 +62,7 @@ test('moninpeli: Chromium, Firefox ja iPhone samassa huoneessa', async ({ page: 
     };
 
     await host.goto('/?view=top');
+    await host.getByRole('button', { name: 'Pelaa' }).click();
     await host.getByRole('button', { name: 'Moninpeli' }).click();
     await expect(host.getByText('Palvelin päällä')).toBeVisible();
     await host.getByLabel('Nimimerkki').fill('Kromi');
@@ -81,11 +84,13 @@ test('moninpeli: Chromium, Firefox ja iPhone samassa huoneessa', async ({ page: 
     }
     for (const [[guest, touch], name] of guests.map((g, i) => [g, `Vieras${i + 1}`] as const)) {
       const text = GUEST_TEXT[touch ? 'en' : 'fi'];
+      // Tarkka nimi: englanniksi Play osuisi myös How to play -nappiin.
       const press = (label: string) =>
         touch
-          ? guest.getByRole('button', { name: label }).tap()
-          : guest.getByRole('button', { name: label }).click();
+          ? guest.getByRole('button', { name: label, exact: true }).tap()
+          : guest.getByRole('button', { name: label, exact: true }).click();
       await guest.goto('/?view=top');
+      await press(text.play);
       await press(text.multiplayer);
       await expect(guest.getByText(text.serverOk)).toBeVisible();
       await guest.getByLabel(text.nickname).fill(name);

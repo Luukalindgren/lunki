@@ -133,8 +133,7 @@ function onFullscreenChange(): void {
       if (performance.now() - lastEscape > 500) dispatchEscape();
     }
   }
-  for (const b of document.querySelectorAll<HTMLButtonElement>('.fullscreen-toggle'))
-    b.textContent = label();
+  for (const b of document.querySelectorAll<HTMLButtonElement>('.fullscreen-toggle')) relabel(b);
 }
 
 function onKeyCapture(e: KeyboardEvent): void {
@@ -166,12 +165,35 @@ function label(): string {
   return fullscreenWanted() ? t('fullscreen.exit') : t('fullscreen.enter');
 }
 
-/** Koko näytön nappi valikoihin; teksti seuraa tilaa (myös Esc-poistumista). */
+/**
+ * Kuvakkeen kulmat 12×12 ruudukossa: koko näyttöön kulmat osoittavat ulos,
+ * poistuessa sisään.
+ */
+const ICON_ENTER = 'M1 5V1h4M7 1h4v4M11 7v4H7M5 11H1V7';
+const ICON_EXIT = 'M1 4h3V1M8 1v3h3M11 8H8v3M4 11V8H1';
+
+/** Kuvake ja nimi (ruudunlukijalle ja vihjeeksi) seuraavat tilaa. */
+function relabel(b: HTMLButtonElement): void {
+  const text = label();
+  b.setAttribute('aria-label', text);
+  b.title = text;
+  b.querySelector('path')?.setAttribute('d', fullscreenWanted() ? ICON_EXIT : ICON_ENTER);
+}
+
+/**
+ * Koko näytön kuvakenappi valikon nurkkaan; kuvake ja nimi seuraavat tilaa
+ * (myös Esc-poistumista).
+ */
 export function fullscreenButton(): HTMLButtonElement {
   const b = document.createElement('button');
   b.className = 'fullscreen-toggle';
-  b.textContent = label();
-  b.addEventListener('click', () => void toggleFullscreen().then(() => (b.textContent = label())));
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 12 12');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.append(document.createElementNS('http://www.w3.org/2000/svg', 'path'));
+  b.append(svg);
+  relabel(b);
+  b.addEventListener('click', () => void toggleFullscreen().then(() => relabel(b)));
   return b;
 }
 

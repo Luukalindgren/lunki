@@ -46,6 +46,7 @@ async function slowSocket(page: Page) {
 async function startRace(page: Page) {
   await slowSocket(page);
   await page.goto('/?view=top');
+  await page.getByRole('button', { name: 'Pelaa' }).click();
   await page.getByRole('button', { name: 'Moninpeli' }).click();
   await expect(page.getByText('Palvelin päällä')).toBeVisible();
   await page.getByLabel('Nimimerkki').fill('Lähtijä');
@@ -56,16 +57,16 @@ async function startRace(page: Page) {
 }
 
 async function expectStaysInMenu(page: Page) {
-  await expect(page.getByRole('button', { name: 'Moninpeli' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pelaa' })).toBeVisible();
   // Annetaan palvelimen myöhästyneille tilapäivityksille aikaa.
   await page.waitForTimeout(2000);
-  await expect(page.getByRole('button', { name: 'Moninpeli' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pelaa' })).toBeVisible();
   await expect(page.locator('.hud-timer')).toBeHidden();
   await expect(page.getByRole('button', { name: /Palaa kisaan/ })).toHaveCount(0);
   expect(new URL(page.url()).searchParams.has('huone')).toBe(false);
   // Uudelleenlataus ei myöskään palaa huoneeseen.
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Moninpeli' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pelaa' })).toBeVisible();
   await page.waitForTimeout(1000);
   await expect(page.locator('.hud-timer')).toBeHidden();
   await expect(page.getByRole('button', { name: /Palaa kisaan/ })).toHaveCount(0);

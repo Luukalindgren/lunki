@@ -120,7 +120,14 @@ Koodi: `packages/client/src/ui/screens.ts` (`showSettings`, `showPause`).
   (`Screens.showSettings`): Näyttö (HUD-koko, näkökenttä, opastus), Äänet
   ja Kieli.
   Sama näkymä aukeaa päävalikosta ja taukovalikosta.
-- Taukovalikko on lyhyt: Jatka, Asetukset, Ohjeet, Koko näyttö, Lopeta kisa.
+- Päävalikko on lyhyt: Pelaa (alavalikossa Yksinpeli ja Moninpeli),
+  Varusteet, Järvikartta, Ennätykset, Ohjeet, Asetukset ja Tietoa ja palaute
+  (alavalikossa Palaute sekä Tekijät ja lähteet). Uusi kohta menee
+  alavalikkoon, ei päävalikon jatkoksi.
+- Taukovalikko on lyhyt: Jatka, Asetukset, Ohjeet, Lopeta kisa.
+- Koko näyttö on pieni kuvake paneelin oikeassa yläkulmassa
+  (`fullscreenButton`, `ui/fullscreen.ts`) päävalikossa ja tauolla, ei oma
+  rivinsä valikossa.
 - **Ohjeet** (`Screens.showManual`, sisältö `ui/manual.ts`, #401) kertovat
   mekaniikat osioittain päävalikosta ja tauolta. Ohjaus täytetään
   `CONTROLS`-kartasta ja vaikeustason luvut `DIFFICULTIES`-taulukosta. Kun

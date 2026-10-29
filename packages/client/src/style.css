@@ -570,6 +570,30 @@ textarea,
   outline: none;
 }
 
+/* Koko näyttö kuvakkeena paneelin oikeassa yläkulmassa. */
+.screen-panel {
+  position: relative;
+}
+
+.screen button.fullscreen-toggle {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 40px;
+  height: 40px;
+  padding: 6px;
+  line-height: 0;
+}
+
+.fullscreen-toggle svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  shape-rendering: crispEdges;
+}
+
 .screen button:focus {
   outline: none;
 }
@@ -588,6 +612,8 @@ textarea,
 
 .screen.kb .choice:has(:focus) > .choice-label::before {
   content: '▶ ';
+  /* Koriste: ei osaksi napin tai otsikon saavutettavaa nimeä. */
+  content: '▶ ' / '';
   color: #f6d04d;
   animation: cursor-blink 0.8s steps(1) infinite;
 }
@@ -1625,6 +1651,8 @@ textarea,
 .main-menu button:hover::before,
 .screen.kb .main-menu button:focus::before {
   content: '▶';
+  /* Koriste: hiiren alla oleva nappi ei saa nimeä "▶ Ohjeet". */
+  content: '▶' / '';
   position: absolute;
   left: 12px;
   top: 50%;

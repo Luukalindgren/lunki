@@ -72,13 +72,16 @@ for (const mode of ['refused', 'tunnel', 'hang'] as const) {
       await page.getByRole('button', { name: 'Takaisin' }).click();
 
       // Palaute: ei jää "Lähetetään…"-tilaan.
+      await page.getByRole('button', { name: 'Tietoa ja palaute' }).click();
       await page.getByRole('button', { name: 'Palaute' }).click();
       await page.locator('textarea').fill('Testipalaute palvelin pois päältä');
       await page.getByRole('button', { name: 'Lähetä' }).click();
       await expect(page.getByText(/ei ole nyt päällä/)).toBeVisible({ timeout: 10_000 });
       await page.getByRole('button', { name: 'Takaisin' }).click();
+      await page.getByRole('button', { name: 'Takaisin' }).click();
 
       // Moninpeli: kertoo, ettei palvelin ole päällä, ja huoneen luonti ei jää odottamaan.
+      await page.getByRole('button', { name: 'Pelaa' }).click();
       await page.getByRole('button', { name: 'Moninpeli' }).click();
       await expect(page.locator('.server-status')).toHaveText(/ei ole nyt päällä/, {
         timeout: 6000,
@@ -105,6 +108,7 @@ test('palaute odottaa selaimessa ja lähtee, kun palvelin on taas päällä', as
   const errors = watchAppErrors(page);
   const requests = await serverOff(page, 'refused');
   await page.goto('/?view=top');
+  await page.getByRole('button', { name: 'Tietoa ja palaute' }).click();
   await page.getByRole('button', { name: 'Palaute' }).click();
   await page.locator('textarea').fill('Odottava palaute');
   await page.getByRole('button', { name: 'Lähetä' }).click();

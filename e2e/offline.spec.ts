@@ -25,7 +25,7 @@ test('peli aukeaa ja yksinpeli toimii ilman nettiä (#328)', async ({
 }) => {
   const w = watchErrors(page);
   await page.goto('/?view=top');
-  await expect(page.getByRole('button', { name: 'Yksinpeli' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pelaa' })).toBeVisible();
   await waitControlled(page);
   // Pelin tiedostot ovat välimuistissa: sivu, koodi ja tyylit.
   const cached = await page.evaluate(async () => {
@@ -41,7 +41,8 @@ test('peli aukeaa ja yksinpeli toimii ilman nettiä (#328)', async ({
 
   await context.setOffline(true);
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Yksinpeli' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pelaa' })).toBeVisible();
+  await page.getByRole('button', { name: 'Pelaa' }).click();
   await page.getByRole('button', { name: 'Yksinpeli' }).click();
   await page.getByRole('button', { name: 'Aloita kisa' }).click();
   await expect(page.locator('.hud-timer')).toBeVisible();
@@ -87,7 +88,7 @@ test('uusi versio otetaan käyttöön valikon napista (#328)', async ({ page, br
   const notice = page.getByRole('button', { name: 'Uusi versio saatavilla – päivitä' });
   await expect(notice).toBeVisible();
   await Promise.all([page.waitForEvent('load'), notice.click()]);
-  await expect(page.getByRole('button', { name: 'Yksinpeli' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pelaa' })).toBeVisible();
   await expect(page.locator('.update-notice')).toHaveCount(0);
   // Uusi versio ohjaa sivua, ja vanhan version tiedostot on siivottu.
   const keys = await page.evaluate(() => caches.keys());
