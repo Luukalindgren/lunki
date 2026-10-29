@@ -30,6 +30,36 @@ import { flyRodTip } from './povRod';
 import { SplashRings } from './splashRings';
 import { LandingView } from './landingView';
 import { strikeTaut } from './rodMotion';
+import { lurePixels } from '../ui/lureArt';
+
+// MALLI #391: vaihtoehdot vieheen merkiksi (?marker=1..4), ei yhdistetä.
+const MOCK = Number(new URLSearchParams(location.search).get('marker') ?? '0');
+function pixelTexture(width: number, height: number, data: number[]): THREE.Texture {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d')!;
+  const img = ctx.createImageData(width, height);
+  data.forEach((c, i) => {
+    if (c < 0) return;
+    img.data[i * 4] = (c >> 16) & 0xff;
+    img.data[i * 4 + 1] = (c >> 8) & 0xff;
+    img.data[i * 4 + 2] = c & 0xff;
+    img.data[i * 4 + 3] = 255;
+  });
+  ctx.putImageData(img, 0, 0);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.magFilter = tex.minFilter = THREE.NearestFilter;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+const mockSprite = (tex: THREE.Texture) => {
+  const sp = new THREE.Sprite(
+    new THREE.SpriteMaterial({ map: tex, alphaTest: 0.5, sizeAttenuation: false }),
+  );
+  sp.visible = false;
+  return sp;
+};
 
 /** Vieheen merkkien tahti (s), pohjakosketuksen raja (m) ja pohjan pölläys. */
 const LURE_SIGNS = { followEvery: 0.8, bottomEvery: 0.7, touch: 0.05, mud: 0x8a6a42 } as const;
@@ -61,6 +91,27 @@ export class FishingView {
   private readonly lureSigns = new SplashRings(5);
   private followTimer = 0;
   private bottomTimer = 0;
+  private mockLure: THREE.Sprite | null = null;
+  private mockLureId = '';
+  private readonly mockDiamond = mockSprite(
+    pixelTexture(
+      7,
+      7,
+      Array.from({ length: 49 }, (_, i) => {
+        const x = (i % 7) - 3;
+        const y = Math.floor(i / 7) - 3;
+        const d = Math.abs(x) + Math.abs(y);
+        return d <= 1 ? 0xffffff : d <= 2 ? 0xffffff : d === 3 ? 0x1c232b : -1;
+      }),
+    ),
+  );
+  private readonly mockDot = mockSprite(
+    pixelTexture(3, 3, [-1, 0xe6f2ff, -1, 0xe6f2ff, 0xffffff, 0xe6f2ff, -1, 0xe6f2ff, -1]),
+  );
+  private readonly mockWake = new THREE.LineSegments(
+    new THREE.BufferGeometry().setFromPoints(Array.from({ length: 4 }, () => new THREE.Vector3())),
+    new THREE.LineBasicMaterial({ color: 0xe6f2ff }),
+  );
   /** Viehettä seuraavan kalan paikka (pyörteet vieheen takana), null = ei seuraajaa. */
   follower: Vec2 | null = null;
   private readonly fishShadow: THREE.Mesh;
@@ -122,6 +173,9 @@ export class FishingView {
     this.group.add(this.fly);
 
     this.group.add(this.splash.group, this.lureSigns.group);
+    this.group.add(this.mockDiamond, this.mockDot, this.mockWake);
+    this.mockWake.visible = false;
+    this.mockWake.frustumCulled = false;
 
     // Pinnan lähellä väsytettävä kala näkyy tummana varjona.
     const shape = new THREE.Shape();
@@ -262,6 +316,7 @@ export class FishingView {
               SURFACE_Y,
             )
           : hangLine(s.line.points, tipY, this.taut, SURFACE_Y, offset);
+      if (MOCK > 0) this.mock(s, pts, look.color, ctx.tubePos);
       const pos = this.line.geometry.getAttribute('position') as THREE.BufferAttribute;
       writeLine(pos, pts);
       pos.needsUpdate = true;
@@ -282,6 +337,53 @@ export class FishingView {
     );
     this.splash.update(dt);
     this.lureSigns.update(dt);
+  }
+
+  private mock(s: FishingState, pts: LinePoint[], color: number, tube: Vec2): void {
+    const pov = this.pov;
+    this.lure.visible = false;
+    const id = s.tackle.lure;
+    if (!this.mockLure || this.mockLureId !== id) {
+      const px = lurePixels(id, 0);
+      if (this.mockLure) this.group.remove(this.mockLure);
+      this.mockLure = mockSprite(pixelTexture(px.width, px.height, px.data));
+      this.mockLureId = id;
+      this.group.add(this.mockLure);
+    }
+    const sprite = this.mockLure;
+    const at = toWorld(s.lure, pov ? 0.06 : 0.3);
+    const near = Math.hypot(s.lure.x - tube.x, s.lure.y - tube.y) <= 6;
+    const shallow = s.depth <= 0.6;
+    // Pikselikoko ruudulla (sizeAttenuation false: korkeuden osuus).
+    const px = (n: number) => (pov ? (n * 3) / 720 : n * this.metersPerPixel);
+    for (const sp of [sprite, this.mockDiamond, this.mockDot])
+      (sp.material as THREE.SpriteMaterial).sizeAttenuation = !pov;
+    sprite.visible = MOCK === 3 || (MOCK === 1 && (!pov || shallow || near));
+    sprite.position.copy(at);
+    const k = MOCK === 3 ? 1 - 0.4 * Math.min(1, s.depth / 2.5) : 1;
+    sprite.scale.set(px(16) * k, px(8) * k, 1);
+    this.mockDiamond.visible = MOCK === 2 || (MOCK === 4 && !pov);
+    this.mockDiamond.position.copy(at);
+    this.mockDiamond.scale.set(px(7), px(7), 1);
+    (this.mockDiamond.material as THREE.SpriteMaterial).color.setHex(color);
+    // Siiman vesiraja: ensimmäinen piste pinnalla, ja vana poispäin kalastajasta.
+    const entry = MOCK === 1 && pov ? pts[pts.length - 1] : undefined;
+    this.mockDot.visible = this.mockWake.visible = entry !== undefined;
+    if (!entry) return;
+    this.mockDot.position.set(entry.x, SURFACE_Y + 0.02, -entry.y);
+    this.mockDot.scale.set(px(3), px(3), 1);
+    const away = Math.atan2(entry.y - tube.y, entry.x - tube.x);
+    const pos = this.mockWake.geometry.getAttribute('position') as THREE.BufferAttribute;
+    [-0.45, 0.45].forEach((a, i) => {
+      pos.setXYZ(i * 2, entry.x, SURFACE_Y + 0.02, -entry.y);
+      pos.setXYZ(
+        i * 2 + 1,
+        entry.x + Math.cos(away + a) * 1.0,
+        SURFACE_Y + 0.02,
+        -(entry.y + Math.sin(away + a) * 1.0),
+      );
+    });
+    pos.needsUpdate = true;
   }
 
   /** Tärppi: pyörre vieheen kohdalla, kuin kala kääntyisi vieheen perässä. */
