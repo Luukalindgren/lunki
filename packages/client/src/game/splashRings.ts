@@ -38,10 +38,16 @@ export class SplashRings {
     }
   }
 
-  /** Uusi rengas kohtaan `at`; `size` = koko, `time` = kesto (s). */
-  start(at: Vec2, size = 1, time = SPLASH_TIME): void {
+  /**
+   * Uusi rengas kohtaan `at`; `size` = koko, `time` = kesto (s), `color` =
+   * paletin väri (oletus vaahto).
+   */
+  start(at: Vec2, size = 1, time = SPLASH_TIME, color?: number): void {
     const r = this.rings[this.next]!;
     this.next = (this.next + 1) % this.rings.length;
+    const material = r.mesh.material as THREE.MeshBasicMaterial;
+    if (color === undefined) material.color.copy(FOAM);
+    else material.color.setHex(color);
     r.mesh.position.copy(toWorld(at, 0.05));
     r.age = 0;
     r.size = size;

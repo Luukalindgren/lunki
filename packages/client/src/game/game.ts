@@ -28,6 +28,7 @@ import {
   type CompetitionSettings,
   type LakeBottom,
   type CompetitionState,
+  type Fish,
   type FishPopulation,
   type FishingState,
   type Penalty,
@@ -94,6 +95,8 @@ import { WeatherController, type WeatherHost } from './weatherController';
 export type { NetLink } from './netBridge';
 
 const LAND_COLOR = 0x24502c;
+/** Viehettä seuraava kala näkyy pyörteinä tätä lähempänä viehettä (m). */
+const FOLLOW_SIGN_RANGE = 4;
 
 /**
  * Pelikierros järvellä, yksin- tai moninpeli. Kokoaa osat ja kutsuu niitä
@@ -858,6 +861,17 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     }
     const hooked = this.fish.fish.find((x) => x.id === this.fishing.hookedId) ?? null;
     this.fishingView.metersPerPixel = this.view.metersPerPixel;
+    // Lähin viehettä seuraava kala näkyy pyörteinä vieheen takana.
+    const lure = this.fishing.lure;
+    let follower: Fish | null = null;
+    for (const f of this.fish.fish)
+      if (
+        f.mode === 'follow' &&
+        distance(f.pos, lure) < FOLLOW_SIGN_RANGE &&
+        (!follower || distance(f.pos, lure) < distance(follower.pos, lure))
+      )
+        follower = f;
+    this.fishingView.follower = follower?.pos ?? null;
     this.fishingView.update(
       this.fishing,
       this.angler.context(),
