@@ -4,7 +4,6 @@ import {
   LureStage,
   distance,
   type Appearance,
-  type Difficulty,
   type EmoteId,
   type Vec2,
 } from '@lunki/shared';
@@ -38,7 +37,7 @@ const LINE_VERTS = AIR_SAMPLES + 2;
 
 interface Entry {
   tube: THREE.Group;
-  /** Vieheen merkki oman vaikeustason mukaan; vieheen lajia ja tilaa ei tiedetä. */
+  /** Vieheen merkki; muiden vieheen tilaa ei tiedetä. */
   lure: LureMarker;
   line: THREE.Line;
   /** Perhoheiton siima silmukkana (#236). */
@@ -70,10 +69,9 @@ export class RemotePlayersView {
   private readonly splashes = new SplashRings(6);
   private readonly tip = new THREE.Vector3();
   private lastUpdate = performance.now();
-  /** Näkymä ja vaikeustaso vieheiden merkkejä varten (kuten `FishingView`). */
+  /** Näkymä vieheiden merkkejä varten (kuten `FishingView`). */
   pov = false;
   pixel = 0.125;
-  difficulty: Difficulty = 'normal';
 
   /** `below`: lappukerros tämän (HUD) alle, ettei se peitä nappeja ja paneeleja (#277). */
   constructor(parent: HTMLElement, below: Element | null = null) {
@@ -163,7 +161,7 @@ export class RemotePlayersView {
         const from = { x: tip.x, y: -tip.z };
         const flying = p.lureStage === LureStage.flight;
         const lure = markerPosition(p.lure!, flying ? 1 : 0, this.pov);
-        this.mark(e, p, p.lure!, flying ? 1 : 0);
+        this.mark(e, p.lure!, flying ? 1 : 0);
         const pts = flying
           ? flightLine(
               { ...from, h: tip.y },
@@ -217,7 +215,7 @@ export class RemotePlayersView {
     writeLine(pos, pts);
     pos.needsUpdate = true;
     e.line.geometry.computeBoundingSphere();
-    this.mark(e, p, fish, 0);
+    this.mark(e, fish, 0);
     if (pose.splash !== null) this.splashes.start(fish, pose.splash);
     return w;
   }
@@ -240,25 +238,12 @@ export class RemotePlayersView {
     writeLine(pos, pts);
     pos.needsUpdate = true;
     const end = pts[pts.length - 1]!;
-    this.mark(e, p, end, end.h);
+    this.mark(e, end, end.h);
   }
 
-  /** Vieheen merkki: muiden vieheen lajia, syvyyttä ja tilaa ei tiedetä. */
-  private mark(e: Entry, p: RemotePlayer, at: Vec2, height: number): void {
-    e.lure.update({
-      at,
-      height,
-      depth: 0,
-      from: p.pos,
-      onLand: false,
-      flying: height > 0,
-      moving: false,
-      color: lureColor(0),
-      art: null,
-      difficulty: this.difficulty,
-      pov: this.pov,
-      pixel: this.pixel,
-    });
+  /** Vieheen merkki: muiden vieheen syvyyttä ja tilaa ei tiedetä. */
+  private mark(e: Entry, at: Vec2, height: number): void {
+    e.lure.update({ at, height, color: lureColor(0), pov: this.pov, pixel: this.pixel });
   }
 
   private add(id: string, appearance: Appearance): Entry {

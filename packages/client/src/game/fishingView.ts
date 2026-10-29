@@ -4,7 +4,6 @@ import {
   castAngle,
   chargePower,
   predictLanding,
-  isFly,
   rodTip,
   tackleCastFactor,
   type Fish,
@@ -51,13 +50,13 @@ export class FishingView {
   metersPerPixel = 0.125;
   /** Silmin kuvapisteen koko metreinä metrin päässä (`PovCamera.pixelSize`). */
   povPixel = 0.005;
-  /** Kalastuksen vaikeustaso: vieheen merkki ja vihjeet (#391). */
+  /** Kalastuksen vaikeustaso: vieheen pyörteet (#391). */
   difficulty: Difficulty = 'normal';
   /** Pelaajan valitsema siiman väri. */
   lineColor = 0xc3cbd2;
   private readonly aimLine: THREE.Line;
   private readonly aimMarker: THREE.Mesh;
-  /** Vieheen merkki vaikeustason mukaan (#391). */
+  /** Vieheen merkki (#391). */
   readonly marker = new LureMarker();
   private readonly lureShadow: THREE.Mesh;
   private readonly line: THREE.Line;
@@ -243,11 +242,6 @@ export class FishingView {
         this.marker.update({
           at: s.lure,
           height,
-          depth,
-          from: ctx.tubePos,
-          onLand: s.onLand,
-          flying: s.stage === 'flight',
-          moving: s.lureSpeed > LURE_MARKER.moving && s.snag === null,
           color: lureLook({
             depth,
             bottom,
@@ -255,8 +249,6 @@ export class FishingView {
             snag: s.snag !== null,
             fouled: s.fouled,
           }),
-          art: isFly(s.tackle) ? s.tackle.fly : s.tackle.lure,
-          difficulty: this.difficulty,
           pov: this.pov,
           pixel: this.pov ? this.povPixel : this.metersPerPixel,
         });
