@@ -39,5 +39,8 @@ describe('Ohjeet (#401)', () => {
     const text = strike.lines.join('\n');
     expect(text).toContain(`${String(DIFFICULTIES.normal.hookWindow).replace('.', ',')} s`);
     expect(text).toContain(`${Math.round(DIFFICULTIES.realistic.hookChance * 100)} %`);
+    // Isot kalat vaativat nykäisyn, ja vavan jäykkyys näkyy hauen tarttumisessa (#402).
+    expect(text).toContain('hauki 2,5 kg');
+    expect(text).toContain('kevyellä vavalla 51 %:lla ja järeällä 91 %:lla');
   });
 });
