@@ -138,7 +138,9 @@ export class Guide {
     const caught = v.fly ? this.has('flyCatch') : this.has('catch');
     if (!caught) {
       if (hooked) return v.fly && !f.onReel ? 'guide.flyFight' : 'guide.fight';
-      if (struck) return v.fly ? 'guide.flyStrike' : 'guide.strike';
+      // Iso kala tarttuu virvelissä vain nykäisyyn (#402).
+      if (struck)
+        return v.fly ? 'guide.flyStrike' : f.strikeBig ? 'guide.strikeBig' : 'guide.strike';
     }
     if (this.tip && !hooked && !struck) {
       this.tip.left -= dt;

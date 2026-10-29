@@ -332,6 +332,7 @@ export class FishingController {
     host.fishShadow.update(host.fish.fish, host.tube.pos);
     host.fishSigns.update(host.fish, conditions, host.tube.pos, host.settings.difficulty, dt);
     if (fishEvents.shadow !== undefined) host.hud.showMessage(t('game.bigShadow'), 2.5);
+    if (fishEvents.spooked !== undefined) host.hud.showMessage(t('game.spooked'), 2.5);
     return { lineHand: fly?.lineHand ?? false };
   }
 
@@ -441,7 +442,11 @@ export class FishingController {
     if (events.strike) {
       host.fishingView.strikeSwirl(host.fishing.lure);
       sounds.play('strike');
-      hud.showMessage(t('game.strike'), 1.2);
+      // Iso kala tarttuu vain nykäisyyn (#402): raskas tärppi kertoo sen.
+      hud.showMessage(
+        host.fishing.strikeBig ? controlText('game.strikeBig') : t('game.strike'),
+        1.2,
+      );
     }
     if (events.hooked) {
       sounds.play('hooked');
@@ -449,7 +454,14 @@ export class FishingController {
     }
     const flyGear = isFly(host.fishing.tackle);
     if (events.missed) {
-      hud.showMessage(flyGear ? t('game.missedFly') : t('game.missed'), 2);
+      hud.showMessage(
+        flyGear
+          ? t('game.missedFly')
+          : events.missedTwitch
+            ? controlText('game.missedTwitch')
+            : t('game.missed'),
+        2.5,
+      );
       sounds.play('missed');
     }
     if (events.jumped) {

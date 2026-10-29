@@ -65,6 +65,8 @@ export const ROD_MOTION = {
   slipShake: 0.05,
   /** Tärpin nykäykset kärjessä (rad) ja niiden tahti (rad/s, |sin|). */
   strikeNod: 0.5,
+  /** Raskaan tärpin (iso kala, #402) nykäysten kerroin: vapa painuu syvemmälle. */
+  strikeBigNod: 1.6,
   strikeRate: 10,
 } as const;
 
@@ -167,7 +169,8 @@ export class OwnRodMotion {
     const water = s.stage === 'water';
     // Tärpissä kala nykii viehettä: kärki nyökkää siiman nykäysten tahdissa.
     const strike = water && s.struckId !== null && s.hookedId === null;
-    const nod = strike ? ROD_MOTION.strikeNod * strikeTaut(s.strikeAge) : 0;
+    const heavy = s.strikeBig ? ROD_MOTION.strikeBigNod : 1;
+    const nod = strike ? ROD_MOTION.strikeNod * heavy * strikeTaut(s.strikeAge) : 0;
     const bend = water ? loadBend(s.tension, s.tackle) + nod : 0;
     const shake = water && s.dragSlipping ? m.slipShake : 0;
     return {

@@ -446,13 +446,14 @@ describe('kivet, kasvustot, risukot ja pohjan laatu (#226)', () => {
           ...world,
           fish: { pop, diff: DIFFICULTIES.realistic, rng, strike: f.id },
         };
-        // Virvelillä kelataan, perholla vedetään siimakädellä.
+        // Virvelillä kelataan ja nykäistään (#402), perholla vedetään siimakädellä.
         const e = stepFishing(
           s,
           {
             aim: { x: 20, y: 0 },
             castHeld: false,
             reel: true,
+            twitch: true,
             cancel: false,
             lineHand: true,
             strip: 0.02,

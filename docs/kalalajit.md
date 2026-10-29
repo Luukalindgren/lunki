@@ -197,6 +197,18 @@ kalastajaa ja vajoaa taas (`TWITCH` tiedostossa `fishing.ts`). Kevyt jigi nousee
 raskas. Nykäisyn jälkeen vajoava viehe kiinnostaa kaloja 2,5 s tavallista enemmän, ja iskun
 aikana nykäisy on vastaisku.
 
+**Vastaisku virvelillä (#402).** Normaalilla ja Realistisella kelaus pistää koukun vain pieniin
+kaloihin (kokoluokka 0–1, `reelHookSize` tiedostossa `difficulty.ts`). Isommat kalat (tosi iso,
+suurkala ja jättikala) tarttuvat vain nykäisyyn tärpin ikkunan sisällä: kelaus kiristää siiman,
+mutta koukku ei uppoa. Raskaan tärpin tunnistaa siitä, että vapa nyökkää syvemmälle, ja
+ilmoituksesta. Helpolla koukku tarttuu itsestään.
+
+Nykäisyssä vavan jäykkyys ratkaisee (`RODS[…].hookMiss`): ohi menneiden osuus kerrotaan
+kevyellä vavalla 1,4:llä ja järeällä 0,6:lla. Hauen kova suu korostaa eroa (kerroin
+toiseen), joten Realistisella kevyt vapa pistää hauen noin joka toisella nykäisyllä ja järeä
+lähes aina. Liian aikainen nykäisy, kun iso kala vasta seuraa lähellä viehettä, säikyttää sen
+40 %:n todennäköisyydellä (`EARLY_TWITCH_SPOOK`, `fish.ts`).
+
 **Ruohosuojattu viehe ja perho (#364).** Ruoholusikan ja ruohostreamerin koukun kärkeä suojaa
 lanka (`weedGuard` 0,85). Kasvustossa, kaislikossa, risukossa ja kaatuneessa puussa ne tarttuvat
 ja keräävät rikkaa selvästi harvemmin, kivikossa suoja auttaa puoliksi (`SNAG.guardHelp`). Lanka

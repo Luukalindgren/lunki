@@ -93,8 +93,13 @@ function step(sim: Sim, input: Partial<FishingInput>) {
 function fishUntil(sim: Sim, seconds: number, done: (e: FishingEvents) => boolean): boolean {
   for (let i = 0; i < seconds / DT; i++) {
     const reel = sim.s.hookedId !== null || Math.floor(i / 90) % 2 === 0;
-    // Pintaan noussut kala nostetaan hetken päästä (#366).
-    step(sim, { reel, land: sim.s.landing !== null && sim.s.landing.age > 0.3 });
+    // Tärpissä nykäistään (iso kala tarttuu vain siihen, #402), ja pintaan
+    // noussut kala nostetaan hetken päästä (#366).
+    step(sim, {
+      reel,
+      twitch: sim.s.struckId !== null,
+      land: sim.s.landing !== null && sim.s.landing.age > 0.3,
+    });
     if (done(sim.log[sim.log.length - 1]!)) return true;
     if (sim.s.stage === 'idle') return false;
   }
@@ -776,7 +781,7 @@ describe('uudet lajit (#225)', () => {
 
   /** Kala on juuri iskenyt; kelaus alkaa `delay` sekunnin päästä. */
   const strikeThenReel = (id: SpeciesId, delay: number, seed: number) => {
-    const sim = setup('normal', 0.8, seed);
+    const sim = setup('normal', 0.3, seed);
     const f = sim.pop.fish[0]!;
     f.species = id;
     f.mode = 'struck';
@@ -806,6 +811,109 @@ describe('uudet lajit (#225)', () => {
     expect(zander).toBe(0);
     // Nopea vastaisku pistää kuhankin.
     expect(strikeThenReel('zander', 0.1, 3)).toBe('hooked');
+  });
+
+  /** Kala on juuri iskenyt; nykäisy (tai kelaus) `at` sekunnin päästä (#402). */
+  const strikeThen = (
+    o: { id: SpeciesId; weight: number; diff?: Difficulty; rod?: Tackle['rod']; seed: number },
+    input: 'reel' | 'twitch',
+    at = 0.1,
+  ) => {
+    const sim = setup(o.diff ?? 'normal', o.weight, o.seed);
+    sim.s.tackle = { ...sim.s.tackle, rod: o.rod ?? 'medium' };
+    const f = sim.pop.fish[0]!;
+    f.species = o.id;
+    f.mode = 'struck';
+    sim.ctx.fish!.strike = f.id;
+    let missed: FishingEvents = {};
+    for (let i = 0; i < 2 / DT && sim.s.hookedId === null; i++) {
+      const now = i * DT >= at;
+      const ev = stepFishing(
+        sim.s,
+        {
+          aim: { x: 30, y: 0 },
+          castHeld: false,
+          reel: input === 'reel' && now,
+          cancel: false,
+          twitch: input === 'twitch' && now && (i - 1) * DT < at,
+        },
+        sim.ctx,
+        DT,
+      );
+      sim.ctx.fish!.strike = undefined;
+      if (ev.missed) missed = ev;
+    }
+    return { hooked: sim.s.hookedId !== null, big: sim.s.strikeBig, missed };
+  };
+
+  it('virvelissä iso kala tarttuu vain nykäisyyn, pieni kelaukseenkin (#402)', () => {
+    let small = 0;
+    let bigReel = 0;
+    let bigTwitch = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+      if (strikeThen({ id: 'perch', weight: 0.2, seed }, 'reel').hooked) small++;
+      const reel = strikeThen({ id: 'pike', weight: 4, seed }, 'reel');
+      expect(reel.big).toBe(true);
+      if (reel.hooked) bigReel++;
+      else expect(reel.missed.missedTwitch).toBe(true);
+      if (strikeThen({ id: 'pike', weight: 4, seed }, 'twitch').hooked) bigTwitch++;
+    }
+    expect(small).toBeGreaterThan(14);
+    expect(bigReel).toBe(0);
+    expect(bigTwitch).toBeGreaterThan(14);
+    // Pieni kala tarttuu myös nykäisyyn, eikä se tarvitse sitä.
+    expect(strikeThen({ id: 'perch', weight: 0.2, seed: 2 }, 'reel').big).toBe(false);
+    // Helpolla koukku tarttuu itsestään kokoon katsomatta.
+    expect(strikeThen({ id: 'pike', weight: 8, diff: 'easy', seed: 1 }, 'reel').hooked).toBe(true);
+    // Kokoluokka 1 kelataan kiinni, kokoluokka 2 vaatii nykäisyn.
+    expect(sizeClass('pike', 2)).toBe(DIFFICULTIES.normal.reelHookSize);
+    expect(strikeThen({ id: 'pike', weight: 2, seed: 1 }, 'reel').big).toBe(false);
+    expect(strikeThen({ id: 'pike', weight: 2.5, seed: 1 }, 'reel').big).toBe(true);
+  });
+
+  it('järeä vapa pistää hauen kovaan suuhun varmemmin kuin kevyt (#402)', () => {
+    const hooked = (rod: Tackle['rod'], id: SpeciesId) => {
+      let n = 0;
+      for (let seed = 1; seed <= 200; seed++)
+        if (strikeThen({ id, weight: 6, diff: 'realistic', rod, seed }, 'twitch').hooked) n++;
+      return n;
+    };
+    const light = hooked('light', 'pike');
+    const medium = hooked('medium', 'pike');
+    const heavy = hooked('heavy', 'pike');
+    expect(light).toBeLessThan(medium);
+    expect(medium).toBeLessThan(heavy);
+    expect(heavy).toBeGreaterThan(170);
+    expect(light).toBeLessThan(130);
+    // Muilla lajeilla vavan ero on pienempi kuin hauella.
+    const zander = hooked('heavy', 'zander') - hooked('light', 'zander');
+    expect(zander).toBeLessThan(heavy - light);
+  });
+
+  it('liian aikainen nykäisy voi säikyttää lähellä seuraavan ison kalan (#402)', () => {
+    const run = (twitch: number, weight: number) => {
+      let spooked = 0;
+      for (let seed = 1; seed <= 100; seed++) {
+        const sim = setup('normal', weight, seed);
+        const f = sim.pop.fish[0]!;
+        f.mode = 'follow';
+        f.timer = 0;
+        f.pos = { x: 26, y: 0 };
+        const lure = { ...lureInfo(sim.s, sim.ctx)!, twitch };
+        const ev = stepFishPopulation(sim.pop, lure, world, DIFFICULTIES.normal, sim.rng, DT);
+        if (ev.spooked !== undefined) {
+          spooked++;
+          expect(f.mode).toBe('roam');
+        }
+      }
+      return spooked;
+    };
+    const early = run(0, 0.4);
+    expect(early).toBeGreaterThan(20);
+    expect(early).toBeLessThan(60);
+    // Ilman nykäisyä tai pienellä kalalla ei säikähdetä.
+    expect(run(1, 0.4)).toBe(0);
+    expect(run(0, 0.2)).toBe(0);
   });
 
   it('hyppivä kirjolohi irtoaa löysällä siimalla, ahven ei ehdi', () => {

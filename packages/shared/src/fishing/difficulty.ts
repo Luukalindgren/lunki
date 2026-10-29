@@ -44,6 +44,11 @@ export interface DifficultyParams {
   hookWindow: number;
   /** Todennäköisyys, että vastaisku onnistuu. */
   hookChance: number;
+  /**
+   * Virvelin vastaisku (#402): suurin kokoluokka (`sizeClass`), johon pelkkä
+   * kelaus pistää koukun. Isommat kalat tarttuvat vasta vavan nykäisyllä.
+   */
+  reelHookSize: number;
   /** Voiko siima katketa liian kireällä jarrulla. */
   lineCanBreak: boolean;
   /** Löysällä siimalla kala irtoaa näin monen sekunnin jälkeen (Infinity = ei koskaan). */
@@ -76,6 +81,7 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyParams> = {
     autoHook: true,
     hookWindow: Infinity,
     hookChance: 1,
+    reelHookSize: 4,
     lineCanBreak: false,
     slackEscape: Infinity,
     flyCast: {
@@ -106,6 +112,7 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyParams> = {
     autoHook: false,
     hookWindow: 0.9,
     hookChance: 0.9,
+    reelHookSize: 1,
     lineCanBreak: true,
     slackEscape: 3,
     flyCast: {
@@ -135,6 +142,7 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyParams> = {
     autoHook: false,
     hookWindow: 0.45,
     hookChance: 0.75,
+    reelHookSize: 1,
     lineCanBreak: true,
     slackEscape: 1.5,
     flyCast: {

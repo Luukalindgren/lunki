@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { simulateNaiveAngler } from './naiveAngler';
 
 describe('kalastusta tuntematon pelaaja', () => {
-  // 16 × 10 min (dt 1/30) mitattuna: helppo 1,1, normaali 0,4 ja realistinen 0,2 kalaa/min.
+  // 16 × 10 min (dt 1/30) mitattuna: helppo 1,0, normaali 0,4 ja realistinen 0,2 kalaa/min.
+  // Naiivi pelaaja ei nykäise, joten isot kalat jäävät häneltä (#402): normaali 0,43 → 0,40.
   it('saa helpolla kalaa melkein joka heitolla eikä menetä viehettä pohjaan', () => {
     const easy = simulateNaiveAngler('easy', 1000, 10);
     expect(easy.caught).toBeGreaterThanOrEqual(7);

@@ -323,6 +323,12 @@ export interface Rod {
   flex: number;
   /** Kalan väsymisen kerroin. */
   power: number;
+  /**
+   * Jäykkyys vastaiskussa (#402): nykäisyn ohi menneiden kerroin. Järeä vapa
+   * pistää koukun varmemmin, kevyt joustaa. Hauen kovaan suuhun kerroin
+   * vaikuttaa toiseen potenssiin.
+   */
+  hookMiss: number;
   /** Heittopaino (g): tätä kevyempi tai painavampi viehe heittyy lyhyemmälle. */
   castWeight: readonly [number, number];
   hint: string;
@@ -335,8 +341,9 @@ export const RODS: Record<RodId, Rod> = {
     castFactor: 1.05,
     flex: 1.15,
     power: 0.8,
+    hookMiss: 1.4,
     castWeight: [3, 15],
-    hint: 'Pitkä heitto ja armollinen siimalle, mutta väsytys kestää kauan',
+    hint: 'Pitkä heitto ja armollinen siimalle, mutta väsytys kestää kauan ja vastaisku jää pehmeäksi',
   },
   medium: {
     id: 'medium',
@@ -344,6 +351,7 @@ export const RODS: Record<RodId, Rod> = {
     castFactor: 1,
     flex: 1,
     power: 1,
+    hookMiss: 1,
     castWeight: [7, 25],
     hint: 'Tasapainoinen kaikkeen kalastukseen',
   },
@@ -353,8 +361,9 @@ export const RODS: Record<RodId, Rod> = {
     castFactor: 0.94,
     flex: 0.9,
     power: 1.3,
+    hookMiss: 0.6,
     castWeight: [15, 60],
-    hint: 'Väsyttää isonkin kalan nopeasti, mutta siima katkeaa helpommin',
+    hint: 'Väsyttää isonkin kalan nopeasti ja pistää koukun hauenkin suuhun, mutta siima katkeaa helpommin',
   },
 };
 

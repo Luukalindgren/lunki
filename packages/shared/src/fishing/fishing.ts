@@ -19,6 +19,7 @@ import {
   baitOf,
   biteOffRate,
   breakingStrength,
+  RODS,
   isFly,
   rodPower,
   tackleCastFactor,
@@ -121,6 +122,8 @@ export interface FishingState {
   /** Vieheeseen iskenyt kala, joka ei vielä ole tarttunut, ja iskusta kulunut aika. */
   struckId: number | null;
   strikeAge: number;
+  /** Iskenyt kala on niin iso, että kelaus ei pistä: tarvitaan nykäisy (#402). */
+  strikeBig: boolean;
   /** Väsytettävä kala. */
   hookedId: number | null;
   /** Viehe, siima ja peruke. */
@@ -234,6 +237,7 @@ export const createFishing = (tackle: Tackle = DEFAULT_TACKLE): FishingState => 
   dragSlipping: false,
   struckId: null,
   strikeAge: 0,
+  strikeBig: false,
   hookedId: null,
   tackle: { ...tackle },
   snag: null,
@@ -288,6 +292,8 @@ export interface FishingEvents {
   hooked?: boolean;
   /** Isku meni ohi (ei vastaiskua ajoissa). */
   missed?: boolean;
+  /** Ohi meni iso kala, joka olisi vaatinut nykäisyn (#402). */
+  missedTwitch?: boolean;
   /** Kala irtosi väsytyksessä. */
   escaped?: boolean;
   /** Kala hyppäsi väsytyksessä (kirjolohi, säyne, taimen). */
@@ -581,15 +587,23 @@ export function stepFishing(
       if (twitch && s.twitchAge >= TWITCH.cooldown && s.struckId === null)
         twitchLure(s, tip, events);
       // Vastaisku: kelaus tai perhossa siimakäden veto; vavan nosto pistää huonommin.
+      // Virvelissä iso kala tarttuu vain nykäisyyn (#402).
       const set = reeling || (hand && input.rodLift === true) || twitch;
       const setChance = hand && !reeling ? FLY.liftHookChance : 1;
 
       if (fish && s.struckId === null && !hooked && fish.strike !== undefined) {
         s.struckId = fish.strike;
         s.strikeAge = 0;
+        s.strikeBig =
+          !hand &&
+          needsTwitch(
+            fish.pop.fish.find((f) => f.id === s.struckId),
+            fish.diff,
+          );
         events.strike = true;
       }
-      if (fish && s.struckId !== null) resolveStrike(s, set, setChance, fish, events, dt);
+      if (fish && s.struckId !== null)
+        resolveStrike(s, s.strikeBig ? twitch : set, setChance, twitch, fish, events, dt);
 
       if (s.onLand) {
         holdStuck(s, tip, reeling, input.cut === true, events, holdForce(s, input));
@@ -974,11 +988,36 @@ export function resetFishing(s: FishingState, fish?: { pop: FishPopulation; rng:
   s.landCooldown = 0;
 }
 
-/** Iskun jälkeen: tarttuuko kala (vastaisku = kelaus ajoissa) vai sylkeekö se vieheen. */
+/**
+ * Vaatiiko iskenyt kala virvelissä nykäisyn (#402): kelaus kiristää siiman,
+ * mutta pistää koukun vain pieniin kaloihin. Helpolla koukku tarttuu itsestään.
+ */
+export function needsTwitch(
+  f: { species: SpeciesId; weight: number } | undefined,
+  diff: DifficultyParams,
+): boolean {
+  return !!f && !diff.autoHook && sizeClass(f.species, f.weight) > diff.reelHookSize;
+}
+
+/**
+ * Vavan jäykkyys nykäisyssä (#402): ohi menneiden osuuden kerroin. Hauen
+ * kova suu korostaa eroa, joten kevyellä vavalla hauki pääsee useammin irti.
+ */
+export function rodHookMiss(t: Tackle, species: SpeciesId): number {
+  if (isFly(t)) return 1;
+  const miss = RODS[t.rod].hookMiss;
+  return species === 'pike' ? miss * miss : miss;
+}
+
+/**
+ * Iskun jälkeen: tarttuuko kala (vastaisku = kelaus tai nykäisy ajoissa) vai
+ * sylkeekö se vieheen. `set` on tähän kalaan kelpaava vastaisku.
+ */
 function resolveStrike(
   s: FishingState,
-  reeling: boolean,
+  set: boolean,
   setChance: number,
+  twitch: boolean,
   fish: NonNullable<FishingContext['fish']>,
   events: FishingEvents,
   dt: number,
@@ -992,15 +1031,17 @@ function resolveStrike(
   const { diff, rng } = fish;
   // Kuhan varovainen napsu: viehe on suussa vain hetken.
   const window = diff.hookWindow * (SPECIES[f.species].behavior.strikeWindow ?? 1);
-  if (diff.autoHook || (reeling && s.strikeAge <= window)) {
+  if (diff.autoHook || (set && s.strikeAge <= window)) {
     s.struckId = null;
     // Vavan nosto ei pistä hauen kovaan suuhun yhtä varmasti kuin siimakäden veto.
     // Ruohosuojan lanka työntää kalan suuta pois koukusta (#364).
-    const chance =
+    let chance =
       diff.hookChance *
       (f.species === 'pike' && diff.hookChance < 0.8 ? setChance : 1) *
       (1 - SNAG.hookLoss * baitOf(s.tackle).weedGuard);
-    if (diff.autoHook || rng.next() < chance) {
+    // Nykäisyssä vavan jäykkyys ratkaisee, kuinka hyvin koukku uppoaa.
+    if (twitch) chance = 1 - (1 - chance) * rodHookMiss(s.tackle, f.species);
+    if (diff.autoHook || rng.next() < Math.min(1, chance)) {
       f.mode = 'hooked';
       f.stamina = 1;
       f.running = true;
@@ -1018,6 +1059,7 @@ function resolveStrike(
     f.mode = 'roam';
     f.cooldown = rng.range(10, 20);
     events.missed = true;
+    if (s.strikeBig) events.missedTwitch = true;
   }
 }
 
