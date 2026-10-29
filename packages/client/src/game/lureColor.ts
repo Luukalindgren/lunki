@@ -18,16 +18,12 @@ export const LURE_LOOK = {
   snag: 0xd23a2a,
   fouled: 0x6a9a3e,
   bottom: 0x8a6a42,
-  /** Syvällä merkki pienenee: tällä syvyydellä (m) pienimmillään. */
-  smallDepth: 2.5,
-  smallScale: 0.6,
 } as const;
 
 /**
- * Vieheen merkki järvellä (väri ja koko), jotta tilan näkee katsomatta
- * vieheluotainta: syvyys värinä ja kokona (syvempi on pienempi), pohjan
- * tuntuma ruskeana, rikkaa keränneenä vihreänä ja pohjaan tarttuneena
- * punaisena kuten luotaimessa.
+ * Vieheen tilan väri järvellä, jotta tilan näkee katsomatta vieheluotainta:
+ * syvyys värinä, pohjan tuntuma ruskeana, rikkaa keränneenä vihreänä ja
+ * pohjaan tarttuneena punaisena kuten luotaimessa.
  */
 export function lureLook(l: {
   depth: number;
@@ -35,18 +31,10 @@ export function lureLook(l: {
   onLand?: boolean;
   snag?: boolean;
   fouled?: boolean;
-}): { color: number; scale: number } {
-  const k = Math.min(1, Math.max(0, l.depth) / LURE_LOOK.smallDepth);
-  const scale = l.onLand ? 1 : 1 - (1 - LURE_LOOK.smallScale) * k;
+}): number {
+  if (l.onLand) return lureColor(l.depth, true);
+  if (l.snag) return LURE_LOOK.snag;
+  if (l.fouled) return LURE_LOOK.fouled;
   const near = l.depth > LURE_SHALLOW && l.bottom - l.depth <= LURE_NEAR_BOTTOM;
-  const color = l.onLand
-    ? lureColor(l.depth, true)
-    : l.snag
-      ? LURE_LOOK.snag
-      : l.fouled
-        ? LURE_LOOK.fouled
-        : near
-          ? LURE_LOOK.bottom
-          : lureColor(l.depth);
-  return { color, scale };
+  return near ? LURE_LOOK.bottom : lureColor(l.depth);
 }
