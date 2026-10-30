@@ -36,6 +36,8 @@ export const DUCKS = {
   voice: { ambience: -6, music: -9, hold: 1.5 },
   /** Tärppi ja isku. */
   hit: { ambience: -4, music: -6, hold: 0.6 },
+  /** Iloinen sävelmä: ennätys tai kala pitkän odotuksen jälkeen. */
+  joy: { ambience: -4, music: -12, hold: 1.6 },
   /** Lähisalaman jyrähdys. */
   thunder: { ambience: -6, music: -18, hold: 3.5 },
 } satisfies Record<string, Duck>;

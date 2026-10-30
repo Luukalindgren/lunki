@@ -332,6 +332,35 @@ export class Sfx {
     [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.1, 'square', 0.5, i * 0.09));
   }
 
+  /** Kala pitkän odotuksen jälkeen: hypähtelevä, nouseva sävelmä. */
+  joy(): void {
+    [698, 880, 1047, 880, 1047].forEach((f, i) => this.tone(f, 0.07, 'square', 0.32, i * 0.08));
+    this.tone(1319, 0.4, 'square', 0.32, 0.4, 1397);
+    this.tone(349, 0.2, 'triangle', 0.42);
+    this.tone(523, 0.15, 'triangle', 0.42, 0.24);
+    this.tone(698, 0.45, 'triangle', 0.42, 0.4);
+  }
+
+  /** Oma ennätys: fanfaari, loppusointu ja kimallus. */
+  fanfare(): void {
+    const lead: [number, number, number][] = [
+      [392, 0, 0.1],
+      [523, 0.1, 0.1],
+      [659, 0.2, 0.1],
+      [784, 0.3, 0.2],
+      [659, 0.52, 0.1],
+      [784, 0.62, 0.1],
+      [1047, 0.72, 0.6],
+    ];
+    for (const [f, at, d] of lead) this.tone(f, d, 'square', 0.32, at);
+    this.tone(659, 0.6, 'square', 0.18, 0.72);
+    this.tone(784, 0.6, 'square', 0.18, 0.72);
+    this.tone(131, 0.3, 'triangle', 0.5);
+    this.tone(196, 0.2, 'triangle', 0.5, 0.3);
+    this.tone(262, 0.65, 'triangle', 0.5, 0.72);
+    [2093, 2637, 3136, 4186].forEach((f, i) => this.tone(f, 0.06, 'sine', 0.15, 0.85 + i * 0.06));
+  }
+
   lost(): void {
     this.tone(330, 0.2, 'square', 0.5, 0, 160);
   }

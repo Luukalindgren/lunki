@@ -923,6 +923,7 @@ export const fi = {
   'game.lineBrokenFly': 'Peruke katkesi! Päästä siimaa sormien läpi tai kelaa löysät ({reelSlack})',
   'game.biggestSoFar': 'kisan suurin tähän asti!',
   'game.nthFish': '{n} kala',
+  'game.personalBest': 'oma ennätys!',
   'game.following': 'Seuraat: {name}',
   'game.nobody': 'Järvellä ei ole ketään',
   'game.viewToggle': '{view}: kalastajan silmin / ylhäältä',

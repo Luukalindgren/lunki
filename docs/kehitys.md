@@ -248,6 +248,9 @@ Koodi: `packages/client/src/audio/sounds.ts`.
   `DUCKS`. Tärkeä ääni (repliikki, isku, lähisalama) hiljentää ympäristöä ja
   musiikkia hetkeksi väylän perässä olevalla `GainNode`illa, ei
   kompressorilla. Uusi väistävä tapahtuma saa äänikarttaan `duck`-kentän.
+- Onnistumiset kuulostavat iloisilta: oma lajiennätys (`recordCatch`,
+  fanfaari) ja kala pitkän odotuksen jälkeen (`reliefCatch`) ratkaistaan
+  `game/catchJoy.ts`:ssä päiväkirjasta ja kisa-ajasta.
 - Uusi ääni on uusi rivi karttaan. Väylät (tehosteet, ympäristö, musiikki,
   puhe, ukkonen) ovat `Sfx`-luokassa ja niiden voimakkuudet `MIX`-taulukossa.
 

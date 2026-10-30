@@ -26,6 +26,8 @@ export const VOICE_LINES = {
   fouled: 2,
   tangled: 2,
   lightning: 2,
+  relief: 3,
+  record: 3,
 } as const;
 
 export type VoiceId = keyof typeof VOICE_LINES;

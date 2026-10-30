@@ -50,7 +50,8 @@ import type { Penalties } from './penalties';
 import type { PovCamera } from './povCamera';
 import { QuietSpot } from './quietSpot';
 import type { RaceLog } from './raceLog';
-import { addJournalEntry } from './journal';
+import { catchJoy } from './catchJoy';
+import { addJournalEntry, loadJournal } from './journal';
 import { saveTackle } from './tackle';
 import { slotOf } from './tackleBox';
 import type { TopDownCamera } from './topDownCamera';
@@ -579,7 +580,8 @@ export class FishingController {
   }
 
   /**
-   * Kala nousi: ääni, kirjaus kisaan ja ennätyksiin sekä punnituskortti, joka
+   * Kala nousi: ääni (oma ennätys ja kala pitkän odotuksen jälkeen iloisemmin,
+   * `catchJoy`), kirjaus kisaan ja ennätyksiin sekä punnituskortti, joka
    * tulee näkyviin `delay` sekunnin päästä, kun nosto on ehtinyt kalastajan eteen.
    */
   private onCaught(
@@ -589,9 +591,15 @@ export class FishingController {
     const host = this.host;
     const { hud, sounds } = host;
     const net = host.netWorld;
-    sounds.play(sizeClass(caught.species, caught.weight) >= 3 ? 'bigCatch' : 'caught');
     net?.sendCatch(caught);
+    const prevTime = host.competition.catches.at(-1)?.time ?? 0;
     const record = recordCatch(host.competition, caught, host.tube.pos);
+    const joy = record
+      ? catchJoy(loadJournal(), caught, record.time - prevTime, host.settings.difficulty)
+      : null;
+    if (joy === 'record') sounds.play('recordCatch');
+    else if (joy === 'relief') sounds.play('reliefCatch');
+    else sounds.play(sizeClass(caught.species, caught.weight) >= 3 ? 'bigCatch' : 'caught');
     // Moninpelissä saaliit tulevat kartalle palvelimen punnitsemina (onCatchSeen).
     if (record && !net) {
       host.raceLog.addCatch({ ...record, id: SOLO_ID, pos: host.tube.pos });
@@ -631,7 +639,13 @@ export class FishingController {
     const catches = host.competition.catches;
     const biggest = catches.every((c) => c === record || c.weight < caught.weight);
     const length = `${Math.round(fishLengthCm(caught.species, caught.weight))} cm`;
-    const nth = `${length} · ${catches.length > 1 && biggest ? t('game.biggestSoFar') : t('game.nthFish', { n: ordinal(catches.length) })}`;
+    const note =
+      joy === 'record'
+        ? t('game.personalBest')
+        : catches.length > 1 && biggest
+          ? t('game.biggestSoFar')
+          : t('game.nthFish', { n: ordinal(catches.length) });
+    const nth = `${length} · ${note}`;
     this.flushWeighIn();
     this.weighIn = {
       left: delay,
