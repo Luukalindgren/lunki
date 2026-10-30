@@ -73,6 +73,8 @@ export class VoicePlayer {
     private readonly ctx: AudioContext,
     private readonly bus: AudioNode,
     private readonly base = import.meta.env.BASE_URL,
+    /** Repliikki alkaa: kesto (s) ja voimakkuus väistöä varten (#411). */
+    private readonly onStart?: (duration: number, gain: number) => void,
   ) {}
 
   /** Lataa tunnisteiden repliikit taustalla valmiiksi. */
@@ -110,6 +112,7 @@ export class VoicePlayer {
         if (this.playing.get(key) === src) this.playing.delete(key);
       };
       src.start();
+      this.onStart?.(buffer.duration, gain);
     });
   }
 

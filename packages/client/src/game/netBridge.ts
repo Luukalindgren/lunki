@@ -46,8 +46,6 @@ export interface NetHost {
   readonly raceLog: RaceLog;
   readonly raceStatsCounter: RaceStatsCounter;
   readonly view: TopDownCamera;
-  /** Kuuntelupaikka muiden äänille. */
-  readonly ear: Vec2;
   /** Nollaa oman kalastuksen (siima poikki, sotku selvisi). */
   resetFishing(): void;
   onStrike(pos: Vec2, hitMe: boolean): void;
@@ -104,9 +102,9 @@ export class NetBridge {
     };
     net.world.onCatchSeen = (mark, own) => {
       host.raceLog.addCatch(mark);
-      if (!own) host.sounds.playAt('caught', mark.pos, host.ear);
+      if (!own) host.sounds.playAt('caught', mark.pos);
     };
-    net.world.onRemoteSplash = (pos) => host.sounds.playAt('lureSplash', pos, host.ear);
+    net.world.onRemoteSplash = (pos) => host.sounds.playAt('lureSplash', pos);
     net.world.onUntangled = (m) => this.onUntangled(m, net.world.myId);
     net.world.onRecord = (m) => this.onRecord(m, net.world.myId);
     net.world.onRemoteCatch = (tag, angler) => {

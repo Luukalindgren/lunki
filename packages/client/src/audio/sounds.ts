@@ -1,6 +1,7 @@
 import { LIGHTNING, distance, type Vec2 } from '@lunki/shared';
 import type { AmbienceInput } from './ambience';
-import type { Sfx } from './sfx';
+import { CENTER_LISTENER, effectMuffle, effectPan, type DuckId, type Listener } from './mix';
+import type { Place, Sfx } from './sfx';
 import { voiceFalloff, type VoiceId } from './voice';
 
 /** Tehoste, jonka voi soittaa ilman lisätietoja. */
@@ -32,20 +33,24 @@ export interface Sound {
   effect?: Effect | Play;
   /** Kalastajan repliikki, jos pelaaja on valinnut tapahtumien repliikit. */
   voice?: VoiceId;
+  /** Oma tapahtuma hiljentää ympäristöä ja musiikkia hetkeksi (`DUCKS`). */
+  duck?: DuckId;
 }
 
 /**
  * Äänikartta (#371): pelin tapahtuma → tehoste ja repliikki, samaan tapaan
  * kuin ohjauksen toimintokartta `CONTROLS`. Peli kertoo, mitä tapahtui, ja
  * kartta päättää, miltä se kuulostaa. Muiden pelaajien tapahtumat soivat
- * samoilla äänillä etäisyyden mukaan hiljempaa (`Sounds.playAt`).
+ * samoilla äänillä etäisyyden mukaan hiljempaa ja omasta suunnastaan
+ * (`Sounds.playAt`). Omat tehosteet kuuluvat keskeltä; sää (ukkonen, iso
+ * aalto, trombi) kuuluu suunnastaan (`Sounds.playFrom`).
  */
 export const SOUNDS = {
   // Kalastus
   cast: { effect: (s, power) => s.cast(power) },
   follow: { effect: 'tick' },
-  strike: { effect: 'strike' },
-  hooked: { effect: 'hooked' },
+  strike: { effect: 'strike', duck: 'hit' },
+  hooked: { effect: 'hooked', duck: 'hit' },
   missed: { voice: 'missed' },
   jumped: { effect: 'splash' },
   // Nosto (#366): kala pintaan ja viimeinen riuhtaisu
@@ -110,32 +115,47 @@ export function effectFalloff(d: number): number {
 
 /** Pelin äänet yhdestä paikasta: tapahtumat kartan kautta, repliikit ja ympäristö. */
 export class Sounds {
+  /** Kuulijan paikka ja suunta; peli päivittää tämän joka ruudulla. */
+  listener: Listener = CENTER_LISTENER;
+
   constructor(private readonly sfx: Sfx) {}
 
-  /** Oma tapahtuma; `a` ja `b` ovat lukuja käyttävän tehosteen arvot. */
+  /** Oma tapahtuma keskeltä; `a` ja `b` ovat lukuja käyttävän tehosteen arvot. */
   play(event: SoundEvent, a = 0, b = 0): void {
-    this.sound(SOUNDS[event], 1, a, b);
+    this.sound(SOUNDS[event], { gain: 1 }, a, b);
   }
 
   /**
-   * Toisen pelaajan tapahtuma kohdassa `at`, kuultuna kohdasta `ear`: sama
-   * tehoste hiljempaa etäisyyden mukaan. Repliikkejä ei soiteta, koska ne ovat
-   * kalastajan omia (muiden puhe kulkee käsimerkkien kautta, `voiceAt`).
+   * Oma tapahtuma, joka kuuluu kohdan `at` suunnasta täydellä voimakkuudella:
+   * salama, iso aalto, trombi. Etäisyyden hoitaa tehoste itse.
    */
-  playAt(event: SoundEvent, at: Vec2, ear: Vec2, a = 0, b = 0): void {
-    const gain = effectFalloff(distance(at, ear));
-    if (gain <= 0) return;
-    const { effect } = SOUNDS[event] as Sound;
-    this.sound({ effect }, gain, a, b);
+  playFrom(event: SoundEvent, at: Vec2, a = 0, b = 0): void {
+    this.sound(SOUNDS[event], { gain: 1, pan: effectPan(at, this.listener) }, a, b);
   }
 
-  private sound(s: Sound, gain: number, a: number, b: number): void {
-    const { effect, voice } = s;
+  /**
+   * Toisen pelaajan tapahtuma kohdassa `at`: sama tehoste hiljempaa ja
+   * tummempana etäisyyden mukaan ja omasta suunnastaan. Repliikkejä ei
+   * soiteta, koska ne ovat kalastajan omia (muiden puhe kulkee käsimerkkien
+   * kautta, `voiceAt`), eikä toisen tapahtuma hiljennä muita ääniä.
+   */
+  playAt(event: SoundEvent, at: Vec2, a = 0, b = 0): void {
+    const d = distance(at, this.listener.ear);
+    const gain = effectFalloff(d);
+    if (gain <= 0) return;
+    const { effect } = SOUNDS[event] as Sound;
+    const place = { gain, pan: effectPan(at, this.listener), cutoff: effectMuffle(d) };
+    this.sound({ effect }, place, a, b);
+  }
+
+  private sound(s: Sound, place: Place, a: number, b: number): void {
+    const { effect, voice, duck } = s;
     if (effect)
-      this.sfx.withGain(gain, () => {
+      this.sfx.at(place, () => {
         if (typeof effect === 'function') effect(this.sfx, a, b);
         else this.sfx[effect]();
       });
+    if (duck) this.sfx.duck(duck);
     if (voice) this.sfx.eventVoice(voice);
   }
 
@@ -144,18 +164,26 @@ export class Sounds {
     this.sfx.voice(id, { speaker: 'me' });
   }
 
-  /** Toisen pelaajan repliikki: hiljenee etäisyyden mukaan, `pan` = suunta -1…1. */
-  voiceAt(id: VoiceId, speaker: string, d: number, pan: number): void {
-    const gain = voiceFalloff(d);
-    if (gain > 0) this.sfx.voice(id, { gain, pan, speaker });
+  /** Toisen pelaajan repliikki kohdasta `at`: hiljenee etäisyyden mukaan ja kuuluu suunnastaan. */
+  voiceAt(id: VoiceId, speaker: string, at: Vec2): void {
+    const gain = voiceFalloff(distance(at, this.listener.ear));
+    if (gain > 0) this.sfx.voice(id, { gain, pan: effectPan(at, this.listener), speaker });
   }
 
   preloadVoices(ids: readonly VoiceId[]): void {
     this.sfx.preloadVoices(ids);
   }
 
-  /** Ympäristöäänet säästä, vuorokaudenajasta ja trombin läheisyydestä. */
-  ambience(dt: number, w: AmbienceInput): void {
-    this.sfx.updateAmbience(dt, w);
+  /**
+   * Ympäristöäänet säästä, vuorokaudenajasta ja trombin läheisyydestä.
+   * Trombin pauhu kuuluu lähimmän trombin (`spoutAt`) suunnasta, ja kuikat
+   * pysyvät paikallaan järvellä, kun kuulija kääntyy.
+   */
+  ambience(dt: number, w: AmbienceInput, spoutAt: Vec2 | null = null): void {
+    this.sfx.updateAmbience(dt, {
+      ...w,
+      spoutPan: spoutAt ? effectPan(spoutAt, this.listener) : 0,
+      right: this.listener.right,
+    });
   }
 }

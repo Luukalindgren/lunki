@@ -177,10 +177,19 @@ Koodi: `packages/client/src/audio/sounds.ts`.
   (`sounds.play('escaped')`): kartta päättää tehosteen ja kalastajan
   repliikin. Peli ei kutsu `Sfx`-tehosteita suoraan.
 - Muiden pelaajien tapahtumat soivat samoilla äänillä etäisyyden mukaan
-  hiljempaa (`sounds.playAt`, kantama `EFFECT_RANGE`), ja muiden puhe
-  kuuluu käsimerkeistä (`voiceAt`).
+  hiljempaa ja tummempina (`sounds.playAt`, kantama `EFFECT_RANGE`), ja muiden
+  puhe kuuluu käsimerkeistä (`voiceAt`). Molemmat kuuluvat suunnastaan
+  kuulijasta (`effectPan`, `Game.listener`: ruudun oikea laita ylhäältä,
+  kalastajan oikea käsi POV:ssa).
+- Omat tehosteet kuuluvat keskeltä. Sää kuuluu suunnastaan
+  (`sounds.playFrom`: salama, iso aalto, trombi), samoin trombin pauhu ja
+  kuikat; tuuli ja sade ympäröivät kuulijan.
+- Miksaus on `audio/mix.ts`:ssä (#411): väylien voimakkuudet `MIX` ja väistö
+  `DUCKS`. Tärkeä ääni (repliikki, isku, lähisalama) hiljentää ympäristöä ja
+  musiikkia hetkeksi väylän perässä olevalla `GainNode`illa, ei
+  kompressorilla. Uusi väistävä tapahtuma saa äänikarttaan `duck`-kentän.
 - Uusi ääni on uusi rivi karttaan. Väylät (tehosteet, ympäristö, musiikki,
-  puhe, ukkonen) ja niiden voimakkuudet ovat `Sfx`-luokassa.
+  puhe, ukkonen) ovat `Sfx`-luokassa ja niiden voimakkuudet `MIX`-taulukossa.
 
 ### Vaikeustaso ja avut (#391)
 

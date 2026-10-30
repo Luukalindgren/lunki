@@ -55,6 +55,7 @@ import { createLakeMesh, createWaterWaves, toWorld, waterTime } from '../world/l
 import { capsizeRoll, type NetWorld } from '../net/netWorld';
 import type { Sfx } from '../audio/sfx';
 import { Sounds } from '../audio/sounds';
+import type { Listener } from '../audio/mix';
 import type { VoiceId } from '../audio/voice';
 import type { Hud } from '../ui/hud';
 import { FishingView } from './fishingView';
@@ -152,9 +153,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
   /** Suurkalan varjo veden alla (#231). */
   readonly fishShadow = new FishShadow();
   /** Kalojen merkit pinnalla (#369), kuultuina omalta paikalta. */
-  readonly fishSigns = new FishSignsView((event, at) =>
-    this.sounds.playAt(event, at, this.tube.pos),
-  );
+  readonly fishSigns = new FishSignsView((event, at) => this.sounds.playAt(event, at));
   readonly rng: Rng;
   readonly fish: FishPopulation;
   readonly competition: CompetitionState;
@@ -457,6 +456,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     const c = this.controls;
     const net = this.net;
     waterTime.value += dt;
+    this.sounds.listener = this.listener;
     if (this.competition.finished) return;
     if (
       net
@@ -539,11 +539,15 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     presenter.show(dt, { tangle, lineHand, lureOut });
     presenter.updateTimer();
     this.weather.update(dt);
-    this.sounds.ambience(dt, {
-      ...this.weather.now,
-      ...this.daylight,
-      spout: this.weather.spoutNear,
-    });
+    this.sounds.ambience(
+      dt,
+      {
+        ...this.weather.now,
+        ...this.daylight,
+        spout: this.weather.spoutNear,
+      },
+      this.weather.spoutAt,
+    );
     this.craft.paddleSounds();
     if (net) presenter.updateRaceHud();
     else presenter.showSoloCatches();
@@ -667,10 +671,19 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
    * kuulu) ja tulee kameran suunnasta katsottuna vasemmalta tai oikealta.
    */
   speakAt(id: VoiceId, speaker: string, at: Vec2): void {
-    const ear = this.ear;
-    const local = toWorld(at, 1).applyMatrix4(this.camera.matrixWorldInverse);
-    const side = local.x / Math.max(4, Math.hypot(local.x, local.z));
-    this.sounds.voiceAt(id, speaker, distance(at, ear), side * 0.8);
+    this.sounds.voiceAt(id, speaker, at);
+  }
+
+  /**
+   * Kuulija äänten suuntaa varten (#411): kuuntelupaikka ja kameran oikea
+   * suunta järvellä. Ylhäältä katsottuna oikea on ruudun oikea laita, POV:ssa
+   * kalastajan oikea käsi.
+   */
+  get listener(): Listener {
+    const e = this.camera.matrixWorld.elements;
+    const len = Math.hypot(e[0]!, e[2]!);
+    const right = len > 1e-6 ? { x: e[0]! / len, y: -e[2]! / len } : { x: 1, y: 0 };
+    return { ear: this.ear, right };
   }
 
   /** Kuuntelupaikka: katsoja kuulee kameran kohdalta, pelaaja oman renkaansa kohdalta. */

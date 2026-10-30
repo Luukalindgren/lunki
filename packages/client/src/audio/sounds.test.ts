@@ -1,25 +1,32 @@
 import { describe, expect, it } from 'vitest';
-import { Sfx } from './sfx';
+import { Sfx, type Place } from './sfx';
 import { EFFECT_RANGE, SOUNDS, Sounds, effectFalloff, type Sound, type SoundEvent } from './sounds';
 
-/** Sfx, joka kirjaa kutsut ja voimakkuuden soittamisen sijaan. */
+/** Sfx, joka kirjaa kutsut, voimakkuuden ja suunnan soittamisen sijaan. */
 function recorder() {
   const calls: string[] = [];
-  let gain = 1;
+  let place: Place = { gain: 1 };
   const sfx = new Proxy({} as Sfx, {
     get(_, name: string) {
-      if (name === 'withGain')
-        return (g: number, play: () => void) => {
-          gain = g;
+      if (name === 'at')
+        return (p: Place, play: () => void) => {
+          place = p;
           play();
-          gain = 1;
+          place = { gain: 1 };
         };
-      return (...args: unknown[]) =>
-        calls.push(`${name}(${args.map((a) => JSON.stringify(a)).join(',')})@${gain.toFixed(2)}`);
+      return (...args: unknown[]) => {
+        const pan = place.pan ? ` pan ${place.pan.toFixed(2)}` : '';
+        calls.push(
+          `${name}(${args.map((a) => JSON.stringify(a)).join(',')})@${place.gain.toFixed(2)}${pan}`,
+        );
+      };
     },
   });
   return { sfx, calls };
 }
+
+/** Kuulija origossa, oikea itään. */
+const EAST = { ear: { x: 0, y: 0 }, right: { x: 1, y: 0 } };
 
 describe('äänikartta', () => {
   it('jokaisella tapahtumalla on tehoste tai repliikki, ja tehosteet ovat olemassa', () => {
@@ -30,29 +37,44 @@ describe('äänikartta', () => {
     }
   });
 
-  it('oma tapahtuma soittaa tehosteen ja repliikin', () => {
+  it('oma tapahtuma soittaa tehosteen ja repliikin keskeltä', () => {
     const { sfx, calls } = recorder();
     const sounds = new Sounds(sfx);
+    sounds.listener = EAST;
     sounds.play('escaped');
     sounds.play('cast', 0.5);
     sounds.play('flyLand', 1);
-    sounds.play('thunder', 686);
+    sounds.play('hooked');
     expect(calls).toEqual([
       'lost()@1.00',
       'eventVoice("escaped")@1.00',
       'cast(0.5)@1.00',
       'flyLand(true)@1.00',
-      'thunder(686,2)@1.00',
+      'hooked()@1.00',
+      'duck("hit")@1.00',
     ]);
   });
 
-  it('toisen pelaajan tapahtuma hiljenee etäisyyden mukaan eikä tuo repliikkiä', () => {
+  it('salama kuuluu suunnastaan täydellä voimakkuudella', () => {
     const { sfx, calls } = recorder();
     const sounds = new Sounds(sfx);
-    sounds.playAt('bigCatch', { x: 0, y: 0 }, { x: 5, y: 0 });
-    sounds.playAt('lureSplash', { x: 0, y: 0 }, { x: 60, y: 0 });
-    sounds.playAt('lureSplash', { x: 0, y: 0 }, { x: EFFECT_RANGE.far + 1, y: 0 });
-    expect(calls).toEqual(['caught()@1.00', `splash()@${effectFalloff(60).toFixed(2)}`]);
+    sounds.listener = EAST;
+    sounds.playFrom('thunder', { x: -686, y: 0 }, 686);
+    expect(calls).toEqual(['thunder(686,2)@1.00 pan -0.80']);
+  });
+
+  it('toisen pelaajan tapahtuma hiljenee etäisyyden mukaan, kuuluu suunnastaan eikä tuo repliikkiä', () => {
+    const { sfx, calls } = recorder();
+    const sounds = new Sounds(sfx);
+    sounds.listener = { ...EAST, ear: { x: 5, y: 0 } };
+    sounds.playAt('bigCatch', { x: 0, y: 0 });
+    sounds.listener = { ...EAST, ear: { x: 60, y: 0 } };
+    sounds.playAt('lureSplash', { x: 0, y: 0 });
+    sounds.playAt('lureSplash', { x: -EFFECT_RANGE.far, y: 0 });
+    expect(calls).toEqual([
+      'caught()@1.00 pan -0.80',
+      `splash()@${effectFalloff(60).toFixed(2)} pan -0.80`,
+    ]);
   });
 
   it('kantama: täysi lähellä, hiljenee tasaisesti ja loppuu rajalla', () => {

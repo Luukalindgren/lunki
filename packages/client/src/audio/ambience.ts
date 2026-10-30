@@ -1,4 +1,4 @@
-import type { Sky } from '@lunki/shared';
+import type { Sky, Vec2 } from '@lunki/shared';
 import { loonCall, loonCallLength } from './loon';
 import { rainPatter } from './rain';
 
@@ -13,6 +13,10 @@ export interface AmbienceInput {
   twilight?: number;
   /** Lähimmän trombin läheisyys 0–1 (1 = keskellä); puuttuu = ei trombia. */
   spout?: number;
+  /** Lähimmän trombin suunta -1 (vasen) … 1 (oikea). */
+  spoutPan?: number;
+  /** Kuulijan oikea suunta järvellä (yksikkövektori); puuttuu = itä. */
+  right?: Vec2;
 }
 
 /** Valikon taustalla: tyyni kesäpäivä. */
@@ -41,6 +45,7 @@ export class Ambience {
   /** Trombin pauhu: tumma, sykkivä kohina, joka voimistuu lähestyessä. */
   private readonly spout: GainNode;
   private readonly spoutFilter: BiquadFilterNode;
+  private readonly spoutPan: StereoPannerNode | null;
   private spoutPhase = 0;
   private gust = 0;
   private gustTarget = 0;
@@ -50,6 +55,9 @@ export class Ambience {
   private loonTimer = 5 + Math.random() * 8;
   /** Kuikkien väylä: suora ääni ja rannoista palaava kaiku. */
   private readonly loons: GainNode;
+  /** Huutavan kuikan suunta järvellä: pysyy paikallaan, kun kuulija kääntyy. */
+  private loonAt: { pan: StereoPannerNode; dir: Vec2 } | null = null;
+  private right: Vec2 = { x: 1, y: 0 };
 
   constructor(
     private readonly ctx: AudioContext,
@@ -58,13 +66,13 @@ export class Ambience {
     const noise = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
     const data = noise.getChannelData(0);
     for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-    const loop = (filter: BiquadFilterNode, gain: GainNode) => {
+    const loop = (filter: BiquadFilterNode, gain: GainNode, to: AudioNode = out) => {
       const src = ctx.createBufferSource();
       src.buffer = noise;
       src.loop = true;
       // Eri kohdasta alkava silmukka, jotta tuuli ja sade eivät kuulosta samalta.
       src.start(0, Math.random() * 2);
-      src.connect(filter).connect(gain).connect(out);
+      src.connect(filter).connect(gain).connect(to);
     };
     this.windFilter = ctx.createBiquadFilter();
     this.windFilter.type = 'bandpass';
@@ -98,7 +106,11 @@ export class Ambience {
     this.spoutFilter.Q.value = 1.5;
     this.spout = ctx.createGain();
     this.spout.gain.value = 0;
-    loop(this.spoutFilter, this.spout);
+    // Trombi pauhaa omasta suunnastaan; tuuli ja sade ympäröivät kuulijan.
+    // StereoPannerNode puuttuu vanhoista Safareista; silloin pauhu tulee keskeltä.
+    this.spoutPan = typeof ctx.createStereoPanner === 'function' ? ctx.createStereoPanner() : null;
+    this.spoutPan?.connect(out);
+    loop(this.spoutFilter, this.spout, this.spoutPan ?? out);
 
     this.loons = ctx.createGain();
     this.loons.connect(out);
@@ -139,6 +151,9 @@ export class Ambience {
     const throb = 0.75 + 0.25 * Math.sin(this.spoutPhase * Math.PI * 2);
     this.spout.gain.setTargetAtTime(near * near * 1.4 * throb, t, 0.15);
     this.spoutFilter.frequency.setTargetAtTime(160 + near * 380, t, 0.3);
+    this.spoutPan?.pan.setTargetAtTime(w.spoutPan ?? 0, t, 0.2);
+    this.right = w.right ?? { x: 1, y: 0 };
+    if (this.loonAt) this.loonAt.pan.pan.setTargetAtTime(this.loonPan(this.loonAt.dir), t, 0.1);
 
     this.birdTimer -= dt;
     if (this.birdTimer <= 0) {
@@ -187,7 +202,11 @@ export class Ambience {
     const notes = loonCall(Math.random() < 0.55 ? 'wail' : 'song');
     const ctx = this.ctx;
     const pan = ctx.createStereoPanner();
-    pan.pan.value = Math.random() * 1.8 - 0.9;
+    // Kuikka huutaa jostain päin järveä; suunta seuraa kuulijan kääntymistä (update).
+    const angle = Math.random() * Math.PI * 2;
+    const dir = { x: Math.cos(angle), y: Math.sin(angle) };
+    this.loonAt = { pan, dir };
+    pan.pan.value = this.loonPan(dir);
     // Kaukainen ääni on vaimeampi ja tummempi.
     const far = Math.random();
     const tone = ctx.createBiquadFilter();
@@ -227,6 +246,11 @@ export class Ambience {
       osc.stop(end + 0.02);
     }
     return loonCallLength(notes);
+  }
+
+  /** Kuikan suunta kuulijasta -1…1. */
+  private loonPan(dir: Vec2): number {
+    return (dir.x * this.right.x + dir.y * this.right.y) * 0.9;
   }
 
   /** Lintu: muutama nopea, nouseva tai laskeva vihellys. */
