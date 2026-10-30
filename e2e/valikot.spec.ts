@@ -360,7 +360,7 @@ test('nimimerkki valitsee profiilin, ja viehepakki näyttää omat saaliit (#415
   await expect(slots.first().locator('.box-slot-catch')).toHaveText('3 kalaa');
   await expect(slots.nth(1).locator('.box-slot-catch')).toHaveCount(0);
   await expect(page.locator('.box-catches')).toHaveText(
-    'Sinun saaliisi tällä: 3 kalaa (hauki 2, ahven 1) · parhaiten tuulella illalla, 1–2 m syvyydeltä',
+    'Sinun saaliisi tällä: 3 kalaa (hauki 2, ahven 1) · parhaiten kesällä tuulella illalla, 1–2 m syvyydeltä',
   );
   // Uusi nimimerkki aloittaa alusta, ja vanha tuo tiedot takaisin.
   await page.keyboard.press('Escape');
