@@ -5,7 +5,8 @@ mieheksi (sävel alas, särö, nopea tremolo, kompressointi). Tulokset:
 packages/client/public/audio/puhe/<tunniste>-<n>.mp3 ja raakatiedostot
 hakemistoon puhe-raaka/ (ei peliin).
 
-Käyttö: python3 scripts/puhe/tee.py <äänimallin .onnx>
+Käyttö: python3 scripts/puhe/tee.py <äänimallin .onnx> [tunniste ...]
+Tunnisteilla tehdään vain ne repliikit, ja muut tiedostot pysyvät ennallaan.
 """
 
 import json
@@ -71,8 +72,9 @@ def main() -> None:
     lines = json.loads((Path(__file__).parent / 'repliikit.json').read_text('utf-8'))
     OUT.mkdir(parents=True, exist_ok=True)
     RAW.mkdir(parents=True, exist_ok=True)
+    only = set(sys.argv[2:])
     for key, texts in lines.items():
-        if key.startswith('_'):
+        if key.startswith('_') or (only and key not in only):
             continue
         for n, text in enumerate(texts, 1):
             raw = RAW / f'{key}-{n}.wav'

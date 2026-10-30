@@ -29,5 +29,7 @@
   "bigCatch": ["Jes!", "Hyvä kala!", "No niin, tuu tänne!"],
   "fouled": ["Taas rikkaa...", "Pelkkää heinää!"],
   "tangled": ["Hei, sä sotkit mun siiman!", "Irti mun siimasta!"],
-  "lightning": ["Huh, läheltä piti!", "Jumalauta, mikä pamaus!"]
+  "lightning": ["Huh, läheltä piti!", "Jumalauta, mikä pamaus!"],
+  "relief": ["No vihdoinkin!", "Viimein, perkele!", "Jo oli aikakin!"],
+  "record": ["Ennätys, jumalauta!", "Elämäni kala!", "Tää on mun ennätys!"]
 }
