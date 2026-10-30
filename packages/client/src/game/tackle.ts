@@ -7,13 +7,12 @@ import {
   type Craft,
   type Tackle,
 } from '@lunki/shared';
-
-const TACKLE_KEY = 'lunki.tackle';
+import { profileKey } from '../net/identity';
 
 /** Viimeksi käytetyt varusteet muistetaan selaimessa. */
 export function loadTackle(): Tackle {
   try {
-    const raw = localStorage.getItem(TACKLE_KEY);
+    const raw = localStorage.getItem(profileKey('tackle'));
     const t = raw ? parseTackle(JSON.parse(raw)) : null;
     if (t) return t;
   } catch {
@@ -24,7 +23,7 @@ export function loadTackle(): Tackle {
 
 export function saveTackle(t: Tackle): void {
   try {
-    localStorage.setItem(TACKLE_KEY, JSON.stringify(t));
+    localStorage.setItem(profileKey('tackle'), JSON.stringify(t));
   } catch {
     // ei haittaa
   }
@@ -40,12 +39,10 @@ export function nextLure(t: Tackle): Tackle {
   return { ...t, lure: LURE_IDS[(i + 1) % LURE_IDS.length]! };
 }
 
-const CRAFT_KEY = 'lunki.craft';
-
 /** Yksinpelin kulkupeli (#263) muistetaan selaimessa; oletus kelluntarengas. */
 export function loadCraft(): Craft {
   try {
-    const c = localStorage.getItem(CRAFT_KEY);
+    const c = localStorage.getItem(profileKey('craft'));
     if (isCraft(c)) return c;
   } catch {
     // oletus kelpaa
@@ -55,7 +52,7 @@ export function loadCraft(): Craft {
 
 export function saveCraft(c: Craft): void {
   try {
-    localStorage.setItem(CRAFT_KEY, c);
+    localStorage.setItem(profileKey('craft'), c);
   } catch {
     // ei haittaa
   }

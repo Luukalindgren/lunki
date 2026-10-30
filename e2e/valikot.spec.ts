@@ -321,6 +321,67 @@ test('viehepakki: R vaihtaa lokeroa, R pohjassa avaa pikavalikon (#365, #387)', 
   errors.check();
 });
 
+test('nimimerkki valitsee profiilin, ja viehepakki näyttää omat saaliit (#415)', async ({
+  page,
+}) => {
+  const errors = watchErrors(page);
+  await page.addInitScript(() => {
+    if (localStorage.getItem('lunki.profiles')) return;
+    const box = { lures: [{ lure: 'spoon' }, { lure: 'jig', variant: 'g5' }], flies: ['nymph'] };
+    localStorage.setItem('lunki.tackleBox', JSON.stringify(box));
+    const fish = (species: string) => ({
+      species,
+      weight: 1,
+      bait: { lure: 'spoon' },
+      sky: 'windy',
+      timeOfDay: 'evening',
+      depth: 1.5,
+      x: 0,
+      y: 0,
+      at: 1,
+    });
+    localStorage.setItem(
+      'lunki.journal',
+      JSON.stringify([fish('pike'), fish('pike'), fish('perch')]),
+    );
+  });
+  await page.goto('/');
+  const openBox = async () => {
+    await page.getByRole('button', { name: 'Varusteet' }).click();
+    await page.locator('.summary-row', { hasText: 'Viehepakki' }).getByRole('button').click();
+  };
+  // Ensimmäinen nimimerkki ottaa nimettömänä kertyneet tiedot omikseen.
+  await page.getByRole('button', { name: 'Pelaa' }).click();
+  await page.getByLabel('Nimimerkki').fill('Profiili');
+  await page.getByRole('button', { name: 'Takaisin' }).click();
+  await openBox();
+  const slots = page.locator('.box-slot:not(.empty)');
+  await expect(slots).toHaveCount(2);
+  await expect(slots.first().locator('.box-slot-catch')).toHaveText('3 kalaa');
+  await expect(slots.nth(1).locator('.box-slot-catch')).toHaveCount(0);
+  await expect(page.locator('.box-catches')).toHaveText(
+    'Sinun saaliisi tällä: 3 kalaa (hauki 2, ahven 1) · parhaiten tuulella illalla, 1–2 m syvyydeltä',
+  );
+  // Uusi nimimerkki aloittaa alusta, ja vanha tuo tiedot takaisin.
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Pelaa' }).click();
+  await page.getByLabel('Nimimerkki').fill('Toinen');
+  await page.getByRole('button', { name: 'Takaisin' }).click();
+  await openBox();
+  await expect(page.locator('.box-slot-catch')).toHaveCount(0);
+  await expect(page.locator('.box-slot:not(.empty)')).not.toHaveCount(2);
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Pelaa' }).click();
+  await page.getByLabel('Nimimerkki').fill('profiili');
+  await page.getByRole('button', { name: 'Takaisin' }).click();
+  await openBox();
+  await expect(slots).toHaveCount(2);
+  await expect(slots.first().locator('.box-slot-catch')).toHaveText('3 kalaa');
+  errors.check();
+});
+
 test('latausruutu näkyy pelin koodin latautuessa ja poistuu valikon tullessa', async ({ page }) => {
   const errors = watchErrors(page);
   // Hidas yhteys: pelin koodi pidetään matkalla, kunnes latausruutu on tarkistettu.

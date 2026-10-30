@@ -153,6 +153,20 @@ Pelikone on usein kiinni. Vain moninpeli saa vaatia palvelimen.
 - Service worker (`src/sw/`) pitää pelin koodin laitteella, joten
   yksinpeli toimii ilman nettiä, ks. [julkaisu.md](julkaisu.md).
 
+### Omat tiedot ja nimimerkki (#415)
+
+Koodi: `packages/client/src/net/identity.ts`.
+
+- Kirjautumista ei ole. Pelaajan omat tiedot (tilastot, saalispäiväkirja,
+  varusteet, viehepakki, värit, kulkupeli) tallennetaan laitteelle
+  nimimerkin profiiliin avaimella `profileKey('…')`. Nimimerkki asetetaan
+  Pelaa-alavalikossa; uusi nimi aloittaa alusta, ja vanha tuo tiedot
+  takaisin. Laitteen asetukset (HUD, äänet, kieli) eivät ole profiilissa.
+- Uusi omaa edistymistä tallentava tieto lisätään `PROFILE_DATA`-listaan
+  eikä omalle `lunki.`-avaimelle.
+- Saalispäiväkirja (`game/journal.ts`) kirjaa omat saaliit vieheineen ja
+  oloineen; viehepakki näyttää siitä saaliit ja parhaat olot.
+
 ### Pelin rakenne (#371)
 
 Koodi: `packages/client/src/game/game.ts` ja sen osat.

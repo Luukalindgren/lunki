@@ -6,6 +6,7 @@ import {
   type RaceStats,
   type SpeciesId,
 } from '@lunki/shared';
+import { profileKey } from '../net/identity';
 
 /** Kaikkien kisojen yhteistilastot laitteella (#367). */
 export interface LifetimeStats {
@@ -19,7 +20,6 @@ export interface LifetimeStats {
   stats: RaceStats;
 }
 
-const KEY = 'lunki.stats';
 const isSpecies = (s: string) => Object.hasOwn(SPECIES, s);
 
 const empty = (): LifetimeStats => ({
@@ -36,7 +36,9 @@ const count = (v: unknown) =>
 
 export function loadLifetimeStats(): LifetimeStats {
   try {
-    const raw = JSON.parse(localStorage.getItem(KEY) ?? 'null') as Partial<LifetimeStats> | null;
+    const raw = JSON.parse(
+      localStorage.getItem(profileKey('stats')) ?? 'null',
+    ) as Partial<LifetimeStats> | null;
     if (!raw || typeof raw !== 'object') return empty();
     const big = raw.biggest;
     return {
@@ -76,7 +78,7 @@ export function addLifetimeRace(
     stats: addRaceStats(prev.stats, stats),
   };
   try {
-    localStorage.setItem(KEY, JSON.stringify(next));
+    localStorage.setItem(profileKey('stats'), JSON.stringify(next));
   } catch {
     // Muisti täynnä tai estetty: tilastot näkyvät silti tältä kisalta.
   }

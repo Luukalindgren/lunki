@@ -124,6 +124,7 @@ import {
   type LureSlot,
   type TackleBox,
 } from '../game/tackleBox';
+import { baitSummary, loadJournal, type BaitSummary } from '../game/journal';
 import {
   colorName,
   describeFullTackle,
@@ -458,17 +459,33 @@ export class Screens {
     this.show(panel);
   }
 
-  /** Pelimuodot päävalikon Pelaa-napin takana. */
-  showPlay(actions: { onSolo: () => void; onMultiplayer: () => void }, onBack: () => void): void {
+  /**
+   * Pelimuodot päävalikon Pelaa-napin takana. Nimimerkki valitsee profiilin,
+   * johon omat tiedot tallentuvat (#415); se tallennetaan ennen pelimuotoa.
+   */
+  showPlay(
+    actions: { onSolo: () => void; onMultiplayer: () => void },
+    name: { current: string; onChange: (name: string) => void },
+    onBack: () => void,
+  ): void {
     const panel = this.panel('play');
+    const nameInput = this.input(
+      t('common.nickname'),
+      name.current,
+      NAME_MAX_LENGTH,
+      t('common.angler'),
+    );
+    const field = nameInput.querySelector('input')!;
+    const save = () => name.onChange(field.value);
+    field.addEventListener('change', save);
     const menu = this.buttons([
-      [t('menu.solo'), actions.onSolo],
-      [t('menu.multiplayer'), actions.onMultiplayer],
-      [t('common.back'), onBack],
+      [t('menu.solo'), () => (save(), actions.onSolo())],
+      [t('menu.multiplayer'), () => (save(), actions.onMultiplayer())],
+      [t('common.back'), () => (save(), onBack())],
     ]);
     menu.classList.add('main-menu');
-    panel.append(h('h2', t('menu.play')), menu);
-    this.show(panel, { back: onBack });
+    panel.append(h('h2', t('menu.play')), nameInput, h('p', t('menu.profileHint'), 'hint'), menu);
+    this.show(panel, { back: () => (save(), onBack()) });
   }
 
   /** Palaute sekä tekijät ja lähteet yhden päävalikon napin takana. */
@@ -1039,6 +1056,8 @@ export class Screens {
     const editor = document.createElement('div');
     editor.className = 'settings';
     let selected = 0;
+    // Omat saaliit vieheittäin saalispäiväkirjasta (#415).
+    const journal = loadJournal();
     const list = (): (LureSlot | FlyId)[] => (fly ? pack.current.flies : pack.current.lures);
     const update = (items: (LureSlot | FlyId)[]) => {
       pack.onChange(
@@ -1060,9 +1079,11 @@ export class Screens {
           b.className = 'box-slot';
           b.classList.toggle('selected', i === selected);
           if (item !== undefined) {
+            const caught = baitSummary(journal, item).count;
             b.append(
               lureImage(typeof item === 'string' ? item : item.lure, '2px'),
               h('span', slotLabel(item), 'box-slot-name'),
+              ...(caught > 0 ? [h('span', fishCount(caught), 'box-slot-catch')] : []),
             );
           } else {
             b.append(
@@ -1099,7 +1120,11 @@ export class Screens {
             },
           ),
         );
-        if (typeof item === 'string') editor.append(this.lureHintRow(item, flyHint(item)));
+        if (typeof item === 'string')
+          editor.append(
+            this.lureHintRow(item, flyHint(item)),
+            h('p', catchesText(baitSummary(journal, item)), 'hint box-catches'),
+          );
         return;
       }
       const slot = typeof item === 'object' ? item : undefined;
@@ -1117,7 +1142,11 @@ export class Screens {
           (v) => setSlot(v === '' ? null : slotOf({ ...DEFAULT_TACKLE, lure: v as LureId })),
         ),
       );
-      if (slot) editor.append(this.lureHintRow(slot.lure, lureHint(slot.lure)));
+      if (slot)
+        editor.append(
+          this.lureHintRow(slot.lure, lureHint(slot.lure)),
+          h('p', catchesText(baitSummary(journal, slot)), 'hint box-catches'),
+        );
       if (slot?.lure === 'jig')
         editor.append(
           this.choice(
@@ -2575,6 +2604,24 @@ export class Screens {
     });
     return row;
   }
+}
+
+const fishCount = (n: number) => (n === 1 ? t('box.fishOne') : t('box.fishMany', { n }));
+
+/** Vieheen saaliit ja parhaat olot viehepakin vihjeeseen (#415). */
+function catchesText(s: BaitSummary): string {
+  if (s.count === 0) return t('box.noCatches');
+  const catches = t('box.catches', {
+    fish: fishCount(s.count),
+    species: s.species.map(([id, n]) => `${speciesName(id).toLocaleLowerCase()} ${n}`).join(', '),
+  });
+  if (!s.best) return catches;
+  return t('box.catchesBest', {
+    catches,
+    sky: t(`journal.sky.${s.best.sky}`),
+    time: t(`journal.time.${s.best.timeOfDay}`),
+    depth: t(`journal.depth.${s.best.depth}`),
+  });
 }
 
 /** Aloituspaikan kuvaus asetuksiin. */
