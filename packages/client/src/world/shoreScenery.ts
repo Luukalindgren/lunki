@@ -7,10 +7,12 @@ import {
   type AreaKind,
   type LakeMap,
   type LakeSurroundings,
+  type Season,
   type Vec2,
 } from '@lunki/shared';
 import { spriteMipmaps } from '../engine/pixelMipmaps';
 import { Ground } from './ground';
+import { SEASON_COLORS, type SeasonColors } from './seasonColors';
 import { TREE_BAND } from './vegetation';
 
 /** Maankäyttö, jossa rannalla ei kasva metsää. */
@@ -31,6 +33,7 @@ export function createShoreScenery(
   map: LakeMap,
   surroundings?: LakeSurroundings,
   ground = new Ground(map, surroundings?.terrain ?? null),
+  season: Season = 'summer',
 ): THREE.Group {
   const group = new THREE.Group();
   group.name = 'shore-scenery';
@@ -43,7 +46,7 @@ export function createShoreScenery(
   });
   const isWater = ringWaterTest(map.shore, map.islands);
   const line = (ring: Vec2[], inland: number, heightScale: number) =>
-    treeLine(ring, cover, ground, isWater, material, inland, heightScale);
+    treeLine(ring, cover, ground, isWater, material, inland, heightScale, SEASON_COLORS[season]);
   group.add(line(resample(map.shore, STEP), INLAND, 1));
   // Saaret ovat kapeita: siluetti saaren sisään, ja luotojen puut ovat matalampia.
   for (const island of map.islands) {
@@ -61,6 +64,7 @@ function treeLine(
   material: THREE.Material,
   inland: number,
   heightScale: number,
+  look: SeasonColors,
 ): THREE.Mesh {
   const n = ring.length;
   const positions: number[] = [];
@@ -69,9 +73,9 @@ function treeLine(
   let along = 0;
   let last: Vec2 | null = null;
   const index: number[] = [];
-  const dark = new THREE.Color(0x1f3d22);
-  const mid = new THREE.Color(0x2d5a2c);
-  const birch = new THREE.Color(0x4d7a3a);
+  const dark = new THREE.Color(look.treeLine.dark);
+  const mid = new THREE.Color(look.treeLine.mid);
+  const birch = new THREE.Color(look.treeLine.birch);
   const c = new THREE.Color();
   for (let i = 0; i < n; i++) {
     const prev = ring[(i - 1 + n) % n]!;

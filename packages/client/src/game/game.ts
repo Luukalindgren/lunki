@@ -17,6 +17,7 @@ import {
   createFishing,
   clockAt,
   daylight,
+  seasonOf,
   lerpAngle,
   rodTip,
   ChatLimiter,
@@ -32,6 +33,7 @@ import {
   type FishPopulation,
   type FishingState,
   type Penalty,
+  type Season,
   type SpoutFlight,
   type LakeMap,
   type RecordEntry,
@@ -253,7 +255,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     this.scene.background = new THREE.Color(LAND_COLOR);
     this.weather = new WeatherController(this, this.scene, this.waterWaves, seed);
     this.scene.add(...this.weather.groups);
-    const lake = createLakeMesh(map, this.waterWaves);
+    const lake = createLakeMesh(map, this.waterWaves, seasonOf(settings));
     this.topViewOnly = lake.children.filter((c) => c.name === 'reeds' || c.name === 'island');
     this.scene.add(lake);
     const { swellPatch, flightShadow } = this.weather.waterParts;
@@ -264,7 +266,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     this.scene.add(this.fishShadow.mesh, this.fishSigns.group);
     this.scene.add(this.tubeMesh, this.boatsView.group, this.anchorView.group);
     this.scene.add(flightShadow);
-    this.world = staticWorldFor(map);
+    this.world = staticWorldFor(map, seasonOf(settings));
     this.scenery.visible = false;
     this.scene.add(this.scenery, this.mapOverlay);
     this.attachWorld();
@@ -556,12 +558,17 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
 
   /** Pelikello (tuntia 0–24): alkaa vuorokaudenajan mukaan ja etenee kisakellon mukana. */
   get clock(): number {
-    return clockAt(this.settings.timeOfDay ?? 'day', this.competition.elapsed);
+    return clockAt(this.settings.timeOfDay ?? 'day', this.competition.elapsed, this.season);
+  }
+
+  /** Kisan vuodenaika (#427): auringon rata, maisema ja kalojen kausi. */
+  get season(): Season {
+    return seasonOf(this.settings);
   }
 
   /** Päivänvalo ja hämäryys nyt: kalojen syönti ja äänimaailma seuraavat tätä. */
   get daylight() {
-    return daylight(this.clock);
+    return daylight(this.clock, this.season);
   }
 
   /** Paletin sävytys jälkikäsittelyyn (vuorokaudenaika ja salama). */

@@ -16,6 +16,7 @@ import {
   type LureId,
   type Penalty,
   type RodId,
+  type Season,
   type Sky,
   type SpeciesId,
   type Tackle,
@@ -62,6 +63,7 @@ export const flyLineHint = (id: FlyLineId) => t(`flyLine.${id}.hint`);
 export const flyLeaderName = (id: FlyLeaderId) => t(`flyLeader.${id}`);
 export const skyName = (sky: Sky) => t(`sky.${sky}`);
 export const timeOfDayName = (v: TimeOfDay) => t(`timeOfDay.${v}`);
+export const seasonName = (v: Season) => t(`season.${v}`);
 export const difficultyName = (d: Difficulty) => t(`difficulty.${d}`);
 export const winRuleName = (w: WinRule) => t(`winRule.${w}`);
 export const penaltyName = (p: Penalty) => t(`penalty.${p}`);

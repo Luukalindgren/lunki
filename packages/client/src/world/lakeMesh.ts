@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import type { LakeMap, Vec2 } from '@lunki/shared';
+import type { LakeMap, Season, Vec2 } from '@lunki/shared';
 import { DEPTH_PIXEL, DEPTH_SHADE_GLSL, DEPTH_TEX_RANGE } from './depthShade';
+import { SEASON_COLORS } from './seasonColors';
 
 /** Pelikoordinaatti (x itään, y pohjoiseen) → Three.js-maailma (x, 0, -y). */
 export const toWorld = (p: Vec2, height = 0): THREE.Vector3 => new THREE.Vector3(p.x, height, -p.y);
@@ -11,7 +12,12 @@ const toShapePoints = (ring: readonly Vec2[]) => ring.map((p) => new THREE.Vecto
  * Prototyypin järvi: tasainen maa, vesialue saarineen ja rantaviiva.
  * Muodot piirretään XY-tasoon ja käännetään vaakatasoon (y → -z).
  */
-export function createLakeMesh(map: LakeMap, waves = createWaterWaves()): THREE.Group {
+export function createLakeMesh(
+  map: LakeMap,
+  waves = createWaterWaves(),
+  season: Season = 'summer',
+): THREE.Group {
+  const colors = SEASON_COLORS[season];
   const group = new THREE.Group();
   group.name = 'lake';
 
@@ -21,7 +27,7 @@ export function createLakeMesh(map: LakeMap, waves = createWaterWaves()): THREE.
   // heittelevät lähellä kameraa niin, että maa voi peittää veden POV-näkymässä.
   const land = new THREE.Mesh(
     new THREE.PlaneGeometry(maxX - minX + margin * 2, maxY - minY + margin * 2, 48, 48),
-    new THREE.MeshLambertMaterial({ color: 0x3b7337 }),
+    new THREE.MeshLambertMaterial({ color: colors.ground }),
   );
   land.rotation.x = -Math.PI / 2;
   land.position.set((minX + maxX) / 2, -0.3, -(minY + maxY) / 2);
@@ -35,7 +41,7 @@ export function createLakeMesh(map: LakeMap, waves = createWaterWaves()): THREE.
   group.add(water);
 
   // Saaret: matala maakansi, jotta POV-näkymän karkea maasto ei näy veden alta.
-  const islandMaterial = new THREE.MeshLambertMaterial({ color: 0x2d5a30 });
+  const islandMaterial = new THREE.MeshLambertMaterial({ color: colors.island });
   for (const island of map.islands) {
     const cap = new THREE.Mesh(
       new THREE.ShapeGeometry(new THREE.Shape(toShapePoints(island))),
@@ -49,7 +55,7 @@ export function createLakeMesh(map: LakeMap, waves = createWaterWaves()): THREE.
 
   // Kaislikot: harvoja kaislatupsuja, joiden välistä vesi näkyy (kaislaspritet ks. vegetation.ts).
   const reedMaterial = new THREE.MeshBasicMaterial({
-    map: createReedTexture(),
+    map: createReedTexture(colors.reedsTop),
     alphaTest: 0.5,
     depthWrite: false,
   });
@@ -85,13 +91,12 @@ const REED_TUFTS = 56;
  * (muutama pikselin mittainen korsi). Suurin osa kuvasta on tyhjää, jotta
  * vesi näkyy alta ja kaislikko erottuu saaresta.
  */
-function createReedTexture(): THREE.Texture {
+function createReedTexture(colors: readonly string[]): THREE.Texture {
   const size = 64;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d')!;
-  const colors = ['#a3c45a', '#6a9a3e', '#3b7337', '#e0cf9c'];
   let seed = 11;
   const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   const dot = (x: number, y: number) =>

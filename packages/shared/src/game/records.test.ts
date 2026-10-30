@@ -45,6 +45,12 @@ describe('yksinpelin saaliin tarkistus', () => {
     });
   });
 
+  it('vuodenaika tallentuu, talvi ja tuntematon jätetään pois (#427)', () => {
+    expect(parseSoloRecord({ ...valid, season: 'spring' }, now)?.season).toBe('spring');
+    expect(parseSoloRecord({ ...valid, season: 'winter' }, now)?.season).toBeUndefined();
+    expect(parseSoloRecord({ ...valid, season: 'x' }, now)?.season).toBeUndefined();
+  });
+
   it('myöhässä lähetetty saalis pitää saantihetkensä, jos se on uskottava', () => {
     const at = '2026-10-20T18:30:00.000Z';
     expect(parseSoloRecord({ ...valid, at }, now)).toMatchObject({ date: '2026-10-20', at });

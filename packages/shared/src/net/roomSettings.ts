@@ -8,6 +8,13 @@ import {
   isTimeOfDay,
   type TimeOfDay,
 } from '../weather/timeOfDay';
+import {
+  SEASONS,
+  SEASON_IDS,
+  SEASON_NAMES,
+  isPlayableSeason,
+  type Season,
+} from '../weather/season';
 import { WEATHER_LEVELS, WEATHER_LEVEL_IDS, type WeatherLevel } from '../weather/weather';
 import type { Vec2 } from '../vec2';
 import { MAX_PLAYERS_LIMIT } from './protocol';
@@ -22,6 +29,8 @@ export interface RoomSettings extends CompetitionSettings {
   weather: WeatherLevel;
   /** Vuorokaudenaika. */
   timeOfDay: TimeOfDay;
+  /** Vuodenaika (#427). */
+  season: Season;
   /** Salaman rangaistus. */
   lightningPenalty: Penalty;
   /** Renkaan kaatumisen rangaistus. */
@@ -58,6 +67,11 @@ export const WEATHER_OPTIONS: { value: WeatherLevel; label: string; ready: boole
 
 export const TIME_OF_DAY_OPTIONS: { value: TimeOfDay; label: string }[] = TIME_OF_DAY_IDS.map(
   (id) => ({ value: id, label: TIME_OF_DAY_NAMES[id] }),
+);
+
+/** Vuodenajat; talvi näkyy, mutta tulee käyttöön pilkkikauden mukana (#140). */
+export const SEASON_OPTIONS: { value: Season; label: string; ready: boolean }[] = SEASON_IDS.map(
+  (id) => ({ value: id, label: SEASON_NAMES[id], ready: SEASONS[id].available }),
 );
 
 export const LIGHTNING_PENALTY_OPTIONS: { value: Penalty; label: string; ready: boolean }[] =
@@ -111,6 +125,7 @@ export function validateSettingsPatch(
   if (readyValues(WEATHER_OPTIONS).includes(p.weather as WeatherLevel))
     out.weather = p.weather as WeatherLevel;
   if (isTimeOfDay(p.timeOfDay)) out.timeOfDay = p.timeOfDay;
+  if (isPlayableSeason(p.season)) out.season = p.season;
   if (readyValues(LIGHTNING_PENALTY_OPTIONS).includes(p.lightningPenalty as Penalty))
     out.lightningPenalty = p.lightningPenalty as Penalty;
   if (readyValues(CAPSIZE_PENALTY_OPTIONS).includes(p.capsizePenalty as Penalty))

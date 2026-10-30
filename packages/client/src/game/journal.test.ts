@@ -14,6 +14,7 @@ const entry = (over: Partial<JournalEntry> = {}): JournalEntry => ({
   bait: { lure: 'spoon' },
   sky: 'calm',
   timeOfDay: 'day',
+  season: 'summer',
   depth: 1.5,
   x: 10,
   y: 20,
@@ -58,8 +59,8 @@ describe('saalispäiväkirja (#415)', () => {
     expect(baitSummary(two, { lure: 'spoon' }).best).toBeNull();
     const journal = [
       ...two,
-      entry({ species: 'pike', sky: 'rain', timeOfDay: 'morning', depth: 2.4 }),
-      entry({ species: 'pike', sky: 'rain', timeOfDay: 'morning', depth: 2.6 }),
+      entry({ species: 'pike', sky: 'rain', timeOfDay: 'morning', season: 'autumn', depth: 2.4 }),
+      entry({ species: 'pike', sky: 'rain', timeOfDay: 'morning', season: 'autumn', depth: 2.6 }),
       entry({ species: 'pike', sky: 'calm', timeOfDay: 'day', depth: 6 }),
     ];
     expect(baitSummary(journal, { lure: 'spoon' })).toEqual({
@@ -68,7 +69,7 @@ describe('saalispäiväkirja (#415)', () => {
         ['pike', 3],
         ['perch', 2],
       ],
-      best: { sky: 'rain', timeOfDay: 'morning', depth: depthBand(2.5) },
+      best: { season: 'summer', sky: 'rain', timeOfDay: 'morning', depth: depthBand(2.5) },
     });
     expect([0.2, 1, 1.9, 2, 4.9, 5, 12].map(depthBand)).toEqual([0, 1, 1, 2, 3, 4, 4]);
   });

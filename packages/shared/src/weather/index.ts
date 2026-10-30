@@ -4,3 +4,4 @@ export * from './lightning';
 export * from './bigWaves';
 export * from './waterspout';
 export * from './timeOfDay';
+export * from './season';

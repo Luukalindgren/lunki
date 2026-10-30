@@ -9,6 +9,7 @@ import {
   formatRoomCode,
   formatTime,
   isTimeOfDay,
+  isPlayableSeason,
   isFly,
   isValidStart,
   isWeatherLevel,
@@ -19,6 +20,7 @@ import {
   type CatchRecord,
   type CompetitionSettings,
   type TimeOfDay,
+  type Season,
   type WeatherLevel,
 } from '@lunki/shared';
 import { FpsMeter } from './engine/fpsMeter';
@@ -391,6 +393,7 @@ function weighCardFor(g: Game): WeighCardInfo | null {
     angler: g.ownName ?? loadIdentity().name,
     appearance: g.appearance,
     timeOfDay: g.settings.timeOfDay ?? 'day',
+    season: g.season,
     spot: biggest.at ? describeSpot(biggest.at) : null,
     date: new Date(),
   };
@@ -752,6 +755,9 @@ if (params.has('bench')) {
     timeOfDay: isTimeOfDay(params.get('time'))
       ? (params.get('time') as TimeOfDay)
       : settings.timeOfDay,
+    season: isPlayableSeason(params.get('season'))
+      ? (params.get('season') as Season)
+      : settings.season,
     durationMinutes: Number(params.get('minutes') ?? settings.durationMinutes),
   });
 } else {

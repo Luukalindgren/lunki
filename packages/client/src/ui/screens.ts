@@ -33,6 +33,8 @@ import {
   type Penalty,
   PLAYER_COUNTS,
   SPECIES_OPTIONS,
+  SEASON_IDS,
+  SEASONS,
   TIME_OF_DAY_IDS,
   WEATHER_LEVEL_IDS,
   WIN_RULE_NAMES,
@@ -42,7 +44,9 @@ import {
   UNTIMED,
   isUntimed,
   formatTime,
+  isPlayableSeason,
   isTimeOfDay,
+  seasonOf,
   isWeatherLevel,
   summarize,
   type CompetitionSettings,
@@ -63,6 +67,7 @@ import {
   type RecordBoard,
   type RecordMode,
   type RecordEntry,
+  type Season,
   type TimeOfDay,
   type WeatherLevel,
   type WinRule,
@@ -155,6 +160,7 @@ import {
   tackleLureName,
   lureLabel,
   speciesName,
+  seasonName,
   timeOfDayName,
   weatherLevelName,
   winRuleName,
@@ -262,6 +268,9 @@ const difficultyOptions = (): [string, string][] =>
   (Object.keys(DIFFICULTY_NAMES) as Difficulty[]).map((d) => [d, difficultyName(d)]);
 const timeOfDayOptions = (): [string, string][] =>
   TIME_OF_DAY_IDS.map((v) => [v, timeOfDayName(v)]);
+/** Talvi näkyy, mutta ei ole valittavissa ennen pilkkikautta (#427, #140). */
+const seasonOptions = (): [string, string, boolean][] =>
+  SEASON_IDS.map((v) => [v, seasonName(v), !SEASONS[v].available]);
 const weatherOptions = (): [string, string][] =>
   WEATHER_LEVEL_IDS.map((v) => [v, weatherLevelName(v)]);
 const penaltyOptions = (): [string, string][] => PENALTY_IDS.map((p) => [p, penaltyName(p)]);
@@ -293,6 +302,7 @@ export function loadSettings(defaults: CompetitionSettings): CompetitionSettings
         species: saved.species ? migrateSpecies(saved.species, speciesVersion) : defaults.species,
         weather: isWeatherLevel(s.weather) ? s.weather : defaults.weather,
         timeOfDay: isTimeOfDay(s.timeOfDay) ? s.timeOfDay : defaults.timeOfDay,
+        season: isPlayableSeason(s.season) ? s.season : defaults.season,
         lightningPenalty: isPenalty(s.lightningPenalty)
           ? s.lightningPenalty
           : defaults.lightningPenalty,
@@ -583,11 +593,18 @@ export class Screens {
       h('p', t('settings.difficultyHint'), 'hint'),
       this.speciesChoice(settings.species ?? [], (list) => (settings.species = list)),
       this.choice(
+        t('settings.season'),
+        seasonOptions(),
+        seasonOf(settings),
+        (v) => (settings.season = v as Season),
+      ),
+      this.choice(
         t('settings.timeOfDay'),
         timeOfDayOptions(),
         settings.timeOfDay ?? 'day',
         (v) => (settings.timeOfDay = v as TimeOfDay),
       ),
+      h('p', t('settings.seasonHint'), 'hint'),
       this.choice(
         t('settings.weather'),
         weatherOptions(),
@@ -835,7 +852,13 @@ export class Screens {
     }
     panel.append(
       v.amHost
-        ? this.settingsEditor(v.settings, anglers, actions.onSettings, actions.onPickStart)
+        ? this.settingsEditor(
+            v.settings,
+            anglers,
+            actions.onSettings,
+            actions.onPickStart,
+            v.canSeason,
+          )
         : this.settingsSummary(v.settings),
       // Katsoja ei kalasta, joten varusteita ei tarvita. Varusteet päävalikosta (#383).
       ...(me?.spectator ? [] : [this.tackleNote(me?.tackle ?? DEFAULT_TACKLE)]),
@@ -2262,6 +2285,7 @@ export class Screens {
     playerCount: number,
     change: (patch: Partial<RoomSettings>) => void,
     pickStart: () => void,
+    canSeason: boolean,
   ): HTMLElement {
     const box = document.createElement('div');
     box.className = 'settings';
@@ -2286,9 +2310,18 @@ export class Screens {
         (v) => change({ maxPlayers: Number(v) }),
       ),
       this.speciesChoice(s.species, (species) => change({ species })),
+      // Vanha palvelin ei tunne kausia: kisa on silloin aina kesällä.
+      ...(canSeason
+        ? [
+            this.choice(t('settings.season'), seasonOptions(), s.season, (v) =>
+              change({ season: v as Season }),
+            ),
+          ]
+        : []),
       this.choice(t('settings.timeOfDay'), timeOfDayOptions(), s.timeOfDay, (v) =>
         change({ timeOfDay: v as TimeOfDay }),
       ),
+      ...(canSeason ? [h('p', t('settings.seasonHint'), 'hint')] : []),
       this.choice(t('settings.weather'), weatherOptions(), s.weather, (v) =>
         change({ weather: v as WeatherLevel }),
       ),
@@ -2605,6 +2638,7 @@ export class Screens {
       [t('settings.winRule'), winRuleName(s.winRule)],
       [t('settings.difficultyShort'), difficultyName(s.difficulty)],
       [t('settings.maxPlayers'), String(s.maxPlayers)],
+      [t('settings.season'), seasonName(s.season)],
       [t('settings.timeOfDay'), timeOfDayName(s.timeOfDay)],
       [t('settings.weather'), weatherLevelName(s.weather)],
       [
@@ -2680,6 +2714,7 @@ function catchesText(s: BaitSummary): string {
   if (!s.best) return catches;
   return t('box.catchesBest', {
     catches,
+    season: t(`journal.season.${s.best.season}`),
     sky: t(`journal.sky.${s.best.sky}`),
     time: t(`journal.time.${s.best.timeOfDay}`),
     depth: t(`journal.depth.${s.best.depth}`),

@@ -13,7 +13,7 @@ export const ROOM_NAME = 'lunki';
  * uudelleen: asiakas ei lähetä vanhemmalle palvelimelle viestejä, joita se
  * ei tunne. Vanha palvelin ilman kenttää = 1.
  */
-export const PROTOCOL_VERSION = 10;
+export const PROTOCOL_VERSION = 11;
 /** Chat tuli versiossa 2. */
 export const CHAT_PROTOCOL = 2;
 /** Maalle juuttuneen vieheen siiman katkaisu (ClientMsg.landCut) tuli versiossa 3. */
@@ -44,6 +44,11 @@ export const SEAT_PROTOCOL = 9;
  * tulivat versiossa 10. Vanhan palvelimen kanssa näkyvät vain omat tilastot.
  */
 export const STATS_PROTOCOL = 10;
+/**
+ * Vuodenaika (#427): SettingsState.season tuli versiossa 11. Vanha palvelin
+ * ei tunne kautta, joten aula ei silloin tarjoa sitä ja kisa on kesällä.
+ */
+export const SEASON_PROTOCOL = 11;
 
 /** Oletuspelaajamäärä huoneessa. Rakenne sallii isomman. */
 export const DEFAULT_MAX_PLAYERS = 8;
