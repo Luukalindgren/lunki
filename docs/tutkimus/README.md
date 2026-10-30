@@ -13,3 +13,4 @@ vaihtoehtoja eivätkä ole pelin nykyistä koodia.
 | #413  | Sama kisa uudelleen ja haaste kaverille         |
 | #414  | Ukkosrintama näkyy taivaalla ennen ukkosta      |
 | #415  | Saalispäiväkirja: mikä viehe toimi missä säässä |
+| #427  | Vuodenajat: kevät, kesä ja syksy                |
