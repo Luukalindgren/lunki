@@ -816,6 +816,7 @@ export const fi = {
   'game.otherCut': '{name} katkaisi siimansa – jatka',
   'game.capsizeTimeOut': 'Kaatumisen jäähy',
   'game.capsized': 'Kaaduit!',
+  'game.coldWater': 'Kylmä vesi: jäähy on tavallista pidempi',
   'game.spoutGrabbed': 'Trombi nappasi sinut!',
   'game.spoutTipped': 'Trombi kaatoi sinut!',
   'game.capsizeHint': 'Käänny aaltoa kohti, niin pysyt pystyssä',

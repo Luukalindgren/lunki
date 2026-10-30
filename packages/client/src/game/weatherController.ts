@@ -16,6 +16,8 @@ import {
   planWaterspouts,
   planWeather,
   seasonOf,
+  capsizeTimeOut,
+  isColdWater,
   resolveStrike,
   rodTip,
   spoutAffects,
@@ -95,7 +97,7 @@ export interface WeatherHost {
   readonly clock: number;
   readonly daylight: Daylight;
   /** Rangaistus omasta osumasta: kalastus nollataan. Palauttaa seurauksen tekstinä. */
-  punish(penalty: Penalty, label: string): string;
+  punish(penalty: Penalty, label: string, timeOut?: number): string;
   /** Kaatuminen tai salama tulossivun karttaan. */
   logEvent(kind: 'capsize' | 'lightning', pos: Vec2): void;
   /** Roiske vedessä (laskeutuminen lennosta). */
@@ -174,7 +176,7 @@ export class WeatherController {
     this.mist = new MistView((p) => water.isWater(p), map.bounds, waterWaves);
     scene.add(this.sky.dome, this.mist.group);
     const planS = planSeconds(settings);
-    const plan = planWeather(seed, settings.weather ?? 'realistic', planS);
+    const plan = planWeather(seed, settings.weather ?? 'realistic', planS, seasonOf(settings));
     this.view = new WeatherView(plan);
     this.strikes = host.netWorld ? [] : planLightning(plan, seed, planS);
     this.bigWaves = planBigWaves(plan, seed, planS);
@@ -381,11 +383,17 @@ export class WeatherController {
     if (!host.netWorld) host.logEvent('capsize', this.flight?.from ?? host.tube.pos);
     host.sounds.play(cause === 'spout' ? 'spoutCapsized' : 'capsized');
     const kind = host.settings.capsizePenalty ?? 'none';
-    const penalty = host.punish(kind, t('game.capsizeTimeOut'));
-    // Syy ja ohje kumossa-ajastimen alle; jäähy näkyy omana rivinään.
+    const season = seasonOf(host.settings);
+    const penalty = host.punish(kind, t('game.capsizeTimeOut'), capsizeTimeOut(season));
+    // Syy ja ohje kumossa-ajastimen alle; jäähy näkyy omana rivinään, ja
+    // kylmä vesi (#427) kertoo, miksi se on tavallista pidempi.
     host.penalties.setNote(
       `${t(cause === 'wave' ? 'game.capsized' : this.flight ? 'game.spoutGrabbed' : 'game.spoutTipped')} ${t(cause === 'wave' ? (host.inBoat ? 'game.capsizeHintBoat' : 'game.capsizeHint') : this.flight ? 'game.flightHint' : 'game.spoutHint')}`,
-      kind === 'lose-catch' ? penalty : '',
+      kind === 'lose-catch'
+        ? penalty
+        : kind === 'time-out' && isColdWater(season)
+          ? t('game.coldWater')
+          : '',
     );
   }
 

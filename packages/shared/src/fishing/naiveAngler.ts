@@ -4,6 +4,7 @@ import { WaterBody } from '../map/waterBody';
 import { findLaunchPoint } from '../map/geometry';
 import { Rng } from '../rng';
 import type { Vec2 } from '../vec2';
+import type { Season } from '../weather/season';
 import { CAST, rodTip } from './cast';
 import { DIFFICULTIES, type Difficulty } from './difficulty';
 import {
@@ -60,11 +61,12 @@ export function simulateNaiveAngler(
   difficulty: Difficulty,
   seed: number,
   minutes = 10,
-  opts: { dt?: number; move?: number; cond?: FishConditions } = {},
+  opts: { dt?: number; move?: number; cond?: FishConditions; season?: Season } = {},
 ): NaiveResult {
   const dt = opts.dt ?? 1 / 30;
   const move = opts.move ?? 120;
-  const cond = opts.cond ?? DAYTIME;
+  const season = opts.season ?? 'summer';
+  const cond = { ...(opts.cond ?? DAYTIME), season };
   const { water, bottom } = lunkinjarvi();
   const rng = new Rng(seed);
   const me = new Rng(seed ^ 0x9e3779b9);
@@ -78,6 +80,7 @@ export function simulateNaiveAngler(
     rng,
     FISH_COUNT,
     [...NATIVE_SPECIES],
+    season,
   );
   const diff = DIFFICULTIES[difficulty];
   const s = createFishing();

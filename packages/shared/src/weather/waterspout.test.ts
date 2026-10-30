@@ -37,6 +37,20 @@ describe('trombi', () => {
     expect(chaos).toBeGreaterThan(some * 2);
   });
 
+  it('vain kesällä (#427)', () => {
+    let n = 0;
+    for (let seed = 1; seed <= 60; seed++)
+      for (const season of ['spring', 'autumn'] as const)
+        n += planWaterspouts(
+          planWeather(seed, 'chaos', 1800, season),
+          seed,
+          1800,
+          water,
+          bounds,
+        ).length;
+    expect(n).toBe(0);
+  });
+
   it('syntyy ukkosella tai myrskyllä ja pysyy vedessä', () => {
     for (let seed = 1; seed <= 20; seed++) {
       const weather = planWeather(seed, 'chaos', 1800);

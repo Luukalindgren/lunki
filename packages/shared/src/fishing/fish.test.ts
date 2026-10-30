@@ -27,6 +27,7 @@ import {
   type LureInfo,
 } from './fish';
 import { catchRadius } from '../net/castCheck';
+import type { Season } from '../weather/season';
 import type { WeatherNow } from '../weather/weather';
 import {
   createFishing,
@@ -402,6 +403,35 @@ describe('kalakanta palvelimen tarkistettavissa', () => {
     let h = 0x811c9dc5;
     for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193) >>> 0;
     expect(`${h} ${pop.fish.length}`).toBe('3891251101 600');
+  });
+
+  it('kausi muuttaa vain painoja ja käytöstä, ei kalakannan arvontaa (#427)', () => {
+    const summer = createFishPopulation(lake, bounds, new Rng(9), 300);
+    const autumn = createFishPopulation(lake, bounds, new Rng(9), 300, undefined, 'autumn');
+    const spring = createFishPopulation(lake, bounds, new Rng(9), 300, undefined, 'spring');
+    const where = (p: typeof summer) => p.fish.map((f) => [f.species, f.pos.x, f.pos.y]);
+    expect(where(autumn)).toEqual(where(summer));
+    expect(where(spring)).toEqual(where(summer));
+    const pikeKg = (p: typeof summer) =>
+      p.fish.filter((f) => f.species === 'pike').reduce((a, f) => a + f.weight, 0);
+    // Syyshauki on lihava ja isoja on enemmän, kevään hauki kudun jäljiltä laiha.
+    expect(pikeKg(autumn)).toBeGreaterThan(pikeKg(summer) * 1.05);
+    expect(pikeKg(spring)).toBeLessThan(pikeKg(summer));
+    // Muiden lajien painot pysyvät, ja palvelin laskee saman painon.
+    const perch = summer.fish.findIndex((f) => f.species === 'perch');
+    expect(autumn.fish[perch]!.weight).toBe(summer.fish[perch]!.weight);
+    autumn.fish.forEach((f, i) => expect(f.weight).toBe(stockWeight(autumn, i, 0)));
+  });
+
+  it('kausi muuttaa lajien syöntiä: syksyllä hauki ja made, keväällä taimen (#427)', () => {
+    const at = (id: SpeciesId, season: Season) =>
+      speciesActivity(id, fishConditions(null, { light: 1, twilight: 0 }, season));
+    expect(at('pike', 'autumn')).toBeGreaterThan(at('pike', 'summer') * 1.4);
+    expect(at('burbot', 'autumn')).toBeGreaterThan(at('burbot', 'summer') * 2);
+    expect(at('trout', 'spring')).toBeGreaterThan(at('trout', 'summer') * 1.5);
+    expect(at('carp', 'spring')).toBeLessThan(at('carp', 'summer') * 0.5);
+    expect(at('zander', 'spring')).toBeLessThan(at('zander', 'summer'));
+    expect(at('ruffe', 'autumn')).toBe(at('ruffe', 'summer'));
   });
 
   it('sukupolvet saavat eri painot', () => {

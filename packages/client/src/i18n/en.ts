@@ -812,6 +812,7 @@ export const en: Record<keyof typeof fi, string> = {
   'game.otherCut': '{name} cut their line – carry on',
   'game.capsizeTimeOut': 'Capsize time-out',
   'game.capsized': 'You capsized!',
+  'game.coldWater': 'Cold water: the time-out is longer than usual',
   'game.spoutGrabbed': 'The waterspout grabbed you!',
   'game.spoutTipped': 'The waterspout tipped you over!',
   'game.capsizeHint': 'Face the wave to stay upright',

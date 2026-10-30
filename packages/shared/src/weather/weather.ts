@@ -1,5 +1,6 @@
 import { Rng } from '../rng';
 import type { Vec2 } from '../vec2';
+import { DEFAULT_SEASON, type Season } from './season';
 
 /** Säätila: tyynestä myrskyyn. Trombi on erillinen tapahtuma (vaihe 4). */
 export type Sky = 'calm' | 'windy' | 'rain' | 'thunder' | 'storm';
@@ -136,33 +137,65 @@ export interface WeatherSegment {
 export interface WeatherPlan {
   level: WeatherLevel;
   segments: WeatherSegment[];
+  /** Vuodenaika (#427); puuttuu = kesä. Trombit ovat vain kesällä. */
+  season?: Season;
 }
+
+/**
+ * Vuodenajan sää (#427): säätaso päättää, kuinka paljon säätä on, ja kausi,
+ * millaista se on. Painot kertovat tilojen todennäköisyyksiä ja `wind`
+ * tuulen nopeutta. Kesä on pelin alkuperäinen sää.
+ */
+export const SEASON_WEATHER: Record<
+  Season,
+  { weights: Partial<Record<Sky, number>>; wind: number }
+> = {
+  // Tuulista ja selkeää, kylmiä kuuroja; ukkonen harvinainen.
+  spring: { weights: { windy: 1.4, rain: 1.1, thunder: 0.25, storm: 0.5 }, wind: 1 },
+  summer: { weights: {}, wind: 1 },
+  // Syysmyrskyt ja pitkät sateet, ukkosta tuskin lainkaan.
+  autumn: { weights: { calm: 0.8, rain: 1.5, thunder: 0.1, storm: 2 }, wind: 1.15 },
+  winter: { weights: {}, wind: 1 },
+};
+
+const seasonWeights = (w: Partial<Record<Sky, number>>, season: Season) => {
+  const k = SEASON_WEATHER[season].weights;
+  return Object.fromEntries(
+    Object.entries(w).map(([sky, v]) => [sky, v * (k[sky as Sky] ?? 1)]),
+  ) as Partial<Record<Sky, number>>;
+};
 
 /**
  * Sää koko kisan ajaksi etukäteen siemenestä: palvelin ja asiakkaat laskevat
  * saman suunnitelman, joten sään ei tarvitse kulkea verkossa.
  */
-export function planWeather(seed: number, level: WeatherLevel, durationS: number): WeatherPlan {
+export function planWeather(
+  seed: number,
+  level: WeatherLevel,
+  durationS: number,
+  season: Season = DEFAULT_SEASON,
+): WeatherPlan {
   const spec = WEATHER_LEVELS[level];
   const rng = new Rng(seed ^ 0x3c6ef372);
   const segments: WeatherSegment[] = [];
-  let sky = pick(spec.initial, rng);
+  const windScale = SEASON_WEATHER[season].wind;
+  let sky = pick(seasonWeights(spec.initial, season), rng);
   let dir = rng.range(-Math.PI, Math.PI);
   let t = 0;
   // Varaa hieman yli kisan keston, jotta viimeinen siirtymä on määritelty.
   while (t < durationS + WEATHER.warning) {
     const [lo, hi] = SKY_EFFECTS[sky].wind;
     // Aina tyyni = ei tuulta lainkaan (renkaat eivät ajelehdi).
-    const windSpeed = level === 'calm' ? 0 : round2(rng.range(lo, hi));
+    const windSpeed = level === 'calm' ? 0 : round2(rng.range(lo, hi) * windScale);
     segments.push({ start: t, sky, windSpeed, windDir: round2(dir) });
     const mean = spec.meanMinutes[sky] * 60;
     if (!Number.isFinite(mean)) break;
     // Eksponenttijakauma: muutos voi tulla milloin vain, keskimäärin `mean` välein.
     t += Math.max(WEATHER.minSegment, -Math.log(1 - rng.next()) * mean);
-    sky = pick(spec.next[sky], rng);
+    sky = pick(seasonWeights(spec.next[sky], season), rng);
     dir = wrap(dir + rng.normal(0, WEATHER.veer));
   }
-  return { level, segments };
+  return season === DEFAULT_SEASON ? { level, segments } : { level, segments, season };
 }
 
 export type WeatherWarning = 'darkening' | 'rumble' | 'wind';
