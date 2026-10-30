@@ -175,6 +175,7 @@ source ~/.zshrc
 | `lunki ssh`          | Tavallinen SSH-istunto pelikoneelle                  |
 | `lunki lan`          | LAN-peli tältä Macilta ([docs/lan.md](lan.md))       |
 | `lunki palauteavain` | Avain palautteiden hakuun issueiksi (kohta 7)        |
+| `lunki pilvi …`      | Pilvipalvelin ([pilvipalvelin.md](pilvipalvelin.md)) |
 
 Oletuksena käytetään `~/.ssh/config`-oikotietä `lunki` ja pelikoneen kansiota
 `~\Projektit\lunki`. Toisen voi antaa ympäristömuuttujilla `LUNKI_SSH_HOST`

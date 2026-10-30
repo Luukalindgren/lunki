@@ -56,6 +56,7 @@ Valikosta "Moninpeli" luodaan huone, ja kaverit liittyvät koodilla
 | [kehitys.md](docs/kehitys.md)                     | Työtapa, issueiden tunnisteet ja yhtenäiset järjestelmät               |
 | [julkaisu.md](docs/julkaisu.md)                   | GitHub Pages, palvelin Cloudflare Tunnelin takana, service worker, SEO |
 | [windows-palvelin.md](docs/windows-palvelin.md)   | Palvelin pelikoneelle, etäkäynnistys SSH:lla, palautteet issueiksi     |
+| [pilvipalvelin.md](docs/pilvipalvelin.md)         | Valmius Hetznerin pilvikoneelle: kontti, päivitys, kone päälle ja pois |
 | [lan.md](docs/lan.md)                             | LAN-peli ilman nettiä: läppäri palvelimeksi                            |
 | [moninpeli.md](docs/moninpeli.md)                 | Verkkokoodi: ennakointi, kisan kulku, katkokset, sotkut, eleet         |
 | [kalalajit.md](docs/kalalajit.md)                 | Kalalajit, käyttäytyminen, vieheet, varusteet ja perhokalastus         |

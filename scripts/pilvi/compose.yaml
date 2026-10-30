@@ -1,0 +1,37 @@
+# Pelipalvelin pilvikoneella (docs/pilvipalvelin.md). Ajetaan repositorion
+# juuresta: docker compose -f scripts/pilvi/compose.yaml up -d --build
+#
+# Verkko on koneen oma (host), ja palvelin kuuntelee vain osoitetta 127.0.0.1:
+# pelaajat tulevat koneella pyörivän cloudflaredin kautta, joten portti 2567 ei
+# näy internetiin ja ipLimit.ts voi luottaa tunnelin X-Forwarded-For-otsakkeeseen.
+name: lunki
+services:
+  palvelin:
+    build:
+      context: ../..
+    image: lunki-palvelin
+    network_mode: host
+    environment:
+      LUNKI_HOST: 127.0.0.1
+      PORT: '2567'
+    volumes:
+      # Ennätykset, palaute, virheet ja palauteavain (palauteavain.txt).
+      - ${LUNKI_DATA:-/srv/lunki/data}:/data
+    restart: unless-stopped
+    mem_limit: 512m
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:2567/__healthcheck').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
