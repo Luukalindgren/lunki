@@ -330,8 +330,10 @@ function saveSettings(s: CompetitionSettings): void {
 /** Valikot ja ruudut (aloitus, tauko, tulokset) HUD:n päällä. */
 export class Screens {
   private readonly root: HTMLDivElement;
-  /** Aulan uudelleenpiirto, joka odottaa varuste- tai värinäkymän sulkemista. */
+  /** Aulan uudelleenpiirto, joka odottaa värinäkymän sulkemista. */
   private pendingLobby: (() => void) | null = null;
+  /** Värinäkymästä palataan: aula piirretään, vaikka näkymä on vielä auki. */
+  private leavingLobbySub = false;
   /** Näkymän siivous ennen seuraavaa (esim. kartan koon seuranta). */
   private cleanup: (() => void) | null = null;
   /** Tulossivulla valittuna saaliskartta (säilyy saman näkymän uudelleenpiirrossa). */
@@ -723,15 +725,23 @@ export class Screens {
   ): void {
     // Luettava ennen paneelin rakentamista: chatin siirto vanhasta paneelista
     // lyhentää sitä, ja selain siirtää vierityskohtaa ylös chatin korkeuden verran.
-    // Varusteet tai värit auki: aula piirretään vasta paluun jälkeen uusimmalla tilalla.
+    // Värit auki: aula piirretään vasta paluun jälkeen uusimmalla tilalla.
     const redraw = () => this.showLobby(v, link, actions, notice, chat);
     const open = (this.root.firstElementChild as HTMLElement | null)?.dataset.screen;
-    if (this.open && (open === 'lobby-tackle' || open === 'lobby-colors')) {
+    if (this.open && open === 'lobby-colors' && !this.leavingLobbySub) {
       this.pendingLobby = redraw;
       return;
     }
     this.pendingLobby = null;
-    const back = () => (this.pendingLobby ?? redraw)();
+    // Paluu ohittaa odotuksen: muuten aula jäisi odottamaan omaa sulkemistaan.
+    const back = () => {
+      this.leavingLobbySub = true;
+      try {
+        (this.pendingLobby ?? redraw)();
+      } finally {
+        this.leavingLobbySub = false;
+      }
+    };
     const scroll = this.scrollOf('lobby');
     const panel = this.panel('lobby');
     const me = v.players.find((p) => p.me);

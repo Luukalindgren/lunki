@@ -101,6 +101,32 @@ test('moninpeli: Chromium, Firefox ja iPhone samassa huoneessa', async ({ page: 
     }
     await expect(host.locator('.player-list li')).toHaveCount(3);
 
+    // Omat värit aulasta: värin vaihto päivittää aulan taustalla, ja Takaisin
+    // ja Esc palaavat aulaan uusimmalla tilalla (jäi jumiin värinäkymään).
+    const colors = host.locator('.screen-panel .summary-button');
+    await colors.click();
+    const swatch = host
+      .locator('.swatches')
+      .first()
+      .locator('button.swatch:not(.selected)')
+      .first();
+    const color = await swatch.evaluate((b) => (b as HTMLElement).style.background);
+    await swatch.click();
+    await host.getByRole('button', { name: 'Takaisin', exact: true }).click();
+    await expect(host.locator('.room-code')).toHaveText(code);
+    await expect
+      .poll(() =>
+        host
+          .locator('.player-list li .player-color')
+          .first()
+          .evaluate((e) => (e as HTMLElement).style.background),
+      )
+      .toBe(color);
+    await colors.click();
+    await expect(host.locator('[data-screen="lobby-colors"]')).toBeVisible();
+    await host.keyboard.press('Escape');
+    await expect(host.locator('.room-code')).toHaveText(code);
+
     // Chat kulkee selaimesta toiseen.
     const [ff, ios] = [guests[0]![0], guests[1]![0]];
     await ff.getByPlaceholder('Kirjoita viesti muille…').fill('terve kaikki');
