@@ -14,23 +14,23 @@ export interface AudioSettings {
   effects: VolumeLevel;
   /** Tuuli, sade ja linnut. */
   ambience: VolumeLevel;
-  /** Taustamusiikki (oletuksena pois). */
+  /** Taustamusiikki. */
   music: VolumeLevel;
   /** Soitettava raita tai vaihtuva. */
   musicTrack: MusicChoice;
   /** Puheäänet: käsimerkkien kirosanat ja huudahdukset (#229). */
   voice: VolumeLevel;
-  /** Kalastaja kiroilee myös tapahtumissa (siima poikki, kala karkasi…); oletuksena pois. */
+  /** Kalastaja kiroilee myös tapahtumissa (siima poikki, kala karkasi…). */
   eventVoices: boolean;
 }
 
 export const DEFAULT_AUDIO: AudioSettings = {
   effects: 2,
   ambience: 2,
-  music: 0,
+  music: 2,
   musicTrack: 'vaihtuva',
   voice: 2,
-  eventVoices: false,
+  eventVoices: true,
 };
 
 const VOLUME_KEYS = ['effects', 'ambience', 'music', 'voice'] as const;

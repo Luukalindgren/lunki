@@ -1,5 +1,6 @@
 import {
   CRANK_DEPTHS,
+  CRANK_DEPTH_IDS,
   FLIES,
   FLY_IDS,
   JIG_WEIGHTS,
@@ -37,10 +38,26 @@ export interface TackleBox {
   flies: FlyId[];
 }
 
-/** Aloittelijan pakki: kaikki vieheet ja perhot oletussäädöillä, kuten R-kierto ennen pakkia. */
+/**
+ * Aloittelijan pakin säädöt (Luuka 2026-10-30): vaappu kaikilla syvyyksillä
+ * ja jigi 5 ja 10 grammaisena. Muut vieheet ovat pakissa kerran.
+ */
+const BEGINNER_VARIANTS: Partial<Record<LureId, readonly (JigWeightId | CrankDepthId)[]>> = {
+  wobbler: CRANK_DEPTH_IDS,
+  jig: ['g5', DEFAULT_TACKLE.jigWeight],
+};
+
+/**
+ * Aloittelijan pakki on täynnä: jokainen viehe kerran (vaappu kaikilla
+ * syvyyksillä, jigi myös 5 g) ja kaikki perhot.
+ */
 export function beginnerBox(): TackleBox {
   return {
-    lures: LURE_IDS.slice(0, BOX_SLOTS).map((lure) => slotOf({ ...DEFAULT_TACKLE, lure })),
+    lures: LURE_IDS.flatMap((lure) =>
+      (BEGINNER_VARIANTS[lure] ?? [undefined]).map((variant) =>
+        variant ? { lure, variant } : { lure },
+      ),
+    ).slice(0, BOX_SLOTS),
     flies: FLY_IDS.slice(0, BOX_SLOTS),
   };
 }

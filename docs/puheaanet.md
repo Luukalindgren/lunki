@@ -41,7 +41,7 @@ katkaisee edellisen.
 - Muiden pelaajien käsimerkit kuuluvat sijainnin mukaan: täysillä 10 metriin asti,
   50 metrissä enää kolmasosa ja 80 metrin päähän ei lainkaan. Suunta tulee kameran
   mukaan vasemmalta tai oikealta.
-- Tapahtumien kiroilu on vain omalle kalastajalle, ja se on oletuksena pois päältä
+- Tapahtumien kiroilu on vain omalle kalastajalle, ja se on oletuksena päällä
   (Asetukset → Äänet → Kiroilu tapahtumissa).
 - Asetukset → Äänet → Puheäänet säätää tason tai mykistää puheen kokonaan.
 - Tiedostot ladataan vasta, kun käsimerkkivalikko avataan tai ääni soitetaan
