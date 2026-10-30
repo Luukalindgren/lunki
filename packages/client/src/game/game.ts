@@ -548,6 +548,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
         ...this.weather.now,
         ...this.daylight,
         spout: this.weather.spoutNear,
+        season: this.season,
       },
       this.weather.spoutAt,
     );

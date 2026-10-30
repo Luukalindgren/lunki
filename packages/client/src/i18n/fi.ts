@@ -1014,6 +1014,9 @@ export const fi = {
   'manual.weather.sky': 'Sää',
   'manual.weather.skyText':
     'Sää vaihtuu kisan aikana valitun säätason mukaan: tyyni, tuulinen, sade, ukkonen tai myrsky. Ajastimen alla näkyy säätila ja tuuli.\nMuutoksesta varoitetaan hetkeä ennen: taivas tummuu, tuuli yltyy tai kaukaa kuuluu jyrinää.\nTuuli kaartaa heittoa ja nostaa selällä isompia aaltoja kuin poukamassa.',
+  'manual.weather.season': 'Vuodenajat',
+  'manual.weather.seasonText':
+    'Kisan kausi valitaan kisan asetuksista: kevät, kesä tai syksy. Talvi tulee pilkkikauden mukana.\nKeväällä (vesi {spring} °C) lehdet ovat vasta puhkeamassa, kala ui matalassa rannan tuntumassa, hauki on vireä ja linnut laulavat. Tuulista ja sateista.\nKesällä (vesi {summer} °C) yö jää valoisaksi. Vain kesällä ukkosesta voi syntyä trombi.\nSyksyllä (vesi {autumn} °C) päivä on lyhyt ja yö pimeä. Kala syö talveksi ja isot hauet liikkuvat, mutta särki ja ahven ovat syvemmällä. Myrskyjä on enemmän.\nKylmässä, alle {cold} °C vedessä kaatuminen pitää pidempään sivussa. Kausi näkyy saaliin tiedoissa ja saalispäiväkirjassa.',
   'manual.weather.lightning': 'Ukkonen ja salama',
   'manual.weather.lightningText':
     'Salama osuu vain kalastajaan, jonka vapa on ylhäällä: viehe heitossa tai vedessä tai kala kiinni. Viehe kelalla olet turvassa.\nRiski on suurin selällä ja pienin rannan tuntumassa.\nOsuma polttaa siiman poikki, ja sitten seuraa kisan rangaistus.',

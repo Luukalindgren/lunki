@@ -1011,6 +1011,9 @@ export const en: Record<keyof typeof fi, string> = {
   'manual.weather.sky': 'Weather',
   'manual.weather.skyText':
     'The weather changes during the competition according to the chosen weather level: calm, windy, rain, thunder or storm. The weather and wind show under the timer.\nA change is announced shortly before: the sky darkens, the wind picks up or thunder rumbles far away.\nWind bends casts and raises bigger waves on open water than in a cove.',
+  'manual.weather.season': 'Seasons',
+  'manual.weather.seasonText':
+    'The season is picked in the competition settings: spring, summer or autumn. Winter arrives with ice fishing.\nIn spring (water {spring} °C) the leaves are just opening, fish move shallow near the shore, pike are lively and the birds sing. Windy and rainy.\nIn summer (water {summer} °C) the night stays light. Only in summer can thunder spawn a waterspout.\nIn autumn (water {autumn} °C) the day is short and the night dark. Fish feed up for winter and big pike roam, but roach and perch stay deeper. Storms are more common.\nIn cold water, below {cold} °C, a capsize keeps you out longer. The season shows in the catch details and the catch journal.',
   'manual.weather.lightning': 'Thunder and lightning',
   'manual.weather.lightningText':
     'Lightning only strikes an angler with the rod up: lure in flight or in the water, or a fish on. With the lure on the reel you are safe.\nThe risk is highest on open water and lowest near the shore.\nA hit burns the line through, and then the competition penalty follows.',
