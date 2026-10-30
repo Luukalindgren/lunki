@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Season } from '@lunki/shared';
-import { SEASON_LOOKS, SkyView, flashStrength, lookAt } from './skyView';
+import { AURORA, SEASON_LOOKS, SkyView, auroraFor, flashStrength, lookAt } from './skyView';
 
 const calm = { x: 0, y: 0 };
 
@@ -143,5 +143,34 @@ describe('salaman välähdys', () => {
     const day = sky.grade.mul.y;
     sky.update(13, 0, flashStrength(2000), calm);
     expect(sky.grade.mul.y - day).toBeLessThan(0.1);
+  });
+});
+
+describe('revontulet (#427)', () => {
+  const share = (season: Season) => {
+    let lit = 0;
+    for (let seed = 1; seed <= 400; seed++) if (auroraFor(seed, season) > 0) lit++;
+    return lit / 400;
+  };
+
+  it('osa kevään ja syksyn kisoista saa revontulet, kesä ei koskaan', () => {
+    expect(share('summer')).toBe(0);
+    expect(share('spring')).toBeCloseTo(AURORA.spring!, 1);
+    expect(share('autumn')).toBeCloseTo(AURORA.autumn!, 1);
+    expect(auroraFor(42, 'autumn')).toBe(auroraFor(42, 'autumn'));
+  });
+
+  it('näkyvät pimeällä ja kirkkaalla yötaivaalla, eivät päivällä tai pilvessä', () => {
+    const sky = new SkyView('autumn', 1);
+    const aurora = () =>
+      sky.dome.children[0] as unknown as {
+        material: { uniforms: Record<string, { value: number }> };
+      };
+    sky.update(23, 0, 0, { x: 0, y: 0 });
+    expect(aurora().material.uniforms.uAurora!.value).toBeGreaterThan(0.8);
+    sky.update(12, 0, 0, { x: 0, y: 0 });
+    expect(aurora().material.uniforms.uAurora!.value).toBe(0);
+    sky.update(23, 0.9, 0, { x: 0, y: 0 });
+    expect(aurora().material.uniforms.uAurora!.value).toBe(0);
   });
 });

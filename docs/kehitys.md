@@ -120,6 +120,9 @@ Koodi: `packages/shared/src/weather/season.ts`, asiakkaalla
   `SEASON_LOOKS`-hetkistä yhteen sävytykseen, maiseman värit
   `SEASON_COLORS`-taulukosta. Jaettu maailma
   (`staticWorldFor(map, season)`) rakennetaan kerran kautta kohden.
+- Revontulet ovat taivaankuvun osa (`uAurora`): `auroraFor(seed, season)`
+  arpoo ne kisan siemenestä keväälle ja syksylle (`AURORA`), ja ne näkyvät
+  tähtien tavoin vain pimeällä ja kirkkaalla taivaalla.
 - Uusi kaudesta riippuva asia lukee kauden näistä eikä tee omia
   päivämäärätarkistuksia.
 
