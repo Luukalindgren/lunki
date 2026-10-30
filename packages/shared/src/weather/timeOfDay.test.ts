@@ -8,6 +8,7 @@ import {
   formatClock,
   isTimeOfDay,
   moonAt,
+  moonIllumination,
   sunAt,
 } from './timeOfDay';
 
@@ -69,6 +70,33 @@ describe('aurinko ja kuu Lunkinjärvellä', () => {
     expect(compass(moon.azimuth)).toBeCloseTo(180, -1);
     expect(deg(moon.elevation)).toBeGreaterThan(25);
     expect(moonAt(13, 'autumn').elevation).toBeLessThan(0);
+  });
+
+  it('kuun vaihe: uusikuu auringon kohdalla, kasvava kuu illalla etelässä, vähenevä aamulla', () => {
+    // Kulma kahden taivaan suunnan välillä (°).
+    const apart = (a: ReturnType<typeof sunAt>, b: ReturnType<typeof sunAt>) =>
+      deg(
+        Math.acos(
+          Math.sin(a.elevation) * Math.sin(b.elevation) +
+            Math.cos(a.elevation) * Math.cos(b.elevation) * Math.cos(a.azimuth - b.azimuth),
+        ),
+      );
+    for (const season of ['spring', 'summer', 'autumn'] as const) {
+      for (const h of [3, 12, 21]) {
+        expect(apart(moonAt(h, season, 0), sunAt(h, season))).toBeLessThan(3);
+        expect(apart(moonAt(h, season, 0.5), sunAt(h, season))).toBeGreaterThan(177);
+        expect(apart(moonAt(h, season, 0.25), sunAt(h, season))).toBeCloseTo(90, -1);
+      }
+    }
+    // Syksyllä auringon laskiessa kasvava puolikuu on etelässä, vähenevä aamulla.
+    const waxing = moonAt(19, 'autumn', 0.25);
+    expect(compass(waxing.azimuth)).toBeGreaterThan(130);
+    expect(compass(waxing.azimuth)).toBeLessThan(220);
+    expect(waxing.elevation).toBeGreaterThan(0);
+    expect(moonAt(7.4, 'autumn', 0.75).elevation).toBeGreaterThan(0.3);
+    expect(moonIllumination(0)).toBeCloseTo(0);
+    expect(moonIllumination(0.25)).toBeCloseTo(0.5);
+    expect(moonIllumination(0.5)).toBeCloseTo(1);
   });
 
   it('jokaisen kisan alussa aurinko on oikealla kohdalla joka kaudella', () => {

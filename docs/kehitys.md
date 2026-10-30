@@ -123,6 +123,10 @@ Koodi: `packages/shared/src/weather/season.ts`, asiakkaalla
 - Revontulet ovat taivaankuvun osa (`uAurora`): `auroraFor(seed, season)`
   arpoo ne kisan siemenestä keväälle ja syksylle (`AURORA`), ja ne näkyvät
   tähtien tavoin vain pimeällä ja kirkkaalla taivaalla.
+- Kuun vaihe arvotaan samoin siemenestä (`moonPhaseFor`), ja `moonAt`
+  laskee kuun paikan vaiheen mukaan. Vajaa kuu hehkuu ja kimaltaa vähemmän
+  (`moonIllumination`). Tähtitaivas kiertyy taivaannavan ympäri pelikellon
+  mukana (`starTurn`).
 - Uusi kaudesta riippuva asia lukee kauden näistä eikä tee omia
   päivämäärätarkistuksia.
 

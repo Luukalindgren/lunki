@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import type { Season } from '@lunki/shared';
-import { AURORA, SEASON_LOOKS, SkyView, auroraFor, flashStrength, lookAt } from './skyView';
+import * as THREE from 'three';
+import { LATITUDE, moonAt, moonIllumination, sunAt, type Season } from '@lunki/shared';
+import {
+  AURORA,
+  SEASON_LOOKS,
+  SkyView,
+  auroraFor,
+  flashStrength,
+  lookAt,
+  moonPhaseFor,
+  skyDirection,
+  starTurn,
+} from './skyView';
 
 const calm = { x: 0, y: 0 };
 
@@ -161,7 +172,7 @@ describe('revontulet (#427)', () => {
   });
 
   it('näkyvät pimeällä ja kirkkaalla yötaivaalla, eivät päivällä tai pilvessä', () => {
-    const sky = new SkyView('autumn', 1);
+    const sky = new SkyView('autumn', { aurora: 1 });
     const aurora = () =>
       sky.dome.children[0] as unknown as {
         material: { uniforms: Record<string, { value: number }> };
@@ -172,5 +183,41 @@ describe('revontulet (#427)', () => {
     expect(aurora().material.uniforms.uAurora!.value).toBe(0);
     sky.update(23, 0.9, 0, { x: 0, y: 0 });
     expect(aurora().material.uniforms.uAurora!.value).toBe(0);
+  });
+});
+
+describe('kuu ja tähtitaivas', () => {
+  it('kuun vaihe arvotaan siemenestä tasaisesti', () => {
+    const phases = Array.from({ length: 4000 }, (_, i) => moonPhaseFor(i + 1));
+    expect(moonPhaseFor(42)).toBe(moonPhaseFor(42));
+    expect(Math.min(...phases)).toBeGreaterThanOrEqual(0);
+    expect(Math.max(...phases)).toBeLessThan(1);
+    const full = phases.filter((p) => Math.abs(p - 0.5) < 0.125).length / phases.length;
+    expect(full).toBeCloseTo(0.25, 1);
+  });
+
+  it('tähdet kiertävät taivaannavan ympäri samaan suuntaan kuin aurinko', () => {
+    const pole = new THREE.Vector3(0, Math.sin(LATITUDE), -Math.cos(LATITUDE));
+    for (const h of [6, 12, 18]) {
+      const turn = starTurn(h, 'summer') - starTurn(h + 1, 'summer');
+      const moved = skyDirection(sunAt(h, 'summer')).applyAxisAngle(pole, turn);
+      expect(moved.angleTo(skyDirection(sunAt(h + 1, 'summer')))).toBeLessThan(0.01);
+    }
+  });
+
+  it('vajaa kuu hehkuu ja kimaltaa vähemmän kuin täysikuu', () => {
+    const up = (h: number, phase: number) => {
+      const el = moonAt(h, 'autumn', phase).elevation;
+      return el > 0.05 && el < 0.35;
+    };
+    // Syksyn yö, jolloin kumpikin kuu on matalalla taivaalla.
+    let h = 18;
+    while (!(up(h, 0.5) && up(h, 0.35) && sunAt(h, 'autumn').elevation < -0.15)) h += 0.25;
+    const full = new SkyView('autumn', { moonPhase: 0.5 });
+    const part = new SkyView('autumn', { moonPhase: 0.35 });
+    full.update(h, 0, 0, calm);
+    part.update(h, 0, 0, calm);
+    expect(full.glitter.amount).toBeGreaterThan(0);
+    expect(part.glitter.amount / full.glitter.amount).toBeCloseTo(moonIllumination(0.35), 1);
   });
 });

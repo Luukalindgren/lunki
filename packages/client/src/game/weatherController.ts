@@ -61,7 +61,7 @@ import { LightningView } from './lightningView';
 import { MistView } from './mistView';
 import type { Penalties } from './penalties';
 import type { PovCamera } from './povCamera';
-import { SkyView, auroraFor, flashStrength } from './skyView';
+import { SkyView, auroraFor, flashStrength, moonPhaseFor } from './skyView';
 import { SpoutView, flightPose } from './spoutView';
 import type { TopDownCamera } from './topDownCamera';
 import { WeatherView, compassIn, windFrom, windName } from './weatherView';
@@ -171,7 +171,11 @@ export class WeatherController {
     seed: number,
   ) {
     const { map, settings, water } = host;
-    this.sky = new SkyView(seasonOf(settings), auroraFor(seed, seasonOf(settings)));
+    const season = seasonOf(settings);
+    this.sky = new SkyView(season, {
+      aurora: auroraFor(seed, season),
+      moonPhase: moonPhaseFor(seed),
+    });
     scene.add(this.hemi, this.sun);
     this.mist = new MistView((p) => water.isWater(p), map.bounds, waterWaves);
     scene.add(this.sky.dome, this.mist.group);

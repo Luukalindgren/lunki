@@ -44,8 +44,8 @@ export function formatClock(hours: number): string {
 
 const deg = (d: number) => (d * Math.PI) / 180;
 
-/** Lunkinjärvi, Tammela. */
-const LATITUDE = deg(60.81);
+/** Lunkinjärvi, Tammela; leveysaste on myös taivaannavan korkeus (rad). */
+export const LATITUDE = deg(60.81);
 const LONGITUDE = 23.76;
 /** Kesäaika UTC+3 (myös lokakuun alussa). */
 const UTC_OFFSET = 3;
@@ -99,14 +99,40 @@ export function sunAt(hours: number, season: Season = DEFAULT_SEASON): Celestial
   return horizontal(declination, hourAngle);
 }
 
-/**
- * Kuun paikka: kisailtana on täysikuu, joka on taivaalla vastapäätä
- * aurinkoa (nousee auringon laskiessa ja on keskiyöllä etelässä).
- */
-export function moonAt(hours: number, season: Season = DEFAULT_SEASON): CelestialPosition {
-  const { declination, hourAngle } = solar(hours, season);
-  return horizontal(-declination, hourAngle + Math.PI);
+/** Maan akselin kaltevuus (ekliptikan vinous). */
+const OBLIQUITY = deg(23.44);
+
+/** Ekliptikan pituudesta (rad) tasaajan koordinaatit: rektaskensio ja deklinaatio. */
+function equatorial(longitude: number): { ra: number; declination: number } {
+  return {
+    ra: Math.atan2(Math.cos(OBLIQUITY) * Math.sin(longitude), Math.cos(longitude)),
+    declination: Math.asin(Math.sin(OBLIQUITY) * Math.sin(longitude)),
+  };
 }
+
+/**
+ * Kuun paikka, kun kuun vaihe on `phase` (0 = uusikuu, 0,25 = kasvava
+ * puolikuu, 0,5 = täysikuu, 0,75 = vähenevä puolikuu). Kuu on ekliptikalla
+ * vaiheen verran auringosta itään: täysikuu on vastapäätä aurinkoa (nousee
+ * auringon laskiessa), kasvava kuu näkyy illalla ja vähenevä aamulla.
+ * Kuun oma liike (12° vuorokaudessa) jätetään kisan ajaksi huomiotta.
+ */
+export function moonAt(
+  hours: number,
+  season: Season = DEFAULT_SEASON,
+  phase = 0.5,
+): CelestialPosition {
+  const { hourAngle } = solar(hours, season);
+  // Auringon ekliptinen pituus (kevätpäiväntasaus 20.3. = 0) keskiarvona.
+  const day = SEASONS[season].dayOfYear - 80 + (hours - 12) / 24;
+  const sunLongitude = (2 * Math.PI * day) / 365.2422;
+  const sun = equatorial(sunLongitude);
+  const moon = equatorial(sunLongitude + 2 * Math.PI * phase);
+  return horizontal(moon.declination, hourAngle + sun.ra - moon.ra);
+}
+
+/** Kuun valaistu osuus 0 (uusikuu) – 1 (täysikuu). */
+export const moonIllumination = (phase: number) => (1 - Math.cos(2 * Math.PI * phase)) / 2;
 
 export interface Daylight {
   /** Päivänvalo 0 (yö, kuutamo) – 1 (kirkas päivä). */
