@@ -39,7 +39,7 @@ import { fishLengthCm } from '../ui/fishArt';
 import { lureImage } from '../ui/lureArt';
 import type { Hud } from '../ui/hud';
 import { formatWeight, ordinal, t } from '../i18n';
-import { baitName, speciesName } from '../i18n/names';
+import { baitName, flyLeaderName, speciesName } from '../i18n/names';
 import { CastControl } from './castControl';
 import { controlMode, controlText, type Controls } from './controls';
 import { FlyCastControl, touchToRodPixels } from './flyCastControl';
@@ -52,7 +52,7 @@ import { QuietSpot } from './quietSpot';
 import type { RaceLog } from './raceLog';
 import { catchJoy } from './catchJoy';
 import { addJournalEntry, loadJournal } from './journal';
-import { saveTackle } from './tackle';
+import { leaderOnly, saveTackle } from './tackle';
 import { slotOf } from './tackleBox';
 import type { TopDownCamera } from './topDownCamera';
 import type { FishShadow } from '../world/fishShadow';
@@ -126,6 +126,8 @@ export interface FishingStep {
 export class FishingController {
   /** Vaihdettavat varusteet: otetaan käyttöön, kun viehe on kelalla. */
   pendingTackle: Tackle | null = null;
+  /** Käytössä olleet varusteet vaihtoa pyydettäessä: ilmoitus kertoo, mikä muuttui. */
+  private tackleBefore: Tackle | null = null;
   /** Vinkkaa paikan vaihdosta, kun heitot menevät tyhjiin. */
   private readonly quietSpot = new QuietSpot();
   /** Hiiren osoittama piste maailmassa. */
@@ -189,12 +191,15 @@ export class FishingController {
   /** Vaihtaa varusteet heti, tai kun viehe seuraavan kerran on kelalla. */
   setTackle(tk: Tackle): void {
     this.pendingTackle = { ...tk };
+    this.tackleBefore ??= this.host.fishing.tackle;
     const f = this.host.fishing.stage;
     if (f !== 'idle' && f !== 'charging')
       this.host.hud.showMessage(
-        isFly(tk)
-          ? t('game.flyLater', { fly: baitName(tk) })
-          : t('game.lureLater', { lure: baitName(tk) }),
+        leaderOnly(this.host.fishing.tackle, tk)
+          ? t('game.leaderLater')
+          : isFly(tk)
+            ? t('game.flyLater', { fly: baitName(tk) })
+            : t('game.lureLater', { lure: baitName(tk) }),
         1.5,
         'info',
       );
@@ -499,14 +504,25 @@ export class FishingController {
       saveTackle(host.fishing.tackle);
       net?.sendTackle(host.fishing.tackle);
       const tk = host.fishing.tackle;
-      hud.showMessage(
-        isFly(tk)
-          ? t('game.flyChanged', { fly: baitName(tk) })
-          : t('game.lureChanged', { lure: baitName(tk) }),
-        1.5,
-        'info',
-        { icon: lureImage(isFly(tk) ? tk.fly : tk.lure, 'calc(var(--u) * 1.5)') },
-      );
+      const before = this.tackleBefore;
+      this.tackleBefore = null;
+      if (before && leaderOnly(before, tk))
+        hud.showMessage(
+          isFly(tk)
+            ? t('game.flyLeaderChanged', { leader: flyLeaderName(tk.flyLeader) })
+            : t(tk.leader ? 'game.leaderOn' : 'game.leaderOff'),
+          1.5,
+          'info',
+        );
+      else
+        hud.showMessage(
+          isFly(tk)
+            ? t('game.flyChanged', { fly: baitName(tk) })
+            : t('game.lureChanged', { lure: baitName(tk) }),
+          1.5,
+          'info',
+          { icon: lureImage(isFly(tk) ? tk.fly : tk.lure, 'calc(var(--u) * 1.5)') },
+        );
     }
     if (events.onReel) hud.showMessage(t('game.onReel'), 2, 'info');
     if (events.flyCast) this.handleFlyCast(events.flyCast);

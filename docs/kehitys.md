@@ -170,7 +170,9 @@ Koodi: `packages/client/src/ui/screens.ts` (`showSettings`, `showPause`).
   Varusteet, Järvikartta, Ennätykset, Ohjeet, Asetukset ja Tietoa ja palaute
   (alavalikossa Palaute sekä Tekijät ja lähteet). Uusi kohta menee
   alavalikkoon, ei päävalikon jatkoksi.
-- Taukovalikko on lyhyt: Jatka, Asetukset, Ohjeet, Lopeta kisa.
+- Taukovalikko on lyhyt: Jatka, Varusteet, Asetukset, Ohjeet, Palaute,
+  Lopeta kisa. Matalalla ruudulla (puhelin vaakana) napit ovat kahdessa
+  sarakkeessa. Palaute on sama lomake ja jono kuin päävalikossa.
 - Koko näyttö on pieni kuvake paneelin oikeassa yläkulmassa
   (`fullscreenButton`, `ui/fullscreen.ts`) päävalikossa ja tauolla, ei oma
   rivinsä valikossa.
@@ -181,7 +183,8 @@ Koodi: `packages/client/src/ui/screens.ts` (`showSettings`, `showPause`).
 - Varusteet laitetaan kuntoon vain päävalikon Varusteet-näkymässä (#383).
   Yksinpelin asetuksissa ja aulassa ne näkyvät vain yhteenvetona, ja kisassa
   vieheet vaihdetaan viehepakin pikavalikosta (R) ja kalastustapa omasta
-  pikavalikostaan (M). Värit ovat omana
+  pikavalikostaan (M). Taukovalikon Varusteet (`showPauseTackle`) vaihtaa
+  kesken kisan vain perukkeen (virvelin teräsperuke, perhon peruke). Värit ovat omana
   alanäkymänään yksinpelin asetusten ja aulan yhteenvetoriviltä.
 - Kisan säännöt (kesto, sää, rangaistukset, lajit) kuuluvat yksinpelin
   asetuksiin ja moninpelin aulaan, eivät Asetukset-näkymään.

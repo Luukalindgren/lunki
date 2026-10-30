@@ -20,6 +20,7 @@ import {
   FLY_LINE_IDS,
   FLY_ROD_IDS,
   METHODS,
+  isFly,
   type Method,
   NAME_MAX_LENGTH,
   LAND_PENALTIES,
@@ -250,6 +251,15 @@ export interface TackleBinding {
   current: Tackle;
   onChange: (t: Tackle) => void;
 }
+
+/** Taukovalikon alanäkymät: paluu kohdistaa sen napin. */
+export type PauseView = 'tackle' | 'settings' | 'manual' | 'feedback';
+const PAUSE_VIEW_LABELS: Record<PauseView, MsgKey> = {
+  tackle: 'menu.tackle',
+  settings: 'menu.settings',
+  manual: 'menu.manual',
+  feedback: 'menu.feedback',
+};
 
 /** Vieheen kuvan pikselikoko Varusteet-näkymässä. */
 const LURE_HINT_SCALE = '2px';
@@ -1780,16 +1790,21 @@ export class Screens {
     untimed?: boolean;
     /** Pelikellon aika järvellä, esim. 05:12. */
     clock?: string;
+    /** Perukkeen vaihto kesken kisan; katsojalla ei ole varusteita. */
+    onTackle?: () => void;
     onSettings: () => void;
     onManual: () => void;
+    onFeedback: () => void;
     /** Paluu alinäkymästä: kohdistus sen napille Jatka-napin sijaan. */
-    from?: 'settings' | 'manual';
+    from?: PauseView;
   }): void {
     const panel = this.panel('pause');
     const menu = this.buttons([
       [t('pause.resume'), p.onResume],
+      ...(p.onTackle ? [[t('menu.tackle'), p.onTackle] as [string, () => void]] : []),
       [t('menu.settings'), p.onSettings],
       [t('menu.manual'), p.onManual],
+      [t('menu.feedback'), p.onFeedback],
       [
         p.multiplayer
           ? t('pause.leaveRace')
@@ -1813,9 +1828,43 @@ export class Screens {
     );
     this.show(panel);
     if (p.from) {
-      const label = t(p.from === 'manual' ? 'menu.manual' : 'menu.settings');
+      const label = t(PAUSE_VIEW_LABELS[p.from]);
       [...menu.querySelectorAll('button')].find((b) => b.textContent === label)?.focus();
     }
+  }
+
+  /**
+   * Varusteet kesken kisan taukovalikosta: vain peruke vaihdetaan järvellä.
+   * Vieheet vaihtuvat viehepakista ja kalastustapa omasta pikavalikostaan,
+   * ja vapa ja siima laitetaan kuntoon päävalikon Varusteissa (#383).
+   */
+  showPauseTackle(tackle: TackleBinding, onBack: () => void): void {
+    const tk = { ...tackle.current };
+    const now = h('p', '', 'hint');
+    const update = () =>
+      (now.textContent = t('pause.tackleNow', {
+        tackle: `${methodName(tk.method)} · ${describeFullTackle(tk)}`,
+      }));
+    update();
+    const leader = document.createElement('div');
+    leader.className = 'settings';
+    leader.append(
+      this.leaderChoice(tk, (patch) => {
+        Object.assign(tk, patch);
+        update();
+        tackle.onChange({ ...tk });
+      }),
+    );
+    const panel = this.panel('pause-tackle');
+    panel.append(
+      h('h2', t('menu.tackle')),
+      leader,
+      now,
+      h('p', t(isFly(tk) ? 'pause.flyLeaderHint' : 'pause.leaderHint'), 'hint'),
+      h('p', controlText('pause.tackleHint'), 'hint'),
+      this.buttons([[t('common.back'), onBack]]),
+    );
+    this.show(panel, { back: onBack, focusFirst: true });
   }
 
   /** Moninpelin lopputulokset voittoehdon mukaan. */
@@ -2351,6 +2400,36 @@ export class Screens {
   }
 
   /**
+   * Peruke käytössä olevalle kalastustavalle: virvelissä teräsperuke päälle
+   * tai pois, perhossa perukkeen materiaali. Sama rivi on Varusteissa ja
+   * kisan taukovalikossa.
+   */
+  private leaderChoice(tk: Tackle, set: (patch: Partial<Tackle>) => void): HTMLElement {
+    if (isFly(tk))
+      return this.choice(
+        t('tackle.flyLeader'),
+        FLY_LEADER_IDS.map((id) => [
+          id,
+          t('tackle.flyLeaderOption', {
+            name: flyLeaderName(id),
+            kg: shortDecimal(FLY_LEADERS[id].strength),
+          }),
+        ]),
+        tk.flyLeader,
+        (v) => set({ flyLeader: v as Tackle['flyLeader'] }),
+      );
+    return this.choice(
+      t('tackle.leader'),
+      [
+        ['no', t('common.no')],
+        ['yes', t('common.yes')],
+      ],
+      tk.leader ? 'yes' : 'no',
+      (v) => set({ leader: v === 'yes' }),
+    );
+  }
+
+  /**
    * Varusteet: kalastustapa (virveli tai perho), viehepakki tai perhorasia
    * ja vavat siimoineen. Vieheet säätöineen ovat pakissa, josta R valitsee
    * kisan aikana (#383).
@@ -2406,18 +2485,7 @@ export class Screens {
           (v) => set({ flyLine: v as Tackle['flyLine'] }),
         ),
         hint(() => flyLineHint(tk.flyLine)),
-        this.choice(
-          t('tackle.flyLeader'),
-          FLY_LEADER_IDS.map((id) => [
-            id,
-            t('tackle.flyLeaderOption', {
-              name: flyLeaderName(id),
-              kg: shortDecimal(FLY_LEADERS[id].strength),
-            }),
-          ]),
-          tk.flyLeader,
-          (v) => set({ flyLeader: v as Tackle['flyLeader'] }),
-        ),
+        this.leaderChoice(tk, set),
         h('p', controlText('tackle.flyHint'), 'hint'),
       );
     } else {
@@ -2441,15 +2509,7 @@ export class Screens {
           tk.line,
           (v) => set({ line: v as Tackle['line'] }),
         ),
-        this.choice(
-          t('tackle.leader'),
-          [
-            ['no', t('common.no')],
-            ['yes', t('common.yes')],
-          ],
-          tk.leader ? 'yes' : 'no',
-          (v) => set({ leader: v === 'yes' }),
-        ),
+        this.leaderChoice(tk, set),
         h('p', t('tackle.hint'), 'hint'),
       );
     }
