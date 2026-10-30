@@ -34,6 +34,11 @@ export interface MarkerInput {
   pov: boolean;
   /** Kuvapisteen koko: ylhäältä metreinä, silmin metreinä metrin päässä kamerasta. */
   pixel: number;
+  /**
+   * Tärpin nykäys: merkki siirtyy `px` kuvapistettä suuntaan `dir`
+   * (yksikkövektori järvellä), silmin se painuu saman verran pinnan alle.
+   */
+  tug?: { px: number; dir: Vec2 };
 }
 
 /** Timantti valkoisena (sävytetään materiaalin värillä) tummalla reunalla. */
@@ -65,6 +70,11 @@ export class LureMarker {
     this.group.visible = true;
     const s = this.mark;
     s.position.copy(markerPosition(m.at, m.height, m.pov));
+    const tug = m.tug?.px ?? 0;
+    if (tug > 0 && !m.pov) {
+      s.position.x += m.tug!.dir.x * tug * m.pixel;
+      s.position.z -= m.tug!.dir.y * tug * m.pixel;
+    }
     // Ylhäältä lentävä viehe kasvaa korkeuden mukaan kuten ennen.
     const size = LURE_MARKER.markPx * m.pixel * (m.pov ? 1 : 1 + m.height * 0.08);
     s.scale.set(size, size, 1);
@@ -74,7 +84,8 @@ export class LureMarker {
       s.material.needsUpdate = true;
     }
     s.material.color.setHex(m.color);
-    // Silmin timantti seisoo pinnalla, ettei aalto peitä sen alaosaa kaukana.
-    s.center.set(0.5, m.pov ? 0 : 0.5);
+    // Silmin timantti seisoo pinnalla, ettei aalto peitä sen alaosaa kaukana;
+    // tärpissä se painuu nykäyksittäin pinnan alle.
+    s.center.set(0.5, m.pov ? tug / LURE_MARKER.markPx : 0.5);
   }
 }

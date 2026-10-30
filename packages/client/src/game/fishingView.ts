@@ -30,11 +30,19 @@ import { FLY_LINE_POINTS, flyLinePose, flyLineProfile, flyLineWorld } from './fl
 import { flyRodTip } from './povRod';
 import { SplashRings } from './splashRings';
 import { LandingView } from './landingView';
-import { strikeTaut } from './rodMotion';
+import { ROD_MOTION, strikeTaut, strikeTug, strikeTugs } from './rodMotion';
 import { LURE_MARKER, LureMarker, markerPosition } from './lureMarker';
 
 /** Vieheen merkkien tahti (s), pohjakosketuksen raja (m) ja pohjan pölläys. */
 const LURE_SIGNS = { followEvery: 0.8, bottomEvery: 0.7, touch: 0.05, mud: 0x8a6a42 } as const;
+
+/**
+ * Tärppi näkyy vieheen merkissä ilman luotainta: merkki nykii siiman
+ * nykäysten tahdissa poispäin kalastajasta (silmin painuu pinnan alle), ja
+ * jokainen nykäys nostaa renkaan. Ylhäältä koot ovat kuvapisteinä, jotta ne
+ * näkyvät kaikilla zoomeilla.
+ */
+const STRIKE_SIGNS = { jerkPx: 3, ringPx: 11, ringM: 0.8, time: 0.55, bigRing: 1.25 } as const;
 
 /** Siiman piirtokorkeus pinnalla. */
 const SURFACE_Y = 0.04;
@@ -68,6 +76,8 @@ export class FishingView {
   private readonly lureSigns = new SplashRings(5);
   private followTimer = 0;
   private bottomTimer = 0;
+  /** Tärpin nykäykset, joista on jo noussut rengas. */
+  private strikeRings = 0;
   /** Viehettä seuraavan kalan paikka (pyörteet vieheen takana), null = ei seuraajaa. */
   follower: Vec2 | null = null;
   private readonly fishShadow: THREE.Mesh;
@@ -238,6 +248,8 @@ export class FishingView {
       // Nostossa kala itse näkyy pinnassa, joten merkki piilotetaan.
       const bottom = ctx.depthAt(s.lure);
       const depth = s.stage === 'water' ? s.depth : 0;
+      const strike = s.stage === 'water' && s.struckId !== null && s.hookedId === null;
+      if (strike) this.strikeSigns(s);
       if (!s.landing)
         this.marker.update({
           at: s.lure,
@@ -251,6 +263,7 @@ export class FishingView {
           }),
           pov: this.pov,
           pixel: this.pov ? this.povPixel : this.metersPerPixel,
+          tug: strike ? this.strikeTugAt(s, shownTip) : undefined,
         });
       if (s.stage === 'water') this.updateLureSigns(s, bottom, dt);
       // Siima roikkuu vavan kärjestä kaarena veteen ja jatkaa pinnalla fysiikan muotoa.
@@ -288,10 +301,40 @@ export class FishingView {
     this.lureSigns.update(dt);
   }
 
-  /** Tärppi: pyörre vieheen kohdalla, kuin kala kääntyisi vieheen perässä. */
-  strikeSwirl(at: Vec2): void {
-    this.lureSigns.start(at, 0.8, 0.8);
-    this.lureSigns.start(at, 0.45, 0.6);
+  /**
+   * Tärppi alkaa: rengas vieheen kohdalla heti, myös Helpolla, jolla koukku
+   * tarttuu samassa hetkessä. Ensimmäinen nykäys lasketaan tähän.
+   */
+  strikeSwirl(at: Vec2, big = false): void {
+    this.strikeRings = 1;
+    this.strikeRing(at, big);
+  }
+
+  private strikeRing(at: Vec2, big: boolean): void {
+    const size = this.pov
+      ? STRIKE_SIGNS.ringM
+      : Math.max(STRIKE_SIGNS.ringM, STRIKE_SIGNS.ringPx * this.metersPerPixel);
+    this.lureSigns.start(at, size * (big ? STRIKE_SIGNS.bigRing : 1), STRIKE_SIGNS.time);
+  }
+
+  /** Tärpin aikana jokainen nykäys nostaa renkaan vieheen kohdalle. */
+  private strikeSigns(s: FishingState): void {
+    const tugs = strikeTugs(s.strikeAge);
+    if (tugs <= this.strikeRings) return;
+    this.strikeRings = tugs;
+    this.strikeRing(s.lure, s.strikeBig);
+  }
+
+  /** Merkin nykäys: raskaassa tärpissä syvempi, kuten vavan nyökkäys. */
+  private strikeTugAt(s: FishingState, tip: Vec2): { px: number; dir: Vec2 } {
+    const dx = s.lure.x - tip.x;
+    const dy = s.lure.y - tip.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const heavy = s.strikeBig ? ROD_MOTION.strikeBigNod : 1;
+    return {
+      px: STRIKE_SIGNS.jerkPx * heavy * strikeTug(s.strikeAge),
+      dir: { x: dx / len, y: dy / len },
+    };
   }
 
   /**
@@ -299,8 +342,13 @@ export class FishingView {
    * hipova viehe pöllyttää ruskeaa rengasta.
    */
   private updateLureSigns(s: FishingState, bottom: number, dt: number): void {
+    // Tärpin aikana näkyvät vain tärpin renkaat.
     const free =
-      LURE_MARKER.signs[this.difficulty] && s.hookedId === null && s.snag === null && !s.onLand;
+      LURE_MARKER.signs[this.difficulty] &&
+      s.hookedId === null &&
+      s.struckId === null &&
+      s.snag === null &&
+      !s.onLand;
     this.followTimer -= dt;
     if (free && this.follower && this.followTimer <= 0) {
       this.followTimer = LURE_SIGNS.followEvery;

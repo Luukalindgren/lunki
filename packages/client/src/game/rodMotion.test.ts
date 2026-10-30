@@ -1,7 +1,15 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_TACKLE, createFishing, type FishingState } from '@lunki/shared';
-import { OwnRodMotion, ROD_MOTION, RodMotion, bendRod, loadBend, strikeTaut } from './rodMotion';
+import {
+  OwnRodMotion,
+  ROD_MOTION,
+  RodMotion,
+  bendRod,
+  loadBend,
+  strikeTaut,
+  strikeTugs,
+} from './rodMotion';
 
 const DT = 1 / 60;
 
@@ -60,6 +68,14 @@ describe('vavan liike', () => {
     expect(light).toBeGreaterThan(heavy);
     expect(fly).toBeGreaterThan(light);
     expect(loadBend(100, DEFAULT_TACKLE)).toBeLessThanOrEqual(ROD_MOTION.maxBend.spin);
+  });
+
+  it('tärpin nykäykset lasketaan huipuista', () => {
+    const peak = Math.PI / 2 / ROD_MOTION.strikeRate;
+    expect(strikeTugs(0)).toBe(0);
+    expect(strikeTugs(peak * 0.9)).toBe(0);
+    expect(strikeTugs(peak * 1.1)).toBe(1);
+    expect(strikeTugs(peak * 3.1)).toBe(2);
   });
 
   it('tärpissä siima ja kärki nykivät', () => {
