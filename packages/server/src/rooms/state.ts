@@ -92,6 +92,8 @@ export const SettingsState = schema(
     weather: t.string().default(DEFAULT_SETTINGS.weather!),
     /** TimeOfDay: vuorokaudenaika. */
     timeOfDay: t.string().default(DEFAULT_SETTINGS.timeOfDay!),
+    /** Season: vuodenaika (#427). */
+    season: t.string().default(DEFAULT_SETTINGS.season!),
     lightningPenalty: t.string().default(DEFAULT_SETTINGS.lightningPenalty!),
     capsizePenalty: t.string().default(DEFAULT_SETTINGS.capsizePenalty!),
     landPenalty: t.uint8().default(DEFAULT_SETTINGS.landPenalty!),

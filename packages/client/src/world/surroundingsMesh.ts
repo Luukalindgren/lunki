@@ -4,9 +4,11 @@ import {
   type AreaKind,
   type LakeSurroundings,
   type LineKind,
+  type Season,
   type Vec2,
 } from '@lunki/shared';
 import type { Ground } from './ground';
+import { SEASON_COLORS } from './seasonColors';
 
 /** Maankäytön värit (palettisävyjä). */
 export const AREA_COLORS: Record<AreaKind, number> = {
@@ -34,11 +36,15 @@ export const LINE_COLORS: Record<LineKind, number> = {
 /** Maaston oletusväri, kun maankäyttöä ei tiedetä. */
 export const DEFAULT_GROUND = 0x3b7337;
 
+/** Maankäytön väri vuodenajan mukaan (#427). */
+export const areaColor = (kind: AreaKind, season: Season = 'summer') =>
+  SEASON_COLORS[season].areas[kind] ?? AREA_COLORS[kind];
+
 /**
  * Ylhäältä-näkymän ympäristö: maankäyttöalueet ja rakennukset litteinä
  * muotoina sekä tiet ja purot viivoina.
  */
-export function createMapOverlay(s: LakeSurroundings): THREE.Group {
+export function createMapOverlay(s: LakeSurroundings, season: Season = 'summer'): THREE.Group {
   const group = new THREE.Group();
   group.name = 'surroundings-map';
   // Isommat alueet ensin ja hieman alemmas, jotta pienemmät piirtyvät päälle.
@@ -48,7 +54,7 @@ export function createMapOverlay(s: LakeSurroundings): THREE.Group {
       shape.holes.push(new THREE.Path(hole.map((p) => new THREE.Vector2(p.x, p.y))));
     const mesh = new THREE.Mesh(
       new THREE.ShapeGeometry(shape),
-      new THREE.MeshBasicMaterial({ color: AREA_COLORS[a.kind] }),
+      new THREE.MeshBasicMaterial({ color: areaColor(a.kind, season) }),
     );
     mesh.rotation.x = -Math.PI / 2;
     mesh.position.y = -0.045 + (i / Math.max(1, s.areas.length)) * 0.03;
@@ -84,8 +90,10 @@ export function createTerrainMesh(
   ground: Ground,
   s: LakeSurroundings,
   islands: readonly (readonly Vec2[])[] = [],
+  season: Season = 'summer',
 ): THREE.Group | null {
   if (!ground.terrain) return null;
+  const bare = SEASON_COLORS[season].ground;
   const { cols, rows, cell } = ground;
   const cover = new LandCover(s);
   const positions = new Float32Array(cols * rows * 3);
@@ -100,7 +108,7 @@ export function createTerrainMesh(
       positions.set([p.x, h, -p.y], k * 3);
       uvs.set([p.x / GRASS_TEXTURE_METERS, p.y / GRASS_TEXTURE_METERS], k * 2);
       const kind = ground.water[k] ? null : cover.kindAt(p);
-      color.setHex(kind ? AREA_COLORS[kind] : DEFAULT_GROUND);
+      color.setHex(kind ? areaColor(kind, season) : bare);
       // Kevyt korkeusvarjostus, jotta mäet erottuvat.
       color.multiplyScalar(0.85 + Math.min(0.3, Math.max(0, h) / 120));
       colors.set([color.r, color.g, color.b], k * 3);
@@ -122,7 +130,7 @@ export function createTerrainMesh(
   // Pienet saaret eivät mahdu maastoverkon ruutuihin: matala, samalla
   // ruoholla kuvioitu kansi pitää ne näkyvissä. Rannasta sisämaahan maasto
   // nousee kannen yli.
-  color.setHex(DEFAULT_GROUND).multiplyScalar(0.85);
+  color.setHex(bare).multiplyScalar(0.85);
   for (const island of islands) {
     const cap = new THREE.ShapeGeometry(
       new THREE.Shape(island.map((p) => new THREE.Vector2(p.x, p.y))),

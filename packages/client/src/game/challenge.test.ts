@@ -87,6 +87,20 @@ describe('haastelinkki (#413)', () => {
     expect(decodeChallenge(ok.toUpperCase(), anyStart)?.seed).toBe(challenge.seed);
   });
 
+  it('vuodenaika linkissä; kesän linkki on vanhan muotoinen (#427)', () => {
+    const autumn = { ...challenge, settings: { ...challenge.settings, season: 'autumn' as const } };
+    const link = encodeChallenge(autumn);
+    expect(link.split('.')[1]).toHaveLength(9);
+    expect(decodeChallenge(link, anyStart)?.settings.season).toBe('autumn');
+    const summer = encodeChallenge(challenge);
+    expect(summer.split('.')[1]).toHaveLength(8);
+    expect(decodeChallenge(summer, anyStart)?.settings.season).toBe('summer');
+    // Talvi ei ole vielä pelattavissa.
+    const parts = link.split('.');
+    parts[1] = parts[1]!.slice(0, 8) + '3';
+    expect(decodeChallenge(parts.join('.'), anyStart)).toBeNull();
+  });
+
   it('vertailu grammaan pyöristettynä', () => {
     expect(challengeOutcome(4.8, 4.35)).toBe('won');
     expect(challengeOutcome(1, 4.35)).toBe('lost');

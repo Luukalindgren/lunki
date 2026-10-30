@@ -42,6 +42,8 @@ import {
   CHAT_PROTOCOL,
   LAND_CUT_PROTOCOL,
   SPECTATE_PROTOCOL,
+  SEASON_PROTOCOL,
+  seasonOf,
   type UntangledMessage,
   RECORDS_PATH,
   SOLO_RECORDS_PATH,
@@ -243,6 +245,8 @@ export interface LobbyView {
   canBoat: boolean;
   /** Palvelin vaihtaa paikkoja veneessä (#357). */
   canSwapSeats: boolean;
+  /** Palvelin tuntee vuodenajat (#427); vanhalla kisa on aina kesällä. */
+  canSeason: boolean;
 }
 
 export interface PlayerSchema {
@@ -313,6 +317,8 @@ export interface StateSchema {
     weather: string;
     /** Puuttuu vanhalta palvelimelta. */
     timeOfDay?: string;
+    /** Puuttuu vanhalta palvelimelta (#427): silloin kisa on kesällä. */
+    season?: string;
     lightningPenalty: string;
     capsizePenalty: string;
     /** Puuttuu vanhalta palvelimelta. */
@@ -523,6 +529,7 @@ export class NetSession {
         maxPlayers: s.settings.maxPlayers,
         weather: isWeatherLevel(s.settings.weather) ? s.settings.weather : 'realistic',
         timeOfDay: isTimeOfDay(s.settings.timeOfDay) ? s.settings.timeOfDay : 'day',
+        season: seasonOf(s.settings),
         lightningPenalty: s.settings.lightningPenalty as Penalty,
         capsizePenalty: s.settings.capsizePenalty as Penalty,
         landPenalty: s.settings.landPenalty ?? 0,
@@ -536,6 +543,7 @@ export class NetSession {
       canSpectate: this.serverProtocol >= SPECTATE_PROTOCOL,
       canBoat: this.serverProtocol >= BOAT_PROTOCOL,
       canSwapSeats: this.serverProtocol >= SEAT_PROTOCOL,
+      canSeason: this.serverProtocol >= SEASON_PROTOCOL,
     };
   }
 

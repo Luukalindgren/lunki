@@ -7,10 +7,12 @@ import {
   type AreaKind,
   type LakeMap,
   type LakeSurroundings,
+  type Season,
   type Vec2,
 } from '@lunki/shared';
 import { spriteMipmaps } from '../engine/pixelMipmaps';
 import { Ground } from './ground';
+import { SEASON_COLORS, type SeasonColors } from './seasonColors';
 
 /** Spritet kuvakartassa vasemmalta oikealle. */
 type SpriteKind = 'spruce' | 'pine' | 'birch' | 'reeds';
@@ -64,11 +66,12 @@ export function createVegetation(
   map: LakeMap,
   surroundings?: LakeSurroundings,
   ground?: Ground,
+  season: Season = 'summer',
 ): THREE.Group {
   const group = new THREE.Group();
   group.name = 'vegetation';
   const plants = planVegetation(map, surroundings, ground);
-  const texture = createAtlas();
+  const texture = createAtlas(SEASON_COLORS[season]);
   const material = new THREE.MeshBasicMaterial({
     map: texture,
     alphaTest: 0.5,
@@ -249,8 +252,11 @@ function crossedQuads(k: number): THREE.BufferGeometry {
   return g;
 }
 
-/** Pikselispritet piirretään koodissa: kuusi, mänty, koivu ja kaislatupas. */
-function createAtlas(): THREE.Texture {
+/**
+ * Pikselispritet piirretään koodissa: kuusi, mänty, koivu ja kaislatupas.
+ * Värit tulevat vuodenajasta (#427); muodot ovat samat joka kaudella.
+ */
+function createAtlas(colors: SeasonColors): THREE.Texture {
   const canvas = document.createElement('canvas');
   canvas.width = CELL_W * SPRITES.length;
   canvas.height = CELL_H;
@@ -268,7 +274,7 @@ function createAtlas(): THREE.Texture {
   for (let y = 1; y < 29; y++) {
     const half = 0.5 + (y - 1) * 0.24 - ((y - 1) % 5) * 0.35;
     for (let x = Math.floor(cx - half); x <= Math.ceil(cx + half - 1); x++)
-      px(0, x, y, x < cx - half / 3 ? '#2d5a2c' : '#1f3d22');
+      px(0, x, y, colors.spruce[x < cx - half / 3 ? 0 : 1]);
   }
   for (let y = 28; y < 32; y++) {
     px(0, cx - 1, y, '#5a3d22');
@@ -283,10 +289,10 @@ function createAtlas(): THREE.Texture {
   for (let y = 1; y < 14; y++) {
     const half = 3 + Math.sin(y * 1.3) * 1.5 + (y > 3 && y < 11 ? 2 : 0);
     for (let x = Math.round(cx - half); x < Math.round(cx + half); x++)
-      if (rand() > 0.12) px(1, x, y, rand() < 0.3 ? '#3b7337' : '#24502c');
+      if (rand() > 0.12) px(1, x, y, colors.pine[rand() < 0.3 ? 0 : 1]);
   }
 
-  // Koivu: valkoinen runko mustin laikuin ja vaalea, harva latvus.
+  // Koivu: valkoinen runko mustin laikuin ja vaalea, harva latvus (keväällä lähes paljas).
   for (let y = 9; y < 32; y++) {
     px(2, cx - 1, y, '#e8e4d8');
     px(2, cx, y, rand() < 0.25 ? '#2a2420' : '#d8d4c4');
@@ -294,14 +300,19 @@ function createAtlas(): THREE.Texture {
   for (let y = 1; y < 22; y++) {
     const half = 6 * Math.sin((Math.PI * y) / 22) + 0.5;
     for (let x = Math.round(cx - half); x < Math.round(cx + half); x++)
-      if (rand() > 0.25) px(2, x, y, rand() < 0.4 ? '#6a9a3e' : '#4d7a3a');
+      if (rand() > colors.birchGap) px(2, x, y, colors.birchLeaf(rand()));
   }
 
-  // Kaislatupas: pystyjä korsia, osassa ruskea tähkä.
+  // Kaislatupas: pystyjä korsia, osassa ruskea tähkä. Keväällä viime vuoden
+  // vaaleiden korsien juurella on matalia vihreitä versoja.
   for (let x = 1; x < CELL_W - 1; x++) {
     if (rand() < 0.55) continue;
     const top = 4 + Math.floor(rand() * 18);
-    for (let y = top; y < CELL_H; y++) px(3, x, y, rand() < 0.5 ? '#a3c45a' : '#7a9a3e');
+    if (colors.freshReeds > 0 && rand() < colors.freshReeds) {
+      for (let y = Math.max(top, 18); y < CELL_H; y++) px(3, x, y, '#a3c45a');
+      continue;
+    }
+    for (let y = top; y < CELL_H; y++) px(3, x, y, colors.reed(rand()));
     if (rand() < 0.3) for (let y = top; y < top + 3; y++) px(3, x, y, '#6b4a2b');
   }
 

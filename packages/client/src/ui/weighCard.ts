@@ -4,12 +4,13 @@ import {
   type Appearance,
   type CatchRecord,
   type RecordEntry,
+  type Season,
   type SpeciesId,
   type TimeOfDay,
 } from '@lunki/shared';
 import { fishLengthCm, fishPixels, type FishPixels } from './fishArt';
 import { formatDay, formatWeight, t } from '../i18n';
-import { speciesName, timeOfDayName } from '../i18n/names';
+import { seasonName, speciesName, timeOfDayName } from '../i18n/names';
 
 /**
  * Punnituskortti: pikselikuva, jossa kalastaja pitelee saalista renkaassaan,
@@ -21,6 +22,8 @@ export interface WeighCardInfo {
   angler: string;
   appearance: Appearance;
   timeOfDay: TimeOfDay;
+  /** Vuodenaika (#427); vanhoissa ennätyksissä ei ole. */
+  season?: Season;
   /** Paikan kuvaus järvellä, esim. "Syvyys 2,1 m · Isokivi (kivikko)". */
   spot: string | null;
   date: Date;
@@ -279,6 +282,7 @@ export function recordCard(r: RecordEntry, spot: string | null): WeighCardInfo {
     angler: r.angler,
     appearance: r.appearance ?? DEFAULT_APPEARANCE,
     timeOfDay: r.timeOfDay ?? 'day',
+    season: r.season,
     spot,
     // Vanhoissa ennätyksissä on vain päivä: keskipäivä, ettei aikavyöhyke siirrä päivää.
     date: new Date(r.at ?? `${r.date}T12:00:00Z`),
@@ -360,10 +364,14 @@ function paintCard(canvas: HTMLCanvasElement, info: WeighCardInfo): void {
   line(speciesName(f.species), 56, 0xfff3b0, 0);
   line(formatWeight(f.weight), 76, 0xf6d04d, 2);
   line(`${Math.round(fishLengthCm(f.species, f.weight))} cm`, 36, 0xeef2f3, 14);
+  // Kausi vuorokaudenajan eteen: "Syksy · Aamu" (#427).
+  const when = info.season
+    ? `${seasonName(info.season)} · ${timeOfDayName(info.timeOfDay)}`
+    : timeOfDayName(info.timeOfDay);
   line(
     Number.isFinite(f.time)
-      ? t('card.raceTime', { time: formatTime(f.time), timeOfDay: timeOfDayName(info.timeOfDay) })
-      : timeOfDayName(info.timeOfDay),
+      ? t('card.raceTime', { time: formatTime(f.time), timeOfDay: when })
+      : when,
     26,
     0xc3cbd2,
   );

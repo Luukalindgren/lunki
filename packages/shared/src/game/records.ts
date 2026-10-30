@@ -26,6 +26,7 @@ import {
 import { parseAppearance, type Appearance } from '../net/appearance';
 import { sanitizeName } from '../net/protocol';
 import { SKY_NAMES, type Sky } from '../weather/weather';
+import { isPlayableSeason, type Season } from '../weather/season';
 import { TIME_OF_DAY_NAMES, type TimeOfDay } from '../weather/timeOfDay';
 
 /**
@@ -48,6 +49,8 @@ export interface RecordEntry {
   /** Kisa-aika saaliin hetkellä (s kisan alusta). */
   raceTime?: number;
   timeOfDay?: TimeOfDay;
+  /** Vuodenaika (#427); vanhoissa saaliissa puuttuu, ja ne ovat kesältä. */
+  season?: Season;
   sky?: Sky;
   /** Tuulen nopeus (m/s). */
   wind?: number;
@@ -180,6 +183,7 @@ export function parseSoloRecord(v: unknown, now = new Date()): RecordEntry | nul
   const raceTime = num(o.raceTime, 0, 24 * 3600);
   if (raceTime !== undefined) e.raceTime = Math.round(raceTime);
   if (has(TIME_OF_DAY_NAMES, o.timeOfDay)) e.timeOfDay = o.timeOfDay;
+  if (isPlayableSeason(o.season)) e.season = o.season;
   if (has(SKY_NAMES, o.sky)) e.sky = o.sky;
   const wind = round1(num(o.wind, 0, 100));
   if (wind !== undefined) e.wind = wind;

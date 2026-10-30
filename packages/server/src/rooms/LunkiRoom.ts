@@ -74,6 +74,7 @@ import {
   JoinRefusal,
   RECORDS_PER_SPECIES,
   type Difficulty,
+  seasonOf,
   type TimeOfDay,
   type RecordMessage,
   type SpeciesId,
@@ -1260,6 +1261,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       y: Math.round(at.y * 10) / 10,
       raceTime: Math.round(c.time),
       timeOfDay: st.settings.timeOfDay as TimeOfDay,
+      season: seasonOf(st.settings),
       ...(weather && { sky: weather.sky, wind: Math.round(weather.windSpeed * 10) / 10 }),
       ...(p && {
         ...recordTackle(playerTackle(p)),

@@ -15,6 +15,7 @@ import {
   planSeconds,
   planWaterspouts,
   planWeather,
+  seasonOf,
   resolveStrike,
   rodTip,
   spoutAffects,
@@ -109,8 +110,8 @@ export interface WeatherHost {
  */
 export class WeatherController {
   readonly view: WeatherView;
-  /** Vuorokaudenaika: taivas, usva, valo ja paletin sävytys. */
-  readonly sky = new SkyView();
+  /** Vuoden- ja vuorokaudenaika: taivas, usva, valo ja paletin sävytys. */
+  readonly sky: SkyView;
   private readonly mist: MistView;
   readonly waves: WaveField;
   private readonly hemi = new THREE.HemisphereLight(0xeef2f3, 0x24502c, 1.5);
@@ -168,6 +169,7 @@ export class WeatherController {
     seed: number,
   ) {
     const { map, settings, water } = host;
+    this.sky = new SkyView(seasonOf(settings));
     scene.add(this.hemi, this.sun);
     this.mist = new MistView((p) => water.isWater(p), map.bounds, waterWaves);
     scene.add(this.sky.dome, this.mist.group);

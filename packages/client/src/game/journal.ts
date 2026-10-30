@@ -1,6 +1,8 @@
 import {
   FLIES,
+  isPlayableSeason,
   SPECIES,
+  type Season,
   type FlyId,
   type Sky,
   type SpeciesId,
@@ -22,6 +24,8 @@ export interface JournalEntry {
   bait: LureSlot | FlyId;
   sky: Sky;
   timeOfDay: TimeOfDay;
+  /** Kisan vuodenaika (#427); vanhat saaliit ovat kesältä. */
+  season: Season;
   /** Vieheen syvyys tärpin hetkellä (m). */
   depth: number;
   x: number;
@@ -71,6 +75,7 @@ function parseEntry(v: unknown): JournalEntry | null {
     bait,
     sky: SKIES.includes(o.sky as Sky) ? (o.sky as Sky) : 'calm',
     timeOfDay: TIMES.includes(o.timeOfDay as TimeOfDay) ? (o.timeOfDay as TimeOfDay) : 'day',
+    season: isPlayableSeason(o.season) ? o.season : 'summer',
     depth: Math.max(0, num(o.depth) ?? 0),
     x: num(o.x) ?? 0,
     y: num(o.y) ?? 0,
@@ -113,7 +118,7 @@ export interface BaitSummary {
   /** Lajit saalismäärän mukaan, eniten ensin. */
   species: [SpeciesId, number][];
   /** Yleisimmät olot, kun saaliita on vähintään BEST_MIN. */
-  best: { sky: Sky; timeOfDay: TimeOfDay; depth: DepthBand } | null;
+  best: { season: Season; sky: Sky; timeOfDay: TimeOfDay; depth: DepthBand } | null;
 }
 
 /** Yleisin arvo; tasapelissä se, joka on tuoreemmissa saaliissa. */
@@ -136,6 +141,7 @@ export function baitSummary(journal: readonly JournalEntry[], bait: LureSlot | F
     best:
       mine.length >= BEST_MIN
         ? {
+            season: most(mine.map((e) => e.season)),
             sky: most(mine.map((e) => e.sky)),
             timeOfDay: most(mine.map((e) => e.timeOfDay)),
             depth: most(mine.map((e) => depthBand(e.depth))),

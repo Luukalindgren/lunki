@@ -93,7 +93,7 @@ Koodi: `packages/client/src/game/controls.ts`.
 Koodi: `packages/client/src/game/skyView.ts`, `engine/retroRenderer.ts`.
 
 - **Koko kuvan kirkkaus yhdestä sävytyksestä** (`SkyView.grade`):
-  vuorokaudenaika, pilvisyyden synkkyys ja salaman välähdys lasketaan
+  vuoden- ja vuorokaudenaika, pilvisyyden synkkyys ja salaman välähdys lasketaan
   samaan paletin jälkeiseen sävytykseen. Välähdyksen voimakkuus riippuu
   salaman etäisyydestä jatkuvana käyränä (`flashStrength`), ja aivan
   vieressä kuva kääntyy hetkeksi negatiiviksi (`grade.invert`). Salama
@@ -106,6 +106,22 @@ Koodi: `packages/client/src/game/skyView.ts`, `engine/retroRenderer.ts`.
   usva kirjoittaa tiheytensä alfakanavaan (`game/mistView.ts`, ylhäältä vain
   veden päällä), ja kaukosumu lasketaan jälkikäsittelyssä syvyydestä
   (`grade.fog`). Three.js:n `scene.fog`ia ei käytetä.
+
+### Vuodenaika (#427)
+
+Koodi: `packages/shared/src/weather/season.ts`, asiakkaalla
+`game/skyView.ts` (`SEASON_LOOKS`) ja `world/seasonColors.ts`.
+
+- Kisan kausi on asetus `season` (Kevät 5.5., Kesä 1.7., Syksy 1.10.;
+  Talvi näkyy valikossa pois käytöstä pilkkikauteen #140 asti). `SEASONS`
+  päättää kisapäivän auringon radan, vuorokaudenaikojen alkamisajat ja veden
+  lämmön, ja `seasonOf(settings)` antaa kauden (puuttuva on kesä).
+- Kauden ilme tulee samoista järjestelmistä kuin muukin: taivas ja valo
+  `SEASON_LOOKS`-hetkistä yhteen sävytykseen, maiseman värit
+  `SEASON_COLORS`-taulukosta. Jaettu maailma
+  (`staticWorldFor(map, season)`) rakennetaan kerran kautta kohden.
+- Uusi kaudesta riippuva asia lukee kauden näistä eikä tee omia
+  päivämäärätarkistuksia.
 
 ### Vesi (PR #339)
 

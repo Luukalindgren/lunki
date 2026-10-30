@@ -14,6 +14,7 @@ const DETAILS = [
   ['y', 'y', 'REAL'],
   ['raceTime', 'race_time', 'REAL'],
   ['timeOfDay', 'time_of_day', 'TEXT'],
+  ['season', 'season', 'TEXT'],
   ['sky', 'sky', 'TEXT'],
   ['wind', 'wind', 'REAL'],
   ['lure', 'lure', 'TEXT'],

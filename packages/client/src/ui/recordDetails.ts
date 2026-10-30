@@ -35,6 +35,7 @@ import {
   lureLabel,
   methodName,
   rodName,
+  seasonName,
   skyName,
   speciesName,
   timeOfDayName,
@@ -90,7 +91,8 @@ export function recordDetails(r: RecordEntry, spot?: string | null): [string, st
       r.raceTime !== undefined ? t('records.raceTime', { time: formatTime(r.raceTime) }) : '';
     rows.push([
       t('records.race'),
-      `${known<TimeOfDay>(TIME_OF_DAY_NAMES, r.timeOfDay, timeOfDayName)}${race}`,
+      // Kausi vuorokaudenajan eteen (#427); vanhoissa ennätyksissä sitä ei ole.
+      `${r.season ? `${seasonName(r.season)} · ` : ''}${known<TimeOfDay>(TIME_OF_DAY_NAMES, r.timeOfDay, timeOfDayName)}${race}`,
     ]);
   }
   if (r.sky) {

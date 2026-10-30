@@ -45,6 +45,13 @@ describe('validateSettingsPatch', () => {
     }
   });
 
+  it('vuodenaika vain pelattavista: talvi odottaa pilkkikautta (#427)', () => {
+    expect(validateSettingsPatch({ season: 'autumn' }, 1)).toEqual({ season: 'autumn' });
+    for (const bad of ['winter', 'monsoon', 'toString', 1, null]) {
+      expect(validateSettingsPatch({ season: bad }, 1)).toEqual({});
+    }
+  });
+
   it('salaman ja kaatumisen rangaistukset', () => {
     expect(
       validateSettingsPatch({ lightningPenalty: 'out', capsizePenalty: 'time-out' }, 1),

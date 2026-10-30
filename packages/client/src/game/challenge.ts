@@ -4,12 +4,14 @@ import {
   isUntimed,
   SOLO_DURATIONS,
   sanitizeName,
+  seasonOf,
   summarize,
   validateSettingsPatch,
   type CatchRecord,
   type CompetitionSettings,
   type Difficulty,
   type Penalty,
+  type Season,
   type TimeOfDay,
   type Vec2,
   type WeatherLevel,
@@ -50,6 +52,8 @@ const WEATHER_CODES: readonly WeatherLevel[] = ['calm', 'realistic', 'some', 'lo
 const TIME_CODES: readonly TimeOfDay[] = ['morning', 'day', 'evening', 'night'];
 const PENALTY_CODES: readonly Penalty[] = ['none', 'time-out', 'lose-catch', 'out'];
 const LAND_CODES: readonly number[] = [0, 15, 30, 60];
+/** Kausi on yhdeksäs merkki (#427); kesän linkki on vanhan muotoinen. */
+const SEASON_CODES: readonly Season[] = ['summer', 'spring', 'autumn', 'winter'];
 
 const code = <T>(list: readonly T[], value: T | undefined, fallback: T): string =>
   Math.max(0, list.indexOf(value ?? fallback)).toString(36);
@@ -86,6 +90,7 @@ export function encodeChallenge(c: Challenge): string {
     code(PENALTY_CODES, s.lightningPenalty, 'time-out'),
     code(PENALTY_CODES, s.capsizePenalty, 'none'),
     code(LAND_CODES, s.landPenalty, 30),
+    seasonOf(s) === 'summer' ? '' : code(SEASON_CODES, seasonOf(s), 'summer'),
   ].join('');
   const wanted = new Set(s.species ?? []);
   const mask = SPECIES_IDS.reduce((m, id, i) => (wanted.has(id) ? m + 2 ** i : m), 0);
@@ -125,7 +130,7 @@ export function decodeChallenge(
     p.toLowerCase(),
   );
   const name = parts.slice(6).join('.');
-  if (!/^[0-9a-z]{1,7}$/.test(seedText!) || !/^[0-9a-z]{8}$/.test(optsText!)) return null;
+  if (!/^[0-9a-z]{1,7}$/.test(seedText!) || !/^[0-9a-z]{8,9}$/.test(optsText!)) return null;
   if (!/^[0-9a-z]{1,10}$/.test(maskText!)) return null;
   if (!/^\d{1,7}$/.test(gramsText!) || !/^\d{1,6}$/.test(elapsedText!)) return null;
   const seed = parseInt(seedText!, 36);
@@ -157,6 +162,7 @@ export function decodeChallenge(
     lightningPenalty: pick(PENALTY_CODES, 5),
     capsizePenalty: pick(PENALTY_CODES, 6),
     landPenalty: pick(LAND_CODES, 7),
+    season: optsText!.length > 8 ? pick(SEASON_CODES, 8) : 'summer',
     species,
     start,
   };
@@ -169,6 +175,7 @@ export function decodeChallenge(
     ok.lightningPenalty === undefined ||
     ok.capsizePenalty === undefined ||
     ok.landPenalty === undefined ||
+    ok.season === undefined ||
     ok.species === undefined ||
     (start !== null && !ok.start)
   )
@@ -186,6 +193,7 @@ export function decodeChallenge(
       lightningPenalty: ok.lightningPenalty,
       capsizePenalty: ok.capsizePenalty,
       landPenalty: ok.landPenalty,
+      season: ok.season,
       start: ok.start ?? null,
     },
     score: Number(gramsText) / 1000,

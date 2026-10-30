@@ -1,8 +1,11 @@
+import { DEFAULT_SEASON, SEASONS, type Season } from './season';
+
 /**
  * Vuorokaudenaika ja pelikello. Kisa käydään aamulla, päivällä, illalla tai
  * yöllä: valinta kertoo, mihin kellonaikaan kisa alkaa, ja taustalla käy
  * 24 tunnin pelikello, joka etenee kisakelloa nopeammin. Aurinko ja kuu
- * lasketaan pelikellosta Lunkinjärven sijainnin mukaan elokuun lopulla.
+ * lasketaan pelikellosta Lunkinjärven sijainnin mukaan vuodenajan
+ * kisapäivälle (ks. SEASONS).
  */
 export type TimeOfDay = 'morning' | 'day' | 'evening' | 'night';
 
@@ -18,24 +21,16 @@ export const TIME_OF_DAY_NAMES: Record<TimeOfDay, string> = {
 export const isTimeOfDay = (v: unknown): v is TimeOfDay =>
   typeof v === 'string' && Object.hasOwn(TIME_OF_DAY_NAMES, v);
 
-/**
- * Kisan alkamisaika (tuntia, Suomen kesäaika). Aamukisa alkaa sarastuksesta,
- * päiväkisa iltapäivästä (pitkä kisa jatkuu kultaiseen tuntiin), iltakisa
- * kultaisesta tunnista ja yökisa kuutamosta.
- */
-export const START_HOUR: Record<TimeOfDay, number> = {
-  morning: 4.75,
-  day: 14.5,
-  evening: 19,
-  night: 23,
-};
+/** Kisan alkamisaika kesällä (tuntia, Suomen kesäaika); muut kaudet: SEASONS. */
+export const START_HOUR: Record<TimeOfDay, number> = SEASONS[DEFAULT_SEASON].startHour;
 
 /** Pelikellon minuutteja yhtä kisaminuuttia kohden (15 min kisa = 3 h). */
 export const GAME_MINUTES_PER_MINUTE = 12;
 
 /** Pelikello (tuntia 0–24), kun kisaa on kulunut `elapsed` sekuntia. */
-export function clockAt(time: TimeOfDay, elapsed: number): number {
-  const hours = START_HOUR[time] + (Math.max(0, elapsed) * GAME_MINUTES_PER_MINUTE) / 3600;
+export function clockAt(time: TimeOfDay, elapsed: number, season: Season = DEFAULT_SEASON): number {
+  const hours =
+    SEASONS[season].startHour[time] + (Math.max(0, elapsed) * GAME_MINUTES_PER_MINUTE) / 3600;
   return ((hours % 24) + 24) % 24;
 }
 
@@ -52,8 +47,7 @@ const deg = (d: number) => (d * Math.PI) / 180;
 /** Lunkinjärvi, Tammela. */
 const LATITUDE = deg(60.81);
 const LONGITUDE = 23.76;
-/** Kisapäivä: 20. elokuuta (vuoden 232. päivä), kesäaika UTC+3. */
-const DAY_OF_YEAR = 232;
+/** Kesäaika UTC+3 (myös lokakuun alussa). */
 const UTC_OFFSET = 3;
 
 export interface CelestialPosition {
@@ -64,8 +58,8 @@ export interface CelestialPosition {
 }
 
 /** Auringon deklinaatio ja tuntikulma (rad) NOAA:n likikaavoilla. */
-function solar(hours: number): { declination: number; hourAngle: number } {
-  const g = ((2 * Math.PI) / 365) * (DAY_OF_YEAR - 1 + (hours - 12) / 24);
+function solar(hours: number, season: Season): { declination: number; hourAngle: number } {
+  const g = ((2 * Math.PI) / 365) * (SEASONS[season].dayOfYear - 1 + (hours - 12) / 24);
   const declination =
     0.006918 -
     0.399912 * Math.cos(g) +
@@ -99,9 +93,9 @@ function horizontal(declination: number, hourAngle: number): CelestialPosition {
   return { elevation: Math.asin(sinEl), azimuth: Math.PI / 2 - compass };
 }
 
-/** Auringon paikka pelikellon aikaan `hours`. */
-export function sunAt(hours: number): CelestialPosition {
-  const { declination, hourAngle } = solar(hours);
+/** Auringon paikka pelikellon aikaan `hours` kauden kisapäivänä. */
+export function sunAt(hours: number, season: Season = DEFAULT_SEASON): CelestialPosition {
+  const { declination, hourAngle } = solar(hours, season);
   return horizontal(declination, hourAngle);
 }
 
@@ -109,8 +103,8 @@ export function sunAt(hours: number): CelestialPosition {
  * Kuun paikka: kisailtana on täysikuu, joka on taivaalla vastapäätä
  * aurinkoa (nousee auringon laskiessa ja on keskiyöllä etelässä).
  */
-export function moonAt(hours: number): CelestialPosition {
-  const { declination, hourAngle } = solar(hours);
+export function moonAt(hours: number, season: Season = DEFAULT_SEASON): CelestialPosition {
+  const { declination, hourAngle } = solar(hours, season);
   return horizontal(-declination, hourAngle + Math.PI);
 }
 
@@ -128,8 +122,8 @@ const smoothstep = (a: number, b: number, x: number) => {
 };
 
 /** Valon määrä auringon korkeudesta: kalojen käytös ja valaistus seuraavat tätä. */
-export function daylight(hours: number): Daylight {
-  const el = (sunAt(hours).elevation * 180) / Math.PI;
+export function daylight(hours: number, season: Season = DEFAULT_SEASON): Daylight {
+  const el = (sunAt(hours, season).elevation * 180) / Math.PI;
   return {
     light: 0.12 + 0.88 * smoothstep(-8, 25, el),
     twilight: 1 - smoothstep(0, 1, Math.abs(el - 1) / 12),

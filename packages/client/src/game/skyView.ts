@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { moonAt, sunAt, type CelestialPosition, type Vec2 } from '@lunki/shared';
+import { moonAt, sunAt, type CelestialPosition, type Season, type Vec2 } from '@lunki/shared';
 
 /**
  * Jälkikäsittelyn sävytys palettiin pyöristämisen jälkeen: väri =
@@ -238,23 +238,44 @@ const NIGHT: Look = {
   glitterAmount: 0.8,
 };
 
-/**
- * Ilmeet pelikellon mukaan (tunti, ilme). Hetket on sovitettu kisapäivän
- * aurinkoon (ks. sunAt): aurinko nousee noin 5.55 ja laskee noin 21.00.
- */
-export const LOOKS: [number, Look][] = [
-  [0, NIGHT],
-  [3.3, NIGHT],
-  [4.75, DAWN],
-  [7, SUNRISE],
-  [9.5, DAY],
-  [16.5, DAY],
-  [19, GOLDEN],
-  [20.9, SUNSET],
-  [21.9, DUSK],
-  [23, NIGHT],
-  [24, NIGHT],
-];
+const WHITE_NIGHT: Look = {
+  // Yötön yö: aurinko vain vähän horisontin alla pohjoisessa, taivaanranta
+  // hehkuu ruusuisena koko yön eikä tähtiä juuri näy.
+  zenith: 0x1c3766,
+  mid: 0x4a6596,
+  horizon: 0xd9a8a0,
+  glowIn: 0xf8d0a0,
+  glowOut: 0xc87a80,
+  glowAmount: 0.9,
+  glowSize: 0.35,
+  cloudLit: 0xe0a0a0,
+  cloudShade: 0x4a4a70,
+  clouds: 0.25,
+  mul: [0.8, 0.84, 1],
+  add: [0.04, 0.03, 0.08],
+  sat: 0.75,
+  fog: [200, 1800],
+  mist: 0.55,
+  stars: 0.08,
+  ambient: 0.95,
+  direct: 0.45,
+  glitter: 0xf0b080,
+  glitterAmount: 0.7,
+};
+
+const DARK_NIGHT: Look = {
+  // Syysyö: pitkä ja pimeä, kirkkaat tähdet ja usvainen järvi.
+  ...NIGHT,
+  zenith: 0x02050e,
+  mid: 0x071026,
+  horizon: 0x142238,
+  mul: [0.5, 0.62, 0.92],
+  add: [0, 0.015, 0.05],
+  sat: 0.45,
+  fog: [120, 1200],
+  mist: 0.5,
+  stars: 1.2,
+};
 
 /**
  * Salaman välähdys sävyttää koko kuvan (paletin jälkeen) kirkkaaksi ja
@@ -335,15 +356,97 @@ function blend(a: Look, b: Look, t: number): Look {
   return out;
 }
 
-/** Ilme pelikellon aikaan `hours` (0–24). */
-export function lookAt(hours: number): Look {
+/** Kauden sävy koko vuorokaudelle: värikerroin ja kylläisyyden kerroin. */
+function tinted(mul: Rgb, sat: number) {
+  return (l: Look, extra: Partial<Look> = {}): Look => ({
+    ...l,
+    mul: l.mul.map((v, i) => v * mul[i]!) as Rgb,
+    sat: l.sat * sat,
+    ...extra,
+  });
+}
+
+/**
+ * Ilmeet pelikellon mukaan (tunti, ilme) vuodenajoittain (#427). Hetket on
+ * sovitettu kisapäivän aurinkoon (ks. sunAt ja SEASONS), ja kausien erot on
+ * hieman korostettu: kesällä lämmin ja kylläinen valo ja yötön yö, keväällä
+ * raikas ja kirkas, syksyllä matala kultainen päivä, usvaiset aamut ja
+ * pitkä pimeä yö.
+ */
+function seasonLooks(season: Season): [number, Look][] {
+  if (season === 'spring') {
+    // 5.5.: aurinko 5.10–21.34 ja yöllä 13° horisontin alla.
+    const t = tinted([0.95, 1, 1.07], 1);
+    const night = t(blend(NIGHT, WHITE_NIGHT, 0.25));
+    const day = t(DAY, { clouds: 0.12, horizon: 0xd2ecf8 });
+    return [
+      [0, night],
+      [2.7, night],
+      [4.15, t(DAWN, { mist: 0.1 })],
+      [6.4, t(SUNRISE, { mist: 0 })],
+      [8.9, day],
+      [17, day],
+      [19.55, t(GOLDEN)],
+      [21.45, t(SUNSET)],
+      [22.45, t(DUSK)],
+      [23.6, night],
+      [24, night],
+    ];
+  }
+  if (season === 'autumn') {
+    // 1.10.: aurinko 7.27–18.59 ja korkeimmillaan 26°.
+    const t = tinted([1.08, 0.98, 0.85], 0.85);
+    const dark = t(DARK_NIGHT);
+    const day = t(blend(DAY, GOLDEN, 0.22), { clouds: 0.5, fog: [350, 2200] });
+    return [
+      [0, dark],
+      [5, dark],
+      [6.45, t(DAWN, { mist: 1 })],
+      [8.7, t(SUNRISE, { mist: 0.7 })],
+      [11, day],
+      [14.5, day],
+      [17, t(GOLDEN, { mist: 0.15 })],
+      [18.9, t(SUNSET, { mist: 0.3 })],
+      [19.9, t(DUSK, { mist: 0.6 })],
+      [21, dark],
+      [24, dark],
+    ];
+  }
+  // 1.7. (myös talvi pilkkikauteen asti): aurinko 3.56–23.00, yötön yö.
+  const t = tinted([1.05, 1.02, 0.93], 1.15);
+  const night = t(WHITE_NIGHT);
+  const day = t(DAY, { clouds: 0.5 });
+  return [
+    [0, night],
+    [1.7, night],
+    [2.9, t(DAWN, { stars: 0, mist: 1 })],
+    [5.2, t(SUNRISE, { mist: 0.55 })],
+    [7.7, day],
+    [18.5, day],
+    [21, t(GOLDEN)],
+    [22.9, t(SUNSET)],
+    [23.7, night],
+    [24, night],
+  ];
+}
+
+export const SEASON_LOOKS: Record<Season, [number, Look][]> = {
+  spring: seasonLooks('spring'),
+  summer: seasonLooks('summer'),
+  autumn: seasonLooks('autumn'),
+  winter: seasonLooks('winter'),
+};
+
+/** Ilme pelikellon aikaan `hours` (0–24) vuodenaikana `season`. */
+export function lookAt(hours: number, season: Season = 'summer'): Look {
+  const looks = SEASON_LOOKS[season];
   const h = ((hours % 24) + 24) % 24;
-  for (let i = 1; i < LOOKS.length; i++) {
-    const [h1, b] = LOOKS[i]!;
-    const [h0, a] = LOOKS[i - 1]!;
+  for (let i = 1; i < looks.length; i++) {
+    const [h1, b] = looks[i]!;
+    const [h0, a] = looks[i - 1]!;
     if (h <= h1) return h1 === h0 ? b : blend(a, b, (h - h0) / (h1 - h0));
   }
-  return LOOKS[LOOKS.length - 1]![1];
+  return looks[looks.length - 1]![1];
 }
 
 const DOME_RADIUS = 2800;
@@ -525,7 +628,8 @@ export class SkyView {
   private clock = 0;
   private readonly cloudOffset = new THREE.Vector2();
 
-  constructor() {
+  /** Vuodenaika (#427): auringon rata ja vuorokauden ilmeet. */
+  constructor(readonly season: Season = 'summer') {
     const color = () => ({ value: new THREE.Color() });
     this.domeMaterial = new THREE.ShaderMaterial({
       vertexShader: DOME_VERT,
@@ -570,12 +674,12 @@ export class SkyView {
    * liikuttaa pilviä ja tähtien tuiketta.
    */
   update(hours: number, darkness: number, flash: number, wind: Vec2, dt = 0): void {
-    const look = lookAt(hours);
+    const look = lookAt(hours, this.season);
     // Pilvisellä säällä taivas harmaantuu ja pilvet peittävät auringon, kuun ja tähdet.
     const cloud = smoothstep(0.15, 0.6, darkness);
     const overcast = overcastColor(look, darkness);
-    const sunPos = sunAt(hours);
-    const moonPos = moonAt(hours);
+    const sunPos = sunAt(hours, this.season);
+    const moonPos = moonAt(hours, this.season);
     const sunDir = skyDirection(sunPos);
     const moonUp = moonPos.elevation > -MOON_RADIUS;
     const moonDir = skyDirection(moonPos);
