@@ -30,6 +30,19 @@ jobs:
         run: pnpm test
       - name: Build
         run: pnpm build
+      - name: Pilvikoneen palvelin (docs/pilvipalvelin.md)
+        # Sama yhdeksi tiedostoksi koottu palvelin kuin Dockerfilessä: käynnistyy ja vastaa.
+        run: |
+          pnpm --filter @lunki/server bundle
+          LUNKI_DB=:memory: PORT=2599 node packages/server/dist/index.mjs &
+          pid=$!
+          ok=1
+          for _ in $(seq 40); do
+            if curl -fs http://127.0.0.1:2599/__healthcheck; then ok=0; break; fi
+            sleep 0.5
+          done
+          kill $pid
+          exit $ok
 
   selaimet:
     # Peli Chromiumilla, Firefoxilla ja WebKitillä (Safari) sekä puhelinemuloinneilla (e2e/).

@@ -9,6 +9,7 @@
 #   lunki ssh              tavallinen SSH-istunto pelikoneelle
 #   lunki lan              LAN-peli: tämä Mac on palvelin (ks. docs/lan.md)
 #   lunki palauteavain     avain, jolla GitHub hakee palautteet issueiksi
+#   lunki pilvi …          pilvipalvelin (scripts/pilvi/pilvi.sh, docs/pilvipalvelin.md)
 #
 # Oletuksena käytetään ~/.ssh/config-oikotietä "lunki" ja pelikoneen kansiota
 # ~\Projektit\lunki. Muutettavissa: LUNKI_SSH_HOST ja LUNKI_PC_DIR.
@@ -26,6 +27,10 @@ case "${1:-tila}" in
   seuraa) run="$ps1 loki -Seuraa" ;;
   palauteavain) run="$ps1 palauteavain" ;;
   ssh) exec ssh "$host" ;;
+  pilvi)
+    shift
+    exec "$(dirname "$0")/../pilvi/pilvi.sh" ${1+"$@"}
+    ;;
   lan)
     # Ajetaan tällä koneella, ei pelikoneella.
     cd "$(dirname "$0")/../.."
@@ -39,7 +44,7 @@ case "${1:-tila}" in
     esac
     ;;
   *)
-    sed -n '4,11p' "$0" | sed 's/^# //' >&2
+    sed -n '4,12p' "$0" | sed 's/^# //' >&2
     exit 2
     ;;
 esac

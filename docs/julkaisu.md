@@ -134,47 +134,12 @@ Kutsulinkki kuljettaa `palvelin`-parametrin mukanaan kavereille.
 
 ## Vaihtoehto: pilvipalvelin
 
-Jos peli kasvaa kaveripiiriä isommaksi tai pelikone ei voi olla päällä,
-palvelimen voi ajaa kontissa. Repositorion juuressa on `Dockerfile`, joka
-käynnistää pelipalvelimen portissa 2567 ja tallentaa tietokannan hakemistoon
-`/data`. Liitä `/data` pysyvään levyyn, muuten ennätykset katoavat.
-
-**Fly.io** (pieni kone riittää, Tukholman alue on lähin):
-
-```sh
-fly launch --no-deploy --name lunki-palvelin --region arn
-fly volumes create lunki_data --region arn --size 1
-```
-
-Lisää syntyneeseen `fly.toml`-tiedostoon levy ja estä koneen
-automaattinen pysäytys, koska se katkaisisi käynnissä olevat kisat:
-
-```toml
-[mounts]
-  source = "lunki_data"
-  destination = "/data"
-
-[http_service]
-  internal_port = 2567
-  force_https = true
-  auto_stop_machines = "off"
-  min_machines_running = 1
-```
-
-Aja sitten `fly deploy` ja aseta `LUNKI_SERVER_URL`-muuttujaksi
-`wss://lunki-palvelin.fly.dev`.
-
-**Oma virtuaalikone** (esim. Hetzner): asenna Docker ja aja
-
-```sh
-docker build -t lunki-server .
-docker run -d --restart unless-stopped -p 2567:2567 -v lunki_data:/data lunki-server
-```
-
-Selain vaatii `wss://`-yhteyden, joten eteen tarvitaan TLS, esimerkiksi
-[Caddy](https://caddyserver.com/) omalla verkkotunnuksella
-(`reverse_proxy localhost:2567`). Palautteet näkee kontista komennolla
-`docker exec <kontti> pnpm report`.
+Palvelimen voi ajaa myös pilvikoneella, jolloin moninpeli toimii pelikoneen
+ollessa kiinni. Valmius Hetznerin Helsingin koneelle (kontti, tunneli,
+päivitys itsestään, varmuuskopiot ja kone päälle tai pois kuvasta) on
+ohjeessa [pilvipalvelin.md](pilvipalvelin.md). Repositorion `Dockerfile`
+käy myös muille palveluntarjoajille: palvelin portissa 2567, tietokanta
+hakemistossa `/data` (liitä pysyvään levyyn, muuten ennätykset katoavat).
 
 ## Pelin tiedostot laitteella (service worker)
 

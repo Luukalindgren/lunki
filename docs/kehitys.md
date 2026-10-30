@@ -19,6 +19,8 @@ Uusi ominaisuus käyttää niitä eikä tee niiden rinnalle omaa versiota.
 - **Palvelinkoodi.** Jos muutos koskee `packages/server`- tai
   `packages/shared`-koodia, pelikoneen palvelin käynnistetään uudelleen
   (`lunki uudelleen`), ks. [windows-palvelin.md](windows-palvelin.md).
+  Pilvikone ([pilvipalvelin.md](pilvipalvelin.md)) päivittyy itse noin
+  viiden minuutin kuluessa, kun kukaan ei pelaa.
 
 ### Issueiden tunnisteet
 
