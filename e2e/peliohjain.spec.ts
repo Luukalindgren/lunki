@@ -77,20 +77,6 @@ test('peliohjain: valikot, ohjeen napit, heitto ja tauko', async ({ page, isMobi
   // Valikot ristiohjaimella ja A:lla.
   await focusButton(page, 'Pelaa');
   await tap(page, A);
-  // DIAG
-  console.log(
-    'DIAG',
-    JSON.stringify(
-      await page.evaluate(() => ({
-        active: document.activeElement?.outerHTML.slice(0, 120),
-        kb: document.querySelector('.screen')?.className,
-        title: document.querySelector('.screen h1, .screen h2')?.textContent,
-        polls: (window as unknown as { __padPolls: number }).__padPolls,
-        gp: typeof navigator.getGamepads,
-        own: Object.getOwnPropertyNames(navigator),
-      })),
-    ),
-  );
   await expect(page.getByRole('button', { name: 'Yksinpeli' })).toBeVisible();
   await focusButton(page, 'Yksinpeli');
   await tap(page, A);

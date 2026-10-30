@@ -182,8 +182,11 @@ export class Input {
     const menu = this.menuOpen();
     if (menu !== this.padMenu) {
       this.padMenu = menu;
-      for (const c of codes) this.padBlocked.add(c);
-      if (menu) this.padRepeat.hold(codes);
+      // Vain jo edellisellä askeleella pohjassa olleet: valikon ja pelin vaihdon
+      // yli pidetty nappi ei tee mitään ennen irrotusta.
+      const held = new Set([...codes].filter((c) => this.padPrev.has(c)));
+      for (const c of held) this.padBlocked.add(c);
+      if (menu) this.padRepeat.hold(held);
     }
     for (const c of [...this.padBlocked]) if (!codes.has(c)) this.padBlocked.delete(c);
     const game = new Set<string>();
