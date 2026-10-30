@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { LakeMap, Vec2 } from '@lunki/shared';
-import { toWorld } from '../world/lakeMesh';
+import { toWorld, type WaterWaves } from '../world/lakeMesh';
 
 /** Usvalauttojen tyypillinen koko ylhäältä (m). */
 const PATCH_METERS = 120;
@@ -21,20 +21,27 @@ const NEAR_FADE: [number, number] = [8, 35];
 const PATCH_VERT = /* glsl */ `
   uniform vec2 uOffset;
   varying vec2 vWorld;
+  varying vec2 vMap;
   void main() {
     vec4 world = modelMatrix * vec4(position, 1.0);
     vWorld = world.xz - uOffset;
+    vMap = vec2(world.x, -world.z);
     gl_Position = projectionMatrix * viewMatrix * world;
   }
 `;
 
 /**
  * Ylhäältä: ajelehtivia, epäsäännöllisiä usvalauttoja. Kuvio lasketaan
- * kohinasta maailman koordinaateista, joten se ei toistu ruutuina.
+ * kohinasta maailman koordinaateista, joten se ei toistu ruutuina. Usva
+ * pysyy veden päällä: vesimaskin sumennettu kanava (ks. lakeMesh) häivyttää
+ * sen rannalla, ja reuna ulottuu muutaman metrin rantaniitylle.
  */
 const PATCH_FRAG = /* glsl */ `
   uniform float uAmount;
+  uniform sampler2D uWaterMask;
+  uniform vec4 uWaterMaskBounds;
   varying vec2 vWorld;
+  varying vec2 vMap;
   float mistHash(vec2 p) {
     // Ilman sin()-funktiota, jottei kuvio nauhoitu puhelinten GPU:illa.
     vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -69,6 +76,7 @@ const PATCH_FRAG = /* glsl */ `
     float edge = 0.66 - 0.16 * uAmount;
     // Ohut verho: vesi, viehe ja kalat näkyvät paksuimmankin usvan läpi.
     float a = smoothstep(edge, edge + 0.22, n) * 0.45;
+    a *= smoothstep(0.15, 0.6, texture2D(uWaterMask, (vMap - uWaterMaskBounds.xy) / uWaterMaskBounds.zw).g);
     gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0 - 0.8 * a);
   }
 `;
@@ -176,9 +184,11 @@ export class MistView {
   /** Vallien paikat ruudun sisällä (m) ja onko valli nyt veden päällä. */
   private readonly bankBase: Vec2[] = [];
 
+  /** `waterMask` = vesimaskin uniformit (createWaterWaves, täyttyy createSwellPatchissa). */
   constructor(
     private readonly isWater: (p: Vec2) => boolean,
     bounds: LakeMap['bounds'],
+    waterMask: Pick<WaterWaves, 'uWaterMask' | 'uWaterMaskBounds'>,
   ) {
     const map = createMistTexture();
     const { minX, minY, maxX, maxY } = bounds;
@@ -186,6 +196,10 @@ export class MistView {
       new THREE.PlaneGeometry(maxX - minX + 600, maxY - minY + 600),
       mistMaterial(PATCH_VERT, PATCH_FRAG, map),
     );
+    Object.assign(this.patches.material.uniforms, {
+      uWaterMask: waterMask.uWaterMask,
+      uWaterMaskBounds: waterMask.uWaterMaskBounds,
+    });
     this.patches.rotation.x = -Math.PI / 2;
     this.patches.position.copy(toWorld({ x: (minX + maxX) / 2, y: (minY + maxY) / 2 }, 0.3));
     this.patches.renderOrder = 1;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LOOKS, SkyView, lookAt } from './skyView';
+import { LOOKS, SkyView, flashStrength, lookAt } from './skyView';
 
 const calm = { x: 0, y: 0 };
 
@@ -89,5 +89,24 @@ describe('vuorokaudenajan ilme', () => {
     expect(sky.glitter.dir.y).toBeGreaterThan(0);
     sky.update(13.5, 0, 0, calm);
     expect(sky.glitter.amount).toBe(0);
+  });
+});
+
+describe('salaman välähdys', () => {
+  it('heikkenee etäisyyden mukaan tasaisesti, ei portaittain', () => {
+    expect(flashStrength(0)).toBe(1);
+    // Kierros 2 (#409): 220 m:n salama noin 0,7 kertaa entinen (0,9).
+    expect(flashStrength(220)).toBeCloseTo(0.63, 2);
+    expect(flashStrength(375)).toBeCloseTo(0.5, 5);
+    expect(flashStrength(2000)).toBeLessThan(0.2);
+    for (let d = 0; d < 3000; d += 50) expect(flashStrength(d + 50)).toBeLessThan(flashStrength(d));
+  });
+
+  it('kaukainen salama kirkastaa vain vähän: järvi ei vaalene', () => {
+    const sky = new SkyView();
+    sky.update(13, 0, 0, calm);
+    const day = sky.grade.mul.y;
+    sky.update(13, 0, flashStrength(2000), calm);
+    expect(sky.grade.mul.y - day).toBeLessThan(0.1);
   });
 });

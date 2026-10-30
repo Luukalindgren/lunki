@@ -16,6 +16,12 @@ export interface Grade {
   mist: THREE.Color;
   /** Salama aivan vieressä: kuva kääntyy hetkeksi negatiiviksi. */
   invert: boolean;
+  /**
+   * Kaukosumu kalastajan silmin (m): alku ja loppu, null = ei sumua
+   * (ylhäältä). Sumu on usvan väristä ja lasketaan jälkikäsittelyssä
+   * syvyydestä, joten usva ja kaukainen ranta ovat yhtä kerrosta.
+   */
+  fog: [number, number] | null;
 }
 
 export const neutralGrade = (): Grade => ({
@@ -24,6 +30,7 @@ export const neutralGrade = (): Grade => ({
   sat: 1,
   mist: new THREE.Color().setHex(0xc3cbd2, THREE.LinearSRGBColorSpace),
   invert: false,
+  fog: null,
 });
 
 type Rgb = [number, number, number];
@@ -256,6 +263,18 @@ export const LOOKS: [number, Look][] = [
 const FLASH_MUL: Rgb = [1.45, 1.5, 1.6];
 const FLASH_ADD: Rgb = [0.1, 0.11, 0.14];
 const FLASH_SAT = 0.55;
+/** Tällä etäisyydellä (m) välähdys on puolet täydestä (ks. flashStrength). */
+const FLASH_HALF_DISTANCE = 375;
+
+/**
+ * Välähdyksen voimakkuus 0–1 salaman etäisyydestä (m). Käyrä on jatkuva:
+ * vieressä täysi, 220 metrissä noin 0,63 (kierros 2: 0,7 × entinen) ja
+ * kahden kilometrin päästä enää 0,16, jolloin kaukainen salama lähinnä
+ * kirkastaa taivasta eikä vaalenna järveä.
+ */
+export function flashStrength(distance: number): number {
+  return 1 / (1 + Math.max(0, distance) / FLASH_HALF_DISTANCE);
+}
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const smoothstep = (a: number, b: number, x: number) => {

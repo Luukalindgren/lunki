@@ -88,19 +88,24 @@ Koodi: `packages/client/src/game/controls.ts`.
   `game/heldMenu.ts`: valikko on auki napin ollessa pohjassa, ja irrotus
   valitsee osoitetun lohkon.
 
-### Valo, sää ja välähdykset (PR #341)
+### Valo, sää ja välähdykset (PR #341, #409)
 
 Koodi: `packages/client/src/game/skyView.ts`, `engine/retroRenderer.ts`.
 
 - **Koko kuvan kirkkaus yhdestä sävytyksestä** (`SkyView.grade`):
   vuorokaudenaika, pilvisyyden synkkyys ja salaman välähdys lasketaan
   samaan paletin jälkeiseen sävytykseen. Välähdyksen voimakkuus riippuu
-  salaman etäisyydestä (`flashStrength`), ja aivan vieressä kuva kääntyy
-  hetkeksi negatiiviksi (`grade.invert`).
+  salaman etäisyydestä jatkuvana käyränä (`flashStrength`), ja aivan
+  vieressä kuva kääntyy hetkeksi negatiiviksi (`grade.invert`). Salama
+  itse on valonlähde kuten taivas (alfa 0): se ohittaa paletin, sävytyksen
+  ja sumun.
 - Älä lisää omia välähdyskerroksia (DOM-verhoja, valon kertoimia,
   pistevaloja) tai erillisiä tummennuksia. Valaistuksen himmennys rikkoo
   paletin: tummat vesisävyt kääntyvät vihreiksi.
-- Usva on yksi kerros (`grade.mist` ja `game/mistView.ts`).
+- Usva ja kaukosumu ovat yksi kerros samalla värillä (`grade.mist`):
+  usva kirjoittaa tiheytensä alfakanavaan (`game/mistView.ts`, ylhäältä vain
+  veden päällä), ja kaukosumu lasketaan jälkikäsittelyssä syvyydestä
+  (`grade.fog`). Three.js:n `scene.fog`ia ei käytetä.
 
 ### Vesi (PR #339)
 

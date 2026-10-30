@@ -731,17 +731,12 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
   }
 
   /**
-   * Varjostimet valmiiksi molempiin näkymiin: kalastajan silmin -näkymän sumu
-   * vaihtaa varjostimet, joten kohtaus käännetään sumulla ja ilman (#327).
+   * Varjostimet valmiiksi (#327). Kaukosumu on jälkikäsittelyssä, joten
+   * molemmat näkymät käyttävät samoja varjostimia.
    */
   precompile(retro: RetroRenderer): Promise<unknown> {
     this.attachWorld();
-    const fog = this.scene.fog;
-    const done = retro.precompile([this.scene], this.camera);
-    this.scene.fog = fog ? null : new THREE.Fog(this.weather.sky.lighting.horizon, 500, 2600);
-    const other = retro.precompile([this.scene], this.camera);
-    this.scene.fog = fog;
-    return Promise.all([done, other]);
+    return retro.precompile([this.scene], this.camera);
   }
 
   /** Vapauttaa GPU-resurssit, kun kierros päättyy. */
