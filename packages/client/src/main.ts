@@ -98,8 +98,13 @@ const fps = new FpsMeter(app, import.meta.env.DEV);
 const hud = new Hud(app);
 const controls = new Controls(input);
 const touch = isTouchDevice() ? new TouchControls(hud.root, controls) : null;
-setControlMode(touch !== null);
+setControlMode(touch ? 'touch' : 'keys');
 hud.setTouch(touch !== null);
+// Peliohjain (Xbox, PlayStation): ohjeet näyttävät sen napit, kun sitä käytetään.
+input.onDevice = (device, kind) => {
+  setControlMode(device === 'pad' ? 'pad' : touch ? 'touch' : 'keys', kind);
+  hud.refreshHelp();
+};
 /** Pelaajan valitsema HUDin koko, tallessa selaimessa. */
 let hudScale = loadHudScale(touch !== null);
 hud.setScale(hudScale);
@@ -171,6 +176,7 @@ const screens = new Screens(app);
 input.menuOpen = () => screens.open;
 // Alinäkymän (esim. tauon asetukset) Esc palaa takaisin eikä jatka peliä.
 input.menuBack = () => screens.hasBack;
+input.onPadNav = (action) => screens.padNav(action);
 /** Yksinpeli alkaa oletuksena ilman aikarajaa (#360); moninpelin huoneilla on oma oletuksensa. */
 let settings = loadSettings({ ...DEFAULT_SETTINGS, durationMinutes: UNTIMED });
 let game: Game | null = null;

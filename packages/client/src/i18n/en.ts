@@ -638,7 +638,7 @@ export const en: Record<keyof typeof fi, string> = {
   'guide.row': 'Guide 1/5: row to get moving · {back} = row · {forward} = back water',
   'guide.cast':
     'Guide 2/5: cast your lure · {pointer}: aim, hold and release · {castForward} = cast where you look',
-  'guide.reel': 'Guide 3/5: reel the lure back · hold {pointer} or {reel} = reel',
+  'guide.reel': 'Guide 3/5: reel the lure back · hold {pointer|reel} = reel',
   'guide.wait':
     'Guide 3/5: reel steadily and cast again until a fish strikes · {sonar} = sonar shows the fish',
   'guide.again': 'Guide: cast again · {sonar} = sonar shows the fish',
@@ -664,10 +664,9 @@ export const en: Record<keyof typeof fi, string> = {
   'help.rowTurn': '{turn} = turn the boat · {oars} = oars/rod · {anchor} = anchor',
   'help.passenger': 'Passenger: the rower rows, you fish',
   'help.passengerTurn': '{turn} = turn in your seat to cast',
-  'help.cast': '{pointer}: aim, hold and release = cast',
+  'help.cast': '{pointer}: aim, hold and release = cast · {aim} = cast direction',
   'help.castForward': 'Hold {castForward} and release = cast where you face · {cancel} = cancel',
-  'help.reel':
-    'Hold {pointer} or {reel} = reel in · {twitch} = twitch, sets the hook in a big fish',
+  'help.reel': 'Hold {pointer|reel} = reel in · {twitch} = twitch, sets the hook in a big fish',
   'help.gear': '{gear} = reel speed · {gearFast} = quick retrieve · {dragLess}/{dragMore} = drag',
   'help.tools':
     '{lure} = change lure (hold: box) · {method} = spin/fly · {sonar} = finder · {lureSonar} = depth',
@@ -675,7 +674,7 @@ export const en: Record<keyof typeof fi, string> = {
   'help.flyCast2':
     '{castForward} = rhythm cast · {lift} = pick up (on a take: set the hook) · {flyPanel} = side view',
   'help.flyStrip': 'Fly on the water: {strip} = strip line · {reelSlack} = slack to reel',
-  'help.flyReel': 'On the reel: hold {pointer} or {reel} = reel in · {dragLess}/{dragMore} = drag',
+  'help.flyReel': 'On the reel: hold {pointer|reel} = reel in · {dragLess}/{dragMore} = drag',
   'help.bar':
     '{view} = view · {emote} = hand signs · {zoom} = zoom · {help} = help · {pause} = pause',
   'help.chat': '{chat} = message the others',
@@ -708,6 +707,10 @@ export const en: Record<keyof typeof fi, string> = {
   'ctl.wheel': 'wheel',
   'ctl.spectateKeys': '←/→ or click',
   'ctl.tap': 'tap',
+  'ctl.or': 'or',
+  'pad.leftStick': 'left stick',
+  'pad.rightStick': 'right stick',
+  'pad.stickSide': 'left stick sideways',
   'touch.cancel': 'CANCEL',
   'touch.cancelTitle': 'Cancel the cast',
   'touch.reelSlack': 'TO REEL',
@@ -951,7 +954,7 @@ export const en: Record<keyof typeof fi, string> = {
   'menu.manual': 'How to play',
   'manual.title': 'How to play',
   'manual.intro':
-    'Fishing mechanics and their controls. Controls are shown for this device: buttons on touch, keys on a computer.',
+    'Fishing mechanics and their controls. Controls are shown for this device: buttons on touch, keys on a computer and controller buttons when you use a game controller.',
   'manual.section.move': 'Moving',
   'manual.section.spin': 'Spinning',
   'manual.section.fly': 'Fly',
@@ -966,15 +969,18 @@ export const en: Record<keyof typeof fi, string> = {
   'manual.move.boat': 'Boat',
   'manual.move.boatText':
     "In the single-player settings you can go out in a boat instead of a float tube. In the multiplayer lobby you can take your own boat or board someone else's. A boat has a rower and up to two anglers, and its crew is one team.\nRower: {back} = row, {forward} = back water, {turn} = turn the boat.\n{oars} = oars or rod. You cannot row while casting or reeling, but with the lure in the water you can troll.\n{seat} = change seats when the boat is nearly still.",
+  'manual.move.pad': 'Game controller',
+  'manual.move.padText':
+    "Xbox and PlayStation controllers work as they are: connect one by cable or Bluetooth and press any of its buttons. The help then shows the controller's buttons.\nIn menus the d-pad or left stick moves, A/✕ selects and B/○ goes back.\nQuick menus (tackle box, fishing method, hand signals): hold the button, point with the right stick and release.\nWith a controller the fly is cast in rhythm: every press of the cast button changes direction.",
   'manual.move.wind': 'Wind and collisions',
   'manual.move.windText':
     'Wind drifts the tube downwind, clearly so in a storm. Kicking still takes you upwind.\nYou cannot go ashore or into reeds, and anglers bump each other when they collide. A heavy boat pushes a tube more than the other way round.',
   'manual.spin.cast': 'Casting',
   'manual.spin.castText':
-    '{pointer}: aim, hold and release = cast\nHold and release {castForward} = cast where you look\nThe power meter fills and then drops back, so time the release to a full meter.\n{cancel} = cancel the charge\nWind bends the cast. Lure weight, rod casting weight and line thickness affect the distance.\nA lure that lands ashore gets stuck: {cut} = cut the line, and the lure is lost.',
+    '{pointer}: aim, hold and release = cast\n{aim} = cast direction, otherwise the cast goes where you look\nHold and release {castForward} = cast where you look\nThe power meter fills and then drops back, so time the release to a full meter.\n{cancel} = cancel the charge\nWind bends the cast. Lure weight, rod casting weight and line thickness affect the distance.\nA lure that lands ashore gets stuck: {cut} = cut the line, and the lure is lost.',
   'manual.spin.reel': 'Reeling and retrieve',
   'manual.spin.reelText':
-    'Hold {pointer} or {reel} = reel\n{gear} = reel speed, {gearFast} = fast retrieve. A lure that fast hardly interests fish.\n{twitch} = twitch: the lure hops up and sinks enticingly.\nA pause after a pull tempts pike and big fish.\nEach species likes its own speed and depth. A crankbait swims at its lip depth, and jigs and spoons sink.',
+    'Hold {pointer|reel} = reel\n{gear} = reel speed, {gearFast} = fast retrieve. A lure that fast hardly interests fish.\n{twitch} = twitch: the lure hops up and sinks enticingly.\nA pause after a pull tempts pike and big fish.\nEach species likes its own speed and depth. A crankbait swims at its lip depth, and jigs and spoons sink.',
   'manual.spin.strike': 'Setting the hook',
   'manual.spin.strikeText':
     'You notice a take by the sound, the message and the twitches of the line. The lure diamond jerks in the same rhythm, and each tug sends a ring across the water, so you can see the take from above without the sonar.\nStrike by reeling ({reel}) or twitching ({twitch}). You have {normalWindow} s on Normal and {realisticWindow} s on Realistic, less for zander.\nOn Normal and Realistic big fish (e.g. pike from {pikeKg} kg, perch from {perchKg} kg) only hook on a twitch: reeling tightens the line but does not set the hook. On a heavy bite the rod nods deeper.\nThe hook sets {normalHook} % of the time on Normal and {realisticHook} % on Realistic. On Easy it sets by itself.\nOn a twitch the rod stiffness matters: on Realistic a pike hooks {pikeLight} % of the time with a light rod and {pikeHeavy} % with a heavy one.\nDo not twitch while a big fish is only following the lure: it may spook.\nAfter a late strike the fish stays away for a while.',

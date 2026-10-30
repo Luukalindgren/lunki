@@ -1,3 +1,4 @@
+import { PAD_STICK_PRESS } from '../engine/gamepad';
 import type { Action, Controls } from './controls';
 
 /** Ympyrävalikko, jonka voi valita avausnäppäimen irrotuksella. */
@@ -7,12 +8,14 @@ export interface HoldableMenu {
   readonly selected: number;
   /** Valitsee osoitetun (korostetun) kohdan ja sulkee valikon. */
   pickSelected(): void;
+  /** Korostaa kohdan suunnasta (peliohjaimen oikea tatti). */
+  point?(dx: number, dy: number): void;
 }
 
 /**
  * Pikavalikon pito (#387): valikko on auki niin kauan kuin avausnäppäin tai
- * -nappi on pohjassa, ja irrotus valitsee kohdan, jota hiiri, sormi tai nuoli
- * osoittaa. Lyhyt napautus (alle `minHold` s) osoittamatta jättää valikon
+ * -nappi on pohjassa, ja irrotus valitsee kohdan, jota hiiri, sormi, nuoli
+ * tai peliohjaimen oikea tatti osoittaa. Lyhyt napautus (alle `minHold` s) osoittamatta jättää valikon
  * auki valintaa varten; nopeakin pito, jonka aikana osoitettiin toista kohtaa, valitsee.
  * Pito mitataan seinäkellolla: hitaalla koneella pelin aika etenee ruutua
  * kohden enintään neljännessekunnin, jolloin pitkäkin pito näyttäisi napautukselta.
@@ -37,8 +40,11 @@ export class HeldMenu {
   }
 
   step(c: Controls): void {
-    if (this.since === null) return;
     const menu = this.menu();
+    const stick = c.input.padAim;
+    if (menu?.open && stick && Math.hypot(stick.x, stick.y) > PAD_STICK_PRESS)
+      menu.point?.(stick.x, stick.y);
+    if (this.since === null) return;
     if (!menu?.open) {
       this.since = null;
       return;

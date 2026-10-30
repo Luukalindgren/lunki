@@ -205,7 +205,7 @@ export class TouchControls {
     b.type = 'button';
     const relabel = () => {
       const a = action();
-      const label = bindingText(a, true);
+      const label = bindingText(a, 'touch');
       if (label !== null) b.textContent = label;
       const title: MsgKey | undefined = (CONTROLS[a] as { title?: MsgKey }).title;
       b.title = title ? t(title) : '';

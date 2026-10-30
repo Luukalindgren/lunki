@@ -39,6 +39,10 @@ export class EmoteMenu {
     this.menu.pickSelected();
   }
 
+  point(dx: number, dy: number): void {
+    this.menu.point(dx, dy);
+  }
+
   toggle(): void {
     if (this.open) this.close();
     else this.show();

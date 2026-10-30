@@ -9,9 +9,9 @@ describe('Ohjeet (#401)', () => {
   it('jokainen aihe täyttyy ohjauksesta kummallakin kielellä ja ohjaustavalla', () => {
     for (const lang of ['fi', 'en'] as const) {
       setLangForTest(lang);
-      for (const touch of [false, true]) {
+      for (const mode of ['keys', 'touch', 'pad'] as const) {
         for (const section of MANUAL_SECTIONS) {
-          for (const topic of manualTopics(section, { touch })) {
+          for (const topic of manualTopics(section, { mode })) {
             expect(topic.title).not.toMatch(/^manual\./);
             expect(topic.lines.length).toBeGreaterThan(0);
             for (const line of topic.lines) {
@@ -27,7 +27,7 @@ describe('Ohjeet (#401)', () => {
 
   it('näyttää koneella näppäimet ja kosketuksella napit', () => {
     const text = (touch: boolean) =>
-      manualTopics('fly', { touch })
+      manualTopics('fly', { mode: touch ? 'touch' : 'keys' })
         .flatMap((topic) => topic.lines)
         .join('\n');
     expect(text(false)).toContain('Hiiren vasen/välilyönti pohjassa = siimakäsi');

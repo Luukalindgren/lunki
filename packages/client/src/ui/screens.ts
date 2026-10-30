@@ -92,7 +92,7 @@ import type { RaceEventKind, RaceMapData } from '../game/raceLog';
 import { SPECIES_PIN_COLORS, formatDate, recordDetails, recordTitle } from './recordDetails';
 import { drawCraftPreview } from './tubePreview';
 import { SPECIES_VERSION, migrateSpecies } from './speciesSettings';
-import { MenuNav } from './menuNav';
+import { MenuNav, type NavAction } from './menuNav';
 import { createLoader } from './loader';
 import { VOLUME_LEVELS, type AudioSettings, type VolumeLevel } from '../audio/settings';
 import { MUSIC_CHOICES, type MusicChoice } from '../audio/music';
@@ -409,6 +409,11 @@ export class Screens {
   /** Avoimella näkymällä on oma paluu (Esc / Backspace palaa eikä mene peliin). */
   get hasBack(): boolean {
     return this.open && this.nav.back !== null;
+  }
+
+  /** Peliohjaimen valikkotoiminto (ristiohjain, A/✕, B/○). */
+  padNav(action: NavAction): void {
+    this.nav.pad(action);
   }
 
   hide(): void {

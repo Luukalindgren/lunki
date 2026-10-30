@@ -11,6 +11,8 @@ import {
   contextActions,
   controlText,
   keyName,
+  setControlMode,
+  withKey,
   type Action,
 } from './controls';
 
@@ -78,44 +80,69 @@ describe('toimintokartta', () => {
     expect(keyName('ArrowLeft')).toBe('←');
     expect(keyName('Digit4')).toBe('4');
     expect(keyName('Space')).toBe('välilyönti');
-    expect(bindingText('forward', false)).toBe('W/↑');
-    expect(bindingText('sprint', false)).toBe('Shift');
-    expect(bindingText('forward', true)).toBe('tatti ylös');
-    expect(bindingText('reelSlack', true)).toBe('KELALLE');
+    expect(bindingText('forward', 'keys')).toBe('W/↑');
+    expect(bindingText('sprint', 'keys')).toBe('Shift');
+    expect(bindingText('forward', 'touch')).toBe('tatti ylös');
+    expect(bindingText('reelSlack', 'touch')).toBe('KELALLE');
     // NOP-napin vaihteen kierrolla ei ole näppäintä.
-    expect(bindingText('gearNext', false)).toBeNull();
+    expect(bindingText('gearNext', 'keys')).toBeNull();
   });
 
   it('sama ohjeteksti näppäimistölle ja kosketukselle', () => {
-    expect(controlText('help.reel', {}, { touch: false })).toBe(
+    expect(controlText('help.reel', {}, { mode: 'keys' })).toBe(
       'Hiiri tai välilyönti pohjassa = kelaa · hiiren oikea/J = nykäisy, ison kalan vastaisku',
     );
-    expect(controlText('help.reel', {}, { touch: true })).toBe(
+    expect(controlText('help.reel', {}, { mode: 'touch' })).toBe(
       'Sormi järvellä tai KELAA pohjassa = kelaa · NYKÄISE = nykäisy, ison kalan vastaisku',
     );
-    expect(controlText('game.viewTop', {}, { touch: true })).toBe('Ylhäältä (KAM)');
-    expect(controlText('game.viewTop', {}, { touch: false })).toBe('Ylhäältä (V)');
+    expect(controlText('game.viewTop', {}, { mode: 'touch' })).toBe('Ylhäältä (KAM)');
+    expect(controlText('game.viewTop', {}, { mode: 'keys' })).toBe('Ylhäältä (V)');
     setLangForTest('en');
-    expect(controlText('game.viewTop', {}, { touch: true })).toBe('From above (CAM)');
+    expect(controlText('game.viewTop', {}, { mode: 'touch' })).toBe('From above (CAM)');
   });
 
   it('osa jätetään pois, jos toimintoa ei ole', () => {
-    expect(controlText('help.bar', {}, { touch: false })).toBe(
+    expect(controlText('help.bar', {}, { mode: 'keys' })).toBe(
       'V = näkymä · G = käsimerkit · rulla = zoom · H = ohje · Esc = tauko',
     );
-    expect(controlText('help.bar', {}, { touch: false, skip: ['zoom'] })).toBe(
+    expect(controlText('help.bar', {}, { mode: 'keys', skip: ['zoom'] })).toBe(
       'V = näkymä · G = käsimerkit · H = ohje · Esc = tauko',
     );
-    expect(controlText('help.gear', {}, { touch: true })).toBe(
+    expect(controlText('help.gear', {}, { mode: 'touch' })).toBe(
       'NOP = kelausnopeus · PIKA = pikakelaus · JAR−/JAR+ = jarru',
     );
   });
 
+  it('peliohjaimella ohjeessa ohjaimen napit: Xbox tai PlayStation', () => {
+    const c = fakeInput(['Pad0', 'PadLsUp'], ['Pad2']);
+    expect(c.isDown('reel')).toBe(true);
+    expect(c.isDown('castForward')).toBe(true);
+    expect(c.isDown('forward')).toBe(true);
+    expect(c.wasPressed('twitch')).toBe(true);
+    expect(c.wasPressed('lift')).toBe(true);
+    expect(controlText('help.reel', {}, { mode: 'pad' })).toBe(
+      'A/RT pohjassa = kelaa · X = nykäisy, ison kalan vastaisku',
+    );
+    expect(controlText('help.cast', {}, { mode: 'pad' })).toBe('Oikea tatti = heiton suunta');
+    expect(controlText('help.cast', {}, { mode: 'keys' })).toBe(
+      'Hiiri: tähtää, pidä ja päästä = heitto',
+    );
+    expect(controlText('help.move', {}, { mode: 'pad' })).toBe(
+      'Vasen tatti ↑ = kohti räpylöitä · vasen tatti ↓ = selkä edellä (nopein)',
+    );
+    setControlMode('pad', 'playstation');
+    expect(controlText('help.gear')).toBe('✚→ = kelausnopeus · ✚↓/✚↑ = jarru');
+    expect(withKey('tackle.lure', 'lure')).toBe('Viehe (L1)');
+    expect(controlText('help.reel')).toMatch(/^✕\/R2 pohjassa = kelaa · □ = nykäisy/);
+    setControlMode('keys', 'xbox');
+  });
+
   it('kaikki ohjetekstien {toiminnot} ovat kartassa', () => {
-    const vars = /\{(\w+)\}/g;
+    const vars = /\{(\w+(?:\|\w+)*)\}/g;
     for (const [k, text] of Object.entries(fi)) {
       if (!/^(help|ctl|menu\.controls|tackle\.(lure|fly|flyHint|lureInRace)$)/.test(k)) continue;
-      for (const m of text.matchAll(vars)) expect(CONTROLS, `${k}: ${m[1]}`).toHaveProperty(m[1]!);
+      for (const m of text.matchAll(vars))
+        for (const a of m[1]!.split('|')) expect(CONTROLS, `${k}: ${a}`).toHaveProperty(a);
     }
   });
 });

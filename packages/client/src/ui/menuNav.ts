@@ -8,7 +8,8 @@
  * omaa käsittelyä: valintarivin painikkeet (`.choice-options`), painikerivi
  * (`.buttons`), liukusäädin ja kartan zoomausnapit ovat kukin yksi rivi,
  * muut kohdistettavat (päävalikon napit, tekstikentät) omia rivejään.
- * Peliohjaimen voi myöhemmin kytkeä samaan `handle`-kutsuun.
+ * Peliohjain käyttää samoja rivejä (`pad`): ristiohjain tai vasen tatti
+ * liikkuu, A/✕ valitsee ja B/○ palaa.
  */
 export type NavAction = 'up' | 'down' | 'left' | 'right' | 'select' | 'back';
 
@@ -175,6 +176,30 @@ export class MenuNav {
     return true;
   }
 
+  /**
+   * Peliohjaimen valikkotoiminto (engine/gamepad.ts). Valinta painaa
+   * kohdistettua, ja liukusäädin liikkuu vasemmalle ja oikealle.
+   */
+  pad(action: NavAction): void {
+    if (!this.isOpen()) return;
+    this.setKeyboard(true);
+    const current = this.current();
+    if (
+      current instanceof HTMLInputElement &&
+      current.type === 'range' &&
+      (action === 'left' || action === 'right')
+    ) {
+      stepRange(current, action === 'right');
+      return;
+    }
+    if (action === 'select' && current) {
+      current.focus();
+      current.click();
+      return;
+    }
+    this.handle(action, current ?? document.body);
+  }
+
   private onKeyCapture = () => {
     if (!this.isOpen()) return;
     this.keyboardBefore = this.root.classList.contains('kb');
@@ -211,13 +236,7 @@ export class MenuNav {
     ) {
       if (vim) {
         e.preventDefault();
-        const before = target.value;
-        if (action === 'left') target.stepDown();
-        else target.stepUp();
-        if (target.value !== before) {
-          target.dispatchEvent(new Event('input', { bubbles: true }));
-          target.dispatchEvent(new Event('change', { bubbles: true }));
-        }
+        stepRange(target, action === 'right');
       }
       return;
     }
@@ -234,6 +253,17 @@ export class MenuNav {
     if (e.type === 'pointermove' && e.movementX === 0 && e.movementY === 0) return;
     this.setKeyboard(false);
   };
+}
+
+/** Liukusäädin askeleen ylös tai alas, kuten nuolinäppäimellä. */
+function stepRange(range: HTMLInputElement, up: boolean): void {
+  const before = range.value;
+  if (up) range.stepUp();
+  else range.stepDown();
+  if (range.value !== before) {
+    range.dispatchEvent(new Event('input', { bubbles: true }));
+    range.dispatchEvent(new Event('change', { bubbles: true }));
+  }
 }
 
 /**

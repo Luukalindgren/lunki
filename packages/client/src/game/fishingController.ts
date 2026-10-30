@@ -41,7 +41,7 @@ import type { Hud } from '../ui/hud';
 import { formatWeight, ordinal, t } from '../i18n';
 import { baitName, speciesName } from '../i18n/names';
 import { CastControl } from './castControl';
-import { controlText, type Controls } from './controls';
+import { controlMode, controlText, type Controls } from './controls';
 import { FlyCastControl, touchToRodPixels } from './flyCastControl';
 import type { FishingView } from './fishingView';
 import { FlyStrip } from './flyStrip';
@@ -282,6 +282,7 @@ export class FishingController {
       (host.viewMode === 'pov' ? host.pov : host.view).internalToWorld(internal.x, internal.y),
       host.tube.pos,
       host.facing,
+      controlMode() === 'pad' ? { stick: input.padAim, pov: host.viewMode === 'pov' } : undefined,
     );
     const lureOut = f.stage === 'flight' || f.stage === 'water';
     // Perho vedessä ja siima kädessä: hiiri tai välilyönti pitää siimaa ja vetää sitä.
