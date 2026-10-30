@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { moonAt, sunAt, type CelestialPosition, type Season, type Vec2 } from '@lunki/shared';
+import { moonAt, Rng, sunAt, type CelestialPosition, type Season, type Vec2 } from '@lunki/shared';
 
 /**
  * Jälkikäsittelyn sävytys palettiin pyöristämisen jälkeen: väri =
@@ -449,6 +449,19 @@ export function lookAt(hours: number, season: Season = 'summer'): Look {
   return looks[looks.length - 1]![1];
 }
 
+/**
+ * Revontulet (#427): keväällä ja syksyllä osa kisoista saa revontulet, jotka
+ * näkyvät pimeällä pohjoistaivaalla. Arvonta tulee kisan siemenestä, joten
+ * moninpelissä kaikki näkevät samat. Kesän valoisa yö peittää ne.
+ */
+export const AURORA: Partial<Record<Season, number>> = { spring: 0.3, autumn: 0.45 };
+
+/** Kisan revontulten voimakkuus 0–1 (0 = ei revontulia). */
+export function auroraFor(seed: number, season: Season): number {
+  const rng = new Rng(seed ^ 0x2a0ba5);
+  return rng.next() < (AURORA[season] ?? 0) ? rng.range(0.5, 1) : 0;
+}
+
 const DOME_RADIUS = 2800;
 /** Auringon ja kuun kiekon säde (rad); liioiteltu, jotta ne erottuvat pienestä kuvasta. */
 const SUN_RADIUS = 0.024;
@@ -488,6 +501,7 @@ const DOME_FRAG = /* glsl */ `
   uniform vec3 uCloudLit;
   uniform vec3 uCloudShade;
   uniform float uFlash;
+  uniform float uAurora;
   varying vec3 vDir;
 
   float hash12(vec2 p) {
@@ -583,6 +597,19 @@ const DOME_FRAG = /* glsl */ `
       c = mix(c, cloud, cover * 0.95);
     }
 
+    // Revontulet: pohjoistaivaalla hitaasti liikkuvia vihreitä verhoja,
+    // joiden yläreuna sinertää violetiksi; pystysäteet väreilevät.
+    if (uAurora > 0.0 && d.y > 0.01) {
+      float north = smoothstep(-0.1, 0.6, -d.z);
+      float az = atan(d.x, -d.z);
+      float base = 0.04 + 0.07 * noise(vec2(az * 2.5 + uTime * 0.02, 3.0));
+      float top = base + 0.12 + 0.28 * noise(vec2(az * 4.0 - uTime * 0.03, 7.0));
+      float band = smoothstep(base, base + 0.012, h) * (1.0 - smoothstep(base + 0.02, top, h));
+      float rays = 0.25 + 0.75 * noise(vec2(az * 140.0 + uTime * 0.6, 2.0)) * noise(vec2(az * 23.0, 9.0));
+      float cover = smoothstep(0.3, 0.7, noise(vec2(az * 3.0 + uTime * 0.04, uTime * 0.02)));
+      vec3 col = mix(vec3(0.25, 1.0, 0.55), vec3(0.6, 0.35, 0.8), smoothstep(base + 0.04, top, h));
+      c += col * band * rays * cover * north * uAurora;
+    }
     c += vec3(0.55, 0.6, 0.75) * uFlash;
     gl_FragColor = vec4(c, 0.0);
   }
@@ -628,8 +655,14 @@ export class SkyView {
   private clock = 0;
   private readonly cloudOffset = new THREE.Vector2();
 
-  /** Vuodenaika (#427): auringon rata ja vuorokauden ilmeet. */
-  constructor(readonly season: Season = 'summer') {
+  /**
+   * Vuodenaika (#427): auringon rata ja vuorokauden ilmeet. `aurora` on
+   * kisan revontulten voimakkuus (ks. auroraFor).
+   */
+  constructor(
+    readonly season: Season = 'summer',
+    readonly aurora = 0,
+  ) {
     const color = () => ({ value: new THREE.Color() });
     this.domeMaterial = new THREE.ShaderMaterial({
       vertexShader: DOME_VERT,
@@ -654,6 +687,7 @@ export class SkyView {
         uCloudLit: color(),
         uCloudShade: color(),
         uFlash: { value: 0 },
+        uAurora: { value: 0 },
       },
       side: THREE.BackSide,
       depthWrite: false,
@@ -711,6 +745,8 @@ export class SkyView {
       ? (1 - cloud) * (1 - 0.7 * smoothstep(-0.1, 0.05, sunPos.elevation))
       : 0;
     u.uStars!.value = look.stars * (1 - cloud);
+    // Revontulet näkyvät vain siellä, missä tähdetkin.
+    u.uAurora!.value = this.aurora * Math.min(1, look.stars) * (1 - cloud);
     u.uTime!.value = this.clock;
     u.uClouds!.value = Math.min(0.95, look.clouds + darkness * 1.1);
     (u.uCloudLit!.value as THREE.Color).copy(dim(look.cloudLit));
