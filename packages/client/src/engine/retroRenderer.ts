@@ -11,6 +11,8 @@ export interface PaletteGrade {
   mist?: THREE.Color;
   /** Koko kuva negatiiviksi (salama aivan vieressä). */
   invert?: boolean;
+  /** Kaukosumu (m): alku ja loppu usvan värillä; vain perspektiivikameralla. */
+  fog?: [number, number] | null;
 }
 
 export type PaletteMode = 'dither' | 'palette' | 'off';
@@ -25,6 +27,7 @@ const FULLSCREEN_VERT = /* glsl */ `
 
 const PALETTE_FRAG = /* glsl */ `
   uniform sampler2D tScene;
+  uniform sampler2D tDepth;
   uniform vec3 uPalette[${PALETTE.length}];
   uniform int uMode; // 0 = dither, 1 = paletti, 2 = pois
   uniform float uDitherAmount;
@@ -33,7 +36,18 @@ const PALETTE_FRAG = /* glsl */ `
   uniform float uGradeSat;
   uniform vec3 uMist;
   uniform float uInvert;
+  uniform vec2 uFog; // alku ja loppu (m); loppu 0 = ei sumua
+  uniform vec2 uCamera; // kameran near ja far
   varying vec2 vUv;
+
+  // Kaukosumu syvyyspuskurista: etäisyys kamerasta katseen suuntaan kuten
+  // three.js:n Fog (pehmeä smoothstep alusta loppuun).
+  float distanceFog() {
+    if (uFog.y <= 0.0) return 0.0;
+    float z = texture2D(tDepth, vUv).r;
+    float d = uCamera.x * uCamera.y / (uCamera.y - z * (uCamera.y - uCamera.x));
+    return smoothstep(uFog.x, uFog.y, d);
+  }
 
   // Vuorokaudenaika sävyttää palettivärit vasta pyöristyksen jälkeen, jolloin
   // kuva säilyttää yhtä monta sävyä yölläkin (paletin vaihto).
@@ -57,14 +71,16 @@ const PALETTE_FRAG = /* glsl */ `
     return (float(m[i]) + 0.5) / 16.0 - 0.5;
   }
 
-  vec3 shade(vec4 scene) {
+  vec3 shade(vec4 scene, float fog) {
     vec3 c = linearToSrgb(clamp(scene.rgb, 0.0, 1.0));
     // Alfa 0 = taivas (ks. SkyView): se piirretään omina sävyinään ohi paletin,
     // jotta liukuvärit ja pilvet pysyvät pehmeinä. Hieno porrastus pitää
     // ilmeen silti pikselimäisenä.
     if (scene.a < 0.1)
       return uMode == 2 ? c : floor(c * 40.0 + bayer4(gl_FragCoord.xy) + 0.5) / 40.0;
+    // Usva (alfakanava) ja kaukosumu ovat yksi kerros samalla värillä.
     float mist = clamp((1.0 - scene.a) / 0.8, 0.0, 1.0);
+    mist = 1.0 - (1.0 - mist) * (1.0 - fog);
     if (uMode == 2) return mix(grade(c), uMist, mist);
     if (uMode == 0) c += bayer4(gl_FragCoord.xy) * uDitherAmount;
     vec3 best = uPalette[0];
@@ -81,7 +97,7 @@ const PALETTE_FRAG = /* glsl */ `
   }
 
   void main() {
-    vec3 c = shade(texture2D(tScene, vUv));
+    vec3 c = shade(texture2D(tScene, vUv), distanceFog());
     gl_FragColor = vec4(mix(c, 1.0 - c, uInvert), 1.0);
   }
 `;
@@ -92,11 +108,13 @@ const NO_GRADE: PaletteGrade = {
   sat: 1,
 };
 
-function makeTarget(width: number, height: number, depth: boolean) {
+/** Kohtauksen kohde; syvyys tekstuurina kaukosumua varten. */
+function makeTarget(width: number, height: number) {
   return new THREE.WebGLRenderTarget(width, height, {
     minFilter: THREE.NearestFilter,
     magFilter: THREE.NearestFilter,
-    depthBuffer: depth,
+    depthBuffer: true,
+    depthTexture: new THREE.DepthTexture(width, height),
     generateMipmaps: false,
   });
 }
@@ -113,7 +131,7 @@ export class RetroRenderer {
   resolution: RetroResolution = { width: 1, height: 1, scale: 1 };
   paletteMode: PaletteMode = 'palette';
 
-  private readonly sceneTarget = makeTarget(1, 1, true);
+  private readonly sceneTarget = makeTarget(1, 1);
   private readonly quadCamera = new THREE.Camera();
   private readonly quad: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
   private readonly paletteMaterial: THREE.ShaderMaterial;
@@ -136,6 +154,7 @@ export class RetroRenderer {
       fragmentShader: PALETTE_FRAG,
       uniforms: {
         tScene: { value: this.sceneTarget.texture },
+        tDepth: { value: this.sceneTarget.depthTexture },
         uPalette: { value: PALETTE.map(([r, g, b]) => new THREE.Vector3(r, g, b)) },
         uMode: { value: 0 },
         uDitherAmount: { value: 0.06 },
@@ -144,6 +163,8 @@ export class RetroRenderer {
         uGradeSat: { value: 1 },
         uMist: { value: new THREE.Color(0xc3cbd2) },
         uInvert: { value: 0 },
+        uFog: { value: new THREE.Vector2() },
+        uCamera: { value: new THREE.Vector2(0.1, 1000) },
       },
       depthTest: false,
       depthWrite: false,
@@ -180,6 +201,11 @@ export class RetroRenderer {
     u.uGradeSat!.value = grade?.sat ?? 1;
     if (grade?.mist) (u.uMist!.value as THREE.Color).copy(grade.mist);
     u.uInvert!.value = grade?.invert ? 1 : 0;
+    const fog = u.uFog!.value as THREE.Vector2;
+    if (grade?.fog && camera instanceof THREE.PerspectiveCamera) {
+      fog.set(grade.fog[0], grade.fog[1]);
+      (u.uCamera!.value as THREE.Vector2).set(camera.near, camera.far);
+    } else fog.set(0, 0);
     r.info.reset();
     r.setRenderTarget(this.sceneTarget);
     r.render(scene, camera);
@@ -212,6 +238,7 @@ export class RetroRenderer {
 
   dispose(): void {
     window.removeEventListener('resize', this.resize);
+    this.sceneTarget.depthTexture?.dispose();
     this.sceneTarget.dispose();
     this.paletteMaterial.dispose();
     this.quad.geometry.dispose();

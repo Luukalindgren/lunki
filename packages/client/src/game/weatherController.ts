@@ -58,7 +58,7 @@ import { LightningView } from './lightningView';
 import { MistView } from './mistView';
 import type { Penalties } from './penalties';
 import type { PovCamera } from './povCamera';
-import { SkyView } from './skyView';
+import { SkyView, flashStrength } from './skyView';
 import { SpoutView, flightPose } from './spoutView';
 import type { TopDownCamera } from './topDownCamera';
 import { WeatherView, compassIn, windFrom, windName } from './weatherView';
@@ -169,7 +169,7 @@ export class WeatherController {
   ) {
     const { map, settings, water } = host;
     scene.add(this.hemi, this.sun);
-    this.mist = new MistView((p) => water.isWater(p), map.bounds);
+    this.mist = new MistView((p) => water.isWater(p), map.bounds, waterWaves);
     scene.add(this.sky.dome, this.mist.group);
     const planS = planSeconds(settings);
     const plan = planWeather(seed, settings.weather ?? 'realistic', planS);
@@ -418,7 +418,7 @@ export class WeatherController {
     this.lightning.strike(at);
     host.logEvent('lightning', pos);
     host.raceStatsCounter.lightning(d, hitMe);
-    this.flashStrength = d < 150 ? 1 : d < 400 ? 0.9 : d < 1000 ? 0.65 : 0.45;
+    this.flashStrength = flashStrength(d);
     this.shakeStrength = Math.max(0, 1 - d / 500);
     this.flashInvert = d < 60;
     // Jyrähdys kuuluu salaman suunnasta.
@@ -540,24 +540,19 @@ export class WeatherController {
     this.hemi.intensity = 1.5 * sky.ambient;
     this.sun.intensity = 1.5 * sky.direct;
     this.sun.position.copy(sky.lightDir).multiplyScalar(120);
+    const pov = this.host.viewMode === 'pov';
+    // Kaukosumu lasketaan jälkikäsittelyssä usvan kanssa (ks. RetroRenderer).
+    this.sky.grade.fog = pov ? sky.fog : null;
     const bg = scene.background;
     if (!(bg instanceof THREE.Color)) return;
-    if (this.host.viewMode === 'pov') {
-      bg.copy(sky.horizon);
-      if (scene.fog instanceof THREE.Fog) {
-        scene.fog.color.copy(sky.horizon);
-        [scene.fog.near, scene.fog.far] = sky.fog;
-      }
-    } else {
-      bg.set(LAND_COLOR);
-    }
+    if (pov) bg.copy(sky.horizon);
+    else bg.set(LAND_COLOR);
   }
 
   /** Näkymän vaihto: taivas, usva ja kaukosumu vain kalastajan silmin. */
   setPov(pov: boolean): void {
     this.sky.dome.visible = pov;
     this.scene.background = new THREE.Color(LAND_COLOR);
-    this.scene.fog = pov ? new THREE.Fog(this.sky.lighting.horizon, 500, 2600) : null;
     this.applyLight();
   }
 

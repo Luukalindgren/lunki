@@ -79,6 +79,7 @@ export class LightningView {
           fog: false,
           // Ydin piirretään hehkun päälle, vaikka ne ovat samassa kohdassa.
           depthWrite: order === 1,
+          ...LIGHT_SOURCE,
         }),
       );
       m.renderOrder = order;
@@ -86,7 +87,8 @@ export class LightningView {
       m.visible = false;
       return m;
     };
-    this.halo = ribbon(this.haloPositions, 0xc05bb4, 0);
+    // Kylmän sininen hehku: violetti pyöristyi paletissa magentaksi (#409).
+    this.halo = ribbon(this.haloPositions, 0x83c2db, 0);
     this.bolt = ribbon(this.boltPositions, 0xeef2f3, 1);
     const ringGeometry = new THREE.RingGeometry(0.9, 1, 32);
     ringGeometry.rotateX(-Math.PI / 2);
@@ -97,7 +99,7 @@ export class LightningView {
     this.ring.visible = false;
     // Iskukohdan hehku ja vesiroiske: kameraa kohti käännetty valopallo.
     this.glow = new THREE.Sprite(
-      new THREE.SpriteMaterial({ map: glowTexture(), alphaTest: 0.5, fog: false }),
+      new THREE.SpriteMaterial({ map: glowTexture(), alphaTest: 0.5, fog: false, ...LIGHT_SOURCE }),
     );
     this.glow.visible = false;
     this.group.add(this.halo, this.bolt, this.glow, this.ring);
@@ -228,6 +230,21 @@ export class LightningView {
     return this.seed / 2147483647;
   }
 }
+
+/**
+ * Salama on valonlähde kuten taivas: se kirjoittaa alfaksi 0, jolloin
+ * jälkikäsittely piirtää sen omana värinään ohi paletin, sävytyksen ja
+ * kaukosumun (ks. RetroRenderer). Muuten kilometrin päässä iskevä salama
+ * hukkuisi yöllä sumuun.
+ */
+const LIGHT_SOURCE = {
+  blending: THREE.CustomBlending,
+  blendEquation: THREE.AddEquation,
+  blendSrc: THREE.OneFactor,
+  blendDst: THREE.ZeroFactor,
+  blendSrcAlpha: THREE.ZeroFactor,
+  blendDstAlpha: THREE.ZeroFactor,
+} as const;
 
 /** Pyöreä, pikselimäinen hehku: kirkas keskus ja vaaleankeltainen reuna. */
 function glowTexture(): THREE.Texture {
