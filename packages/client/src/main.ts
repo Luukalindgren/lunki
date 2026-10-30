@@ -10,6 +10,7 @@ import {
   formatTime,
   isTimeOfDay,
   isFly,
+  isValidStart,
   isWeatherLevel,
   parseRoomCode,
   raceAwards,
@@ -38,7 +39,21 @@ import { ChatBox } from './ui/chat';
 import { TouchControls, isTouchDevice } from './ui/touchControls';
 import { Controls, contextActions, setControlMode } from './game/controls';
 import { Guide, loadGuide } from './game/guide';
-import { Screens, loadSettings, type ResultsSummary, type SettingsControls } from './ui/screens';
+import {
+  Screens,
+  loadSettings,
+  type ResultsSummary,
+  type SettingsControls,
+  type SoloReplay,
+} from './ui/screens';
+import {
+  CHALLENGE_PARAM,
+  challengeScore,
+  challengeScoreText,
+  challengeUrl,
+  decodeChallenge,
+  type Challenge,
+} from './game/challenge';
 import { addLifetimeRace, type LifetimeStats } from './game/lifetimeStats';
 import { dismissBootLoader } from './ui/loader';
 import { Bench } from './dev/bench';
@@ -170,6 +185,9 @@ let updateCount = 0;
 let resultsAsHost: boolean | null = null;
 /** Yksinpelin ennätyslistalle päässeet saaliit tulossivulle. */
 let soloRecordNotes: string[] = [];
+/** Käynnissä olevan kisan siemen ja haaste: sama kisa uudelleen ja haastelinkki (#413). */
+let raceSeed = 0;
+let raceChallenge: Challenge | null = null;
 
 /** Varjostimia odotetaan enintään näin kauan ennen piirtoa (ms). */
 const WARM_TIMEOUT_MS = 3000;
@@ -178,11 +196,17 @@ let gameWarm = false;
 /** Kisan aloituksen kesto suorituskykytestiin: rakennus ja varjostimet (ms). */
 const raceStart = { buildMs: 0, compileMs: 0 };
 
-function startGame(s: CompetitionSettings, seed = devSeed) {
+/**
+ * Aloittaa kisan. Ilman siementä arvotaan uusi; tunnetulla siemenellä (sama
+ * kisa uudelleen, haaste, kehitystilan ?seed=) saalis ei mene ennätyslistalle.
+ */
+function startGame(s: CompetitionSettings, seed = devSeed, challenge: Challenge | null = null) {
   if (!session) settings = s;
   game?.dispose();
   input.dropPresses();
   const t0 = performance.now();
+  raceSeed = seed ?? Date.now() >>> 0;
+  raceChallenge = challenge;
   const net = session
     ? { world: new NetWorld(session, new WaterBody(LUNKINJARVI)), overlay: app!, canvas }
     : undefined;
@@ -192,7 +216,7 @@ function startGame(s: CompetitionSettings, seed = devSeed) {
     sfx,
     (x, y) => retro.screenToInternal(x, y),
     s,
-    seed,
+    raceSeed,
     LUNKINJARVI,
     net,
   );
@@ -225,8 +249,8 @@ function startGame(s: CompetitionSettings, seed = devSeed) {
     showResults();
   };
   soloRecordNotes = [];
-  // Kehitystilan valitulla siemenellä saalis ei ole reilu ennätys.
-  if (!session && devSeed === undefined) {
+  // Tiedossa olevalla siemenellä kalojen paikat tunnetaan: saalis ei ole reilu ennätys.
+  if (!session && seed === undefined) {
     /** Palvelin kiinni: kerrotaan kerran kisan aikana, että saaliit odottavat. */
     let queuedNotice = false;
     g.onSoloCatch = (entry) => {
@@ -435,6 +459,37 @@ function showResults() {
     game.raceMap(),
     soloRecordNotes,
     resultsSummary(game, null),
+    soloReplay(game),
+  );
+}
+
+/** Saman kisan uusinta ja haastelinkki tämän kisan tuloksella (#413). */
+function soloReplay(g: Game): SoloReplay {
+  const seed = raceSeed;
+  const rival = raceChallenge;
+  const c = g.competition;
+  return {
+    onSame: () => startGame(g.settings, seed, rival),
+    link: challengeUrl(location.origin + location.pathname, {
+      seed,
+      settings: g.settings,
+      score: challengeScore(c.catches, c.settings.winRule),
+      elapsed: c.elapsed,
+      name: loadIdentity().name,
+    }),
+    challenge: rival,
+  };
+}
+
+/** Kaverin haastelinkki aloittaa saman kisan suoraan (#413). */
+function startChallenge(c: Challenge): void {
+  startGame(c.settings, c.seed, c);
+  hud.showMessage(
+    t('challenge.start', {
+      name: c.name,
+      score: challengeScoreText(c.score, c.settings, c.elapsed),
+    }),
+    6,
   );
 }
 
@@ -702,7 +757,15 @@ if (params.has('bench')) {
 } else {
   void tryResume().then((resumed) => {
     if (resumed) return;
-    if (params.has('huone')) showMultiplayer(params.get('huone') ?? '');
+    const challenge = params.has(CHALLENGE_PARAM)
+      ? decodeChallenge(params.get(CHALLENGE_PARAM), (p) =>
+          isValidStart(new WaterBody(LUNKINJARVI), p),
+        )
+      : null;
+    // Linkki käytetään kerran: uudelleenlataus palaa valikkoon.
+    if (params.has(CHALLENGE_PARAM)) history.replaceState(null, '', location.pathname);
+    if (challenge) startChallenge(challenge);
+    else if (params.has('huone')) showMultiplayer(params.get('huone') ?? '');
     else showMenu();
   });
 }

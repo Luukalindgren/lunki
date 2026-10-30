@@ -113,6 +113,7 @@ import {
 import { controlText } from '../game/controls';
 import { MANUAL_SECTIONS, manualTopics, type ManualSection } from './manual';
 import { isMine } from '../game/raceScoreboard';
+import { challengeOutcome, challengeScoreText } from '../game/challenge';
 import { loadCraft, saveCraft } from '../game/tackle';
 import {
   BOX_SLOTS,
@@ -170,6 +171,16 @@ const NO_FOCUS_MEMORY = new Set(['pause', 'results', 'race-results', 'message'])
 
 /** Asetusnäkymän säätimet (päävalikko ja tauko). */
 type ResultsView = 'list' | 'stats' | 'map';
+
+/** Yksinpelin uusinta ja haaste tulossivulle (#413). */
+export interface SoloReplay {
+  /** Aloittaa saman kisan uudelleen samalla siemenellä. */
+  onSame: () => void;
+  /** Haastelinkki tämän kisan tuloksella. */
+  link: string;
+  /** Kisa oli haaste: haastajan nimi ja tulos vertailuun. */
+  challenge: { name: string; score: number; elapsed: number } | null;
+}
 
 /** Tulossivun palkinnot ja tilastot (#367). */
 export interface ResultsSummary {
@@ -1856,6 +1867,7 @@ export class Screens {
     race?: RaceMapData | null,
     recordNotes: readonly string[] = [],
     summary?: ResultsSummary | null,
+    replay?: SoloReplay | null,
   ): void {
     this.resultsView = 'list';
     this.statsPlayer = null;
@@ -1873,6 +1885,27 @@ export class Screens {
             : t('results.ended'),
       ),
     );
+    const rival = replay?.challenge;
+    if (rival) {
+      const outcome = challengeOutcome(sum.score, rival.score);
+      const key =
+        outcome === 'won'
+          ? 'results.challengeWon'
+          : outcome === 'lost'
+            ? 'results.challengeLost'
+            : 'results.challengeTie';
+      panel.append(
+        h(
+          'p',
+          t(key, {
+            mine: challengeScoreText(sum.score, c.settings, c.elapsed),
+            name: rival.name,
+            theirs: challengeScoreText(rival.score, c.settings, rival.elapsed),
+          }),
+          `total challenge-result ${outcome}`,
+        ),
+      );
+    }
     if (sum.count === 0) {
       panel.append(h('p', t('results.empty')));
       // Reitistä ja tilastoista näkee silti, missä tuli käytyä ja mitä sattui.
@@ -1911,8 +1944,27 @@ export class Screens {
         }`,
         'hint',
       ),
+    );
+    if (!replay) {
+      panel.append(
+        this.buttons([
+          [t('results.again'), onAgain],
+          [t('results.toMenu'), onMenu],
+        ]),
+      );
+      this.show(panel, { cleanup: map?.dispose, back: onMenu });
+      return;
+    }
+    const status = h('p', '', 'hint challenge-status');
+    status.hidden = true;
+    const scoreText = challengeScoreText(sum.score, c.settings, c.elapsed);
+    panel.append(
+      h('p', t('results.sameHint'), 'hint'),
+      status,
       this.buttons([
         [t('results.again'), onAgain],
+        [t('results.same'), replay.onSame],
+        [t('results.challenge'), () => void shareChallenge(replay.link, scoreText, status)],
         [t('results.toMenu'), onMenu],
       ]),
     );
@@ -2644,6 +2696,33 @@ function waveTitle(text: string): HTMLElement {
     title.append(letter);
   }
   return title;
+}
+
+/**
+ * Haastelinkki kaverille (#413): puhelimessa jakotoiminnolla, muuten
+ * leikepöydälle. Linkki näkyy myös tulossivulla, jos kopiointi ei onnistu.
+ */
+async function shareChallenge(link: string, score: string, status: HTMLElement): Promise<void> {
+  const show = (text: string) => {
+    const a = document.createElement('a');
+    a.href = link;
+    a.textContent = link;
+    status.replaceChildren(`${text} `, a);
+    status.hidden = false;
+  };
+  try {
+    if (typeof navigator.share === 'function') {
+      await navigator.share({ text: t('results.challengeShareText', { score }), url: link });
+      show(t('results.challengeShared', { score }));
+      return;
+    }
+    await navigator.clipboard.writeText(link);
+    show(t('results.challengeCopied', { score }));
+  } catch (err) {
+    // Käyttäjä perui jakamisen.
+    if ((err as Error).name === 'AbortError') return;
+    show(t('results.challengeCopy'));
+  }
 }
 
 function h(tag: string, text: string, className?: string): HTMLElement {

@@ -110,6 +110,7 @@ const TOPICS: Record<ManualSection, readonly Topic[]> = {
     { title: 'manual.mp.race', text: 'manual.mp.raceText' },
     { title: 'manual.mp.tangle', text: 'manual.mp.tangleText' },
     { title: 'manual.mp.talk', text: 'manual.mp.talkText' },
+    { title: 'manual.mp.challenge', text: 'manual.mp.challengeText' },
   ],
 };
 

@@ -498,6 +498,21 @@ export const fi = {
   'results.summary': 'Kaloja {count} · yhteensä {total} · suurin {biggest}',
   'results.again': 'Uusi kisa',
   'results.toMenu': 'Valikkoon',
+  'results.same': 'Sama kisa',
+  'results.sameHint':
+    'Sama kisa ja haaste: sama sää, samat kalat ja aloituspaikka. Ne eivät mene ennätyslistalle.',
+  'results.challenge': 'Haasta kaveri',
+  'results.challengeCopied':
+    'Linkki kopioitu. Kaveri pelaa saman kisan ja näkee tuloksesi {score}.',
+  'results.challengeShared': 'Kaveri pelaa saman kisan ja näkee tuloksesi {score}.',
+  'results.challengeCopy': 'Kopioi linkki kaverille:',
+  'results.challengeShareText': 'Haastan sinut Lunkinjärvelle: sain {score}. Pystytkö parempaan?',
+  'results.challengeWon': 'Voitit haasteen: {mine}, {name} {theirs}',
+  'results.challengeLost': 'Hävisit haasteen: {mine}, {name} {theirs}',
+  'results.challengeTie': 'Tasapeli haasteessa: {mine}, {name} {theirs}',
+  'challenge.biggest': 'suurin kala {weight}',
+  'challenge.inTime': '{score} ajassa {time}',
+  'challenge.start': '{name} haastaa sinut: {score}. Sama sää, samat kalat ja aloituspaikka.',
   'results.table': 'Tulokset',
   'results.catchMap': 'Saaliskartta',
   'results.trackCount': '{name} ({n} kpl)',
@@ -1008,6 +1023,9 @@ export const fi = {
   'manual.mp.tangle': 'Siimojen sotku',
   'manual.mp.tangleText':
     'Ristiin menneet siimat sotkeutuvat, kun jompikumpi kelaa. Sotkussa kalaa ei voi nostaa.\nKelatkaa yhdessä, niin sotku selviää nopeammin, tai {cut} = katkaise oma siimasi.',
+  'manual.mp.challenge': 'Haaste ilman huonetta',
+  'manual.mp.challengeText':
+    'Yksinpelin tulossivulla Sama kisa aloittaa saman kisan uudelleen: sama sää, samat kalat ja aloituspaikka.\nHaasta kaveri tekee linkin, jolla kaveri pelaa saman kisan ja näkee lopuksi, voittiko hän tuloksesi. Palvelinta ei tarvita.\nUusinnat ja haasteet eivät mene ennätyslistalle, koska kalojen paikat ovat tiedossa.',
   'manual.mp.talk': 'Käsimerkit ja viestit',
   'manual.mp.talkText': '{emote} = käsimerkit (pohjassa valikko)\n{chat} = viesti muille',
 

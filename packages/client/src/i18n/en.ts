@@ -495,6 +495,21 @@ export const en: Record<keyof typeof fi, string> = {
   'results.summary': 'Fish {count} · total {total} · biggest {biggest}',
   'results.again': 'New competition',
   'results.toMenu': 'Main menu',
+  'results.same': 'Same again',
+  'results.sameHint':
+    'Same again and challenges: same weather, same fish and start spot. They do not count for the records.',
+  'results.challenge': 'Challenge a friend',
+  'results.challengeCopied':
+    'Link copied. Your friend plays the same competition and sees your result {score}.',
+  'results.challengeShared': 'Your friend plays the same competition and sees your result {score}.',
+  'results.challengeCopy': 'Copy the link for your friend:',
+  'results.challengeShareText': 'I challenge you at Lunkinjärvi: I got {score}. Can you beat it?',
+  'results.challengeWon': 'You won the challenge: {mine}, {name} {theirs}',
+  'results.challengeLost': 'You lost the challenge: {mine}, {name} {theirs}',
+  'results.challengeTie': 'Challenge tied: {mine}, {name} {theirs}',
+  'challenge.biggest': 'biggest fish {weight}',
+  'challenge.inTime': '{score} in {time}',
+  'challenge.start': '{name} challenges you: {score}. Same weather, same fish and start spot.',
   'results.table': 'Results',
   'results.catchMap': 'Catch map',
   'results.trackCount': '{name} ({n} pcs)',
@@ -1005,6 +1020,9 @@ export const en: Record<keyof typeof fi, string> = {
   'manual.mp.tangle': 'Tangled lines',
   'manual.mp.tangleText':
     'Crossed lines tangle when either angler reels. While tangled, nobody can land a fish.\nReel together to untangle faster, or {cut} = cut your own line.',
+  'manual.mp.challenge': 'Challenge without a room',
+  'manual.mp.challengeText':
+    'On the solo results page, Same again starts the same competition again: same weather, same fish and start spot.\nChallenge a friend makes a link with which your friend plays the same competition and sees at the end whether they beat your result. No server needed.\nReplays and challenges do not count for the records, because the fish are known.',
   'manual.mp.talk': 'Gestures and messages',
   'manual.mp.talkText': '{emote} = gestures (hold for the menu)\n{chat} = message others',
 
