@@ -320,6 +320,50 @@ test('yksinpeli ilman aikarajaa ja ajastettuna (#360)', async ({ page, isMobile 
   errors.check();
 });
 
+test('sama kisa uudelleen ja haastelinkki (#413)', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'puhelimet: sama näkymä, tauko kosketusnapista');
+  const errors = watchErrors(page);
+  // Ilman jakotoimintoa linkki kopioidaan tai näytetään tulossivulla.
+  await page.addInitScript(() =>
+    Object.defineProperty(Navigator.prototype, 'share', { value: undefined }),
+  );
+  const finish = async () => {
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Lopeta ja punnitse' }).click();
+    await expect(page.getByRole('heading', { name: 'Sessio päättyi' })).toBeVisible();
+  };
+  await startSolo(page);
+  await finish();
+  await expect(page.getByText(/sama sää, samat kalat ja aloituspaikka/)).toBeVisible();
+  await page.getByRole('button', { name: 'Haasta kaveri' }).click();
+  const link = page.locator('.challenge-status a');
+  // Kehitystilan siemen 8 kulkee linkissä.
+  await expect(link).toHaveAttribute('href', /[?&]haaste=8\./);
+  const href = (await link.getAttribute('href'))!;
+
+  await page.getByRole('button', { name: 'Sama kisa', exact: true }).click();
+  await raceRunning(page);
+  await finish();
+
+  // Kaveri avaa linkin: kisa alkaa suoraan, ja haastajan tulos näkyy.
+  const url = new URL(href);
+  const parts = url.searchParams.get('haaste')!.split('.');
+  parts[4] = '4350';
+  parts[6] = 'Testaaja';
+  url.searchParams.set('haaste', parts.join('.'));
+  url.searchParams.set('view', 'top');
+  await page.goto(url.toString());
+  await raceRunning(page);
+  await expect(page.getByText(/Testaaja haastaa sinut: 4,35 kg ajassa/)).toBeVisible();
+  // Linkki käytetään kerran: osoitteesta poistuu haaste.
+  await expect(page).not.toHaveURL(/haaste/);
+  await finish();
+  await expect(
+    page.getByText(/Hävisit haasteen: .+, Testaaja 4,35 kg ajassa \d+:\d\d/),
+  ).toBeVisible();
+  errors.check();
+});
+
 test('kieli vaihtuu kesken kisan tauon asetuksista', async ({ page, isMobile }) => {
   test.skip(isMobile, 'puhelimet: sama näkymä, tauko kosketusnapista');
   const errors = watchErrors(page);

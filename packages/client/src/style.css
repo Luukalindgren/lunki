@@ -522,6 +522,20 @@ textarea,
   color: #fff3b0;
 }
 
+/* Haasteen tulos (#413) ja haastelinkki, joka saa katketa mistä vain. */
+.screen-panel .challenge-result {
+  font-size: 1.15em;
+}
+
+.screen-panel .challenge-status {
+  overflow-wrap: anywhere;
+  color: #fff3b0;
+}
+
+.challenge-status a {
+  color: inherit;
+}
+
 .choice {
   margin: 14px 0;
 }
