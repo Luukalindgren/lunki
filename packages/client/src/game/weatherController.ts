@@ -139,6 +139,8 @@ export class WeatherController {
   private spoutWarnTimer = 0;
   /** Lähimmän trombin läheisyys 0–1 pauhua varten. */
   spoutNear = 0;
+  /** Lähimmän trombin paikka pauhun suuntaa varten; null = ei trombia. */
+  spoutAt: Vec2 | null = null;
   /** Oma lento trombin mukana (kisa-aika, s), ja yksinpelin laskeutumispaikkojen arpa. */
   flight: (SpoutFlight & { t0: number }) | null = null;
   private readonly spoutRng: Rng;
@@ -238,14 +240,16 @@ export class WeatherController {
     const spots = activeSpouts(this.spouts, now);
     this.spoutView.update(dt, spots);
     // Pauhu kuuluu jo kaksinkertaiselta imuetäisyydeltä.
-    const nearest = Math.min(Infinity, ...spots.map((p) => distance(p, host.tube.pos)));
+    const dist = spots.map((p) => distance(p, host.tube.pos));
+    const nearest = Math.min(Infinity, ...dist);
     this.spoutNear = Math.max(0, 1 - nearest / (SPOUT.radius * 2));
+    this.spoutAt = spots[dist.indexOf(nearest)] ?? null;
     const born = this.spouts.filter((s) => s.t0 <= now).length;
     if (born > this.spoutsSeen) {
       this.spoutsSeen = born;
       if (spots.length > 0) {
         host.hud.showMessage(t('game.spoutSeen'), 3, 'alert');
-        host.sounds.play('spoutSeen');
+        host.sounds.playFrom('spoutSeen', this.spoutAt ?? host.tube.pos);
       }
     }
     if (!host.netWorld && spoutAffects(penalties.capsizedUntil, now)) {
@@ -294,8 +298,13 @@ export class WeatherController {
       const wave = this.bigWaves[this.nextWave++]!;
       const h = height(wave);
       // Kisaan palatessa ohi menneet aallot eivät kuulu kerralla.
-      if (felt(h) && now - wave.t < 1) host.sounds.play('bigWave');
       const dir = bigWaveDir(wave, w.windDir);
+      // Aalto kuuluu suunnasta, josta se tulee.
+      const from = {
+        x: host.tube.pos.x - Math.cos(dir) * 30,
+        y: host.tube.pos.y - Math.sin(dir) * 30,
+      };
+      if (felt(h) && now - wave.t < 1) host.sounds.playFrom('bigWave', from);
       const over = host.inBoat ? boatCapsizes : capsizes;
       if (!host.netWorld && host.penalties.capsizeLeft === 0 && over(host.tube.heading, dir, h)) {
         host.penalties.capsizedUntil = now + BIG_WAVE.recover;
@@ -412,7 +421,8 @@ export class WeatherController {
     this.flashStrength = d < 150 ? 1 : d < 400 ? 0.9 : d < 1000 ? 0.65 : 0.45;
     this.shakeStrength = Math.max(0, 1 - d / 500);
     this.flashInvert = d < 60;
-    host.sounds.play('thunder', d);
+    // Jyrähdys kuuluu salaman suunnasta.
+    host.sounds.playFrom('thunder', at, d);
     if (d < 150) host.sounds.play('lightningClose');
     if (!hitMe) return;
     const kind = host.settings.lightningPenalty ?? 'none';

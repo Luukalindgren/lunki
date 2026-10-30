@@ -2,19 +2,46 @@ import { Ambience, type AmbienceInput } from './ambience';
 import { Music } from './music';
 import { thunderClap } from './thunder';
 import { VoicePlayer, type VoiceId, type VoiceOptions } from './voice';
+import {
+  DUCKS,
+  DUCK_TIME,
+  MIX,
+  duckSchedule,
+  type ActiveDuck,
+  type DuckId,
+  type DuckedBus,
+} from './mix';
 import { loadAudioSettings, saveAudioSettings, volumeGain, type AudioSettings } from './settings';
 
 /**
  * Yksinkertaiset retroäänet WebAudiolla, ilman äänitiedostoja. Ääni käynnistyy
  * vasta ensimmäisestä käyttäjän painalluksesta (selainten autoplay-sääntö).
- * Tehosteilla, ympäristöäänillä ja musiikilla on omat voimakkuutensa.
+ * Tehosteilla, ympäristöäänillä ja musiikilla on omat voimakkuutensa
+ * (`MIX`), ja tärkeä ääni hiljentää ympäristöä ja musiikkia hetkeksi (`DUCKS`).
  */
+/** Tehosteen paikka: voimakkuus 0–1, suunta -1…1 ja kaukaisen äänen alipäästö (Hz). */
+export interface Place {
+  gain: number;
+  pan?: number;
+  cutoff?: number;
+}
+
+const HERE: Place = { gain: 1 };
+
+/** Yhteisen kohinapuskurin pituus (s); pisin kohinatehoste on tätä lyhyempi. */
+const NOISE_SECONDS = 2;
+
+/** Salama tätä lähempänä (m) hiljentää ympäristöä ja musiikkia, lähellä eniten. */
+const THUNDER_DUCK_RANGE = 1500;
+
 export class Sfx {
   private ctx: AudioContext | null = null;
   /** Tehosteiden väylä. */
   private master: GainNode | null = null;
   private ambienceBus: GainNode | null = null;
   private musicBus: GainNode | null = null;
+  /** Väistön kertoimet väylän perässä; pelaajan voimakkuus pysyy omassa solmussaan. */
+  private readonly ducked = new Map<DuckedBus, { node: GainNode; active: ActiveDuck[] }>();
   private voiceBus: GainNode | null = null;
   private voices: VoicePlayer | null = null;
   /** Ukkosen oma väylä: kovempi kuin muut tehosteet, rajoitin estää säröytymisen. */
@@ -22,8 +49,12 @@ export class Sfx {
   private ambience: Ambience | null = null;
   private music: Music | null = null;
   private settings: AudioSettings = loadAudioSettings();
-  /** Tehosteiden voimakkuuskerroin `withGain`-kutsun ajan (kaukaiset äänet). */
-  private level = 1;
+  /** Tehosteiden paikka `at`-kutsun ajan: voimakkuus, suunta ja tummuus. */
+  private place: Place = HERE;
+  /** Paikan suunta- ja suodinketjut väylittäin `at`-kutsun ajan. */
+  private routes = new Map<AudioNode, AudioNode>();
+  /** Yhteinen kohinapuskuri: tehosteet soittavat siitä eri kohdista. */
+  private noiseBuffer: AudioBuffer | null = null;
   muted = false;
 
   /** Kutsutaan käyttäjän syötteestä. */
@@ -35,16 +66,27 @@ export class Sfx {
     }
     try {
       this.ctx = new AudioContext();
-      const bus = () => {
-        const g = this.ctx!.createGain();
-        g.connect(this.ctx!.destination);
+      const ctx = this.ctx;
+      const bus = (duck?: DuckedBus) => {
+        const g = ctx.createGain();
+        if (duck) {
+          const node = ctx.createGain();
+          g.connect(node).connect(ctx.destination);
+          this.ducked.set(duck, { node, active: [] });
+        } else g.connect(ctx.destination);
         return g;
       };
       this.master = bus();
-      this.ambienceBus = bus();
-      this.musicBus = bus();
+      this.ambienceBus = bus('ambience');
+      this.musicBus = bus('music');
       this.voiceBus = bus();
-      this.voices = new VoicePlayer(this.ctx, this.voiceBus);
+      this.voices = new VoicePlayer(ctx, this.voiceBus, undefined, (duration, gain) =>
+        this.duck('voice', gain, duration),
+      );
+      const noise = ctx.createBuffer(1, ctx.sampleRate * NOISE_SECONDS, ctx.sampleRate);
+      const data = noise.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      this.noiseBuffer = noise;
       const limiter = this.ctx.createDynamicsCompressor();
       limiter.threshold.value = -3;
       limiter.knee.value = 0;
@@ -85,11 +127,12 @@ export class Sfx {
     if (!this.ctx || !this.master || !this.ambienceBus || !this.musicBus || !this.thunderBus)
       return;
     const t = this.ctx.currentTime;
-    this.master.gain.setTargetAtTime(0.25 * volumeGain(this.settings.effects), t, 0.05);
-    this.thunderBus.gain.setTargetAtTime(0.9 * volumeGain(this.settings.effects), t, 0.05);
-    this.ambienceBus.gain.setTargetAtTime(0.5 * volumeGain(this.settings.ambience), t, 0.2);
-    this.musicBus.gain.setTargetAtTime(0.5 * volumeGain(this.settings.music), t, 0.2);
-    this.voiceBus?.gain.setTargetAtTime(volumeGain(this.settings.voice), t, 0.05);
+    const s = this.settings;
+    this.master.gain.setTargetAtTime(MIX.effects * volumeGain(s.effects), t, 0.05);
+    this.thunderBus.gain.setTargetAtTime(MIX.thunder * volumeGain(s.effects), t, 0.05);
+    this.ambienceBus.gain.setTargetAtTime(MIX.ambience * volumeGain(s.ambience), t, 0.2);
+    this.musicBus.gain.setTargetAtTime(MIX.music * volumeGain(s.music), t, 0.2);
+    this.voiceBus?.gain.setTargetAtTime(MIX.voice * volumeGain(s.voice), t, 0.05);
     this.music?.setChoice(this.settings.musicTrack);
     if (this.settings.music > 0) this.music?.start();
     else this.music?.stop();
@@ -101,14 +144,46 @@ export class Sfx {
     this.voices?.play(id, opts);
   }
 
-  /** Soittaa `play`-kutsun tehosteet voimakkuudella `gain` (0–1). */
-  withGain(gain: number, play: () => void): void {
-    const prev = this.level;
-    this.level = gain;
+  /**
+   * Soittaa `play`-kutsun tehosteet paikasta `place`: voimakkuudella `gain`
+   * (0–1), suunnasta `pan` (-1…1) ja kaukaa tummempana (`cutoff`, Hz).
+   */
+  at(place: Place, play: () => void): void {
+    const prev = this.place;
+    const routes = this.routes;
+    this.place = place;
+    this.routes = new Map();
     try {
       play();
     } finally {
-      this.level = prev;
+      this.place = prev;
+      this.routes = routes;
+    }
+  }
+
+  /**
+   * Väistö (#411): hiljentää ympäristöä ja musiikkia `DUCKS`-taulukon mukaan
+   * `delay` sekunnin päästä `hold` sekunniksi. `scale` (0–1) heikentää
+   * kaukaisen äänen väistöä.
+   */
+  duck(id: DuckId, scale = 1, hold?: number, delay = 0): void {
+    if (!this.ctx || scale <= 0) return;
+    const d = DUCKS[id];
+    const now = this.ctx.currentTime;
+    const from = now + delay;
+    const until = from + (hold ?? d.hold);
+    for (const [bus, { node, active }] of this.ducked) {
+      const live = active.filter((a) => a.until > now);
+      live.push({ from, until, db: d[bus] * Math.min(1, scale) });
+      this.ducked.set(bus, { node, active: live });
+      const g = node.gain;
+      g.cancelScheduledValues(now);
+      let level = g.value;
+      for (const step of duckSchedule(live, now)) {
+        const tau = step.gain < level ? DUCK_TIME.attack : DUCK_TIME.release;
+        g.setTargetAtTime(step.gain, step.at, tau);
+        level = step.gain;
+      }
     }
   }
 
@@ -236,6 +311,8 @@ export class Sfx {
   thunder(distance: number, delay: number): void {
     const volume = distance < 250 ? 1 : Math.max(0.35, 1 - distance / 3000);
     this.playThunder(distance, volume, delay);
+    // Lähisalaman jyrähdys peittää sateen ja musiikin, kaukainen vähemmän.
+    this.duck('thunder', 1 - distance / THUNDER_DUCK_RANGE, undefined, delay);
   }
 
   private playThunder(distance: number, volume: number, delay: number): void {
@@ -246,8 +323,8 @@ export class Sfx {
     const src = this.ctx.createBufferSource();
     src.buffer = buffer;
     const gain = this.ctx.createGain();
-    gain.gain.value = volume * this.level;
-    src.connect(gain).connect(this.thunderBus);
+    gain.gain.value = volume * this.place.gain;
+    src.connect(gain).connect(this.route(this.thunderBus));
     src.start(this.ctx.currentTime + delay);
   }
 
@@ -274,29 +351,62 @@ export class Sfx {
     osc.type = type;
     osc.frequency.setValueAtTime(freq, t);
     if (endFreq) osc.frequency.exponentialRampToValueAtTime(endFreq, t + duration);
-    gain.gain.setValueAtTime(volume * this.level, t);
+    gain.gain.setValueAtTime(volume * this.place.gain, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
-    osc.connect(gain).connect(this.master);
+    osc.connect(gain).connect(this.route(this.master));
     osc.start(t);
     osc.stop(t + duration + 0.02);
   }
 
+  /**
+   * Kohinatehoste: yhteisen kohinapuskurin satunnainen kohta, joka nousee
+   * `attack` sekunnissa ja hiipuu tasaisesti nollaan `duration` sekunnissa.
+   */
   private noise(duration: number, volume: number, cutoff = 1800, attack = 0, delay = 0): void {
-    if (this.muted || !this.ctx || !this.master) return;
-    const len = Math.floor(this.ctx.sampleRate * duration);
-    const buffer = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    const rise = Math.max(1, attack * this.ctx.sampleRate);
-    for (let i = 0; i < len; i++)
-      data[i] = (Math.random() * 2 - 1) * Math.min(1, i / rise) * (1 - i / len);
+    if (this.muted || !this.ctx || !this.master || !this.noiseBuffer) return;
+    const dur = Math.min(duration, NOISE_SECONDS);
+    const t = this.ctx.currentTime + delay;
     const src = this.ctx.createBufferSource();
-    src.buffer = buffer;
+    src.buffer = this.noiseBuffer;
     const gain = this.ctx.createGain();
-    gain.gain.value = volume * this.level;
+    const peak = volume * this.place.gain;
+    const rise = Math.min(attack, dur);
+    gain.gain.setValueAtTime(rise > 0 ? 0 : peak, t);
+    if (rise > 0) gain.gain.linearRampToValueAtTime(peak * (1 - rise / dur), t + rise);
+    gain.gain.linearRampToValueAtTime(0, t + dur);
     const filter = this.ctx.createBiquadFilter();
     filter.type = 'lowpass';
     filter.frequency.value = cutoff;
-    src.connect(filter).connect(gain).connect(this.master);
-    src.start(this.ctx.currentTime + delay);
+    src.connect(filter).connect(gain).connect(this.route(this.master));
+    src.start(t, Math.random() * (NOISE_SECONDS - dur), dur);
+  }
+
+  /**
+   * Väylä `bus` paikan kautta: suunta (StereoPannerNode) ja kaukaisen äänen
+   * alipäästö. Sama ketju kaikille saman `at`-kutsun tehosteille.
+   */
+  private route(bus: AudioNode): AudioNode {
+    const { pan = 0, cutoff } = this.place;
+    const ctx = this.ctx;
+    if (!ctx || (!pan && !cutoff)) return bus;
+    let node = this.routes.get(bus);
+    if (node) return node;
+    node = bus;
+    // StereoPannerNode puuttuu vanhoista Safareista; silloin ääni tulee keskeltä.
+    if (pan && typeof ctx.createStereoPanner === 'function') {
+      const p = ctx.createStereoPanner();
+      p.pan.value = Math.max(-1, Math.min(1, pan));
+      p.connect(node);
+      node = p;
+    }
+    if (cutoff) {
+      const f = ctx.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.value = cutoff;
+      f.connect(node);
+      node = f;
+    }
+    this.routes.set(bus, node);
+    return node;
   }
 }
