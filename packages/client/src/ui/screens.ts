@@ -1834,33 +1834,36 @@ export class Screens {
   }
 
   /**
-   * Varusteet kesken kisan taukovalikosta: vain peruke vaihdetaan järvellä.
-   * Vieheet vaihtuvat viehepakista ja kalastustapa omasta pikavalikostaan,
-   * ja vapa ja siima laitetaan kuntoon päävalikon Varusteissa (#383).
+   * Varusteet kesken kisan taukovalikosta: järvellä vaihdetaan siima ja
+   * peruke. Vieheet vaihtuvat viehepakista ja kalastustapa omasta
+   * pikavalikostaan, ja vapa laitetaan kuntoon päävalikon Varusteissa (#383).
    */
   showPauseTackle(tackle: TackleBinding, onBack: () => void): void {
     const tk = { ...tackle.current };
+    const fly = isFly(tk);
     const now = h('p', '', 'hint');
-    const update = () =>
-      (now.textContent = t('pause.tackleNow', {
+    const lineHint = h('p', '', 'hint');
+    const update = () => {
+      now.textContent = t('pause.tackleNow', {
         tackle: `${methodName(tk.method)} · ${describeFullTackle(tk)}`,
-      }));
+      });
+      if (fly) lineHint.textContent = flyLineHint(tk.flyLine);
+    };
+    const set = (patch: Partial<Tackle>) => {
+      Object.assign(tk, patch);
+      update();
+      tackle.onChange({ ...tk });
+    };
     update();
-    const leader = document.createElement('div');
-    leader.className = 'settings';
-    leader.append(
-      this.leaderChoice(tk, (patch) => {
-        Object.assign(tk, patch);
-        update();
-        tackle.onChange({ ...tk });
-      }),
-    );
+    const rig = document.createElement('div');
+    rig.className = 'settings';
+    rig.append(this.lineChoice(tk, set), ...(fly ? [lineHint] : []), this.leaderChoice(tk, set));
     const panel = this.panel('pause-tackle');
     panel.append(
       h('h2', t('menu.tackle')),
-      leader,
+      rig,
       now,
-      h('p', t(isFly(tk) ? 'pause.flyLeaderHint' : 'pause.leaderHint'), 'hint'),
+      h('p', t(fly ? 'pause.flyLeaderHint' : 'tackle.hint'), 'hint'),
       h('p', controlText('pause.tackleHint'), 'hint'),
       this.buttons([[t('common.back'), onBack]]),
     );
@@ -2399,6 +2402,26 @@ export class Screens {
     return box;
   }
 
+  /** Siima käytössä olevalle kalastustavalle: Varusteissa ja kisan taukovalikossa. */
+  private lineChoice(tk: Tackle, set: (patch: Partial<Tackle>) => void): HTMLElement {
+    if (isFly(tk))
+      return this.choice(
+        t('tackle.flyLine'),
+        FLY_LINE_IDS.map((id) => [id, flyLineName(id)]),
+        tk.flyLine,
+        (v) => set({ flyLine: v as Tackle['flyLine'] }),
+      );
+    return this.choice(
+      t('tackle.line'),
+      LINE_IDS.map((id) => [
+        id,
+        t('tackle.lineOption', { name: lineName(id), kg: shortDecimal(LINES[id].strength) }),
+      ]),
+      tk.line,
+      (v) => set({ line: v as Tackle['line'] }),
+    );
+  }
+
   /**
    * Peruke käytössä olevalle kalastustavalle: virvelissä teräsperuke päälle
    * tai pois, perhossa perukkeen materiaali. Sama rivi on Varusteissa ja
@@ -2478,12 +2501,7 @@ export class Screens {
           (v) => set({ flyRod: v as Tackle['flyRod'] }),
         ),
         hint(() => flyRodHint(tk.flyRod)),
-        this.choice(
-          t('tackle.flyLine'),
-          FLY_LINE_IDS.map((id) => [id, flyLineName(id)]),
-          tk.flyLine,
-          (v) => set({ flyLine: v as Tackle['flyLine'] }),
-        ),
+        this.lineChoice(tk, set),
         hint(() => flyLineHint(tk.flyLine)),
         this.leaderChoice(tk, set),
         h('p', controlText('tackle.flyHint'), 'hint'),
@@ -2500,15 +2518,7 @@ export class Screens {
           const [min, max] = RODS[tk.rod].castWeight;
           return `${rodHint(tk.rod)}. ${t('rod.castWeight', { min, max })}.`;
         }),
-        this.choice(
-          t('tackle.line'),
-          LINE_IDS.map((id) => [
-            id,
-            t('tackle.lineOption', { name: lineName(id), kg: shortDecimal(LINES[id].strength) }),
-          ]),
-          tk.line,
-          (v) => set({ line: v as Tackle['line'] }),
-        ),
+        this.lineChoice(tk, set),
         this.leaderChoice(tk, set),
         h('p', t('tackle.hint'), 'hint'),
       );

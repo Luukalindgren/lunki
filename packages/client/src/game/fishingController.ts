@@ -39,7 +39,7 @@ import { fishLengthCm } from '../ui/fishArt';
 import { lureImage } from '../ui/lureArt';
 import type { Hud } from '../ui/hud';
 import { formatWeight, ordinal, t } from '../i18n';
-import { baitName, flyLeaderName, speciesName } from '../i18n/names';
+import { baitName, flyLeaderName, flyLineName, lineName, speciesName } from '../i18n/names';
 import { CastControl } from './castControl';
 import { controlMode, controlText, type Controls } from './controls';
 import { FlyCastControl, touchToRodPixels } from './flyCastControl';
@@ -52,7 +52,7 @@ import { QuietSpot } from './quietSpot';
 import type { RaceLog } from './raceLog';
 import { catchJoy } from './catchJoy';
 import { addJournalEntry, loadJournal } from './journal';
-import { leaderOnly, saveTackle } from './tackle';
+import { rigChanges, saveTackle, type RigKey } from './tackle';
 import { slotOf } from './tackleBox';
 import type { TopDownCamera } from './topDownCamera';
 import type { FishShadow } from '../world/fishShadow';
@@ -195,8 +195,8 @@ export class FishingController {
     const f = this.host.fishing.stage;
     if (f !== 'idle' && f !== 'charging')
       this.host.hud.showMessage(
-        leaderOnly(this.host.fishing.tackle, tk)
-          ? t('game.leaderLater')
+        rigChanges(this.host.fishing.tackle, tk)
+          ? t('game.rigLater')
           : isFly(tk)
             ? t('game.flyLater', { fly: baitName(tk) })
             : t('game.lureLater', { lure: baitName(tk) }),
@@ -506,14 +506,8 @@ export class FishingController {
       const tk = host.fishing.tackle;
       const before = this.tackleBefore;
       this.tackleBefore = null;
-      if (before && leaderOnly(before, tk))
-        hud.showMessage(
-          isFly(tk)
-            ? t('game.flyLeaderChanged', { leader: flyLeaderName(tk.flyLeader) })
-            : t(tk.leader ? 'game.leaderOn' : 'game.leaderOff'),
-          1.5,
-          'info',
-        );
+      const rig = before && rigChanges(before, tk);
+      if (rig) hud.showMessage(rig.map((k) => rigNote(k, tk)).join(' · '), 1.5, 'info');
       else
         hud.showMessage(
           isFly(tk)
@@ -724,5 +718,19 @@ export class FishingController {
     const strip = (steady ? FLY.steadyStrip * dt : 0) + pull.strip;
     const liftSet = !blocked && this.host.fishing.struckId !== null && controls.wasPressed('lift');
     return { lineHand, strip: blocked ? 0 : strip, rodLift: pull.rodLift || liftSet };
+  }
+}
+
+/** Vaihtuneen siiman tai perukkeen ilmoitusteksti. */
+function rigNote(k: RigKey, tk: Tackle): string {
+  switch (k) {
+    case 'line':
+      return t('game.lineChanged', { line: lineName(tk.line) });
+    case 'leader':
+      return t(tk.leader ? 'game.leaderOn' : 'game.leaderOff');
+    case 'flyLine':
+      return t('game.flyLineChanged', { line: flyLineName(tk.flyLine) });
+    case 'flyLeader':
+      return t('game.flyLeaderChanged', { leader: flyLeaderName(tk.flyLeader) });
   }
 }
