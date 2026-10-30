@@ -1,5 +1,6 @@
-import type { Sky, Vec2 } from '@lunki/shared';
+import type { Season, Sky, Vec2 } from '@lunki/shared';
 import { loonCall, loonCallLength } from './loon';
+import { craneCall, gooseFlock, type CallNote } from './seasonCalls';
 import { rainPatter } from './rain';
 
 /** Ympäristöäänten lähtötiedot: sää kuulijan kohdalla. */
@@ -17,6 +18,8 @@ export interface AmbienceInput {
   spoutPan?: number;
   /** Kuulijan oikea suunta järvellä (yksikkövektori); puuttuu = itä. */
   right?: Vec2;
+  /** Vuodenaika (#427); puuttuu = kesä. */
+  season?: Season;
 }
 
 /** Valikon taustalla: tyyni kesäpäivä. */
@@ -31,6 +34,10 @@ export const MENU_AMBIENCE: AmbienceInput = { sky: 'calm', windSpeed: 2, rain: 0
  * säätä; linnut sirkuttavat satunnaisesti
  * poutasäällä ja hiljenevät tuulen ja sateen yltyessä. Kuikat huutavat
  * kauempana järvellä, ja huuto kaikuu rannoista.
+ *
+ * Vuodenaika (#427): keväällä lintuja on eniten (aamukonsertti) ja kurjet
+ * toitottavat, kesäiltana hyttynen ininää korvan ohi, ja syksyllä laulu on
+ * hiljennyt, kuikat ovat harvassa ja kurki- ja hanhiaurat lentävät etelään.
  */
 export class Ambience {
   private readonly wind: GainNode;
@@ -58,6 +65,8 @@ export class Ambience {
   /** Huutavan kuikan suunta järvellä: pysyy paikallaan, kun kuulija kääntyy. */
   private loonAt: { pan: StereoPannerNode; dir: Vec2 } | null = null;
   private right: Vec2 = { x: 1, y: 0 };
+  /** Kauden oma ääni: kurki, hanhiaura tai hyttynen. */
+  private seasonTimer = 12 + Math.random() * 20;
 
   constructor(
     private readonly ctx: AudioContext,
@@ -126,6 +135,7 @@ export class Ambience {
   }
 
   update(dt: number, w: AmbienceInput): void {
+    const season = w.season ?? 'summer';
     // Puuskat: satunnainen tavoite, johon liu'utaan pehmeästi.
     this.gustTimer -= dt;
     if (this.gustTimer <= 0) {
@@ -160,7 +170,10 @@ export class Ambience {
       const quiet = w.rain < 0.1 && w.windSpeed < 8 && (w.sky === 'calm' || w.sky === 'windy');
       // Yöllä linnut ovat hiljaa, aamulla ja illalla laulavat vielä.
       if (quiet && Math.random() < Math.min(1, (w.light ?? 1) * 1.6)) this.chirp();
-      this.birdTimer = 2.5 + Math.random() * 6;
+      // Keväällä lintuja on eniten, varsinkin aamuhämärässä; syksyllä laulu on hiljennyt.
+      const chorus =
+        season === 'spring' ? 1.8 + 1.5 * (w.twilight ?? 0) : season === 'autumn' ? 0.15 : 1;
+      this.birdTimer = (2.5 + Math.random() * 6) / chorus;
     }
 
     this.loonTimer -= dt;
@@ -171,11 +184,15 @@ export class Ambience {
       // Toinen kuikka vastaa joskus heti perään.
       // Kuikat ääntelevät eniten hämärässä ja yöllä.
       const dusk = Math.max(w.twilight ?? 0, 1 - (w.light ?? 1));
+      // Lokakuussa useimmat kuikat ovat jo lähteneet.
       this.loonTimer =
         ok && Math.random() < 0.3 + 0.2 * dusk
           ? length + 0.8
-          : (18 + Math.random() * 40) * (1 - 0.5 * dusk);
+          : (18 + Math.random() * 40) * (1 - 0.5 * dusk) * (season === 'autumn' ? 3 : 1);
     }
+
+    this.seasonTimer -= dt;
+    if (this.seasonTimer <= 0) this.seasonTimer = this.seasonCall(season, w);
   }
 
   /** Silmukoituva pisarakerros; kanavilla omat pisarat, jolloin sade kuuluu laajana. */
@@ -197,12 +214,69 @@ export class Ambience {
     return gain;
   }
 
+  /** Kauden ääni, jos sää sallii. Palauttaa ajan seuraavaan (s). */
+  private seasonCall(season: Season, w: AmbienceInput): number {
+    const calm = w.windSpeed < 10 && w.rain < 0.6 && w.sky !== 'thunder' && w.sky !== 'storm';
+    const dusk = Math.max(w.twilight ?? 0, 1 - (w.light ?? 1));
+    if (season === 'summer') {
+      // Hyttynen vain tyynenä iltana ja yönä.
+      if (dusk > 0.3 && w.windSpeed < 3 && w.rain < 0.1) this.mosquito();
+      return 10 + Math.random() * 18;
+    }
+    if (!calm) return 20 + Math.random() * 20;
+    if (season === 'autumn' && Math.random() < 0.6) this.call(gooseFlock(), 'sawtooth', 900, 0.07);
+    else if (season === 'spring' || season === 'autumn')
+      this.call(craneCall(), 'sawtooth', 1500, 0.08);
+    else return 60;
+    return 40 + Math.random() * 50;
+  }
+
+  /** Hyttynen ininää korvan ohi: ohut, väreilevä ääni, joka kulkee puolelta toiselle. */
+  private mosquito(): void {
+    const ctx = this.ctx;
+    const t = ctx.currentTime + 0.05;
+    const dur = 1.8 + Math.random() * 1.5;
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.value = 560 + Math.random() * 120;
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 7 + Math.random() * 3;
+    const depth = ctx.createGain();
+    depth.gain.value = 22;
+    lfo.connect(depth).connect(osc.frequency);
+    const band = ctx.createBiquadFilter();
+    band.type = 'bandpass';
+    band.frequency.value = 1300;
+    band.Q.value = 2;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.03, t + dur * 0.45);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    const pan = ctx.createStereoPanner();
+    const side = Math.random() < 0.5 ? -1 : 1;
+    pan.pan.setValueAtTime(-0.8 * side, t);
+    pan.pan.linearRampToValueAtTime(0.8 * side, t + dur);
+    osc.connect(band).connect(gain).connect(pan).connect(this.out);
+    for (const o of [osc, lfo]) {
+      o.start(t);
+      o.stop(t + dur + 0.05);
+    }
+  }
+
   /** Kuikan huuto tai laulu jostain päin järveä. Palauttaa kutsun keston (s). */
   private loon(): number {
-    const notes = loonCall(Math.random() < 0.55 ? 'wail' : 'song');
+    return this.call(loonCall(Math.random() < 0.55 ? 'wail' : 'song'), 'triangle', 3200, 0.11);
+  }
+
+  /**
+   * Linnun kutsu jostain päin järveä rannoista kaikuen. Aaltomuoto ja
+   * suodin antavat sävyn: kuikalla pehmeä kolmio, kurjella ja hanhella
+   * räikeämpi saha. Palauttaa kutsun keston (s).
+   */
+  private call(notes: CallNote[], wave: OscillatorType, bright: number, loud: number): number {
     const ctx = this.ctx;
     const pan = ctx.createStereoPanner();
-    // Kuikka huutaa jostain päin järveä; suunta seuraa kuulijan kääntymistä (update).
+    // Lintu huutaa jostain päin järveä; suunta seuraa kuulijan kääntymistä (update).
     const angle = Math.random() * Math.PI * 2;
     const dir = { x: Math.cos(angle), y: Math.sin(angle) };
     this.loonAt = { pan, dir };
@@ -211,17 +285,16 @@ export class Ambience {
     const far = Math.random();
     const tone = ctx.createBiquadFilter();
     tone.type = 'lowpass';
-    tone.frequency.value = 3200 - far * 1600;
+    tone.frequency.value = bright * (1 - far * 0.5);
     const level = ctx.createGain();
-    level.gain.value = 0.11 - far * 0.06;
+    level.gain.value = loud * (1 - far * 0.55);
     tone.connect(level).connect(pan).connect(this.loons);
     const t0 = ctx.currentTime + 0.05;
     for (const n of notes) {
       const t = t0 + n.at;
       const end = t + n.dur;
       const osc = ctx.createOscillator();
-      // Kolmioaalto: pehmeä, huilumainen sävy, jossa on hieman yläsäveliä.
-      osc.type = 'triangle';
+      osc.type = wave;
       osc.frequency.setValueAtTime(n.pitch[0]![1], t);
       for (const [at, f] of n.pitch.slice(1)) osc.frequency.linearRampToValueAtTime(f, t + at);
       if (n.vibrato > 0) {
@@ -241,7 +314,19 @@ export class Ambience {
       gain.gain.exponentialRampToValueAtTime(n.peak, t + attack);
       gain.gain.setValueAtTime(n.peak, end - Math.min(0.3, n.dur * 0.4));
       gain.gain.exponentialRampToValueAtTime(0.0001, end);
-      osc.connect(gain).connect(tone);
+      if (n.trill) {
+        // Kurjen rullaava ääni: nopea voimakkuuden värinä.
+        const roll = ctx.createGain();
+        roll.gain.value = 0.6;
+        const lfo = ctx.createOscillator();
+        lfo.frequency.value = n.trill;
+        const amount = ctx.createGain();
+        amount.gain.value = 0.4;
+        lfo.connect(amount).connect(roll.gain);
+        lfo.start(t);
+        lfo.stop(end);
+        osc.connect(gain).connect(roll).connect(tone);
+      } else osc.connect(gain).connect(tone);
       osc.start(t);
       osc.stop(end + 0.02);
     }

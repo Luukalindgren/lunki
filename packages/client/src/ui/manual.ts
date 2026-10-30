@@ -1,4 +1,4 @@
-import { DIFFICULTIES, FLY_CAST, LINES, RODS, SPECIES } from '@lunki/shared';
+import { COLD_WATER, DIFFICULTIES, FLY_CAST, LINES, RODS, SEASONS, SPECIES } from '@lunki/shared';
 import { controlText } from '../game/controls';
 import { shortDecimal, t, type MsgKey } from '../i18n';
 
@@ -100,6 +100,16 @@ const TOPICS: Record<ManualSection, readonly Topic[]> = {
   ],
   weather: [
     { title: 'manual.weather.sky', text: 'manual.weather.skyText' },
+    {
+      title: 'manual.weather.season',
+      text: 'manual.weather.seasonText',
+      vars: () => ({
+        spring: SEASONS.spring.water,
+        summer: SEASONS.summer.water,
+        autumn: SEASONS.autumn.water,
+        cold: COLD_WATER.below,
+      }),
+    },
     { title: 'manual.weather.lightning', text: 'manual.weather.lightningText' },
     { title: 'manual.weather.waves', text: 'manual.weather.wavesText' },
     { title: 'manual.weather.spout', text: 'manual.weather.spoutText' },
