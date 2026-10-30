@@ -546,6 +546,8 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       dt,
       {
         ...this.weather.now,
+        // Sade kuuluu, kun lähestyvän rintaman reuna on kohdalla (#414).
+        rain: this.weather.view.rain,
         ...this.daylight,
         spout: this.weather.spoutNear,
         season: this.season,

@@ -68,6 +68,18 @@ import { WeatherView, compassIn, windFrom, windName } from './weatherView';
 import { controlText } from './controls';
 
 const LAND_COLOR = 0x24502c;
+/**
+ * Kaukaiset salamat ukkosrintaman alla (#414): alkavat, kun reuna on
+ * näin lähellä (m), väli (s), etäisyys reunan takana (m), sivuttainen
+ * hajonta rintaman suunnasta (rad) ja välähdyksen voimakkuus.
+ */
+const DISTANT_BOLT = {
+  within: 900,
+  every: [5, 14] as const,
+  range: [400, 1600] as const,
+  spread: 0.6,
+  flash: 0.08,
+};
 /** Lähiveden aallokon esiin- ja poishäivytyksen kesto (s). */
 const SWELL_FADE_TIME = 2;
 /** Pohjakuvion ajelehtiminen (m/s) tuulen metriä sekunnissa kohden. */
@@ -119,6 +131,8 @@ export class WeatherController {
   private readonly hemi = new THREE.HemisphereLight(0xeef2f3, 0x24502c, 1.5);
   private readonly sun = new THREE.DirectionalLight(0xfff3b0, 1.5);
   readonly lightning = new LightningView();
+  private distantTimer = 0;
+  private readonly distantRng: Rng;
   /** Ruudun välähdyksen voimakkuus viimeisimmästä salamasta: lähellä kirkkaampi. */
   private flashStrength = 0;
   /** Ruudun tärinän voimakkuus viimeisimmästä salamasta (0–1). */
@@ -181,12 +195,14 @@ export class WeatherController {
     scene.add(this.sky.dome, this.mist.group);
     const planS = planSeconds(settings);
     const plan = planWeather(seed, settings.weather ?? 'realistic', planS, seasonOf(settings));
-    this.view = new WeatherView(plan);
+    // Realistisella ukkosen tulon kertovat vain taivas ja jyrinä (#414).
+    this.view = new WeatherView(plan, settings.difficulty !== 'realistic');
     this.strikes = host.netWorld ? [] : planLightning(plan, seed, planS);
     this.bigWaves = planBigWaves(plan, seed, planS);
     this.rings = [map.shore, ...map.islands];
     this.spouts = planWaterspouts(plan, seed, planS, water, map.bounds);
     this.spoutRng = new Rng(seed ^ 0x51ed270b);
+    this.distantRng = new Rng(seed ^ 0x7f4a0c15);
     this.waves = new WaveField(map);
     waterWaves.uWaveTex.value = this.waves.texture;
     waterWaves.uWaveBounds.value.copy(this.waves.bounds);
@@ -452,6 +468,33 @@ export class WeatherController {
       );
   }
 
+  /**
+   * Kaukaiset salamat lähestyvän ukkosrintaman alla (#414). Ne ovat vain
+   * näkymää ja ääntä: ne eivät osu keneenkään eivätkä kuulu palvelimen
+   * salamasuunnitelmaan.
+   */
+  private distantLightning(dt: number): void {
+    const front = this.view.front;
+    if (!front?.thunder || front.distance > DISTANT_BOLT.within) return;
+    this.distantTimer -= dt;
+    if (this.distantTimer > 0) return;
+    const [lo, hi] = DISTANT_BOLT.every;
+    this.distantTimer = this.distantRng.range(lo, hi);
+    // Ei kaukaista salamaa kesken oikean salaman välähdyksen.
+    if (this.lightning.flash > 0) return;
+    const angle =
+      Math.atan2(front.dir.y, front.dir.x) +
+      this.distantRng.range(-DISTANT_BOLT.spread, DISTANT_BOLT.spread);
+    const d = Math.max(0, front.distance) + this.distantRng.range(...DISTANT_BOLT.range);
+    const p = this.host.tube.pos;
+    const at = { x: p.x + Math.cos(angle) * d, y: p.y + Math.sin(angle) * d };
+    this.lightning.strike(at, true);
+    this.flashStrength = DISTANT_BOLT.flash;
+    this.shakeStrength = 0;
+    this.flashInvert = false;
+    this.host.sounds.playFrom('thunder', at, d);
+  }
+
   /** Sää, taivas, valo ja aallot ruudulle ja säärivi HUD:iin. */
   update(dt: number): void {
     const host = this.host;
@@ -464,9 +507,17 @@ export class WeatherController {
         : { metersPerPixel: host.view.metersPerPixel, width: host.view.width },
       {
         message: (text) => host.hud.showMessage(text, 3, 'alert'),
-        rumble: () => host.sounds.play('distantThunder'),
+        // Jyrinä kuuluu lähestyvän rintaman suunnasta.
+        rumble: (from) =>
+          from
+            ? host.sounds.playFrom('distantThunder', {
+                x: host.tube.pos.x + from.x * DISTANT_BOLT.range[1],
+                y: host.tube.pos.y + from.y * DISTANT_BOLT.range[1],
+              })
+            : host.sounds.play('distantThunder'),
       },
     );
+    this.distantLightning(dt);
     this.thunderNow = w.sky === 'thunder' || w.sky === 'storm';
     this.updateSky(dt);
     this.applyLight();
@@ -530,7 +581,15 @@ export class WeatherController {
     const ww = this.waterWaves;
     // Välähdys on sitä kirkkaampi, mitä lähempänä salama iski; aivan vieressä
     // kuva kääntyy ensin hetkeksi negatiiviksi.
-    this.sky.update(host.clock, now.darkness, this.lightning.flash * this.flashStrength, wind, dt);
+    const view = this.view;
+    this.sky.update(
+      host.clock,
+      view.darkness,
+      this.lightning.flash * this.flashStrength,
+      wind,
+      dt,
+      view.front,
+    );
     this.sky.grade.invert = this.flashInvert && this.lightning.sinceStrike < 0.08;
     this.mist.update(dt, this.sky.mist, wind, host.viewMode === 'pov');
     const g = this.sky.glitter;
@@ -540,7 +599,7 @@ export class WeatherController {
     // Taivaan heijastus vaalentaa kaukaista vettä vain valoisalla: yöllä ja
     // ukkospilvien alla vaalea järvenselkä korostui liikaa.
     ww.uSheen.value =
-      0.6 * THREE.MathUtils.smoothstep(host.daylight.light, 0.12, 0.5) * (1 - 0.6 * now.darkness);
+      0.6 * THREE.MathUtils.smoothstep(host.daylight.light, 0.12, 0.5) * (1 - 0.6 * view.darkness);
   }
 
   /**

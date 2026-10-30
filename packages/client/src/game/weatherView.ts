@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { weatherAt, type Vec2, type WeatherNow, type WeatherPlan } from '@lunki/shared';
 import { t as tr } from '../i18n';
 import { skyName, warningText } from '../i18n/names';
+import { frontWeather, stormFront, type StormFront } from './stormFront';
 
 /** Sadepisaroiden enimmäismäärä ja putoamisnopeus (m/s). */
 const DROPS = 900;
@@ -35,16 +36,26 @@ export function windName(windDir: number): string {
 
 export interface WeatherEvents {
   message: (text: string) => void;
-  rumble: () => void;
+  /** Ukkosen jyrinä; `from` = suunta, josta rintama tulee (null = yläpuolelta). */
+  rumble: (from: Vec2 | null) => void;
 }
 
 /**
- * Sään näkyvä puoli: sade, taivaan tummuminen ja ennakkovaroitukset.
- * Sää itse lasketaan jaetusta suunnitelmasta kisa-ajan mukaan.
+ * Sään näkyvä puoli: sade, taivaan tummuminen, lähestyvä rintama ja
+ * ennakkovaroitukset. Sää itse lasketaan jaetusta suunnitelmasta kisa-ajan
+ * mukaan.
  */
 export class WeatherView {
   readonly group = new THREE.Group();
   now: WeatherNow;
+  /** Lähestyvä ukkosrintama (#414) tai null. */
+  front: StormFront | null = null;
+  /**
+   * Taivaan tummuus ja sade kalastajan kohdalla: rintaman alla jo seuraavan
+   * sään arvot. Vain näkymälle ja äänille; kalat käyttävät `now`-arvoja.
+   */
+  darkness = 0;
+  rain = 0;
   private readonly drops: THREE.LineSegments;
   private readonly positions: Float32Array;
   /** Pisaroiden paikat suhteessa sadealueen keskipisteeseen. */
@@ -53,8 +64,14 @@ export class WeatherView {
   private rumbleTimer = 6;
   private seed = 1;
 
-  constructor(private readonly plan: WeatherPlan) {
+  /** `warningTexts` = ennakkovaroitukset tekstinä (realistisella ei, #414). */
+  constructor(
+    private readonly plan: WeatherPlan,
+    private readonly warningTexts = true,
+  ) {
     this.now = weatherAt(plan, 0);
+    this.darkness = this.now.darkness;
+    this.rain = this.now.rain;
     this.positions = new Float32Array(DROPS * 6);
     this.offsets = new Float32Array(DROPS * 3);
     for (let i = 0; i < DROPS; i++) {
@@ -86,6 +103,8 @@ export class WeatherView {
   ): WeatherNow {
     const prev = this.now;
     const now = (this.now = weatherAt(this.plan, t));
+    this.front = stormFront(this.plan, t, now);
+    ({ darkness: this.darkness, rain: this.rain } = frontWeather(now, this.front));
     if (now.sky !== prev.sky && t > 0.5)
       events.message(tr('weather.change', { sky: skyName(now.sky) }));
     // Kukin varoitus kerran kutakin tulevaa muutosta kohden; samanaikaiset yhdessä.
@@ -95,13 +114,13 @@ export class WeatherView {
       this.warned.add(key);
       return true;
     });
-    if (fresh.length > 0) events.message(fresh.map(warningText).join('\n'));
-    if (fresh.includes('rumble')) events.rumble();
+    if (fresh.length > 0 && this.warningTexts) events.message(fresh.map(warningText).join('\n'));
+    if (fresh.includes('rumble')) events.rumble(this.front?.dir ?? null);
     // Ukkosella jyrisee silloin tällöin (salamat tulevat omana ominaisuutenaan).
     if (now.sky === 'thunder' || now.sky === 'storm') {
       this.rumbleTimer -= dt;
       if (this.rumbleTimer <= 0) {
-        events.rumble();
+        events.rumble(null);
         this.rumbleTimer = 8 + this.rand() * 14;
       }
     }
@@ -114,7 +133,7 @@ export class WeatherView {
     center: Vec2,
     topView: { metersPerPixel: number; width: number } | null,
   ): void {
-    const count = Math.round(DROPS * this.now.rain);
+    const count = Math.round(DROPS * this.rain);
     this.drops.visible = count > 0;
     this.drops.geometry.setDrawRange(0, count * 2);
     if (count === 0) return;

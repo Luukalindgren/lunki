@@ -114,6 +114,14 @@ Koodi: `packages/client/src/game/skyView.ts`, `engine/retroRenderer.ts`.
   usva kirjoittaa tiheytensä alfakanavaan (`game/mistView.ts`, ylhäältä vain
   veden päällä), ja kaukosumu lasketaan jälkikäsittelyssä syvyydestä
   (`grade.fog`). Three.js:n `scene.fog`ia ei käytetä.
+- Taivasta tummentava säämuutos tulee ukkosrintamana tuulen yläpuolelta
+  (`game/stormFront.ts`, #414): rintama on taivaankuvun pilvikerroksen osa
+  (`uFront`), ja sen alla on jo seuraavan sään taivas. Sade ja synkkyys
+  alkavat, kun reuna on kohdalla (`WeatherView.darkness`/`rain`). Ylhäältä
+  ei piirretä pilvenvarjoja; koko kuva tummuu sävytyksestä. Rintama on vain
+  näkymää: kalat ja palvelin käyttävät `weatherAt`-arvoja. Kaukaiset
+  salamat rintaman alla ovat vain kuvaa ja ääntä (`strike(pos, true)`).
+  Realistisella tekstivaroituksia ei näytetä.
 
 ### Vuodenaika (#427)
 
