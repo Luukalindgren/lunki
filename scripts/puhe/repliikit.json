@@ -31,5 +31,11 @@
   "tangled": ["Hei, sä sotkit mun siiman!", "Irti mun siimasta!"],
   "lightning": ["Huh, läheltä piti!", "Jumalauta, mikä pamaus!"],
   "relief": ["No vihdoinkin!", "Viimein, perkele!", "Jo oli aikakin!"],
-  "record": ["Ennätys, jumalauta!", "Elämäni kala!", "Tää on mun ennätys!"]
+  "record": ["Ennätys, jumalauta!", "Elämäni kala!", "Tää on mun ennätys!"],
+  "raceBest": [
+    "Tää on päivän isoin!",
+    "Nyt tuli kunnon kala!",
+    "Isoin tähän asti!",
+    "Kato, tää on isompi!"
+  ]
 }

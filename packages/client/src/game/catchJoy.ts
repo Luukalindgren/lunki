@@ -1,12 +1,19 @@
 import type { Difficulty, SpeciesId } from '@lunki/shared';
+import type { SoundEvent } from '../audio/sounds';
 import type { JournalEntry } from './journal';
 
 /**
- * Iloiset saaliit: oma ennätys ja kala pitkän odotuksen jälkeen soivat
- * omalla, tavallista iloisemmalla äänellä (äänikartan `recordCatch` ja
- * `reliefCatch`).
+ * Iloiset saaliit: oma ennätys, kala pitkän odotuksen jälkeen ja kisan
+ * suurin tähän asti saavat oman repliikin (äänikartan `recordCatch`,
+ * `reliefCatch` ja `raceBestCatch`).
  */
-export type CatchJoy = 'record' | 'relief';
+export type CatchJoy = 'record' | 'relief' | 'raceBest';
+
+export const JOY_SOUNDS = {
+  record: 'recordCatch',
+  relief: 'reliefCatch',
+  raceBest: 'raceBestCatch',
+} as const satisfies Record<CatchJoy, SoundEvent>;
 
 /**
  * Kisa-aika (s), jonka jälkeen saalis on helpotus: noin kaksi–kolme kertaa
@@ -33,16 +40,26 @@ export function isPersonalBest(
 }
 
 /**
- * Saaliin ilo: ennätys voittaa helpotuksen. `waited` on kisa-aika (s)
- * edellisestä omasta saaliista tai kisan alusta.
+ * Kisan suurin tähän asti: painavampi kuin yksikään kisan aiempi oma saalis.
+ * Kisan ensimmäinen kala ei vielä ole suurin.
+ */
+export function isRaceBest(earlier: readonly { weight: number }[], weight: number): boolean {
+  return earlier.length > 0 && earlier.every((c) => c.weight < weight);
+}
+
+/**
+ * Saaliin ilo: ennätys voittaa helpotuksen ja helpotus kisan suurimman.
+ * `waited` on kisa-aika (s) edellisestä omasta saaliista tai kisan alusta,
+ * `earlier` kisan aiemmat omat saaliit.
  */
 export function catchJoy(
   journal: readonly JournalEntry[],
   fish: { species: SpeciesId; weight: number },
-  waited: number,
+  race: { waited: number; earlier: readonly { weight: number }[] },
   difficulty: Difficulty,
 ): CatchJoy | null {
   if (isPersonalBest(journal, fish.species, fish.weight)) return 'record';
-  if (waited >= RELIEF_AFTER[difficulty]) return 'relief';
+  if (race.waited >= RELIEF_AFTER[difficulty]) return 'relief';
+  if (isRaceBest(race.earlier, fish.weight)) return 'raceBest';
   return null;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { catchJoy, isPersonalBest, RELIEF_AFTER } from './catchJoy';
+import { catchJoy, isPersonalBest, isRaceBest, RELIEF_AFTER } from './catchJoy';
 import type { JournalEntry } from './journal';
 
 const entry = (over: Partial<JournalEntry> = {}): JournalEntry => ({
@@ -36,12 +36,21 @@ describe('iloiset saaliit', () => {
     expect(isPersonalBest([], 'perch', 5)).toBe(false);
   });
 
-  it('pitkä odotus tekee saaliista helpotuksen, ennätys voittaa sen', () => {
+  it('kisan suurin on kisan aiempia omia saaliita painavampi', () => {
+    expect(isRaceBest([{ weight: 0.3 }, { weight: 0.5 }], 0.6)).toBe(true);
+    expect(isRaceBest([{ weight: 0.3 }, { weight: 0.5 }], 0.5)).toBe(false);
+    expect(isRaceBest([], 2)).toBe(false);
+  });
+
+  it('järjestys: ennätys, sitten helpotus, sitten kisan suurin', () => {
     const small = { species: 'perch', weight: 0.2 } as const;
-    expect(catchJoy(journal, small, 60, 'normal')).toBeNull();
-    expect(catchJoy(journal, small, RELIEF_AFTER.normal, 'normal')).toBe('relief');
-    expect(catchJoy(journal, { ...small, weight: 0.7 }, 600, 'normal')).toBe('record');
-    expect(catchJoy(journal, { ...small, weight: 0.7 }, 0, 'normal')).toBe('record');
+    const quick = { waited: 60, earlier: [{ weight: 0.1 }] };
+    const long = { waited: RELIEF_AFTER.normal, earlier: [{ weight: 0.1 }] };
+    expect(catchJoy(journal, small, { ...quick, earlier: [{ weight: 0.3 }] }, 'normal')).toBeNull();
+    expect(catchJoy(journal, small, quick, 'normal')).toBe('raceBest');
+    expect(catchJoy(journal, small, long, 'normal')).toBe('relief');
+    expect(catchJoy(journal, { ...small, weight: 0.7 }, long, 'normal')).toBe('record');
+    expect(catchJoy(journal, { ...small, weight: 0.7 }, quick, 'normal')).toBe('record');
   });
 
   it('helpolla odotus on lyhyempi kuin realistisella', () => {

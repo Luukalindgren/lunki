@@ -28,6 +28,7 @@ export const VOICE_LINES = {
   lightning: 2,
   relief: 3,
   record: 3,
+  raceBest: 4,
 } as const;
 
 export type VoiceId = keyof typeof VOICE_LINES;
