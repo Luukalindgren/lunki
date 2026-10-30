@@ -1,3 +1,4 @@
+import type * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { LURE_MARKER, LureMarker, markerPosition } from './lureMarker';
 import { lureColor } from './lureColor';
@@ -22,6 +23,21 @@ describe('vieheen merkki (#391)', () => {
     const air = markerPosition({ x: 0, y: 0 }, 2, false);
     expect(air.z).toBeLessThan(ground.z);
     expect(markerPosition({ x: 0, y: 0 }, 0, true).y).toBeCloseTo(LURE_MARKER.povY);
+  });
+
+  it('tärpissä merkki nykii ylhäältä sivulle ja silmin pinnan alle', () => {
+    const m = new LureMarker();
+    const sprite = m.group.children[0] as THREE.Sprite;
+    const top = { ...input, pov: false, pixel: 0.25 };
+    m.update(top);
+    const rest = sprite.position.clone();
+    m.update({ ...top, tug: { px: 3, dir: { x: 1, y: 0 } } });
+    expect(sprite.position.x - rest.x).toBeCloseTo(0.75);
+    expect(sprite.center.y).toBeCloseTo(0.5);
+    m.update(input);
+    expect(sprite.center.y).toBe(0);
+    m.update({ ...input, tug: { px: 3, dir: { x: 1, y: 0 } } });
+    expect(sprite.center.y).toBeCloseTo(3 / LURE_MARKER.markPx);
   });
 
   it('pohjan pölläys ja seuraajan pyörteet eivät näy realistisella', () => {

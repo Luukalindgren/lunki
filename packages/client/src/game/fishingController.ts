@@ -452,7 +452,7 @@ export class FishingController {
     if (events.strike || (events.hooked && this.strikeDepth === null))
       this.strikeDepth = host.fishing.depth;
     if (events.strike) {
-      host.fishingView.strikeSwirl(host.fishing.lure);
+      host.fishingView.strikeSwirl(host.fishing.lure, host.fishing.strikeBig);
       sounds.play('strike');
       // Iso kala tarttuu vain nykäisyyn (#402): raskas tärppi kertoo sen.
       hud.showMessage(

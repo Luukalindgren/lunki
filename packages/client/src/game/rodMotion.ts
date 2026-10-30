@@ -70,12 +70,22 @@ export const ROD_MOTION = {
   strikeRate: 10,
 } as const;
 
+/** Tärpin nykäys (s iskusta) 0–1: kala vetää noin kolme kertaa sekunnissa. */
+export function strikeTug(age: number): number {
+  return Math.abs(Math.sin(age * ROD_MOTION.strikeRate));
+}
+
+/** Montako nykäystä on vetänyt täyteen (s iskusta): uusi alkaa huipusta. */
+export function strikeTugs(age: number): number {
+  return Math.floor((age * ROD_MOTION.strikeRate) / Math.PI + 0.5);
+}
+
 /**
  * Tärpin nykäykset (s iskusta) siiman kireytenä 0–1: siima kiristyy hetkeksi
- * suoraksi ja löystyy taas, noin kolme kertaa sekunnissa.
+ * suoraksi ja löystyy taas.
  */
 export function strikeTaut(age: number): number {
-  return 0.15 + 0.85 * Math.abs(Math.sin(age * ROD_MOTION.strikeRate));
+  return 0.15 + 0.85 * strikeTug(age);
 }
 
 /** Siiman jännitystä (kg) vastaava taipuma (rad) näillä varusteilla. */

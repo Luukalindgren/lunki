@@ -243,6 +243,10 @@ Koodi: `packages/client/src/audio/sounds.ts`.
 - Vieheen merkki järvellä on `game/lureMarker.ts`: tilan värinen
   pikselitimantti kaikilla tasoilla (Luuka testasi vesirajan ja vieheen
   kuvan, ja valitsi timantin). Sama merkki piirtää muiden pelaajien vieheet.
+- Tärppi näkyy merkissä kaikilla tasoilla (#440): timantti nykii siiman
+  nykäysten tahdissa (`strikeTug`, silmin pinnan alle), ja jokainen nykäys
+  nostaa renkaan (`STRIKE_SIGNS` `fishingView.ts`:ssä, ylhäältä
+  kuvapisteinä). Näin ylhäältä voi kalastaa ilman luotaimia.
 - Avut ovat tasoittain: kalan merkit (`FISH_SIGNS.difficulty`),
   vieheen pyörteet (`LURE_MARKER.signs`) ja perhoheiton merkki
   (`DIFFICULTIES[…].flyCast.marker`). Uusi apu lisätään näiden rinnalle eikä
