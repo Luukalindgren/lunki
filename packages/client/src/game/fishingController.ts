@@ -49,7 +49,9 @@ import type { Penalties } from './penalties';
 import type { PovCamera } from './povCamera';
 import { QuietSpot } from './quietSpot';
 import type { RaceLog } from './raceLog';
+import { addJournalEntry } from './journal';
 import { saveTackle } from './tackle';
+import { slotOf } from './tackleBox';
 import type { TopDownCamera } from './topDownCamera';
 import type { FishShadow } from '../world/fishShadow';
 import type { FishSignsView } from './fishSignsView';
@@ -134,6 +136,8 @@ export class FishingController {
   private reelClickTimer = 0;
   /** Punnituskortti odottaa, kunnes kala on nostettu kyytiin (#366). */
   private weighIn: { left: number; show: () => void } | null = null;
+  /** Vieheen syvyys tärpissä saalispäiväkirjaan (#415). */
+  private strikeDepth: number | null = null;
   /** Pelaaja kelaa (kelan kampi pyörii kalastajan silmin). */
   cranking = false;
   /** Sormen liike pelikuvalla (CSS-pikseleinä), jota perhoheitto ei ole vielä käyttänyt. */
@@ -426,6 +430,7 @@ export class FishingController {
     );
     host.guide.onEvents(events, isFly(host.fishing.tackle));
     if (events.cast !== undefined) {
+      this.strikeDepth = null;
       sounds.play('cast', events.cast);
       this.quietSpot.cast(host.tube.pos);
     }
@@ -442,6 +447,8 @@ export class FishingController {
       net?.sendSplash(events.splash);
     }
     if (follow) sounds.play('follow');
+    if (events.strike || (events.hooked && this.strikeDepth === null))
+      this.strikeDepth = host.fishing.depth;
     if (events.strike) {
       host.fishingView.strikeSwirl(host.fishing.lure);
       sounds.play('strike');
@@ -600,6 +607,21 @@ export class FishingController {
         ...recordTackle(gear),
       });
     }
+    if (record) {
+      const gear = host.fishing.tackle;
+      addJournalEntry({
+        species: record.species,
+        weight: record.weight,
+        bait: isFly(gear) ? gear.fly : slotOf(gear),
+        sky: host.weatherNow.sky,
+        timeOfDay: host.settings.timeOfDay ?? 'day',
+        depth: this.strikeDepth ?? 0,
+        x: host.tube.pos.x,
+        y: host.tube.pos.y,
+        at: Date.now(),
+      });
+    }
+    this.strikeDepth = null;
     host.fishingView.startSplash(host.fishing.lure);
     const catches = host.competition.catches;
     const biggest = catches.every((c) => c === record || c.weight < caught.weight);

@@ -1,11 +1,10 @@
 import { parseAppearance, randomAppearance, type Appearance } from '@lunki/shared';
-
-const APPEARANCE_KEY = 'lunki.appearance';
+import { profileKey } from '../net/identity';
 
 /** Valitut värit muistetaan selaimessa; ensikerralla arvotaan omat. */
 export function loadAppearance(): Appearance {
   try {
-    const raw = localStorage.getItem(APPEARANCE_KEY);
+    const raw = localStorage.getItem(profileKey('appearance'));
     const a = raw ? parseAppearance(JSON.parse(raw)) : null;
     if (a) return a;
   } catch {
@@ -18,7 +17,7 @@ export function loadAppearance(): Appearance {
 
 export function saveAppearance(a: Appearance): void {
   try {
-    localStorage.setItem(APPEARANCE_KEY, JSON.stringify(a));
+    localStorage.setItem(profileKey('appearance'), JSON.stringify(a));
   } catch {
     // ei haittaa
   }

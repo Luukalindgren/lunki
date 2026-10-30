@@ -13,6 +13,7 @@ import {
   type LureId,
   type Tackle,
 } from '@lunki/shared';
+import { profileKey } from '../net/identity';
 
 /**
  * Viehepakki (#365): pelaaja valitsee mukaan enintään kahdeksan viehettä
@@ -62,7 +63,7 @@ export function withSlot(t: Tackle, slot: LureSlot): Tackle {
 }
 
 /** Tallennettu tai muokattu lokero: tuntematon viehe tai väärä säätö hylätään. */
-function parseSlot(v: unknown): LureSlot | null {
+export function parseSlot(v: unknown): LureSlot | null {
   if (!v || typeof v !== 'object') return null;
   const o = v as Record<string, unknown>;
   if (typeof o.lure !== 'string' || !Object.hasOwn(LURES, o.lure)) return null;
@@ -98,11 +99,9 @@ export function parseTackleBox(v: unknown): TackleBox {
   };
 }
 
-const BOX_KEY = 'lunki.tackleBox';
-
 export function loadTackleBox(): TackleBox {
   try {
-    const raw = localStorage.getItem(BOX_KEY);
+    const raw = localStorage.getItem(profileKey('tackleBox'));
     return parseTackleBox(raw ? JSON.parse(raw) : null);
   } catch {
     return beginnerBox();
@@ -111,7 +110,7 @@ export function loadTackleBox(): TackleBox {
 
 export function saveTackleBox(box: TackleBox): void {
   try {
-    localStorage.setItem(BOX_KEY, JSON.stringify(box));
+    localStorage.setItem(profileKey('tackleBox'), JSON.stringify(box));
   } catch {
     // ei haittaa
   }

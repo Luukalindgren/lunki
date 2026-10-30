@@ -303,6 +303,7 @@ function showMenu() {
 function showPlay() {
   screens.showPlay(
     { onSolo: () => showSoloSetup(settings), onMultiplayer: () => showMultiplayer() },
+    { current: loadIdentity().name, onChange: saveName },
     showMenu,
   );
 }

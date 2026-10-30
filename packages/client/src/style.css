@@ -987,6 +987,16 @@ textarea,
   text-align: center;
 }
 
+/* Omat saaliit vieheellä (#415). */
+.box-slot-catch {
+  font-size: 15px;
+  color: #f6d04d;
+}
+
+.screen-panel .box-catches {
+  color: #f6d04d;
+}
+
 .summary-button .lure-art {
   margin-right: 4px;
 }

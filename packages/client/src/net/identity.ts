@@ -45,10 +45,68 @@ export function loadIdentity(): Identity {
   return { name: name ? sanitizeName(name) : '', playerId };
 }
 
+/** Tallentaa nimimerkin ja vaihtaa sen profiiliin. Tyhjä nimi on nimetön profiili. */
 export function saveName(name: string): string {
-  const clean = sanitizeName(name);
+  const clean = name.trim() ? sanitizeName(name) : '';
+  migrateOnce();
+  const prev = read(NAME_KEY) ?? '';
+  // Ensimmäinen nimimerkki ottaa nimettömänä kertyneet tiedot omikseen.
+  if (!profileId(prev) && profileId(clean) && !hasProfile(clean)) moveProfile('', clean);
   write(NAME_KEY, clean);
   return clean;
+}
+
+/**
+ * Omat tiedot nimimerkin profiilissa (#415). Kirjautumista ei ole: profiili
+ * on tämän laitteen ja selaimen tietoa nimimerkin alla. Uusi nimimerkki
+ * aloittaa alusta, ja vanhalla pääsee takaisin omiin tietoihinsa. Laitteen
+ * asetukset (HUD, äänet, kieli) eivät ole profiilissa.
+ */
+const PROFILE_DATA = ['stats', 'journal', 'tackle', 'tackleBox', 'appearance', 'craft'] as const;
+export type ProfileData = (typeof PROFILE_DATA)[number];
+
+/** Profiilin tunniste: kirjainkoolla ei väliä, oletusnimi on nimetön profiili. */
+function profileId(name: string): string {
+  if (!name.trim()) return '';
+  const clean = sanitizeName(name);
+  return clean === sanitizeName('') ? '' : clean.toLocaleLowerCase('fi');
+}
+
+/** Nimetön profiili käyttää profiileja vanhempia avaimia (`lunki.stats`). */
+function keyOf(data: ProfileData, name: string): string {
+  const id = profileId(name);
+  return id ? `lunki.profile.${encodeURIComponent(id)}.${data}` : `lunki.${data}`;
+}
+
+const hasProfile = (name: string) => PROFILE_DATA.some((d) => read(keyOf(d, name)) !== null);
+
+function moveProfile(from: string, to: string): void {
+  for (const d of PROFILE_DATA) {
+    const v = read(keyOf(d, from));
+    if (v === null) continue;
+    write(keyOf(d, to), v);
+    try {
+      localStorage.removeItem(keyOf(d, from));
+    } catch {
+      // ei haittaa
+    }
+  }
+}
+
+const PROFILES_KEY = 'lunki.profiles';
+
+/** Ennen profiileja nimen asettaneen pelaajan tiedot siirretään kerran hänen profiiliinsa. */
+function migrateOnce(): void {
+  if (read(PROFILES_KEY) !== null) return;
+  const name = read(NAME_KEY) ?? '';
+  if (profileId(name) && !hasProfile(name)) moveProfile('', name);
+  write(PROFILES_KEY, '1');
+}
+
+/** Tallennusavain nykyisen nimimerkin profiilissa. */
+export function profileKey(data: ProfileData): string {
+  migrateOnce();
+  return keyOf(data, read(NAME_KEY) ?? '');
 }
 
 const LAST_ROOM_KEY = 'lunki.lastRoom';
