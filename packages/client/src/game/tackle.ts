@@ -3,7 +3,6 @@ import {
   FLY_IDS,
   LURE_IDS,
   isCraft,
-  isFly,
   parseTackle,
   type Craft,
   type Tackle,
@@ -59,12 +58,22 @@ export function saveCraft(c: Craft): void {
   }
 }
 
+/** Kesken kisan vaihdettavat siima ja peruke kalastustavoittain (taukovalikon Varusteet). */
+const RIG_KEYS = {
+  spin: ['line', 'leader'],
+  fly: ['flyLine', 'flyLeader'],
+} as const satisfies Record<Tackle['method'], readonly (keyof Tackle)[]>;
+
+export type RigKey = (typeof RIG_KEYS)[keyof typeof RIG_KEYS][number];
+
 /**
- * Vain peruke vaihtui (taukovalikon Varusteet): ilmoitus kertoo perukkeesta
- * eikä toista vieheen nimeä.
+ * Käytössä olevan kalastustavan siima tai peruke vaihtui eikä mikään muu:
+ * palauttaa vaihtuneet kentät, jotta ilmoitus kertoo niistä eikä toista
+ * vieheen nimeä. Muu vaihto (viehe, kalastustapa) tai ei muutosta: null.
  */
-export function leaderOnly(from: Tackle, to: Tackle): boolean {
-  const same = { ...to, leader: from.leader, flyLeader: from.flyLeader };
-  const changed = isFly(to) ? from.flyLeader !== to.flyLeader : from.leader !== to.leader;
-  return changed && (Object.keys(to) as (keyof Tackle)[]).every((k) => same[k] === from[k]);
+export function rigChanges(from: Tackle, to: Tackle): RigKey[] | null {
+  const keys: readonly RigKey[] = RIG_KEYS[to.method];
+  const changed = keys.filter((k) => from[k] !== to[k]);
+  const rest = (Object.keys(to) as (keyof Tackle)[]).filter((k) => !changed.includes(k as RigKey));
+  return changed.length && rest.every((k) => from[k] === to[k]) ? changed : null;
 }

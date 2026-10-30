@@ -184,7 +184,7 @@ Koodi: `packages/client/src/ui/screens.ts` (`showSettings`, `showPause`).
   Yksinpelin asetuksissa ja aulassa ne näkyvät vain yhteenvetona, ja kisassa
   vieheet vaihdetaan viehepakin pikavalikosta (R) ja kalastustapa omasta
   pikavalikostaan (M). Taukovalikon Varusteet (`showPauseTackle`) vaihtaa
-  kesken kisan vain perukkeen (virvelin teräsperuke, perhon peruke). Värit ovat omana
+  kesken kisan siiman ja perukkeen (virvelin siima ja teräsperuke, perhosiima ja perhon peruke); vapa vaihdetaan vain päävalikossa. Värit ovat omana
   alanäkymänään yksinpelin asetusten ja aulan yhteenvetoriviltä.
 - Kisan säännöt (kesto, sää, rangaistukset, lajit) kuuluvat yksinpelin
   asetuksiin ja moninpelin aulaan, eivät Asetukset-näkymään.

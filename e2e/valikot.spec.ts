@@ -324,7 +324,7 @@ test('viehepakki: R vaihtaa lokeroa, R pohjassa avaa pikavalikon (#365, #387)', 
   errors.check();
 });
 
-test('taukovalikko: peruke vaihtuu kesken kisan, ja palaute lähtee tauolta', async ({
+test('taukovalikko: siima ja peruke vaihtuvat kesken kisan, ja palaute lähtee tauolta', async ({
   page,
   isMobile,
 }) => {
@@ -346,12 +346,16 @@ test('taukovalikko: peruke vaihtuu kesken kisan, ja palaute lähtee tauolta', as
   const leader = page.locator('.choice', { hasText: 'Teräsperuke' });
   await expect(leader.locator('button.selected')).toHaveText('Ei');
   await leader.getByRole('button', { name: 'Kyllä' }).click();
-  await expect(page.getByText(/Käytössä: Virveli · .* · peruke$/)).toBeVisible();
+  const line = page.locator('.choice', { has: page.getByText('Siima', { exact: true }) });
+  await line.getByRole('button', { name: /^0,30 mm/ }).click();
+  await expect(page.getByText(/Käytössä: Virveli · .* · 0,30 mm · peruke$/)).toBeVisible();
   await page.getByRole('button', { name: 'Takaisin' }).click();
   await expect(title(page)).toHaveText('Tauko');
   await page.getByRole('button', { name: 'Jatka' }).click();
-  // Ilmoitus kertoo perukkeesta, ei vieheestä.
-  await expect(page.locator('.hud-message')).toContainText('Teräsperuke paikallaan');
+  // Ilmoitus kertoo siimasta ja perukkeesta, ei vieheestä.
+  await expect(page.locator('.hud-message')).toContainText(
+    'Siima: 0,30 mm · Teräsperuke paikallaan',
+  );
 
   // Palaute tauolta: sama lomake, ja Takaisin palaa taukoon.
   await pause();
