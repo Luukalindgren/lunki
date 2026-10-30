@@ -1,5 +1,15 @@
 import * as THREE from 'three';
-import { moonAt, Rng, sunAt, type CelestialPosition, type Season, type Vec2 } from '@lunki/shared';
+import {
+  LATITUDE,
+  moonAt,
+  moonIllumination,
+  Rng,
+  SEASONS,
+  sunAt,
+  type CelestialPosition,
+  type Season,
+  type Vec2,
+} from '@lunki/shared';
 
 /**
  * Jälkikäsittelyn sävytys palettiin pyöristämisen jälkeen: väri =
@@ -462,6 +472,35 @@ export function auroraFor(seed: number, season: Season): number {
   return rng.next() < (AURORA[season] ?? 0) ? rng.range(0.5, 1) : 0;
 }
 
+/**
+ * Kisan kuun vaihe 0–1 (0 = uusikuu, 0,5 = täysikuu) kisan siemenestä, joten
+ * moninpelissä kaikilla on sama kuu.
+ */
+export function moonPhaseFor(seed: number): number {
+  return new Rng(seed ^ 0x6d00e5).next();
+}
+
+/** Kisan taivaan arvotut osat (ks. auroraFor ja moonPhaseFor). */
+export interface RaceSky {
+  aurora?: number;
+  moonPhase?: number;
+}
+
+/** Taivaannapa Three.js-maailmassa: pohjoisessa (-z) leveysasteen korkeudella. */
+const CELESTIAL_POLE = new THREE.Vector3(0, Math.sin(LATITUDE), -Math.cos(LATITUDE));
+/** Tähtivuorokausi on 23 h 56 min. */
+const SIDEREAL_DAY = 23.9345;
+
+/**
+ * Tähtitaivaan kierto pelikellon aikaan: tähdet kiertävät taivaannavan
+ * ympäri samaan suuntaan kuin aurinko. Kauden päivä kääntää lähtökohtaa,
+ * joten eri vuodenaikoina yöllä näkyy eri tähtitaivas.
+ */
+export function starTurn(hours: number, season: Season): number {
+  const day = SEASONS[season].dayOfYear / 365.2422;
+  return 2 * Math.PI * (hours / SIDEREAL_DAY + day);
+}
+
 const DOME_RADIUS = 2800;
 /** Auringon ja kuun kiekon säde (rad); liioiteltu, jotta ne erottuvat pienestä kuvasta. */
 const SUN_RADIUS = 0.024;
@@ -494,7 +533,9 @@ const DOME_FRAG = /* glsl */ `
   uniform float uSun;
   uniform vec3 uMoonDir;
   uniform float uMoon;
+  uniform float uMoonLit;
   uniform float uStars;
+  uniform mat3 uStarFrame;
   uniform float uTime;
   uniform vec2 uCloudOffset;
   uniform float uClouds;
@@ -548,7 +589,8 @@ const DOME_FRAG = /* glsl */ `
 
     // Tähdet: satunnaisia pisteitä suuntaruudukossa, tuikkivat hiljalleen.
     if (uStars > 0.0 && d.y > 0.03) {
-      vec3 sp = d * 160.0;
+      // Tähdet ovat kiinni taivaankannessa, joka kiertyy yön mittaan.
+      vec3 sp = (uStarFrame * d) * 160.0;
       vec3 cell = floor(sp);
       float r = hash13(cell);
       if (r > 0.93) {
@@ -569,8 +611,13 @@ const DOME_FRAG = /* glsl */ `
       vec2 q = vec2(dot(d, side), dot(d, up)) / ${MOON_RADIUS.toFixed(4)};
       float disc = 1.0 - smoothstep(${(MOON_RADIUS * 0.85).toFixed(4)}, ${MOON_RADIUS.toFixed(4)}, a);
       float maria = smoothstep(0.45, 0.7, noise(q * 2.2 + 3.0)) * 0.22;
-      c = mix(c, vec3(0.96, 0.94, 0.86) * (1.0 - maria), disc * uMoon);
-      c += vec3(0.45, 0.55, 0.75) * exp(-a / 0.035) * 0.35 * uMoon * (1.0 - disc);
+      // Vaihe: kuun pallon pinnan kohta, jota aurinko valaisee. Varjopuoli
+      // näkyy vain himmeänä maavalona.
+      vec3 normal = normalize(side * q.x + up * q.y - uMoonDir * sqrt(max(0.0, 1.0 - dot(q, q))));
+      float lit = smoothstep(-0.08, 0.08, dot(normal, uSunDir));
+      vec3 moon = vec3(0.96, 0.94, 0.86) * (1.0 - maria);
+      c = mix(c, mix(c + moon * 0.06, moon, lit), disc * uMoon);
+      c += vec3(0.45, 0.55, 0.75) * exp(-a / 0.035) * 0.35 * uMoon * uMoonLit * (1.0 - disc);
     }
 
     // Aurinko: kirkas kiekko, matalalla kellertävä.
@@ -655,14 +702,24 @@ export class SkyView {
   private clock = 0;
   private readonly cloudOffset = new THREE.Vector2();
 
+  /** Kisan revontulten voimakkuus 0–1 (ks. auroraFor). */
+  readonly aurora: number;
+  /** Kuun vaihe 0–1 (0,5 = täysikuu, ks. moonPhaseFor). */
+  readonly moonPhase: number;
+  private readonly starFrame = new THREE.Matrix3();
+  private readonly turn = new THREE.Matrix4();
+
   /**
-   * Vuodenaika (#427): auringon rata ja vuorokauden ilmeet. `aurora` on
-   * kisan revontulten voimakkuus (ks. auroraFor).
+   * Vuodenaika (#427): auringon rata ja vuorokauden ilmeet. `sky` on kisan
+   * siemenestä arvotut revontulet ja kuun vaihe; puuttuva on täysikuu ilman
+   * revontulia.
    */
   constructor(
     readonly season: Season = 'summer',
-    readonly aurora = 0,
+    sky: RaceSky = {},
   ) {
+    this.aurora = sky.aurora ?? 0;
+    this.moonPhase = sky.moonPhase ?? 0.5;
     const color = () => ({ value: new THREE.Color() });
     this.domeMaterial = new THREE.ShaderMaterial({
       vertexShader: DOME_VERT,
@@ -680,7 +737,9 @@ export class SkyView {
         uSun: { value: 0 },
         uMoonDir: { value: new THREE.Vector3(0, 1, 0) },
         uMoon: { value: 0 },
+        uMoonLit: { value: 1 },
         uStars: { value: 0 },
+        uStarFrame: { value: this.starFrame },
         uTime: { value: 0 },
         uCloudOffset: { value: this.cloudOffset },
         uClouds: { value: 0 },
@@ -713,7 +772,9 @@ export class SkyView {
     const cloud = smoothstep(0.15, 0.6, darkness);
     const overcast = overcastColor(look, darkness);
     const sunPos = sunAt(hours, this.season);
-    const moonPos = moonAt(hours, this.season);
+    const moonPos = moonAt(hours, this.season, this.moonPhase);
+    // Kapea sirppi valaisee ja kimaltaa vähemmän kuin täysikuu.
+    const moonLit = moonIllumination(this.moonPhase);
     const sunDir = skyDirection(sunPos);
     const moonUp = moonPos.elevation > -MOON_RADIUS;
     const moonDir = skyDirection(moonPos);
@@ -735,7 +796,7 @@ export class SkyView {
     (u.uGlowIn!.value as THREE.Color).set(look.glowIn);
     (u.uGlowOut!.value as THREE.Color).set(look.glowOut);
     (u.uGlowDir!.value as THREE.Vector3).copy(bodyDir);
-    u.uGlowAmount!.value = look.glowAmount * (1 - cloud);
+    u.uGlowAmount!.value = look.glowAmount * (1 - cloud) * (byMoon ? moonLit : 1);
     u.uGlowSize!.value = look.glowSize;
     (u.uSunDir!.value as THREE.Vector3).copy(sunDir);
     u.uSun!.value = sunPos.elevation > -SUN_RADIUS ? 1 - cloud : 0;
@@ -744,7 +805,11 @@ export class SkyView {
     u.uMoon!.value = moonUp
       ? (1 - cloud) * (1 - 0.7 * smoothstep(-0.1, 0.05, sunPos.elevation))
       : 0;
+    u.uMoonLit!.value = moonLit;
     u.uStars!.value = look.stars * (1 - cloud);
+    this.starFrame.setFromMatrix4(
+      this.turn.makeRotationAxis(CELESTIAL_POLE, starTurn(hours, this.season)),
+    );
     // Revontulet näkyvät vain siellä, missä tähdetkin.
     u.uAurora!.value = this.aurora * Math.min(1, look.stars) * (1 - cloud);
     u.uTime!.value = this.clock;
@@ -775,7 +840,10 @@ export class SkyView {
     // peilikuva olisi aivan kalastajan edessä ja näyttäisi tikkailta.
     this.glitter.amount =
       bodyDir.y > -0.02
-        ? look.glitterAmount * (1 - cloud) * (1 - smoothstep(0.4, 0.6, bodyDir.y))
+        ? look.glitterAmount *
+          (1 - cloud) *
+          (1 - smoothstep(0.4, 0.6, bodyDir.y)) *
+          (byMoon ? moonLit : 1)
         : 0;
 
     // Koko kuvan valo yhdessä paikassa: vuorokaudenaika, pilvisyys (himmentää
