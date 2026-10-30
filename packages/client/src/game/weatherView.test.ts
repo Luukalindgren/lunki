@@ -27,4 +27,16 @@ describe('sään näkymä', () => {
     expect(warnings.length).toBeLessThanOrEqual(changes * 3);
     expect(rumbles).toBeGreaterThan(0);
   });
+
+  it('realistisella ei tekstivaroituksia, mutta jyrinä kuuluu (#414)', () => {
+    const plan = planWeather(3, 'chaos', 600);
+    const view = new WeatherView(plan, false);
+    const messages: string[] = [];
+    let rumbles = 0;
+    const events = { message: (m: string) => messages.push(m), rumble: () => rumbles++ };
+    for (let t = 0; t < 600; t += 0.5)
+      view.update(0.5, t, { x: 0, y: 0 }, { metersPerPixel: 1, width: 400 }, events);
+    expect(messages.every((m) => m.startsWith('Sää muuttuu'))).toBe(true);
+    expect(rumbles).toBeGreaterThan(0);
+  });
 });

@@ -10,6 +10,7 @@ import {
   type Season,
   type Vec2,
 } from '@lunki/shared';
+import type { StormFront } from './stormFront';
 
 /**
  * Jälkikäsittelyn sävytys palettiin pyöristämisen jälkeen: väri =
@@ -325,6 +326,17 @@ function overcastColor(look: Look, darkness: number): THREE.Color {
     .multiplyScalar(1 - 0.85 * smoothstep(0.3, 0.8, darkness));
 }
 
+/** Taivaan värit pilvisyyden mukaan: harmaantuvat ja tummuvat (ks. overcastColor). */
+function cloudy(look: Look, darkness: number): (hex: number) => THREE.Color {
+  const cloud = smoothstep(0.15, 0.6, darkness);
+  const overcast = overcastColor(look, darkness);
+  return (hex) =>
+    new THREE.Color(hex).lerp(overcast, cloud * 0.85).multiplyScalar(1 - 0.35 * cloud);
+}
+
+/** Pilvipeite 0–0,95 taivaan tummuuden mukaan. */
+const cloudCover = (look: Look, darkness: number) => Math.min(0.95, look.clouds + darkness * 1.1);
+
 /** Suunta taivaalle Three.js-maailmassa (y ylös, z = -pohjoinen). */
 export function skyDirection(p: CelestialPosition, out = new THREE.Vector3()): THREE.Vector3 {
   const c = Math.cos(p.elevation);
@@ -543,6 +555,15 @@ const DOME_FRAG = /* glsl */ `
   uniform vec3 uCloudShade;
   uniform float uFlash;
   uniform float uAurora;
+  uniform float uFront;
+  uniform vec2 uFrontDir;
+  uniform float uFrontDist;
+  uniform vec3 uFrontZenith;
+  uniform vec3 uFrontMid;
+  uniform vec3 uFrontHorizon;
+  uniform vec3 uFrontLit;
+  uniform vec3 uFrontShade;
+  uniform float uFrontClouds;
   varying vec3 vDir;
 
   float hash12(vec2 p) {
@@ -628,19 +649,43 @@ const DOME_FRAG = /* glsl */ `
       c = mix(c, sunColor, disc * uSun);
     }
 
+    // Ukkosrintama (#414): sama pilvikerros, mutta rintaman alla on jo
+    // seuraavan sään taivas. Reuna on suora viiva pilvikerroksella, joten
+    // perspektiivissä se kaartuu tuulen yläpuolelta taivaanrantaan
+    // molemmissa päissä. Reuna kumpuilee pilvikohinan mukaan, ja sen
+    // etuosa on paksuin ja tummin pilvivalli.
+    float front = 0.0;
+    float rim = 0.0;
+    if (uFront > 0.0) {
+      vec2 p = d.xz / (max(d.y, 0.0) + 0.08) * 0.9;
+      vec2 q = p + uCloudOffset;
+      float bump = (fbm(q * 0.7 + 4.0) - 0.5) * 1.8 + (fbm(q * 2.4 + 9.0) - 0.5) * 0.8;
+      float inside = dot(p, uFrontDir) + bump - uFrontDist;
+      front = smoothstep(-0.08, 0.08, inside);
+      rim = front * (1.0 - smoothstep(0.0, 1.6, inside));
+      float fringe = front * (1.0 - smoothstep(0.0, 0.3, inside)) * smoothstep(0.02, 0.1, d.y);
+      vec3 fc = mix(uFrontHorizon, uFrontMid, smoothstep(0.0, 0.22, h));
+      fc = mix(fc, uFrontZenith, smoothstep(0.18, 0.75, h));
+      fc = mix(fc * (1.0 - 0.3 * rim), uFrontLit, fringe * 0.45);
+      c = mix(c, fc, front);
+    }
+    vec3 horizon = mix(uHorizon, uFrontHorizon, front);
+
     // Pilvet: tasaiselle pilvikerrokselle projisoitu kohina, joka ajelehtii tuulen mukana.
-    if (uClouds > 0.0 && d.y > 0.0) {
+    float clouds = mix(uClouds, uFrontClouds, front) + rim * 0.25;
+    if (clouds > 0.0 && d.y > 0.0) {
       vec2 uv = d.xz / (d.y + 0.08) * 0.9 + uCloudOffset;
       float n = fbm(uv);
-      float edge = 1.0 - uClouds;
+      float edge = 1.0 - min(clouds, 0.97);
       float cover = smoothstep(edge * 0.75, edge * 0.75 + 0.22, n);
       cover *= smoothstep(0.0, 0.12, d.y);
       float toSun = max(dot(d, uGlowDir), 0.0);
       float thick = smoothstep(edge * 0.75, edge * 0.75 + 0.5, n);
       float lit = clamp(0.35 + 0.65 * pow(toSun, 6.0) + 0.3 * (1.0 - thick), 0.0, 1.0);
-      vec3 cloud = mix(uCloudShade, uCloudLit, lit);
+      vec3 cloud = mix(mix(uCloudShade, uFrontShade, front), mix(uCloudLit, uFrontLit, front), lit);
+      cloud *= 1.0 - 0.35 * rim * thick;
       // Kaukana taivaanrannassa pilvet häipyvät usvaan.
-      cloud = mix(uHorizon, cloud, smoothstep(0.0, 0.18, d.y));
+      cloud = mix(horizon, cloud, smoothstep(0.0, 0.18, d.y));
       c = mix(c, cloud, cover * 0.95);
     }
 
@@ -661,6 +706,13 @@ const DOME_FRAG = /* glsl */ `
     gl_FragColor = vec4(c, 0.0);
   }
 `;
+
+/**
+ * Pilvikerroksen mittakaava: montako metriä yksi taivaankuvun
+ * pilvikerroksen yksikkö on (ks. DOME_FRAG). Rintaman reuna on
+ * taivaalla samassa kohdassa kuin sen etäisyys metreinä.
+ */
+export const FRONT_PLANE = 150;
 
 /** Valaistus, jonka peli (WeatherController) ottaa käyttöön joka ruudulla. */
 export interface SkyLighting {
@@ -747,6 +799,15 @@ export class SkyView {
         uCloudShade: color(),
         uFlash: { value: 0 },
         uAurora: { value: 0 },
+        uFront: { value: 0 },
+        uFrontDir: { value: new THREE.Vector2(1, 0) },
+        uFrontDist: { value: 0 },
+        uFrontZenith: color(),
+        uFrontMid: color(),
+        uFrontHorizon: color(),
+        uFrontLit: color(),
+        uFrontShade: color(),
+        uFrontClouds: { value: 0 },
       },
       side: THREE.BackSide,
       depthWrite: false,
@@ -764,13 +825,20 @@ export class SkyView {
   /**
    * Päivittää ilmeen pelikellon (tuntia 0–24), pilvisyyden (taivaan tummuus 0–1)
    * ja salaman välähdyksen (0–1, jo kerrottu iskun etäisyydellä) mukaan; `dt`
-   * liikuttaa pilviä ja tähtien tuiketta.
+   * liikuttaa pilviä ja tähtien tuiketta. `front` = lähestyvä ukkosrintama:
+   * sen alla taivas on jo seuraavan sään (#414).
    */
-  update(hours: number, darkness: number, flash: number, wind: Vec2, dt = 0): void {
+  update(
+    hours: number,
+    darkness: number,
+    flash: number,
+    wind: Vec2,
+    dt = 0,
+    front: StormFront | null = null,
+  ): void {
     const look = lookAt(hours, this.season);
     // Pilvisellä säällä taivas harmaantuu ja pilvet peittävät auringon, kuun ja tähdet.
     const cloud = smoothstep(0.15, 0.6, darkness);
-    const overcast = overcastColor(look, darkness);
     const sunPos = sunAt(hours, this.season);
     const moonPos = moonAt(hours, this.season, this.moonPhase);
     // Kapea sirppi valaisee ja kimaltaa vähemmän kuin täysikuu.
@@ -788,8 +856,7 @@ export class SkyView {
     this.cloudOffset.y -= dt * (0.002 + wind.y * 0.004);
 
     const u = this.domeMaterial.uniforms;
-    const dim = (hex: number) =>
-      new THREE.Color(hex).lerp(overcast, cloud * 0.85).multiplyScalar(1 - 0.35 * cloud);
+    const dim = cloudy(look, darkness);
     (u.uZenith!.value as THREE.Color).copy(dim(look.zenith));
     (u.uMid!.value as THREE.Color).copy(dim(look.mid));
     (u.uHorizon!.value as THREE.Color).copy(dim(look.horizon));
@@ -813,10 +880,23 @@ export class SkyView {
     // Revontulet näkyvät vain siellä, missä tähdetkin.
     u.uAurora!.value = this.aurora * Math.min(1, look.stars) * (1 - cloud);
     u.uTime!.value = this.clock;
-    u.uClouds!.value = Math.min(0.95, look.clouds + darkness * 1.1);
+    u.uClouds!.value = cloudCover(look, darkness);
     (u.uCloudLit!.value as THREE.Color).copy(dim(look.cloudLit));
     (u.uCloudShade!.value as THREE.Color).copy(dim(look.cloudShade));
     u.uFlash!.value = flash * 0.8;
+
+    u.uFront!.value = front ? 1 : 0;
+    if (front) {
+      (u.uFrontDir!.value as THREE.Vector2).set(front.dir.x, -front.dir.y);
+      u.uFrontDist!.value = front.distance / FRONT_PLANE;
+      const fDim = cloudy(look, front.darkness);
+      (u.uFrontZenith!.value as THREE.Color).copy(fDim(look.zenith));
+      (u.uFrontMid!.value as THREE.Color).copy(fDim(look.mid));
+      (u.uFrontHorizon!.value as THREE.Color).copy(fDim(look.horizon));
+      (u.uFrontLit!.value as THREE.Color).copy(fDim(look.cloudLit));
+      (u.uFrontShade!.value as THREE.Color).copy(fDim(look.cloudShade));
+      u.uFrontClouds!.value = cloudCover(look, front.darkness);
+    }
 
     // Tuuli hajottaa usvan.
     this.mist = look.mist * (1 - smoothstep(3, 8, Math.hypot(wind.x, wind.y)));

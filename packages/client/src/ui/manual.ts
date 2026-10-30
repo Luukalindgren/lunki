@@ -1,5 +1,6 @@
 import { COLD_WATER, DIFFICULTIES, FLY_CAST, LINES, RODS, SEASONS, SPECIES } from '@lunki/shared';
 import { controlText, type ControlMode } from '../game/controls';
+import { FRONT } from '../game/stormFront';
 import { shortDecimal, t, type MsgKey } from '../i18n';
 
 /**
@@ -100,7 +101,11 @@ const TOPICS: Record<ManualSection, readonly Topic[]> = {
     { title: 'manual.fly.fight', text: 'manual.fly.fightText' },
   ],
   weather: [
-    { title: 'manual.weather.sky', text: 'manual.weather.skyText' },
+    {
+      title: 'manual.weather.sky',
+      text: 'manual.weather.skyText',
+      vars: () => ({ front: FRONT.time / 60 }),
+    },
     {
       title: 'manual.weather.season',
       text: 'manual.weather.seasonText',

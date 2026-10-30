@@ -14,6 +14,13 @@ const HALO = 3;
 /** Shokkiaalto vedessä: kesto (s) ja suurin säde (m). */
 const RING_SECONDS = 0.9;
 const RING_RADIUS = 28;
+/**
+ * Kaukainen salama ukkosrintaman alla (#414): siksak leveämpi, jotta
+ * salama näyttää kaukaakin salamalta eikä pylväältä, ja ydin ohuempi
+ * (puolileveys pikseleinä) ilman hehkua ja shokkiaaltoa.
+ */
+const FAR_SPREAD = 2.5;
+const FAR_HALF_WIDTH_PX = 0.6;
 
 /**
  * Välähdyksen kirkkaus ajan funktiona (s iskusta): kirkas isku, lyhyt
@@ -53,6 +60,8 @@ export class LightningView {
   private readonly ring: THREE.Mesh;
   private readonly paths: THREE.Vector3[][] = [];
   private age = Infinity;
+  /** Viimeisin isku oli kaukainen salama rintaman alla. */
+  private far = false;
   private seed = 1;
   private readonly side = new THREE.Vector3();
   private readonly toCamera = new THREE.Vector3();
@@ -121,7 +130,10 @@ export class LightningView {
     return this.age;
   }
 
-  strike(pos: Vec2): void {
+  /** `far` = kaukainen salama rintaman alla: ohut, ilman hehkua ja shokkiaaltoa. */
+  strike(pos: Vec2, far = false): void {
+    this.far = far;
+    const spread = far ? FAR_SPREAD : 1;
     this.paths.length = 0;
     const main: THREE.Vector3[] = [];
     let x = pos.x;
@@ -131,8 +143,8 @@ export class LightningView {
     // ylhäältä katsottuna.
     for (let i = 0; i <= SEGMENTS; i++) {
       main.push(new THREE.Vector3(x, (TOP * i) / SEGMENTS, z));
-      x += (i % 2 === 0 ? 1 : -1) * (4 + this.rand() * 9);
-      z -= this.rand() * 5;
+      x += (i % 2 === 0 ? 1 : -1) * (4 + this.rand() * 9) * spread;
+      z -= this.rand() * 5 * spread;
     }
     this.paths.push(main);
     // Haarat lähtevät salaman keski- ja yläosasta alas ja sivulle.
@@ -143,8 +155,8 @@ export class LightningView {
       let p = start.clone();
       for (let i = 0; i < BRANCH_SEGMENTS; i++) {
         p = p.clone();
-        p.x += Math.cos(dir) * (5 + this.rand() * 8);
-        p.z += Math.sin(dir) * (5 + this.rand() * 8);
+        p.x += Math.cos(dir) * (5 + this.rand() * 8) * spread;
+        p.z += Math.sin(dir) * (5 + this.rand() * 8) * spread;
         p.y -= 10 + this.rand() * 14;
         branch.push(p);
       }
@@ -160,11 +172,11 @@ export class LightningView {
     const k = flashCurve(this.age);
     // Salama itse näkyy vain kirkkaimpina hetkinä, joten se välkkyy.
     this.bolt.visible = k >= 0.3;
-    this.halo.visible = k >= 0.5;
+    this.halo.visible = k >= 0.5 && !this.far;
     this.glow.visible = k > 0;
     // Shokkiaalto leviää iskukohdasta ja ohenee.
     const r = this.age / RING_SECONDS;
-    this.ring.visible = r < 1;
+    this.ring.visible = r < 1 && !this.far;
     if (r < 1) this.ring.scale.setScalar(2 + RING_RADIUS * Math.sqrt(r));
   }
 
@@ -191,7 +203,10 @@ export class LightningView {
         if (!ortho) this.toCamera.subVectors(camera.position, a).normalize();
         this.seg.subVectors(b, a);
         this.side.crossVectors(this.seg, this.toCamera).normalize();
-        const w = Math.max(0.35 * scale, pixel(a) * HALF_WIDTH_PX * scale);
+        const w = Math.max(
+          0.35 * scale,
+          pixel(a) * (this.far ? FAR_HALF_WIDTH_PX : HALF_WIDTH_PX) * scale,
+        );
         this.writeQuad(this.boltPositions, q, a, b, w);
         this.writeQuad(this.haloPositions, q++, a, b, w * HALO);
       }
