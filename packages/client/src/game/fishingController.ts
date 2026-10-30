@@ -50,7 +50,7 @@ import type { Penalties } from './penalties';
 import type { PovCamera } from './povCamera';
 import { QuietSpot } from './quietSpot';
 import type { RaceLog } from './raceLog';
-import { catchJoy } from './catchJoy';
+import { catchJoy, isRaceBest, JOY_SOUNDS } from './catchJoy';
 import { addJournalEntry, loadJournal } from './journal';
 import { leaderOnly, saveTackle } from './tackle';
 import { slotOf } from './tackleBox';
@@ -596,8 +596,8 @@ export class FishingController {
   }
 
   /**
-   * Kala nousi: ääni (oma ennätys ja kala pitkän odotuksen jälkeen iloisemmin,
-   * `catchJoy`), kirjaus kisaan ja ennätyksiin sekä punnituskortti, joka
+   * Kala nousi: ääni (oma ennätys, kala pitkän odotuksen jälkeen ja kisan
+   * suurin repliikillä, `catchJoy`), kirjaus kisaan ja ennätyksiin sekä punnituskortti, joka
    * tulee näkyviin `delay` sekunnin päästä, kun nosto on ehtinyt kalastajan eteen.
    */
   private onCaught(
@@ -608,13 +608,13 @@ export class FishingController {
     const { hud, sounds } = host;
     const net = host.netWorld;
     net?.sendCatch(caught);
-    const prevTime = host.competition.catches.at(-1)?.time ?? 0;
+    const earlier = [...host.competition.catches];
     const record = recordCatch(host.competition, caught, host.tube.pos);
+    const waited = record ? record.time - (earlier.at(-1)?.time ?? 0) : 0;
     const joy = record
-      ? catchJoy(loadJournal(), caught, record.time - prevTime, host.settings.difficulty)
+      ? catchJoy(loadJournal(), caught, { waited, earlier }, host.settings.difficulty)
       : null;
-    if (joy === 'record') sounds.play('recordCatch');
-    else if (joy === 'relief') sounds.play('reliefCatch');
+    if (joy) sounds.play(JOY_SOUNDS[joy]);
     else sounds.play(sizeClass(caught.species, caught.weight) >= 3 ? 'bigCatch' : 'caught');
     // Moninpelissä saaliit tulevat kartalle palvelimen punnitsemina (onCatchSeen).
     if (record && !net) {
@@ -653,12 +653,11 @@ export class FishingController {
     this.strikeDepth = null;
     host.fishingView.startSplash(host.fishing.lure);
     const catches = host.competition.catches;
-    const biggest = catches.every((c) => c === record || c.weight < caught.weight);
     const length = `${Math.round(fishLengthCm(caught.species, caught.weight))} cm`;
     const note =
       joy === 'record'
         ? t('game.personalBest')
-        : catches.length > 1 && biggest
+        : isRaceBest(earlier, caught.weight)
           ? t('game.biggestSoFar')
           : t('game.nthFish', { n: ordinal(catches.length) });
     const nth = `${length} · ${note}`;

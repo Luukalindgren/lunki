@@ -35,6 +35,8 @@ export interface Sound {
   effect?: Effect | Play;
   /** Kalastajan repliikki, jos pelaaja on valinnut tapahtumien repliikit. */
   voice?: VoiceId;
+  /** Tehoste vain silloin, kun repliikki ei kuulu: muuten puhe kuuluu yksin. */
+  fallback?: Effect;
   /** Oma tapahtuma hiljentää ympäristöä ja musiikkia hetkeksi (`DUCKS`). */
   duck?: DuckId;
 }
@@ -75,9 +77,12 @@ export const SOUNDS = {
   lineBroken: { effect: 'lost', voice: 'lineBroken' },
   caught: { effect: 'caught' },
   bigCatch: { effect: 'caught', voice: 'bigCatch' },
-  // Iloiset saaliit (game/catchJoy.ts): kala pitkän odotuksen jälkeen ja oma ennätys
-  reliefCatch: { effect: 'joy', voice: 'relief', duck: 'joy' },
-  recordCatch: { effect: 'fanfare', voice: 'record', duck: 'joy' },
+  // Iloiset saaliit (game/catchJoy.ts): oma ennätys, kala pitkän odotuksen
+  // jälkeen ja kisan suurin. Sävelmä peittäisi puheen, joten se soi vain
+  // repliikkien ollessa pois päältä.
+  reliefCatch: { voice: 'relief', fallback: 'joy', duck: 'joy' },
+  recordCatch: { voice: 'record', fallback: 'fanfare', duck: 'joy' },
+  raceBestCatch: { voice: 'raceBest', fallback: 'caught' },
   reelClick: { effect: 'reelClick' },
   dragSlip: { effect: 'dragSlip' },
   lineHiss: { effect: 'lineHiss' },
@@ -154,7 +159,8 @@ export class Sounds {
   }
 
   private sound(s: Sound, place: Place, a: number, b: number): void {
-    const { effect, voice, duck } = s;
+    const { voice, duck } = s;
+    const effect = s.fallback && !this.sfx.eventVoicesOn ? s.fallback : s.effect;
     if (effect)
       this.sfx.at(place, () => {
         if (typeof effect === 'function') effect(this.sfx, a, b);

@@ -187,6 +187,11 @@ export class Sfx {
     }
   }
 
+  /** Kuuluvatko tapahtumien repliikit: valittu ja puheäänet päällä. */
+  get eventVoicesOn(): boolean {
+    return !this.muted && this.settings.eventVoices && this.settings.voice > 0;
+  }
+
   /** Tapahtumien repliikit vain, jos pelaaja on ne valinnut. */
   eventVoice(id: VoiceId): void {
     if (this.settings.eventVoices) this.voice(id, { speaker: 'me' });

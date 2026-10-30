@@ -3,11 +3,12 @@ import { Sfx, type Place } from './sfx';
 import { EFFECT_RANGE, SOUNDS, Sounds, effectFalloff, type Sound, type SoundEvent } from './sounds';
 
 /** Sfx, joka kirjaa kutsut, voimakkuuden ja suunnan soittamisen sijaan. */
-function recorder() {
+function recorder(voicesOn = true) {
   const calls: string[] = [];
   let place: Place = { gain: 1 };
   const sfx = new Proxy({} as Sfx, {
     get(_, name: string) {
+      if (name === 'eventVoicesOn') return voicesOn;
       if (name === 'at')
         return (p: Place, play: () => void) => {
           place = p;
@@ -32,9 +33,20 @@ describe('äänikartta', () => {
   it('jokaisella tapahtumalla on tehoste tai repliikki, ja tehosteet ovat olemassa', () => {
     for (const [event, sound] of Object.entries(SOUNDS) as [SoundEvent, Sound][]) {
       expect(sound.effect ?? sound.voice, event).toBeDefined();
-      if (typeof sound.effect === 'string')
-        expect(typeof Sfx.prototype[sound.effect], `${event}: ${sound.effect}`).toBe('function');
+      for (const effect of [sound.effect, sound.fallback])
+        if (typeof effect === 'string')
+          expect(typeof Sfx.prototype[effect], `${event}: ${effect}`).toBe('function');
+      if (sound.fallback) expect(sound.voice, event).toBeDefined();
     }
+  });
+
+  it('iloinen saalis: pelkkä repliikki, sävelmä vain repliikkien ollessa pois', () => {
+    const on = recorder(true);
+    new Sounds(on.sfx).play('recordCatch');
+    expect(on.calls).toEqual(['duck("joy")@1.00', 'eventVoice("record")@1.00']);
+    const off = recorder(false);
+    new Sounds(off.sfx).play('recordCatch');
+    expect(off.calls).toEqual(['fanfare()@1.00', 'duck("joy")@1.00', 'eventVoice("record")@1.00']);
   });
 
   it('oma tapahtuma soittaa tehosteen ja repliikin keskeltä', () => {
