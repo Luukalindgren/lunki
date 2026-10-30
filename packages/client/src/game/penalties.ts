@@ -43,15 +43,15 @@ export class Penalties {
    * Rangaistus omasta osumasta: jäähy ja saaliin menetys. Moninpelissä
    * palvelin pitää jäähyn ja saaliit. Palauttaa seurauksen tekstinä.
    */
-  punish(penalty: Penalty, label: string): string {
-    const outcome = penaltyOutcome(penalty, this.competition.elapsed);
+  punish(penalty: Penalty, label: string, timeOut: number = LIGHTNING.timeOut): string {
+    const outcome = penaltyOutcome(penalty, this.competition.elapsed, timeOut);
     if (outcome.outUntil > 0) this.outLabel = label;
     if (!this.net) this.outUntil = Math.max(this.outUntil, outcome.outUntil);
     if (outcome.outUntil >= OUT_OF_RACE) this.outAt = this.competition.elapsed;
     if (outcome.loseCatch) this.competition.catches.length = 0;
     return {
       none: '',
-      'time-out': t('game.penaltyTimeOut', { s: LIGHTNING.timeOut }),
+      'time-out': t('game.penaltyTimeOut', { s: timeOut }),
       'lose-catch': t('game.penaltyLoseCatch'),
       out: t('game.penaltyOut'),
     }[penalty];

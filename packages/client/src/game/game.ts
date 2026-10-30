@@ -228,6 +228,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       this.rng,
       FISH_COUNT,
       settings.species,
+      seasonOf(settings),
     );
     this.penalties = new Penalties(this.competition, settings, link?.world);
     this.craft = new CraftController(this);
@@ -370,10 +371,10 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
   }
 
   /** Rangaistus omasta osumasta. Moninpelissä palvelin pitää jäähyn ja saaliit. */
-  punish(penalty: Penalty, label: string): string {
+  punish(penalty: Penalty, label: string, timeOut?: number): string {
     this.resetFishing();
     this.sounds.play('penalty');
-    return this.penalties.punish(penalty, label);
+    return this.penalties.punish(penalty, label, timeOut);
   }
 
   resetFishing(): void {

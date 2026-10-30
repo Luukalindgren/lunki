@@ -44,6 +44,7 @@ import {
   spoutWind,
   isWeatherLevel,
   penaltyOutcome,
+  capsizeTimeOut,
   planLightning,
   planWeather,
   resolveStrike,
@@ -630,6 +631,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         new Rng(this.state.seed),
         FISH_COUNT,
         [...this.state.settings.species] as SpeciesId[],
+        seasonOf(this.state.settings),
       );
       this.fishGens.clear();
       const level = this.state.settings.weather;
@@ -637,6 +639,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         this.state.seed,
         isWeatherLevel(level) ? level : 'realistic',
         this.durationOverride ?? this.state.settings.durationMinutes * 60,
+        seasonOf(this.state.settings),
       );
       this.state.sky = this.weather.segments[0]!.sky;
       this.strikes = planLightning(
@@ -1329,6 +1332,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         this.punish(
           mate,
           isPenalty(st.settings.capsizePenalty) ? st.settings.capsizePenalty : 'none',
+          capsizeTimeOut(seasonOf(st.settings)),
         );
       }
     }
@@ -1356,12 +1360,12 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   }
 
   /** Rangaistus osumasta: siima poikki, jäähy ja/tai saaliin menetys. */
-  private punish(id: string, penalty: Penalty) {
+  private punish(id: string, penalty: Penalty, timeOut?: number) {
     const st = this.state;
     const p = st.players.get(id);
     const sim = this.sims.get(id);
     if (!p || !sim) return;
-    const outcome = penaltyOutcome(penalty, st.clock);
+    const outcome = penaltyOutcome(penalty, st.clock, timeOut);
     p.outUntil = Math.max(p.outUntil, outcome.outUntil);
     p.lureStage = 0;
     sim.rodInHand = false;
@@ -1397,6 +1401,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
           this.punish(
             mate,
             isPenalty(st.settings.capsizePenalty) ? st.settings.capsizePenalty : 'none',
+            capsizeTimeOut(seasonOf(st.settings)),
           );
         }
       }

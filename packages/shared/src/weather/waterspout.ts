@@ -78,7 +78,8 @@ export function planWaterspouts(
   water: WaterBody,
   bounds: LakeMap['bounds'],
 ): Waterspout[] {
-  const chance = SPOUT.chance[plan.level];
+  // Trombit ovat kesän ukkosilmiö (#427): keväällä ja syksyllä niitä ei ole.
+  const chance = (plan.season ?? 'summer') === 'summer' ? SPOUT.chance[plan.level] : 0;
   if (chance <= 0) return [];
   const rng = new Rng(seed ^ 0x27d4eb2f);
   const spouts: Waterspout[] = [];

@@ -34,6 +34,18 @@ keskimäärin noin 25°. Tuuli puuskittelee ±15 %.
 Testi `weather.test.ts` tarkistaa 200 siemenellä, että ukkosen ja myrskyn
 osuus kasvaa selvästi tasolta toiselle.
 
+### Vuodenaika (#427)
+
+Säätaso päättää, kuinka paljon säätä on, ja vuodenaika, millaista se on
+(`SEASON_WEATHER`). Kauden painot kertovat tilojen todennäköisyyksiä
+(alkutila ja siirtymät), joten kesän sää on sama kuin ennen:
+
+- **Kevät:** tuulista (×1,4) ja kuuroja, ukkonen harvinainen (×0,25),
+  myrsky ×0,5.
+- **Kesä:** ennallaan; trombit vain kesällä.
+- **Syksy:** syysmyrskyt (×2) ja sateet (×1,5), ukkosta tuskin lainkaan
+  (×0,1), tuuli 15 % kovempi.
+
 ## Ennakkovaroitukset
 
 Siirtymä alkaa 45 s ennen muutosta:
@@ -143,7 +155,8 @@ Kaatunut rengas pyörähtää ympäri ja on kumossa 6 s. Sinä aikana rengas ei
 liiku omin voimin eikä kalastaa voi. Viehe palaa kelalle, ja kiinni ollut
 kala karkaa. Lisäksi seuraa kaatumisen rangaistus samoista vaihtoehdoista
 kuin salamalla. Oletuksena rangaistusta ei ole, koska kaatuminen on jo
-itsessään menetys.
+itsessään menetys. Keväällä ja syksyllä vesi on kylmää (alle 12 °C), ja
+kaatumisen jäähy on 1,5-kertainen (`capsizeTimeOut`).
 
 Moninpelissä palvelin ratkaisee kaatumiset (`ServerMsg.bigWave`) ja jättää
 kumossa olevan renkaan potkut huomiotta.

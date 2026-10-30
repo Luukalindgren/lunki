@@ -6,6 +6,7 @@ import {
   OUT_OF_RACE,
   exposure,
   penaltyOutcome,
+  capsizeTimeOut,
   planLightning,
   resolveStrike,
 } from './lightning';
@@ -72,5 +73,12 @@ describe('salamat', () => {
     });
     expect(penaltyOutcome('lose-catch', 100)).toEqual({ outUntil: 0, loseCatch: true });
     expect(penaltyOutcome('out', 100)).toEqual({ outUntil: OUT_OF_RACE, loseCatch: true });
+  });
+
+  it('kylmässä vedessä kaatumisen jäähy on pidempi (#427)', () => {
+    expect(capsizeTimeOut('summer')).toBe(LIGHTNING.timeOut);
+    expect(capsizeTimeOut('spring')).toBe(LIGHTNING.timeOut * 1.5);
+    expect(capsizeTimeOut('autumn')).toBe(LIGHTNING.timeOut * 1.5);
+    expect(penaltyOutcome('time-out', 100, capsizeTimeOut('autumn')).outUntil).toBe(190);
   });
 });

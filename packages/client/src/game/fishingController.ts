@@ -298,6 +298,7 @@ export class FishingController {
     const conditions = fishConditions(
       host.competition.finished ? null : host.weatherNow,
       host.daylight,
+      seasonOf(host.settings),
     );
     const fishEvents = stepFishPopulation(
       host.fish,

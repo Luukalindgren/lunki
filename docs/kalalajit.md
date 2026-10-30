@@ -121,6 +121,13 @@ Vuorokaudenaika annetaan kaloille valona ja hämäryytenä (`fishConditions`). K
 liike ei vaikuta saaliin painoon tai lajiin: ne tulevat edelleen kalakannan siemenestä, ja
 parvet pysyvät kotipaikkansa lähellä, joten palvelimen tarkistus saaliin paikasta pätee.
 
+Vuodenaika (#427) on lajin käytöksessä `behavior.season`: kevään ja syksyn kerroin
+aktiivisuudelle kesään verrattuna, parven syvyys sekä painon ja isojen yksilöiden
+kertoimet. Kesä on lajin perusluonne. Esimerkiksi hauki syö syksyllä 1,5-kertaisesti
+ja on 10 % painavampi (isoja kaksi kertaa useammin), keväällä laihempi; made ja taimen
+heräävät kylmässä vedessä, karppi ja kuha laiskistuvat. Kausi ei kuluta kalakannan
+arpoja, joten kalat ovat samoilla paikoilla, ja palvelin laskee saman painon.
+
 ### Merkit pinnalla (#369)
 
 Kalojen käytös näkyy pinnalla kaikilla vaikeustasoilla (`game/fishSigns.ts`). Merkit ovat

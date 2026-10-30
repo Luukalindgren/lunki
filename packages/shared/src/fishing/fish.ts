@@ -2,6 +2,7 @@ import type { Structure } from '../map/bottom';
 import { wrapAngle } from '../physics/tube';
 import { Rng } from '../rng';
 import { distance, type Vec2 } from '../vec2';
+import { DEFAULT_SEASON, type Season } from '../weather/season';
 import type { WeatherNow } from '../weather/weather';
 import type { DifficultyParams } from './difficulty';
 import { baitOf, tackleAppeal, type Tackle } from './gear';
@@ -117,6 +118,19 @@ export interface Behavior {
   jumps?: number;
   /** Pakojen pituuden kerroin väsytyksessä (karppi: pitkät pakoretket). */
   runs?: number;
+  /**
+   * Kevät ja syksy kesään verrattuna (#427): kesä on lajin perusluonne.
+   * Kerroin aktiivisuudelle, parven mieluisa syvyys kaikkina aikoina, sekä
+   * painon ja isojen yksilöiden (trophyChance) kertoimet.
+   */
+  season?: Partial<Record<Season, SeasonHabit>>;
+}
+
+export interface SeasonHabit {
+  activity: number;
+  depth?: [number, number];
+  weight?: number;
+  trophy?: number;
 }
 
 export const SPECIES: Record<SpeciesId, Species> = {
@@ -167,6 +181,11 @@ export const SPECIES: Record<SpeciesId, Species> = {
       prey: false,
       dayDepth: [2, 5],
       dimDepth: [0.8, 3],
+      // Kevät: kutee matalissa risukoissa. Syksy: isot parvet syvänteiden reunoilla.
+      season: {
+        spring: { activity: 1.1, depth: [0.6, 2.5] },
+        autumn: { activity: 1, depth: [4, 8] },
+      },
     },
   },
   pike: {
@@ -216,6 +235,11 @@ export const SPECIES: Record<SpeciesId, Species> = {
       prey: false,
       dayDepth: [0.6, 2.2],
       dimDepth: [0.6, 2.2],
+      // Kevät: kudun jälkeen nälkäinen mutta laiha. Syksy: syönnöksellä, isot lihovat.
+      season: {
+        spring: { activity: 1.4, weight: 0.9 },
+        autumn: { activity: 1.5, weight: 1.1, trophy: 2 },
+      },
     },
   },
   roach: {
@@ -267,6 +291,11 @@ export const SPECIES: Record<SpeciesId, Species> = {
       dayDepth: [1.5, 4],
       dimDepth: [0.4, 1.5],
       column: { day: 0.55, dark: 0.85 },
+      // Kevät: kutee kaislikoissa matalassa. Syksy: parvet syvemmälle.
+      season: {
+        spring: { activity: 1.2, depth: [0.5, 2] },
+        autumn: { activity: 0.9, depth: [3, 7] },
+      },
     },
   },
   zander: {
@@ -319,6 +348,8 @@ export const SPECIES: Record<SpeciesId, Species> = {
       column: { day: 0.95, dark: 0.6 },
       // Isku on usein varovainen napsu: vastaiskun ikkuna on lyhyempi.
       strikeWindow: 0.6,
+      // Kevät: kutu ja pesän vartiointi, arka. Syksy: hidastuu ja painuu syvälle.
+      season: { spring: { activity: 0.6 }, autumn: { activity: 0.8, depth: [5, 99] } },
     },
   },
   trout: {
@@ -371,6 +402,8 @@ export const SPECIES: Record<SpeciesId, Species> = {
       // Seuraa viehettä pitkään ennen iskua ja hyppii väsytyksessä.
       follows: 1.8,
       jumps: 0.3,
+      // Kylmä vesi: keväällä ja syksyllä pinnan tuntumassa ja aktiivinen (kesällä syvällä).
+      season: { spring: { activity: 2 }, autumn: { activity: 1.8 } },
     },
   },
   bream: {
@@ -422,6 +455,8 @@ export const SPECIES: Record<SpeciesId, Species> = {
       prey: false,
       dayDepth: [2.5, 6],
       dimDepth: [1, 3],
+      // Kevät: kutuparvet matalassa. Syksy: hidastuu.
+      season: { spring: { activity: 1.1, depth: [0.8, 2.5] }, autumn: { activity: 0.7 } },
     },
   },
   ruffe: {
@@ -522,6 +557,8 @@ export const SPECIES: Record<SpeciesId, Species> = {
       prey: false,
       dayDepth: [4, 99],
       dimDepth: [2, 99],
+      // Lämmin vesi lamauttaa: keväällä ja varsinkin syksyllä aktiivisempi.
+      season: { spring: { activity: 1.6 }, autumn: { activity: 2.5 } },
     },
   },
   ide: {
@@ -574,6 +611,8 @@ export const SPECIES: Record<SpeciesId, Species> = {
       dimDepth: [0.5, 3],
       column: { day: 0.5, dark: 0.15 },
       jumps: 0.25,
+      // Kevät: kudun jälkeen syönnöksellä.
+      season: { spring: { activity: 1.3 } },
     },
   },
   rainbow: {
@@ -625,6 +664,8 @@ export const SPECIES: Record<SpeciesId, Species> = {
       dimDepth: [1, 99],
       column: { day: 0.55, dark: 0.2 },
       jumps: 0.6,
+      // Kylmä vesi: keväällä ja syksyllä aktiivinen.
+      season: { spring: { activity: 1.6 }, autumn: { activity: 1.5 } },
     },
   },
   carp: {
@@ -677,6 +718,8 @@ export const SPECIES: Record<SpeciesId, Species> = {
       dayDepth: [1, 3],
       dimDepth: [0.6, 2],
       runs: 2,
+      // Lämpimän veden kala: keväällä ja syksyllä passiivinen.
+      season: { spring: { activity: 0.3 }, autumn: { activity: 0.45 } },
     },
   },
 };
@@ -764,6 +807,8 @@ export interface FishPopulation {
   schoolOf?: number[];
   /** Järven keskipiste ja puolikas koko (m) tuulen puoleisen rannan laskuun. */
   area?: { center: Vec2; half: Vec2 };
+  /** Vuodenaika (#427): kalojen painot. Puuttuu = kesä. */
+  season?: Season;
 }
 
 /** Kalojen määrä järvessä (sama asiakkaalla ja palvelimella). Saatujen tilalle syntyy uusia. */
@@ -787,19 +832,29 @@ export function fishWeight(
   slot: number,
   gen: number,
   size: SizeClass = 0,
+  season: Season = DEFAULT_SEASON,
 ): number {
   const sp = SPECIES[species];
   const rng = new Rng(fishSeed(seed, slot, gen, 0x3c6ef372));
-  if (size < 3) return randomWeight(sp, rng);
+  // Kausi ei kuluta arpoja: sama kala on keväällä laihempi ja syksyllä lihavampi.
+  const habit = sp.behavior.season?.[season];
+  if (size < 3) return randomWeight(sp, rng, habit);
   const lo = sp.sizes[size - 1]!;
   const hi = size === 4 ? sp.maxWeight : sp.sizes[3];
-  const w = lo + (hi - lo) * rng.next() ** 1.5;
+  const w = Math.min(hi, (lo + (hi - lo) * rng.next() ** 1.5) * (habit?.weight ?? 1));
   return Math.min(Math.round(w * 1000) / 1000, size === 4 ? hi : hi - 0.001);
 }
 
 /** Kalakannan kalan paino paikasta ja sukupolvesta (taatut suurkalat mukana). */
 export function stockWeight(pop: FishPopulation, slot: number, gen: number): number {
-  return fishWeight(pop.seed!, pop.fish[slot]!.species, slot, gen, pop.sizes?.[slot] ?? 0);
+  return fishWeight(
+    pop.seed!,
+    pop.fish[slot]!.species,
+    slot,
+    gen,
+    pop.sizes?.[slot] ?? 0,
+    pop.season,
+  );
 }
 
 /**
@@ -904,9 +959,10 @@ export interface FishEvents {
   shadow?: number;
 }
 
-export function randomWeight(sp: Species, rng: Rng): number {
-  const median = rng.next() < sp.trophyChance ? sp.trophyWeight : sp.medianWeight;
-  const w = median * Math.exp(rng.normal(0, sp.weightSpread));
+export function randomWeight(sp: Species, rng: Rng, habit?: SeasonHabit): number {
+  const trophy = sp.trophyChance * (habit?.trophy ?? 1);
+  const median = rng.next() < trophy ? sp.trophyWeight : sp.medianWeight;
+  const w = median * Math.exp(rng.normal(0, sp.weightSpread)) * (habit?.weight ?? 1);
   return Math.round(Math.max(sp.minWeight, Math.min(sp.maxWeight, w)) * 1000) / 1000;
 }
 
@@ -921,8 +977,11 @@ export function createFishPopulation(
   rng: Rng,
   count: number,
   species: readonly SpeciesId[] = NATIVE_SPECIES,
+  /** Vuodenaika (#427): vain painot muuttuvat, kalakannan arvat pysyvät samoina. */
+  season: Season = DEFAULT_SEASON,
 ): FishPopulation {
   const pop: FishPopulation = {
+    season,
     fish: [],
     nextId: 1,
     tick: 0,
@@ -1022,8 +1081,8 @@ export function spawnFish(
     species,
     weight:
       pop.seed !== undefined && slot !== undefined
-        ? fishWeight(pop.seed, species, slot, gen, pop.sizes?.[slot] ?? 0)
-        : randomWeight(sp, rng),
+        ? fishWeight(pop.seed, species, slot, gen, pop.sizes?.[slot] ?? 0, pop.season)
+        : randomWeight(sp, rng, sp.behavior.season?.[pop.season ?? DEFAULT_SEASON]),
     pos,
     home: { ...pos },
     depth: Math.max(0.3, world.depthAt(pos) - sp.bottomOffset),
@@ -1147,6 +1206,8 @@ export interface FishConditions {
   storm: boolean;
   /** Ukkosrintama lähestyy: syönti kiihtyy ennen ilmanpaineen laskua. */
   preStorm: boolean;
+  /** Vuodenaika (#427); puuttuu = kesä. */
+  season?: Season;
 }
 
 /** Tyyni, valoisa päivä: kalat käyttäytyvät tavallisesti. */
@@ -1169,10 +1230,12 @@ const PRE_STORM = 240;
 export function fishConditions(
   weather: WeatherNow | null,
   sun: { light: number; twilight: number } = DAYTIME,
+  season: Season = DEFAULT_SEASON,
 ): FishConditions {
-  if (!weather) return { ...DAYTIME, light: sun.light, twilight: sun.twilight };
+  if (!weather) return { ...DAYTIME, light: sun.light, twilight: sun.twilight, season };
   const stormy = (sky: WeatherNow['sky'] | null) => sky === 'thunder' || sky === 'storm';
   return {
+    season,
     light: sun.light * (1 - 0.6 * weather.darkness),
     twilight: sun.twilight,
     cloud: Math.min(1, weather.darkness * 1.6),
@@ -1198,6 +1261,7 @@ export function speciesActivity(id: SpeciesId, c: FishConditions): number {
   a *= 1 + b.wind * windStrength(c);
   if (c.storm) a *= 0.4;
   else if (c.preStorm) a *= 1.4;
+  a *= b.season?.[c.season ?? DEFAULT_SEASON]?.activity ?? 1;
   return Math.max(0.05, Math.min(2.5, a));
 }
 
@@ -1426,7 +1490,8 @@ function steerSchool(
   dim: boolean,
 ) {
   const b = sp.behavior;
-  const [lo, hi] = dim ? b.dimDepth : b.dayDepth;
+  const [lo, hi] =
+    b.season?.[cond.season ?? DEFAULT_SEASON]?.depth ?? (dim ? b.dimDepth : b.dayDepth);
   let best = s.heading;
   let bestScore = Infinity;
   for (const turn of [0, -0.8, 0.8]) {

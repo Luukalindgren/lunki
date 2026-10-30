@@ -5,25 +5,29 @@ import {
   WEATHER_LEVEL_IDS,
   planWeather,
   weatherAt,
+  type Sky,
   type WeatherLevel,
 } from './weather';
+import type { Season } from './season';
 
 const RACE = 30 * 60;
 
-/** Ukkosen ja myrskyn osuus kisa-ajasta monella siemenellä. */
-function roughShare(level: WeatherLevel): number {
-  let rough = 0;
+/** Annettujen tilojen osuus kisa-ajasta monella siemenellä. */
+function share(level: WeatherLevel, skies: readonly Sky[], season?: Season): number {
+  let hits = 0;
   let total = 0;
   for (let seed = 1; seed <= 200; seed++) {
-    const plan = planWeather(seed, level, RACE);
+    const plan = planWeather(seed, level, RACE, season);
     for (let t = 0; t < RACE; t += 10) {
-      const sky = weatherAt(plan, t).sky;
-      if (sky === 'thunder' || sky === 'storm') rough++;
+      if (skies.includes(weatherAt(plan, t).sky)) hits++;
       total++;
     }
   }
-  return rough / total;
+  return hits / total;
 }
+
+/** Ukkosen ja myrskyn osuus kisa-ajasta monella siemenellä. */
+const roughShare = (level: WeatherLevel) => share(level, ['thunder', 'storm']);
 
 describe('sää', () => {
   it('sama siemen tuottaa saman sään', () => {
@@ -36,6 +40,19 @@ describe('sää', () => {
     expect(shares[0]).toBeLessThan(0.1);
     for (let i = 1; i < shares.length; i++) expect(shares[i]).toBeGreaterThan(shares[i - 1]! * 1.3);
     expect(shares[3]).toBeGreaterThan(0.4);
+  });
+
+  it('kausi muuttaa säätä: kesä ennallaan, syysmyrskyt, kevään ukkonen harvinainen (#427)', () => {
+    expect(planWeather(42, 'some', RACE, 'summer')).toEqual(planWeather(42, 'some', RACE));
+    expect(planWeather(42, 'some', RACE, 'autumn').season).toBe('autumn');
+    const thunder = (s: Season) => share('lots', ['thunder'], s);
+    const storm = (s: Season) => share('lots', ['storm'], s);
+    expect(thunder('spring')).toBeLessThan(thunder('summer') * 0.6);
+    expect(thunder('autumn')).toBeLessThan(thunder('spring'));
+    expect(storm('autumn')).toBeGreaterThan(storm('summer') * 1.3);
+    expect(share('realistic', ['windy'], 'spring')).toBeGreaterThan(share('realistic', ['windy']));
+    // Aina tyyni pysyy tyynenä kaudesta riippumatta.
+    expect(weatherAt(planWeather(7, 'calm', RACE, 'autumn'), 600).windSpeed).toBe(0);
   });
 
   it('tyyni taso pysyy tyynenä', () => {

@@ -2,6 +2,7 @@ import type { LakeMap } from '../map/types';
 import type { WaterBody } from '../map/waterBody';
 import { Rng } from '../rng';
 import type { Vec2 } from '../vec2';
+import { SEASONS, type Season } from './season';
 import type { Sky, WeatherPlan } from './weather';
 
 /** Salaman rangaistus (sama valikoima kaatumiselle, vaihe 4). */
@@ -39,14 +40,26 @@ export const LIGHTNING = {
 /** Pudonneen jäähy päättyy vasta tämän kisa-ajan jälkeen (s): käytännössä ei koskaan. */
 export const OUT_OF_RACE = 1e6;
 
-/** Mitä osuma tarkoittaa valitulla rangaistuksella. Siima palaa aina poikki. */
+/** Kylmässä vedessä (alle 12 °C) kaatumisen jäähy on näin monta kertaa pidempi (#427). */
+export const COLD_WATER = { below: 12, timeOut: 1.5 } as const;
+
+export const isColdWater = (season: Season) => SEASONS[season].water < COLD_WATER.below;
+
+/** Kaatumisen jäähy (s): keväällä ja syksyllä kylmä vesi pidentää sitä. */
+export const capsizeTimeOut = (season: Season) =>
+  LIGHTNING.timeOut * (isColdWater(season) ? COLD_WATER.timeOut : 1);
+
+/**
+ * Mitä osuma tarkoittaa valitulla rangaistuksella. Siima palaa aina poikki.
+ * `timeOut` on jäähyn kesto (s), jos rangaistus on jäähy.
+ */
 export function penaltyOutcome(
   penalty: Penalty,
   now: number,
+  timeOut: number = LIGHTNING.timeOut,
 ): { outUntil: number; loseCatch: boolean } {
   return {
-    outUntil:
-      penalty === 'time-out' ? now + LIGHTNING.timeOut : penalty === 'out' ? OUT_OF_RACE : 0,
+    outUntil: penalty === 'time-out' ? now + timeOut : penalty === 'out' ? OUT_OF_RACE : 0,
     loseCatch: penalty === 'lose-catch' || penalty === 'out',
   };
 }
