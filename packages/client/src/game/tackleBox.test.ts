@@ -7,22 +7,34 @@ import {
   loseFromBox,
   nextInBox,
   parseTackleBox,
+  slotOf,
   type TackleBox,
 } from './tackleBox';
 
 const spin = (t: Partial<Tackle> = {}): Tackle => ({ ...DEFAULT_TACKLE, ...t });
 
 describe('viehepakki (#365)', () => {
-  it('aloittelijan pakki kiertää vieheet samassa järjestyksessä kuin ennen pakkia', () => {
+  it('aloittelijan pakki on täynnä: viehe kutakin, vaappu kaikilla syvyyksillä ja jigi myös 5 g', () => {
     const box = beginnerBox();
+    expect(box.lures).toEqual([
+      { lure: 'spoon' },
+      { lure: 'wobbler', variant: 'shallow' },
+      { lure: 'wobbler', variant: 'mid' },
+      { lure: 'wobbler', variant: 'deep' },
+      { lure: 'jig', variant: 'g5' },
+      { lure: 'jig', variant: 'g10' },
+      { lure: 'spinner' },
+      { lure: 'weedless' },
+    ]);
+    expect(box.lures).toHaveLength(BOX_SLOTS);
+    expect(new Set(box.lures.map((s) => s.lure))).toEqual(new Set(LURE_IDS));
+    // Pakki tallentuu ja latautuu sellaisenaan.
+    expect(parseTackleBox(JSON.parse(JSON.stringify(box)))).toEqual(box);
+    // R kiertää lokerot järjestyksessä ja palaa alkuun.
     let t = spin();
-    const seen = [t.lure];
-    for (let i = 1; i < LURE_IDS.length; i++) {
-      t = nextInBox(t, box);
-      seen.push(t.lure);
-    }
-    expect(seen).toEqual(LURE_IDS);
-    expect(nextInBox(t, box).lure).toBe(LURE_IDS[0]);
+    for (let i = 1; i < BOX_SLOTS; i++) t = nextInBox(t, box);
+    expect(slotOf(t)).toEqual(box.lures[BOX_SLOTS - 1]);
+    expect(nextInBox(t, box).lure).toBe('spoon');
     // Perhovälineillä kiertävät perhot.
     expect(nextInBox(spin({ method: 'fly', fly: FLY_IDS[0]! }), box).fly).toBe(FLY_IDS[1]);
   });

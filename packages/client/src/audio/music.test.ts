@@ -42,6 +42,11 @@ describe('ääniasetukset', () => {
   const stored = (v: unknown) =>
     vi.stubGlobal('localStorage', { getItem: () => JSON.stringify(v) });
 
+  it('oletuksena musiikki soi normaalisti ja kalastaja kiroilee tapahtumissa', () => {
+    stored(null);
+    expect(loadAudioSettings()).toMatchObject({ music: 2, eventVoices: true });
+  });
+
   it('vanha tallennus ilman raitaa saa vaihtuvan', () => {
     stored({ effects: 1, ambience: 3, music: 2 });
     expect(loadAudioSettings()).toEqual({
@@ -50,13 +55,13 @@ describe('ääniasetukset', () => {
       music: 2,
       musicTrack: 'vaihtuva',
       voice: 2,
-      eventVoices: false,
+      eventVoices: true,
     });
   });
 
   it('puheäänten taso ja tapahtumien kiroilu tallentuvat (#229)', () => {
-    stored({ voice: 0, eventVoices: true });
-    expect(loadAudioSettings()).toEqual({ ...DEFAULT_AUDIO, voice: 0, eventVoices: true });
+    stored({ voice: 0, eventVoices: false });
+    expect(loadAudioSettings()).toEqual({ ...DEFAULT_AUDIO, voice: 0, eventVoices: false });
     stored({ voice: 7, eventVoices: 'joo' });
     expect(loadAudioSettings()).toEqual(DEFAULT_AUDIO);
   });
