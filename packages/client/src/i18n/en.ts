@@ -919,6 +919,7 @@ export const en: Record<keyof typeof fi, string> = {
     'The leader snapped! Let line slip through your fingers or reel the slack ({reelSlack})',
   'game.biggestSoFar': 'biggest of the competition so far!',
   'game.nthFish': '{n} fish',
+  'game.personalBest': 'personal best!',
   'game.following': 'Following: {name}',
   'game.nobody': 'There is nobody on the lake',
   'game.viewToggle': '{view}: angler’s view / from above',

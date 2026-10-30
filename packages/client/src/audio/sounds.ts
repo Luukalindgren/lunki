@@ -23,7 +23,9 @@ export type Effect =
   | 'lineHiss'
   | 'flyCrack'
   | 'flyTug'
-  | 'flyHaul';
+  | 'flyHaul'
+  | 'joy'
+  | 'fanfare';
 
 /** Tehoste, joka riippuu tapahtuman luvuista (heiton voima, salaman etäisyys …). */
 type Play = (sfx: Sfx, a: number, b: number) => void;
@@ -73,6 +75,9 @@ export const SOUNDS = {
   lineBroken: { effect: 'lost', voice: 'lineBroken' },
   caught: { effect: 'caught' },
   bigCatch: { effect: 'caught', voice: 'bigCatch' },
+  // Iloiset saaliit (game/catchJoy.ts): kala pitkän odotuksen jälkeen ja oma ennätys
+  reliefCatch: { effect: 'joy', voice: 'relief', duck: 'joy' },
+  recordCatch: { effect: 'fanfare', voice: 'record', duck: 'joy' },
   reelClick: { effect: 'reelClick' },
   dragSlip: { effect: 'dragSlip' },
   lineHiss: { effect: 'lineHiss' },
