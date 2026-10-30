@@ -3,6 +3,7 @@ import {
   FLY_IDS,
   LURE_IDS,
   isCraft,
+  isFly,
   parseTackle,
   type Craft,
   type Tackle,
@@ -56,4 +57,14 @@ export function saveCraft(c: Craft): void {
   } catch {
     // ei haittaa
   }
+}
+
+/**
+ * Vain peruke vaihtui (taukovalikon Varusteet): ilmoitus kertoo perukkeesta
+ * eikä toista vieheen nimeä.
+ */
+export function leaderOnly(from: Tackle, to: Tackle): boolean {
+  const same = { ...to, leader: from.leader, flyLeader: from.flyLeader };
+  const changed = isFly(to) ? from.flyLeader !== to.flyLeader : from.leader !== to.leader;
+  return changed && (Object.keys(to) as (keyof Tackle)[]).every((k) => same[k] === from[k]);
 }

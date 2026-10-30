@@ -1605,14 +1605,24 @@ textarea,
   padding: 0;
 }
 
-/* Matala ruutu (puhelin vaakana): koko taukovalikko yhdelle ruudulle. */
+/*
+ * Matala ruutu (puhelin vaakana): koko taukovalikko yhdelle ruudulle kahtena
+ * sarakkeena. Jatka ja parillisena viimeinen nappi (lopetus) ovat koko levyisiä.
+ */
 @media (max-height: 480px) {
   .pause-menu {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 6px;
   }
 
   .pause-menu button {
     padding-block: 2px;
+  }
+
+  .pause-menu button:first-child,
+  .pause-menu button:last-child:nth-child(even) {
+    grid-column: 1 / -1;
   }
 }
 

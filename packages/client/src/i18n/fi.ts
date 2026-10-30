@@ -488,6 +488,13 @@ export const fi = {
   'pause.leaveRace': 'Poistu kisasta',
   'pause.endRace': 'Lopeta kisa',
   'pause.endSession': 'Lopeta ja punnitse',
+  'pause.tackleNow': 'Käytössä: {tackle}',
+  'pause.tackleHint':
+    'Järvellä vaihdat vain perukkeen. Vieheet vaihtuvat pakista ({lure}) ja kalastustapa {method}-pikavalikosta. Vapa ja siima laitetaan kuntoon päävalikon Varusteissa.',
+  'pause.leaderHint':
+    'Ilman teräsperuketta hauki voi purra siiman poikki, mutta muut kalat arkailevat peruketta hieman.',
+  'pause.flyLeaderHint':
+    'Fluorohiili näkyy vedessä huonosti ja houkuttaa parhaiten. Teräs kestää hauen hampaat, mutta muut kalat arkailevat sitä.',
   'fullscreen.enter': 'Koko näyttö',
   'fullscreen.exit': 'Poistu koko näytöstä',
   'fullscreen.escHint':
@@ -881,6 +888,10 @@ export const fi = {
   'game.landNet': 'Iso kala pinnassa! {landNet} = haaviin',
   'game.lunge': 'Kala riuhtaisee! Älä nosta nyt',
   'game.lureChanged': 'Viehe: {lure}',
+  'game.leaderOn': 'Teräsperuke paikallaan',
+  'game.leaderOff': 'Teräsperuke pois',
+  'game.flyLeaderChanged': 'Peruke: {leader}',
+  'game.leaderLater': 'Peruke vaihtuu ennen seuraavaa heittoa',
   'game.snagged': 'Pohjatartunta! Kelaa irrottaaksesi',
   'game.unsnagged': 'Viehe irtosi pohjasta',
   'game.fouled': 'Vieheessä on rikkaa! Kelaa kotiin puhdistettavaksi',
@@ -999,7 +1010,7 @@ export const fi = {
     'Pohjaa hipova viehe voi tarttua kiviin, kaatuneisiin puihin, risuihin, kaislikkoon tai kasvustoon.\nKelaa noin sekunnin ajan irrottaaksesi: viehe irtoaa Normaalilla {normalSnag} %:lla ja Realistisella {realisticSnag} %:lla, Helpolla aina. Muuten siima katkeaa.\nUposkasvustossa viehe kerää rikkaa, eikä se silloin kiinnosta kaloja. Kelaa se kotiin, niin se puhdistuu.\nRuoholusikka liukuu kasvuston läpi, mutta koukku tarttuu siitä huonommin.',
   'manual.spin.tools': 'Varusteet ja apuvälineet',
   'manual.spin.toolsText':
-    'Varusteet laitetaan kuntoon päävalikon Varusteet-näkymässä. Viehepakki näyttää, montako kalaa kullakin vieheellä olet saanut ja missä oloissa.\n{lure} = vaihda viehe, pohjassa viehepakki\n{method} = virveli tai perho\n{sonar} = kaikuluotain, {lureSonar} = vieheen syvyys\nVieheen kohdalla on tilan värinen timantti. Helpolla ja Normaalilla seuraavan kalan pyörteet näkyvät vedessä.',
+    'Varusteet laitetaan kuntoon päävalikon Varusteet-näkymässä. Kesken kisan perukkeen voi vaihtaa taukovalikon Varusteista. Viehepakki näyttää, montako kalaa kullakin vieheellä olet saanut ja missä oloissa.\n{lure} = vaihda viehe, pohjassa viehepakki\n{method} = virveli tai perho\n{sonar} = kaikuluotain, {lureSonar} = vieheen syvyys\nVieheen kohdalla on tilan värinen timantti. Helpolla ja Normaalilla seuraavan kalan pyörteet näkyvät vedessä.',
   'manual.fly.cast': 'Perhoheitto',
   'manual.fly.castText':
     'Perhoa heitetään edestakaisin: takaheitto, eteenheitto ja niin edelleen, kunnes siima laskeutuu eteen.\n{backCast} = takaheitto, {forwardCast} = eteenheitto. Sivuliike kääntää heiton suuntaa.\nJokainen liike päättyy terävään pysäytykseen. Odota, että siima suoristuu (nykäys ja sivukuvan "nyt"), ja tee sitten vastakkainen liike.\nLyhyellä siimalla tehdään pieni liike, pitkällä laaja.\n{castForward} = rytmiheitto: jokainen painallus vaihtaa suuntaa. Ajoita painallus siiman suoristumiseen.\n{cancel} = peru heitto, {flyPanel} = sivukuva heitosta',

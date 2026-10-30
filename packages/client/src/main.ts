@@ -45,6 +45,7 @@ import {
   Screens,
   loadSettings,
   type ResultsSummary,
+  type PauseView,
   type SettingsControls,
   type SoloReplay,
 } from './ui/screens';
@@ -714,10 +715,10 @@ function togglePause() {
 }
 
 /** Taukovalikko; `from` kohdistaa alinäkymän napin, josta palattiin. */
-function showPauseMenu(from?: 'settings' | 'manual') {
+function showPauseMenu(from?: PauseView) {
   const g = game;
   if (!g) return;
-  const back = (sub: 'settings' | 'manual') => () => {
+  const back = (sub: PauseView) => () => {
     // Moninpelin kisa voi päättyä alinäkymän ollessa auki.
     if (paused && game === g) showPauseMenu(sub);
   };
@@ -732,11 +733,33 @@ function showPauseMenu(from?: 'settings' | 'manual') {
     multiplayer: session !== null,
     untimed: !session && isUntimed(g.settings),
     clock: formatClock(g.clock),
+    // Peruke vaihtuu kesken kisan; muut varusteet päävalikon Varusteissa.
+    onTackle: g.spectating
+      ? undefined
+      : () =>
+          screens.showPauseTackle(
+            { current: g.tackle, onChange: (tk) => g.setTackle(tk) },
+            back('tackle'),
+          ),
     onSettings: () => {
       const open = () => screens.showSettings(settingsControls(open), back('settings'));
       open();
     },
     onManual: () => screens.showManual(back('manual')),
+    // Palaute kesken kisan: sama lähetys ja jono kuin päävalikosta, ja
+    // taustatietoihin kisan muoto ja kellonaika.
+    onFeedback: () =>
+      screens.showFeedback(
+        g.ownName ?? loadIdentity().name,
+        (f) =>
+          sendFeedback({
+            ...f,
+            context: reportContext(
+              `kisa: ${session ? 'moninpeli' : 'yksinpeli'} ${formatClock(g.clock)}`,
+            ),
+          }),
+        back('feedback'),
+      ),
     from,
   });
 }

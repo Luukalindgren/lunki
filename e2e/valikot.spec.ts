@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { SERVER_URL, soloUrl, topWeight, watchErrors } from './apu';
+import { SERVER_URL, soloUrl, startSolo, topWeight, watchErrors } from './apu';
 
 /** Kohdistetun elementin teksti (napit) tai tunniste. */
 const focused = (page: Page) =>
@@ -68,6 +68,8 @@ test.describe('valikot näppäimistöllä (#237)', () => {
     await expect(title(page)).toHaveText('Tauko');
     await expect.poll(() => focused(page)).toBe('Jatka');
     await page.keyboard.press('ArrowDown');
+    await expect.poll(() => focused(page)).toBe('Varusteet');
+    await page.keyboard.press('ArrowDown');
     await expect.poll(() => focused(page)).toBe('Asetukset');
     await page.keyboard.press('Enter');
     await expect(title(page)).toHaveText('Asetukset');
@@ -86,6 +88,7 @@ test.describe('valikot näppäimistöllä (#237)', () => {
     await page.keyboard.press('Escape');
     await expect(title(page)).toHaveText('Tauko');
     await expect.poll(() => focused(page)).toBe('Asetukset');
+    await page.keyboard.press('ArrowUp');
     await page.keyboard.press('ArrowUp');
     await expect.poll(() => focused(page)).toBe('Jatka');
     // Välilyönti valikossa ei heitä taustalla.
@@ -318,6 +321,45 @@ test('viehepakki: R vaihtaa lokeroa, R pohjassa avaa pikavalikon (#365, #387)', 
   await page.keyboard.up('KeyM');
   await expect(method).toBeHidden();
   await expect(message).toContainText('Perho: Nymfi');
+  errors.check();
+});
+
+test('taukovalikko: peruke vaihtuu kesken kisan, ja palaute lähtee tauolta', async ({
+  page,
+  isMobile,
+}) => {
+  const errors = watchErrors(page);
+  await startSolo(page);
+  const pause = async () => {
+    if (isMobile) await page.locator('.touch-tools button').first().click();
+    else await page.keyboard.press('Escape');
+    await expect(title(page)).toHaveText('Tauko');
+  };
+  await pause();
+  // Kuusi nappia mahtuu reunoineen ruutuun myös puhelimessa.
+  const panel = await page.locator('.screen-panel').boundingBox();
+  const view = page.viewportSize()!;
+  expect(panel!.y + panel!.height).toBeLessThanOrEqual(view.height);
+
+  await page.getByRole('button', { name: 'Varusteet', exact: true }).click();
+  await expect(title(page)).toHaveText('Varusteet');
+  const leader = page.locator('.choice', { hasText: 'Teräsperuke' });
+  await expect(leader.locator('button.selected')).toHaveText('Ei');
+  await leader.getByRole('button', { name: 'Kyllä' }).click();
+  await expect(page.getByText(/Käytössä: Virveli · .* · peruke$/)).toBeVisible();
+  await page.getByRole('button', { name: 'Takaisin' }).click();
+  await expect(title(page)).toHaveText('Tauko');
+  await page.getByRole('button', { name: 'Jatka' }).click();
+  // Ilmoitus kertoo perukkeesta, ei vieheestä.
+  await expect(page.locator('.hud-message')).toContainText('Teräsperuke paikallaan');
+
+  // Palaute tauolta: sama lomake, ja Takaisin palaa taukoon.
+  await pause();
+  await page.getByRole('button', { name: 'Palaute', exact: true }).click();
+  await expect(title(page)).toHaveText('Palaute');
+  await expect(page.locator('textarea')).toBeVisible();
+  await page.getByRole('button', { name: 'Takaisin' }).click();
+  await expect(title(page)).toHaveText('Tauko');
   errors.check();
 });
 
