@@ -641,7 +641,7 @@ export const fi = {
   'guide.row': 'Opastus 1/5: souda liikkeelle · {back} = souda · {forward} = huopaa',
   'guide.cast':
     'Opastus 2/5: heitä viehe · {pointer}: tähtää, pidä pohjassa ja päästä · {castForward} = heitto katsesuuntaan',
-  'guide.reel': 'Opastus 3/5: kelaa viehe takaisin · {pointer} tai {reel} pohjassa = kelaa',
+  'guide.reel': 'Opastus 3/5: kelaa viehe takaisin · {pointer|reel} pohjassa = kelaa',
   'guide.wait':
     'Opastus 3/5: kelaa tasaisesti ja heitä uudelleen, kunnes kala iskee · {sonar} = kaikuluotain näyttää kalat',
   'guide.again': 'Opastus: heitä uudelleen · {sonar} = kaikuluotain näyttää kalat',
@@ -668,9 +668,9 @@ export const fi = {
   'help.rowTurn': '{turn} = käännä venettä · {oars} = airot/vapa · {anchor} = ankkuri',
   'help.passenger': 'Kyydissä: soutaja soutaa, sinä kalastat',
   'help.passengerTurn': '{turn} = käänny paikallasi heittämään',
-  'help.cast': '{pointer}: tähtää, pidä ja päästä = heitto',
+  'help.cast': '{pointer}: tähtää, pidä ja päästä = heitto · {aim} = heiton suunta',
   'help.castForward': '{castForward} pohjassa ja päästä = heitto katsesuuntaan · {cancel} = peru',
-  'help.reel': '{pointer} tai {reel} pohjassa = kelaa · {twitch} = nykäisy, ison kalan vastaisku',
+  'help.reel': '{pointer|reel} pohjassa = kelaa · {twitch} = nykäisy, ison kalan vastaisku',
   'help.gear': '{gear} = kelausnopeus · {gearFast} = pikakelaus · {dragLess}/{dragMore} = jarru',
   'help.tools':
     '{lure} = vaihda viehe (pohjassa: pakki) · {method} = virveli/perho · {sonar} = luotain · {lureSonar} = syvyys',
@@ -678,7 +678,7 @@ export const fi = {
   'help.flyCast2':
     '{castForward} = rytmiheitto · {lift} = nosto (tärpissä vastaisku) · {flyPanel} = sivukuva',
   'help.flyStrip': 'Perho vedessä: {strip} = vedä siimaa · {reelSlack} = löysät kelalle',
-  'help.flyReel': 'Kelalla: {pointer} tai {reel} pohjassa = kelaa · {dragLess}/{dragMore} = jarru',
+  'help.flyReel': 'Kelalla: {pointer|reel} pohjassa = kelaa · {dragLess}/{dragMore} = jarru',
   'help.bar':
     '{view} = näkymä · {emote} = käsimerkit · {zoom} = zoom · {help} = ohje · {pause} = tauko',
   'help.chat': '{chat} = viesti muille',
@@ -711,6 +711,10 @@ export const fi = {
   'ctl.wheel': 'rulla',
   'ctl.spectateKeys': '←/→ tai klikkaus',
   'ctl.tap': 'napautus',
+  'ctl.or': 'tai',
+  'pad.leftStick': 'vasen tatti',
+  'pad.rightStick': 'oikea tatti',
+  'pad.stickSide': 'vasen tatti sivulle',
   'touch.cancel': 'PERU',
   'touch.cancelTitle': 'Peru heitto',
   'touch.reelSlack': 'KELALLE',
@@ -954,7 +958,7 @@ export const fi = {
   'menu.manual': 'Ohjeet',
   'manual.title': 'Ohjeet',
   'manual.intro':
-    'Kalastuksen mekaniikat ja niiden ohjaus. Ohjaus näkyy tämän laitteen mukaan: kosketuksella napit, koneella näppäimet.',
+    'Kalastuksen mekaniikat ja niiden ohjaus. Ohjaus näkyy tämän laitteen mukaan: kosketuksella napit, koneella näppäimet ja peliohjaimella sen napit.',
   'manual.section.move': 'Liikkuminen',
   'manual.section.spin': 'Virveli',
   'manual.section.fly': 'Perho',
@@ -969,15 +973,18 @@ export const fi = {
   'manual.move.boat': 'Vene',
   'manual.move.boatText':
     'Yksinpelin asetuksissa voi lähteä veneellä renkaan sijaan. Moninpelin aulassa voi valita oman veneen tai mennä toisen kyytiin. Veneessä on soutaja ja enintään kaksi kalastajaa, ja venekunta on yksi joukkue.\nSoutaja: {back} = souda, {forward} = huopaa, {turn} = käännä venettä.\n{oars} = airot tai vapa. Heittäessä ja kelatessa ei voi soutaa, mutta viehe vedessä voi uistella.\n{seat} = vaihda paikkaa, kun vene on lähes paikallaan.',
+  'manual.move.pad': 'Peliohjain',
+  'manual.move.padText':
+    'Xbox- ja PlayStation-ohjaimet toimivat sellaisinaan, kun ohjaimen kytkee johdolla tai Bluetoothilla ja painaa jotain sen nappia. Ohjeet näyttävät silloin ohjaimen napit.\nValikoissa ristiohjain tai vasen tatti liikkuu, A/✕ valitsee ja B/○ palaa.\nPikavalikot (viehepakki, kalastustapa, käsimerkit): pidä nappia pohjassa, osoita oikealla tatilla ja päästä irti.\nPerhoa heitetään ohjaimella rytmissä: jokainen heittonapin painallus vaihtaa suuntaa.',
   'manual.move.wind': 'Tuuli ja törmäykset',
   'manual.move.windText':
     'Tuuli ajelehtii rengasta myötätuuleen, myrskyssä selvästi. Potkimalla pääsee vastatuuleenkin.\nRantaan ja kaislikkoon ei pääse, ja kalastajat tönäisevät toisiaan törmätessään. Raskas vene tönäisee rengasta enemmän kuin rengas venettä.',
   'manual.spin.cast': 'Heitto',
   'manual.spin.castText':
-    '{pointer}: tähtää, pidä pohjassa ja päästä = heitto\n{castForward} pohjassa ja päästä = heitto katsesuuntaan\nVoimamittari täyttyy ja laskee sitten takaisin, joten ajoita irrotus täyteen mittariin.\n{cancel} = peru lataus\nTuuli kaartaa heittoa. Vieheen paino, vavan heittopaino ja siiman paksuus vaikuttavat heiton pituuteen.\nMaalle osunut viehe jää kiinni: {cut} = katkaise siima, ja viehe menetetään.',
+    '{pointer}: tähtää, pidä pohjassa ja päästä = heitto\n{aim} = heiton suunta, muuten heitto lähtee katsesuuntaan\n{castForward} pohjassa ja päästä = heitto katsesuuntaan\nVoimamittari täyttyy ja laskee sitten takaisin, joten ajoita irrotus täyteen mittariin.\n{cancel} = peru lataus\nTuuli kaartaa heittoa. Vieheen paino, vavan heittopaino ja siiman paksuus vaikuttavat heiton pituuteen.\nMaalle osunut viehe jää kiinni: {cut} = katkaise siima, ja viehe menetetään.',
   'manual.spin.reel': 'Kelaus ja uitto',
   'manual.spin.reelText':
-    '{pointer} tai {reel} pohjassa = kelaa\n{gear} = kelausnopeus, {gearFast} = pikakelaus. Niin nopea viehe ei juuri kiinnosta kaloja.\n{twitch} = nykäisy: viehe pomppaa ylös ja vajoaa houkuttelevasti.\nTauko vedon jälkeen houkuttaa haukea ja suuria kaloja.\nKalat pitävät oman lajinsa mieluisasta nopeudesta ja syvyydestä. Vaappu uii lippansa syvyydessä, ja jigi ja lusikka vajoavat.',
+    '{pointer|reel} pohjassa = kelaa\n{gear} = kelausnopeus, {gearFast} = pikakelaus. Niin nopea viehe ei juuri kiinnosta kaloja.\n{twitch} = nykäisy: viehe pomppaa ylös ja vajoaa houkuttelevasti.\nTauko vedon jälkeen houkuttaa haukea ja suuria kaloja.\nKalat pitävät oman lajinsa mieluisasta nopeudesta ja syvyydestä. Vaappu uii lippansa syvyydessä, ja jigi ja lusikka vajoavat.',
   'manual.spin.strike': 'Vastaisku',
   'manual.spin.strikeText':
     'Tärpin tunnistaa äänestä, ilmoituksesta ja siiman nykäyksistä. Vieheen timantti nykii samassa tahdissa, ja jokainen nykäys nostaa renkaan veteen, joten tärpin näkee ylhäältäkin ilman luotainta.\nIske kelaamalla ({reel}) tai nykäisemällä ({twitch}). Aikaa on Normaalilla {normalWindow} s ja Realistisella {realisticWindow} s, kuhalla vähemmän.\nIsot kalat (esim. hauki {pikeKg} kg ja ahven {perchKg} kg alkaen) tarttuvat Normaalilla ja Realistisella vain nykäisyyn: kelaus kiristää siiman mutta ei pistä koukkua. Raskaassa tärpissä vapa nyökkää syvemmälle.\nKoukku tarttuu Normaalilla {normalHook} %:lla ja Realistisella {realisticHook} %:lla. Helpolla koukku tarttuu itsestään.\nNykäisyssä vavan jäykkyys ratkaisee: Realistisella hauki tarttuu kevyellä vavalla {pikeLight} %:lla ja järeällä {pikeHeavy} %:lla.\nÄlä nykäise, kun iso kala vasta seuraa viehettä: se voi säikähtää.\nMyöhästyneen iskun jälkeen kala ei palaa hetkeen.',

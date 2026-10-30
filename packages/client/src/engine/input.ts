@@ -1,3 +1,4 @@
+import { PadMenuRepeat, readPads, type PadKind, type PadNavAction } from './gamepad';
 import { WheelZoom } from './wheelZoom';
 
 /** Yhden hiiritapahtuman suurin uskottava liike (px); suuremmat ovat lukituksen hyppyjä. */
@@ -5,6 +6,9 @@ const MAX_MOVE = 300;
 
 /** Näppäimet, jotka menevät peliin myös valikon ollessa auki. */
 const MENU_PASS = new Set(['Escape', 'Backspace']);
+
+/** Ohjaustapa, jota pelaaja juuri käytti: ohjeet näyttävät sen napit. */
+export type InputDevice = 'keys' | 'touch' | 'pad';
 
 /**
  * Näppäimistön ja hiiren tila. Tapahtumat kerätään ja luetaan kiinteän
@@ -51,6 +55,22 @@ export class Input {
   menuOpen: () => boolean = () => false;
   /** Avoimella valikolla on oma paluu: Esc ja Backspace eivät mene peliin. */
   menuBack: () => boolean = () => false;
+  /** Peliohjaimen valikkotoiminto (ristiohjain, A/✕, B/○), kun valikko on auki. */
+  onPadNav: (action: PadNavAction) => void = () => {};
+  /** Pelaaja vaihtoi ohjaustapaa (näppäimistö, kosketus tai peliohjain). */
+  onDevice: (device: InputDevice, kind: PadKind) => void = () => {};
+  /** Oikea tatti, -1…1 (y kasvaa alas): heiton suunta ja pikavalikot. */
+  padAim = { x: 0, y: 0 };
+  private device: InputDevice | null = null;
+  private padKind: PadKind = 'xbox';
+  /** Peliohjaimen koodit, jotka ovat pelille pohjassa. */
+  private padDown = new Set<string>();
+  /** Edellisen askeleen ohjaimen koodit (painallusten tunnistus valikossa). */
+  private padPrev: ReadonlySet<string> = new Set();
+  /** Valikon ja pelin välillä pohjassa pysyneet: eivät tee mitään ennen irrotusta. */
+  private readonly padBlocked = new Set<string>();
+  private padMenu = false;
+  private readonly padRepeat = new PadMenuRepeat();
 
   constructor(private readonly target: HTMLElement) {
     window.addEventListener('keydown', this.onKeyDown);
@@ -66,6 +86,7 @@ export class Input {
 
   /** Kutsutaan kerran jokaisen kiinteän askeleen alussa. */
   beginStep(): void {
+    this.pollPads();
     this.pressed = new Set(this.pressedQueue);
     this.released = new Set(this.releasedQueue);
     this.pressedQueue.clear();
@@ -148,7 +169,50 @@ export class Input {
     this.down.delete(code);
   }
 
+  /**
+   * Peliohjainten tila askeleen alussa (Gamepad API ei lähetä tapahtumia).
+   * Valikon ollessa auki napit ohjaavat valikkoa; Menu/Options ja B/○
+   * kulkevat peliin kuten Esc ja Backspace, kun valikolla ei ole omaa paluuta.
+   */
+  private pollPads(): void {
+    const frame = readPads();
+    const codes: ReadonlySet<string> = frame?.codes ?? new Set();
+    this.padAim = frame?.aim ?? { x: 0, y: 0 };
+    if (frame?.active) this.useDevice('pad', frame.kind);
+    const menu = this.menuOpen();
+    if (menu !== this.padMenu) {
+      this.padMenu = menu;
+      for (const c of codes) this.padBlocked.add(c);
+      if (menu) this.padRepeat.hold(codes);
+    }
+    for (const c of [...this.padBlocked]) if (!codes.has(c)) this.padBlocked.delete(c);
+    const game = new Set<string>();
+    if (menu) {
+      const pressed = (c: string) => codes.has(c) && !this.padPrev.has(c);
+      for (const a of this.padRepeat.step(codes, performance.now() / 1000)) {
+        if (a === 'back' && !this.menuBack()) game.add('Pad1');
+        else this.onPadNav(a);
+      }
+      if (pressed('Pad9')) {
+        if (this.menuBack()) this.onPadNav('back');
+        else game.add('Pad9');
+      }
+    } else for (const c of codes) if (!this.padBlocked.has(c)) game.add(c);
+    for (const c of this.padDown) if (!game.has(c)) this.release(c);
+    for (const c of game) if (!this.padDown.has(c)) this.press(c);
+    this.padDown = game;
+    this.padPrev = codes;
+  }
+
+  private useDevice(device: InputDevice, kind = this.padKind): void {
+    if (device === this.device && kind === this.padKind) return;
+    this.device = device;
+    this.padKind = kind;
+    this.onDevice(device, kind);
+  }
+
   private onKeyDown = (e: KeyboardEvent) => {
+    this.useDevice('keys');
     // Tekstikenttiin kirjoittaminen ei ohjaa peliä.
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
     if (this.menuOpen() && !e.code.startsWith('F')) {
@@ -165,6 +229,7 @@ export class Input {
   /** Kaikki napit irti (ikkunasta poistuttaessa tai tekstikenttään siirryttäessä). */
   releaseAll(): void {
     this.aimPointer = null;
+    this.padDown.clear();
     for (const code of [...this.down]) this.release(code);
   }
 
@@ -197,6 +262,7 @@ export class Input {
   };
 
   private onPointerDown = (e: PointerEvent) => {
+    this.useDevice(e.pointerType === 'mouse' ? 'keys' : 'touch');
     if (e.pointerType !== 'mouse') {
       // Toinen sormi pelikuvalla ei siirrä tähtäystä eikä irrota nappia.
       if (this.aimPointer !== null) return;

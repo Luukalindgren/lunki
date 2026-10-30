@@ -146,6 +146,15 @@ export class RingMenu {
     if (this.open) this.pick(this.highlighted);
   }
 
+  /** Korostaa lohkon suunnasta keskeltä (hiiri tai peliohjaimen tatti, y kasvaa alas). */
+  point(dx: number, dy: number): void {
+    const n = this.items.length;
+    if (!this.open || n === 0) return;
+    // Ensimmäinen lohko ylhäällä, sitten myötäpäivään.
+    const turn = (Math.atan2(dy, dx) + Math.PI / 2) / (Math.PI * 2);
+    this.select(Math.round(turn * n));
+  }
+
   dispose(): void {
     window.removeEventListener('keydown', this.onKey, true);
     window.removeEventListener('pointermove', this.onPoint);
@@ -167,15 +176,12 @@ export class RingMenu {
 
   /** Osoitin keskireiän ulkopuolella korostaa sen suunnassa olevan lohkon. */
   private onPoint = (e: PointerEvent) => {
-    const n = this.items.length;
-    if (!this.open || n === 0) return;
+    if (!this.open) return;
     const r = this.root.getBoundingClientRect();
     const dx = e.clientX - (r.left + r.width / 2);
     const dy = e.clientY - (r.top + r.height / 2);
     if (Math.hypot(dx, dy) < (HOLE * r.width) / 2) return;
-    // Ensimmäinen lohko ylhäällä, sitten myötäpäivään.
-    const turn = (Math.atan2(dy, dx) + Math.PI / 2) / (Math.PI * 2);
-    this.select(Math.round(turn * n));
+    this.point(dx, dy);
   };
 
   private onKey = (e: KeyboardEvent) => {

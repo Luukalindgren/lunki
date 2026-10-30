@@ -16,8 +16,9 @@ Pelaa: <https://lunkinjarvi.com/>
   vieheet ja hampaiden katkaisemat siimat.
 - Säätasot tyynestä täyteen kaaokseen: ukkonen, salamat, kaatavat aallot ja
   trombit.
-- Kuvakulma ylhäältä tai kalastajan silmin, ohjaus näppäimistöllä ja hiirellä
-  tai puhelimen kosketusnapeilla. Suomeksi ja englanniksi.
+- Kuvakulma ylhäältä tai kalastajan silmin, ohjaus näppäimistöllä ja hiirellä,
+  Xbox- tai PlayStation-ohjaimella tai puhelimen kosketusnapeilla. Suomeksi ja
+  englanniksi.
 - Toimii millä tahansa selaimella. Yksinpeli toimii myös ilman nettiä ja
   ilman pelipalvelinta; vain moninpeli tarvitsee palvelimen.
 

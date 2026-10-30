@@ -1,12 +1,12 @@
 import { COLD_WATER, DIFFICULTIES, FLY_CAST, LINES, RODS, SEASONS, SPECIES } from '@lunki/shared';
-import { controlText } from '../game/controls';
+import { controlText, type ControlMode } from '../game/controls';
 import { shortDecimal, t, type MsgKey } from '../i18n';
 
 /**
  * Ohjeet-näkymän sisältö (#401): kalastuksen mekaniikat ja niiden ohjaus.
  * Ohjaus täytetään CONTROLS-kartasta (`controlText`), joten tekstit
- * näyttävät kosketuksella napit ja koneella näppäimet, ja vaikeustasoa
- * koskevat luvut luetaan `DIFFICULTIES`-taulukosta.
+ * näyttävät kosketuksella napit, koneella näppäimet ja peliohjaimella sen
+ * napit, ja vaikeustasoa koskevat luvut luetaan `DIFFICULTIES`-taulukosta.
  */
 export type ManualSection = 'move' | 'spin' | 'fly' | 'weather' | 'multiplayer';
 
@@ -39,6 +39,7 @@ const TOPICS: Record<ManualSection, readonly Topic[]> = {
     { title: 'manual.move.anchor', text: 'manual.move.anchorText' },
     { title: 'manual.move.boat', text: 'manual.move.boatText' },
     { title: 'manual.move.wind', text: 'manual.move.windText' },
+    { title: 'manual.move.pad', text: 'manual.move.padText' },
   ],
   spin: [
     { title: 'manual.spin.cast', text: 'manual.spin.castText' },
@@ -132,7 +133,7 @@ export interface ManualTopic {
 /** Osion aiheet pelaajan kielellä ja ohjaustavalla. */
 export function manualTopics(
   section: ManualSection,
-  opts: { touch?: boolean } = {},
+  opts: { mode?: ControlMode } = {},
 ): ManualTopic[] {
   return TOPICS[section].map((topic) => ({
     title: t(topic.title),

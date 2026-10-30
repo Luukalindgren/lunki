@@ -73,14 +73,22 @@ Koodi: `packages/client/src/ui/hud.ts`, tyylit `style.css`.
 Koodi: `packages/client/src/game/controls.ts`.
 
 - **Kaikki ohjaus `CONTROLS`-toimintokartan kautta.** Jokaisella
-  toiminnolla on näppäimet, kosketusnappi tai ele ja nimi ohjeisiin.
-  Peli kysyy toimintoja (`controls.wasPressed('castForward')`), ei näppäimiä.
+  toiminnolla on näppäimet, kosketusnappi tai ele, peliohjaimen napit (`pad`)
+  ja nimi ohjeisiin. Peli kysyy toimintoja
+  (`controls.wasPressed('castForward')`), ei näppäimiä.
+- **Peliohjain** (Xbox, PlayStation, `engine/gamepad.ts`): syöte lukee
+  ohjaimen joka askeleella koodeiksi (`Pad0` = A/✕, `PadLsUp` = vasen tatti
+  ylös), ja kartan `pad`-kentät kytkevät ne toimintoihin. Ohjeet vaihtuvat
+  ohjaimen napeiksi (`setControlMode('pad')`, Xbox- tai PS-merkinnät), kun
+  pelaaja käyttää ohjainta. Valikoissa ohjain kulkee `MenuNav.pad`-kutsulla,
+  oikea tatti tähtää heiton (`castControl.ts`) ja osoittaa pikavalikon
+  lohkon (`HeldMenu`). Uusi toiminto saa `pad`-napin, jos sellainen on vapaana.
 - Kosketusnapit painavat toimintoja (`controls.set` / `controls.tap`), eivät
   matki näppäimiä. Ei raakoja `KeyX`-tarkistuksia pelikoodissa eikä
   keksittyjä näppäinnimiä.
 - Ohjetekstien `{toiminto}`-kohdat täytetään kartasta (`controlText`,
   `withKey`), joten näppäimen vaihto päivittää ohjeet, napit ja valikot
-  kerralla.
+  kerralla. `{a|b}` on "a tai b" niistä, jotka ohjaustavalla on.
 - Tilannenapit (iso nappi HEITÄ/KELAA/VETO, perhon SIIMA/NOSTA/KELALLE,
   KATKO/PERU) ratkaisee `contextActions`.
 - Kisan ympyrävalikot (käsimerkit G, viehepakki R pohjassa, kalastustapa M)

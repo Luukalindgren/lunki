@@ -409,6 +409,11 @@ export class Hud {
     this.measureEdges();
   }
 
+  /** Ohjaustapa vaihtui (peliohjain tai näppäimistö): ohjeen rivit uudelleen. */
+  refreshHelp(): void {
+    this.renderHelp();
+  }
+
   /** Ohjeen rivit: lyhyet, jotta paneeli ei peitä tilapaneelia. Katsojalle omat. */
   setHelpMode(multiplayer: boolean, spectator = false): void {
     this.multiplayer = multiplayer;
@@ -463,7 +468,7 @@ export class Hud {
       ? HELP.spectator
       : [...MOVE_HELP[c.seat], ...(c.fly ? HELP.fly : HELP.spin)];
     // Zoom toimii vain ylhäältä katsottaessa.
-    const opts = { touch: this.touch, skip: c.pov ? (['zoom'] as const) : [] };
+    const opts = { skip: c.pov ? (['zoom'] as const) : [] };
     const lines = [...base, ...tail].map((k) => controlText(k, {}, opts));
     const key = lines.join('\n');
     if (key === this.helpKey) return;
@@ -480,9 +485,7 @@ export class Hud {
     // Koko ei muutu välineen tai näkymän mukana, joten HUD ei hypi.
     const rows = Math.max(...bases.map((b) => b.length)) + tail.length;
     const crew: MsgKey[] = mp ? ['help.chatCrew'] : [];
-    const all = [...bases.flat(), ...tail, ...crew].map((k) =>
-      controlText(k, {}, { touch: this.touch }),
-    );
+    const all = [...bases.flat(), ...tail, ...crew].map((k) => controlText(k));
     const cols = Math.max(...all.map((l) => l.length));
     this.root.style.setProperty('--help-h', String(6 + 8 * rows));
     this.root.style.setProperty('--help-w', String(Math.ceil(6 + 3.2 * cols)));
