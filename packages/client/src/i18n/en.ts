@@ -676,7 +676,7 @@ export const en: Record<keyof typeof fi, string> = {
   'help.walk': '{forward|back} = walk forward or back · {turn} = turn',
   'help.shoreAct': '{pickUp} = pick up or put down the tube · at the waterline {board} = jump in',
   'help.shoreRace':
-    'Inflation contest: {pump} = pump · {bail} = bail · arrows = move the hose or switch part',
+    'Inflation contest: {pump} = pump or bail · arrows = move the hose or switch part',
   'help.row': '{back} = row · {forward} = back water · {sprint} = speed up (tiring)',
   'help.rowTurn': '{turn} = turn the boat · {oars} = oars/rod · {anchor} = anchor',
   'help.passenger': 'Passenger: the rower rows, you fish',

@@ -680,8 +680,7 @@ export const fi = {
   'help.walk': '{forward|back} = kävele eteen tai taakse · {turn} = käänny',
   'help.shoreAct':
     '{pickUp} = ota rengas tai laske se maahan · vesirajassa {board} = hyppää kyytiin',
-  'help.shoreRace':
-    'Täyttökisa: {pump} = pumppaa · {bail} = äyskäröi · nuolet = letkun ja osan vaihto',
+  'help.shoreRace': 'Täyttökisa: {pump} = pumppaa tai äyskäröi · nuolet = letkun ja osan vaihto',
   'help.row': '{back} = souda · {forward} = huopaa · {sprint} = kiihdytä (vie kuntoa)',
   'help.rowTurn': '{turn} = käännä venettä · {oars} = airot/vapa · {anchor} = ankkuri',
   'help.passenger': 'Kyydissä: soutaja soutaa, sinä kalastat',
