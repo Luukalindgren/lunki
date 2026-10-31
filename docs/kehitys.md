@@ -110,6 +110,11 @@ Koodi: `packages/client/src/game/skyView.ts`, `engine/retroRenderer.ts`.
 - Älä lisää omia välähdyskerroksia (DOM-verhoja, valon kertoimia,
   pistevaloja) tai erillisiä tummennuksia. Valaistuksen himmennys rikkoo
   paletin: tummat vesisävyt kääntyvät vihreiksi.
+- Pelaajan värit (rengas, räpylät, paita ja hattu) varjostetaan kolmella
+  saman sävyn palettivärillä (`SHADE_RAMPS` `engine/palette.ts`:ssä,
+  materiaali `game/playerColor.ts`). Uusi pelaajan valittava väri saa
+  rampin, ja paletin uusi sävy tarkistetaan aamun, päivän, illan ja yön
+  kuvista, ettei maisema pyöristy siihen (tumma turkoosi vei yöjärven).
 - Usva ja kaukosumu ovat yksi kerros samalla värillä (`grade.mist`):
   usva kirjoittaa tiheytensä alfakanavaan (`game/mistView.ts`, ylhäältä vain
   veden päällä), ja kaukosumu lasketaan jälkikäsittelyssä syvyydestä

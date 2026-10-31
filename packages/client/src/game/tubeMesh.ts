@@ -7,6 +7,7 @@ import {
   type EmoteId,
 } from '@lunki/shared';
 import { toWorld } from '../world/lakeMesh';
+import { playerColorMaterial, setPlayerColor } from './playerColor';
 import { REST_POSE, bendRod, type RodPose } from './rodMotion';
 
 /** Räpylöiden lepokohta renkaan etureunan edessä (paikallinen x), korkeus ja pituus. */
@@ -225,22 +226,30 @@ function createArm(side: -1 | 1, shirt: THREE.Material, skin: THREE.Material): T
 }
 
 /**
- * Kalastushattu paidan värillä: lierit ja pyöreä kupu sekä tumma nauha,
- * joka erottaa hatun paidasta ylhäältä katsottuna.
+ * Kalastushattu paidan värillä: matala pyöreä kupu, alas viettävät lierit ja
+ * musta kaulanauha lieriltä leuan alle.
  */
 function createHat(shirt: THREE.Material): THREE.Mesh[] {
-  const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.03, 10), shirt);
-  brim.position.set(0.04, 0.99, 0);
-  const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.16, 0.13, 10), shirt);
-  crown.position.set(0.04, 1.07, 0);
+  const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.26, 0.06, 10), shirt);
+  brim.position.set(0.04, 0.975, 0);
+  const dome = new THREE.SphereGeometry(0.16, 10, 4, 0, Math.PI * 2, 0, Math.PI / 2);
+  dome.scale(1, 0.65, 1);
+  const crown = new THREE.Mesh(dome, shirt);
+  crown.position.set(0.04, 0.995, 0);
   for (const part of [brim, crown]) part.name = 'shirt';
-  const band = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.162, 0.165, 0.03, 10),
-    new THREE.MeshLambertMaterial({ color: 0x1c232b }),
-  );
-  band.position.set(0.04, 1.02, 0);
-  return [brim, crown, band];
+  const cordMat = new THREE.MeshLambertMaterial({ color: 0x0b0f14 });
+  const chin = new THREE.Vector3(0.15, 0.76, 0);
+  const cords = [-1, 1].map((side) => {
+    const from = new THREE.Vector3(0.04, 0.95, side * 0.18);
+    const cord = new THREE.Mesh(new THREE.BoxGeometry(0.03, from.distanceTo(chin), 0.03), cordMat);
+    cord.position.lerpVectors(from, chin, 0.5);
+    cord.quaternion.setFromUnitVectors(Y_AXIS, chin.clone().sub(from).normalize());
+    return cord;
+  });
+  return [brim, crown, ...cords];
 }
+
+const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
 /** Käden asento: kulma pystystä eteen (z) ja sivulle (x). */
 interface ArmPose {
@@ -345,26 +354,6 @@ export function animateFins(group: THREE.Group, kickPhase: number): void {
 
 function finX(kickPhase: number, i: number): number {
   return FIN_X + Math.sin((kickPhase + i * 0.5) * Math.PI * 2) * 0.25;
-}
-
-/**
- * Pelaajan värit (rengas, räpylät, paita ja hattu) valaisevat osin itse
- * itseään, jotta varjopuoli pysyy paletissa samana värinä: täysin varjostettu
- * punainen kääntyi ruskeaksi ja keltainen ruskeankeltaiseksi, koska paletissa
- * ei ole niille tummempaa sävyä. Kirkkaus tulee silti yhdestä sävytyksestä.
- */
-export const PLAYER_COLOR_LIFT = 0.55;
-
-export function playerColorMaterial(hex: number): THREE.MeshLambertMaterial {
-  const material = new THREE.MeshLambertMaterial({ color: hex, emissive: hex });
-  material.emissiveIntensity = PLAYER_COLOR_LIFT;
-  return material;
-}
-
-/** Vaihtaa pelaajan värin materiaaliin (väri ja oma valo). */
-export function setPlayerColor(material: THREE.MeshLambertMaterial, hex: number): void {
-  material.color.setHex(hex);
-  material.emissive.setHex(hex);
 }
 
 /** Vaihtaa renkaan, räpylöiden, paidan ja hatun värit (osat jakavat materiaalit). */
