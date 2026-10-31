@@ -47,10 +47,11 @@ export function drawTubePreview(canvas: HTMLCanvasElement, a: Appearance): void 
 
   fill(0x3b4630, 14, 19, 12, 3); // reidet
 
-  // Hartiat, pää ja lippalakki; vapa oikealta kädeltä eteen.
+  // Hartiat ja paidan värinen kalastushattu tummalla nauhalla; vapa oikealta kädeltä eteen.
   fill(a.shirt, 13, 22, 14, 5);
-  fill(0xe0cf9c, 18, 20, 4, 4);
-  fill(0xf6d04d, 18, 18, 4, 2);
+  fill(a.shirt, 16, 18, 8, 7);
+  fill(0x1c232b, 17, 19, 6, 5);
+  fill(a.shirt, 18, 20, 4, 3);
   fill(0xf6d04d, 27, 12, 2, 12);
   fill(0xf6d04d, 28, 11, 1, 2);
 }
@@ -94,10 +95,11 @@ export function drawBoatPreview(canvas: HTMLCanvasElement, a: Appearance): void 
   // Tuhdot keulassa, keskellä ja perässä.
   for (const y of [11, 21, 31]) fill(0x5e3a1e, 14, y, 12, 2);
 
-  // Soutaja keskituhdolla selkä keulaan: hartiat, pää ja lippalakki.
+  // Soutaja keskituhdolla selkä keulaan: hartiat ja kalastushattu.
   fill(a.shirt, 14, 19, 12, 5);
-  fill(0xe0cf9c, 18, 19, 4, 4);
-  fill(0xf6d04d, 18, 22, 4, 2);
+  fill(a.shirt, 16, 17, 8, 7);
+  fill(0x1c232b, 17, 18, 6, 5);
+  fill(a.shirt, 18, 19, 4, 3);
 
   // Vapa perän yli ja siima löysänä mutkana veteen.
   fill(0xf6d04d, 27, 23, 1, 14);
