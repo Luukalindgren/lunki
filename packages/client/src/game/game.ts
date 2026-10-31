@@ -975,6 +975,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     this.fishingView.metersPerPixel = this.view.metersPerPixel;
     this.fishingView.povPixel = this.pov.pixelSize;
     this.fishingView.difficulty = this.difficulty;
+    this.fishingView.ashore = this.craft.ashore;
     // Lähin viehettä seuraava kala näkyy pyörteinä vieheen takana.
     const lure = this.fishing.lure;
     let follower: Fish | null = null;
