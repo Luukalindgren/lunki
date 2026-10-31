@@ -77,6 +77,14 @@ export const PlayerState = schema(
     anchorDrop: t.float64().default(0),
     /** Paikanvaihtopyyntö veneessä (#357): haluttu paikka + 1; 0 = ei pyyntöä. */
     seatAsk: t.uint8().default(0),
+    /** Maalla (#457, ShoreNet): 0 vedessä; renkaan paikka maassa ja hyppy kyytiin. */
+    shore: t.uint8().default(0),
+    shoreX: t.float64().default(0),
+    shoreY: t.float64().default(0),
+    shoreHeading: t.float64().default(0),
+    shoreBoard: t.float64().default(0),
+    /** Selkä edellä rantaa vasten potkittu aika (s). */
+    landing: t.float64().default(0),
   },
   'PlayerState',
 );

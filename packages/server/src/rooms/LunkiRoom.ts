@@ -1,5 +1,7 @@
 import { Room, ServerError, type Client } from '@colyseus/core';
 import {
+  SHORE_PROTOCOL,
+  shoreToNet,
   COUNTDOWN_SECONDS,
   ClientMsg,
   DEFAULT_MAX_PLAYERS,
@@ -283,7 +285,12 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         this.capsized(client.sessionId) ? inputs.map((i) => ({ ...i, ...FROZEN })) : inputs,
       );
       const l = msg?.l;
-      if (Array.isArray(l) && l.every((v) => typeof v === 'number' && Number.isFinite(v))) {
+      // Maalta ei kalasteta (#457): maalla olevan viehe on aina sisällä.
+      if (
+        !sim.tube.shore &&
+        Array.isArray(l) &&
+        l.every((v) => typeof v === 'number' && Number.isFinite(v))
+      ) {
         // Vieheen sijainti on vain näytettävä; rajataan järkevälle alueelle.
         const lure = { x: l[0]!, y: l[1]! };
         const ok = distance(lure, sim.tube.pos) < 200;
@@ -302,6 +309,11 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         p.lureStage = 0;
         sim.rodInHand = false;
       }
+      // Maihin saa nousta renkaalla, kun viehe on sisällä ja asiakas osaa rantautumisen (#457).
+      sim.canLand =
+        !sim.boat &&
+        p.lureStage === LureStage.none &&
+        (this.protocols.get(client.sessionId) ?? 0) >= SHORE_PROTOCOL;
       // Soutaja kääntyy tuhdolla kalastaessaan; vain näytettävä ja siiman lähtökohta.
       const look = Number(msg?.look);
       sim.look = sim.boat && !isPassenger(sim) && Number.isFinite(look) ? wrapAngle(look) : 0;
@@ -1307,7 +1319,8 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     // Trombi vie koko veneen kyytiläisineen.
     for (const [id, sim] of this.sims) {
       const p = st.players.get(id);
-      if (!p || isPassenger(sim) || !spoutAffects(p.capsizedUntil, st.clock)) continue;
+      if (!p || isPassenger(sim) || sim.tube.shore || !spoutAffects(p.capsizedUntil, st.clock))
+        continue;
       const fling = spoutCapture(this.spouts, st.clock, sim.tube.pos);
       if (!fling) continue;
       const from = { ...sim.tube.pos };
@@ -1389,7 +1402,8 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       const victims: string[] = [];
       for (const [id, sim] of this.sims) {
         const p = st.players.get(id);
-        if (!p || isPassenger(sim) || this.capsized(id)) continue;
+        // Maalla oleva on turvassa aalloilta (#457).
+        if (!p || isPassenger(sim) || sim.tube.shore || this.capsized(id)) continue;
         const h = bigWaveHeight(rings, sim.tube.pos, windSpeed, waveDir);
         const over = sim.boat ? boatCapsizes : capsizes;
         if (!over(sim.tube.heading, waveDir, h)) continue;
@@ -1422,7 +1436,8 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       const targets = [...this.sims.entries()].map(([id, sim]) => ({
         id,
         pos: sim.tube.pos,
-        rodUp: (st.players.get(id)?.lureStage ?? 0) !== 0 && !this.timedOut(id),
+        // Maalla on turvassa salamalta (#457, Luuka): vapa on aina alhaalla.
+        rodUp: !sim.tube.shore && (st.players.get(id)?.lureStage ?? 0) !== 0 && !this.timedOut(id),
       }));
       const result = resolveStrike(strike, targets, water, LUNKINJARVI.bounds);
       const penalty = isPenalty(st.settings.lightningPenalty)
@@ -1466,5 +1481,14 @@ function writeTube(p: PlayerState, t: TubeState, ack: number) {
     p.anchorDepth = a.depth;
     p.anchorDrop = a.drop;
   }
+  const shore = shoreToNet(t);
+  p.shore = shore.shore;
+  if (shore.shore) {
+    p.shoreX = shore.shoreX;
+    p.shoreY = shore.shoreY;
+    p.shoreHeading = shore.shoreHeading;
+    p.shoreBoard = shore.shoreBoard;
+  }
+  p.landing = shore.landing;
   p.ack = ack;
 }

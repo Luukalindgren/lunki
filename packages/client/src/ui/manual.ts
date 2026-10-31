@@ -1,4 +1,13 @@
-import { COLD_WATER, DIFFICULTIES, FLY_CAST, LINES, RODS, SEASONS, SPECIES } from '@lunki/shared';
+import {
+  COLD_WATER,
+  DIFFICULTIES,
+  FLY_CAST,
+  LINES,
+  RODS,
+  SEASONS,
+  SHORE,
+  SPECIES,
+} from '@lunki/shared';
 import { controlText, type ControlMode } from '../game/controls';
 import { FRONT } from '../game/stormFront';
 import { shortDecimal, t, type MsgKey } from '../i18n';
@@ -38,6 +47,14 @@ const TOPICS: Record<ManualSection, readonly Topic[]> = {
   move: [
     { title: 'manual.move.tube', text: 'manual.move.tubeText' },
     { title: 'manual.move.anchor', text: 'manual.move.anchorText' },
+    {
+      title: 'manual.move.shore',
+      text: 'manual.move.shoreText',
+      vars: () => ({
+        land: shortDecimal(SHORE.landTime),
+        band: shortDecimal(SHORE.band),
+      }),
+    },
     { title: 'manual.move.boat', text: 'manual.move.boatText' },
     { title: 'manual.move.wind', text: 'manual.move.windText' },
     { title: 'manual.move.pad', text: 'manual.move.padText' },

@@ -277,6 +277,13 @@ export interface PlayerSchema {
   anchorDrop?: number;
   /** Paikanvaihtopyyntö (#357): haluttu paikka + 1; puuttuu vanhalta palvelimelta. */
   seatAsk?: number;
+  /** Maalla (#457, ShoreNet); vanha palvelin ei lähetä. */
+  shore?: number;
+  shoreX?: number;
+  shoreY?: number;
+  shoreHeading?: number;
+  shoreBoard?: number;
+  landing?: number;
   ack: number;
   lureX: number;
   lureY: number;

@@ -34,6 +34,8 @@ export interface Sim {
   rodInHand?: boolean;
   /** Soutaja kääntyneenä tuhdolla kalastaessaan (rad veneen suunnasta). */
   look?: number;
+  /** Saa nousta maihin (#457): renkaalla, viehe sisällä, asiakas osaa rantautumisen. */
+  canLand?: boolean;
 }
 
 export const FROZEN = { kick: 0, turn: 0, sprint: false, anchor: false };
@@ -88,11 +90,12 @@ export function stepSims(
           typeof wind === 'function' ? wind(sim, i) : wind,
           spec,
           depthAt,
+          !!sim.canLand && !passenger,
         );
     moved.add(i);
   });
-  // Törmäävät vain alukset: kyydissä olevat ovat veneen sisällä.
-  const crafts = sims.flatMap((s, i) => (isPassenger(s) ? [] : [i]));
+  // Törmäävät vain alukset: kyydissä olevat ovat veneen sisällä ja maalla olevat maissa (#457).
+  const crafts = sims.flatMap((s, i) => (isPassenger(s) || s.tube.shore ? [] : [i]));
   const specs = crafts.map((i) => craftOf(sims[i]!));
   const before = crafts.map((i) => sims[i]!.tube);
   const after = [...before];

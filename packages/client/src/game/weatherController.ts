@@ -276,7 +276,8 @@ export class WeatherController {
         host.sounds.playFrom('spoutSeen', this.spoutAt ?? host.tube.pos);
       }
     }
-    if (!host.netWorld && spoutAffects(penalties.capsizedUntil, now)) {
+    // Maalla oleva on turvassa trombilta, aalloilta ja salamalta (#457).
+    if (!host.netWorld && !host.tube.shore && spoutAffects(penalties.capsizedUntil, now)) {
       const fling = spoutCapture(this.spouts, now, host.tube.pos);
       if (fling) {
         const from = { ...host.tube.pos };
@@ -330,7 +331,12 @@ export class WeatherController {
       };
       if (felt(h) && now - wave.t < 1) host.sounds.playFrom('bigWave', from);
       const over = host.inBoat ? boatCapsizes : capsizes;
-      if (!host.netWorld && host.penalties.capsizeLeft === 0 && over(host.tube.heading, dir, h)) {
+      if (
+        !host.netWorld &&
+        !host.tube.shore &&
+        host.penalties.capsizeLeft === 0 &&
+        over(host.tube.heading, dir, h)
+      ) {
         host.penalties.capsizedUntil = now + BIG_WAVE.recover;
         this.onCapsize('wave');
       }
@@ -427,6 +433,7 @@ export class WeatherController {
     ) {
       const strike = this.strikes[this.nextStrike++]!;
       const rodUp =
+        !host.tube.shore &&
         (f.hookedId !== null || f.stage === 'flight' || f.stage === 'water') &&
         host.penalties.timeOutLeft === 0;
       const result = resolveStrike(

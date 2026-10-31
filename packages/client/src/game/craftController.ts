@@ -1,6 +1,10 @@
 import {
   BoatSeat,
   CRAFTS,
+  SHORE,
+  TUBE_RADIUS,
+  shoreActionAt,
+  type ShoreAction,
   LureStage,
   SEAT_SWAP,
   nextSeatTarget,
@@ -26,11 +30,14 @@ import { loadCraft } from './tackle';
  * Näppäinasettelu: WASD tai nuolet. W vie katseen suuntaan kohti räpylöitä
  * (hitaampi melonta), S selkä edellä (tavallinen, nopeampi potkiminen).
  */
-export function readTubeInput(c: Controls): TubeInput {
+export function readTubeInput(c: Controls, ashore = false): TubeInput {
+  const main =
+    ashore && (c.wasPressed('pickUp') || c.wasPressed('putDown') || c.wasPressed('board'));
   return {
     kick: (c.isDown('back') ? 1 : 0) - (c.isDown('forward') ? 1 : 0),
     turn: (c.isDown('left') ? 1 : 0) - (c.isDown('right') ? 1 : 0),
     sprint: c.isDown('sprint'),
+    ...(main && { main }),
   };
 }
 
@@ -88,6 +95,8 @@ export class CraftController {
   private seatHint: string | null = null;
   /** Oma paikka veneessä edellisellä askeleella: vaihtuessa ilmoitus. */
   private seenSeat: { boat: number; seat: number } | null = null;
+  /** Rantautumisen tilanneohje (#457): maihin nousu tai mitä maalla tehdään. */
+  private shoreHint: string | null = null;
 
   constructor(private readonly host: CraftHost) {}
 
@@ -113,9 +122,19 @@ export class CraftController {
     return !!w && w.boat > 0 && !this.host.spectating && w.canSwapSeats;
   }
 
-  /** Kulkupelin tilanneohje: paikanvaihto, ankkuri tai soutuyritys. */
+  /** Kulkupelin tilanneohje: rantautuminen, paikanvaihto, ankkuri tai soutuyritys. */
   get hint(): string | null {
-    return this.seatHint ?? this.anchorHint ?? this.rowHint;
+    return this.shoreHint ?? this.seatHint ?? this.anchorHint ?? this.rowHint;
+  }
+
+  /** Kalastaja on maalla (#457), myös kyytiin hypätessä. */
+  get ashore(): boolean {
+    return this.host.tube.shore !== undefined;
+  }
+
+  /** Mitä pääkonteksti tekee nyt maalla (ison napin teksti). */
+  get shoreAction(): ShoreAction {
+    return shoreActionAt(this.host.tube, this.host.water);
   }
 
   /** Vieheen vaihe palvelimelle ja veneen säännöille. */
@@ -140,7 +159,8 @@ export class CraftController {
     // Veneen soutaja airoissa soutaa ja kääntää venettä, myös viehe vedessä
     // (soutu-uistelu). Heittäessä ja kelatessa kädet ovat vavassa: vene liukuu
     // ja soutaja kääntyy tuhdolla (#263).
-    const raw = frozen || capsized ? still : readTubeInput(c);
+    const wasAshore = this.ashore;
+    const raw = frozen || capsized ? still : readTubeInput(c, wasAshore);
     const rodStage = host.fishing.stage;
     const rodInHand =
       rodStage === 'charging' ||
@@ -194,13 +214,70 @@ export class CraftController {
       );
     } else {
       const craft = this.inBoat ? CRAFTS.boat : CRAFTS.tube;
-      host.tube = stepPlayerTube(host.tube, step, host.water, dt, host.tubeWind, craft, (p) =>
-        host.bottom.depthAt(p),
+      host.tube = stepPlayerTube(
+        host.tube,
+        step,
+        host.water,
+        dt,
+        host.tubeWind,
+        craft,
+        (p) => host.bottom.depthAt(p),
+        !this.inBoat && f.stage === 'idle',
       );
       this.rowHint = this.inBoat && raw.kick !== 0 && move.kick === 0 ? t('game.rowFishing') : null;
     }
     this.updateAnchor(!host.spectating && raw.kick !== 0);
-    this.sprinting = !capsized && readTubeInput(c).sprint;
+    this.updateShore(raw, host.spectating ? false : !this.inBoat && f.stage !== 'idle');
+    this.sprinting = !capsized && !this.ashore && readTubeInput(c).sprint;
+  }
+
+  /**
+   * Rantautumisen äänet ja tilanneohje (#457): maihin potkiminen, maalla
+   * renkaan otto ja lasku sekä vesirajassa kyytiin hyppy. `lureOut`:
+   * viehe ulkona, jolloin maihin ei nousta ennen kelaamista.
+   */
+  private updateShore(input: TubeInput, lureOut: boolean): void {
+    const host = this.host;
+    const was = host.prevTube.shore;
+    const now = host.tube.shore;
+    const sounds = host.sounds;
+    if (!was && now) sounds.play('shoreLanded');
+    else if (was && !now) sounds.play('boarded');
+    else if (was && now) {
+      if (!was.carrying && now.carrying) sounds.play('tubeLifted');
+      if (was.carrying && !now.carrying && now.board === undefined) sounds.play('tubeDropped');
+    }
+    if (host.spectating) {
+      this.shoreHint = null;
+      return;
+    }
+    if (now) {
+      const action = this.shoreAction;
+      this.shoreHint =
+        now.board !== undefined
+          ? null
+          : action === 'pickUp'
+            ? controlText('game.shorePickUp')
+            : action === 'board'
+              ? controlText('game.shoreBoard')
+              : action === 'putDown'
+                ? controlText('game.shoreCarry')
+                : controlText('game.shoreWalk');
+      return;
+    }
+    const landing = host.tube.landing;
+    if (landing !== undefined) {
+      this.shoreHint = t('game.shoreLanding', {
+        pct: Math.min(100, Math.round((landing / SHORE.landTime) * 100)),
+      });
+      return;
+    }
+    // Selkä rantaa vasten, mutta viehe ulkona: kerrotaan, miksi maihin ei nousta.
+    const touching =
+      lureOut &&
+      input.kick > 0 &&
+      (host.water.closestShorePoint(host.tube.pos, TUBE_RADIUS + SHORE.landReach) ?? null) !== null;
+    this.shoreHint = touching ? t('game.shoreReelIn') : null;
   }
 
   /** Potkuvaihe kiertää 0–1; kumpikin räpylä loiskahtaa kerran kierroksessa. */

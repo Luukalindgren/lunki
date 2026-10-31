@@ -1,5 +1,6 @@
 import { stepAnchor } from '../physics/anchor';
 import { CRAFTS, collideCraftWithShore, type CraftSpec } from '../physics/boat';
+import { stepLanding, stepShore } from '../physics/shore';
 import { stepTube, type TubeInput, type TubeState } from '../physics/tube';
 import { collideTubePair } from '../physics/tubeCollision';
 import { REEDS } from '../map/reeds';
@@ -24,11 +25,11 @@ export interface NetInput extends TubeInput {
   seq: number;
 }
 
-/** Pakkaa syötteen yhdeksi luvuksi: potku, käännös, pikapotku ja ankkuri. */
+/** Pakkaa syötteen yhdeksi luvuksi: potku, käännös, pikapotku, ankkuri ja pääkonteksti maalla. */
 export function packInput(i: TubeInput): number {
   const kick = Math.max(-1, Math.min(1, Math.round(i.kick))) + 1;
   const turn = Math.max(-1, Math.min(1, Math.round(i.turn))) + 1;
-  return kick | (turn << 2) | (i.sprint ? 16 : 0) | (i.anchor ? 32 : 0);
+  return kick | (turn << 2) | (i.sprint ? 16 : 0) | (i.anchor ? 32 : 0) | (i.main ? 64 : 0);
 }
 
 export function unpackInput(packed: number): TubeInput {
@@ -38,6 +39,7 @@ export function unpackInput(packed: number): TubeInput {
     turn: Math.min(2, (p >> 2) & 3) - 1,
     sprint: (p & 16) !== 0,
     ...((p & 32) !== 0 && { anchor: true }),
+    ...((p & 64) !== 0 && { main: true }),
   };
 }
 
@@ -66,7 +68,9 @@ export type DepthAt = (p: Vec2) => number;
 /**
  * Yksi askel: fysiikka, kaislikon vastus, ankkuri ja rantatörmäys. Sama
  * asiakkaalla ja palvelimella. `craft` = rengas tai vene (CRAFTS). Ilman
- * `depthAt`:ia ankkuria ei voi laskea.
+ * `depthAt`:ia ankkuria ei voi laskea. `canLand`: renkaalla saa nousta
+ * maihin (#457; viehe kelattu sisään ja palvelin osaa rantautumisen).
+ * Maalla oleva kävelee (`stepShore`) riippumatta `canLand`ista.
  */
 export function stepPlayerTube(
   tube: TubeState,
@@ -76,11 +80,20 @@ export function stepPlayerTube(
   wind?: Vec2,
   craft: CraftSpec = CRAFTS.tube,
   depthAt?: DepthAt,
+  canLand = false,
 ): TubeState {
+  if (tube.shore) return stepShore(tube, input, water, dt);
   const drag = water.reedsAt(tube.pos) ? REEDS.drag : 1;
   let next = stepTube(tube, input, dt, wind, drag, craft.physics);
   if (depthAt) next = stepAnchor(next, !!input.anchor, dt, craft.anchorAt, depthAt, wind);
-  return collideCraftWithShore(tube, next, water, craft);
+  next = collideCraftWithShore(tube, next, water, craft);
+  if (!canLand || craft !== CRAFTS.tube) return next;
+  return stepLanding(
+    tube.landing === undefined ? next : { ...next, landing: tube.landing },
+    input,
+    water,
+    dt,
+  );
 }
 
 /**
@@ -128,6 +141,8 @@ export const cloneTube = (t: TubeState): TubeState => ({
   kickPhase: t.kickPhase,
   stamina: t.stamina,
   ...(t.anchor && { anchor: { ...t.anchor, pos: { ...t.anchor.pos } } }),
+  ...(t.landing !== undefined && { landing: t.landing }),
+  ...(t.shore && { shore: { ...t.shore, tube: { ...t.shore.tube } } }),
 });
 
 /** Toisen pelaajan alus ennakoinnin törmäyksiin: tila ja laji (rengas tai vene). */
@@ -147,8 +162,11 @@ export function collideWithOthers(
   water: WaterBody,
   craft: CraftSpec = CRAFTS.tube,
 ): TubeState {
+  // Maalla oleva ei törmää renkaisiin (#457).
+  if (tube.shore) return tube;
   let t = tube;
   for (const o of others) {
+    if (o.tube.shore) continue;
     const r = collideTubePair(t, o.tube, craft, o.craft);
     if (r) t = collideCraftWithShore(t, r[0], water, craft);
   }
@@ -175,6 +193,8 @@ export class TubePredictor {
   craft: CraftSpec = CRAFTS.tube;
   /** Pohjan syvyys ankkurille; puuttuu = ankkuri ei käytössä (vanha palvelin). */
   depthAt: DepthAt | null = null;
+  /** Maihin saa nousta (#457): viehe sisällä ja palvelin osaa rantautumisen. */
+  canLand = false;
 
   constructor(
     start: TubeState,
@@ -190,7 +210,16 @@ export class TubePredictor {
 
   private advance(t: TubeState, input: TubeInput, wind?: Vec2): TubeState {
     return collideWithOthers(
-      stepPlayerTube(t, input, this.water, NET_DT, wind, this.craft, this.depthAt ?? undefined),
+      stepPlayerTube(
+        t,
+        input,
+        this.water,
+        NET_DT,
+        wind,
+        this.craft,
+        this.depthAt ?? undefined,
+        this.canLand,
+      ),
       this.others(),
       this.water,
       this.craft,

@@ -207,3 +207,69 @@ describe('palvelimen askel', () => {
     });
   });
 });
+
+describe('rantautuminen palvelimella (#457)', () => {
+  /** Rengas itärannan tuntumassa selkä rantaan: potku vie maihin. */
+  function nearShore(): TubeState {
+    const inLake = { x: 1030, y: -412 };
+    const c = water.closestShorePoint(inLake)!;
+    const out = { x: (inLake.x - c.point.x) / c.distance, y: (inLake.y - c.point.y) / c.distance };
+    const pos = {
+      x: c.point.x + out.x * (TUBE_RADIUS + 0.2),
+      y: c.point.y + out.y * (TUBE_RADIUS + 0.2),
+    };
+    return createTube(pos, Math.atan2(out.y, out.x));
+  }
+  const back = (from: number, n: number): NetInput[] =>
+    Array.from({ length: n }, (_, k) => ({ seq: from + k, kick: 1, turn: 0, sprint: false }));
+
+  it('nousee maihin vain luvalla, ja ennakointi päätyy samaan', () => {
+    for (const canLand of [true, false]) {
+      const sim: Sim = {
+        tube: nearShore(),
+        inputs: new InputQueue(),
+        splashed: false,
+        lastCatchAt: 0,
+        canLand,
+      };
+      const predictor = new TubePredictor(sim.tube, water);
+      predictor.canLand = canLand;
+      const inputs = back(1, 180);
+      for (const i of inputs) {
+        sim.inputs.push([i]);
+        stepSims([sim], water);
+        predictor.step(i);
+      }
+      expect(!!sim.tube.shore).toBe(canLand);
+      expect(predictor.tube.pos.x).toBeCloseTo(sim.tube.pos.x, 9);
+      expect(predictor.tube.pos.y).toBeCloseTo(sim.tube.pos.y, 9);
+    }
+  });
+
+  it('maalla oleva ei törmää renkaisiin', () => {
+    const ashore: Sim = {
+      tube: nearShore(),
+      inputs: new InputQueue(),
+      splashed: false,
+      lastCatchAt: 0,
+      canLand: true,
+    };
+    for (let k = 1; k <= 180; k++) {
+      ashore.inputs.push(back(k, 1));
+      stepSims([ashore], water);
+    }
+    expect(ashore.tube.shore).toBeDefined();
+    const before = { ...ashore.tube.pos };
+    // Toinen rengas täsmälleen samassa kohdassa: maalla olevaa ei työnnetä.
+    const other: Sim = {
+      tube: createTube(before, 0),
+      inputs: new InputQueue(),
+      splashed: false,
+      lastCatchAt: 0,
+    };
+    ashore.inputs.push([{ seq: 999, kick: 0, turn: 0, sprint: false }]);
+    other.inputs.push([{ seq: 1, kick: 0, turn: 0, sprint: false }]);
+    stepSims([ashore, other], water);
+    expect(ashore.tube.pos).toEqual(before);
+  });
+});

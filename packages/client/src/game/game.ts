@@ -45,14 +45,14 @@ import {
   type RaceStats,
 } from '@lunki/shared';
 import type { Input } from '../engine/input';
-import { Controls, controlText } from './controls';
+import { Controls, controlText, type ShoreMain } from './controls';
 import { createBottomMesh } from '../world/bottomMesh';
 import { FishShadow } from '../world/fishShadow';
 import { FishSignsView } from './fishSignsView';
 import { staticWorldFor, type StaticWorld } from '../world/staticWorld';
 import type { RetroResolution } from '../engine/resolution';
 import type { RetroRenderer } from '../engine/retroRenderer';
-import { PovCamera } from './povCamera';
+import { EYE_HEIGHT, PovCamera } from './povCamera';
 import { createLakeMesh, createWaterWaves, toWorld, waterTime } from '../world/lakeMesh';
 import { capsizeRoll, type NetWorld } from '../net/netWorld';
 import type { Sfx } from '../audio/sfx';
@@ -65,6 +65,7 @@ import { rodSideOffset, type LinePoint } from './lineHang';
 import { PovRod, flyRodAngle, flyRodTip } from './povRod';
 import { REST_POSE, lakePoint } from './rodMotion';
 import { PovTube } from './povTube';
+import { AshoreFigure, STANDING_EYE } from './shoreView';
 import { loadAppearance } from './appearance';
 import { loadTackle } from './tackle';
 import { TopDownCamera } from './topDownCamera';
@@ -140,6 +141,8 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
    */
   readonly appearance: Appearance;
   private readonly tubeMesh: THREE.Group;
+  /** Oma kalastaja maalla ja rengas maassa tai kannettuna (#457). */
+  private readonly ashoreFigure: AshoreFigure;
   /** Oma sijainti kauas loitonnettaessa. */
   private readonly youMarker = new YouMarker();
   readonly fishing: FishingState;
@@ -265,7 +268,13 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     this.weather.applyLight();
     this.scene.add(createBottomMesh(this.bottom, this.waterWaves));
     this.scene.add(this.fishShadow.mesh, this.fishSigns.group);
-    this.scene.add(this.tubeMesh, this.boatsView.group, this.anchorView.group);
+    this.ashoreFigure = new AshoreFigure(this.appearance);
+    this.scene.add(
+      this.tubeMesh,
+      this.ashoreFigure.group,
+      this.boatsView.group,
+      this.anchorView.group,
+    );
     this.scene.add(flightShadow);
     this.world = staticWorldFor(map, seasonOf(settings));
     this.scenery.visible = false;
@@ -294,6 +303,12 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     hud.setCountdown(null);
     // Kello näkyy heti HUDin tullessa esiin, ennen ensimmäistä päivitystä.
     this.presenter.updateTimer();
+  }
+
+  /** Ison kosketusnapin toiminto maalla (#457); undefined = vedessä. */
+  get shoreMain(): ShoreMain | null | undefined {
+    if (!this.craft.ashore || this.spectating) return undefined;
+    return this.craft.shoreAction;
   }
 
   /** Moninpelin maailma; yksinpelissä undefined. */
@@ -502,8 +517,16 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
 
     this.craft.step(dt, { frozen, capsized, reelHeld });
     const f = this.fishing;
+    // Maalta ei kalasteta (#457): heitto ei lähde, ja yritys kertoo miksi.
+    const ashore = this.craft.ashore;
+    if (
+      ashore &&
+      !this.spectating &&
+      (c.wasPressed('pointer') || (c.wasPressed('castForward') && !this.craft.shoreAction))
+    )
+      this.hud.showMessage(t('game.noFishingAshore'), 2, 'info');
     const { lineHand } = this.angler.step(dt, {
-      frozen,
+      frozen: frozen || ashore,
       capsized,
       timeOut,
       tangled: !!tangle,
@@ -799,6 +822,17 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     }
     const seated = this.inBoat ? SEATED_LIFT : 0;
     setSeated(this.tubeMesh, this.inBoat);
+    // Maalla (#457) kalastaja seisoo ja rengas on maassa tai vyötäröllä.
+    const shore = this.spectating ? undefined : b.shore;
+    const pov = this.viewMode === 'pov';
+    const groundAt = (p: Vec2) => (pov ? this.world.ground.heightAt(p) : 0);
+    if (shore) {
+      this.ashoreFigure.update({ pos, heading, step: b.kickPhase, shore }, groundAt);
+      // Omin silmin oma vartalo ei näy, rengas maassa ja kädessä näkyy.
+      this.ashoreFigure.showAngler(!pov || shore.board !== undefined);
+    } else this.ashoreFigure.hide();
+    this.tubeMesh.visible = !pov && !this.spectating && !shore;
+    this.povRod.group.visible = pov && !this.spectating && !shore;
     // Paikanvaihdossa (#357) hahmo liukuu uudelle paikalle ja vene keinahtaa.
     const now = performance.now() / 1000;
     const boatNo = w && !this.spectating ? w.boat : 0;
@@ -819,7 +853,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     const rodPose = this.angler.rodPose();
     const flyCast = this.fishing.stage === 'casting' ? this.fishing.flyCast : null;
     let rodEnd: LinePoint | null = null;
-    if (this.viewMode !== 'pov')
+    if (this.viewMode !== 'pov' && !shore)
       rodEnd = lakePoint(
         aimRod(
           this.tubeMesh,
@@ -846,13 +880,22 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
               roll: air.tumble * 0.4,
               pitch: -0.6 * (air.height / SPOUT.flightHeight),
             }
-          : {
-              lift: sway.lift - 0.7 * (roll / Math.PI) + seated,
-              roll: sway.roll + roll * 0.3 + rock,
-              pitch: sway.pitch,
-            },
+          : shore
+            ? // Maalla silmä on seisovan korkeudella maaston päällä; hypätessä painuu istumaan.
+              {
+                lift:
+                  (Math.max(0, groundAt(pos)) + STANDING_EYE - EYE_HEIGHT) *
+                  (1 - (shore.board ?? 0)),
+                roll: 0,
+                pitch: -0.15,
+              }
+            : {
+                lift: sway.lift - 0.7 * (roll / Math.PI) + seated,
+                roll: sway.roll + roll * 0.3 + rock,
+                pitch: sway.pitch,
+              },
       );
-      this.updatePovTube(body, heading, roll, air !== null);
+      this.updatePovTube(body, heading, roll, air !== null || !!shore);
       // Vapa oikeasta kädestä kärkeen; kärki on siiman alkupiste.
       const side = rodSideOffset(heading);
       // Perhoheitossa vapa heiluu taakse ja eteen (#235).
@@ -865,22 +908,23 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
         : rodTip(pos, heading);
       tip.x += side.x;
       tip.y += side.y;
-      rodEnd = this.povRod.update(
-        this.pov.camera,
-        this.pov.pixelSize,
-        pos,
-        heading,
-        tip,
-        this.fishing,
-        this.angler.cranking,
-        this.fishingView.shownLineColor,
-        {
-          tipY: swing?.height,
-          fly: isFly(this.fishing.tackle),
-          bend: this.angler.flyRodBend(flyCast),
-          pose: rodPose,
-        },
-      );
+      if (!shore)
+        rodEnd = this.povRod.update(
+          this.pov.camera,
+          this.pov.pixelSize,
+          pos,
+          heading,
+          tip,
+          this.fishing,
+          this.angler.cranking,
+          this.fishingView.shownLineColor,
+          {
+            tipY: swing?.height,
+            fly: isFly(this.fishing.tackle),
+            bend: this.angler.flyRodBend(flyCast),
+            pose: rodPose,
+          },
+        );
       this.weather.follow(this.pov.camera.position);
     }
     const hooked = this.fish.fish.find((x) => x.id === this.fishing.hookedId) ?? null;
@@ -953,6 +997,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       }));
       const remote = this.net.remoteView;
       remote.pov = this.viewMode === 'pov';
+      remote.heightAt = groundAt;
       remote.pixel = remote.pov ? this.pov.pixelSize : this.view.metersPerPixel;
       remote.update(shown, this.camera, this.net.link.canvas, this.tube.pos);
     }

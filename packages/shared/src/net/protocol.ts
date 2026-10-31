@@ -13,7 +13,7 @@ export const ROOM_NAME = 'lunki';
  * uudelleen: asiakas ei lähetä vanhemmalle palvelimelle viestejä, joita se
  * ei tunne. Vanha palvelin ilman kenttää = 1.
  */
-export const PROTOCOL_VERSION = 11;
+export const PROTOCOL_VERSION = 12;
 /** Chat tuli versiossa 2. */
 export const CHAT_PROTOCOL = 2;
 /** Maalle juuttuneen vieheen siiman katkaisu (ClientMsg.landCut) tuli versiossa 3. */
@@ -49,6 +49,12 @@ export const STATS_PROTOCOL = 10;
  * ei tunne kautta, joten aula ei silloin tarjoa sitä ja kisa on kesällä.
  */
 export const SEASON_PROTOCOL = 11;
+/**
+ * Rantautuminen (#457): syötteen bitti 64 (pääkonteksti maalla) ja
+ * PlayerState.shore… tulivat versiossa 12. Vanhan palvelimen kanssa ranta on
+ * seinä kuten ennen, eikä vanhan asiakkaan pelaaja nouse maihin.
+ */
+export const SHORE_PROTOCOL = 12;
 
 /** Oletuspelaajamäärä huoneessa. Rakenne sallii isomman. */
 export const DEFAULT_MAX_PLAYERS = 8;

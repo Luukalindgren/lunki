@@ -1,5 +1,6 @@
 import type { Vec2 } from '../vec2';
 import type { AnchorState } from './anchor';
+import type { ShoreState } from './shore';
 
 /**
  * Kelluntarenkaan 2D-fysiikka vedenpinnalla. Jaettu asiakkaan ja palvelimen
@@ -22,6 +23,10 @@ export interface TubeState {
   stamina: number;
   /** Ankkuri vedessä (#355); puuttuu = ylhäällä. */
   anchor?: AnchorState;
+  /** Selkä edellä rantaa vasten potkittu aika (s, #457); puuttuu = ei rannassa. */
+  landing?: number;
+  /** Kalastaja maalla (#457): `pos` on silloin kalastajan paikka. Puuttuu = vedessä. */
+  shore?: ShoreState;
 }
 
 export interface TubeInput {
@@ -33,6 +38,8 @@ export interface TubeInput {
   sprint: boolean;
   /** Ankkuri alas tai ylös (#355): painallus, ei pidettävä. */
   anchor?: boolean;
+  /** Pääkonteksti maalla (#457): renkaan otto, lasku tai kyytiin hyppy. Painallus. */
+  main?: boolean;
 }
 
 export const TUBE_RADIUS = 0.8;

@@ -28,6 +28,7 @@ import { SplashRings } from './splashRings';
 import { ROD_MOTION, RodMotion } from './rodMotion';
 import { LureMarker, markerPosition } from './lureMarker';
 import { lureColor } from './lureColor';
+import { AshoreFigure } from './shoreView';
 
 const cssColor = (hex: number) => `#${hex.toString(16).padStart(6, '0')}`;
 /** Muiden siiman kireyttä ei tiedetä: piirretään puolikireänä. */
@@ -55,6 +56,8 @@ interface Entry {
   rod: RodMotion;
   /** Vieheen edellinen vaihe (LureStage): vaihdoksista heitto ja vastaisku. */
   stage: number;
+  /** Maalla seisova kalastaja ja rengas (#457); luodaan, kun pelaaja nousee maihin. */
+  ashore: AshoreFigure | null;
 }
 
 /** Piirtää muut pelaajat, heidän vieheensä ja nimilaput. */
@@ -72,6 +75,8 @@ export class RemotePlayersView {
   /** Näkymä vieheiden merkkejä varten (kuten `FishingView`). */
   pov = false;
   pixel = 0.125;
+  /** Maanpinnan korkeus maalla seisoville (#457); ylhäältä 0. */
+  heightAt: (p: Vec2) => number = () => 0;
 
   /** `below`: lappukerros tämän (HUD) alle, ettei se peitä nappeja ja paneeleja (#277). */
   constructor(parent: HTMLElement, below: Element | null = null) {
@@ -133,6 +138,17 @@ export class RemotePlayersView {
       e.tube.rotation.y = p.heading + p.look;
       e.tube.rotation.x = p.tumble ?? p.roll;
       animateFins(e.tube, p.kickPhase);
+      e.tube.visible = !p.shore;
+      if (p.shore) {
+        if (!e.ashore) {
+          e.ashore = new AshoreFigure(p.appearance);
+          this.group.add(e.ashore.group);
+        }
+        e.ashore.update(
+          { pos: p.pos, heading: p.heading, step: p.kickPhase, shore: p.shore },
+          this.heightAt,
+        );
+      } else e.ashore?.hide();
       const hooked = p.lure !== null && p.lureStage === LureStage.hooked;
       if (p.lureStage !== e.stage) {
         const m = ROD_MOTION;
@@ -178,7 +194,8 @@ export class RemotePlayersView {
 
       // Nimilappu renkaan yläpuolelle näytön koordinaateissa.
       // Kameran takana oleva piste karsitaan, muuten lappu näkyisi peilattuna.
-      const at = screenAnchor(this.v.copy(e.tube.position).setY(1.5), camera, rect);
+      const body = p.shore && e.ashore ? e.ashore.anchor.position : e.tube.position;
+      const at = screenAnchor(this.v.copy(body).setY(body.y + (p.shore ? 2.3 : 1.5)), camera, rect);
       e.tag.hidden = !at;
       if (at) {
         e.tag.textContent = p.name;
@@ -283,6 +300,7 @@ export class RemotePlayersView {
       fight: new RemoteFight(),
       rod: new RodMotion(),
       stage: LureStage.none,
+      ashore: null,
     };
     this.entries.set(id, e);
     return e;
@@ -290,6 +308,7 @@ export class RemotePlayersView {
 
   private recolor(e: Entry, a: Appearance): void {
     applyAppearance(e.tube, a);
+    e.ashore?.recolor(a);
     (e.line.material as THREE.LineBasicMaterial).color.setHex(a.line);
     e.tag.style.borderColor = cssColor(a.tube);
     e.appearance = a;
@@ -297,6 +316,10 @@ export class RemotePlayersView {
 
   private remove(id: string, e: Entry): void {
     this.group.remove(e.tube, e.lure.group, e.line, e.flyLine);
+    if (e.ashore) {
+      this.group.remove(e.ashore.group);
+      e.ashore.dispose();
+    }
     e.tag.remove();
     e.bubble.remove();
     this.entries.delete(id);
