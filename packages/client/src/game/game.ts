@@ -538,6 +538,9 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     const tangle = net ? net.updateTangle(c.wasPressed('cut')) : null;
     if (!frozen) this.logRace();
 
+    // Maalla välilyönnin toiminto katsotaan ennen askelta: kyytiin hypyn aikana
+    // toimintoa ei enää ole, eikä sama painallus ole heittoyritys (#464).
+    const shoreAction = this.craft.shoreAction;
     this.craft.step(dt, { frozen, capsized, reelHeld });
     const f = this.fishing;
     // Maalta ei kalasteta (#457): heitto ei lähde, ja yritys kertoo miksi.
@@ -548,7 +551,8 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       // Täyttökisan letkun siirrossa (#458) välilyönti ei tee mitään: ohje kertoo nuolet.
       !this.tube.shore?.inflate &&
       !this.tube.bailer &&
-      (c.wasPressed('pointer') || (c.wasPressed('castForward') && !this.craft.shoreAction))
+      this.tube.shore?.board === undefined &&
+      (c.wasPressed('pointer') || (c.wasPressed('castForward') && !shoreAction))
     )
       this.hud.showMessage(t('game.noFishingAshore'), 2, 'info');
     const { lineHand } = this.angler.step(dt, {

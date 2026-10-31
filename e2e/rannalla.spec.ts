@@ -24,7 +24,18 @@ test('rannalla: maihin, rengas mukaan ja takaisin kyytiin', async ({ page }) => 
   // Maalta ei kalasteta: heittoyritys kertoo sen.
   const view = page.viewportSize()!;
   await page.mouse.click(view.width / 2, view.height * 0.3);
-  await expect(page.locator('.hud-message')).toContainText('Maalta ei kalasteta');
+  const message = page.locator('.hud-message');
+  await expect(message).toContainText('Maalta ei kalasteta');
+  await expect(message).toBeHidden();
+  // Välilyönti ottaa renkaan ja hyppää kyytiin: se ei ole heittoyritys (#464).
+  await page.evaluate(() => {
+    const w = window as unknown as { noFishing: number };
+    w.noFishing = 0;
+    const el = document.querySelector<HTMLElement>('.hud-message')!;
+    new MutationObserver(() => {
+      if (!el.hidden && el.textContent?.includes('Maalta ei kalasteta')) w.noFishing++;
+    }).observe(el, { subtree: true, childList: true, characterData: true });
+  });
 
   // Rengas mukaan; maihin noustessa kalastaja on vesirajassa, joten kyytiin pääsee heti.
   await page.keyboard.press('Space');
@@ -34,6 +45,7 @@ test('rannalla: maihin, rengas mukaan ja takaisin kyytiin', async ({ page }) => 
   await expect
     .poll(async () => ((await situation.isVisible()) ? await situation.innerText() : ''))
     .not.toMatch(/Maissa|Hyppää kyytiin/);
+  expect(await page.evaluate(() => (window as unknown as { noFishing: number }).noFishing)).toBe(0);
   errors.check();
 });
 
