@@ -21,6 +21,7 @@ import {
   type CompetitionSettings,
   type TimeOfDay,
   type Season,
+  type Vec2,
   type WeatherLevel,
 } from '@lunki/shared';
 import { FpsMeter } from './engine/fpsMeter';
@@ -125,6 +126,12 @@ const devDifficulty = (['easy', 'normal', 'realistic'] as const).find(
   (d) => d === params.get('difficulty'),
 );
 const devSeed = params.has('seed') ? Number(params.get('seed')) : undefined;
+
+/** ?start=x,y → aloituspaikka (pelin koordinaatit metreinä); muuten null. */
+function devStart(v: string | null): Vec2 | null {
+  const [x, y] = (v ?? '').split(',').map(Number);
+  return Number.isFinite(x) && Number.isFinite(y) && v ? { x: x!, y: y! } : null;
+}
 
 /**
  * Kalastajan silmin -näkymän näkökenttä (#330). Suorituskykytesti voi
@@ -788,6 +795,8 @@ if (params.has('bench')) {
       ? (params.get('season') as Season)
       : settings.season,
     durationMinutes: Number(params.get('minutes') ?? settings.durationMinutes),
+    // Aloituspaikka ?start=x,y (testit, esim. rantautuminen #457); kelpaa vain vedestä.
+    start: devStart(params.get('start')) ?? settings.start,
   });
 } else {
   void tryResume().then((resumed) => {
@@ -873,7 +882,7 @@ startLoop({
     if (game && ((!paused && !screens.open) || (session && paused))) game.update(dt);
     if (game) {
       touch?.update(
-        contextActions(game.fishing, game.flyRhythm, game.tangled),
+        contextActions(game.fishing, game.flyRhythm, game.tangled, game.shoreMain),
         isFly(game.fishing.tackle),
         game.fishing.gear,
       );

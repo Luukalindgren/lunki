@@ -30,6 +30,8 @@ export class WaterBody {
   private readonly cells = new Map<number, number[]>();
   private readonly bands = new Map<number, number[]>();
   private readonly reeds: ReedIndex;
+  /** Laiturien kannet: maata vedessä, mutta niille ei kävellä (#457). */
+  private readonly pierRings: Vec2[][];
 
   constructor(
     readonly map: LakeMap,
@@ -37,8 +39,9 @@ export class WaterBody {
     private readonly bandHeight = 8,
   ) {
     this.reeds = new ReedIndex(map.reeds);
+    this.pierRings = (map.piers ?? []).map(pierRing);
     // Laiturit ovat vesialueen sisällä kuin pienet saaret.
-    for (const ring of [map.shore, ...map.islands, ...(map.piers ?? []).map(pierRing)]) {
+    for (const ring of [map.shore, ...map.islands, ...this.pierRings]) {
       for (let i = 0; i < ring.length; i++) {
         const a = ring[i]!;
         const b = ring[(i + 1) % ring.length]!;
@@ -72,6 +75,11 @@ export class WaterBody {
       }
     }
     return inside;
+  }
+
+  /** Onko piste maata, jolla voi seistä: ei vettä eikä laiturin kantta (#457). */
+  isLand(p: Vec2): boolean {
+    return !this.isWater(p) && !this.pierRings.some((r) => insideRing(r, p));
   }
 
   /** Kaislikko pisteessä (vedessä), tai null. */
@@ -192,6 +200,17 @@ export class WaterBody {
   private band(y: number): number {
     return Math.floor(y / this.bandHeight);
   }
+}
+
+function insideRing(ring: readonly Vec2[], p: Vec2): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const a = ring[i]!;
+    const b = ring[j]!;
+    if (a.y > p.y !== b.y > p.y && p.x < a.x + ((p.y - a.y) / (b.y - a.y)) * (b.x - a.x))
+      inside = !inside;
+  }
+  return inside;
 }
 
 const cellKey = (x: number, y: number) => (x + 32768) * 65536 + (y + 32768);

@@ -23,6 +23,8 @@ export interface StaticWorld {
   readonly top: THREE.Group;
   /** Molemmissa näkymissä (laiturit). */
   readonly always: THREE.Group;
+  /** Maanpinnan korkeus: maalla seisova kalastaja (#457) on maaston päällä. */
+  readonly ground: Ground;
 }
 
 const worlds = new WeakMap<LakeMap, Map<Season, StaticWorld>>();
@@ -82,5 +84,5 @@ function buildStaticWorld(map: LakeMap, season: Season): StaticWorld {
     if (piers) always.add(piers);
     top.add(createMapOverlay(surroundings, season));
   }
-  return { pov, top, always };
+  return { pov, top, always, ground };
 }

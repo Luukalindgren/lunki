@@ -780,6 +780,12 @@ export const fi = {
   'touch.emoteTitle': 'Käsimerkit',
   'touch.anchorTitle': 'Ankkuri alas tai ylös',
   'touch.seatTitle': 'Vaihda paikkaa veneessä',
+  'touch.pickUp': 'OTA',
+  'touch.pickUpTitle': 'Ota rengas mukaan',
+  'touch.putDown': 'LASKE',
+  'touch.putDownTitle': 'Laske rengas maahan',
+  'touch.board': 'KYYTIIN',
+  'touch.boardTitle': 'Hyppää renkaan kyytiin',
 
   // --- Käsimerkit ---
   'emote.wave': 'Vilkutus',
@@ -840,6 +846,13 @@ export const fi = {
   'game.anchorDown': 'Ankkuri pohjassa ({m} m): pysyt köyden mitan sisällä',
   'game.anchorUp': 'Ankkuri ylhäällä',
   'game.anchorHold': 'Ankkuri pitää: nosta se ({anchor}), niin pääset liikkeelle',
+  'game.shoreLanding': 'Nouset maihin… {pct} %',
+  'game.shoreReelIn': 'Kelaa viehe sisään, niin pääset maihin',
+  'game.shorePickUp': 'Maissa. Ota rengas mukaan: {pickUp}',
+  'game.shoreCarry': 'Kanna rengas vesirajaan ja hyppää kyytiin · Laske maahan: {putDown}',
+  'game.shoreBoard': 'Hyppää kyytiin: {board}',
+  'game.shoreWalk': 'Maissa: kävele {forward|back}, käänny {turn} · Mene renkaan luo ottamaan se',
+  'game.noFishingAshore': 'Maalta ei kalasteta: hyppää ensin renkaan kyytiin',
   'game.anchorDrag': 'Myrsky laahaa ankkuria pohjaa pitkin!',
   'game.anchorPassenger': 'Vain soutaja laskee ankkurin',
   'game.anchorOld': 'Palvelin ei vielä tunne ankkuria',
@@ -982,6 +995,9 @@ export const fi = {
   'manual.move.anchor': 'Ankkuri',
   'manual.move.anchorText':
     '{anchor} = laske tai nosta ankkuri. Pohjassa se pitää paikallaan köyden mitan sisällä (köyttä 1,5 kertaa syvyys).\nAnkkurissa ei potkita eikä soudeta. Myrskyssä ankkuri laahaa, ja trombi repäisee sen irti.',
+  'manual.move.shore': 'Rannalla',
+  'manual.move.shoreText':
+    'Maihin pääsee mihin tahansa rantaan: kelaa viehe sisään ja potki selkä edellä ({back}) rantaa vasten noin {land} s.\nMaalla kävellään {forward|back} ja käännytään {turn} enintään {band} m päähän rantaviivasta. Laiturille ei kävellä.\nRengas jää rantaan: {pickUp} ottaa sen mukaan tai laskee maahan, ja vesirajassa rengas kädessä {board} hyppää kyytiin.\nMaalta ei kalasteta. Maalla on turvassa salamalta, isoilta aalloilta ja trombilta.',
   'manual.move.boat': 'Vene',
   'manual.move.boatText':
     'Yksinpelin asetuksissa voi lähteä veneellä renkaan sijaan. Moninpelin aulassa voi valita oman veneen tai mennä toisen kyytiin. Veneessä on soutaja ja enintään kaksi kalastajaa, ja venekunta on yksi joukkue.\nSoutaja: {back} = souda, {forward} = huopaa, {turn} = käännä venettä.\n{oars} = airot tai vapa. Heittäessä ja kelatessa ei voi soutaa, mutta viehe vedessä voi uistella.\n{seat} = vaihda paikkaa, kun vene on lähes paikallaan.',

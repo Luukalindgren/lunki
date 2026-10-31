@@ -1,5 +1,8 @@
 import {
   ANCHOR_PROTOCOL,
+  SHORE_PROTOCOL,
+  shoreFromNet,
+  type ShoreState,
   SEAT_PROTOCOL,
   BIG_WAVE,
   BoatSeat,
@@ -82,6 +85,8 @@ export interface RemotePlayer {
   roll: number;
   /** Renkaan tai veneen ankkuri vedessä (#355). */
   anchor?: AnchorState;
+  /** Maalla (#457): `pos` on kalastajan paikka, rengas maassa tai kannettuna. */
+  shore?: ShoreState;
 }
 
 /** Vene piirtohetkellä: soutajan paikka, suunta ja airovetojen vaihe. */
@@ -116,6 +121,7 @@ interface RemoteSnap {
   lure: Vec2;
   lureStage: number;
   look: number;
+  shore?: ShoreState;
 }
 
 /**
@@ -136,7 +142,14 @@ const lerpSnap = (a: RemoteSnap, b: RemoteSnap, t: number): RemoteSnap => ({
   lure: { x: a.lure.x + (b.lure.x - a.lure.x) * t, y: a.lure.y + (b.lure.y - a.lure.y) * t },
   lureStage: t < 0.5 ? a.lureStage : b.lureStage,
   look: lerpAngle(a.look, b.look, t),
+  // Maalla olo vaihtuu kerralla; hypyn edistyminen liukuu.
+  ...((t < 0.5 ? a : b).shore && { shore: lerpShore((t < 0.5 ? a : b).shore!, b.shore, t) }),
 });
+
+function lerpShore(s: ShoreState, b: ShoreState | undefined, t: number): ShoreState {
+  if (s.board === undefined || b?.board === undefined || s === b) return s;
+  return { ...s, board: s.board + (b.board - s.board) * t };
+}
 
 /**
  * Kaatuneen aluksen kallistus `t` sekuntia kaatumisen jälkeen: kumoon puolessa
@@ -158,6 +171,7 @@ const toTube = (p: PlayerSchema): TubeState => ({
   kickPhase: p.kickPhase,
   stamina: p.stamina ?? 1,
   ...(p.anchor && { anchor: anchorFromNet(p) }),
+  ...shoreFromNet(p),
 });
 
 /**
@@ -423,6 +437,11 @@ export class NetWorld {
     if (this.canAnchor) this.predictor.depthAt = depthAt;
   }
 
+  /** Palvelin laskee rantautumisen (#457); vanhan kanssa ranta on seinä. */
+  get canLand(): boolean {
+    return (this.session.serverProtocol ?? 1) >= SHORE_PROTOCOL;
+  }
+
   /** Palvelin vaihtaa paikkoja veneessä (#357); vanha ei. */
   get canSwapSeats(): boolean {
     return (this.session.serverProtocol ?? 1) >= SEAT_PROTOCOL;
@@ -493,6 +512,8 @@ export class NetWorld {
     const decay = Math.exp(-NET_DT * 10);
     this.renderOffset.x *= decay;
     this.renderOffset.y *= decay;
+    // Maihin renkaalla, kun viehe on sisällä (sama sääntö kuin palvelimella, #457).
+    this.predictor.canLand = this.canLand && !this.ownBoat && lureStage === LureStage.none;
     let tube = this.predictor.step(this.effectiveInput(input, lureStage, reeling), wind);
     // Kyydissä paikka tulee veneestä, sellaisena kuin se piirretään.
     const boat = this.passenger ? this.rowerOfOwnBoat() : null;
@@ -577,6 +598,7 @@ export class NetWorld {
         lure: { x: p.lureX, y: p.lureY },
         lureStage: p.lureStage,
         look: p.look ?? 0,
+        ...shoreFromNet(p),
       });
     });
     for (const [id, r] of this.remotes)
@@ -714,6 +736,7 @@ export class NetWorld {
         look: r.boat && r.seat === BoatSeat.rower ? s.look : 0,
         roll: this.rollOf(r),
         ...(r.anchor && !air && { anchor: r.anchor }),
+        ...(s.shore && { shore: s.shore }),
       });
     }
     return out;

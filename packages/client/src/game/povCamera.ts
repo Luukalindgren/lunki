@@ -5,7 +5,7 @@ import { toWorld } from '../world/lakeMesh';
 import { DEFAULT_POV_FOV, effectivePovFov } from '../ui/povFov';
 
 /** Silmien korkeus vedenpinnasta (m) ja katseen lasku horisontin alle. */
-const EYE_HEIGHT = 0.55;
+export const EYE_HEIGHT = 0.55;
 const PITCH = -0.12;
 /** Kauimmainen tähtäyspiste (m), kun hiiri osoittaa horisontin yläpuolelle. */
 const MAX_AIM = 90;

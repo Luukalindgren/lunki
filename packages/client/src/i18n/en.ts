@@ -775,6 +775,12 @@ export const en: Record<keyof typeof fi, string> = {
   'touch.emoteTitle': 'Hand signs',
   'touch.anchorTitle': 'Drop or raise the anchor',
   'touch.seatTitle': 'Swap seats in the boat',
+  'touch.pickUp': 'TAKE',
+  'touch.pickUpTitle': 'Pick up the float tube',
+  'touch.putDown': 'DROP',
+  'touch.putDownTitle': 'Put the float tube down',
+  'touch.board': 'BOARD',
+  'touch.boardTitle': 'Jump into the float tube',
 
   // --- Hand signs ---
   'emote.wave': 'Wave',
@@ -835,6 +841,13 @@ export const en: Record<keyof typeof fi, string> = {
   'game.anchorDown': 'Anchor on the bottom ({m} m): you stay within the rope',
   'game.anchorUp': 'Anchor up',
   'game.anchorHold': 'The anchor holds: raise it ({anchor}) to move',
+  'game.shoreLanding': 'Going ashore… {pct} %',
+  'game.shoreReelIn': 'Reel in the lure to go ashore',
+  'game.shorePickUp': 'Ashore. Pick up the float tube: {pickUp}',
+  'game.shoreCarry': 'Carry the float tube to the waterline and jump in · Put it down: {putDown}',
+  'game.shoreBoard': 'Jump into the float tube: {board}',
+  'game.shoreWalk': 'Ashore: walk {forward|back}, turn {turn} · Go to the float tube to pick it up',
+  'game.noFishingAshore': 'No fishing from land: get back into the float tube first',
   'game.anchorDrag': 'The storm is dragging the anchor along the bottom!',
   'game.anchorPassenger': 'Only the rower handles the anchor',
   'game.anchorOld': 'The server does not know the anchor yet',
@@ -978,6 +991,9 @@ export const en: Record<keyof typeof fi, string> = {
   'manual.move.anchor': 'Anchor',
   'manual.move.anchorText':
     '{anchor} = drop or raise the anchor. On the bottom it holds you within the rope length (1.5 times the depth).\nAt anchor you cannot kick or row. In a storm the anchor drags, and a waterspout tears it loose.',
+  'manual.move.shore': 'Ashore',
+  'manual.move.shoreText':
+    'You can go ashore anywhere: reel in the lure and kick backwards ({back}) against the shore for about {land} s.\nOn land you walk {forward|back} and turn {turn} up to {band} m from the waterline. You cannot walk onto piers.\nThe float tube stays on the shore: {pickUp} picks it up or puts it down, and at the waterline with the tube in hand {board} jumps in.\nNo fishing from land. On land you are safe from lightning, big waves and waterspouts.',
   'manual.move.boat': 'Boat',
   'manual.move.boatText':
     "In the single-player settings you can go out in a boat instead of a float tube. In the multiplayer lobby you can take your own boat or board someone else's. A boat has a rower and up to two anglers, and its crew is one team.\nRower: {back} = row, {forward} = back water, {turn} = turn the boat.\n{oars} = oars or rod. You cannot row while casting or reeling, but with the lure in the water you can troll.\n{seat} = change seats when the boat is nearly still.",

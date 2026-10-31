@@ -53,6 +53,14 @@ export const CONTROLS = {
    * toiminto hyväksyy toisen pyynnön.
    */
   seat: { keys: ['KeyT'], touch: '⇄', title: 'touch.seatTitle' },
+  /**
+   * Maalla (#457) pääkonteksti on välilyönti kuten heitto: renkaan otto,
+   * lasku maahan ja vesirajassa kyytiin hyppy. Maalta ei heitetä, joten
+   * napit eivät mene ristiin.
+   */
+  pickUp: { keys: ['Space'], touch: 'touch.pickUp', title: 'touch.pickUpTitle', pad: PAD_MAIN },
+  putDown: { keys: ['Space'], touch: 'touch.putDown', title: 'touch.putDownTitle', pad: PAD_MAIN },
+  board: { keys: ['Space'], touch: 'touch.board', title: 'touch.boardTitle', pad: PAD_MAIN },
 
   // Kalastus. Hiiren vasen ja sormi järvellä tähtäävät, heittävät ja kelaavat.
   pointer: { keys: ['Mouse0'], label: 'ctl.mouse', touch: 'ctl.finger' },
@@ -204,13 +212,16 @@ export class Controls {
   }
 }
 
+/** Ison napin toiminto maalla (#457). */
+export type ShoreMain = 'pickUp' | 'putDown' | 'board';
+
 /**
  * Tilannenappien toiminnot kosketuksella: iso nappi, perhon siimanappi ja
  * katkaisunappi tekevät eri asioita kalastuksen vaiheen mukaan.
  */
 export interface ContextActions {
-  /** Iso punainen nappi: HEITÄ, KELAA, VETO tai nostossa NOSTA/HAAVI. */
-  main: 'castForward' | 'reel' | 'strip' | 'haul' | 'land' | 'landNet';
+  /** Iso punainen nappi: HEITÄ, KELAA, VETO, nostossa NOSTA/HAAVI ja maalla OTA/LASKE/KYYTIIN. */
+  main: 'castForward' | 'reel' | 'strip' | 'haul' | 'land' | 'landNet' | ShoreMain;
   /** Perhon nappi: SIIMA heitossa, NOSTA vedestä ja tärpissä, KELALLE kalan kanssa. */
   line: 'lineGrip' | 'lift' | 'reelSlack';
   /** KATKO, heiton aikana PERU, virvelin vapaalla vieheellä ja tärpissä NYKÄISE. */
@@ -222,23 +233,31 @@ export interface ContextActions {
  * (välilyönti tai HEITÄ), jolloin iso nappi on yhä HEITÄ. `tangled`: siima
  * on sotkussa toisen kanssa, ja KATKO katkaisee sen.
  */
-export function contextActions(f: FishingState, rhythm: boolean, tangled = false): ContextActions {
+export function contextActions(
+  f: FishingState,
+  rhythm: boolean,
+  tangled = false,
+  /** Maalla (#457): pääkonteksti renkaalle; null = maalla, mutta rengas ei ulotu. */
+  shore?: ShoreMain | null,
+): ContextActions {
   const fly = isFly(f.tackle);
   const inHand = fly && !f.onReel;
   const casting = f.stage === 'casting';
   const free = f.hookedId === null && f.struckId === null && f.snag === null && !f.onLand;
   return {
-    main: f.landing
-      ? f.landing.net
-        ? 'landNet'
-        : 'land'
-      : f.stage === 'idle' || f.stage === 'charging' || (casting && rhythm)
-        ? 'castForward'
-        : casting
-          ? 'haul'
-          : inHand && f.stage === 'water'
-            ? 'strip'
-            : 'reel',
+    main: shore
+      ? shore
+      : f.landing
+        ? f.landing.net
+          ? 'landNet'
+          : 'land'
+        : f.stage === 'idle' || f.stage === 'charging' || (casting && rhythm)
+          ? 'castForward'
+          : casting
+            ? 'haul'
+            : inHand && f.stage === 'water'
+              ? 'strip'
+              : 'reel',
     // Tärpissä NOSTA on vastaisku (#399).
     line:
       f.stage !== 'water'

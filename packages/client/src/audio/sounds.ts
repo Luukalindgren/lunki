@@ -109,6 +109,11 @@ export const SOUNDS = {
   capsized: { voice: 'capsized' },
   spoutCapsized: { effect: 'wave', voice: 'capsized' },
   landing: { effect: 'splash' },
+  // Rantautuminen (#457): maihin, rengas käteen ja maahan, kyytiin hyppy
+  shoreLanded: { effect: 'paddle' },
+  tubeLifted: { effect: 'tick' },
+  tubeDropped: { effect: 'tick' },
+  boarded: { effect: 'splash' },
 } satisfies Record<string, Sound>;
 
 export type SoundEvent = keyof typeof SOUNDS;

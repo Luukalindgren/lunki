@@ -138,6 +138,18 @@ muut pelaajat: SnapshotBuffer, piirretään 120 ms menneisyydestä
   ja tilastot lasketaan asiakkaalla. Tilastot ovat huvia, ne eivät vaikuta
   tulokseen. Vanhan palvelimen kanssa näkyvät vain omat tilastot. Kaikkien
   kisojen omat yhteistilastot ovat laitteella (`lunki.stats`).
+- **Rantautuminen** (#457, protokolla 12). Renkaalla noustaan maihin
+  potkimalla selkä edellä rantaa vasten noin sekunti (`stepLanding`, kertymä
+  `TubeState.landing`), kun viehe on sisällä. Maalla `TubeState.shore` kertoo
+  renkaan paikan maassa tai kannettuna, ja `pos` on kalastajan paikka, joten
+  kamera, äänet, salama ja muiden näkymä seuraavat kalastajaa. Kävely
+  (`stepShore`) pysyy maalla 5 m kaistalla rantaviivasta (`canStand`, ei
+  laitureille). Pääkonteksti maalla (renkaan otto ja lasku, vesirajassa
+  kyytiin hyppy) on syötteen bitti 64; verkossa `PlayerState.shore…`
+  (`shoreToNet`/`shoreFromNet`). Palvelin päästää maihin vain renkaalla,
+  vieheen ollessa sisällä ja asiakkaan osatessa rantautumisen (`Sim.canLand`).
+  Maalla oleva ei törmää renkaisiin, ei kalasta, eikä salama, iso aalto tai
+  trombi osu häneen. Vanhan palvelimen kanssa ranta on seinä kuten ennen.
 
 ## Testaus viiveellä
 
