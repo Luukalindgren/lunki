@@ -1,9 +1,9 @@
 diff --git a/packages/client/src/dev/proto.ts b/packages/client/src/dev/proto.ts
 new file mode 100644
-index 0000000..a753064
+index 0000000..614d545
 --- /dev/null
 +++ b/packages/client/src/dev/proto.ts
-@@ -0,0 +1,214 @@
+@@ -0,0 +1,298 @@
 +// Täyttökisan ja rantautumisen mallikuvien apu (vain tutkimuskuviin, ei pelikoodia).
 +import * as THREE from 'three';
 +import {
@@ -217,6 +217,90 @@ index 0000000..a753064
 +    if (cover.kindAt(q) === kind) res.push(p);
 +  });
 +  return res;
++}
++
++/**
++ * Seisova käsipumppu (lattiapumppu): jalusta, painemittari, punainen sylinteri,
++ * varsi ja T-kahva. `down` 0 = kahva ylhäällä, 1 = painettu alas. `to` =
++ * letkun pää paikallisissa koordinaateissa (venttiili).
++ */
++export function floorPump(to: THREE.Vector3, down = 0): THREE.Group {
++  const g = new THREE.Group();
++  const black = new THREE.MeshLambertMaterial({ color: 0x1c232b });
++  const red = new THREE.MeshLambertMaterial({ color: 0xd23a2a });
++  const grey = new THREE.MeshLambertMaterial({ color: 0xc3cbd2 });
++  const white = new THREE.MeshLambertMaterial({ color: 0xeef2f3 });
++  // Jalusta ja jalkalevyt.
++  const base = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.05, 0.3), black);
++  base.position.y = 0.025;
++  g.add(base);
++  const plate = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.02, 0.12), black);
++  for (const z of [-0.2, 0.2]) {
++    const p = plate.clone();
++    p.position.set(0, 0.01, z);
++    g.add(p);
++  }
++  // Painemittari jalustan etupuolella.
++  const gauge = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.03, 10), white);
++  gauge.rotation.z = Math.PI / 2;
++  gauge.position.set(0.08, 0.08, 0);
++  g.add(gauge);
++  const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.065, 0.02, 10), red);
++  ring.rotation.z = Math.PI / 2;
++  ring.position.set(0.07, 0.08, 0);
++  g.add(ring);
++  // Sylinteri ja varsi.
++  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.56, 8), red);
++  barrel.position.y = 0.33;
++  g.add(barrel);
++  const top = 0.78 - 0.24 * down;
++  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, top - 0.6, 6), grey);
++  shaft.position.y = (top + 0.6) / 2;
++  g.add(shaft);
++  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.045, 0.34), black);
++  handle.position.y = top;
++  g.add(handle);
++  // Letku sylinterin juuresta venttiiliin.
++  const from = new THREE.Vector3(0, 0.12, 0.04);
++  const mid = new THREE.Vector3((from.x + to.x) / 2, 0.03, (from.z + to.z) / 2 + 0.2);
++  g.add(
++    new THREE.Mesh(
++      new THREE.TubeGeometry(new THREE.CatmullRomCurve3([from, mid, to]), 14, 0.018, 4),
++      black,
++    ),
++  );
++  return g;
++}
++
++/** Kädet pumpun kahvalla (POV): kämmenet ja kyynärvarret kameraan päin. */
++export function handsOnHandle(skin: number, sleeve: number, top: number): THREE.Group {
++  const g = new THREE.Group();
++  const s = new THREE.MeshLambertMaterial({ color: skin });
++  const sl = playerColorMaterial(sleeve);
++  for (const z of [-0.11, 0.11]) {
++    const hand = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.07, 0.09), s);
++    hand.position.set(0, top + 0.03, z);
++    g.add(hand);
++    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.09, 0.09), sl);
++    arm.position.set(0.16, top + 0.16, z * 1.3);
++    arm.rotation.z = 0.8;
++    g.add(arm);
++  }
++  return g;
++}
++
++export { createBoatMesh } from '../game/boatView';
++
++/** Äyskäri (kauha) kalastajan käteen. */
++export function bailer(): THREE.Group {
++  const g = new THREE.Group();
++  const m = new THREE.MeshLambertMaterial({ color: 0xf08a2c });
++  const cup = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12, 0.16), m);
++  g.add(cup);
++  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.03, 0.03), m);
++  handle.position.set(-0.16, 0.04, 0);
++  g.add(handle);
++  return g;
 +}
 diff --git a/packages/client/src/main.ts b/packages/client/src/main.ts
 index 91d5c37..11e1b9d 100644
