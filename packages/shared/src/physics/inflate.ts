@@ -3,15 +3,15 @@ import { STAMINA, staminaThrust, type TubeInput } from './tube';
 
 /**
  * Täyttökisa (#458): kisa alkaa rannalta tyhjällä renkaalla. Seisovalla
- * käsipumpulla täytetään kolme ponttoonia järjestyksessä (vasen kylki, oikea
- * kylki, pohja). Pääkonteksti (välilyönti, A/✕, PUMPPAA) on yksi veto:
+ * käsipumpulla täytetään kolme ponttoonia järjestyksessä (U:n vasen ja oikea
+ * puolisko, niiden välissä istuin). Pääkonteksti (välilyönti, A/✕, PUMPPAA) on yksi veto:
  * kahva nousee takaisin noin 0,25 s:ssa, ja kesken nousun painettu veto on
  * vajaa. Täyden ponttoonin jälkeen letku siirretään seuraavaan nuolisarjalla;
  * väärä nuoli irrottaa letkun, sarja alkaa alusta, ja täytetystä ponttoonista
  * karkaa vähän ilmaa. Jaettu asiakkaan ja palvelimen kesken.
  */
 export interface InflateState {
-  /** Ponttoonien täyttö 0–1: vasen kylki, oikea kylki, pohja. */
+  /** Ponttoonien täyttö 0–1: vasen puolisko, oikea puolisko, istuin. */
   fill: [number, number, number];
   /** Ponttooni, jossa letku on (tai josta sitä siirretään). */
   valve: number;
@@ -29,7 +29,7 @@ export interface InflateState {
 export const Arrow = { none: 0, up: 1, down: 2, left: 3, right: 4 } as const;
 
 export const INFLATE = {
-  /** Täysiä vetoja ponttoonia kohden: kyljet ja pohja (Luuka: noin 75 yhteensä on sopiva). */
+  /** Täysiä vetoja ponttoonia kohden: puoliskot ja istuin (Luuka: noin 75 yhteensä on sopiva). */
   strokes: [30, 30, 15],
   /** Kahva nousee alhaalta ylös (s). */
   handleTime: 0.25,
@@ -42,7 +42,7 @@ export const INFLATE = {
   leakStrokes: 3,
 } as const;
 
-/** Uusi tyhjä rengas, letku vasemmassa kyljessä. */
+/** Uusi tyhjä rengas, letku vasemmassa puoliskossa. */
 export const createInflate = (seed: number): InflateState => ({
   fill: [0, 0, 0],
   valve: 0,
@@ -52,7 +52,7 @@ export const createInflate = (seed: number): InflateState => ({
   seed: seed >>> 0,
 });
 
-/** Letkun siirron `k` (0 = kyljestä toiseen, 1 = pohjaan) nuolisarja kisan siemenestä. */
+/** Letkun siirron `k` (0 = puoliskosta toiseen, 1 = istuimeen) nuolisarja kisan siemenestä. */
 export function inflateSequence(
   seed: number,
   k: number,

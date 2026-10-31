@@ -863,9 +863,9 @@ export const fi = {
   'game.inflateSlipped': 'Letku irtosi! Ilmaa karkasi, siirrä uudelleen.',
   'game.inflateAfloat': 'Vesillä! Aika {time}.',
   'game.inflateAfloatPlace': 'Vesillä sijalla {place}! Aika {time}.',
-  'game.pontoonLeft': 'vasen kylki',
-  'game.pontoonRight': 'oikea kylki',
-  'game.pontoonFloor': 'pohja',
+  'game.pontoonLeft': 'vasen puolisko',
+  'game.pontoonRight': 'oikea puolisko',
+  'game.pontoonFloor': 'istuin',
   'game.bailScoop': 'Äyskäröi {bail}: vettä {part} {pct} % (koko veneessä {total} %)',
   'game.bailMove': 'Siirry {part}. Nuolet {arrows}',
   'game.bailSpilled': 'Vettä loiskahti takaisin! Aloita siirtyminen alusta.',
@@ -1030,7 +1030,7 @@ export const fi = {
     'Maihin pääsee mihin tahansa rantaan: kelaa viehe sisään ja potki selkä edellä ({back}) rantaa vasten noin {land} s.\nMaalla kävellään {forward|back} ja käännytään {turn} enintään {band} m päähän rantaviivasta. Laiturille ei kävellä.\nRengas jää rantaan: {pickUp} ottaa sen mukaan tai laskee maahan, ja vesirajassa rengas kädessä {board} hyppää kyytiin.\nMaalta ei kalasteta. Maalla on turvassa salamalta, isoilta aalloilta ja trombilta.',
   'manual.move.inflate': 'Täyttökisa',
   'manual.move.inflateText':
-    'Täyttökisa valitaan kisan säännöistä (Kisan alku). Kaikki aloittavat rivistä rannalta tyhjän renkaan ja seisovan käsipumpun ääressä, ja kisakello käy jo pumpatessa.\n{pump} on yksi veto. Kahva nousee takaisin noin {handle} s:ssa: kesken nousun painettu veto jää vajaaksi, joten tasainen rytmi voittaa. Vedot vievät kuntoa.\nKyljet täyttyvät {side} vedolla ja pohja {floor} vedolla. Täyden ponttoonin jälkeen letku siirretään seuraavaan nuolisarjalla ({forward}, {back} ja {turn}). Väärä nuoli irrottaa letkun: sarja alkaa alusta ja ponttoonista karkaa noin {leak} vedon verran ilmaa.\nKun rengas on täynnä, ota se mukaan ja hyppää vesirajassa kyytiin. Kisan tuloksissa nopein saa palkinnon Nopein täyttäjä.\nVeneet ovat rannalla vettä täynnä. {bail} on yksi kauhallinen, ja keula ja perä äyskäröidään erikseen: tyhjästä osasta siirrytään toiseen nuolisarjalla. Vettä on venekunnan koon mukaan, joten jokainen tekee noin renkaan verran työtä. Tyhjä vene työnnetään vesille ja airot kiinnitetään, kumpikin nuolisarjalla, jonka kuka tahansa venekunnasta voi tehdä.',
+    'Täyttökisa valitaan kisan säännöistä (Kisan alku). Kaikki aloittavat rivistä rannalta tyhjän renkaan ja seisovan käsipumpun ääressä, ja kisakello käy jo pumpatessa.\n{pump} on yksi veto. Kahva nousee takaisin noin {handle} s:ssa: kesken nousun painettu veto jää vajaaksi, joten tasainen rytmi voittaa. Vedot vievät kuntoa.\nRenkaan U on kahtena puoliskona, ja niiden välissä on istuin. Puoliskot täyttyvät {side} vedolla ja istuin {floor} vedolla. Täyden ponttoonin jälkeen letku siirretään seuraavaan nuolisarjalla ({forward}, {back} ja {turn}). Väärä nuoli irrottaa letkun: sarja alkaa alusta ja ponttoonista karkaa noin {leak} vedon verran ilmaa.\nKun rengas on täynnä, ota se mukaan ja hyppää vesirajassa kyytiin. Kisan tuloksissa nopein saa palkinnon Nopein täyttäjä.\nVeneet ovat rannalla vettä täynnä. {bail} on yksi kauhallinen, ja keula ja perä äyskäröidään erikseen: tyhjästä osasta siirrytään toiseen nuolisarjalla. Vettä on venekunnan koon mukaan, joten jokainen tekee noin renkaan verran työtä. Tyhjä vene työnnetään vesille ja airot kiinnitetään, kumpikin nuolisarjalla, jonka kuka tahansa venekunnasta voi tehdä.',
   'manual.move.boat': 'Vene',
   'manual.move.boatText':
     'Yksinpelin asetuksissa voi lähteä veneellä renkaan sijaan. Moninpelin aulassa voi valita oman veneen tai mennä toisen kyytiin. Veneessä on soutaja ja enintään kaksi kalastajaa, ja venekunta on yksi joukkue.\nSoutaja: {back} = souda, {forward} = huopaa, {turn} = käännä venettä.\n{oars} = airot tai vapa. Heittäessä ja kelatessa ei voi soutaa, mutta viehe vedessä voi uistella.\n{seat} = vaihda paikkaa, kun vene on lähes paikallaan.',

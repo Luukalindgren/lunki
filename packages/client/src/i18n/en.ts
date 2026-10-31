@@ -858,9 +858,9 @@ export const en: Record<keyof typeof fi, string> = {
   'game.inflateSlipped': 'The hose slipped! Some air escaped, move it again.',
   'game.inflateAfloat': 'Afloat! Time {time}.',
   'game.inflateAfloatPlace': 'Afloat in place {place}! Time {time}.',
-  'game.pontoonLeft': 'left side',
-  'game.pontoonRight': 'right side',
-  'game.pontoonFloor': 'floor',
+  'game.pontoonLeft': 'left half',
+  'game.pontoonRight': 'right half',
+  'game.pontoonFloor': 'seat',
   'game.bailScoop': 'Bail {bail}: water {part} {pct} % (whole boat {total} %)',
   'game.bailMove': 'Move {part}. Arrows {arrows}',
   'game.bailSpilled': 'Water sloshed back! Start moving again.',
@@ -1026,7 +1026,7 @@ export const en: Record<keyof typeof fi, string> = {
     'You can go ashore anywhere: reel in the lure and kick backwards ({back}) against the shore for about {land} s.\nOn land you walk {forward|back} and turn {turn} up to {band} m from the waterline. You cannot walk onto piers.\nThe float tube stays on the shore: {pickUp} picks it up or puts it down, and at the waterline with the tube in hand {board} jumps in.\nNo fishing from land. On land you are safe from lightning, big waves and waterspouts.',
   'manual.move.inflate': 'Inflation contest',
   'manual.move.inflateText':
-    "The inflation contest is chosen in the competition rules (Start). Everyone starts in a row on the shore next to a flat float tube and a standing hand pump, and the clock is already running while you pump.\n{pump} is one stroke. The handle takes about {handle} s to rise again: a stroke pressed before it is up is only partial, so a steady rhythm wins. Strokes use stamina.\nThe sides fill in {side} strokes and the floor in {floor}. When a pontoon is full, move the hose to the next one with an arrow sequence ({forward}, {back} and {turn}). A wrong arrow pulls the hose off: the sequence starts over and about {leak} strokes of air escape.\nWhen the tube is full, pick it up and jump in at the waterline. In the results the fastest one gets the Fastest inflater award.\nBoats lie on the shore full of water. {bail} is one scoop, and the bow and stern are bailed separately: from an empty part you move to the other with an arrow sequence. The amount of water depends on the crew size, so everyone does about one tube's worth of work. The empty boat is pushed into the water and the oars are fitted, each with an arrow sequence that anyone in the crew can do.",
+    "The inflation contest is chosen in the competition rules (Start). Everyone starts in a row on the shore next to a flat float tube and a standing hand pump, and the clock is already running while you pump.\n{pump} is one stroke. The handle takes about {handle} s to rise again: a stroke pressed before it is up is only partial, so a steady rhythm wins. Strokes use stamina.\nThe U of the tube is two halves with the seat between them. The halves fill in {side} strokes and the seat in {floor}. When a pontoon is full, move the hose to the next one with an arrow sequence ({forward}, {back} and {turn}). A wrong arrow pulls the hose off: the sequence starts over and about {leak} strokes of air escape.\nWhen the tube is full, pick it up and jump in at the waterline. In the results the fastest one gets the Fastest inflater award.\nBoats lie on the shore full of water. {bail} is one scoop, and the bow and stern are bailed separately: from an empty part you move to the other with an arrow sequence. The amount of water depends on the crew size, so everyone does about one tube's worth of work. The empty boat is pushed into the water and the oars are fitted, each with an arrow sequence that anyone in the crew can do.",
   'manual.move.boat': 'Boat',
   'manual.move.boatText':
     "In the single-player settings you can go out in a boat instead of a float tube. In the multiplayer lobby you can take your own boat or board someone else's. A boat has a rower and up to two anglers, and its crew is one team.\nRower: {back} = row, {forward} = back water, {turn} = turn the boat.\n{oars} = oars or rod. You cannot row while casting or reeling, but with the lure in the water you can troll.\n{seat} = change seats when the boat is nearly still.",

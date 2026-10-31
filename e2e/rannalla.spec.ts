@@ -63,15 +63,15 @@ test('täyttökisa: pumppaus ja letkun siirto', async ({ page }) => {
   await raceRunning(page);
   const situation = page.locator('.hud-situation');
   await expect(situation).toContainText('Pumppaa');
-  await expect(situation).toContainText('vasen kylki');
+  await expect(situation).toContainText('vasen puolisko');
 
-  // Pumppaa, kunnes kylki on täynnä ja ohje pyytää siirtämään letkun.
+  // Pumppaa, kunnes puolisko on täynnä ja ohje pyytää siirtämään letkun.
   // Liian tiheät vedot ovat vajaita, joten painallusten määrä vaihtelee.
   for (let i = 0; i < 3000; i++) {
     if ((await situation.innerText()).includes('Siirrä letku')) break;
     await page.keyboard.press('Space');
   }
-  await expect(situation).toContainText('Siirrä letku: oikea kylki');
+  await expect(situation).toContainText('Siirrä letku: oikea puolisko');
 
   const keys: Record<string, string> = { '↑': 'KeyW', '↓': 'KeyS', '←': 'KeyA', '→': 'KeyD' };
   const arrows = (await situation.innerText()).split('Nuolet ')[1]!.split(' ');
@@ -85,7 +85,7 @@ test('täyttökisa: pumppaus ja letkun siirto', async ({ page }) => {
           .join(' '),
       );
   }
-  await expect(situation).toContainText('oikea kylki 0 %');
+  await expect(situation).toContainText('oikea puolisko 0 %');
   errors.check();
 });
 
