@@ -9,8 +9,15 @@ import {
 import { toWorld } from '../world/lakeMesh';
 import { REST_POSE, bendRod, type RodPose } from './rodMotion';
 
-/** Räpylöiden lepokohta renkaan etureunan edessä (paikallinen x). */
+/** Räpylöiden lepokohta renkaan etureunan edessä (paikallinen x), korkeus ja pituus. */
 const FIN_X = TUBE_RADIUS + 0.15;
+const FIN_Y = 0.05;
+const FIN_LENGTH = 0.5;
+/** Vartalon yläreuna istuimesta (hartioiden alareuna on 0,45 m). */
+const TORSO_TOP = 0.46;
+/** Renkaassa polvet siimatason alla ja jalkojen etäisyys keskilinjasta. */
+const KNEE = { x: 0.4, y: 0.2 };
+const LEG_Z = 0.18;
 /** Renkaan putken keskilinjan säde ja putken paksuus (säde). */
 const TUBE_CENTER = TUBE_RADIUS * 0.72;
 const TUBE_THICK = TUBE_RADIUS * 0.28;
@@ -83,22 +90,41 @@ export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THR
   cap.position.set(0.2, 1.0, 0);
   group.add(cap);
 
-  // Sääret istuimelta eteen renkaan yli ja räpylät niiden päässä
+  // Vartalo hartioista istuimelle: sama renkaassa ja veneen tuhdolla, jotta
+  // muiden silmin hartioiden alta ei näy läpi.
+  const torso = new THREE.Mesh(
+    new THREE.BoxGeometry(0.26, TORSO_TOP, 0.56),
+    new THREE.MeshLambertMaterial({ color: appearance.shirt }),
+  );
+  torso.name = 'shirt';
+  torso.position.y = TORSO_TOP / 2;
+  group.add(torso);
+
+  // Renkaassa reidet istuimelta eteen siimatason alle ja sääret polvista
+  // viistosti alas räpylöihin (animateFins kääntää säären räpylän perään).
   const legMat = new THREE.MeshLambertMaterial({ color: 0x3b4630 });
   const finMat = new THREE.MeshLambertMaterial({ color: appearance.fins });
-  for (const z of [-0.2, 0.2]) {
-    const leg = new THREE.Mesh(new THREE.BoxGeometry(TUBE_RADIUS - 0.1, 0.14, 0.14), legMat);
-    leg.position.set((TUBE_RADIUS + 0.2) / 2, 0.12, z);
-    leg.name = 'leg';
-    group.add(leg);
-    const fin = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.05, 0.22), finMat);
-    fin.position.set(FIN_X, 0.05, z);
+  for (const z of [-LEG_Z, LEG_Z]) {
+    const thigh = new THREE.Mesh(new THREE.BoxGeometry(KNEE.x + 0.04, 0.14, 0.16), legMat);
+    thigh.position.set((KNEE.x - 0.04) / 2, KNEE.y, z);
+    thigh.name = 'leg';
+    group.add(thigh);
+    const shinGeometry = new THREE.BoxGeometry(1, 0.13, 0.13);
+    shinGeometry.translate(0.5, 0, 0);
+    const shin = new THREE.Group();
+    shin.name = 'leg';
+    shin.userData.shin = true;
+    shin.position.set(KNEE.x, KNEE.y, z);
+    shin.add(new THREE.Mesh(shinGeometry, legMat));
+    group.add(shin);
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(FIN_LENGTH, 0.05, 0.22), finMat);
+    fin.position.set(FIN_X, FIN_Y, z);
     fin.name = 'fin';
     group.add(fin);
   }
 
-  // Veneessä istuva alavartalo (#263): renkaassa sen peittää rengas ja siimataso.
-  for (const part of createSeatedBody(appearance.shirt, legMat)) group.add(part);
+  // Veneessä istuvan jalat (#263): reidet tuhdolta eteen ja sääret pohjaan.
+  for (const part of createSeatedLegs(legMat)) group.add(part);
 
   // Kädet käsimerkkejä varten (#228): vasen on vapaa, oikea pitää vapaa.
   const skin = new THREE.MeshLambertMaterial({ color: SKIN });
@@ -116,6 +142,7 @@ export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THR
   aimRod(group);
 
   setSeated(group, false);
+  animateFins(group, 0);
   return group;
 }
 
@@ -258,18 +285,11 @@ export const SEATED_LIFT = 0.3;
 const BOAT_FLOOR = 0.1 - SEATED_LIFT;
 
 /**
- * Tuhdolla istuvan vartalo ja jalat laatikoina: vartalo hartioista
- * istuimelle, reidet eteen ja sääret alas veneen pohjaan, jotta kalastaja
- * ei leiju. Piilossa renkaassa (setSeated).
+ * Tuhdolla istuvan jalat laatikoina: reidet eteen ja sääret alas veneen
+ * pohjaan, jotta kalastaja ei leiju. Piilossa renkaassa (setSeated).
  */
-function createSeatedBody(shirt: number, legMat: THREE.Material): THREE.Mesh[] {
-  const torso = new THREE.Mesh(
-    new THREE.BoxGeometry(0.26, 0.43, 0.56),
-    new THREE.MeshLambertMaterial({ color: shirt }),
-  );
-  torso.name = 'shirt';
-  torso.position.y = 0.235;
-  const parts: THREE.Mesh[] = [torso];
+function createSeatedLegs(legMat: THREE.Material): THREE.Mesh[] {
+  const parts: THREE.Mesh[] = [];
   const boot = new THREE.MeshLambertMaterial({ color: 0x2a2622 });
   for (const z of [-0.13, 0.13]) {
     const thigh = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.14, 0.16), legMat);
@@ -294,15 +314,24 @@ export function setSeated(group: THREE.Group, seated: boolean): void {
 
 const TUBE_PARTS = new Set(['tube', 'fin', 'apron', 'leg']);
 
-/** Heiluttaa räpylöitä potkurytmin mukaan. */
+/** Heiluttaa räpylöitä potkurytmin mukaan; sääret seuraavat räpylän perää. */
 export function animateFins(group: THREE.Group, kickPhase: number): void {
-  let i = 0;
+  let fins = 0;
+  let shins = 0;
   for (const child of group.children) {
-    if (child.name !== 'fin') continue;
-    const swing = Math.sin((kickPhase + i * 0.5) * Math.PI * 2) * 0.25;
-    child.position.x = FIN_X + swing;
-    i++;
+    if (child.name === 'fin') {
+      child.position.x = finX(kickPhase, fins++);
+    } else if (child.userData.shin) {
+      const dx = finX(kickPhase, shins++) - FIN_LENGTH * 0.4 - KNEE.x;
+      const dy = FIN_Y + 0.02 - KNEE.y;
+      child.rotation.z = Math.atan2(dy, dx);
+      child.scale.x = Math.hypot(dx, dy);
+    }
   }
+}
+
+function finX(kickPhase: number, i: number): number {
+  return FIN_X + Math.sin((kickPhase + i * 0.5) * Math.PI * 2) * 0.25;
 }
 
 /** Vaihtaa renkaan, räpylöiden ja paidan värit (räpylät jakavat materiaalin). */
