@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { DEFAULT_APPEARANCE, EMOTE_DURATION, type Appearance, type EmoteId } from '@lunki/shared';
 import { emoteIcon } from '../ui/emoteIcons';
-import { playerColorMaterial, setPlayerColor } from './tubeMesh';
+import { playerColorMaterial, setPlayerColor } from './playerColor';
 
 /**
  * Kalastajan silmin näkyvä kelluntarengas (#230): U-muotoisen renkaan
