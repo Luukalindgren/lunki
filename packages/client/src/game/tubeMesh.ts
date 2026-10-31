@@ -26,6 +26,9 @@ const TUBE_THICK = TUBE_RADIUS * 0.28;
 export const PONTOON_TIP = TUBE_RADIUS * 0.7;
 /** Renkaan putken keskilinjan korkeus. */
 export const TUBE_LIFT = 0.15;
+/** Istuinponttooni: keskikohta (x), alareuna (y), pituus ja paksuus (m). */
+export const SEAT = { x: -0.18, y: -0.02, length: 0.46, height: 0.14 } as const;
+const SEAT_COLOR = 0x5f6b78;
 
 /**
  * U-muotoinen kelluntarengas ja kalastaja ylhäältä katsottuna. Paikallisessa
@@ -39,27 +42,42 @@ export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THR
 
   // U-muotoinen rengas: kaari kalastajan takana ja sivuponttoonit, joiden
   // kärjet jatkuvat siimatason ohi eteen. Etupää on avoin jaloille.
+  // Täyttökisan ponttoonit (#458, Luuka): U on jaettu keskeltä kahdeksi
+  // peilikuvapuoliskoksi (0 vasen, 1 oikea: puolet takakaaresta, kylki ja
+  // kärki), ja niiden välissä on istuin (2).
   const tubeMat = playerColorMaterial(appearance.tube);
-  const back = new THREE.TorusGeometry(TUBE_CENTER, TUBE_THICK, 6, 8, Math.PI);
-  back.rotateZ(Math.PI / 2);
-  back.rotateX(-Math.PI / 2);
-  const parts: THREE.BufferGeometry[] = [back];
-  for (const z of [-TUBE_CENTER, TUBE_CENTER]) {
-    const pontoon = new THREE.CylinderGeometry(TUBE_THICK, TUBE_THICK, PONTOON_TIP, 6);
-    pontoon.rotateZ(Math.PI / 2);
-    pontoon.translate(PONTOON_TIP / 2, 0, z);
+  for (const [k, z] of [
+    [0, -TUBE_CENTER],
+    [1, TUBE_CENTER],
+  ] as const) {
+    // Neljännes takakaaresta: kaari alkaa kyljestä (k 0) tai takaa (k 1).
+    const arc = new THREE.TorusGeometry(TUBE_CENTER, TUBE_THICK, 6, 4, Math.PI / 2);
+    arc.rotateZ(Math.PI / 2 + (k * Math.PI) / 2);
+    arc.rotateX(-Math.PI / 2);
+    const side = new THREE.CylinderGeometry(TUBE_THICK, TUBE_THICK, PONTOON_TIP, 6);
+    side.rotateZ(Math.PI / 2);
+    side.translate(PONTOON_TIP / 2, 0, z);
     const tip = new THREE.SphereGeometry(TUBE_THICK, 6, 4);
     tip.translate(PONTOON_TIP, 0, z);
-    parts.push(pontoon, tip);
+    for (const geometry of [arc, side, tip]) {
+      const part = new THREE.Mesh(geometry, tubeMat);
+      part.name = 'tube';
+      part.userData.pontoon = k;
+      part.position.y = TUBE_LIFT;
+      group.add(part);
+    }
   }
-  parts.forEach((geometry, i) => {
-    const part = new THREE.Mesh(geometry, tubeMat);
-    part.name = 'tube';
-    // Täyttökisan ponttoonit (#458): 0 vasen kylki, 1 oikea kylki, 2 takakaari (pohja).
-    part.userData.pontoon = i === 0 ? 2 : i <= 2 ? 0 : 1;
-    part.position.y = TUBE_LIFT;
-    group.add(part);
-  });
+  // Istuin puoliskojen välissä takakaaren edessä: kalastaja istuu sen päällä.
+  // Tumma kangas erottuu renkaan väristä, kun se lässähtää ja täyttyy.
+  const seat = new THREE.Mesh(
+    new THREE.BoxGeometry(SEAT.length, SEAT.height, (TUBE_CENTER - TUBE_THICK * 0.6) * 2),
+    playerColorMaterial(SEAT_COLOR),
+  );
+  seat.geometry.translate(0, SEAT.height / 2, 0);
+  seat.name = 'seat';
+  seat.userData.pontoon = 2;
+  seat.position.set(SEAT.x, SEAT.y, 0);
+  group.add(seat);
 
   // Siimataso reisien päällä ponttoonien välissä, kuten POV-näkymässä.
   const apronTo = PONTOON_TIP - TUBE_THICK * 0.6;
@@ -353,7 +371,7 @@ export function setSeated(group: THREE.Group, seated: boolean): void {
   }
 }
 
-const TUBE_PARTS = new Set(['tube', 'fin', 'apron', 'leg']);
+const TUBE_PARTS = new Set(['tube', 'seat', 'fin', 'apron', 'leg']);
 
 /** Heiluttaa räpylöitä potkurytmin mukaan; sääret seuraavat räpylän perää. */
 export function animateFins(group: THREE.Group, kickPhase: number): void {

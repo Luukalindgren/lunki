@@ -9,7 +9,14 @@ import {
 } from '@lunki/shared';
 import { toWorld } from '../world/lakeMesh';
 import type { BailPose } from '../net/netWorld';
-import { PONTOON_TIP, TUBE_CENTER, TUBE_LIFT, applyAppearance, createTubeMesh } from './tubeMesh';
+import {
+  PONTOON_TIP,
+  SEAT,
+  TUBE_CENTER,
+  TUBE_LIFT,
+  applyAppearance,
+  createTubeMesh,
+} from './tubeMesh';
 import { playerColorMaterial } from './playerColor';
 import { groundRest } from './groundRest';
 
@@ -40,7 +47,7 @@ export const STANDING_EYE = 1.6;
 const FLAT = 0.2;
 /** Äyskäröijä kumartuu kauhaistessa (m). */
 const BAIL_DIP = 0.25;
-/** Tyhjän sivuponttoonin leveneminen (osuus paksuudesta). */
+/** Tyhjän puoliskon leveneminen (osuus paksuudesta). */
 const SPREAD = 0.6;
 /** Käsipumppu kalastajan edessä (m) ja kahvan liike (#458). */
 const PUMP = { ahead: 0.45, barrel: 0.55, rodLow: 0.62, rodHigh: 0.98, dip: 0.18 } as const;
@@ -48,7 +55,7 @@ const PUMP = { ahead: 0.45, barrel: 0.55, rodLow: 0.62, rodHigh: 0.98, dip: 0.18
 const VALVES: readonly Vec2[] = [
   { x: PONTOON_TIP * 0.5, y: -TUBE_CENTER },
   { x: PONTOON_TIP * 0.5, y: TUBE_CENTER },
-  { x: -TUBE_CENTER, y: 0 },
+  { x: SEAT.x, y: 0 },
 ];
 
 /** Maalla olevan kalastajan asento piirtohetkellä (#457). */
@@ -85,17 +92,13 @@ export class AshoreFigure {
   constructor(appearance: Appearance = DEFAULT_APPEARANCE) {
     const src = createTubeMesh(appearance);
     for (const c of [...src.children]) {
-      if (c.name === 'tube' || c.name === 'apron') {
+      if (c.name === 'tube' || c.name === 'seat' || c.name === 'apron') {
         this.tube.add(c);
         const k = c.userData.pontoon as number | undefined;
         if (k !== undefined) {
           const m = c as THREE.Mesh;
-          // Sivuponttoonin oma keskilinja nivelkohdaksi: tyhjänä se lässähtää leveäksi.
-          if (k < 2) {
-            const z = k === 0 ? -TUBE_CENTER : TUBE_CENTER;
-            m.geometry.translate(0, 0, -z);
-            m.position.z = z;
-          }
+          // Puoliskon kärjet muistiin: tyhjänä se lässähtää keskilinjansa ympäriltä leveäksi.
+          if (k < 2) m.userData.deflate = deflateBase(m.geometry, k === 0 ? -1 : 1);
           this.pontoons[k]!.push(m);
         }
       } else if (c.name === 'leg' || c.name === 'fin' || c.name === 'rod' || c.userData.seated)
@@ -198,10 +201,9 @@ export class AshoreFigure {
     this.pontoons.forEach((parts, i) => {
       const k = f ? FLAT + (1 - FLAT) * f.fill[i]! : 1;
       for (const m of parts) {
-        m.scale.y = k;
-        // Ylhäältäkin näkyy: tyhjä kylki on litteä ja leveä.
-        if (i < 2) m.scale.z = 1 + (1 - k) * SPREAD;
-        m.position.y = TUBE_LIFT * k;
+        // Ylhäältäkin näkyy: tyhjä puolisko on litteä ja leveä, istuin litteä.
+        if (i < 2) deflate(m, k);
+        else m.scale.y = k;
       }
     });
     this.pump.visible = this.hose.visible = !!f;
@@ -273,6 +275,63 @@ export class AshoreFigure {
       m.geometry?.dispose();
     });
   }
+}
+
+/** Tyhjän puoliskon kärjet: alkuperäinen paikka ja lähin kohta putken keskilinjalla. */
+interface DeflateBase {
+  base: Float32Array;
+  center: Float32Array;
+  /** Viimeksi piirretty täyttö (ei turhia päivityksiä). */
+  k: number;
+}
+
+/**
+ * Kärkien keskilinja U:n puoliskossa (`side` -1 vasen, 1 oikea): takakaaren
+ * osalla lähin kohta kaarella, kyljessä ja kärjessä kyljen akselilla.
+ */
+function deflateBase(geometry: THREE.BufferGeometry, side: number): DeflateBase {
+  const pos = geometry.getAttribute('position') as THREE.BufferAttribute;
+  const base = new Float32Array(pos.array as ArrayLike<number>);
+  const center = new Float32Array(base.length);
+  for (let i = 0; i < pos.count; i++) {
+    const x = base[i * 3]!;
+    const z = base[i * 3 + 2]!;
+    if (x < 0) {
+      const l = Math.hypot(x, z) || 1;
+      center[i * 3] = (x / l) * TUBE_CENTER;
+      center[i * 3 + 2] = (z / l) * TUBE_CENTER;
+    } else {
+      center[i * 3] = Math.min(x, PONTOON_TIP);
+      center[i * 3 + 2] = side * TUBE_CENTER;
+    }
+  }
+  return { base, center, k: 1 };
+}
+
+/**
+ * Puolisko täytön `k` mukaan (FLAT … 1): putki litistyy keskilinjansa
+ * ympäriltä matalaksi ja leveäksi ja painuu maahan.
+ */
+function deflate(m: THREE.Mesh, k: number): void {
+  const d = m.userData.deflate as DeflateBase;
+  m.position.y = TUBE_LIFT * k;
+  if (d.k === k) return;
+  d.k = k;
+  const spread = 1 + (1 - k) * SPREAD;
+  const pos = m.geometry.getAttribute('position') as THREE.BufferAttribute;
+  for (let i = 0; i < pos.count; i++) {
+    const j = i * 3;
+    const cx = d.center[j]!;
+    const cz = d.center[j + 2]!;
+    pos.setXYZ(
+      i,
+      cx + (d.base[j]! - cx) * spread,
+      d.base[j + 1]! * k,
+      cz + (d.base[j + 2]! - cz) * spread,
+    );
+  }
+  pos.needsUpdate = true;
+  m.geometry.computeBoundingSphere();
 }
 
 /**
