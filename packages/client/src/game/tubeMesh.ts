@@ -36,7 +36,7 @@ export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THR
 
   // U-muotoinen rengas: kaari kalastajan takana ja sivuponttoonit, joiden
   // kärjet jatkuvat siimatason ohi eteen. Etupää on avoin jaloille.
-  const tubeMat = new THREE.MeshLambertMaterial({ color: appearance.tube });
+  const tubeMat = playerColorMaterial(appearance.tube);
   const back = new THREE.TorusGeometry(TUBE_CENTER, TUBE_THICK, 6, 8, Math.PI);
   back.rotateZ(Math.PI / 2);
   back.rotateX(-Math.PI / 2);
@@ -67,10 +67,8 @@ export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THR
   group.add(apron);
 
   // Hartiat poikittain katsesuuntaan nähden
-  const shoulders = new THREE.Mesh(
-    new THREE.BoxGeometry(0.3, 0.3, 0.75),
-    new THREE.MeshLambertMaterial({ color: appearance.shirt }),
-  );
+  const shirtMat = playerColorMaterial(appearance.shirt);
+  const shoulders = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.75), shirtMat);
   shoulders.name = 'shirt';
   shoulders.position.y = 0.6;
   group.add(shoulders);
@@ -82,20 +80,11 @@ export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THR
   head.position.set(0.04, 0.9, 0);
   group.add(head);
 
-  // Lippalakin lippa näyttää katsesuunnan
-  const cap = new THREE.Mesh(
-    new THREE.BoxGeometry(0.18, 0.04, 0.2),
-    new THREE.MeshLambertMaterial({ color: 0xf6d04d }),
-  );
-  cap.position.set(0.2, 1.0, 0);
-  group.add(cap);
+  for (const part of createHat(shirtMat)) group.add(part);
 
   // Vartalo hartioista istuimelle: sama renkaassa ja veneen tuhdolla, jotta
   // muiden silmin hartioiden alta ei näy läpi.
-  const torso = new THREE.Mesh(
-    new THREE.BoxGeometry(0.26, TORSO_TOP, 0.56),
-    new THREE.MeshLambertMaterial({ color: appearance.shirt }),
-  );
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.26, TORSO_TOP, 0.56), shirtMat);
   torso.name = 'shirt';
   torso.position.y = TORSO_TOP / 2;
   group.add(torso);
@@ -103,7 +92,7 @@ export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THR
   // Renkaassa reidet istuimelta eteen siimatason alle ja sääret polvista
   // viistosti alas räpylöihin (animateFins kääntää säären räpylän perään).
   const legMat = new THREE.MeshLambertMaterial({ color: 0x3b4630 });
-  const finMat = new THREE.MeshLambertMaterial({ color: appearance.fins });
+  const finMat = playerColorMaterial(appearance.fins);
   for (const z of [-LEG_Z, LEG_Z]) {
     const thigh = new THREE.Mesh(new THREE.BoxGeometry(KNEE.x + 0.04, 0.14, 0.16), legMat);
     thigh.position.set((KNEE.x - 0.04) / 2, KNEE.y, z);
@@ -128,7 +117,7 @@ export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THR
 
   // Kädet käsimerkkejä varten (#228): vasen on vapaa, oikea pitää vapaa.
   const skin = new THREE.MeshLambertMaterial({ color: SKIN });
-  for (const side of [-1, 1] as const) group.add(createArm(side, appearance.shirt, skin));
+  for (const side of [-1, 1] as const) group.add(createArm(side, shirtMat, skin));
 
   // Virveli osoittaa eteen; aihio on paloina, jotta se taipuu (#368).
   const rod = new THREE.Group();
@@ -148,8 +137,7 @@ export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THR
 
 const ROD_LENGTH = 2.1;
 const ROD_SEGMENTS = 6;
-/** Vavan kahva kädessä ja lepoasennon nousukulma (rad). */
-const ROD_BUTT = new THREE.Vector3(0.083, 0.84, 0.38);
+/** Lepoasennon nousukulma (rad). */
 const ROD_REST = 0.25;
 /** Vapa kääntyy kalaa kohti enintään näin paljon (rad); takana olevaa kalaa väsytetään sivulta. */
 const ROD_YAW = 1.2;
@@ -200,17 +188,24 @@ const SKIN = 0xe0cf9c;
 const ARM_LENGTH = 0.5;
 const HAND = 0.22;
 /** Lepoasento: käsivarsi eteen alas (kulma pystystä, rad), oikea vavan kahvalla. */
-const REST = { left: 0.6, right: 0.9 };
+const REST = { left: 0.6, right: 1.05 };
+/** Olkapää (oikea; vasen peilikuvana). */
+const SHOULDER = { x: 0.05, y: 0.72, z: 0.42 };
+/** Kahvan pää: oikean kämmenen keskeltä vavan suuntaa taaksepäin. */
+const ROD_GRIP = 0.14;
+const HAND_REACH = ARM_LENGTH + HAND / 2;
+export const ROD_BUTT = new THREE.Vector3(
+  SHOULDER.x + HAND_REACH * Math.sin(REST.right) - ROD_GRIP * Math.cos(ROD_REST),
+  SHOULDER.y - HAND_REACH * Math.cos(REST.right) - ROD_GRIP * Math.sin(ROD_REST),
+  SHOULDER.z,
+);
 
-function createArm(side: -1 | 1, shirt: number, skin: THREE.Material): THREE.Group {
+function createArm(side: -1 | 1, shirt: THREE.Material, skin: THREE.Material): THREE.Group {
   const arm = new THREE.Group();
   arm.name = side < 0 ? 'arm-left' : 'arm-right';
-  arm.position.set(0.05, 0.72, side * 0.42);
+  arm.position.set(SHOULDER.x, SHOULDER.y, side * SHOULDER.z);
   arm.rotation.z = side < 0 ? REST.left : REST.right;
-  const sleeve = new THREE.Mesh(
-    new THREE.BoxGeometry(0.13, ARM_LENGTH, 0.13),
-    new THREE.MeshLambertMaterial({ color: shirt }),
-  );
+  const sleeve = new THREE.Mesh(new THREE.BoxGeometry(0.13, ARM_LENGTH, 0.13), shirt);
   sleeve.name = 'shirt';
   sleeve.position.y = -ARM_LENGTH / 2;
   const hand = new THREE.Mesh(new THREE.BoxGeometry(HAND, HAND, HAND), skin);
@@ -227,6 +222,24 @@ function createArm(side: -1 | 1, shirt: number, skin: THREE.Material): THREE.Gro
   finger.visible = false;
   arm.add(sleeve, hand, thumb, finger);
   return arm;
+}
+
+/**
+ * Kalastushattu paidan värillä: lierit ja pyöreä kupu sekä tumma nauha,
+ * joka erottaa hatun paidasta ylhäältä katsottuna.
+ */
+function createHat(shirt: THREE.Material): THREE.Mesh[] {
+  const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.03, 10), shirt);
+  brim.position.set(0.04, 0.99, 0);
+  const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.16, 0.13, 10), shirt);
+  crown.position.set(0.04, 1.07, 0);
+  for (const part of [brim, crown]) part.name = 'shirt';
+  const band = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.162, 0.165, 0.03, 10),
+    new THREE.MeshLambertMaterial({ color: 0x1c232b }),
+  );
+  band.position.set(0.04, 1.02, 0);
+  return [brim, crown, band];
 }
 
 /** Käden asento: kulma pystystä eteen (z) ja sivulle (x). */
@@ -334,7 +347,27 @@ function finX(kickPhase: number, i: number): number {
   return FIN_X + Math.sin((kickPhase + i * 0.5) * Math.PI * 2) * 0.25;
 }
 
-/** Vaihtaa renkaan, räpylöiden ja paidan värit (räpylät jakavat materiaalin). */
+/**
+ * Pelaajan värit (rengas, räpylät, paita ja hattu) valaisevat osin itse
+ * itseään, jotta varjopuoli pysyy paletissa samana värinä: täysin varjostettu
+ * punainen kääntyi ruskeaksi ja keltainen ruskeankeltaiseksi, koska paletissa
+ * ei ole niille tummempaa sävyä. Kirkkaus tulee silti yhdestä sävytyksestä.
+ */
+export const PLAYER_COLOR_LIFT = 0.55;
+
+export function playerColorMaterial(hex: number): THREE.MeshLambertMaterial {
+  const material = new THREE.MeshLambertMaterial({ color: hex, emissive: hex });
+  material.emissiveIntensity = PLAYER_COLOR_LIFT;
+  return material;
+}
+
+/** Vaihtaa pelaajan värin materiaaliin (väri ja oma valo). */
+export function setPlayerColor(material: THREE.MeshLambertMaterial, hex: number): void {
+  material.color.setHex(hex);
+  material.emissive.setHex(hex);
+}
+
+/** Vaihtaa renkaan, räpylöiden, paidan ja hatun värit (osat jakavat materiaalit). */
 export function applyAppearance(group: THREE.Group, a: Appearance): void {
   group.traverse((child) => {
     const color =
@@ -346,6 +379,6 @@ export function applyAppearance(group: THREE.Group, a: Appearance): void {
             ? a.shirt
             : null;
     if (color !== null)
-      ((child as THREE.Mesh).material as THREE.MeshLambertMaterial).color.setHex(color);
+      setPlayerColor((child as THREE.Mesh).material as THREE.MeshLambertMaterial, color);
   });
 }

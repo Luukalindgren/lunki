@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { REMOTE_FIGHT, RemoteFight } from './remoteFight';
-import { aimRod, createTubeMesh } from './tubeMesh';
+import { ROD_BUTT, aimRod, createTubeMesh } from './tubeMesh';
 
 describe('toisen väsytys näkyy (#368)', () => {
   it('pakeneva kala taivuttaa vapaa enemmän kuin lepäävä', () => {
@@ -42,15 +42,15 @@ describe('toisen väsytys näkyy (#368)', () => {
       return first.localToWorld(new THREE.Vector3(-(2.1 / 6 + 0.04) / 2, 0, 0));
     };
     const rest = aimRod(g);
-    // Lepoasento kuten ennen: nousukulma 0,25, kärki 2,1 m kahvasta.
-    expect(rest.x).toBeCloseTo(0.083 + 2.1 * Math.cos(0.25), 2);
-    expect(rest.y).toBeCloseTo(0.84 + 2.1 * Math.sin(0.25), 2);
+    // Lepoasento: nousukulma 0,25, kärki 2,1 m kahvasta.
+    expect(rest.x).toBeCloseTo(ROD_BUTT.x + 2.1 * Math.cos(0.25), 2);
+    expect(rest.y).toBeCloseTo(ROD_BUTT.y + 2.1 * Math.sin(0.25), 2);
     const restButt = butt();
     // Kala vasemmalla edessä (järven y kasvaa = maailman z pienenee).
     const fish = { x: 10, y: 8, depth: 1 };
     const lifted = aimRod(g, { lift: 0.6, bend: 0, flex: 0, pull: fish });
     expect(butt().distanceTo(restButt)).toBeLessThan(0.05);
-    expect(lifted.y).toBeGreaterThan(2);
+    expect(lifted.y).toBeGreaterThan(ROD_BUTT.y + 1.1);
     const bent = aimRod(g, { lift: 0.6, bend: 1.2, flex: 0, pull: fish });
     expect(bent.z).toBeLessThan(rest.z);
     // Kuorma painaa kärkeä alas kalaa kohti.

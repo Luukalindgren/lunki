@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { DEFAULT_APPEARANCE, EMOTE_DURATION, type Appearance, type EmoteId } from '@lunki/shared';
 import { emoteIcon } from '../ui/emoteIcons';
+import { playerColorMaterial, setPlayerColor } from './tubeMesh';
 
 /**
  * Kalastajan silmin näkyvä kelluntarengas (#230): U-muotoisen renkaan
@@ -261,8 +262,8 @@ export class PovTube {
 
   constructor(appearance: Appearance = DEFAULT_APPEARANCE) {
     this.group.add(this.body);
-    this.tubeMaterial = new THREE.MeshLambertMaterial({ color: appearance.tube });
-    this.finDry = new THREE.MeshLambertMaterial({ color: appearance.fins });
+    this.tubeMaterial = playerColorMaterial(appearance.tube);
+    this.finDry = playerColorMaterial(appearance.fins);
 
     // Sivuponttoonit: pyöreä kärki edessä, U:n aukko kalastajan edessä.
     for (const side of [-1, 1]) {
@@ -338,7 +339,7 @@ export class PovTube {
     // alakulmasta, ja kämmen on eleen pikseli-ikoni katsojaan päin.
     const forearm = new THREE.Mesh(
       new THREE.BoxGeometry(0.055, 0.4, 0.055),
-      new THREE.MeshLambertMaterial({ color: appearance.shirt }),
+      playerColorMaterial(appearance.shirt),
     );
     forearm.name = 'shirt';
     forearm.position.set(0.02, -0.25, -0.06);
@@ -362,13 +363,13 @@ export class PovTube {
   }
 
   setAppearance(a: Appearance): void {
-    this.tubeMaterial.color.setHex(a.tube);
-    this.finDry.color.setHex(a.fins);
+    setPlayerColor(this.tubeMaterial, a.tube);
+    setPlayerColor(this.finDry, a.fins);
     this.finColor = a.fins;
     this.lastClarity = -1;
     this.hand.traverse((o) => {
       if (o.name === 'shirt' && o instanceof THREE.Mesh)
-        (o.material as THREE.MeshLambertMaterial).color.setHex(a.shirt);
+        setPlayerColor(o.material as THREE.MeshLambertMaterial, a.shirt);
     });
   }
 
