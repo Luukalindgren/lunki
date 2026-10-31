@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import {
   EMOTE_DURATION,
   LureStage,
+  inflateProgress,
   distance,
   type Appearance,
   type EmoteId,
@@ -198,7 +199,12 @@ export class RemotePlayersView {
       const at = screenAnchor(this.v.copy(body).setY(body.y + (p.shore ? 2.3 : 1.5)), camera, rect);
       e.tag.hidden = !at;
       if (at) {
-        e.tag.textContent = p.name;
+        // Täyttökisa (#458): täyttö palkkina nimilapun alareunassa ja lukuna.
+        const fill = p.shore?.inflate;
+        const pct = fill ? Math.floor(inflateProgress(fill) * 100) : null;
+        e.tag.textContent = pct === null ? p.name : `${p.name} ${pct} %`;
+        e.tag.classList.toggle('inflating', pct !== null);
+        if (pct !== null) e.tag.style.setProperty('--fill', `${pct}%`);
         e.tag.style.left = `${at.x}px`;
         e.tag.style.top = `${at.y}px`;
       }
@@ -285,6 +291,7 @@ export class RemotePlayersView {
     const tag = document.createElement('div');
     tag.className = 'name-tag';
     tag.style.borderColor = cssColor(appearance.tube);
+    tag.style.setProperty('--tube', cssColor(appearance.tube));
     this.tags.appendChild(tag);
     const bubble = new SpeechBubble(this.tags);
     const e: Entry = {
@@ -311,6 +318,7 @@ export class RemotePlayersView {
     e.ashore?.recolor(a);
     (e.line.material as THREE.LineBasicMaterial).color.setHex(a.line);
     e.tag.style.borderColor = cssColor(a.tube);
+    e.tag.style.setProperty('--tube', cssColor(a.tube));
     e.appearance = a;
   }
 

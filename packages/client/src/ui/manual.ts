@@ -6,6 +6,7 @@ import {
   RODS,
   SEASONS,
   SHORE,
+  INFLATE,
   SPECIES,
 } from '@lunki/shared';
 import { controlText, type ControlMode } from '../game/controls';
@@ -53,6 +54,16 @@ const TOPICS: Record<ManualSection, readonly Topic[]> = {
       vars: () => ({
         land: shortDecimal(SHORE.landTime),
         band: shortDecimal(SHORE.band),
+      }),
+    },
+    {
+      title: 'manual.move.inflate',
+      text: 'manual.move.inflateText',
+      vars: () => ({
+        side: INFLATE.strokes[0],
+        floor: INFLATE.strokes[2],
+        handle: shortDecimal(INFLATE.handleTime),
+        leak: INFLATE.leakStrokes,
       }),
     },
     { title: 'manual.move.boat', text: 'manual.move.boatText' },

@@ -92,6 +92,8 @@ type Row = [MsgKey, string, string?];
 const pct = (a: number, b: number) => (b > 0 ? `${Math.round((100 * a) / b)} %` : '–');
 const lost = (s: RaceStats) =>
   s.biggestLost ? fishText(s.biggestLost.species, s.biggestLost.weight) : '–';
+const inflateTime = (s: RaceStats) =>
+  s.inflateTime === null ? '–' : formatTime(Math.round(s.inflateTime));
 const lightning = (s: RaceStats) =>
   s.closestLightning === null ? '–' : formatDistance(s.closestLightning);
 const biggestOf = (catches: StatsPlayer['catches']) =>
@@ -160,6 +162,10 @@ function statRows(p: StatsPlayer, life: LifetimeStats | null): Row[] {
       formatTime(Math.round(s.idleSeconds)),
       l && formatTime(Math.round(l.idleSeconds)),
     ),
+    // Täyttökisa (#458): rivi vain, kun joskus on pumpattu.
+    ...(s.inflateTime !== null || l?.inflateTime != null
+      ? [both('stat.inflateTime', inflateTime(s), l && inflateTime(l))]
+      : []),
   ];
 }
 

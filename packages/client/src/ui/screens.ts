@@ -321,6 +321,7 @@ export function loadSettings(defaults: CompetitionSettings): CompetitionSettings
           ? s.landPenalty
           : defaults.landPenalty,
         start: isPoint(s.start) ? { x: s.start.x, y: s.start.y } : null,
+        inflate: s.inflate === true,
       };
     }
   } catch {
@@ -594,6 +595,7 @@ export class Screens {
         String(settings.durationMinutes),
         (v) => (settings.durationMinutes = Number(v)),
       ),
+      ...this.launchChoice(!!settings.inflate, (inflate) => (settings.inflate = inflate)),
       this.startChoice(
         settings.start ?? null,
         () => (settings.start = null),
@@ -873,6 +875,7 @@ export class Screens {
             actions.onSettings,
             actions.onPickStart,
             v.canSeason,
+            v.canInflate,
           )
         : this.settingsSummary(v.settings),
       // Katsoja ei kalasta, joten varusteita ei tarvita. Varusteet päävalikosta (#383).
@@ -2336,6 +2339,22 @@ export class Screens {
     return row;
   }
 
+  /** Kisan alku (#458): vesiltä tai täyttökisa rannalta, ja selitys. */
+  private launchChoice(inflate: boolean, onChange: (inflate: boolean) => void): HTMLElement[] {
+    return [
+      this.choice(
+        t('settings.launch'),
+        [
+          ['water', t('launch.water')],
+          ['inflate', t('launch.inflate')],
+        ],
+        inflate ? 'inflate' : 'water',
+        (v) => onChange(v === 'inflate'),
+      ),
+      h('p', t('settings.launchHint'), 'hint'),
+    ];
+  }
+
   /** Isännän asetusvalinnat aulassa. */
   private settingsEditor(
     s: RoomSettings,
@@ -2343,6 +2362,7 @@ export class Screens {
     change: (patch: Partial<RoomSettings>) => void,
     pickStart: () => void,
     canSeason: boolean,
+    canInflate: boolean,
   ): HTMLElement {
     const box = document.createElement('div');
     box.className = 'settings';
@@ -2350,6 +2370,7 @@ export class Screens {
       this.choice(t('settings.duration'), durationOptions(), String(s.durationMinutes), (v) =>
         change({ durationMinutes: Number(v) }),
       ),
+      ...(canInflate ? this.launchChoice(!!s.inflate, (inflate) => change({ inflate })) : []),
       this.startChoice(s.start ?? null, () => change({ start: null }), pickStart),
       this.choice(
         t('settings.winRule'),
@@ -2724,6 +2745,7 @@ export class Screens {
       [t('settings.lateJoin'), lateJoinName(s.lateJoin)],
       [t('settings.species'), s.species.map(speciesName).join(', ')],
       [t('settings.start'), startText(s.start ?? null)],
+      [t('settings.launch'), t(s.inflate ? 'launch.inflate' : 'launch.water')],
     ];
     for (const [k, v] of rows) {
       const row = document.createElement('div');

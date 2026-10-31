@@ -150,6 +150,15 @@ muut pelaajat: SnapshotBuffer, piirretään 120 ms menneisyydestä
   vieheen ollessa sisällä ja asiakkaan osatessa rantautumisen (`Sim.canLand`).
   Maalla oleva ei törmää renkaisiin, ei kalasta, eikä salama, iso aalto tai
   trombi osu häneen. Vanhan palvelimen kanssa ranta on seinä kuten ennen.
+- **Täyttökisa** (#458, protokolla 13). Kisan asetus `inflate`: renkaalla
+  olevat aloittavat rivistä rannalta (`inflateRow`, 4 m välein) tyhjän
+  renkaan ja käsipumpun ääreltä, veneet vesiltä. Täyttö on maalla olon osa
+  (`ShoreState.inflate`, `physics/inflate.ts`): bitti 64 on pumpun veto, ja
+  letkun nuolisarja luetaan liikebiteistä (`arrowOf`). Sarjat arvotaan kisan
+  siemenestä, joten ne ovat kaikilla samat. Verkossa `PlayerState.inflate`,
+  `fill0`–`fill2` ja muut `ShoreNet`-kentät. Vanha asiakas ei pääse
+  täyttökisaan, eikä sen aulassa asetusta voi valita. Aika vesille on
+  `RaceStats.inflateTime` ja palkinto Nopein täyttäjä.
 
 ## Testaus viiveellä
 

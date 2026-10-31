@@ -84,6 +84,16 @@ describe('kisan palkinnot (#367)', () => {
     expect(award(awards, 'fishFriend')?.winners.map((w) => w.id)).toEqual(['a', 'b']);
   });
 
+  it('täyttökisan nopein täyttäjä (#458): pienin aika, vesiltä alkanut ei mukana', () => {
+    const awards = raceAwards([
+      entrant('a', { inflateTime: 41.5 }),
+      entrant('b', { inflateTime: 33 }),
+      entrant('c', {}),
+    ]);
+    expect(award(awards, 'fastInflater')).toMatchObject({ value: 33, winners: [{ id: 'b' }] });
+    expect(ids(raceAwards([entrant('a', {})]))).not.toContain('fastInflater');
+  });
+
   it('ilman tilastoja (vanha palvelin) jaetaan vain kalapalkinnot', () => {
     const awards = raceAwards([
       entrant('a', null, [{ species: 'pike', weight: 1, time: 5 }]),

@@ -133,6 +133,7 @@ export function validateSettingsPatch(
   if ((LAND_PENALTIES as readonly unknown[]).includes(p.landPenalty))
     out.landPenalty = p.landPenalty as number;
   if (isLateJoin(p.lateJoin)) out.lateJoin = p.lateJoin;
+  if (typeof p.inflate === 'boolean') out.inflate = p.inflate;
   if (Array.isArray(p.species)) {
     // Järjestys aina sama, jotta sama valinta tuottaa saman järven.
     const wanted = new Set<unknown>(p.species);

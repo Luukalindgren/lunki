@@ -85,6 +85,15 @@ export const PlayerState = schema(
     shoreBoard: t.float64().default(0),
     /** Selkä edellä rantaa vasten potkittu aika (s). */
     landing: t.float64().default(0),
+    /** Täyttökisa (#458, ShoreNet): letkun ponttooni + 1, siirto, täytöt ja kahva. */
+    inflate: t.uint8().default(0),
+    inflateMove: t.uint8().default(0),
+    fill0: t.float64().default(0),
+    fill1: t.float64().default(0),
+    fill2: t.float64().default(0),
+    pumpHandle: t.float64().default(0),
+    pumpArrow: t.uint8().default(0),
+    inflateSeed: t.uint32().default(0),
   },
   'PlayerState',
 );
@@ -108,6 +117,8 @@ export const SettingsState = schema(
     /** LateJoin: liittyminen kesken kisan. */
     lateJoin: t.string().default('open'),
     species: t.array('string').default(() => new ArraySchema<string>(...NATIVE_SPECIES)),
+    /** Täyttökisa (#458): kisa alkaa rannalta tyhjällä renkaalla. */
+    inflate: t.boolean().default(false),
     /** Kartalta valittu aloituspaikka; false = satunnainen. */
     customStart: t.boolean().default(false),
     startX: t.float32().default(0),

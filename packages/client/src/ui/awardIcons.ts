@@ -23,9 +23,29 @@ export type AwardIcon =
   | 'bolt'
   | 'fins'
   | 'anchor'
+  | 'pump'
   | 'heart';
 
 export const AWARD_ICONS: Record<AwardIcon, readonly string[]> = {
+  // Seisova käsipumppu: T-kahva, sylinteri, letku ja jalusta (#458).
+  pump: [
+    '................',
+    '...kkkkkkkkkk...',
+    '.......kk.......',
+    '.......kk.......',
+    '......kook......',
+    '......kbbk......',
+    '......kbbk..rr..',
+    '......kbbk.r..r.',
+    '......kbbk.r..r.',
+    '......kbbk.r..r.',
+    '......kbbk.r..r.',
+    '......kbbkr...r.',
+    '.....kkbbkk...r.',
+    '....kwkkkkkk..rr',
+    '..kkkkkkkkkkkk..',
+    '................',
+  ],
   crown: [
     '................',
     '................',
@@ -359,6 +379,7 @@ export const AWARD_ICON: Record<AwardId, AwardIcon | null> = {
   closeCall: 'bolt',
   marathon: 'fins',
   dockGuard: 'anchor',
+  fastInflater: 'pump',
   fishFriend: 'heart',
 };
 

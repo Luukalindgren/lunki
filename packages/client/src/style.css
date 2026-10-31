@@ -1218,6 +1218,12 @@ textarea,
   white-space: nowrap;
 }
 
+/* Täyttökisa (#458): alareunan viiva täyttyy renkaan värillä. */
+.name-tag.inflating {
+  border-image: linear-gradient(90deg, var(--tube) var(--fill), rgb(238 242 243 / 25%) var(--fill))
+    1;
+}
+
 /* Puhekupla nimilapun yllä (#228): käsimerkin ikoni tai chat-viesti. */
 .speech-bubble {
   position: fixed;

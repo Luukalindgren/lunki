@@ -198,6 +198,8 @@ export class NetWorld {
       capsizedUntil: number;
       /** Ankkuri viimeisimmästä tilasta (ei interpoloida: se on paikallaan). */
       anchor?: AnchorState;
+      /** Maissa viimeisimmän tilan mukaan (#457): täyttökisan sija. */
+      ashore: boolean;
       /** Paikka, johon hän haluaa vaihtaa (#357); null = ei pyyntöä. */
       seatAsk: number | null;
       /** Vieheen vaihe edellisessä tilassa: lennosta veteen = roiske (#371). */
@@ -457,6 +459,16 @@ export class NetWorld {
     return this.ownSeatAsk;
   }
 
+  /**
+   * Täyttökisan sija vesille (#458): renkaalla jo vesillä olevat muut ja oma.
+   * Veneet aloittavat vesiltä, joten ne eivät ole mukana.
+   */
+  afloatPlace(): number {
+    let ahead = 0;
+    for (const r of this.remotes.values()) if (r.boat === 0 && !r.ashore) ahead++;
+    return ahead + 1;
+  }
+
   /** Muut oman veneen väestä: paikka, nimi ja paikanvaihtopyyntö (#357). */
   crewmates(): { seat: number; name: string; seatAsk: number | null }[] {
     if (!this.ownBoat) return [];
@@ -570,6 +582,7 @@ export class NetWorld {
           vel: { x: 0, y: 0 },
           capsizedUntil: 0,
           lureStage: p.lureStage,
+          ashore: false,
         };
         this.peerConnected.set(id, p.connected);
         this.remotes.set(id, r);
@@ -588,6 +601,7 @@ export class NetWorld {
       if (r.lureStage === LureStage.flight && p.lureStage === LureStage.water)
         this.onRemoteSplash?.({ x: p.lureX, y: p.lureY });
       r.lureStage = p.lureStage;
+      r.ashore = (p.shore ?? 0) > 0;
       const was = this.peerConnected.get(id);
       if (was !== undefined && was !== p.connected) this.onPeerConnection?.(p.name, p.connected);
       this.peerConnected.set(id, p.connected);

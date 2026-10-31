@@ -53,6 +53,8 @@ export interface RaceStats {
   idleSeconds: number;
   /** Suurin karannut tai siiman katkaissut kala. */
   biggestLost: { species: SpeciesId; weight: number } | null;
+  /** Täyttökisassa (#458) vesille kisa-ajassa (s); null, jos kisa alkoi vesiltä. */
+  inflateTime: number | null;
 }
 
 export const emptyRaceStats = (): RaceStats => ({
@@ -78,6 +80,7 @@ export const emptyRaceStats = (): RaceStats => ({
   distance: 0,
   idleSeconds: 0,
   biggestLost: null,
+  inflateTime: null,
 });
 
 /** Laskurit, jotka lasketaan yhteen sellaisinaan. */
@@ -114,6 +117,9 @@ export function addRaceStats(a: RaceStats, b: RaceStats): RaceStats {
   const near = [a.closestLightning, b.closestLightning].filter((d) => d !== null);
   sum.closestLightning = near.length ? Math.min(...near) : null;
   sum.biggestLost = biggerLost(a.biggestLost, b.biggestLost);
+  // Kaikkien kisojen luku on paras täyttöaika.
+  const fills = [a.inflateTime, b.inflateTime].filter((t) => t !== null);
+  sum.inflateTime = fills.length ? Math.min(...fills) : null;
   return sum;
 }
 
@@ -132,6 +138,7 @@ export function parseRaceStats(raw: unknown, isSpecies: (s: string) => boolean):
   for (const k of RACE_STAT_COUNTS) stats[k] = num(r[k]);
   stats.longestCast = num(r.longestCast, 1000);
   stats.closestLightning = typeof r.closestLightning === 'number' ? num(r.closestLightning) : null;
+  stats.inflateTime = typeof r.inflateTime === 'number' ? num(r.inflateTime, 1e5) : null;
   const lost = r.biggestLost as { species?: unknown; weight?: unknown } | null | undefined;
   stats.biggestLost =
     lost && typeof lost.species === 'string' && isSpecies(lost.species) && num(lost.weight) > 0
@@ -216,5 +223,10 @@ export class RaceStatsCounter {
     const s = this.stats;
     if (hit) s.lightningHits++;
     s.closestLightning = Math.min(s.closestLightning ?? Infinity, hit ? 0 : d);
+  }
+
+  /** Täyttökisa (#458): kalastaja pääsi vesille kisa-ajassa `time` (s). */
+  inflated(time: number): void {
+    this.stats.inflateTime ??= time;
   }
 }

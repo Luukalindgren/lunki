@@ -114,6 +114,11 @@ export const SOUNDS = {
   tubeLifted: { effect: 'tick' },
   tubeDropped: { effect: 'tick' },
   boarded: { effect: 'splash' },
+  // Täyttökisa (#458): pumpun veto, ponttooni täynnä, letku kiinni ja irti
+  pumpStroke: { effect: 'flyHaul' },
+  pontoonFull: { effect: 'pop' },
+  hoseOn: { effect: 'tick' },
+  hoseOff: { effect: 'lineHiss' },
 } satisfies Record<string, Sound>;
 
 export type SoundEvent = keyof typeof SOUNDS;

@@ -20,10 +20,12 @@ const TORSO_TOP = 0.46;
 const KNEE = { x: 0.4, y: 0.2 };
 const LEG_Z = 0.18;
 /** Renkaan putken keskilinjan säde ja putken paksuus (säde). */
-const TUBE_CENTER = TUBE_RADIUS * 0.72;
+export const TUBE_CENTER = TUBE_RADIUS * 0.72;
 const TUBE_THICK = TUBE_RADIUS * 0.28;
 /** Sivuponttoonien kärkien etäisyys eteen kalastajasta. */
-const PONTOON_TIP = TUBE_RADIUS * 0.7;
+export const PONTOON_TIP = TUBE_RADIUS * 0.7;
+/** Renkaan putken keskilinjan korkeus. */
+export const TUBE_LIFT = 0.15;
 
 /**
  * U-muotoinen kelluntarengas ja kalastaja ylhäältä katsottuna. Paikallisessa
@@ -50,12 +52,14 @@ export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THR
     tip.translate(PONTOON_TIP, 0, z);
     parts.push(pontoon, tip);
   }
-  for (const geometry of parts) {
+  parts.forEach((geometry, i) => {
     const part = new THREE.Mesh(geometry, tubeMat);
     part.name = 'tube';
-    part.position.y = 0.15;
+    // Täyttökisan ponttoonit (#458): 0 vasen kylki, 1 oikea kylki, 2 takakaari (pohja).
+    part.userData.pontoon = i === 0 ? 2 : i <= 2 ? 0 : 1;
+    part.position.y = TUBE_LIFT;
     group.add(part);
-  }
+  });
 
   // Siimataso reisien päällä ponttoonien välissä, kuten POV-näkymässä.
   const apronTo = PONTOON_TIP - TUBE_THICK * 0.6;

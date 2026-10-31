@@ -1637,3 +1637,55 @@ describe('veneet (#263)', () => {
     await host.leave();
   });
 });
+
+describe('täyttökisa (#458)', () => {
+  type Row = { x: number; y: number; shore: number; inflate: number; fill0: number };
+  const join = (room: Room, name: string) =>
+    sdk().joinById(room.roomId, { name, playerId: name, protocol: PROTOCOL_VERSION });
+
+  it('kaikki aloittavat rivistä rannalta tyhjän renkaan ääreltä', async () => {
+    const host = await sdk().create(ROOM_NAME, {
+      name: 'A',
+      playerId: 'A',
+      protocol: PROTOCOL_VERSION,
+      testTiming: { countdown: 0.1, duration: 30 },
+    });
+    const b = await join(host, 'B');
+    await until(() => players(host).length === 2);
+    host.send(ClientMsg.settings, { inflate: true });
+    await until(() => b.state.settings.inflate === true);
+    b.send(ClientMsg.ready, true);
+    await until(() => players(host).every((p, i) => i === 0 || p.ready));
+    host.send(ClientMsg.start);
+    await until(() => b.state.phase !== 'lobby');
+    const water = new WaterBody(LUNKINJARVI);
+    const row = [...b.state.players.values()] as Row[];
+    expect(row).toHaveLength(2);
+    for (const p of row) {
+      // Maalla (ei vedessä), letku vasemmassa kyljessä ja rengas tyhjä.
+      expect(p.shore & 3).toBe(1);
+      expect(water.isLand(p)).toBe(true);
+      expect(p.inflate).toBe(1);
+      expect(p.fill0).toBe(0);
+    }
+    expect(Math.hypot(row[0]!.x - row[1]!.x, row[0]!.y - row[1]!.y)).toBeGreaterThan(3);
+    await b.leave();
+    await host.leave();
+  });
+
+  it('vanhan asiakkaan aulassa täyttökisaa ei voi valita', async () => {
+    const host = await sdk().create(ROOM_NAME, {
+      name: 'A',
+      playerId: 'A',
+      protocol: PROTOCOL_VERSION,
+    });
+    const old = await sdk().joinById(host.roomId, { name: 'O', playerId: 'O' });
+    await until(() => players(host).length === 2);
+    host.send(ClientMsg.settings, { inflate: true });
+    host.send(ClientMsg.settings, { durationMinutes: 15 });
+    await until(() => host.state.settings.durationMinutes === 15);
+    expect(host.state.settings.inflate).toBe(false);
+    await old.leave();
+    await host.leave();
+  });
+});
