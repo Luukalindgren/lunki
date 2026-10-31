@@ -104,6 +104,7 @@ export class HudPresenter {
       pov: host.viewMode === 'pov',
       seat: !host.inBoat ? 'tube' : host.rower ? 'rower' : 'passenger',
       crew: host.crewSeats,
+      ashore: !!host.tube.shore || !!host.tube.bailer,
     });
     const tangle = s.tangle;
     // Opastus seuraa pelaajaa joka askeleella, vaikka tärkeämpi ohje on näkyvissä.
