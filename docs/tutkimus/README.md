@@ -14,3 +14,5 @@ vaihtoehtoja eivätkä ole pelin nykyistä koodia.
 | #414  | Ukkosrintama näkyy taivaalla ennen ukkosta, kierros 2: kuvat pelin prototyypistä (`prototyyppi.patch`) |
 | #415  | Saalispäiväkirja: mikä viehe toimi missä säässä                                                        |
 | #427  | Vuodenajat: kevät, kesä ja syksy                                                                       |
+| #457  | Rantautuminen: maihin, kävely rannalla ja kyytiin rannalta (mallikuvien apu `prototyyppi.patch`)       |
+| #458  | Täyttökisa: kelluntarenkaan pumppaus kisan alussa                                                      |
