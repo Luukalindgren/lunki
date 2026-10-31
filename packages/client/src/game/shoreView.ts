@@ -11,11 +11,29 @@ import { toWorld } from '../world/lakeMesh';
 import type { BailPose } from '../net/netWorld';
 import { PONTOON_TIP, TUBE_CENTER, TUBE_LIFT, applyAppearance, createTubeMesh } from './tubeMesh';
 import { playerColorMaterial } from './playerColor';
+import { groundRest } from './groundRest';
 
 /** Seisovan kalastajan jalkojen pituus: renkaan kalastajan yläruumis nousee tämän verran. */
 const LEG = 0.82;
-/** Kannettu rengas vyötärön korkeudella. */
-const CARRY_HEIGHT = 0.55;
+/**
+ * Rengas kannetaan reppuna (Luuka): istuin selkää vasten, U:n kärjet alaspäin
+ * ja takakaari pään yläpuolella. Renkaan keskipiste kalastajan takana (m)
+ * ja maanpinnasta.
+ */
+const CARRY = { back: 0.24, height: 1.0 } as const;
+/** Renkaan omat akselit reppuna kalastajan koordinaateissa: kärjet (+x) alas, yläpinta (+y) taakse. */
+const CARRY_BASIS = new THREE.Quaternion().setFromRotationMatrix(
+  new THREE.Matrix4().makeBasis(
+    new THREE.Vector3(0, -1, 0),
+    new THREE.Vector3(-1, 0, 0),
+    new THREE.Vector3(0, 0, -1),
+  ),
+);
+/** Kyytiin hypätessä rengas otetaan selästä ja lasketaan veteen tämän osan aikana hypystä. */
+const UNSLING = 0.4;
+/** Maassa lepäävän renkaan ulottuma rinteen lukemiseen (m eteen/taakse ja sivuille). */
+const TUBE_REACH = { length: TUBE_CENTER, width: TUBE_CENTER } as const;
+const Y_AXIS = new THREE.Vector3(0, 1, 0);
 /** Seisovan silmän korkeus POV:ssa (m maanpinnasta). */
 export const STANDING_EYE = 1.6;
 /** Tyhjän ponttoonin litteys (osuus täydestä korkeudesta). */
@@ -137,15 +155,39 @@ export class AshoreFigure {
     this.angler.rotation.y = s.board !== undefined ? s.tubeHeading : p.heading;
     const swing = s.board !== undefined ? 0 : Math.sin(p.step * Math.PI * 2) * 0.45;
     this.legs.forEach((leg, i) => (leg.rotation.z = i === 0 ? swing : -swing));
-    if (s.carrying) {
-      this.tube.position.copy(toWorld(p.pos, Math.max(0, heightAt(p.pos)) + CARRY_HEIGHT));
-      this.tube.rotation.y = p.heading;
+    if (s.carrying) this.carry(p.pos, p.heading, heightAt);
+    else if (s.board === undefined) {
+      // Maassa rengas myötäilee rinnettä eikä uppoa ylärinteen puolelta.
+      const rest = groundRest(s.tube, s.tubeHeading, heightAt, TUBE_REACH);
+      this.tube.position.copy(toWorld(s.tube, rest.lift));
+      this.tube.quaternion.copy(rest.quaternion);
     } else {
-      const lying = s.board === undefined;
-      this.tube.position.copy(toWorld(s.tube, lying ? Math.max(0, heightAt(s.tube)) : 0));
-      this.tube.rotation.y = s.tubeHeading;
+      // Hypyn alussa rengas otetaan selästä ja lasketaan veteen kalastajan taakse.
+      const u = Math.min(1, s.board / UNSLING);
+      const swing = u * u * (3 - 2 * u);
+      this.carry(p.pos, s.tubeHeading, heightAt);
+      const from = this.tube.position.clone();
+      const fromQ = this.tube.quaternion.clone();
+      const to = toWorld(s.tube, 0);
+      this.tube.position.lerpVectors(from, to, swing);
+      this.tube.position.y += Math.sin(swing * Math.PI) * 0.3;
+      this.tube.quaternion.slerpQuaternions(
+        fromQ,
+        new THREE.Quaternion().setFromAxisAngle(Y_AXIS, s.tubeHeading),
+        swing,
+      );
     }
     this.inflate(p, s.inflate, heightAt);
+  }
+
+  /** Rengas reppuna kalastajan selässä (paikka ja katse). */
+  private carry(pos: Vec2, heading: number, heightAt: (p: Vec2) => number): void {
+    const back = {
+      x: pos.x - Math.cos(heading) * CARRY.back,
+      y: pos.y - Math.sin(heading) * CARRY.back,
+    };
+    this.tube.position.copy(toWorld(back, Math.max(0, heightAt(pos)) + CARRY.height));
+    this.tube.quaternion.setFromAxisAngle(Y_AXIS, heading).multiply(CARRY_BASIS);
   }
 
   /**
@@ -174,13 +216,10 @@ export class AshoreFigure {
     this.angler.position.y -= PUMP.dip * (1 - f.handle);
     const valve = (k: number): THREE.Vector3 => {
       const v = VALVES[Math.min(2, k)]!;
-      const t = this.tube.rotation.y;
-      // Renkaan kierto y-akselin ympäri: paikallinen (x, z) maailmaan.
-      const local = new THREE.Vector3(v.x, TUBE_LIFT * 0.5, v.y).applyAxisAngle(
-        new THREE.Vector3(0, 1, 0),
-        t,
-      );
-      return local.add(this.tube.position);
+      // Renkaan suunta ja rinteen kallistus: paikallinen (x, z) maailmaan.
+      return new THREE.Vector3(v.x, TUBE_LIFT * 0.5, v.y)
+        .applyQuaternion(this.tube.quaternion)
+        .add(this.tube.position);
     };
     let end = valve(f.valve);
     if (f.moving !== null) {
