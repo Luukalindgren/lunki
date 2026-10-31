@@ -58,6 +58,8 @@ export class FishingView {
   metersPerPixel = 0.125;
   /** Silmin kuvapisteen koko metreinä metrin päässä (`PovCamera.pixelSize`). */
   povPixel = 0.005;
+  /** Kalastaja on maissa (#457): maalta ei heitetä, joten tähtäystä ei näytetä. */
+  ashore = false;
   /** Kalastuksen vaikeustaso: vieheen pyörteet (#391). */
   difficulty: Difficulty = 'normal';
   /** Pelaajan valitsema siiman väri. */
@@ -208,7 +210,9 @@ export class FishingView {
 
     // Tähtäys näkyy aina, kun vapa on valmiina; latauksessa osumakohta seuraa voimaa.
     // Kalastajan silmin tähtäimenä on hiiri; osumakohta näkyy vasta latauksessa.
-    const aiming = this.pov ? s.stage === 'charging' : s.stage === 'idle' || s.stage === 'charging';
+    const aiming =
+      !this.ashore &&
+      (this.pov ? s.stage === 'charging' : s.stage === 'idle' || s.stage === 'charging');
     this.aimLine.visible = aiming;
     this.aimMarker.visible = aiming;
     if (aiming) {
