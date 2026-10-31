@@ -98,7 +98,7 @@ function shoreContact(
  * Maihin nousun askel vedessä: selkä edellä rantaa vasten potkiminen
  * kerryttää `landing`-aikaa, ja täynnä kalastaja nousee maihin. Rengas jää
  * rantaan ja kalastaja seisoo sen takana katse järvelle. Palauttaa tilan
- * ennallaan, jos maihin ei voi nousta (laituri, liian kapea niemi).
+ * ennallaan, jos maihin ei voi nousta (liian kapea niemi).
  */
 export function stepLanding(
   t: TubeState,

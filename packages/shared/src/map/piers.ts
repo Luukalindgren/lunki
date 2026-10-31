@@ -25,6 +25,8 @@ export interface Pier {
 
 /** Laiturin kannen leveys (m). */
 export const PIER_WIDTH = 1.6;
+/** Kannen yläpinta vedenpinnasta (m): maalla seisova kävelee sen päällä. */
+export const PIER_DECK = 0.525;
 
 /** Laiturin pituus (m) ja suurin rakennuksen etäisyys rannasta (m). */
 const PIER_LENGTH = { min: 7, max: 13 };
@@ -74,16 +76,28 @@ export function planPiers(map: LakeMap, s: LakeSurroundings): Pier[] {
 
 /** Laiturin törmäysalue suorakaiteena (vedessä oleva osa kannesta). */
 export function pierRing(p: Pier): Vec2[] {
-  const len = Math.hypot(p.to.x - p.base.x, p.to.y - p.base.y);
-  const ux = (p.to.x - p.base.x) / len;
-  const uy = (p.to.y - p.base.y) / len;
+  return deckRect(p.base, p.to);
+}
+
+/**
+ * Koko kansi maalta kärkeen (#457): sillä voi kävellä, myös rannan ja
+ * törmäysalueen välisen kapean raon yli.
+ */
+export function pierDeckRing(p: Pier): Vec2[] {
+  return deckRect(p.from, p.to);
+}
+
+function deckRect(a: Vec2, b: Vec2): Vec2[] {
+  const len = Math.hypot(b.x - a.x, b.y - a.y);
+  const ux = (b.x - a.x) / len;
+  const uy = (b.y - a.y) / len;
   const sx = (-uy * PIER_WIDTH) / 2;
   const sy = (ux * PIER_WIDTH) / 2;
   return [
-    { x: p.base.x + sx, y: p.base.y + sy },
-    { x: p.to.x + sx, y: p.to.y + sy },
-    { x: p.to.x - sx, y: p.to.y - sy },
-    { x: p.base.x - sx, y: p.base.y - sy },
+    { x: a.x + sx, y: a.y + sy },
+    { x: b.x + sx, y: b.y + sy },
+    { x: b.x - sx, y: b.y - sy },
+    { x: a.x - sx, y: a.y - sy },
   ];
 }
 
