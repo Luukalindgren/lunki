@@ -16,3 +16,5 @@ vaihtoehtoja eivätkä ole pelin nykyistä koodia.
 | #427  | Vuodenajat: kevät, kesä ja syksy                                                                       |
 | #457  | Rantautuminen: maihin, kävely rannalla ja kyytiin rannalta (mallikuvien apu `prototyyppi.patch`)       |
 | #458  | Täyttökisa: kelluntarenkaan pumppaus kisan alussa                                                      |
+| #468  | Kosketusohjaimet maissa: vain maalla toimivat napit                                                    |
+| #469  | Taukovalikkoon kisan tilanne: saalis, paino ja sija                                                    |
