@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { BOAT_HULL, CRAFTS, SEAT_OFFSET, type BoatLaunch } from '@lunki/shared';
 import type { BoatPose } from '../net/netWorld';
 import { toWorld } from '../world/lakeMesh';
+import { groundRest } from './groundRest';
 
 /**
  * Soutuvene (#263). Paikallinen koordinaatisto kuten
@@ -239,9 +240,14 @@ function showLaunch(mesh: THREE.Group, launch: BoatLaunch | undefined): void {
   });
 }
 
+/** Rannalla olevan veneen ulottuma rinteen lukemiseen soutajan kohdalta (m). */
+const BEACHED_REACH = { length: BOAT_HULL.length * 0.4, width: HALF_BEAM * 0.8 } as const;
+
 /** Kaikki kisan veneet, myös oma. */
 export class BoatsView {
   readonly group = new THREE.Group();
+  /** Maanpinta (POV:ssa maasto, ylhäältä 0): rannalla vene myötäilee rinnettä (#458). */
+  heightAt: (p: { x: number; y: number }) => number = () => 0;
   private readonly boats = new Map<number, { mesh: THREE.Group; color: number }>();
 
   update(poses: readonly BoatPose[]): void {
@@ -259,9 +265,15 @@ export class BoatsView {
         this.boats.set(b.boat, e);
         this.group.add(e.mesh);
       }
-      e.mesh.position.copy(toWorld(b.pos, b.lift ?? 0));
-      e.mesh.rotation.y = b.heading;
-      e.mesh.rotation.x = b.tumble ?? b.roll ?? 0;
+      if (b.launch) {
+        // Rannalla vene lepää rinteen suuntaisena eikä uppoa maan sisään.
+        const rest = groundRest(b.pos, b.heading, this.heightAt, BEACHED_REACH);
+        e.mesh.position.copy(toWorld(b.pos, rest.lift));
+        e.mesh.quaternion.copy(rest.quaternion);
+      } else {
+        e.mesh.position.copy(toWorld(b.pos, b.lift ?? 0));
+        e.mesh.rotation.set(b.tumble ?? b.roll ?? 0, b.heading, 0);
+      }
       animateOars(e.mesh, b.kickPhase);
       e.mesh.getObjectByName('anchorStowed')!.visible = !b.anchor;
       showLaunch(e.mesh, b.launch);

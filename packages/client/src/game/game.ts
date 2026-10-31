@@ -996,6 +996,8 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       rodEnd,
     );
     this.weather.shakeCamera(this.camera);
+    // Täyttökisan vene rannalla (#458) lepää maan pinnalla.
+    this.boatsView.heightAt = groundAt;
     // Oma vene sellaisena kuin se nyt piirretään: kyytiläiset istuvat siinä.
     const own = this.spectating
       ? undefined
@@ -1008,8 +1010,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
                 boat: 1,
                 ...own!,
                 color: this.appearance.tube,
-                // Täyttökisan vene rannalla (#458) maan pinnalla.
-                lift: this.tube.launch ? Math.max(0, groundAt(pos)) : air?.height,
+                lift: air?.height,
                 tumble: air?.tumble,
                 anchor: this.tube.anchor,
                 ...(this.tube.launch && { launch: this.tube.launch }),
@@ -1026,7 +1027,6 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
         this.net.world.boats(own).map((b) => ({
           ...b,
           roll: (b.roll ?? 0) + this.seatSlides.rock(b.boat, now),
-          ...(b.launch && { lift: Math.max(0, groundAt(b.pos)) }),
         })),
       );
       const others = this.net.world.others(own);
