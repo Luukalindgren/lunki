@@ -1,6 +1,11 @@
 import {
   BoatSeat,
   CRAFTS,
+  formatTime,
+  inflateProgress,
+  inflateSequence,
+  type InflateState,
+  type RaceStatsCounter,
   SHORE,
   TUBE_RADIUS,
   shoreActionAt,
@@ -32,10 +37,18 @@ import { loadCraft } from './tackle';
  */
 export function readTubeInput(c: Controls, ashore = false): TubeInput {
   const main =
-    ashore && (c.wasPressed('pickUp') || c.wasPressed('putDown') || c.wasPressed('board'));
+    ashore &&
+    (c.wasPressed('pump') ||
+      c.wasPressed('pickUp') ||
+      c.wasPressed('putDown') ||
+      c.wasPressed('board'));
+  // Maalla lyhytkin napautus on nuoli (täyttökisan letku, #458), vaikka se ei
+  // olisi pohjassa askeleen hetkellä.
+  const on = (a: 'back' | 'forward' | 'left' | 'right') =>
+    c.isDown(a) || (ashore && c.wasPressed(a)) ? 1 : 0;
   return {
-    kick: (c.isDown('back') ? 1 : 0) - (c.isDown('forward') ? 1 : 0),
-    turn: (c.isDown('left') ? 1 : 0) - (c.isDown('right') ? 1 : 0),
+    kick: on('back') - on('forward'),
+    turn: on('left') - on('right'),
     sprint: c.isDown('sprint'),
     ...(main && { main }),
   };
@@ -60,7 +73,14 @@ export interface CraftHost {
   readonly timeOutLeft: number;
   /** Katsojan kamera: seurattava kalastaja (`step` vaihtaa). */
   followTube(step: number): TubeState | null;
+  /** Kisa-aika (s): täyttökisan aika vesille. */
+  readonly competition: { readonly elapsed: number };
+  readonly raceStatsCounter: RaceStatsCounter;
 }
+
+/** Letkun siirron nuolet tilanneohjeessa (#458): W/↑ ylös, S/↓ alas, A/← ja D/→. */
+const ARROW_GLYPHS = ['', '↑', '↓', '←', '→'];
+const PONTOONS: readonly MsgKey[] = ['game.pontoonLeft', 'game.pontoonRight', 'game.pontoonFloor'];
 
 /** Askeleen tilanne kulkupelille. */
 export interface CraftStep {
@@ -97,6 +117,8 @@ export class CraftController {
   private seenSeat: { boat: number; seat: number } | null = null;
   /** Rantautumisen tilanneohje (#457): maihin nousu tai mitä maalla tehdään. */
   private shoreHint: string | null = null;
+  /** Täyttökisa (#458) kesken: ensimmäinen kyytiin hyppy on maali. */
+  private inflateRace = false;
 
   constructor(private readonly host: CraftHost) {}
 
@@ -241,14 +263,22 @@ export class CraftController {
     const was = host.prevTube.shore;
     const now = host.tube.shore;
     const sounds = host.sounds;
+    if (now?.inflate) this.inflateRace = true;
+    if (was?.inflate && now) this.inflateSounds(was.inflate, now.inflate);
     if (!was && now) sounds.play('shoreLanded');
-    else if (was && !now) sounds.play('boarded');
-    else if (was && now) {
+    else if (was && !now) {
+      sounds.play('boarded');
+      if (this.inflateRace) this.afloat();
+    } else if (was && now) {
       if (!was.carrying && now.carrying) sounds.play('tubeLifted');
       if (was.carrying && !now.carrying && now.board === undefined) sounds.play('tubeDropped');
     }
     if (host.spectating) {
       this.shoreHint = null;
+      return;
+    }
+    if (now?.inflate) {
+      this.shoreHint = inflateHint(now.inflate);
       return;
     }
     if (now) {
@@ -278,6 +308,36 @@ export class CraftController {
       input.kick > 0 &&
       (host.water.closestShorePoint(host.tube.pos, TUBE_RADIUS + SHORE.landReach) ?? null) !== null;
     this.shoreHint = touching ? t('game.shoreReelIn') : null;
+  }
+
+  /** Pumpun veto, täysi ponttooni ja letkun siirto (#458). */
+  private inflateSounds(was: InflateState, now: InflateState | undefined): void {
+    const sounds = this.host.sounds;
+    const fill = now?.fill ?? [1, 1, 1];
+    if (fill.some((f, i) => f > was.fill[i]!)) sounds.play('pumpStroke');
+    if (fill.some((f, i) => f >= 1 && was.fill[i]! < 1)) sounds.play('pontoonFull');
+    if (!now) return;
+    if (now.valve > was.valve) sounds.play('hoseOn');
+    else if (was.moving !== null && now.moving === null) {
+      sounds.play('hoseOff');
+      this.host.hud.showMessage(t('game.inflateSlipped'), 2, 'event');
+    }
+  }
+
+  /** Täyttökisan maali (#458): kyydissä vesillä. Moninpelissä myös sija. */
+  private afloat(): void {
+    this.inflateRace = false;
+    const host = this.host;
+    const time = host.competition.elapsed;
+    host.raceStatsCounter.inflated(time);
+    const place = host.netWorld?.afloatPlace();
+    host.hud.showMessage(
+      place
+        ? t('game.inflateAfloatPlace', { time: formatTime(Math.round(time)), place })
+        : t('game.inflateAfloat', { time: formatTime(Math.round(time)) }),
+      4,
+      'event',
+    );
   }
 
   /** Potkuvaihe kiertää 0–1; kumpikin räpylä loiskahtaa kerran kierroksessa. */
@@ -373,4 +433,21 @@ export class CraftController {
         'info',
       );
   }
+}
+
+/**
+ * Täyttökisan tilanneohje (#458): pumpatessa ponttooni ja täyttö, letkua
+ * siirrettäessä nuolisarja, jossa osutut nuolet on kuitattu.
+ */
+export function inflateHint(s: InflateState): string {
+  if (s.moving !== null) {
+    const seq = inflateSequence(s.seed, s.valve);
+    const arrows = seq.map((a, i) => (i < s.moving! ? '✓' : ARROW_GLYPHS[a])).join(' ');
+    return t('game.inflateHose', { part: t(PONTOONS[s.valve + 1]!), arrows });
+  }
+  return controlText('game.inflatePump', {
+    part: t(PONTOONS[s.valve]!),
+    pct: Math.floor(s.fill[s.valve]! * 100),
+    total: Math.floor(inflateProgress(s) * 100),
+  });
 }

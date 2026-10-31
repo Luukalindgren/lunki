@@ -43,6 +43,7 @@ import {
   LAND_CUT_PROTOCOL,
   SPECTATE_PROTOCOL,
   SEASON_PROTOCOL,
+  INFLATE_PROTOCOL,
   seasonOf,
   type UntangledMessage,
   RECORDS_PATH,
@@ -247,6 +248,8 @@ export interface LobbyView {
   canSwapSeats: boolean;
   /** Palvelin tuntee vuodenajat (#427); vanhalla kisa on aina kesällä. */
   canSeason: boolean;
+  /** Palvelin osaa täyttökisan (#458). */
+  canInflate: boolean;
 }
 
 export interface PlayerSchema {
@@ -284,6 +287,15 @@ export interface PlayerSchema {
   shoreHeading?: number;
   shoreBoard?: number;
   landing?: number;
+  /** Täyttökisa (#458, ShoreNet); vanha palvelin ei lähetä. */
+  inflate?: number;
+  inflateMove?: number;
+  fill0?: number;
+  fill1?: number;
+  fill2?: number;
+  pumpHandle?: number;
+  pumpArrow?: number;
+  inflateSeed?: number;
   ack: number;
   lureX: number;
   lureY: number;
@@ -332,6 +344,8 @@ export interface StateSchema {
     landPenalty?: number;
     /** Puuttuu vanhalta palvelimelta. */
     lateJoin?: string;
+    /** Täyttökisa (#458); puuttuu vanhalta palvelimelta. */
+    inflate?: boolean;
     species: Iterable<string>;
     customStart: boolean;
     startX: number;
@@ -543,6 +557,7 @@ export class NetSession {
         lateJoin: isLateJoin(s.settings.lateJoin) ? s.settings.lateJoin : 'closed',
         species: [...s.settings.species].filter(isSpeciesId),
         start: s.settings.customStart ? { x: s.settings.startX, y: s.settings.startY } : null,
+        ...(s.settings.inflate && { inflate: true }),
       },
       amHost: s.hostId === me,
       // Katkennutta ei odoteta, kuten palvelinkaan ei (#275).
@@ -551,6 +566,7 @@ export class NetSession {
       canBoat: this.serverProtocol >= BOAT_PROTOCOL,
       canSwapSeats: this.serverProtocol >= SEAT_PROTOCOL,
       canSeason: this.serverProtocol >= SEASON_PROTOCOL,
+      canInflate: this.serverProtocol >= INFLATE_PROTOCOL,
     };
   }
 

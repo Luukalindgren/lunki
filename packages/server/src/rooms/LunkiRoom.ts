@@ -1,6 +1,8 @@
 import { Room, ServerError, type Client } from '@colyseus/core';
 import {
   SHORE_PROTOCOL,
+  INFLATE_PROTOCOL,
+  inflateRow,
   shoreToNet,
   COUNTDOWN_SECONDS,
   ClientMsg,
@@ -548,6 +550,13 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
             s.startY = start?.y ?? 0;
             changed = true;
           }
+        } else if (
+          key === 'inflate' &&
+          value === true &&
+          this.hasOutdatedClient(INFLATE_PROTOCOL)
+        ) {
+          // Vanha asiakas ei osaa täyttökisaa (#458).
+          continue;
         } else if (key === 'species') {
           const list = value as string[];
           if (list.join() !== [...s.species].join()) {
@@ -691,7 +700,9 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     // Oma katkennut paikka (sama selain) vapautuu liittyessä, joten sitä ei lasketa (#309).
     const own = this.droppedSession(playerIdOf(options));
     const ownSeat = own !== undefined && !this.state.players.get(own)?.spectator ? 1 : 0;
-    const outdated = this.hasBoats() && clientProtocol(options) < BOAT_PROTOCOL;
+    const outdated =
+      (this.hasBoats() && clientProtocol(options) < BOAT_PROTOCOL) ||
+      (this.state.settings.inflate && clientProtocol(options) < INFLATE_PROTOCOL);
     // Vanha asiakas ei osaa piirtää venettä eikä istua kyydissä.
     if (outdated) throw new ServerError(4403, JoinRefusal.outdated);
     const refusal =
@@ -712,10 +723,10 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     return false;
   }
 
-  /** Joku huoneessa käyttää asiakasta, joka ei osaa venettä. */
-  private hasOutdatedClient(): boolean {
+  /** Joku huoneessa käyttää asiakasta, joka ei osaa venettä (tai täyttökisaa, `need`). */
+  private hasOutdatedClient(need: number = BOAT_PROTOCOL): boolean {
     for (const id of this.state.players.keys())
-      if ((this.protocols.get(id) ?? 0) < BOAT_PROTOCOL) return true;
+      if ((this.protocols.get(id) ?? 0) < need) return true;
     return false;
   }
 
@@ -979,10 +990,11 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
    * 1…) keula järvelle, jotta soutaja pääsee suoraan ulos; soutaja katsoo
    * perään eli rantaan.
    */
-  private placeTube(id: string, p: PlayerState, pos: Vec2, boat = 0) {
+  private placeTube(id: string, p: PlayerState, pos: Vec2, boat = 0, ready?: TubeState) {
     const shore = water.closestShorePoint(pos)?.point ?? pos;
     const out = Math.atan2(pos.y - shore.y, pos.x - shore.x);
-    const tube = createTube(pos, boat ? out + Math.PI : out);
+    // Täyttökisassa (#458) valmis paikka rannalla tyhjän renkaan kanssa.
+    const tube = ready ?? createTube(pos, boat ? out + Math.PI : out);
     this.sims.set(id, {
       tube,
       inputs: new InputQueue(),
@@ -1135,12 +1147,21 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     this.state.players.forEach((p) => (p.seatAsk = 0));
     this.seatAskUntil.clear();
     const aboard = (p: PlayerState) => p.boat > 0 && p.seat !== BoatSeat.rower;
+    // Täyttökisa (#458): renkaat riviin lähtörannalle; veneet aloittavat vielä vedestä.
+    const tubes = [...this.state.players.values()].filter((p) => !p.spectator && p.boat === 0);
+    const row = set.inflate ? inflateRow(water, chosen ?? launch(), tubes.length, seed) : [];
     const crews = new Map<number, [string, PlayerState][]>();
     this.state.players.forEach((p, id) => {
       if (!p.spectator && aboard(p)) crews.set(p.boat, [...(crews.get(p.boat) ?? []), [id, p]]);
     });
     this.state.players.forEach((p, id) => {
       if (p.spectator || aboard(p)) return;
+      const ready = p.boat === 0 ? row.shift() : undefined;
+      if (ready) {
+        taken.push(ready.pos);
+        this.placeTube(id, p, ready.pos, 0, ready);
+        return;
+      }
       let pos = taken.length === 0 && chosen ? { ...chosen } : launch();
       if (taken.length > 0) {
         const fits = (q: Vec2) =>
@@ -1490,5 +1511,15 @@ function writeTube(p: PlayerState, t: TubeState, ack: number) {
     p.shoreBoard = shore.shoreBoard;
   }
   p.landing = shore.landing;
+  p.inflate = shore.inflate;
+  if (shore.inflate) {
+    p.inflateMove = shore.inflateMove;
+    p.fill0 = shore.fill0;
+    p.fill1 = shore.fill1;
+    p.fill2 = shore.fill2;
+    p.pumpHandle = shore.pumpHandle;
+    p.pumpArrow = shore.pumpArrow;
+    p.inflateSeed = shore.inflateSeed;
+  }
   p.ack = ack;
 }

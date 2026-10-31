@@ -55,6 +55,12 @@ export interface CompetitionSettings {
   landPenalty?: number;
   /** Kartalta valittu aloituspaikka; puuttuu tai null = satunnainen rannan tuntumassa. */
   start?: Vec2 | null;
+  /**
+   * Täyttökisa (#458): kisa alkaa rannalta tyhjällä renkaalla, joka
+   * pumpataan täyteen ja kannetaan vesille. Aloituspaikka on silloin
+   * lähtöranta. Puuttuu = kisa alkaa vedestä.
+   */
+  inflate?: boolean;
 }
 
 export const DEFAULT_SETTINGS: CompetitionSettings = {

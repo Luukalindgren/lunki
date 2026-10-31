@@ -6,6 +6,7 @@ import {
   WaterBody,
   BoatSeat,
   createTube,
+  inflateRow,
   findLaunchPoint,
   isValidStart,
   Rng,
@@ -253,6 +254,9 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       const shore = this.water.closestShorePoint(start)?.point ?? start;
       const out = Math.atan2(start.y - shore.y, start.x - shore.x);
       this.tube = createTube(start, this.craft.soloCraft === 'boat' ? out + Math.PI : out);
+      // Täyttökisa (#458): rannalla tyhjän renkaan ja pumpun ääressä. Vene alkaa vesiltä.
+      if (settings.inflate && this.craft.soloCraft !== 'boat')
+        this.tube = inflateRow(this.water, start, 1, seed)[0] ?? this.tube;
     }
     this.prevTube = this.tube;
 
@@ -522,6 +526,8 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     if (
       ashore &&
       !this.spectating &&
+      // Täyttökisan letkun siirrossa (#458) välilyönti ei tee mitään: ohje kertoo nuolet.
+      !this.tube.shore?.inflate &&
       (c.wasPressed('pointer') || (c.wasPressed('castForward') && !this.craft.shoreAction))
     )
       this.hud.showMessage(t('game.noFishingAshore'), 2, 'info');
@@ -887,7 +893,8 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
                   (Math.max(0, groundAt(pos)) + STANDING_EYE - EYE_HEIGHT) *
                   (1 - (shore.board ?? 0)),
                 roll: 0,
-                pitch: -0.15,
+                // Pumpatessa (#458) katse alas renkaaseen ja pumppuun.
+                pitch: shore.inflate ? -0.7 : -0.15,
               }
             : {
                 lift: sway.lift - 0.7 * (roll / Math.PI) + seated,

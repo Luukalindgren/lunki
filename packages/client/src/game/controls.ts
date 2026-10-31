@@ -61,6 +61,11 @@ export const CONTROLS = {
   pickUp: { keys: ['Space'], touch: 'touch.pickUp', title: 'touch.pickUpTitle', pad: PAD_MAIN },
   putDown: { keys: ['Space'], touch: 'touch.putDown', title: 'touch.putDownTitle', pad: PAD_MAIN },
   board: { keys: ['Space'], touch: 'touch.board', title: 'touch.boardTitle', pad: PAD_MAIN },
+  /**
+   * Täyttökisa (#458): yksi veto käsipumpulla. Letku siirretään seuraavaan
+   * ponttooniin liikkeen suunnilla (nuolisarja), joten omaa nappia ei tarvita.
+   */
+  pump: { keys: ['Space'], touch: 'touch.pump', title: 'touch.pumpTitle', pad: PAD_MAIN },
 
   // Kalastus. Hiiren vasen ja sormi järvellä tähtäävät, heittävät ja kelaavat.
   pointer: { keys: ['Mouse0'], label: 'ctl.mouse', touch: 'ctl.finger' },
@@ -213,14 +218,14 @@ export class Controls {
 }
 
 /** Ison napin toiminto maalla (#457). */
-export type ShoreMain = 'pickUp' | 'putDown' | 'board';
+export type ShoreMain = 'pump' | 'pickUp' | 'putDown' | 'board';
 
 /**
  * Tilannenappien toiminnot kosketuksella: iso nappi, perhon siimanappi ja
  * katkaisunappi tekevät eri asioita kalastuksen vaiheen mukaan.
  */
 export interface ContextActions {
-  /** Iso punainen nappi: HEITÄ, KELAA, VETO, nostossa NOSTA/HAAVI ja maalla OTA/LASKE/KYYTIIN. */
+  /** Iso punainen nappi: HEITÄ, KELAA, VETO, nostossa NOSTA/HAAVI ja maalla PUMPPAA/OTA/LASKE/KYYTIIN. */
   main: 'castForward' | 'reel' | 'strip' | 'haul' | 'land' | 'landNet' | ShoreMain;
   /** Perhon nappi: SIIMA heitossa, NOSTA vedestä ja tärpissä, KELALLE kalan kanssa. */
   line: 'lineGrip' | 'lift' | 'reelSlack';

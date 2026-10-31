@@ -797,6 +797,7 @@ if (params.has('bench')) {
     durationMinutes: Number(params.get('minutes') ?? settings.durationMinutes),
     // Aloituspaikka ?start=x,y (testit, esim. rantautuminen #457); kelpaa vain vedestä.
     start: devStart(params.get('start')) ?? settings.start,
+    ...(params.has('inflate') && { inflate: true }),
   });
 } else {
   void tryResume().then((resumed) => {

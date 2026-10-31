@@ -30,6 +30,7 @@ export const AWARD_IDS = [
   'closeCall',
   'marathon',
   'dockGuard',
+  'fastInflater',
   'fishFriend',
 ] as const;
 export type AwardId = (typeof AWARD_IDS)[number];
@@ -159,6 +160,8 @@ const RULES: readonly Rule[] = [
   },
   { id: 'marathon', best: 'max', value: stat((s) => Math.round(s.distance), 500) },
   { id: 'dockGuard', best: 'max', value: stat((s) => Math.round(s.idleSeconds), 300) },
+  // Täyttökisa (#458): nopeimmin vesille.
+  { id: 'fastInflater', best: 'min', value: (e) => e.stats?.inflateTime ?? null },
   {
     // Ei yhtään kalaa, vaikka yritystä riitti.
     id: 'fishFriend',

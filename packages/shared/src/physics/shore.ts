@@ -1,4 +1,5 @@
 import type { Vec2 } from '../vec2';
+import { createInflate, inflated, stepInflate, type InflateState } from './inflate';
 import { STAMINA, TUBE_RADIUS, wrapAngle, type TubeInput, type TubeState } from './tube';
 
 /**
@@ -25,6 +26,11 @@ export interface ShoreState {
    * maihin vienyt S-näppäin kävelytä kalastajaa heti takaperin metsään.
    */
   settle?: boolean;
+  /**
+   * Täyttökisa (#458): rengas on vielä tyhjä, ja kalastaja pumppaa sitä
+   * paikallaan. Puuttuu, kun rengas on täynnä (tai kisa alkoi vedestä).
+   */
+  inflate?: InflateState;
 }
 
 export const SHORE = {
@@ -156,6 +162,19 @@ export function stepShore(
       kickPhase: 0,
     };
   }
+  if (shore.inflate) {
+    // Pumpatessa seistään paikallaan: liikenäppäimet ovat letkun nuolia.
+    const r = stepInflate(shore.inflate, input, t.stamina, dt);
+    const { inflate: _, ...ready } = shore;
+    return {
+      ...t,
+      vel: { x: 0, y: 0 },
+      angVel: 0,
+      kickPhase: 0,
+      stamina: r.stamina,
+      shore: inflated(r.state) ? ready : { ...shore, inflate: r.state },
+    };
+  }
   const settling = !!shore.settle && input.kick !== 0;
   const turn = Math.max(-1, Math.min(1, input.turn));
   const angVel = turn * SHORE.turnRate;
@@ -202,12 +221,13 @@ export function stepShore(
 }
 
 /** Mitä pääkonteksti tekisi nyt maalla (napin teksti ja ohje). */
-export type ShoreAction = 'pickUp' | 'putDown' | 'board' | null;
+export type ShoreAction = 'pump' | 'pickUp' | 'putDown' | 'board' | null;
 
 /** Pääkontekstin toiminto maalla nykyisessä paikassa. */
 export function shoreActionAt(t: TubeState, water: ShoreWater): ShoreAction {
   const s = t.shore;
   if (!s || s.board !== undefined) return null;
+  if (s.inflate) return s.inflate.moving === null ? 'pump' : null;
   if (!s.carrying)
     return Math.hypot(s.tube.x - t.pos.x, s.tube.y - t.pos.y) <= SHORE.reach ? 'pickUp' : null;
   return boardingSpot(t.pos, water) ? 'board' : 'putDown';
@@ -251,10 +271,21 @@ export interface ShoreNet {
   shoreBoard: number;
   /** Maihin potkittu aika (s); 0 = ei. */
   landing: number;
+  /** Täyttökisa (#458): 0 = ei täytettävää, muuten letkun ponttooni + 1. */
+  inflate: number;
+  /** Letkun siirto: osuttuja nuolia + 1; 0 = letku kiinni. */
+  inflateMove: number;
+  fill0: number;
+  fill1: number;
+  fill2: number;
+  pumpHandle: number;
+  pumpArrow: number;
+  inflateSeed: number;
 }
 
 export function shoreToNet(t: TubeState): ShoreNet {
   const s = t.shore;
+  const f = s?.inflate;
   return {
     shore: !s ? 0 : (s.board !== undefined ? 3 : s.carrying ? 2 : 1) + (s.settle ? 4 : 0),
     shoreX: s?.tube.x ?? 0,
@@ -262,6 +293,14 @@ export function shoreToNet(t: TubeState): ShoreNet {
     shoreHeading: s?.tubeHeading ?? 0,
     shoreBoard: s?.board ?? 0,
     landing: t.landing ?? 0,
+    inflate: f ? f.valve + 1 : 0,
+    inflateMove: f && f.moving !== null ? f.moving + 1 : 0,
+    fill0: f?.fill[0] ?? 0,
+    fill1: f?.fill[1] ?? 0,
+    fill2: f?.fill[2] ?? 0,
+    pumpHandle: f?.handle ?? 0,
+    pumpArrow: f?.arrow ?? 0,
+    inflateSeed: f?.seed ?? 0,
   };
 }
 
@@ -277,6 +316,78 @@ export function shoreFromNet(p: Partial<ShoreNet>): Pick<TubeState, 'shore' | 'l
     carrying: kind === 2,
     ...(kind === 3 && { board: p.shoreBoard ?? 0 }),
     ...(((p.shore ?? 0) & 4) !== 0 && { settle: true }),
+    ...(p.inflate && {
+      inflate: {
+        fill: [p.fill0 ?? 0, p.fill1 ?? 0, p.fill2 ?? 0],
+        valve: p.inflate - 1,
+        moving: p.inflateMove ? p.inflateMove - 1 : null,
+        handle: p.pumpHandle ?? 0,
+        arrow: p.pumpArrow ?? 0,
+        seed: p.inflateSeed ?? 0,
+      },
+    }),
   };
+  return out;
+}
+
+/** Täyttökisan rivi (#458): kalastajat 4 m välein rannan suuntaisesti. */
+export const INFLATE_ROW = {
+  spacing: 4,
+  /** Kalastaja ja tyhjä rengas maalla rantaviivasta (m). */
+  angler: 2.6,
+  tube: 1.2,
+} as const;
+
+/**
+ * Täyttökisan aloituspaikat: rivi lähimmälle rannalle pisteestä `near`
+ * (vedessä tai rannalla). Rivi seuraa rantaviivaa; paikat, joihin ei mahdu
+ * (laituri, kapea niemi), ohitetaan. Kalastaja katsoo järvelle, ja tyhjä
+ * rengas on hänen edessään.
+ */
+export function inflateRow(
+  water: ShoreWater,
+  near: Vec2,
+  count: number,
+  seed: number,
+): TubeState[] {
+  const base = water.closestShorePoint(near);
+  if (!base) return [];
+  const inlandAt = (p: Vec2, c: { point: Vec2; distance: number }): Vec2 | null => {
+    if (c.distance < 1e-6) return null;
+    const k = water.isWater(p) ? 1 : -1;
+    return { x: ((c.point.x - p.x) * k) / c.distance, y: ((c.point.y - p.y) * k) / c.distance };
+  };
+  const n0 = inlandAt(near, base) ?? { x: 1, y: 0 };
+  const along = { x: -n0.y, y: n0.x };
+  const out: TubeState[] = [];
+  for (let k = 0; out.length < count && k < count * 6; k++) {
+    // Keskeltä vuorotellen molempiin suuntiin.
+    const step = k === 0 ? 0 : (k % 2 === 1 ? 1 : -1) * Math.ceil(k / 2);
+    const p = {
+      x: base.point.x + along.x * step * INFLATE_ROW.spacing - n0.x,
+      y: base.point.y + along.y * step * INFLATE_ROW.spacing - n0.y,
+    };
+    const c = water.closestShorePoint(p);
+    if (!c) continue;
+    const inland = inlandAt(p, c) ?? n0;
+    const at = (d: number) => ({ x: c.point.x + inland.x * d, y: c.point.y + inland.y * d });
+    const angler = at(INFLATE_ROW.angler);
+    const tube = at(INFLATE_ROW.tube);
+    if (!canStand(water, angler) || !water.isLand(tube)) continue;
+    const far = out.every(
+      (o) => Math.hypot(o.pos.x - angler.x, o.pos.y - angler.y) >= INFLATE_ROW.spacing * 0.8,
+    );
+    if (!far) continue;
+    const heading = Math.atan2(-inland.y, -inland.x);
+    out.push({
+      pos: angler,
+      vel: { x: 0, y: 0 },
+      heading,
+      angVel: 0,
+      kickPhase: 0,
+      stamina: 1,
+      shore: { tube, tubeHeading: heading, carrying: false, inflate: createInflate(seed) },
+    });
+  }
   return out;
 }

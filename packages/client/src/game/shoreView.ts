@@ -1,7 +1,14 @@
 import * as THREE from 'three';
-import { DEFAULT_APPEARANCE, type Appearance, type ShoreState, type Vec2 } from '@lunki/shared';
+import {
+  DEFAULT_APPEARANCE,
+  inflateSequence,
+  type Appearance,
+  type InflateState,
+  type ShoreState,
+  type Vec2,
+} from '@lunki/shared';
 import { toWorld } from '../world/lakeMesh';
-import { applyAppearance, createTubeMesh } from './tubeMesh';
+import { PONTOON_TIP, TUBE_CENTER, TUBE_LIFT, applyAppearance, createTubeMesh } from './tubeMesh';
 import { playerColorMaterial } from './playerColor';
 
 /** Seisovan kalastajan jalkojen pituus: renkaan kalastajan yläruumis nousee tämän verran. */
@@ -10,6 +17,18 @@ const LEG = 0.82;
 const CARRY_HEIGHT = 0.55;
 /** Seisovan silmän korkeus POV:ssa (m maanpinnasta). */
 export const STANDING_EYE = 1.6;
+/** Tyhjän ponttoonin litteys (osuus täydestä korkeudesta). */
+const FLAT = 0.2;
+/** Tyhjän sivuponttoonin leveneminen (osuus paksuudesta). */
+const SPREAD = 0.6;
+/** Käsipumppu kalastajan edessä (m) ja kahvan liike (#458). */
+const PUMP = { ahead: 0.45, barrel: 0.55, rodLow: 0.62, rodHigh: 0.98, dip: 0.18 } as const;
+/** Ponttoonien venttiilit renkaan omissa koordinaateissa (katse +x). */
+const VALVES: readonly Vec2[] = [
+  { x: PONTOON_TIP * 0.5, y: -TUBE_CENTER },
+  { x: PONTOON_TIP * 0.5, y: TUBE_CENTER },
+  { x: -TUBE_CENTER, y: 0 },
+];
 
 /** Maalla olevan kalastajan asento piirtohetkellä (#457). */
 export interface AshorePose {
@@ -33,12 +52,30 @@ export class AshoreFigure {
   private readonly tube = new THREE.Group();
   private readonly legs: THREE.Object3D[] = [];
   private readonly finMat: THREE.MeshLambertMaterial;
+  /** Renkaan putken osat ponttooneittain (tyhjänä litteä, #458). */
+  private readonly pontoons: THREE.Mesh[][] = [[], [], []];
+  /** Seisova käsipumppu: jalusta ja sylinteri sekä liikkuva kahva. */
+  private readonly pump = new THREE.Group();
+  private readonly pumpRod = new THREE.Group();
+  private readonly hose: THREE.Line;
 
   constructor(appearance: Appearance = DEFAULT_APPEARANCE) {
     const src = createTubeMesh(appearance);
     for (const c of [...src.children]) {
-      if (c.name === 'tube' || c.name === 'apron') this.tube.add(c);
-      else if (c.name === 'leg' || c.name === 'fin' || c.name === 'rod' || c.userData.seated)
+      if (c.name === 'tube' || c.name === 'apron') {
+        this.tube.add(c);
+        const k = c.userData.pontoon as number | undefined;
+        if (k !== undefined) {
+          const m = c as THREE.Mesh;
+          // Sivuponttoonin oma keskilinja nivelkohdaksi: tyhjänä se lässähtää leveäksi.
+          if (k < 2) {
+            const z = k === 0 ? -TUBE_CENTER : TUBE_CENTER;
+            m.geometry.translate(0, 0, -z);
+            m.position.z = z;
+          }
+          this.pontoons[k]!.push(m);
+        }
+      } else if (c.name === 'leg' || c.name === 'fin' || c.name === 'rod' || c.userData.seated)
         continue;
       else {
         c.position.y += LEG;
@@ -60,7 +97,8 @@ export class AshoreFigure {
       this.legs.push(leg);
       this.angler.add(leg);
     }
-    this.group.add(this.angler, this.tube);
+    this.hose = buildPump(this.pump, this.pumpRod);
+    this.group.add(this.angler, this.tube, this.pump, this.hose);
     this.group.visible = false;
   }
 
@@ -94,6 +132,56 @@ export class AshoreFigure {
       this.tube.position.copy(toWorld(s.tube, lying ? Math.max(0, heightAt(s.tube)) : 0));
       this.tube.rotation.y = s.tubeHeading;
     }
+    this.inflate(p, s.inflate, heightAt);
+  }
+
+  /**
+   * Täyttökisa (#458): ponttoonit täytön mukaan, pumppu kalastajan edessä,
+   * kahva vedon mukaan ja letku venttiiliin (siirrossa matkalla seuraavaan).
+   */
+  private inflate(p: AshorePose, f: InflateState | undefined, heightAt: (p: Vec2) => number) {
+    this.pontoons.forEach((parts, i) => {
+      const k = f ? FLAT + (1 - FLAT) * f.fill[i]! : 1;
+      for (const m of parts) {
+        m.scale.y = k;
+        // Ylhäältäkin näkyy: tyhjä kylki on litteä ja leveä.
+        if (i < 2) m.scale.z = 1 + (1 - k) * SPREAD;
+        m.position.y = TUBE_LIFT * k;
+      }
+    });
+    this.pump.visible = this.hose.visible = !!f;
+    if (!f) return;
+    const dir = { x: Math.cos(p.heading), y: Math.sin(p.heading) };
+    const at = { x: p.pos.x + dir.x * PUMP.ahead, y: p.pos.y + dir.y * PUMP.ahead };
+    const ground = Math.max(0, heightAt(at));
+    this.pump.position.copy(toWorld(at, ground));
+    this.pump.rotation.y = p.heading;
+    this.pumpRod.position.y = PUMP.rodLow + (PUMP.rodHigh - PUMP.rodLow) * f.handle;
+    // Kalastaja painaa kahvaa: vartalo notkahtaa vedon mukana.
+    this.angler.position.y -= PUMP.dip * (1 - f.handle);
+    const valve = (k: number): THREE.Vector3 => {
+      const v = VALVES[Math.min(2, k)]!;
+      const t = this.tube.rotation.y;
+      // Renkaan kierto y-akselin ympäri: paikallinen (x, z) maailmaan.
+      const local = new THREE.Vector3(v.x, TUBE_LIFT * 0.5, v.y).applyAxisAngle(
+        new THREE.Vector3(0, 1, 0),
+        t,
+      );
+      return local.add(this.tube.position);
+    };
+    let end = valve(f.valve);
+    if (f.moving !== null) {
+      const share = (f.moving + 0.5) / (inflateSequence(f.seed, f.valve).length + 1);
+      end = end.lerp(valve(f.valve + 1), share);
+    }
+    const start = this.pump.position.clone().setY(this.pump.position.y + 0.05);
+    const mid = start
+      .clone()
+      .lerp(end, 0.5)
+      .setY(Math.min(start.y, end.y) + 0.02);
+    const pos = this.hose.geometry.getAttribute('position') as THREE.BufferAttribute;
+    [start, mid, end].forEach((v, i) => pos.setXYZ(i, v.x, v.y, v.z));
+    pos.needsUpdate = true;
   }
 
   /** Kalastajan oma vartalo piiloon omin silmin (POV); rengas näkyy silti. */
@@ -116,4 +204,32 @@ export class AshoreFigure {
       m.geometry?.dispose();
     });
   }
+}
+
+/**
+ * Seisova käsipumppu (#458): jalusta painemittareineen, sylinteri ja
+ * T-kahva tankoineen (`rod` liikkuu pystysuunnassa). Palauttaa letkun.
+ */
+function buildPump(pump: THREE.Group, rod: THREE.Group): THREE.Line {
+  const dark = new THREE.MeshLambertMaterial({ color: 0x1c232b });
+  const barrelMat = new THREE.MeshLambertMaterial({ color: 0x4f6f86 });
+  const base = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.03, 0.34), dark);
+  base.position.y = 0.015;
+  const gauge = new THREE.Mesh(
+    new THREE.BoxGeometry(0.06, 0.06, 0.06),
+    new THREE.MeshLambertMaterial({ color: 0xeef2f3 }),
+  );
+  gauge.position.set(0.07, 0.06, 0);
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, PUMP.barrel, 6), barrelMat);
+  barrel.position.y = PUMP.barrel / 2 + 0.03;
+  const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.4, 0.02), dark);
+  shaft.position.y = -0.2;
+  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.42), dark);
+  rod.add(shaft, handle);
+  pump.add(base, gauge, barrel, rod);
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(9), 3));
+  const hose = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0x1c232b }));
+  hose.frustumCulled = false;
+  return hose;
 }
