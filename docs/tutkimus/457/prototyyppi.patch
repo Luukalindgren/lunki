@@ -1,0 +1,236 @@
+diff --git a/packages/client/src/dev/proto.ts b/packages/client/src/dev/proto.ts
+new file mode 100644
+index 0000000..a753064
+--- /dev/null
++++ b/packages/client/src/dev/proto.ts
+@@ -0,0 +1,214 @@
++// Täyttökisan ja rantautumisen mallikuvien apu (vain tutkimuskuviin, ei pelikoodia).
++import * as THREE from 'three';
++import {
++  LUNKINJARVI,
++  LUNKINJARVI_SURROUNDINGS,
++  LandCover,
++  TUBE_RADIUS,
++  type Appearance,
++  type Vec2,
++} from '@lunki/shared';
++import { Ground } from '../world/ground';
++import { toWorld } from '../world/lakeMesh';
++import { createTubeMesh } from '../game/tubeMesh';
++import { playerColorMaterial } from '../game/playerColor';
++
++export { THREE, LUNKINJARVI, LUNKINJARVI_SURROUNDINGS, toWorld, createTubeMesh };
++
++export const ground = new Ground(LUNKINJARVI, LUNKINJARVI_SURROUNDINGS.terrain);
++export const cover = new LandCover(LUNKINJARVI_SURROUNDINGS);
++export const heightAt = (p: Vec2) => Math.max(0, ground.heightAt(p));
++
++const TUBE_CENTER = TUBE_RADIUS * 0.72;
++const TUBE_THICK = TUBE_RADIUS * 0.28;
++const PONTOON_TIP = TUBE_RADIUS * 0.7;
++
++/** Ponttoonin täyttö 0–1: litteä ja leveä tyhjänä, pyöreä täytenä. */
++function inflate(mesh: THREE.Object3D, fill: number) {
++  const f = Math.max(0, Math.min(1, fill));
++  mesh.scale.set(1.15 - 0.15 * f, 0.18 + 0.82 * f, 1.15 - 0.15 * f);
++}
++
++/**
++ * U-muotoinen rengas kolmena ponttoonina: vasen kylki, oikea kylki ja pohja
++ * (istuin). `fill` = [vasen, oikea, pohja].
++ */
++export function tube3(hex: number, fill: [number, number, number]): THREE.Group {
++  const g = new THREE.Group();
++  const mat = playerColorMaterial(hex);
++  const dark = new THREE.MeshLambertMaterial({ color: 0x1c232b });
++  for (const [i, side] of [
++    [0, -1],
++    [1, 1],
++  ] as const) {
++    const part = new THREE.Group();
++    const arc = new THREE.TorusGeometry(TUBE_CENTER, TUBE_THICK, 6, 6, Math.PI / 2);
++    // Kaari kalastajan takana: puolikas U:n pohjasta kummallekin kyljelle.
++    arc.rotateZ(side < 0 ? Math.PI : Math.PI / 2);
++    arc.rotateX(-Math.PI / 2);
++    part.add(new THREE.Mesh(arc, mat));
++    const cyl = new THREE.CylinderGeometry(TUBE_THICK, TUBE_THICK, PONTOON_TIP, 6);
++    cyl.rotateZ(Math.PI / 2);
++    cyl.translate(PONTOON_TIP / 2, 0, side * TUBE_CENTER);
++    part.add(new THREE.Mesh(cyl, mat));
++    const tip = new THREE.SphereGeometry(TUBE_THICK, 6, 4);
++    tip.translate(PONTOON_TIP, 0, side * TUBE_CENTER);
++    part.add(new THREE.Mesh(tip, mat));
++    // Venttiili kyljen takaosassa.
++    const valve = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.08, 6), dark);
++    valve.position.set(-0.35, TUBE_THICK, side * (TUBE_CENTER + 0.25));
++    valve.name = `valve${i}`;
++    part.add(valve);
++    inflate(part, fill[i]);
++    part.position.y = 0.06 + 0.16 * fill[i];
++    g.add(part);
++  }
++  // Pohja: istuinponttooni kylkien välissä.
++  const seat = new THREE.Mesh(
++    new THREE.BoxGeometry(0.62, 0.22, (TUBE_CENTER - TUBE_THICK) * 2 + 0.06),
++    mat,
++  );
++  inflate(seat, fill[2]);
++  seat.position.set(-0.05, 0.04 + 0.12 * fill[2], 0);
++  g.add(seat);
++  const seatValve = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.08, 6), dark);
++  seatValve.position.set(0.15, 0.08 + 0.2 * fill[2], 0.12);
++  seatValve.name = 'valve2';
++  g.add(seatValve);
++  return g;
++}
++
++/** Seisova kalastaja: renkaan kalastajan yläruumis jalkojen päällä. */
++export function standingAngler(a: Appearance, opts: { rod?: boolean } = {}): THREE.Group {
++  const src = createTubeMesh(a);
++  const g = new THREE.Group();
++  const LEG = 0.82;
++  for (const c of [...src.children]) {
++    if (['tube', 'apron', 'leg', 'fin'].includes(c.name)) continue;
++    if (c.name === 'rod' && !opts.rod) continue;
++    if (c.userData.seated) continue;
++    c.position.y += LEG;
++    g.add(c);
++  }
++  const legMat = new THREE.MeshLambertMaterial({ color: 0x3b4630 });
++  const finMat = playerColorMaterial(a.fins);
++  for (const z of [-0.14, 0.14]) {
++    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.17, LEG, 0.17), legMat);
++    leg.position.set(0, LEG / 2, z);
++    g.add(leg);
++    const boot = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.08, 0.18), finMat);
++    boot.position.set(0.06, 0.04, z);
++    g.add(boot);
++  }
++  return g;
++}
++
++/** Jalkapumppu ja letku venttiiliin (paikallisissa koordinaateissa). */
++export function footPump(to: THREE.Vector3, pressed = 0): THREE.Group {
++  const g = new THREE.Group();
++  const base = new THREE.Mesh(
++    new THREE.BoxGeometry(0.36, 0.08, 0.24),
++    new THREE.MeshLambertMaterial({ color: 0x2a2f36 }),
++  );
++  base.position.y = 0.04;
++  g.add(base);
++  const pedal = new THREE.Mesh(
++    new THREE.BoxGeometry(0.34, 0.05, 0.22),
++    new THREE.MeshLambertMaterial({ color: 0xf6d04d }),
++  );
++  pedal.position.set(0, 0.14 - 0.06 * pressed, 0);
++  pedal.rotation.z = 0.35 * (1 - pressed);
++  g.add(pedal);
++  const curve = new THREE.CatmullRomCurve3([
++    new THREE.Vector3(-0.18, 0.05, 0),
++    new THREE.Vector3((to.x - 0.18) / 2, 0.02, to.z / 2 + 0.15),
++    to,
++  ]);
++  g.add(
++    new THREE.Mesh(
++      new THREE.TubeGeometry(curve, 12, 0.025, 4),
++      new THREE.MeshLambertMaterial({ color: 0x0b0f14 }),
++    ),
++  );
++  return g;
++}
++
++/** Katkoviiva maahan (top-näkymän merkintä): pätkät laatikoina. */
++export function dashes(points: Vec2[], color: number, width = 0.3, dash = 1.2): THREE.Group {
++  const g = new THREE.Group();
++  const mat = new THREE.MeshBasicMaterial({ color });
++  for (let i = 1; i < points.length; i++) {
++    const a = points[i - 1]!;
++    const b = points[i]!;
++    const len = Math.hypot(b.x - a.x, b.y - a.y);
++    for (let d = 0; d < len; d += dash * 2) {
++      const l = Math.min(dash, len - d);
++      const t0 = d / len;
++      const t1 = (d + l) / len;
++      const c = {
++        x: a.x + (b.x - a.x) * ((t0 + t1) / 2),
++        y: a.y + (b.y - a.y) * ((t0 + t1) / 2),
++      };
++      const m = new THREE.Mesh(new THREE.BoxGeometry(l, 0.05, width), mat);
++      m.position.copy(toWorld(c, heightAt(c) + 0.05));
++      m.rotation.y = Math.atan2(b.y - a.y, b.x - a.x);
++      g.add(m);
++    }
++  }
++  return g;
++}
++
++/** Rantaviivan pätkä pisteen ympäriltä ja siitä `inland` metriä maalle siirretty viiva. */
++export function shoreBand(center: Vec2, radius: number, inland: number | ((p: Vec2) => number)) {
++  const ring = LUNKINJARVI.shore;
++  const pts: { p: Vec2; i: number }[] = [];
++  ring.forEach((p, i) => {
++    if (Math.hypot(p.x - center.x, p.y - center.y) < radius) pts.push({ p, i });
++  });
++  const out: Vec2[] = [];
++  const shore: Vec2[] = [];
++  for (const { p, i } of pts) {
++    const a = ring[(i + ring.length - 1) % ring.length]!;
++    const b = ring[(i + 1) % ring.length]!;
++    const tx = b.x - a.x;
++    const ty = b.y - a.y;
++    const l = Math.hypot(tx, ty) || 1;
++    // Rantaviiva kiertää vastapäivään, joten maa on oikealla.
++    const n = { x: ty / l, y: -tx / l };
++    const d = typeof inland === 'number' ? inland : inland(p);
++    out.push({ x: p.x + n.x * d, y: p.y + n.y * d });
++    shore.push(p);
++  }
++  return { out, shore };
++}
++
++/** Rantaviivan normaali (maalle päin) pisteen lähellä. */
++export function shoreNormal(p: Vec2): { at: Vec2; n: Vec2 } {
++  const ring = LUNKINJARVI.shore;
++  let best = 0;
++  let bd = Infinity;
++  ring.forEach((q, i) => {
++    const d = Math.hypot(q.x - p.x, q.y - p.y);
++    if (d < bd) {
++      bd = d;
++      best = i;
++    }
++  });
++  const a = ring[(best + ring.length - 1) % ring.length]!;
++  const b = ring[(best + 1) % ring.length]!;
++  const l = Math.hypot(b.x - a.x, b.y - a.y) || 1;
++  return { at: ring[best]!, n: { x: (b.y - a.y) / l, y: -(b.x - a.x) / l } };
++}
++
++/** Rantojen maankäyttö: rantaviivan pisteet, joiden takana on annettu laji. */
++export function shoresOfKind(kind: string, inland = 6): Vec2[] {
++  const ring = LUNKINJARVI.shore;
++  const res: Vec2[] = [];
++  ring.forEach((p, i) => {
++    const b = ring[(i + 1) % ring.length]!;
++    const l = Math.hypot(b.x - p.x, b.y - p.y) || 1;
++    const q = { x: p.x + ((b.y - p.y) / l) * inland, y: p.y - ((b.x - p.x) / l) * inland };
++    if (cover.kindAt(q) === kind) res.push(p);
++  });
++  return res;
++}
+diff --git a/packages/client/src/main.ts b/packages/client/src/main.ts
+index 91d5c37..11e1b9d 100644
+--- a/packages/client/src/main.ts
++++ b/packages/client/src/main.ts
+@@ -291,7 +291,10 @@ function startGame(s: CompetitionSettings, seed = devSeed, challenge: Challenge
+   if (session) chat?.mount(hud.root, 'hud');
+   touch?.setMultiplayer(session !== null);
+   touch?.setSpectator(game.spectating);
+-  if (import.meta.env.DEV) Object.assign(window, { lunki: game });
++  if (import.meta.env.DEV) {
++    Object.assign(window, { lunki: game });
++    void import('./dev/proto').then((m) => Object.assign(window, { lunkiProto: m }));
++  }
+   paused = false;
+   screens.hide();
+   hud.setVisible(true);
