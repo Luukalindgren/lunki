@@ -8,6 +8,7 @@ import {
   type Vec2,
 } from '@lunki/shared';
 import { toWorld } from '../world/lakeMesh';
+import type { BailPose } from '../net/netWorld';
 import { PONTOON_TIP, TUBE_CENTER, TUBE_LIFT, applyAppearance, createTubeMesh } from './tubeMesh';
 import { playerColorMaterial } from './playerColor';
 
@@ -19,6 +20,8 @@ const CARRY_HEIGHT = 0.55;
 export const STANDING_EYE = 1.6;
 /** Tyhjän ponttoonin litteys (osuus täydestä korkeudesta). */
 const FLAT = 0.2;
+/** Äyskäröijä kumartuu kauhaistessa (m). */
+const BAIL_DIP = 0.25;
 /** Tyhjän sivuponttoonin leveneminen (osuus paksuudesta). */
 const SPREAD = 0.6;
 /** Käsipumppu kalastajan edessä (m) ja kahvan liike (#458). */
@@ -58,6 +61,8 @@ export class AshoreFigure {
   private readonly pump = new THREE.Group();
   private readonly pumpRod = new THREE.Group();
   private readonly hose: THREE.Line;
+  /** Äyskäröinnin kauha kädessä (#458). */
+  private readonly scoop: THREE.Mesh;
 
   constructor(appearance: Appearance = DEFAULT_APPEARANCE) {
     const src = createTubeMesh(appearance);
@@ -98,6 +103,12 @@ export class AshoreFigure {
       this.angler.add(leg);
     }
     this.hose = buildPump(this.pump, this.pumpRod);
+    this.scoop = new THREE.Mesh(
+      new THREE.BoxGeometry(0.22, 0.12, 0.18),
+      new THREE.MeshLambertMaterial({ color: 0x4f6f86 }),
+    );
+    this.scoop.visible = false;
+    this.angler.add(this.scoop);
     this.group.add(this.angler, this.tube, this.pump, this.hose);
     this.group.visible = false;
   }
@@ -111,6 +122,8 @@ export class AshoreFigure {
   /** Piirtää asennon; `heightAt` antaa maanpinnan (POV:ssa maasto, ylhäältä 0). */
   update(p: AshorePose, heightAt: (p: Vec2) => number): void {
     this.group.visible = true;
+    this.tube.visible = true;
+    this.scoop.visible = false;
     const s = p.shore;
     // Kyytiin hypätessä kalastaja kulkee takaperin renkaaseen ja istuu.
     const k = s.board ?? 0;
@@ -182,6 +195,23 @@ export class AshoreFigure {
     const pos = this.hose.geometry.getAttribute('position') as THREE.BufferAttribute;
     [start, mid, end].forEach((v, i) => pos.setXYZ(i, v.x, v.y, v.z));
     pos.needsUpdate = true;
+  }
+
+  /**
+   * Äyskäröijä rannalla olevan veneen vieressä (#458): ilman rengasta, kauha
+   * kädessä. Kalastaja kumartuu kauhaisemaan ja nousee kauhan palatessa.
+   */
+  updateBailer(p: BailPose, heightAt: (p: Vec2) => number): void {
+    this.group.visible = true;
+    this.tube.visible = this.pump.visible = this.hose.visible = false;
+    this.scoop.visible = true;
+    this.angler.position.copy(
+      toWorld(p.pos, Math.max(0, heightAt(p.pos)) - BAIL_DIP * (1 - p.handle)),
+    );
+    this.angler.rotation.y = p.heading;
+    this.legs.forEach((leg) => (leg.rotation.z = 0));
+    // Kauha veneen laidan yli: alhaalla kauhaistessa, ylhäällä heittäessä.
+    this.scoop.position.set(0.55, 0.55 + 0.35 * p.handle, 0.2);
   }
 
   /** Kalastajan oma vartalo piiloon omin silmin (POV); rengas näkyy silti. */

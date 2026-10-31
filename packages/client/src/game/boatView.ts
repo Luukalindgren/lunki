@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { BOAT_HULL, CRAFTS, SEAT_OFFSET } from '@lunki/shared';
+import { BOAT_HULL, CRAFTS, SEAT_OFFSET, type BoatLaunch } from '@lunki/shared';
 import type { BoatPose } from '../net/netWorld';
 import { toWorld } from '../world/lakeMesh';
 
@@ -203,6 +203,42 @@ export function animateOars(group: THREE.Group, kickPhase: number): void {
   }
 }
 
+/** Veden pinta täyden veneen pohjasta (m): vähän laidan alapuolella. */
+const BILGE_TOP = GUNWALE * 0.75;
+
+/**
+ * Pohjavesi täyttökisan veneessä (#458): keulan ja perän puolikkaat omina
+ * pintoinaan, jotta äyskäröinnin edistyminen näkyy osittain.
+ */
+function addBilge(mesh: THREE.Group): void {
+  const mat = new THREE.MeshLambertMaterial({ color: 0x4f6f86 });
+  const parts: [number, number][] = [
+    [BOW_X * 0.62, 0],
+    [0, STERN_X - WALL * 2],
+  ];
+  parts.forEach(([from, to], i) => {
+    const plane = new THREE.Mesh(
+      new THREE.BoxGeometry(to - from, 0.02, BOAT_HULL.beam * (i === 0 ? 0.62 : 0.78)),
+      mat,
+    );
+    plane.name = i === 0 ? 'bilgeBow' : 'bilgeStern';
+    plane.position.x = (from + to) / 2;
+    plane.visible = false;
+    mesh.add(plane);
+  });
+}
+
+/** Rannalla (#458) airot irti ja pohjavesi osien veden mukaan; vesillä ennallaan. */
+function showLaunch(mesh: THREE.Group, launch: BoatLaunch | undefined): void {
+  for (const c of mesh.children) if (c.name === 'oar') c.visible = !launch;
+  (['bilgeBow', 'bilgeStern'] as const).forEach((name, i) => {
+    const plane = mesh.getObjectByName(name)!;
+    const k = launch && launch.full > 0 ? launch.water[i]! / launch.full : 0;
+    plane.visible = k > 0;
+    plane.position.y = FLOOR + (BILGE_TOP - FLOOR) * k;
+  });
+}
+
 /** Kaikki kisan veneet, myös oma. */
 export class BoatsView {
   readonly group = new THREE.Group();
@@ -219,6 +255,7 @@ export class BoatsView {
       }
       if (!e) {
         e = { mesh: createBoatMesh(b.color), color: b.color };
+        addBilge(e.mesh);
         this.boats.set(b.boat, e);
         this.group.add(e.mesh);
       }
@@ -227,6 +264,7 @@ export class BoatsView {
       e.mesh.rotation.x = b.tumble ?? b.roll ?? 0;
       animateOars(e.mesh, b.kickPhase);
       e.mesh.getObjectByName('anchorStowed')!.visible = !b.anchor;
+      showLaunch(e.mesh, b.launch);
     }
     for (const id of [...this.boats.keys()]) if (!seen.has(id)) this.remove(id);
   }

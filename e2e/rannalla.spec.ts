@@ -76,3 +76,41 @@ test('täyttökisa: pumppaus ja letkun siirto', async ({ page }) => {
   await expect(situation).toContainText('oikea kylki 0 %');
   errors.check();
 });
+
+/**
+ * Veneen vesillelasku täyttökisassa (#458): vene on rannalla vettä täynnä.
+ * Välilyönti äyskäröi keulan tyhjäksi, ja nuolisarja siirtää perään.
+ */
+test('täyttökisa veneellä: äyskäröinti ja siirto perään', async ({ page }) => {
+  test.setTimeout(90_000);
+  const errors = watchErrors(page);
+  await page.addInitScript(() => localStorage.setItem('lunki.craft', 'boat'));
+  await page.goto(
+    `/?view=top&seed=${SEED}&difficulty=easy&weather=calm&minutes=10&inflate&start=1029.6,-410.2`,
+  );
+  await raceRunning(page);
+  const situation = page.locator('.hud-situation');
+  await expect(situation).toContainText('Äyskäröi');
+  await expect(situation).toContainText('keulassa');
+
+  // Äyskäröi, kunnes keula on tyhjä ja ohje pyytää siirtymään perään.
+  for (let i = 0; i < 3000; i++) {
+    if ((await situation.innerText()).includes('Siirry')) break;
+    await page.keyboard.press('Space');
+  }
+  await expect(situation).toContainText('Siirry perään');
+
+  const keys: Record<string, string> = { '↑': 'KeyW', '↓': 'KeyS', '←': 'KeyA', '→': 'KeyD' };
+  const arrows = (await situation.innerText()).split('Nuolet ')[1]!.split(' ');
+  for (const [i, a] of arrows.entries()) {
+    await page.keyboard.press(keys[a]!);
+    if (i < arrows.length - 1)
+      await expect(situation).toContainText(
+        Array(i + 1)
+          .fill('✓')
+          .join(' '),
+      );
+  }
+  await expect(situation).toContainText('vettä perässä 100 %');
+  errors.check();
+});

@@ -1,10 +1,17 @@
 import {
   BoatSeat,
   CRAFTS,
+  LaunchStage,
+  isAshore,
+  type BoatLaunch,
   formatTime,
   inflateProgress,
   inflateSequence,
   type InflateState,
+  type Bailer,
+  launchSequence,
+  launchSequenceKind,
+  launchWater,
   type RaceStatsCounter,
   SHORE,
   TUBE_RADIUS,
@@ -39,6 +46,7 @@ export function readTubeInput(c: Controls, ashore = false): TubeInput {
   const main =
     ashore &&
     (c.wasPressed('pump') ||
+      c.wasPressed('bail') ||
       c.wasPressed('pickUp') ||
       c.wasPressed('putDown') ||
       c.wasPressed('board'));
@@ -149,14 +157,21 @@ export class CraftController {
     return this.shoreHint ?? this.seatHint ?? this.anchorHint ?? this.rowHint;
   }
 
-  /** Kalastaja on maalla (#457), myös kyytiin hypätessä. */
+  /** Kalastaja on maalla (#457), myös kyytiin hypätessä ja veneen vesillelaskussa (#458). */
   get ashore(): boolean {
-    return this.host.tube.shore !== undefined;
+    return isAshore(this.host.tube);
   }
 
   /** Mitä pääkonteksti tekee nyt maalla (ison napin teksti). */
-  get shoreAction(): ShoreAction {
+  get shoreAction(): ShoreAction | 'bail' {
+    const b = this.host.tube.bailer;
+    if (b) return b.moving === null && b.stage === LaunchStage.bail ? 'bail' : null;
     return shoreActionAt(this.host.tube, this.host.water);
+  }
+
+  /** Oman veneen vesillelasku (#458): soutajalla omassa tilassa, kyydissä soutajalta. */
+  get boatLaunch(): BoatLaunch | undefined {
+    return this.host.tube.launch ?? this.host.netWorld?.ownBoatLaunch();
   }
 
   /** Vieheen vaihe palvelimelle ja veneen säännöille. */
@@ -190,7 +205,8 @@ export class CraftController {
       rodStage === 'flight' ||
       (rodStage === 'water' && reelHeld && !frozen);
     const oars = this.rower && c.wasPressed('oars') && !rodInHand && !frozen;
-    const move = this.rower ? this.seat.step(raw, rodInHand, oars, dt) : raw;
+    // Rannalla (#458) liikesuunnat ovat nuolia eivätkä soutua.
+    const move = this.rower && !wasAshore ? this.seat.step(raw, rodInHand, oars, dt) : raw;
     // Ankkuri (#355): renkaalla ja veneen soutajalla, ei kyydissä eikä vanhalla palvelimella.
     let anchor = c.wasPressed('anchor') && !frozen && !capsized && !host.spectating;
     const net = host.netWorld;
@@ -260,6 +276,13 @@ export class CraftController {
    */
   private updateShore(input: TubeInput, lureOut: boolean): void {
     const host = this.host;
+    // Veneen vesillelasku täyttökisassa (#458).
+    const bailer = host.tube.bailer;
+    const wasBailing = host.prevTube.bailer;
+    if (bailer || wasBailing) {
+      this.updateLaunch(wasBailing, bailer);
+      if (bailer) return;
+    }
     const was = host.prevTube.shore;
     const now = host.tube.shore;
     const sounds = host.sounds;
@@ -322,6 +345,43 @@ export class CraftController {
       sounds.play('hoseOff');
       this.host.hud.showMessage(t('game.inflateSlipped'), 2, 'event');
     }
+  }
+
+  /**
+   * Veneen vesillelasku (#458): kauhan ja osan vaihdon äänet, väärä nuoli,
+   * työnnön ja airojen vaiheet sekä tilanneohje. Vesille päästessä maali.
+   */
+  private updateLaunch(was: Bailer | undefined, now: Bailer | undefined): void {
+    const host = this.host;
+    const sounds = host.sounds;
+    if (!now) {
+      sounds.play('boarded');
+      if (this.inflateRace) this.afloat();
+      return;
+    }
+    this.inflateRace = true;
+    const launch = this.boatLaunch;
+    if (was) {
+      if (now.handle < was.handle && now.moving === null) sounds.play('bailScoop');
+      if (now.part !== was.part || now.stage !== was.stage) sounds.play('partEmptied');
+      if (
+        was.moving !== null &&
+        now.moving !== null &&
+        now.moving < was.moving &&
+        now.stage === was.stage
+      ) {
+        sounds.play('hoseOff');
+        host.hud.showMessage(t('game.launchSlipped'), 2, 'event');
+      } else if (was.moving !== null && now.moving === null && now.part === was.part) {
+        sounds.play('hoseOff');
+        host.hud.showMessage(t('game.bailSpilled'), 2, 'event');
+      }
+    }
+    if (host.spectating || !launch) {
+      this.shoreHint = null;
+      return;
+    }
+    this.shoreHint = launchHint(launch, now);
   }
 
   /** Täyttökisan maali (#458): kyydissä vesillä. Moninpelissä myös sija. */
@@ -450,4 +510,26 @@ export function inflateHint(s: InflateState): string {
     pct: Math.floor(s.fill[s.valve]! * 100),
     total: Math.floor(inflateProgress(s) * 100),
   });
+}
+
+const BOAT_PARTS: readonly MsgKey[] = ['game.boatBow', 'game.boatStern'];
+const BOAT_PARTS_TO: readonly MsgKey[] = ['game.boatToBow', 'game.boatToStern'];
+
+/**
+ * Veneen vesillelaskun tilanneohje (#458): äyskäröidessä oman osan ja koko
+ * veneen vesi, nuolisarjoissa osan vaihto, työntö tai airot.
+ */
+export function launchHint(launch: BoatLaunch, b: Bailer): string {
+  const kind = launchSequenceKind({ ...launch, stage: b.stage }, b);
+  if (kind === null)
+    return controlText('game.bailScoop', {
+      part: t(BOAT_PARTS[b.part]!),
+      pct: Math.ceil((launch.water[b.part]! / Math.max(1e-9, launch.full)) * 100),
+      total: Math.ceil(launchWater(launch) * 100),
+    });
+  const seq = launchSequence(launch.seed, kind);
+  const arrows = seq.map((a, i) => (i < b.moving! ? '✓' : ARROW_GLYPHS[a])).join(' ');
+  if (kind === 12) return t('game.launchPush', { arrows });
+  if (kind === 13) return t('game.launchOars', { arrows });
+  return t('game.bailMove', { part: t(BOAT_PARTS_TO[1 - b.part]!), arrows });
 }

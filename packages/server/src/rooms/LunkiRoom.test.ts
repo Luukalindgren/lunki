@@ -1673,6 +1673,53 @@ describe('täyttökisa (#458)', () => {
     await host.leave();
   });
 
+  it('vene rannalle vettä täynnä, ja kyytiläinenkin äyskäröi', async () => {
+    type Boat = Row & {
+      boat: number;
+      seat: number;
+      boatLaunch: { launch: number; water1: number; bail: number };
+    };
+    const get = (room: Room, id: string) => room.state.players.get(id) as Boat;
+    const host = await sdk().create(ROOM_NAME, {
+      name: 'A',
+      playerId: 'A',
+      protocol: PROTOCOL_VERSION,
+      testTiming: { countdown: 0.1, duration: 30 },
+    });
+    const b = await join(host, 'B');
+    await until(() => players(host).length === 2);
+    host.send(ClientMsg.boat, 0);
+    await until(() => get(host, host.sessionId).boat === 1);
+    b.send(ClientMsg.boat, 1);
+    await until(() => get(host, b.sessionId).seat === BoatSeat.stern);
+    host.send(ClientMsg.settings, { inflate: true });
+    await until(() => b.state.settings.inflate === true);
+    b.send(ClientMsg.ready, true);
+    await until(() => players(host).every((p, i) => i === 0 || p.ready));
+    host.send(ClientMsg.start);
+    await until(() => host.state.phase === 'playing');
+    const water = new WaterBody(LUNKINJARVI);
+    const boat = get(host, host.sessionId);
+    expect(boat.boatLaunch.launch).toBe(1);
+    expect(water.isLand(boat)).toBe(true);
+    // Kahden hengen venekunnalla vettä on kahden renkaan työ, puolet perässä.
+    expect(boat.boatLaunch.water1).toBe(75);
+    expect(get(host, b.sessionId).boatLaunch.bail).toBe(2);
+    // Perän kalastaja äyskäröi: perän vesi vähenee soutajan veneessä.
+    const i = Array.from({ length: 30 }, (_, k) => ({
+      seq: k + 1,
+      kick: 0,
+      turn: 0,
+      sprint: false,
+      main: k % 20 === 0,
+    }));
+    b.send(ClientMsg.input, { i: encodeInputs(i), l: [] });
+    await until(() => get(host, host.sessionId).boatLaunch.water1 < 74);
+    expect(get(host, host.sessionId).boatLaunch.water1).toBeCloseTo(73, 5);
+    await b.leave();
+    await host.leave();
+  });
+
   it('vanhan asiakkaan aulassa täyttökisaa ei voi valita', async () => {
     const host = await sdk().create(ROOM_NAME, {
       name: 'A',

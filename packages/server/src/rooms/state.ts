@@ -9,6 +9,28 @@ import {
 } from '@lunki/shared';
 
 /**
+ * Veneen vesillelasku täyttökisassa (#458, LaunchNet): veneen vaihe + 1, vesi
+ * keulassa ja perässä sekä jäsenen äyskäröinti. Omana osanaan, koska
+ * PlayerStatessa saa olla enintään 64 kenttää.
+ */
+export const LaunchState = schema(
+  {
+    launch: t.uint8().default(0),
+    water0: t.float64().default(0),
+    water1: t.float64().default(0),
+    waterFull: t.float64().default(0),
+    launchSeed: t.uint32().default(0),
+    bail: t.uint8().default(0),
+    bailMove: t.uint8().default(0),
+    bailHandle: t.float64().default(0),
+    bailArrow: t.uint8().default(0),
+    bailStage: t.uint8().default(0),
+  },
+  'LaunchState',
+);
+export type LaunchState = SchemaType<typeof LaunchState>;
+
+/**
  * Pelaaja huoneessa. Avaimena Colyseuksen sessionId. Renkaan tila on
  * float64, jotta asiakkaan ennakointi voi lähteä täsmälleen samasta tilasta.
  */
@@ -94,6 +116,8 @@ export const PlayerState = schema(
     pumpHandle: t.float64().default(0),
     pumpArrow: t.uint8().default(0),
     inflateSeed: t.uint32().default(0),
+    /** Veneen vesillelasku täyttökisassa (#458, LaunchNet). */
+    boatLaunch: LaunchState,
   },
   'PlayerState',
 );

@@ -1,6 +1,7 @@
 import { stepAnchor } from '../physics/anchor';
 import { CRAFTS, collideCraftWithShore, type CraftSpec } from '../physics/boat';
-import { stepLanding, stepShore } from '../physics/shore';
+import { isAshore, stepLanding, stepShore } from '../physics/shore';
+import { LaunchStage, launchBoat, stepBail } from '../physics/launch';
 import { stepTube, type TubeInput, type TubeState } from '../physics/tube';
 import { collideTubePair } from '../physics/tubeCollision';
 import { REEDS } from '../map/reeds';
@@ -83,6 +84,10 @@ export function stepPlayerTube(
   canLand = false,
 ): TubeState {
   if (tube.shore) return stepShore(tube, input, water, dt);
+  // Täyttökisan vene rannalla (#458): soutaja äyskäröi omaa venettään, kyytiläisen
+  // äyskäröinnin palvelin laskee soutajan veneeseen (stepSims).
+  if (tube.launch) return stepOwnLaunch(tube, input, water, dt);
+  if (tube.bailer) return tube;
   const drag = water.reedsAt(tube.pos) ? REEDS.drag : 1;
   let next = stepTube(tube, input, dt, wind, drag, craft.physics);
   if (depthAt) next = stepAnchor(next, !!input.anchor, dt, craft.anchorAt, depthAt, wind);
@@ -95,6 +100,19 @@ export function stepPlayerTube(
     dt,
   );
 }
+
+/**
+ * Soutaja äyskäröi omaa venettään rannalla (#458). Kun airot ovat kiinni,
+ * vene lasketaan vesille (`finishLaunch`).
+ */
+function stepOwnLaunch(tube: TubeState, input: TubeInput, water: WaterBody, dt: number): TubeState {
+  const r = stepBail(tube.launch!, tube.bailer!, input, tube.stamina, dt);
+  return finishLaunch({ ...tube, launch: r.launch, bailer: r.bailer, stamina: r.stamina }, water);
+}
+
+/** Airot kiinni: vene vesille, ja soutajan äyskäröinti päättyy. */
+export const finishLaunch = (boat: TubeState, water: WaterBody): TubeState =>
+  boat.launch && boat.launch.stage >= LaunchStage.done ? launchBoat(boat, water) : boat;
 
 /**
  * Palvelimen syötejono yhdelle pelaajalle. Jokainen palvelimen askel kuluttaa
@@ -143,6 +161,8 @@ export const cloneTube = (t: TubeState): TubeState => ({
   ...(t.anchor && { anchor: { ...t.anchor, pos: { ...t.anchor.pos } } }),
   ...(t.landing !== undefined && { landing: t.landing }),
   ...(t.shore && { shore: { ...t.shore, tube: { ...t.shore.tube } } }),
+  ...(t.launch && { launch: { ...t.launch, water: [...t.launch.water] } }),
+  ...(t.bailer && { bailer: { ...t.bailer } }),
 });
 
 /** Toisen pelaajan alus ennakoinnin törmäyksiin: tila ja laji (rengas tai vene). */
@@ -162,11 +182,11 @@ export function collideWithOthers(
   water: WaterBody,
   craft: CraftSpec = CRAFTS.tube,
 ): TubeState {
-  // Maalla oleva ei törmää renkaisiin (#457).
-  if (tube.shore) return tube;
+  // Maalla oleva ei törmää renkaisiin (#457), eikä rannalla oleva vene (#458).
+  if (isAshore(tube)) return tube;
   let t = tube;
   for (const o of others) {
-    if (o.tube.shore) continue;
+    if (isAshore(o.tube)) continue;
     const r = collideTubePair(t, o.tube, craft, o.craft);
     if (r) t = collideCraftWithShore(t, r[0], water, craft);
   }

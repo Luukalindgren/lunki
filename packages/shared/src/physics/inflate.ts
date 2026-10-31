@@ -53,10 +53,13 @@ export const createInflate = (seed: number): InflateState => ({
 });
 
 /** Letkun siirron `k` (0 = kyljestä toiseen, 1 = pohjaan) nuolisarja kisan siemenestä. */
-export function inflateSequence(seed: number, k: number): number[] {
+export function inflateSequence(
+  seed: number,
+  k: number,
+  n = INFLATE.sequence[k] ?? INFLATE.sequence[INFLATE.sequence.length - 1]!,
+): number[] {
   const rng = new Rng(((seed >>> 0) ^ (0x9e3779b9 * (k + 1))) >>> 0);
   const out: number[] = [];
-  const n = INFLATE.sequence[k] ?? INFLATE.sequence[INFLATE.sequence.length - 1]!;
   for (let i = 0; i < n; i++) {
     // Sama nuoli ei toistu peräkkäin: jokainen painallus on selvä reuna.
     let a: number;

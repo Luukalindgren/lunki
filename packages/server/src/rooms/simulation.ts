@@ -4,6 +4,9 @@ import {
   NET_DT,
   collideCraftWithShore,
   collideTubes,
+  finishLaunch,
+  isAshore,
+  stepBail,
   passengerInput,
   rowerInput,
   seatPos,
@@ -79,6 +82,22 @@ export function stepSims(
     if (!input) return;
     const passenger = isPassenger(sim);
     const spec = craftOf(sim);
+    // Täyttökisa (#458): kyytiläinen äyskäröi soutajan venettä rannalla.
+    if (passenger && sim.tube.bailer) {
+      const rower = rowerOf(sims, sim.boat!);
+      if (rower?.tube.launch) {
+        const r = stepBail(
+          rower.tube.launch,
+          sim.tube.bailer,
+          frozen ? FROZEN : input,
+          sim.tube.stamina,
+          NET_DT,
+        );
+        rower.tube = { ...rower.tube, launch: r.launch };
+        sim.tube = { ...sim.tube, bailer: r.bailer, stamina: r.stamina };
+        moved.add(sims.indexOf(rower));
+      }
+    }
     // Lähtölaskennan aikana syötteet kuitataan, mutta rengas ei liiku.
     sim.tube = frozen
       ? stepPlayerTube(sim.tube, FROZEN, water, NET_DT, undefined, spec)
@@ -94,8 +113,17 @@ export function stepSims(
         );
     moved.add(i);
   });
+  // Kyytiläisen tekemä viimeinen sarja laskee veneen vesille (#458).
+  sims.forEach((sim, i) => {
+    if (!sim.tube.launch) return;
+    const launched = finishLaunch(sim.tube, water);
+    if (launched !== sim.tube) {
+      sim.tube = launched;
+      moved.add(i);
+    }
+  });
   // Törmäävät vain alukset: kyydissä olevat ovat veneen sisällä ja maalla olevat maissa (#457).
-  const crafts = sims.flatMap((s, i) => (isPassenger(s) || s.tube.shore ? [] : [i]));
+  const crafts = sims.flatMap((s, i) => (isPassenger(s) || isAshore(s.tube) ? [] : [i]));
   const specs = crafts.map((i) => craftOf(sims[i]!));
   const before = crafts.map((i) => sims[i]!.tube);
   const after = [...before];
@@ -108,6 +136,11 @@ export function stepSims(
     if (!isPassenger(sim)) return;
     const boat = rowerOf(sims, sim.boat!);
     if (!boat) return;
+    // Vene on vesillä: kyytiläisen äyskäröinti päättyy.
+    if (sim.tube.bailer && !boat.tube.launch) {
+      const { bailer: _done, ...seated } = sim.tube;
+      sim.tube = seated;
+    }
     const turn = boat.tube.heading - (turnedFrom.get(sim.boat!) ?? boat.tube.heading);
     sim.tube = followBoat(sim.tube, boat.tube, sim.seat!, turn);
     moved.add(i);

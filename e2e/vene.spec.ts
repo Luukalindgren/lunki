@@ -91,3 +91,60 @@ test('vene: kaksi kalastajaa samassa veneessä', async ({ page: host, browser })
   guestErrors.check();
   await guest.context().close();
 });
+
+/**
+ * Täyttökisa veneellä (#458): vene on rannalla vettä täynnä, ja kyytiläinen
+ * äyskäröi perää. Hänen kauhallisensa näkyvät soutajan ohjeessa veneen
+ * vedessä, koska palvelin laskee ne soutajan veneeseen.
+ */
+test('vene täyttökisassa: kyytiläinenkin äyskäröi', async ({ page: host, browser }) => {
+  test.setTimeout(120_000);
+  const hostErrors = watchErrors(host);
+  const guest: Page = await (await browser.newContext()).newPage();
+  const guestErrors = watchErrors(guest);
+
+  await host.goto('/?view=top');
+  await host.getByRole('button', { name: 'Pelaa' }).click();
+  await host.getByRole('button', { name: 'Moninpeli' }).click();
+  await expect(host.getByText('Palvelin päällä')).toBeVisible();
+  await host.getByLabel('Nimimerkki').fill('Soutaja');
+  await host.getByRole('button', { name: 'Luo uusi huone' }).click();
+  const code = (await host.locator('.room-code').innerText()).trim();
+  await host.getByRole('button', { name: 'Aina tyyni' }).click();
+  await host.getByRole('button', { name: 'Täyttökisa rannalta' }).click();
+  await host.getByRole('button', { name: 'Oma vene' }).click();
+  await expect(host.locator('.boat-crew', { hasText: 'Vene 1' })).toContainText('soutaja');
+
+  await guest.goto('/?view=top');
+  await guest.getByRole('button', { name: 'Pelaa' }).click();
+  await guest.getByRole('button', { name: 'Moninpeli' }).click();
+  await expect(guest.getByText('Palvelin päällä')).toBeVisible();
+  await guest.getByLabel('Nimimerkki').fill('Kyyti');
+  await guest.getByLabel('Huonekoodi').fill(code);
+  await guest.getByRole('button', { name: 'Liity koodilla' }).click();
+  await expect(guest.locator('.room-code')).toHaveText(code);
+  await guest
+    .locator('.boat-crew', { hasText: 'Vene 1' })
+    .getByRole('button', { name: 'Liity kyytiin' })
+    .click();
+  await expect(host.locator('.boat-crew', { hasText: 'Vene 1' })).toContainText('perässä');
+  await guest.getByRole('button', { name: 'Valmis!' }).click();
+  await host.getByRole('button', { name: 'Aloita kisa' }).click();
+  for (const p of [host, guest])
+    await expect(p.locator('.hud-timer')).toHaveText(/^14:\d\d$/, { timeout: 30_000 });
+
+  const hostHint = host.locator('.hud-situation');
+  const guestHint = guest.locator('.hud-situation');
+  await expect(hostHint).toContainText('vettä keulassa 100 % (koko veneessä 100 %)');
+  await expect(guestHint).toContainText('vettä perässä 100 %');
+  // Kyytiläisen kauhalliset vähentävät perän vettä soutajankin veneessä.
+  for (let i = 0; i < 400; i++) {
+    if (!(await hostHint.innerText()).includes('koko veneessä 100 %')) break;
+    await guest.keyboard.press('Space');
+  }
+  await expect(hostHint).toContainText('vettä keulassa 100 %');
+  await expect(hostHint).not.toContainText('koko veneessä 100 %');
+  await expect(guestHint).not.toContainText('vettä perässä 100 %');
+  hostErrors.check();
+  guestErrors.check();
+});

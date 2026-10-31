@@ -7,6 +7,7 @@ import {
   BoatSeat,
   createTube,
   inflateRow,
+  beachedBoat,
   findLaunchPoint,
   isValidStart,
   Rng,
@@ -55,7 +56,7 @@ import type { RetroResolution } from '../engine/resolution';
 import type { RetroRenderer } from '../engine/retroRenderer';
 import { EYE_HEIGHT, PovCamera } from './povCamera';
 import { createLakeMesh, createWaterWaves, toWorld, waterTime } from '../world/lakeMesh';
-import { capsizeRoll, type NetWorld } from '../net/netWorld';
+import { bailPose, capsizeRoll, type BailPose, type NetWorld } from '../net/netWorld';
 import type { Sfx } from '../audio/sfx';
 import { Sounds } from '../audio/sounds';
 import type { Listener } from '../audio/mix';
@@ -254,9 +255,14 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       const shore = this.water.closestShorePoint(start)?.point ?? start;
       const out = Math.atan2(start.y - shore.y, start.x - shore.x);
       this.tube = createTube(start, this.craft.soloCraft === 'boat' ? out + Math.PI : out);
-      // Täyttökisa (#458): rannalla tyhjän renkaan ja pumpun ääressä. Vene alkaa vesiltä.
-      if (settings.inflate && this.craft.soloCraft !== 'boat')
-        this.tube = inflateRow(this.water, start, 1, seed)[0] ?? this.tube;
+      // Täyttökisa (#458): rannalla tyhjän renkaan ja pumpun ääressä, tai vene
+      // rannalla vettä täynnä.
+      const slot = settings.inflate ? inflateRow(this.water, start, 1, seed)[0] : undefined;
+      if (slot)
+        this.tube =
+          this.craft.soloCraft === 'boat'
+            ? (beachedBoat(this.water, slot.pos, seed, 1) ?? this.tube)
+            : slot;
     }
     this.prevTube = this.tube;
 
@@ -307,6 +313,19 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     hud.setCountdown(null);
     // Kello näkyy heti HUDin tullessa esiin, ennen ensimmäistä päivitystä.
     this.presenter.updateTimer();
+  }
+
+  /**
+   * Oma äyskäröijän asento (#458): soutajalla oman veneen mukaan, kyydissä
+   * soutajan veneen mukaan; null, kun ei äyskäröi.
+   */
+  private ownBailPose(pos: Vec2, hull: number): BailPose | null {
+    const b = this.tube.bailer;
+    if (!b) return null;
+    const w = this.netWorld;
+    if (!w?.passenger) return bailPose({ pos, heading: hull }, b, BoatSeat.rower);
+    const boat = w.boats().find((x) => x.boat === w.boat);
+    return boat ? bailPose(boat, b, w.seat) : null;
   }
 
   /** Ison kosketusnapin toiminto maalla (#457); undefined = vedessä. */
@@ -528,6 +547,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       !this.spectating &&
       // Täyttökisan letkun siirrossa (#458) välilyönti ei tee mitään: ohje kertoo nuolet.
       !this.tube.shore?.inflate &&
+      !this.tube.bailer &&
       (c.wasPressed('pointer') || (c.wasPressed('castForward') && !this.craft.shoreAction))
     )
       this.hud.showMessage(t('game.noFishingAshore'), 2, 'info');
@@ -832,13 +852,19 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     const shore = this.spectating ? undefined : b.shore;
     const pov = this.viewMode === 'pov';
     const groundAt = (p: Vec2) => (pov ? this.world.ground.heightAt(p) : 0);
-    if (shore) {
+    // Täyttökisan vene rannalla (#458): oma kalastaja äyskäröi laidan vieressä.
+    const bailing = this.spectating ? null : this.ownBailPose(pos, hull);
+    if (bailing) {
+      this.ashoreFigure.updateBailer(bailing, groundAt);
+      this.ashoreFigure.showAngler(!pov);
+    } else if (shore) {
       this.ashoreFigure.update({ pos, heading, step: b.kickPhase, shore }, groundAt);
       // Omin silmin oma vartalo ei näy, rengas maassa ja kädessä näkyy.
       this.ashoreFigure.showAngler(!pov || shore.board !== undefined);
     } else this.ashoreFigure.hide();
-    this.tubeMesh.visible = !pov && !this.spectating && !shore;
-    this.povRod.group.visible = pov && !this.spectating && !shore;
+    const standing = !!shore || !!bailing;
+    this.tubeMesh.visible = !pov && !this.spectating && !standing;
+    this.povRod.group.visible = pov && !this.spectating && !standing;
     // Paikanvaihdossa (#357) hahmo liukuu uudelle paikalle ja vene keinahtaa.
     const now = performance.now() / 1000;
     const boatNo = w && !this.spectating ? w.boat : 0;
@@ -859,7 +885,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     const rodPose = this.angler.rodPose();
     const flyCast = this.fishing.stage === 'casting' ? this.fishing.flyCast : null;
     let rodEnd: LinePoint | null = null;
-    if (this.viewMode !== 'pov' && !shore)
+    if (this.viewMode !== 'pov' && !standing)
       rodEnd = lakePoint(
         aimRod(
           this.tubeMesh,
@@ -876,8 +902,8 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       const sway = this.weather.rock;
       // Kumossa kamera kallistuu ja painuu veden rajaan.
       this.pov.apply(
-        body,
-        heading,
+        bailing?.pos ?? body,
+        bailing?.heading ?? heading,
         b.kickPhase,
         air
           ? // Ilmassa katse painuu alas järvelle.
@@ -886,23 +912,30 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
               roll: air.tumble * 0.4,
               pitch: -0.6 * (air.height / SPOUT.flightHeight),
             }
-          : shore
-            ? // Maalla silmä on seisovan korkeudella maaston päällä; hypätessä painuu istumaan.
+          : bailing
+            ? // Äyskäröidessä (#458) katse alas veneeseen.
               {
-                lift:
-                  (Math.max(0, groundAt(pos)) + STANDING_EYE - EYE_HEIGHT) *
-                  (1 - (shore.board ?? 0)),
+                lift: Math.max(0, groundAt(bailing.pos)) + STANDING_EYE - EYE_HEIGHT,
                 roll: 0,
-                // Pumpatessa (#458) katse alas renkaaseen ja pumppuun.
-                pitch: shore.inflate ? -0.7 : -0.15,
+                pitch: -0.45,
               }
-            : {
-                lift: sway.lift - 0.7 * (roll / Math.PI) + seated,
-                roll: sway.roll + roll * 0.3 + rock,
-                pitch: sway.pitch,
-              },
+            : shore
+              ? // Maalla silmä on seisovan korkeudella maaston päällä; hypätessä painuu istumaan.
+                {
+                  lift:
+                    (Math.max(0, groundAt(pos)) + STANDING_EYE - EYE_HEIGHT) *
+                    (1 - (shore.board ?? 0)),
+                  roll: 0,
+                  // Pumpatessa (#458) katse alas renkaaseen ja pumppuun.
+                  pitch: shore.inflate ? -0.7 : -0.15,
+                }
+              : {
+                  lift: sway.lift - 0.7 * (roll / Math.PI) + seated,
+                  roll: sway.roll + roll * 0.3 + rock,
+                  pitch: sway.pitch,
+                },
       );
-      this.updatePovTube(body, heading, roll, air !== null || !!shore);
+      this.updatePovTube(body, heading, roll, air !== null || standing);
       // Vapa oikeasta kädestä kärkeen; kärki on siiman alkupiste.
       const side = rodSideOffset(heading);
       // Perhoheitossa vapa heiluu taakse ja eteen (#235).
@@ -915,7 +948,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
         : rodTip(pos, heading);
       tip.x += side.x;
       tip.y += side.y;
-      if (!shore)
+      if (!standing)
         rodEnd = this.povRod.update(
           this.pov.camera,
           this.pov.pixelSize,
@@ -970,9 +1003,11 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
                 boat: 1,
                 ...own!,
                 color: this.appearance.tube,
-                lift: air?.height,
+                // Täyttökisan vene rannalla (#458) maan pinnalla.
+                lift: this.tube.launch ? Math.max(0, groundAt(pos)) : air?.height,
                 tumble: air?.tumble,
                 anchor: this.tube.anchor,
+                ...(this.tube.launch && { launch: this.tube.launch }),
               },
             ]
           : [],
@@ -986,6 +1021,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
         this.net.world.boats(own).map((b) => ({
           ...b,
           roll: (b.roll ?? 0) + this.seatSlides.rock(b.boat, now),
+          ...(b.launch && { lift: Math.max(0, groundAt(b.pos)) }),
         })),
       );
       const others = this.net.world.others(own);

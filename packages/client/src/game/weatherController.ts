@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import {
   BIG_WAVE,
+  isAshore,
   BOAT_WAVE_FACTOR,
   Rng,
   SPOUT,
@@ -277,7 +278,7 @@ export class WeatherController {
       }
     }
     // Maalla oleva on turvassa trombilta, aalloilta ja salamalta (#457).
-    if (!host.netWorld && !host.tube.shore && spoutAffects(penalties.capsizedUntil, now)) {
+    if (!host.netWorld && !isAshore(host.tube) && spoutAffects(penalties.capsizedUntil, now)) {
       const fling = spoutCapture(this.spouts, now, host.tube.pos);
       if (fling) {
         const from = { ...host.tube.pos };
@@ -333,7 +334,7 @@ export class WeatherController {
       const over = host.inBoat ? boatCapsizes : capsizes;
       if (
         !host.netWorld &&
-        !host.tube.shore &&
+        !isAshore(host.tube) &&
         host.penalties.capsizeLeft === 0 &&
         over(host.tube.heading, dir, h)
       ) {
@@ -433,7 +434,7 @@ export class WeatherController {
     ) {
       const strike = this.strikes[this.nextStrike++]!;
       const rodUp =
-        !host.tube.shore &&
+        !isAshore(host.tube) &&
         (f.hookedId !== null || f.stage === 'flight' || f.stage === 'water') &&
         host.penalties.timeOutLeft === 0;
       const result = resolveStrike(

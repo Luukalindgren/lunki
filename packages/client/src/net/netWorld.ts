@@ -3,6 +3,11 @@ import {
   SHORE_PROTOCOL,
   shoreFromNet,
   type ShoreState,
+  BoatPart,
+  bailSpot,
+  launchFromNet,
+  type Bailer,
+  type BoatLaunch,
   SEAT_PROTOCOL,
   BIG_WAVE,
   BoatSeat,
@@ -87,6 +92,25 @@ export interface RemotePlayer {
   anchor?: AnchorState;
   /** Maalla (#457): `pos` on kalastajan paikka, rengas maassa tai kannettuna. */
   shore?: ShoreState;
+  /** Äyskäröi rannalla olevaa venettä (#458): paikka laidan vieressä ja kauha. */
+  bailing?: BailPose;
+  /** Soutajalla: vene rannalla täyttökisassa (#458). */
+  launch?: BoatLaunch;
+}
+
+/** Äyskäröijä piirtohetkellä (#458): seisoo veneen laidan vieressä katse veneeseen. */
+export interface BailPose {
+  pos: Vec2;
+  heading: number;
+  /** Kauhan palautus 0–1. */
+  handle: number;
+}
+
+/** Äyskäröijän asento veneen asennosta, osasta ja paikasta veneessä. */
+export function bailPose(boat: { pos: Vec2; heading: number }, b: Bailer, seat: number): BailPose {
+  const pos = bailSpot(boat, b.part, seat);
+  const toward = seatPos(boat, b.part === BoatPart.stern ? BoatSeat.stern : BoatSeat.bow);
+  return { pos, heading: Math.atan2(toward.y - pos.y, toward.x - pos.x), handle: b.handle };
 }
 
 /** Vene piirtohetkellä: soutajan paikka, suunta ja airovetojen vaihe. */
@@ -103,6 +127,8 @@ export interface BoatPose {
   roll?: number;
   /** Ankkuri vedessä (#355); puuttuu = keulassa. */
   anchor?: AnchorState;
+  /** Rannalla täyttökisassa (#458): vettä veneessä, airot vielä irti. */
+  launch?: BoatLaunch;
 }
 
 /** Oma asento piirtohetkellä: oman veneen kyytiläiset istuvat siinä. */
@@ -122,6 +148,8 @@ interface RemoteSnap {
   lureStage: number;
   look: number;
   shore?: ShoreState;
+  launch?: BoatLaunch;
+  bailer?: Bailer;
 }
 
 /**
@@ -144,6 +172,9 @@ const lerpSnap = (a: RemoteSnap, b: RemoteSnap, t: number): RemoteSnap => ({
   look: lerpAngle(a.look, b.look, t),
   // Maalla olo vaihtuu kerralla; hypyn edistyminen liukuu.
   ...((t < 0.5 ? a : b).shore && { shore: lerpShore((t < 0.5 ? a : b).shore!, b.shore, t) }),
+  // Vesillelasku (#458) vaihtuu kerralla lähemmästä tilasta.
+  ...((t < 0.5 ? a : b).launch && { launch: (t < 0.5 ? a : b).launch }),
+  ...((t < 0.5 ? a : b).bailer && { bailer: (t < 0.5 ? a : b).bailer }),
 });
 
 function lerpShore(s: ShoreState, b: ShoreState | undefined, t: number): ShoreState {
@@ -172,6 +203,7 @@ const toTube = (p: PlayerSchema): TubeState => ({
   stamina: p.stamina ?? 1,
   ...(p.anchor && { anchor: anchorFromNet(p) }),
   ...shoreFromNet(p),
+  ...launchFromNet(p.boatLaunch ?? {}),
 });
 
 /**
@@ -460,12 +492,14 @@ export class NetWorld {
   }
 
   /**
-   * Täyttökisan sija vesille (#458): renkaalla jo vesillä olevat muut ja oma.
-   * Veneet aloittavat vesiltä, joten ne eivät ole mukana.
+   * Täyttökisan sija vesille (#458): jo vesillä olevat muut renkaat ja veneet
+   * (vene kerran, soutajan mukaan) ja oma.
    */
   afloatPlace(): number {
     let ahead = 0;
-    for (const r of this.remotes.values()) if (r.boat === 0 && !r.ashore) ahead++;
+    for (const r of this.remotes.values())
+      if (!r.ashore && (r.boat === 0 || (r.seat === BoatSeat.rower && r.boat !== this.ownBoat)))
+        ahead++;
     return ahead + 1;
   }
 
@@ -504,6 +538,8 @@ export class NetWorld {
    */
   effectiveInput(input: TubeInput, lureStage: number, reeling = false): TubeInput {
     if (!this.ownBoat) return input;
+    // Rannalla äyskäröidessä (#458) kyytiläisenkin nuolet ja kauha menevät palvelimelle.
+    if (this.predictor.tube.bailer) return input;
     return this.passenger
       ? passengerInput(input)
       : rowerInput(input, rodInHand(lureStage, reeling));
@@ -601,7 +637,7 @@ export class NetWorld {
       if (r.lureStage === LureStage.flight && p.lureStage === LureStage.water)
         this.onRemoteSplash?.({ x: p.lureX, y: p.lureY });
       r.lureStage = p.lureStage;
-      r.ashore = (p.shore ?? 0) > 0;
+      r.ashore = (p.shore ?? 0) > 0 || !!p.boatLaunch?.launch || !!p.boatLaunch?.bail;
       const was = this.peerConnected.get(id);
       if (was !== undefined && was !== p.connected) this.onPeerConnection?.(p.name, p.connected);
       this.peerConnected.set(id, p.connected);
@@ -613,6 +649,7 @@ export class NetWorld {
         lureStage: p.lureStage,
         look: p.look ?? 0,
         ...shoreFromNet(p),
+        ...launchFromNet(p.boatLaunch ?? {}),
       });
     });
     for (const [id, r] of this.remotes)
@@ -662,6 +699,11 @@ export class NetWorld {
       : held;
   }
 
+  /** Kyydissä oman veneen vesillelasku (#458) soutajan tilasta; muuten undefined. */
+  ownBoatLaunch(): BoatLaunch | undefined {
+    return this.passenger ? this.rowerOfOwnBoat()?.snap.launch : undefined;
+  }
+
   /** Oman veneen soutaja (toinen pelaaja) piirtohetkellä, kun itse on kyydissä. */
   private rowerOfOwnBoat(): { snap: RemoteSnap; vel: Vec2 } | null {
     const t = this.clock() - INTERPOLATION_DELAY;
@@ -695,6 +737,7 @@ export class NetWorld {
         color: me?.tube ?? 0,
         roll: own?.roll,
         anchor: this.predictor.tube.anchor,
+        ...(this.predictor.tube.launch && { launch: this.predictor.tube.launch }),
       });
     }
     for (const o of this.others())
@@ -709,6 +752,7 @@ export class NetWorld {
           tumble: o.tumble,
           roll: o.roll,
           anchor: o.anchor,
+          ...(o.launch && { launch: o.launch }),
         });
     return out;
   }
@@ -751,6 +795,10 @@ export class NetWorld {
         roll: this.rollOf(r),
         ...(r.anchor && !air && { anchor: r.anchor }),
         ...(s.shore && { shore: s.shore }),
+        ...(s.launch && { launch: s.launch }),
+        ...(s.bailer && {
+          bailing: bailPose(r.seat === BoatSeat.rower ? s : (boat ?? s), s.bailer, r.seat),
+        }),
       });
     }
     return out;
