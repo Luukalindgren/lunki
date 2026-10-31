@@ -1,8 +1,12 @@
 import { Room, ServerError, type Client } from '@colyseus/core';
 import {
   SHORE_PROTOCOL,
-  INFLATE_PROTOCOL,
+  BAIL_PROTOCOL,
+  beachedBoat,
+  createBailer,
   inflateRow,
+  isAshore,
+  launchToNet,
   shoreToNet,
   COUNTDOWN_SECONDS,
   ClientMsg,
@@ -289,7 +293,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       const l = msg?.l;
       // Maalta ei kalasteta (#457): maalla olevan viehe on aina sisällä.
       if (
-        !sim.tube.shore &&
+        !isAshore(sim.tube) &&
         Array.isArray(l) &&
         l.every((v) => typeof v === 'number' && Number.isFinite(v))
       ) {
@@ -550,11 +554,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
             s.startY = start?.y ?? 0;
             changed = true;
           }
-        } else if (
-          key === 'inflate' &&
-          value === true &&
-          this.hasOutdatedClient(INFLATE_PROTOCOL)
-        ) {
+        } else if (key === 'inflate' && value === true && this.hasOutdatedClient(BAIL_PROTOCOL)) {
           // Vanha asiakas ei osaa täyttökisaa (#458).
           continue;
         } else if (key === 'species') {
@@ -702,7 +702,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     const ownSeat = own !== undefined && !this.state.players.get(own)?.spectator ? 1 : 0;
     const outdated =
       (this.hasBoats() && clientProtocol(options) < BOAT_PROTOCOL) ||
-      (this.state.settings.inflate && clientProtocol(options) < INFLATE_PROTOCOL);
+      (this.state.settings.inflate && clientProtocol(options) < BAIL_PROTOCOL);
     // Vanha asiakas ei osaa piirtää venettä eikä istua kyydissä.
     if (outdated) throw new ServerError(4403, JoinRefusal.outdated);
     const refusal =
@@ -1008,9 +1008,13 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   }
 
   /** Kalastaja veneen kyytiin paikalleen, katse ulos veneestä (perästä tai keulasta). */
-  private seatPassenger(id: string, p: PlayerState, boat: Sim, seat: number) {
+  private seatPassenger(id: string, p: PlayerState, boat: Sim, seat: number, bail = false) {
     const out = seat === BoatSeat.stern ? 0 : Math.PI;
-    const tube = createTube(seatPos(boat.tube, seat), boat.tube.heading + out);
+    const tube = {
+      ...createTube(seatPos(boat.tube, seat), boat.tube.heading + out),
+      // Täyttökisan vene rannalla (#458): kyytiläinenkin äyskäröi.
+      ...(bail && { bailer: createBailer(seat) }),
+    };
     this.sims.set(id, {
       tube,
       inputs: new InputQueue(),
@@ -1147,19 +1151,29 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     this.state.players.forEach((p) => (p.seatAsk = 0));
     this.seatAskUntil.clear();
     const aboard = (p: PlayerState) => p.boat > 0 && p.seat !== BoatSeat.rower;
-    // Täyttökisa (#458): renkaat riviin lähtörannalle; veneet aloittavat vielä vedestä.
-    const tubes = [...this.state.players.values()].filter((p) => !p.spectator && p.boat === 0);
-    const row = set.inflate ? inflateRow(water, chosen ?? launch(), tubes.length, seed) : [];
+    // Täyttökisa (#458): renkaat ja veneet riviin lähtörannalle.
+    const crafts = [...this.state.players.values()].filter((p) => !p.spectator && !aboard(p));
+    const row = set.inflate ? inflateRow(water, chosen ?? launch(), crafts.length, seed) : [];
     const crews = new Map<number, [string, PlayerState][]>();
     this.state.players.forEach((p, id) => {
       if (!p.spectator && aboard(p)) crews.set(p.boat, [...(crews.get(p.boat) ?? []), [id, p]]);
     });
     this.state.players.forEach((p, id) => {
       if (p.spectator || aboard(p)) return;
-      const ready = p.boat === 0 ? row.shift() : undefined;
-      if (ready) {
-        taken.push(ready.pos);
-        this.placeTube(id, p, ready.pos, 0, ready);
+      const slot = row.shift();
+      if (slot && p.boat === 0) {
+        taken.push(slot.pos);
+        this.placeTube(id, p, slot.pos, 0, slot);
+        return;
+      }
+      // Vene rannalle vettä täynnä: venekunta äyskäröi sen ja työntää vesille.
+      const mates = crews.get(p.boat) ?? [];
+      const beached = slot && beachedBoat(water, slot.pos, seed, 1 + mates.length);
+      if (beached) {
+        taken.push(beached.pos);
+        this.placeTube(id, p, beached.pos, p.boat, beached);
+        const rower = this.sims.get(id)!;
+        for (const [mate, q] of mates) this.seatPassenger(mate, q, rower, q.seat, true);
         return;
       }
       let pos = taken.length === 0 && chosen ? { ...chosen } : launch();
@@ -1340,7 +1354,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     // Trombi vie koko veneen kyytiläisineen.
     for (const [id, sim] of this.sims) {
       const p = st.players.get(id);
-      if (!p || isPassenger(sim) || sim.tube.shore || !spoutAffects(p.capsizedUntil, st.clock))
+      if (!p || isPassenger(sim) || isAshore(sim.tube) || !spoutAffects(p.capsizedUntil, st.clock))
         continue;
       const fling = spoutCapture(this.spouts, st.clock, sim.tube.pos);
       if (!fling) continue;
@@ -1424,7 +1438,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       for (const [id, sim] of this.sims) {
         const p = st.players.get(id);
         // Maalla oleva on turvassa aalloilta (#457).
-        if (!p || isPassenger(sim) || sim.tube.shore || this.capsized(id)) continue;
+        if (!p || isPassenger(sim) || isAshore(sim.tube) || this.capsized(id)) continue;
         const h = bigWaveHeight(rings, sim.tube.pos, windSpeed, waveDir);
         const over = sim.boat ? boatCapsizes : capsizes;
         if (!over(sim.tube.heading, waveDir, h)) continue;
@@ -1458,7 +1472,8 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         id,
         pos: sim.tube.pos,
         // Maalla on turvassa salamalta (#457, Luuka): vapa on aina alhaalla.
-        rodUp: !sim.tube.shore && (st.players.get(id)?.lureStage ?? 0) !== 0 && !this.timedOut(id),
+        rodUp:
+          !isAshore(sim.tube) && (st.players.get(id)?.lureStage ?? 0) !== 0 && !this.timedOut(id),
       }));
       const result = resolveStrike(strike, targets, water, LUNKINJARVI.bounds);
       const penalty = isPenalty(st.settings.lightningPenalty)
@@ -1520,6 +1535,22 @@ function writeTube(p: PlayerState, t: TubeState, ack: number) {
     p.pumpHandle = shore.pumpHandle;
     p.pumpArrow = shore.pumpArrow;
     p.inflateSeed = shore.inflateSeed;
+  }
+  const launch = launchToNet(t);
+  const l = p.boatLaunch;
+  l.launch = launch.launch;
+  if (launch.launch) {
+    l.water0 = launch.water0;
+    l.water1 = launch.water1;
+    l.waterFull = launch.waterFull;
+    l.launchSeed = launch.launchSeed;
+  }
+  l.bail = launch.bail;
+  if (launch.bail) {
+    l.bailMove = launch.bailMove;
+    l.bailHandle = launch.bailHandle;
+    l.bailArrow = launch.bailArrow;
+    l.bailStage = launch.bailStage;
   }
   p.ack = ack;
 }

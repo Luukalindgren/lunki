@@ -139,13 +139,16 @@ export class RemotePlayersView {
       e.tube.rotation.y = p.heading + p.look;
       e.tube.rotation.x = p.tumble ?? p.roll;
       animateFins(e.tube, p.kickPhase);
-      e.tube.visible = !p.shore;
-      if (p.shore) {
-        if (!e.ashore) {
-          e.ashore = new AshoreFigure(p.appearance);
-          this.group.add(e.ashore.group);
-        }
-        e.ashore.update(
+      const standing = !!p.shore || !!p.bailing;
+      e.tube.visible = !standing;
+      if (standing && !e.ashore) {
+        e.ashore = new AshoreFigure(p.appearance);
+        this.group.add(e.ashore.group);
+      }
+      // Täyttökisan vene rannalla (#458): kyytiläinen ja soutaja äyskäröivät laidan vieressä.
+      if (p.bailing) e.ashore!.updateBailer(p.bailing, this.heightAt);
+      else if (p.shore) {
+        e.ashore!.update(
           { pos: p.pos, heading: p.heading, step: p.kickPhase, shore: p.shore },
           this.heightAt,
         );
@@ -195,8 +198,12 @@ export class RemotePlayersView {
 
       // Nimilappu renkaan yläpuolelle näytön koordinaateissa.
       // Kameran takana oleva piste karsitaan, muuten lappu näkyisi peilattuna.
-      const body = p.shore && e.ashore ? e.ashore.anchor.position : e.tube.position;
-      const at = screenAnchor(this.v.copy(body).setY(body.y + (p.shore ? 2.3 : 1.5)), camera, rect);
+      const body = standing && e.ashore ? e.ashore.anchor.position : e.tube.position;
+      const at = screenAnchor(
+        this.v.copy(body).setY(body.y + (standing ? 2.3 : 1.5)),
+        camera,
+        rect,
+      );
       e.tag.hidden = !at;
       if (at) {
         // Täyttökisa (#458): täyttö palkkina nimilapun alareunassa ja lukuna.

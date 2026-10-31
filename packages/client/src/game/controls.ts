@@ -66,6 +66,8 @@ export const CONTROLS = {
    * ponttooniin liikkeen suunnilla (nuolisarja), joten omaa nappia ei tarvita.
    */
   pump: { keys: ['Space'], touch: 'touch.pump', title: 'touch.pumpTitle', pad: PAD_MAIN },
+  /** Veneen äyskäröinti rannalla (#458): yksi kauhallinen. */
+  bail: { keys: ['Space'], touch: 'touch.bail', title: 'touch.bailTitle', pad: PAD_MAIN },
 
   // Kalastus. Hiiren vasen ja sormi järvellä tähtäävät, heittävät ja kelaavat.
   pointer: { keys: ['Mouse0'], label: 'ctl.mouse', touch: 'ctl.finger' },
@@ -218,7 +220,7 @@ export class Controls {
 }
 
 /** Ison napin toiminto maalla (#457). */
-export type ShoreMain = 'pump' | 'pickUp' | 'putDown' | 'board';
+export type ShoreMain = 'pump' | 'bail' | 'pickUp' | 'putDown' | 'board';
 
 /**
  * Tilannenappien toiminnot kosketuksella: iso nappi, perhon siimanappi ja

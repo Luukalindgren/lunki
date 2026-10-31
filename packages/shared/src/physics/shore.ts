@@ -259,7 +259,8 @@ function shoreAction(s: ShoreState, pos: Vec2, heading: number, water: ShoreWate
 }
 
 /** Kalastaja on maalla (myös kyytiin hypätessä). */
-export const isAshore = (t: TubeState): boolean => t.shore !== undefined;
+export const isAshore = (t: TubeState): boolean =>
+  t.shore !== undefined || t.launch !== undefined || t.bailer !== undefined;
 
 /** Verkon kentät maalla ololle (PlayerState.shore…): 0 = vedessä. */
 export interface ShoreNet {

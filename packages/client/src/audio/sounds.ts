@@ -119,6 +119,9 @@ export const SOUNDS = {
   pontoonFull: { effect: 'pop' },
   hoseOn: { effect: 'tick' },
   hoseOff: { effect: 'lineHiss' },
+  // Veneen äyskäröinti (#458): kauhallinen ja osan tyhjeneminen
+  bailScoop: { effect: 'plip' },
+  partEmptied: { effect: 'tick' },
 } satisfies Record<string, Sound>;
 
 export type SoundEvent = keyof typeof SOUNDS;

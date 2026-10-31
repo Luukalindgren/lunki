@@ -1,6 +1,7 @@
 import type { Vec2 } from '../vec2';
 import type { AnchorState } from './anchor';
 import type { ShoreState } from './shore';
+import type { Bailer, BoatLaunch } from './launch';
 
 /**
  * Kelluntarenkaan 2D-fysiikka vedenpinnalla. Jaettu asiakkaan ja palvelimen
@@ -27,6 +28,10 @@ export interface TubeState {
   landing?: number;
   /** Kalastaja maalla (#457): `pos` on silloin kalastajan paikka. Puuttuu = vedessä. */
   shore?: ShoreState;
+  /** Täyttökisan vene rannalla (#458), soutajan renkaassa: vesi, vaihe ja siemen. */
+  launch?: BoatLaunch;
+  /** Venekunnan jäsen äyskäröi rannalla olevaa venettä (#458). */
+  bailer?: Bailer;
 }
 
 export interface TubeInput {

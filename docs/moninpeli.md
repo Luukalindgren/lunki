@@ -159,6 +159,15 @@ muut pelaajat: SnapshotBuffer, piirretään 120 ms menneisyydestä
   `fill0`–`fill2` ja muut `ShoreNet`-kentät. Vanha asiakas ei pääse
   täyttökisaan, eikä sen aulassa asetusta voi valita. Aika vesille on
   `RaceStats.inflateTime` ja palkinto Nopein täyttäjä.
+- **Veneen vesillelasku** (#458, protokolla 14). Täyttökisassa vene on
+  rannalla vettä täynnä (`beachedBoat`): veneen tila `TubeState.launch` on
+  soutajan renkaassa, ja jokaisella venekunnan jäsenellä on oma
+  `TubeState.bailer` (`physics/launch.ts`). Vettä on venekunnan koko × 75
+  kauhallista keulassa ja perässä puoliksi. Palvelin laskee kyytiläisen
+  kauhalliset ja nuolet soutajan veneeseen (`stepSims`), ja airojen sarjan
+  jälkeen vene lasketaan keula edellä vesille (`finishLaunch`). Verkossa
+  `PlayerState.boatLaunch` (oma osa, koska PlayerStatessa saa olla enintään
+  64 kenttää). Täyttökisaan pääsee vain protokollan 14 asiakas.
 
 ## Testaus viiveellä
 

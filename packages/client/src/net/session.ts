@@ -44,6 +44,7 @@ import {
   SPECTATE_PROTOCOL,
   SEASON_PROTOCOL,
   INFLATE_PROTOCOL,
+  type LaunchNet,
   seasonOf,
   type UntangledMessage,
   RECORDS_PATH,
@@ -296,6 +297,8 @@ export interface PlayerSchema {
   pumpHandle?: number;
   pumpArrow?: number;
   inflateSeed?: number;
+  /** Veneen vesillelasku täyttökisassa (#458); vanha palvelin ei lähetä. */
+  boatLaunch?: Partial<LaunchNet>;
   ack: number;
   lureX: number;
   lureY: number;

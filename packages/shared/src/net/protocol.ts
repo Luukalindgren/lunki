@@ -13,7 +13,7 @@ export const ROOM_NAME = 'lunki';
  * uudelleen: asiakas ei lähetä vanhemmalle palvelimelle viestejä, joita se
  * ei tunne. Vanha palvelin ilman kenttää = 1.
  */
-export const PROTOCOL_VERSION = 13;
+export const PROTOCOL_VERSION = 14;
 /** Chat tuli versiossa 2. */
 export const CHAT_PROTOCOL = 2;
 /** Maalle juuttuneen vieheen siiman katkaisu (ClientMsg.landCut) tuli versiossa 3. */
@@ -61,6 +61,11 @@ export const SHORE_PROTOCOL = 12;
  * on valittu, eikä aula tarjoa sitä vanhan palvelimen kanssa.
  */
 export const INFLATE_PROTOCOL = 13;
+/**
+ * Veneen vesillelasku täyttökisassa (#458): PlayerState.launch…/bail… tulivat
+ * versiossa 14. Täyttökisaan pääsee vain asiakas, joka osaa äyskäröinnin.
+ */
+export const BAIL_PROTOCOL = 14;
 
 /** Oletuspelaajamäärä huoneessa. Rakenne sallii isomman. */
 export const DEFAULT_MAX_PLAYERS = 8;
