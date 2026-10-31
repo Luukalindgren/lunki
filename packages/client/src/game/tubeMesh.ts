@@ -237,19 +237,34 @@ function createHat(shirt: THREE.Material): THREE.Mesh[] {
   const crown = new THREE.Mesh(dome, shirt);
   crown.position.set(0.04, 0.995, 0);
   for (const part of [brim, crown]) part.name = 'shirt';
+  // Ohut nauha kulkee pään pintaa pitkin lieriltä leuan taakse ja leuan alle.
   const cordMat = new THREE.MeshLambertMaterial({ color: 0x0b0f14 });
-  const chin = new THREE.Vector3(0.15, 0.76, 0);
-  const cords = [-1, 1].map((side) => {
-    const from = new THREE.Vector3(0.04, 0.95, side * 0.18);
-    const cord = new THREE.Mesh(new THREE.BoxGeometry(0.03, from.distanceTo(chin), 0.03), cordMat);
-    cord.position.lerpVectors(from, chin, 0.5);
-    cord.quaternion.setFromUnitVectors(Y_AXIS, chin.clone().sub(from).normalize());
-    return cord;
-  });
+  const cords: THREE.Mesh[] = [];
+  for (const side of [-1, 1]) {
+    const path = CORD_PATH.map(([x, y, z]) => new THREE.Vector3(x, y, side * z));
+    for (let i = 1; i < path.length; i++) cords.push(cordSegment(path[i - 1]!, path[i]!, cordMat));
+  }
   return [brim, crown, ...cords];
 }
 
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
+/** Kaulanauhan kulku (x, y, |z|): lieriltä pään sivua alas ja leuan alle, pään ulkopuolella. */
+const CORD_PATH = [
+  [0.04, 0.955, 0.2],
+  [0.06, 0.78, 0.155],
+  [0.13, 0.765, 0],
+] as const;
+const CORD = 0.015;
+
+function cordSegment(from: THREE.Vector3, to: THREE.Vector3, material: THREE.Material): THREE.Mesh {
+  const cord = new THREE.Mesh(
+    new THREE.BoxGeometry(CORD, from.distanceTo(to) + CORD, CORD),
+    material,
+  );
+  cord.position.lerpVectors(from, to, 0.5);
+  cord.quaternion.setFromUnitVectors(Y_AXIS, to.clone().sub(from).normalize());
+  return cord;
+}
 
 /** Käden asento: kulma pystystä eteen (z) ja sivulle (x). */
 interface ArmPose {
