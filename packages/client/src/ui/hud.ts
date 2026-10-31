@@ -436,7 +436,7 @@ export class Hud {
       c.pov === context.pov &&
       c.seat === context.seat &&
       !!c.crew === !!context.crew &&
-      !!c.ashore === !!context.ashore
+      c.ashore === context.ashore
     )
       return;
     this.helpContext = { ...context };
@@ -465,12 +465,15 @@ export class Hud {
     const bases = this.spectator
       ? [HELP.spectator]
       : [HELP.shore, ...[HELP.spin, HELP.fly].flatMap((b) => moves.map((m) => [...m, ...b]))];
-    // Maalla (#457) vain kävely ja rannan toiminnot: kalastus ja potkut eivät toimi.
+    // Maalla (#457) kävely ja rannan toiminnot, täyttökisassa (#458) pumppu ja
+    // äyskäri: kalastus ja potkut eivät silloin toimi.
     const base = this.spectator
       ? HELP.spectator
-      : c.ashore
-        ? HELP.shore
-        : [...MOVE_HELP[c.seat], ...(c.fly ? HELP.fly : HELP.spin)];
+      : c.ashore === 'race'
+        ? HELP.race
+        : c.ashore === 'walk'
+          ? HELP.shore
+          : [...MOVE_HELP[c.seat], ...(c.fly ? HELP.fly : HELP.spin)];
     // Zoom toimii vain ylhäältä katsottaessa.
     const opts = { skip: c.pov ? (['zoom'] as const) : [] };
     const lines = [...base, ...tail].map((k) => controlText(k, {}, opts));
@@ -569,8 +572,8 @@ export interface HelpContext {
   seat: 'tube' | 'rower' | 'passenger';
   /** Moninpelin veneessä paikkaa voi vaihtaa venekunnan kesken (#357). */
   crew?: boolean;
-  /** Maissa tai rannalla veneen vieressä (#457, #458): kävely ja rannan toiminnot. */
-  ashore?: boolean;
+  /** Maissa kävellen (#457) tai täyttökisassa pumppaamassa tai äyskäröimässä (#458). */
+  ashore?: 'walk' | 'race';
 }
 
 /**
@@ -594,8 +597,9 @@ const HELP = {
   spin: ['help.cast', 'help.castForward', 'help.reel', 'help.gear', 'help.tools'],
   fly: ['help.flyCast', 'help.flyCast2', 'help.flyStrip', 'help.flyReel', 'help.tools'],
   spectator: ['help.spectate'],
-  shore: ['help.walk', 'help.shoreAct', 'help.shoreRace'],
-} as const satisfies Record<'spin' | 'fly' | 'spectator' | 'shore', readonly MsgKey[]>;
+  shore: ['help.walk', 'help.shoreAct'],
+  race: ['help.shoreRace'],
+} as const satisfies Record<'spin' | 'fly' | 'spectator' | 'shore' | 'race', readonly MsgKey[]>;
 
 /** Liikkumisen ohjeet kulkupelin mukaan. */
 const MOVE_HELP = {
