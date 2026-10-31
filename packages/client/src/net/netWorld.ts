@@ -5,7 +5,10 @@ import {
   type ShoreState,
   BoatPart,
   bailSpot,
+  LaunchStage,
+  launchedPos,
   launchFromNet,
+  type ShoreWater,
   type Bailer,
   type BoatLaunch,
   SEAT_PROTOCOL,
@@ -104,13 +107,34 @@ export interface BailPose {
   heading: number;
   /** Kauhan palautus 0–1. */
   handle: number;
+  /** Äyskäröidäänkö yhä; työnnössä ja airoja kiinnittäessä kauha on pois. */
+  scooping: boolean;
 }
 
-/** Äyskäröijän asento veneen asennosta, osasta ja paikasta veneessä. */
-export function bailPose(boat: { pos: Vec2; heading: number }, b: Bailer, seat: number): BailPose {
+/**
+ * Äyskäröijän asento veneen asennosta, osasta ja paikasta veneessä. Kun vene
+ * on työnnetty vesille ja airoja kiinnitetään (#458), venekunta kahlaa
+ * veneen vieressä: vene piirretään jo vesille (`BoatsView`).
+ */
+export function bailPose(
+  shore: { pos: Vec2; heading: number; launch?: BoatLaunch },
+  b: Bailer,
+  seat: number,
+  water?: ShoreWater,
+): BailPose {
+  const afloat = water && shore.launch && shore.launch.stage >= LaunchStage.oars;
+  const boat = {
+    pos: (afloat && launchedPos(shore, water)) || shore.pos,
+    heading: shore.heading,
+  };
   const pos = bailSpot(boat, b.part, seat);
   const toward = seatPos(boat, b.part === BoatPart.stern ? BoatSeat.stern : BoatSeat.bow);
-  return { pos, heading: Math.atan2(toward.y - pos.y, toward.x - pos.x), handle: b.handle };
+  return {
+    pos,
+    heading: Math.atan2(toward.y - pos.y, toward.x - pos.x),
+    handle: b.handle,
+    scooping: !shore.launch || shore.launch.stage === LaunchStage.bail,
+  };
 }
 
 /** Vene piirtohetkellä: soutajan paikka, suunta ja airovetojen vaihe. */
@@ -290,7 +314,7 @@ export class NetWorld {
 
   constructor(
     private readonly session: NetSession,
-    water: WaterBody,
+    private readonly water: WaterBody,
     private readonly clock: () => number = () => performance.now() / 1000,
   ) {
     const me = session.room.state.players.get(session.sessionId);
@@ -797,7 +821,12 @@ export class NetWorld {
         ...(s.shore && { shore: s.shore }),
         ...(s.launch && { launch: s.launch }),
         ...(s.bailer && {
-          bailing: bailPose(r.seat === BoatSeat.rower ? s : (boat ?? s), s.bailer, r.seat),
+          bailing: bailPose(
+            r.seat === BoatSeat.rower ? s : (boat ?? s),
+            s.bailer,
+            r.seat,
+            this.water,
+          ),
         }),
       });
     }

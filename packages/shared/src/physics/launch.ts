@@ -221,9 +221,12 @@ export function beachedBoat(
   };
 }
 
-/** Valmis vene vesille: keula edellä järveen, perä rantaan. */
-export function launchBoat(boat: TubeState, water: ShoreWater): TubeState {
-  const { launch: _launch, bailer: _bailer, ...rest } = boat;
+/**
+ * Soutajan paikka vesille lasketussa veneessä: keula edellä järveen, perä
+ * rantaan. null = vettä ei löytynyt (vene jää paikalleen). Asiakas piirtää
+ * veneen tänne jo airoja kiinnitettäessä (työntö vesille).
+ */
+export function launchedPos(boat: { pos: Vec2; heading: number }, water: ShoreWater): Vec2 | null {
   const c = water.closestShorePoint(boat.pos);
   const out = { x: -Math.cos(boat.heading), y: -Math.sin(boat.heading) };
   const from = c?.point ?? boat.pos;
@@ -231,9 +234,16 @@ export function launchBoat(boat: TubeState, water: ShoreWater): TubeState {
   const bow = BOAT_HULL.length - (SEAT_OFFSET + 0.45);
   for (let d = bow + LAUNCH.offshore; d < bow + 8; d += 0.5) {
     const pos = { x: from.x + out.x * d, y: from.y + out.y * d };
-    if (water.isWater(pos)) return { ...rest, pos, vel: { x: 0, y: 0 }, angVel: 0 };
+    if (water.isWater(pos)) return pos;
   }
-  return { ...rest, vel: { x: 0, y: 0 } };
+  return null;
+}
+
+/** Valmis vene vesille: keula edellä järveen, perä rantaan. */
+export function launchBoat(boat: TubeState, water: ShoreWater): TubeState {
+  const { launch: _launch, bailer: _bailer, ...rest } = boat;
+  const pos = launchedPos(boat, water);
+  return pos ? { ...rest, pos, vel: { x: 0, y: 0 }, angVel: 0 } : { ...rest, vel: { x: 0, y: 0 } };
 }
 
 /** Kulkeeko venekunnan jäsen vielä rannalla (vene maissa). */
