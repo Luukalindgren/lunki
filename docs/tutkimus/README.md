@@ -18,3 +18,5 @@ vaihtoehtoja eivätkä ole pelin nykyistä koodia.
 | #458  | Täyttökisa: kelluntarenkaan pumppaus kisan alussa                                                      |
 | #468  | Kosketusohjaimet maissa: vain maalla toimivat napit                                                    |
 | #469  | Taukovalikkoon kisan tilanne: saalis, paino ja sija                                                    |
+| #482  | Täyttökisan edistyminen näkyy osittain: vasen, oikea ja istuin                                         |
+| #483  | Kyytiin noustua kalastaja kääntyy järvelle päin                                                        |
