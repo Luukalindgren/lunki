@@ -71,6 +71,13 @@ export interface ShoreWater {
   isLand(p: Vec2): boolean;
   closestShorePoint(p: Vec2, maxDistance?: number): { point: Vec2; distance: number } | null;
   resolveCircle(p: Vec2, radius: number): { position: Vec2; normal: Vec2 } | null;
+  /** Laiturin kansi (#475): maata kävellä, mutta ei maapohjaa. */
+  onPier?(p: Vec2): boolean;
+}
+
+/** Maapohjaa: maata eikä laiturin kantta (täyttökisan rivi ja rantaan nostettu vene). */
+export function ground(water: ShoreWater, p: Vec2): boolean {
+  return water.isLand(p) && !water.onPier?.(p);
 }
 
 /** Voiko kalastaja seistä pisteessä: maata ja enintään kaistan päässä rantaviivasta. */
@@ -374,7 +381,8 @@ export function inflateRow(
     const at = (d: number) => ({ x: c.point.x + inland.x * d, y: c.point.y + inland.y * d });
     const angler = at(INFLATE_ROW.angler);
     const tube = at(INFLATE_ROW.tube);
-    if (!canStand(water, angler) || !water.isLand(tube)) continue;
+    // Laituri on maata kävellä (#475), mutta rivi ja rengas vaativat maapohjan.
+    if (!canStand(water, angler) || !ground(water, angler) || !ground(water, tube)) continue;
     const far = out.every(
       (o) => Math.hypot(o.pos.x - angler.x, o.pos.y - angler.y) >= INFLATE_ROW.spacing * 0.8,
     );

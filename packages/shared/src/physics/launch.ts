@@ -1,7 +1,7 @@
 import type { Vec2 } from '../vec2';
 import { BOAT_HULL, SEAT_OFFSET, BoatSeat } from './boat';
 import { INFLATE, arrowOf, inflateSequence, Arrow } from './inflate';
-import type { ShoreWater } from './shore';
+import { ground, type ShoreWater } from './shore';
 import { STAMINA, createTube, staminaThrust, type TubeInput, type TubeState } from './tube';
 
 /**
@@ -213,7 +213,8 @@ export function beachedBoat(
   // Soutajan paikka veneen keskellä; keula (−heading) osoittaa järvelle.
   const mid = -(SEAT_OFFSET + 0.45 - BOAT_HULL.length) + LAUNCH.inland;
   const pos = { x: c.point.x + inland.x * mid, y: c.point.y + inland.y * mid };
-  if (!water.isLand(pos)) return null;
+  // Laiturin kansi (#475) ei käy: vene nostetaan maapohjalle.
+  if (!ground(water, pos)) return null;
   return {
     ...createTube(pos, Math.atan2(inland.y, inland.x)),
     launch: createLaunch(seed, crew),
