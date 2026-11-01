@@ -335,6 +335,31 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     return boat ? bailPose(boat, b, w.seat, this.water) : null;
   }
 
+  /** Luotaimet ja perhoheiton sivukuva päälle tai pois (K, L, P). */
+  private togglePanels(): void {
+    const c = this.controls;
+    if (c.wasPressed('sonar')) this.hud.sonar.toggle();
+    // Heiton aikana L (kosketuksella SYV) ja P piilottavat perhoheiton sivukuvan (#236).
+    const casting = this.fishing.stage === 'casting';
+    if (c.wasPressed('flyPanel') || (casting && c.wasPressed('lureSonar')))
+      this.hud.showMessage(
+        this.hud.flyPanel.toggle() ? t('game.flyPanelOn') : t('game.flyPanelOff'),
+        1.5,
+        'info',
+      );
+    else if (c.wasPressed('lureSonar'))
+      this.hud.showMessage(
+        this.hud.lureSonar.toggle() ? t('game.lureSonarOn') : t('game.lureSonarOff'),
+        1.5,
+        'info',
+      );
+  }
+
+  /** Kalastaja on maissa (#457): kalastusnapit, -mittarit ja viehepakki ovat poissa käytöstä. */
+  get ashore(): boolean {
+    return this.craft.ashore;
+  }
+
   /** Ison kosketusnapin toiminto maalla (#457); undefined = vedessä. */
   get shoreMain(): ShoreMain | null | undefined {
     if (!this.craft.ashore || this.spectating) return undefined;
@@ -519,21 +544,9 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     const frozen = this.netWorld?.phase === 'countdown';
     if (input.wheel !== 0) this.view.zoom(input.wheel);
     if (c.wasPressed('help')) this.hud.toggleHelp();
-    if (c.wasPressed('sonar')) this.hud.sonar.toggle();
-    // Heiton aikana L (kosketuksella SYV) ja P piilottavat perhoheiton sivukuvan (#236).
-    const casting = this.fishing.stage === 'casting';
-    if (c.wasPressed('flyPanel') || (casting && c.wasPressed('lureSonar')))
-      this.hud.showMessage(
-        this.hud.flyPanel.toggle() ? t('game.flyPanelOn') : t('game.flyPanelOff'),
-        1.5,
-        'info',
-      );
-    else if (c.wasPressed('lureSonar'))
-      this.hud.showMessage(
-        this.hud.lureSonar.toggle() ? t('game.lureSonarOn') : t('game.lureSonarOff'),
-        1.5,
-        'info',
-      );
+    // Maalla (#457) luotaimet ja perhoheiton sivukuva ovat piilossa: niiden
+    // näppäimet eivät tee mitään, kuten kosketuksen piilotetut napit.
+    if (!this.craft.ashore) this.togglePanels();
     if (c.wasPressed('view')) this.setViewMode(this.viewMode === 'top' ? 'pov' : 'top');
     if (c.wasPressed('emote') && !this.spectating) this.toggleEmoteMenu();
     this.emoteHold.step(c);

@@ -20,6 +20,10 @@ test('rannalla: maihin, rengas mukaan ja takaisin kyytiin', async ({ page }) => 
   await page.keyboard.down('KeyS');
   await expect(situation).toContainText('Maissa', { timeout: 30_000 });
   await page.keyboard.up('KeyS');
+  // Maalla kalastuksen paneelit (tilapaneeli, kireysmittari, luotaimet) ovat piilossa.
+  const status = page.locator('.hud-status');
+  await expect(status).toBeHidden();
+  await expect(page.locator('.hud-tension')).toBeHidden();
 
   // Maalta ei kalasteta: heittoyritys kertoo sen.
   const view = page.viewportSize()!;
@@ -45,6 +49,8 @@ test('rannalla: maihin, rengas mukaan ja takaisin kyytiin', async ({ page }) => 
   await expect
     .poll(async () => ((await situation.isVisible()) ? await situation.innerText() : ''))
     .not.toMatch(/Maissa|Hyppää kyytiin/);
+  // Vedessä kalastuksen paneelit palaavat.
+  await expect(status).toBeVisible();
   expect(await page.evaluate(() => (window as unknown as { noFishing: number }).noFishing)).toBe(0);
   errors.check();
 });

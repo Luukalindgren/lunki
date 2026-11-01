@@ -1967,6 +1967,32 @@ textarea,
   display: none;
 }
 
+/* Maalla (#457) ei kalasteta: kalastusnapit ja -mittarit piiloon. Näkyviin
+   jäävät tatti, työkalut, kamera, käsimerkit ja rannan toiminnon iso nappi. */
+.touch-controls.ashore .touch-grid > :not(.touch-cam, .touch-emote),
+.touch-controls.ashore .touch-anchor,
+.touch-controls.ashore .touch-seat,
+.touch-controls.ashore .touch-method {
+  display: none;
+}
+
+.touch-controls.ashore .touch-grid {
+  grid-template-columns: 56px;
+}
+
+.touch-controls.no-action .touch-reel {
+  visibility: hidden;
+}
+
+.hud.ashore .hud-status,
+.hud.ashore .hud-tension,
+.hud.ashore .hud-power,
+.hud.ashore .hud-gauges,
+.hud.ashore .hud-lure-sonar,
+.hud.ashore .hud-fly-panel {
+  display: none;
+}
+
 /* Pystyasennossa napit allekkain, jotta tatille jää tilaa. */
 @media (orientation: portrait) {
   .touch-actions {

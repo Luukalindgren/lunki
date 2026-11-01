@@ -24,6 +24,8 @@ export interface LurePickerHost {
   readonly controls: Controls;
   readonly difficulty: Difficulty;
   readonly spectating: boolean;
+  /** Maissa (#457) viehepakki ja kalastustapa eivät aukea: maalta ei kalasteta. */
+  readonly ashore: boolean;
   readonly tackle: Tackle;
   setTackle(tk: Tackle): void;
 }
@@ -60,8 +62,12 @@ export class LurePicker {
   }
 
   step(dt: number): void {
-    const { controls: c, spectating } = this.host;
+    const { controls: c, spectating, ashore } = this.host;
     if (spectating) return;
+    if (ashore) {
+      this.close();
+      return;
+    }
     if (c.wasPressed('method')) {
       if (this.methodMenu?.open) this.methodMenu.close();
       else {
@@ -156,6 +162,13 @@ export class LurePicker {
     this.box = box;
     this.host.setTackle(next);
     return t('box.lost', { n: left });
+  }
+
+  /** Pikavalikot kiinni (rantauduttaessa kesken valinnan). */
+  private close(): void {
+    if (this.menu?.open) this.menu.close();
+    if (this.methodMenu?.open) this.methodMenu.close();
+    this.held = -1;
   }
 
   dispose(): void {

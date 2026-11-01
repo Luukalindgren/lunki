@@ -426,6 +426,14 @@ export class Hud {
   }
 
   /**
+   * Maalla (#457) kalastuksen paneelit (tilapaneeli, kireys, luotaimet,
+   * perhoheiton sivukuva) piiloon: maalta ei kalasteta.
+   */
+  setAshore(ashore: boolean): void {
+    this.root.classList.toggle('ashore', ashore);
+  }
+
+  /**
    * Pelitilanne ohjeelle: vain valitun välineen ohjeet. Tilanteen omat ohjeet
    * (ukkonen, viehe maalla, sotku) ovat tilanneohjeessa. Kutsutaan joka ruudulla.
    */
