@@ -1,6 +1,6 @@
 import type { Vec2 } from '../vec2';
 import { closestPointOnSegment } from './geometry';
-import { pierRing } from './piers';
+import { pierDeckRing, pierRing } from './piers';
 import { ReedIndex, type ReedBed } from './reeds';
 import type { LakeMap } from './types';
 
@@ -30,8 +30,8 @@ export class WaterBody {
   private readonly cells = new Map<number, number[]>();
   private readonly bands = new Map<number, number[]>();
   private readonly reeds: ReedIndex;
-  /** Laiturien kannet: maata vedessä, mutta niille ei kävellä (#457). */
-  private readonly pierRings: Vec2[][];
+  /** Laiturien kannet maalta kärkeen: niillä kävellään kuin maalla (#457). */
+  private readonly deckRings: Vec2[][];
 
   constructor(
     readonly map: LakeMap,
@@ -39,9 +39,9 @@ export class WaterBody {
     private readonly bandHeight = 8,
   ) {
     this.reeds = new ReedIndex(map.reeds);
-    this.pierRings = (map.piers ?? []).map(pierRing);
+    this.deckRings = (map.piers ?? []).map(pierDeckRing);
     // Laiturit ovat vesialueen sisällä kuin pienet saaret.
-    for (const ring of [map.shore, ...map.islands, ...this.pierRings]) {
+    for (const ring of [map.shore, ...map.islands, ...(map.piers ?? []).map(pierRing)]) {
       for (let i = 0; i < ring.length; i++) {
         const a = ring[i]!;
         const b = ring[(i + 1) % ring.length]!;
@@ -77,9 +77,14 @@ export class WaterBody {
     return inside;
   }
 
-  /** Onko piste maata, jolla voi seistä: ei vettä eikä laiturin kantta (#457). */
+  /** Onko piste maata, jolla voi seistä: rantaa, saarta tai laiturin kantta (#457). */
   isLand(p: Vec2): boolean {
-    return !this.isWater(p) && !this.pierRings.some((r) => insideRing(r, p));
+    return !this.isWater(p) || this.onPier(p);
+  }
+
+  /** Onko piste laiturin kannella (maalla seisova on silloin kannen korkeudella). */
+  onPier(p: Vec2): boolean {
+    return this.deckRings.some((r) => insideRing(r, p));
   }
 
   /** Kaislikko pisteessä (vedessä), tai null. */

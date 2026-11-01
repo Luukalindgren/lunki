@@ -46,12 +46,15 @@ function land(t: TubeState = nearWest()): TubeState {
 const nearWest = (y = 50) => createTube({ x: 1, y }, 0);
 
 describe('rantautuminen (#457)', () => {
-  it('maa ja kaista: vesi, laituri ja yli 5 m rannasta eivät käy', () => {
+  it('maa ja kaista: vesi ja yli 5 m rannasta eivät käy, laiturin kansi käy', () => {
     expect(canStand(water, { x: -2, y: 50 })).toBe(true);
     expect(canStand(water, { x: -SHORE.band + 0.1, y: 50 })).toBe(true);
     expect(canStand(water, { x: -SHORE.band - 0.5, y: 50 })).toBe(false);
     expect(canStand(water, { x: 2, y: 50 })).toBe(false);
-    expect(water.isLand({ x: 5, y: 80 })).toBe(false);
+    // Laiturin kannella kävellään (#457), sen vieressä on vettä.
+    expect(water.isLand({ x: 5, y: 80 })).toBe(true);
+    expect(canStand(water, { x: 9, y: 80 })).toBe(true);
+    expect(water.isLand({ x: 5, y: 82 })).toBe(false);
   });
 
   it('selkä edellä rantaa vasten potkiminen nostaa maihin sekunnissa', () => {
@@ -138,6 +141,35 @@ describe('rantautuminen (#457)', () => {
     expect(Math.cos(t.heading)).toBeLessThan(-0.9);
     const out = run(t, BACK, 3, false);
     expect(out.pos.x).toBeGreaterThan(t.pos.x + 1);
+  });
+
+  it('laiturille rantaudutaan, sillä kävellään ja sen päästä hypätään kyytiin', () => {
+    // Rengas laiturin pohjoispuolella katse pohjoiseen: selkä laituriin.
+    let t = land(createTube({ x: 6, y: 81.8 }, Math.PI / 2));
+    expect(isAshore(t)).toBe(true);
+    expect(water.onPier(t.pos)).toBe(true);
+    expect(water.onPier(t.shore!.tube)).toBe(true);
+    t = step(t, MAIN);
+    expect(t.shore!.carrying).toBe(true);
+    // Käännytään itään ja kävellään laiturin päähän.
+    t = run(t, { ...REST, turn: -1 }, Math.PI / 2 / SHORE.turnRate);
+    expect(Math.cos(t.heading)).toBeGreaterThan(0.95);
+    t = run(t, WALK, 6);
+    expect(water.onPier(t.pos)).toBe(true);
+    expect(t.pos.x).toBeGreaterThan(8.5);
+    expect(shoreActionAt(t, water)).toBe('board');
+    t = run(step(t, MAIN), REST, SHORE.boardTime + 0.1);
+    expect(isAshore(t)).toBe(false);
+    expect(water.isWater(t.pos)).toBe(true);
+  });
+
+  it('laiturilta kävellään rantaan', () => {
+    let t = land(createTube({ x: 6, y: 81.8 }, Math.PI / 2));
+    t = run(t, { ...REST, turn: 1 }, Math.PI / 2 / SHORE.turnRate);
+    expect(Math.cos(t.heading)).toBeLessThan(-0.95);
+    t = run(t, WALK, 8);
+    expect(t.pos.x).toBeLessThan(-1);
+    expect(canStand(water, t.pos)).toBe(true);
   });
 
   it('pääkonteksti kulkee syötteen bitissä 64 ja maatila kloonautuu', () => {

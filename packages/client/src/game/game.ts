@@ -5,6 +5,7 @@ import {
   LUNKINJARVI,
   WaterBody,
   BoatSeat,
+  PIER_DECK,
   createTube,
   inflateRow,
   beachedBoat,
@@ -861,7 +862,13 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     // Maalla (#457) kalastaja seisoo ja rengas on maassa tai vyötäröllä.
     const shore = this.spectating ? undefined : b.shore;
     const pov = this.viewMode === 'pov';
-    const groundAt = (p: Vec2) => (pov ? this.world.ground.heightAt(p) : 0);
+    // Seisojan jalkojen korkeus: maasto, laiturin kannella kansi (#457).
+    const groundAt = (p: Vec2) =>
+      !pov
+        ? 0
+        : this.water.onPier(p)
+          ? Math.max(PIER_DECK, this.world.ground.heightAt(p))
+          : this.world.ground.heightAt(p);
     // Täyttökisan vene rannalla (#458): oma kalastaja äyskäröi laidan vieressä.
     const bailing = this.spectating ? null : this.ownBailPose(pos, hull);
     if (bailing) {
