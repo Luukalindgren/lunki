@@ -673,6 +673,10 @@ export const en: Record<keyof typeof fi, string> = {
   'help.thunder': 'In thunder, reel your lure in and stay close to the shore',
   'help.move': '{forward} = towards your fins · {back} = back first (fastest)',
   'help.turn': '{turn} = turn · {sprint} = sprint kick (tiring) · {anchor} = anchor',
+  'help.walk': '{forward|back} = walk forward or back · {turn} = turn',
+  'help.shoreAct': '{pickUp} = pick up or put down the tube · at the waterline {board} = jump in',
+  'help.shoreRace':
+    'Inflation contest: {pump} = pump or bail · arrows = the arrow sequence in the hint',
   'help.row': '{back} = row · {forward} = back water · {sprint} = speed up (tiring)',
   'help.rowTurn': '{turn} = turn the boat · {oars} = oars/rod · {anchor} = anchor',
   'help.passenger': 'Passenger: the rower rows, you fish',
