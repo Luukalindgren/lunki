@@ -208,7 +208,7 @@ export function aimRod(
 
 const SKIN = 0xe0cf9c;
 /** Olkavarresta kämmeneen (m). Kädet ovat hieman liioitellun isot, jotta eleet erottaa kaukaa. */
-const ARM_LENGTH = 0.5;
+export const ARM_LENGTH = 0.5;
 const HAND = 0.22;
 /** Lepoasento: käsivarsi eteen alas (kulma pystystä, rad), oikea vavan kahvalla. */
 const REST = { left: 0.6, right: 1.05 };

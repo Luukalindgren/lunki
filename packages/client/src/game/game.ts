@@ -67,7 +67,7 @@ import { rodSideOffset, type LinePoint } from './lineHang';
 import { PovRod, flyRodAngle, flyRodTip } from './povRod';
 import { REST_POSE, lakePoint } from './rodMotion';
 import { PovTube } from './povTube';
-import { AshoreFigure, STANDING_EYE } from './shoreView';
+import { AshoreFigure, STANDING_EYE, wadeGround } from './shoreView';
 import { loadAppearance } from './appearance';
 import { loadTackle } from './tackle';
 import { TopDownCamera } from './topDownCamera';
@@ -323,9 +323,15 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     const b = this.tube.bailer;
     if (!b) return null;
     const w = this.netWorld;
-    if (!w?.passenger) return bailPose({ pos, heading: hull }, b, BoatSeat.rower);
+    if (!w?.passenger)
+      return bailPose(
+        { pos, heading: hull, launch: this.tube.launch },
+        b,
+        BoatSeat.rower,
+        this.water,
+      );
     const boat = w.boats().find((x) => x.boat === w.boat);
-    return boat ? bailPose(boat, b, w.seat) : null;
+    return boat ? bailPose(boat, b, w.seat, this.water) : null;
   }
 
   /** Ison kosketusnapin toiminto maalla (#457); undefined = vedessä. */
@@ -919,7 +925,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
           : bailing
             ? // Äyskäröidessä (#458) katse alas veneeseen.
               {
-                lift: Math.max(0, groundAt(bailing.pos)) + STANDING_EYE - EYE_HEIGHT,
+                lift: wadeGround(groundAt(bailing.pos)) + STANDING_EYE - EYE_HEIGHT,
                 roll: 0,
                 pitch: -0.45,
               }
@@ -998,6 +1004,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     this.weather.shakeCamera(this.camera);
     // Täyttökisan vene rannalla (#458) lepää maan pinnalla.
     this.boatsView.heightAt = groundAt;
+    this.boatsView.water = this.water;
     // Oma vene sellaisena kuin se nyt piirretään: kyytiläiset istuvat siinä.
     const own = this.spectating
       ? undefined

@@ -10,6 +10,7 @@ import {
 import { toWorld } from '../world/lakeMesh';
 import type { BailPose } from '../net/netWorld';
 import {
+  ARM_LENGTH,
   PONTOON_TIP,
   SEAT,
   TUBE_CENTER,
@@ -43,6 +44,12 @@ const TUBE_REACH = { length: TUBE_CENTER, width: TUBE_CENTER } as const;
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 /** Seisovan silmän korkeus POV:ssa (m maanpinnasta). */
 export const STANDING_EYE = 1.6;
+/**
+ * Seisojan jalkojen korkeus: maalla maanpinta, rantavedessä pohja enintään
+ * tämän syvyydeltä (m). Airoja kiinnittävä venekunta kahlaa veneen vieressä.
+ */
+const WADE = -0.6;
+export const wadeGround = (h: number): number => Math.max(WADE, h);
 /** Tyhjän ponttoonin litteys (osuus täydestä korkeudesta). */
 const FLAT = 0.2;
 /** Äyskäröijä kumartuu kauhaistessa (m). */
@@ -86,8 +93,15 @@ export class AshoreFigure {
   private readonly pump = new THREE.Group();
   private readonly pumpRod = new THREE.Group();
   private readonly hose: THREE.Line;
-  /** Äyskäröinnin kauha kädessä (#458). */
-  private readonly scoop: THREE.Mesh;
+  /** Äyskäröinnin kauha kädessä (#458); maailmassa, jotta se näkyy myös omin silmin. */
+  private readonly scoop: THREE.Group;
+  /** Kädet ja niiden lepoasento (äyskäröidessä kädet liikkuvat kauhan mukana). */
+  private readonly arms: { arm: THREE.Object3D; rest: THREE.Euler }[];
+  /** Laidan yli lentävät vesipisarat ja heiton alkuhetki (s); kauhan edellinen asento. */
+  private readonly drops: THREE.Mesh[] = [];
+  private toss: { t0: number; at: THREE.Vector3; vel: THREE.Vector3[]; ground: number } | null =
+    null;
+  private lastHandle = 1;
 
   constructor(appearance: Appearance = DEFAULT_APPEARANCE) {
     const src = createTubeMesh(appearance);
@@ -124,13 +138,22 @@ export class AshoreFigure {
       this.angler.add(leg);
     }
     this.hose = buildPump(this.pump, this.pumpRod);
-    this.scoop = new THREE.Mesh(
-      new THREE.BoxGeometry(0.22, 0.12, 0.18),
-      new THREE.MeshLambertMaterial({ color: 0x4f6f86 }),
-    );
+    this.scoop = buildScoop();
     this.scoop.visible = false;
-    this.angler.add(this.scoop);
-    this.group.add(this.angler, this.tube, this.pump, this.hose);
+    this.arms = (['arm-left', 'arm-right'] as const).map((name) => {
+      const arm = this.angler.getObjectByName(name)!;
+      return { arm, rest: arm.rotation.clone() };
+    });
+    const dropMat = playerColorMaterial(DROP_COLOR);
+    for (let i = 0; i < DROPS.count; i++) {
+      const drop = new THREE.Mesh(
+        new THREE.BoxGeometry(DROPS.size, DROPS.size, DROPS.size),
+        dropMat,
+      );
+      drop.visible = false;
+      this.drops.push(drop);
+    }
+    this.group.add(this.angler, this.tube, this.pump, this.hose, this.scoop, ...this.drops);
     this.group.visible = false;
   }
 
@@ -145,6 +168,8 @@ export class AshoreFigure {
     this.group.visible = true;
     this.tube.visible = true;
     this.scoop.visible = false;
+    this.restArms();
+    this.hideDrops();
     const s = p.shore;
     // Kyytiin hypätessä kalastaja kulkee takaperin renkaaseen ja istuu.
     const k = s.board ?? 0;
@@ -245,14 +270,80 @@ export class AshoreFigure {
   updateBailer(p: BailPose, heightAt: (p: Vec2) => number): void {
     this.group.visible = true;
     this.tube.visible = this.pump.visible = this.hose.visible = false;
-    this.scoop.visible = true;
-    this.angler.position.copy(
-      toWorld(p.pos, Math.max(0, heightAt(p.pos)) - BAIL_DIP * (1 - p.handle)),
-    );
+    this.scoop.visible = p.scooping;
+    // Työnnössä ja airoja kiinnittäessä kädet ojentuvat veneeseen.
+    const u = p.scooping ? p.handle : 1;
+    const ground = wadeGround(heightAt(p.pos));
+    this.angler.position.copy(toWorld(p.pos, ground - BAIL_DIP * (1 - u)));
     this.angler.rotation.y = p.heading;
     this.legs.forEach((leg) => (leg.rotation.z = 0));
-    // Kauha veneen laidan yli: alhaalla kauhaistessa, ylhäällä heittäessä.
-    this.scoop.position.set(0.55, 0.55 + 0.35 * p.handle, 0.2);
+    // Kädet kauhan mukana: laidan yli veneeseen, ylös ja sivulle heitoksi, takaisin valmiiksi.
+    const pose = p.scooping ? bailArm(u) : { forward: 1.45, side: 0, pour: 0 };
+    for (const [i, { arm }] of this.arms.entries()) {
+      const right = i === 1;
+      arm.rotation.set(right ? -pose.side : 0, 0, right ? pose.forward : pose.forward * 0.8);
+    }
+    this.angler.updateMatrixWorld(true);
+    const hand = this.arms[1]!.arm;
+    this.scoop.position.copy(hand.localToWorld(new THREE.Vector3(0.04, -ARM_LENGTH - 0.12, 0)));
+    this.scoop.quaternion
+      .copy(hand.getWorldQuaternion(new THREE.Quaternion()))
+      .multiply(new THREE.Quaternion().setFromAxisAngle(SCOOP_AXIS, pose.pour));
+    // Uusi kauhallinen heitetään: vesi lentää kauhasta laidan yli.
+    const now = performance.now() / 1000;
+    if (this.lastHandle < DROPS.release && u >= DROPS.release)
+      this.startToss(p, now, Math.max(0, ground));
+    this.lastHandle = u;
+    this.flyDrops(now);
+  }
+
+  /** Pisarat kauhasta kalastajan oikealle ja ylös, kukin vähän eri suuntaan. */
+  private startToss(p: BailPose, now: number, ground: number): void {
+    const c = Math.cos(p.heading);
+    const s = Math.sin(p.heading);
+    // Kalastajan oikea puoli (pelin koordinaateissa (s, -c)) Three.js:n suuntana.
+    const right = toWorld({ x: s, y: -c });
+    const ahead = toWorld({ x: c, y: s });
+    const vel = this.drops.map((_, i) => {
+      const r1 = fract(Math.sin(i * 12.9898) * 43758.5453);
+      const r2 = fract(Math.sin(i * 78.233) * 12345.678);
+      return right
+        .clone()
+        .multiplyScalar(DROPS.out + DROPS.spread * r1)
+        .addScaledVector(ahead, DROPS.spread * (r2 - 0.5))
+        .setY(DROPS.up + DROPS.spread * r2);
+    });
+    this.toss = { t0: now, at: this.scoop.position.clone(), vel, ground };
+  }
+
+  private flyDrops(now: number): void {
+    const t = this.toss;
+    if (!t || now - t.t0 > DROPS.life) {
+      this.hideDrops();
+      return;
+    }
+    const age = now - t.t0;
+    this.drops.forEach((drop, i) => {
+      // Pisarat irtoavat kauhasta vähän peräkkäin.
+      const a = age - i * 0.015;
+      const v = t.vel[i]!;
+      drop.visible = a > 0;
+      drop.position.set(
+        t.at.x + v.x * a,
+        Math.max(t.ground, t.at.y + v.y * a - 0.5 * 9.8 * a * a),
+        t.at.z + v.z * a,
+      );
+    });
+  }
+
+  private hideDrops(): void {
+    this.toss = null;
+    for (const d of this.drops) d.visible = false;
+  }
+
+  /** Kädet lepoon (kävellessä ja pumpatessa). */
+  private restArms(): void {
+    for (const { arm, rest } of this.arms) arm.rotation.copy(rest);
   }
 
   /** Kalastajan oma vartalo piiloon omin silmin (POV); rengas näkyy silti. */
@@ -332,6 +423,61 @@ function deflate(m: THREE.Mesh, k: number): void {
   }
   pos.needsUpdate = true;
   m.geometry.computeBoundingSphere();
+}
+
+/** Kauhan väri (oranssi muovikauha) ja heitetyn veden väri. */
+const SCOOP_COLOR = 0xf08a2c;
+const DROP_COLOR = 0x4d9cc2;
+const SCOOP_AXIS = new THREE.Vector3(1, 0, 0);
+/**
+ * Heitetyt pisarat: määrä, koko (m), irtoaminen kauhan palautuksen kohdassa,
+ * lähtönopeus sivulle ja ylös (m/s), hajonta ja kesto (s).
+ */
+const DROPS = {
+  count: 9,
+  size: 0.05,
+  release: 0.3,
+  out: 1.6,
+  up: 2.0,
+  spread: 0.9,
+  life: 0.9,
+} as const;
+
+const fract = (x: number): number => x - Math.floor(x);
+
+/**
+ * Käsien asento äyskäröidessä kauhan palautuksen `u` mukaan (0 = juuri
+ * kauhaistu veneen pohjasta, 1 = valmis): `forward` nostaa kättä eteen ja
+ * ylös, `side` oikealle sivulle ja `pour` kallistaa kauhaa heitossa.
+ */
+function bailArm(u: number): { forward: number; side: number; pour: number } {
+  const keys = [
+    { u: 0, forward: 1.15, side: 0, pour: 0 },
+    { u: 0.35, forward: 2.45, side: 0.75, pour: 1.3 },
+    { u: 1, forward: 1.5, side: 0.15, pour: 0 },
+  ];
+  const b = u < keys[1]!.u ? 1 : 2;
+  const a = keys[b - 1]!;
+  const c = keys[b]!;
+  const t = (u - a.u) / (c.u - a.u);
+  const k = t * t * (3 - 2 * t);
+  return {
+    forward: a.forward + (c.forward - a.forward) * k,
+    side: a.side + (c.side - a.side) * k,
+    pour: a.pour + (c.pour - a.pour) * k,
+  };
+}
+
+/** Muovikauha kahvoineen: kuppi kädestä eteen, aukko ylöspäin kauhaistessa. */
+function buildScoop(): THREE.Group {
+  const mat = playerColorMaterial(SCOOP_COLOR);
+  const cup = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 0.16), mat);
+  cup.position.set(0.1, -0.02, 0);
+  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.12, 0.04), mat);
+  handle.position.set(0, 0.04, 0);
+  const g = new THREE.Group();
+  g.add(cup, handle);
+  return g;
 }
 
 /**

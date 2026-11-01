@@ -1,8 +1,17 @@
 import * as THREE from 'three';
-import { BOAT_HULL, CRAFTS, SEAT_OFFSET, type BoatLaunch } from '@lunki/shared';
+import {
+  BOAT_HULL,
+  CRAFTS,
+  LaunchStage,
+  SEAT_OFFSET,
+  launchedPos,
+  type BoatLaunch,
+  type ShoreWater,
+} from '@lunki/shared';
 import type { BoatPose } from '../net/netWorld';
 import { toWorld } from '../world/lakeMesh';
 import { groundRest } from './groundRest';
+import { playerColorMaterial } from './playerColor';
 
 /**
  * Soutuvene (#263). Paikallinen koordinaatisto kuten
@@ -32,8 +41,12 @@ const RAIL_OUT = 0.05;
 const OARLOCK_X = 0.3;
 const OAR = 2.3;
 
-// Puuvene: laidat vaaleampaa ruskeaa kuin pohja ja tuhdot (varjossakin ruskea, ei harmaa).
-const COLOR = { hull: 0xd2a56c, wood: 0x8a5a32, oar: 0xb98a4e } as const;
+// Puuvene: sisäpinta vaaleampaa ruskeaa kuin pohja ja tuhdot. Varjostus
+// palettirampeilla (SHADE_RAMPS): auringon puoli vaalea ja varjon puoli
+// tummempi ruskea; tavallinen valaistus pyöristyi paletissa keltaiseksi.
+const COLOR = { lining: 0x8a6a42, wood: 0x5e432b, oar: 0xb98a4e } as const;
+/** Pohjavesi täyttökisan veneessä: järven sininen (harmaa sävy pyöristyi harmaaksi). */
+const BILGE_COLOR = 0x2b7aa6;
 
 /** Rungon ääriviiva ylhäältä (x, z): perälauta suora, keula suippo. */
 function outline(inset: number): THREE.Shape {
@@ -109,8 +122,8 @@ function halfWidthAt(poly: readonly THREE.Vector2[], x: number): number {
 
 export function createBoatMesh(color: number): THREE.Group {
   const group = new THREE.Group();
-  const hullMat = new THREE.MeshLambertMaterial({ color: COLOR.hull });
-  const wood = new THREE.MeshLambertMaterial({ color: COLOR.wood });
+  const hullMat = playerColorMaterial(COLOR.lining);
+  const wood = playerColorMaterial(COLOR.wood);
 
   // Laidat kahtena kerroksena: ulkokuori soutajan värillä maalattuina
   // lankkuina, jotta vene tunnistetaan kaukaa kuten rengas, ja sisäpinta
@@ -132,7 +145,7 @@ export function createBoatMesh(color: number): THREE.Group {
   });
   const lining = outline(WALL * 0.4);
   lining.holes.push(outline(WALL));
-  const hull = new THREE.Mesh(liftNormals(extrude(lining, GUNWALE + 0.1), 1), hullMat);
+  const hull = new THREE.Mesh(extrude(lining, GUNWALE + 0.1), hullMat);
   hull.position.y = -0.1;
   group.add(hull);
   const floor = new THREE.Mesh(extrude(outline(WALL), 0.02), wood);
@@ -212,7 +225,7 @@ const BILGE_TOP = GUNWALE * 0.75;
  * pintoinaan, jotta äyskäröinnin edistyminen näkyy osittain.
  */
 function addBilge(mesh: THREE.Group): void {
-  const mat = new THREE.MeshLambertMaterial({ color: 0x4f6f86 });
+  const mat = playerColorMaterial(BILGE_COLOR);
   const parts: [number, number][] = [
     [BOW_X * 0.62, 0],
     [0, STERN_X - WALL * 2],
@@ -243,12 +256,50 @@ function showLaunch(mesh: THREE.Group, launch: BoatLaunch | undefined): void {
 /** Rannalla olevan veneen ulottuma rinteen lukemiseen soutajan kohdalta (m). */
 const BEACHED_REACH = { length: BOAT_HULL.length * 0.4, width: HALF_BEAM * 0.8 } as const;
 
+/** Työntö vesille (#458): vene liukuu rannalta veteen keula edellä. */
+const SLIDE = { time: 1.2, dip: 0.12, sink: 0.08 } as const;
+
+interface BoatEntry {
+  mesh: THREE.Group;
+  color: number;
+  /** Viimeksi piirretty vesillelaskun vaihe (null = vesillä). */
+  stage: number | null;
+  /** Liuku rannalta veteen: lähtöasento ja alkuhetki (s). */
+  slide?: { from: THREE.Vector3; fromQ: THREE.Quaternion; t0: number };
+}
+
+/**
+ * Vene liukuu rannalta kelluvaan asentoonsa (`mesh` on jo perillä): alussa
+ * hitaasti kuin työnnettynä, keula painuu veteen ja nousee, ja vene keinahtaa.
+ */
+function slide(e: BoatEntry, now: number): void {
+  const s = e.slide!;
+  const u = Math.min(1, (now - s.t0) / SLIDE.time);
+  if (u >= 1) {
+    delete e.slide;
+    return;
+  }
+  const k = u * u * (3 - 2 * u);
+  const to = e.mesh.position.clone();
+  const toQ = e.mesh.quaternion.clone();
+  e.mesh.position.lerpVectors(s.from, to, k);
+  // Keula kastuu: vene painuu ja nousee kerran veteen osuessa.
+  e.mesh.position.y -= SLIDE.sink * Math.sin(Math.PI * Math.min(1, Math.max(0, (u - 0.4) / 0.6)));
+  e.mesh.quaternion.slerpQuaternions(s.fromQ, toQ, k);
+  const dip = SLIDE.dip * Math.sin(Math.PI * u) * (1 - u);
+  e.mesh.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(Z_AXIS, dip));
+}
+
+const Z_AXIS = new THREE.Vector3(0, 0, 1);
+
 /** Kaikki kisan veneet, myös oma. */
 export class BoatsView {
   readonly group = new THREE.Group();
   /** Maanpinta (POV:ssa maasto, ylhäältä 0): rannalla vene myötäilee rinnettä (#458). */
   heightAt: (p: { x: number; y: number }) => number = () => 0;
-  private readonly boats = new Map<number, { mesh: THREE.Group; color: number }>();
+  /** Järvi: työnnetty vene piirretään vesille jo airoja kiinnitettäessä. */
+  water: ShoreWater | null = null;
+  private readonly boats = new Map<number, BoatEntry>();
 
   update(poses: readonly BoatPose[]): void {
     const seen = new Set<number>();
@@ -260,12 +311,25 @@ export class BoatsView {
         e = undefined;
       }
       if (!e) {
-        e = { mesh: createBoatMesh(b.color), color: b.color };
+        e = { mesh: createBoatMesh(b.color), color: b.color, stage: b.launch?.stage ?? null };
         addBilge(e.mesh);
         this.boats.set(b.boat, e);
         this.group.add(e.mesh);
       }
-      if (b.launch) {
+      const afloat = b.launch && b.launch.stage >= LaunchStage.oars && this.water;
+      const target = afloat ? launchedPos(b, this.water!) : null;
+      if (b.launch && target) {
+        // Työnnetty vene kelluu jo vesirajassa, kun airoja kiinnitetään.
+        if (e.stage !== null && e.stage < LaunchStage.oars)
+          e.slide = {
+            from: e.mesh.position.clone(),
+            fromQ: e.mesh.quaternion.clone(),
+            t0: performance.now() / 1000,
+          };
+        e.mesh.position.copy(toWorld(target, 0));
+        e.mesh.rotation.set(0, b.heading, 0);
+        if (e.slide) slide(e, performance.now() / 1000);
+      } else if (b.launch) {
         // Rannalla vene lepää rinteen suuntaisena eikä uppoa maan sisään.
         const rest = groundRest(b.pos, b.heading, this.heightAt, BEACHED_REACH);
         e.mesh.position.copy(toWorld(b.pos, rest.lift));
@@ -274,6 +338,8 @@ export class BoatsView {
         e.mesh.position.copy(toWorld(b.pos, b.lift ?? 0));
         e.mesh.rotation.set(b.tumble ?? b.roll ?? 0, b.heading, 0);
       }
+      e.stage = b.launch?.stage ?? null;
+      if (!b.launch) delete e.slide;
       animateOars(e.mesh, b.kickPhase);
       e.mesh.getObjectByName('anchorStowed')!.visible = !b.anchor;
       showLaunch(e.mesh, b.launch);
