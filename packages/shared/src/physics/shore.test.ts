@@ -3,7 +3,16 @@ import { WaterBody } from '../map/waterBody';
 import type { LakeMap } from '../map/types';
 import { packInput, stepPlayerTube, unpackInput, NET_DT, cloneTube } from '../net/tubeSync';
 import { CRAFTS } from './boat';
-import { SHORE, canStand, isAshore, shoreActionAt, shoreFromNet, shoreToNet } from './shore';
+import { beachedBoat } from './launch';
+import {
+  SHORE,
+  canStand,
+  inflateRow,
+  isAshore,
+  shoreActionAt,
+  shoreFromNet,
+  shoreToNet,
+} from './shore';
 import { createTube, type TubeInput, type TubeState } from './tube';
 
 /** Neliön muotoinen järvi: vettä x 0–100, y 0–100. Länsiranta on x = 0. */
@@ -141,6 +150,19 @@ describe('rantautuminen (#457)', () => {
     expect(Math.cos(t.heading)).toBeLessThan(-0.9);
     const out = run(t, BACK, 3, false);
     expect(out.pos.x).toBeGreaterThan(t.pos.x + 1);
+  });
+
+  it('täyttökisan rivi ja rantaan nostettu vene eivät ole laiturilla (#480)', () => {
+    // Rivi laiturin kohdalta: paikat siirtyvät laiturin viereen maapohjalle.
+    const row = inflateRow(water, { x: 6, y: 80 }, 3, 7);
+    expect(row).toHaveLength(3);
+    for (const r of row) {
+      expect(water.onPier(r.pos)).toBe(false);
+      expect(water.onPier(r.shore!.tube)).toBe(false);
+      const boat = beachedBoat(water, r.pos, 7, 2);
+      expect(boat).not.toBeNull();
+      expect(water.onPier(boat!.pos)).toBe(false);
+    }
   });
 
   it('laiturille rantaudutaan, sillä kävellään ja sen päästä hypätään kyytiin', () => {
