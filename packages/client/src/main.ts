@@ -888,6 +888,7 @@ startLoop({
         game.fishing.gear,
       );
       touch?.setCrew(game.crewSeats);
+      touch?.setAshore(game.shoreMain !== undefined, !!game.shoreMain);
     } else sfx.updateAmbience(dt, MENU_AMBIENCE);
     updateTime += performance.now() - t0;
     updateCount++;

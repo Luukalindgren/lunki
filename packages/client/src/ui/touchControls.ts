@@ -102,13 +102,15 @@ export class TouchControls {
     this.lineButton.b.hidden = true;
     const camButton = this.tap('view');
     camButton.classList.add('touch-cam');
+    const emoteButton = this.hold('emote');
+    emoteButton.classList.add('touch-emote');
     const grid = div('touch-grid');
     grid.append(
       this.hold('lure'),
       this.tap('sonar'),
       this.tap('lureSonar'),
       camButton,
-      this.hold('emote'),
+      emoteButton,
       this.tap('dragLess'),
       this.tap('dragMore'),
       this.gearButton,
@@ -152,6 +154,17 @@ export class TouchControls {
   /** Katsojalle vain näkymän napit: kalastajan ohjaimet eivät tee mitään (#280). */
   setSpectator(spectator: boolean): void {
     this.root.classList.toggle('spectator', spectator);
+  }
+
+  /**
+   * Maalla (#457) kalastusnapit piiloon: maalta ei kalasteta. Jäljelle jäävät
+   * tatti, työkalut, näkymä ja käsimerkit. Iso nappi näkyy vain, kun rannan
+   * toiminto (OTA, LASKE, KYYTIIN, PUMPPAA, ÄYSKÄRÖI) on ulottuvilla; tyhjänä
+   * se pitää paikkansa, jotta napit eivät hypi renkaan luo kävellessä.
+   */
+  setAshore(ashore: boolean, action: boolean): void {
+    this.root.classList.toggle('ashore', ashore);
+    this.root.classList.toggle('no-action', ashore && !action);
   }
 
   /**

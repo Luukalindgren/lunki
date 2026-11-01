@@ -6,6 +6,7 @@ import {
   chargePower,
   formatTime,
   holdForce,
+  isAshore,
   isFly,
   isUntimed,
   loopProgress,
@@ -99,17 +100,15 @@ export class HudPresenter {
     hud.setTension(f.tension, Math.min(hold, f.drag), breakingStrength(f.tackle));
     // Rangaistukset ajastimineen isona ilmoitusalueelle, ei tilapaneelin sekaan.
     host.penalties.show(hud, host.flying);
+    const ashore =
+      host.tube.bailer || host.tube.shore?.inflate ? 'race' : host.tube.shore ? 'walk' : undefined;
+    hud.setAshore(isAshore(tube));
     hud.setHelpContext({
       fly: isFly(f.tackle),
       pov: host.viewMode === 'pov',
       seat: !host.inBoat ? 'tube' : host.rower ? 'rower' : 'passenger',
       crew: host.crewSeats,
-      ashore:
-        host.tube.bailer || host.tube.shore?.inflate
-          ? 'race'
-          : host.tube.shore
-            ? 'walk'
-            : undefined,
+      ashore,
     });
     const tangle = s.tangle;
     // Opastus seuraa pelaajaa joka askeleella, vaikka tärkeämpi ohje on näkyvissä.
@@ -187,6 +186,7 @@ export class HudPresenter {
     const hud = this.host.hud;
     const name = followed ? this.host.netWorld!.playerName(followed) : null;
     hud.setPower(null);
+    hud.setAshore(false);
     hud.setHelpContext({ fly: false, pov: this.host.viewMode === 'pov', seat: 'tube' });
     hud.setSituation(null);
     hud.setStatus([
