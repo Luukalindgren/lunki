@@ -69,7 +69,12 @@ export const SHORE = {
 export interface ShoreWater {
   isWater(p: Vec2): boolean;
   isLand(p: Vec2): boolean;
-  closestShorePoint(p: Vec2, maxDistance?: number): { point: Vec2; distance: number } | null;
+  /** `piers = false`: lähin maapohjan ranta, laiturit ohitetaan (#490). */
+  closestShorePoint(
+    p: Vec2,
+    maxDistance?: number,
+    piers?: boolean,
+  ): { point: Vec2; distance: number } | null;
   resolveCircle(p: Vec2, radius: number): { position: Vec2; normal: Vec2 } | null;
   /** Laiturin kansi (#475): maata kävellä, mutta ei maapohjaa. */
   onPier?(p: Vec2): boolean;
@@ -358,7 +363,8 @@ export function inflateRow(
   count: number,
   seed: number,
 ): TubeState[] {
-  const base = water.closestShorePoint(near);
+  // Rivi rantaviivalle eikä laiturin kärkeen (#490): laiturin kansi ei kelpaa paikaksi.
+  const base = water.closestShorePoint(near, Infinity, false);
   if (!base) return [];
   const inlandAt = (p: Vec2, c: { point: Vec2; distance: number }): Vec2 | null => {
     if (c.distance < 1e-6) return null;
@@ -375,7 +381,7 @@ export function inflateRow(
       x: base.point.x + along.x * step * INFLATE_ROW.spacing - n0.x,
       y: base.point.y + along.y * step * INFLATE_ROW.spacing - n0.y,
     };
-    const c = water.closestShorePoint(p);
+    const c = water.closestShorePoint(p, Infinity, false);
     if (!c) continue;
     const inland = inlandAt(p, c) ?? n0;
     const at = (d: number) => ({ x: c.point.x + inland.x * d, y: c.point.y + inland.y * d });
