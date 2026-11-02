@@ -94,6 +94,7 @@ import { bottomFor } from '../world/lakeData';
 import { t } from '../i18n';
 import { CraftController, type CraftHost } from './craftController';
 import { FishingController, SOLO_ID, type FishingHost } from './fishingController';
+import { raceStatus, type RaceStatus } from './raceStatus';
 import { HudPresenter, type HudHost } from './hudPresenter';
 import { NetBridge, type NetHost, type NetLink } from './netBridge';
 import { Penalties } from './penalties';
@@ -665,6 +666,18 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
   /** Kisan omat tilastot tulossivulle (#367). */
   raceStats(): RaceStats {
     return this.raceStatsCounter.stats;
+  }
+
+  /** Kisan tilanne taukovalikkoon (#469); katsojalla ei omaa tilannetta. */
+  raceStatus(): RaceStatus | null {
+    if (this.spectating) return null;
+    const w = this.netWorld;
+    return raceStatus(
+      this.competition,
+      w ? w.standings() : null,
+      w ? w.myId : SOLO_ID,
+      this.angler.baits,
+    );
   }
 
   /**

@@ -740,6 +740,7 @@ function showPauseMenu(from?: PauseView) {
     multiplayer: session !== null,
     untimed: !session && isUntimed(g.settings),
     clock: formatClock(g.clock),
+    status: g.raceStatus(),
     // Peruke vaihtuu kesken kisan; muut varusteet päävalikon Varusteissa.
     onTackle: g.spectating
       ? undefined

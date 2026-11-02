@@ -66,6 +66,9 @@ test.describe('valikot näppäimistöllä (#237)', () => {
     // Tauko: Jatka kohdistettuna, nuolet liikkuvat ja Enter avaa asetukset.
     await page.keyboard.press('Escape');
     await expect(title(page)).toHaveText('Tauko');
+    // Kisan tilanne (#469): kalat, paino ja yksinpelissä kello.
+    await expect(page.locator('.pause-stat-label')).toHaveText(['Kalat', 'Paino', /Aikaa|Kulunut/]);
+    await expect(page.locator('.pause-stat-value').first()).toHaveText('0');
     await expect.poll(() => focused(page)).toBe('Jatka');
     await page.keyboard.press('ArrowDown');
     await expect.poll(() => focused(page)).toBe('Varusteet');

@@ -52,6 +52,7 @@ import { QuietSpot } from './quietSpot';
 import type { RaceLog } from './raceLog';
 import { catchJoy, isRaceBest, JOY_SOUNDS } from './catchJoy';
 import { addJournalEntry, loadJournal } from './journal';
+import { baitKey, type Bait } from './raceStatus';
 import { rigChanges, saveTackle, type RigKey } from './tackle';
 import { slotOf } from './tackleBox';
 import type { TopDownCamera } from './topDownCamera';
@@ -142,6 +143,8 @@ export class FishingController {
   private weighIn: { left: number; show: () => void } | null = null;
   /** Vieheen syvyys tärpissä saalispäiväkirjaan (#415). */
   private strikeDepth: number | null = null;
+  /** Kisan omien kalojen vieheet taukovalikon parhaaseen kalaan (#469). */
+  readonly baits = new Map<string, Bait>();
   /** Pelaaja kelaa (kelan kampi pyörii kalastajan silmin). */
   cranking = false;
   /** Sormen liike pelikuvalla (CSS-pikseleinä), jota perhoheitto ei ole vielä käyttänyt. */
@@ -631,10 +634,12 @@ export class FishingController {
     }
     if (record) {
       const gear = host.fishing.tackle;
+      const bait = isFly(gear) ? gear.fly : slotOf(gear);
+      this.baits.set(baitKey(record), bait);
       addJournalEntry({
         species: record.species,
         weight: record.weight,
-        bait: isFly(gear) ? gear.fly : slotOf(gear),
+        bait,
         sky: host.weatherNow.sky,
         timeOfDay: host.settings.timeOfDay ?? 'day',
         season: seasonOf(host.settings),
