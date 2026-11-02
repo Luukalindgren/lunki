@@ -62,7 +62,7 @@ import type { Sfx } from '../audio/sfx';
 import { Sounds } from '../audio/sounds';
 import type { Listener } from '../audio/mix';
 import type { VoiceId } from '../audio/voice';
-import type { Hud } from '../ui/hud';
+import type { Hud, SituationBar } from '../ui/hud';
 import { FishingView } from './fishingView';
 import { rodSideOffset, type LinePoint } from './lineHang';
 import { PovRod, flyRodAngle, flyRodTip } from './povRod';
@@ -495,6 +495,10 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
 
   get craftHint(): string | null {
     return this.craft.hint;
+  }
+
+  get craftHintBars(): SituationBar[] | null {
+    return this.craft.hintBars;
   }
 
   get inBoat(): boolean {

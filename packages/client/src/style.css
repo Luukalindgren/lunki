@@ -1454,6 +1454,52 @@ textarea,
   padding: var(--u) calc(var(--u) * 3);
 }
 
+/* Täyttökisan ponttoonit tilanneohjeen alla (#482). */
+.hud-situation-bars {
+  display: flex;
+  justify-content: center;
+  gap: calc(var(--u) * 4);
+  margin-top: var(--u);
+}
+
+.hud-situation-bars[hidden] {
+  display: none;
+}
+
+.hud-bar {
+  width: calc(var(--u) * 34);
+  font-size: calc(var(--u) * 7);
+  color: #c3cbd2;
+}
+
+.hud-bar-meter {
+  height: calc(var(--u) * 3);
+  margin-top: calc(var(--u) * 0.5);
+  background: #0b0f14;
+  border: calc(var(--u) * 0.5) solid #39424d;
+}
+
+.hud-bar-fill {
+  height: 100%;
+}
+
+.hud-bar.full .hud-bar-fill {
+  background: #8fd16a;
+}
+
+.hud-bar.active .hud-bar-fill {
+  background: #b08a2a;
+}
+
+.hud-bar.ready,
+.hud-bar.active {
+  color: #fff3b0;
+}
+
+.hud-bar.ready .hud-bar-fill {
+  background: #f6d04d;
+}
+
 .catch-list.results li.me {
   color: #f6d04d;
 }

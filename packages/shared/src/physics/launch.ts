@@ -1,6 +1,6 @@
 import type { Vec2 } from '../vec2';
 import { BOAT_HULL, SEAT_OFFSET, BoatSeat } from './boat';
-import { INFLATE, arrowOf, inflateSequence, Arrow } from './inflate';
+import { INFLATE, arrowOf, inflateSequence, strokeYield, Arrow } from './inflate';
 import { ground, type ShoreWater } from './shore';
 import { STAMINA, createTube, staminaThrust, type TubeInput, type TubeState } from './tube';
 
@@ -161,7 +161,7 @@ export function stepBail(
     }
   } else if (stage === LaunchStage.bail && input.main && water[part]! > 0) {
     scoop = handle;
-    const amount = handle * staminaThrust(st);
+    const amount = strokeYield(handle) * staminaThrust(st);
     st = Math.max(0, st - INFLATE.strokeDrain * handle);
     handle = 0;
     const next = water[part]! - amount;
