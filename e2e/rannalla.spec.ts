@@ -67,17 +67,25 @@ test('täyttökisa: pumppaus ja letkun siirto', async ({ page }) => {
     `/?view=top&seed=${SEED}&difficulty=easy&weather=calm&minutes=10&inflate&start=1029.6,-410.2`,
   );
   await raceRunning(page);
-  const situation = page.locator('.hud-situation');
+  const situation = page.locator('.hud-situation-text');
   await expect(situation).toContainText('Pumppaa');
   await expect(situation).toContainText('vasen puolisko');
+  // Ponttoonien palkit ohjeen alla (#482).
+  const bars = page.locator('.hud-bar-label');
+  await expect(bars).toHaveText(['Vasen 0 %', 'Oikea 0 %', 'Istuin 0 %']);
 
-  // Pumppaa, kunnes puolisko on täynnä ja ohje pyytää siirtämään letkun.
-  // Liian tiheät vedot ovat vajaita, joten painallusten määrä vaihtelee.
-  for (let i = 0; i < 3000; i++) {
-    if ((await situation.innerText()).includes('Siirrä letku')) break;
+  // Pumppaa kahvan tahdissa (#482): veto vasta, kun palkki kertoo kahvan
+  // olevan ylhäällä, sillä vajaa veto tuo vain murto-osan ilmasta.
+  const ready = page.locator('.hud-bar.ready');
+  const moveHose = page.locator('.hud-situation-text', { hasText: 'Siirrä letku' });
+  for (let i = 0; i < 100; i++) {
+    await expect(ready.or(moveHose)).toBeVisible();
+    if (await moveHose.isVisible()) break;
     await page.keyboard.press('Space');
   }
   await expect(situation).toContainText('Siirrä letku: oikea puolisko');
+  await expect(bars.first()).toHaveText('Vasen 100 %');
+  await expect(page.locator('.hud-bar').first()).toHaveClass(/full/);
 
   const keys: Record<string, string> = { '↑': 'KeyW', '↓': 'KeyS', '←': 'KeyA', '→': 'KeyD' };
   const arrows = (await situation.innerText()).split('Nuolet ')[1]!.split(' ');
@@ -111,10 +119,13 @@ test('täyttökisa veneellä: äyskäröinti ja siirto perään', async ({ page 
   await expect(situation).toContainText('Äyskäröi');
   await expect(situation).toContainText('keulassa');
 
-  // Äyskäröi, kunnes keula on tyhjä ja ohje pyytää siirtymään perään.
-  for (let i = 0; i < 3000; i++) {
+  // Äyskäröi kauhan tahdissa, kunnes keula on tyhjä ja ohje pyytää
+  // siirtymään perään. Vajaa kauhallinen tuo vain murto-osan (#482), joten
+  // painallusten väli on kauhan palautuksen mittainen (pelaajan rytmi).
+  for (let i = 0; i < 200; i++) {
     if ((await situation.innerText()).includes('Siirry')) break;
     await page.keyboard.press('Space');
+    await page.waitForTimeout(300);
   }
   await expect(situation).toContainText('Siirry perään');
 

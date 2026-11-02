@@ -22,7 +22,7 @@ import {
   type WaterBody,
 } from '@lunki/shared';
 import type { NetWorld } from '../net/netWorld';
-import type { Hud } from '../ui/hud';
+import type { Hud, SituationBar } from '../ui/hud';
 import { decimal, formatWeight, t } from '../i18n';
 import { describeTackle, speciesName } from '../i18n/names';
 import { controlText } from './controls';
@@ -56,6 +56,8 @@ export interface HudHost {
   readonly flyKeyboard: boolean;
   /** Kulkupelin tilanneohje (paikanvaihto, ankkuri, soutu). */
   readonly craftHint: string | null;
+  /** Täyttökisan palkit kulkupelin ohjeen alle (#482). */
+  readonly craftHintBars: SituationBar[] | null;
   readonly guide: Guide;
 }
 
@@ -119,29 +121,31 @@ export class HudPresenter {
       seat: !host.inBoat ? 'tube' : host.rower ? 'rower' : 'passenger',
     });
     // Tilanneohje: mitä nyt pitää tehdä. Yksi kerrallaan, tärkein ensin.
+    const situation = tangle
+      ? `${t('game.tangleStatus', { name: tangle.with, pct: Math.round(tangle.progress * 100) })}\n${controlText('help.tangle')}`
+      : f.landing
+        ? f.landing.lunge > 0
+          ? t('game.lunge')
+          : controlText(f.landing.net ? 'game.landNet' : 'game.landHand')
+        : f.onLand && f.stage === 'water'
+          ? controlText('game.stuckOnLand')
+          : cast
+            ? cast.busy > 0
+              ? t('game.flyUntangle', { s: Math.ceil(cast.busy) })
+              : host.flyKeyboard
+                ? controlText('game.flyCastKeys')
+                : `${controlText('game.flyCastSwing')}\n${controlText(
+                    'game.flyCastButtons',
+                    {},
+                    // Kosketuksella PERU-nappi kertoo itse itsestään: rivi mahtuu pystyruudulle.
+                    { skip: touch ? ['cancel'] : [] },
+                  )}`
+            : host.thunderNow && (s.lureOut || f.hookedId !== null)
+              ? t('help.thunder')
+              : (host.craftHint ?? (guide && controlText(guide)));
     hud.setSituation(
-      tangle
-        ? `${t('game.tangleStatus', { name: tangle.with, pct: Math.round(tangle.progress * 100) })}\n${controlText('help.tangle')}`
-        : f.landing
-          ? f.landing.lunge > 0
-            ? t('game.lunge')
-            : controlText(f.landing.net ? 'game.landNet' : 'game.landHand')
-          : f.onLand && f.stage === 'water'
-            ? controlText('game.stuckOnLand')
-            : cast
-              ? cast.busy > 0
-                ? t('game.flyUntangle', { s: Math.ceil(cast.busy) })
-                : host.flyKeyboard
-                  ? controlText('game.flyCastKeys')
-                  : `${controlText('game.flyCastSwing')}\n${controlText(
-                      'game.flyCastButtons',
-                      {},
-                      // Kosketuksella PERU-nappi kertoo itse itsestään: rivi mahtuu pystyruudulle.
-                      { skip: touch ? ['cancel'] : [] },
-                    )}`
-              : host.thunderNow && (s.lureOut || f.hookedId !== null)
-                ? t('help.thunder')
-                : (host.craftHint ?? (guide && controlText(guide))),
+      situation,
+      situation !== null && situation === host.craftHint ? host.craftHintBars : null,
     );
     const lureOut = s.lureOut;
     hud.setStatus([

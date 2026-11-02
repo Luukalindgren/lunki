@@ -30,7 +30,7 @@ import {
 } from '@lunki/shared';
 import type { Sounds } from '../audio/sounds';
 import type { NetWorld } from '../net/netWorld';
-import type { Hud } from '../ui/hud';
+import type { Hud, SituationBar } from '../ui/hud';
 import { decimal, t, type MsgKey } from '../i18n';
 import { seatName } from '../i18n/names';
 import { controlText, type Controls } from './controls';
@@ -155,6 +155,12 @@ export class CraftController {
   /** Kulkupelin tilanneohje: rantautuminen, paikanvaihto, ankkuri tai soutuyritys. */
   get hint(): string | null {
     return this.shoreHint ?? this.seatHint ?? this.anchorHint ?? this.rowHint;
+  }
+
+  /** Täyttökisan ponttoonien palkit tilanneohjeen alle (#482). */
+  get hintBars(): SituationBar[] | null {
+    const f = this.host.tube.shore?.inflate;
+    return f && this.shoreHint !== null ? inflateBars(f) : null;
   }
 
   /** Kalastaja on maalla (#457), myös kyytiin hypätessä ja veneen vesillelaskussa (#458). */
@@ -510,6 +516,27 @@ export function inflateHint(s: InflateState): string {
     pct: Math.floor(s.fill[s.valve]! * 100),
     total: Math.floor(inflateProgress(s) * 100),
   });
+}
+
+const BAR_LABELS: readonly MsgKey[] = ['game.barLeft', 'game.barRight', 'game.barFloor'];
+
+/**
+ * Täyttökisan palkit (#482): vasen, oikea ja istuin. Täysi on valmis, letkun
+ * ponttooni työn alla (kirkas, kun kahva on ylhäällä) ja loput odottavat.
+ */
+export function inflateBars(s: InflateState): SituationBar[] {
+  return s.fill.map((f, i) => ({
+    label: t(BAR_LABELS[i]!),
+    pct: Math.floor(f * 100),
+    state:
+      f >= 1
+        ? 'full'
+        : i === s.valve && s.moving === null
+          ? s.handle >= 1
+            ? 'ready'
+            : 'active'
+          : 'todo',
+  }));
 }
 
 const BOAT_PARTS: readonly MsgKey[] = ['game.boatBow', 'game.boatStern'];

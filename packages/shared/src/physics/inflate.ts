@@ -33,6 +33,11 @@ export const INFLATE = {
   strokes: [30, 30, 15],
   /** Kahva nousee alhaalta ylös (s). */
   handleTime: 0.25,
+  /**
+   * Vajaan vedon teho kahvan korkeuden potenssina (#482): puolikas veto
+   * tuo neljänneksen täydestä, joten hakkaaminen häviää tasaiselle rytmille.
+   */
+  strokeCurve: 2,
   /** Täysi veto kuluttaa kuntoa; levossa ja pumpatessa kunto palautuu puolella vauhdilla. */
   strokeDrain: 0.02,
   regen: 0.5,
@@ -78,6 +83,14 @@ export function arrowOf(input: TubeInput): number {
   if (input.turn < 0) return Arrow.right;
   return Arrow.none;
 }
+
+/**
+ * Vedon tuoma ilma (tai kauhallinen vettä) kahvan korkeudesta 0–1 (#482).
+ * Kesken nousun painettu veto on suhteessa vajaampi, joten kahvan tahdissa
+ * pumppaava täyttää nopeammin kuin nappia hakkaava. Kunto kuluu silti
+ * kahvan korkeuden mukaan.
+ */
+export const strokeYield = (handle: number): number => handle ** INFLATE.strokeCurve;
 
 /** Kaikki kolme ponttoonia täynnä. */
 export const inflated = (s: InflateState): boolean => s.fill.every((f) => f >= 1);
@@ -135,7 +148,7 @@ export function stepInflate(
     }
   } else if (input.main && fill[valve]! < 1) {
     stroke = handle;
-    const amount = (handle * staminaThrust(st)) / INFLATE.strokes[valve]!;
+    const amount = (strokeYield(handle) * staminaThrust(st)) / INFLATE.strokes[valve]!;
     st = Math.max(0, st - INFLATE.strokeDrain * handle);
     handle = 0;
     // Pyöristysvara: 30 täyttä vetoa täyttää 30 vedon ponttoonin.

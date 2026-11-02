@@ -9,6 +9,7 @@ import {
   inflateProgress,
   inflateSequence,
   stepInflate,
+  strokeYield,
   type InflateState,
 } from './inflate';
 import { canStand, inflateRow, shoreActionAt, shoreFromNet, shoreToNet } from './shore';
@@ -54,10 +55,21 @@ describe('täyttökisa (#458)', () => {
     expect(s.fill[1]).toBe(0);
   });
 
-  it('kesken kahvan nousun painettu veto on vajaa: hakkaaminen ei auta', () => {
+  it('kesken kahvan nousun painettu veto on vajaa: hakkaaminen häviää rytmille (#482)', () => {
     const steady = pump(createInflate(1), 1, 4, 3).s.fill[0];
     const mash = pump(createInflate(1), 1, 20, 3).s.fill[0];
-    expect(mash).toBeLessThanOrEqual(steady + 0.03);
+    const fast = pump(createInflate(1), 1, 10, 3).s.fill[0];
+    const slow = pump(createInflate(1), 1, 3, 3).s.fill[0];
+    // Kahvan tahdissa (4/s) täyttyy eniten; hakkaaminen tuo alle puolet.
+    expect(mash).toBeLessThan(steady * 0.4);
+    expect(fast).toBeLessThan(steady * 0.6);
+    // Vähän liian hidas rytmi menettää vain odotusajan.
+    expect(slow).toBeGreaterThan(steady * 0.7);
+  });
+
+  it('puolikas veto tuo neljänneksen täydestä', () => {
+    expect(strokeYield(1)).toBe(1);
+    expect(strokeYield(0.5)).toBeCloseTo(0.25);
   });
 
   it('kova pumppaus kuluttaa kuntoa (kevyt), rauhallinen vähemmän', () => {

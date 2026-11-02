@@ -35,6 +35,9 @@ export class Hud {
   private helpContext: HelpContext = { fly: false, pov: false, seat: 'tube' };
   /** Tilanneohje (viehe maalla, sotku, perhoheitto): näkyy niin kauan kuin tilanne kestää. */
   private readonly situation: HTMLDivElement;
+  private readonly situationText: HTMLSpanElement;
+  private readonly situationBars: HTMLDivElement;
+  private situationBarsKey = '';
   private helpKey = '';
   private readonly stamina: HTMLDivElement;
   private readonly staminaFill: HTMLDivElement;
@@ -127,6 +130,11 @@ export class Hud {
     this.penalty.hidden = true;
     this.situation = el('div', 'hud-situation');
     this.situation.hidden = true;
+    this.situationText = document.createElement('span');
+    this.situationText.className = 'hud-situation-text';
+    this.situationBars = el('div', 'hud-situation-bars');
+    this.situationBars.hidden = true;
+    this.situation.append(this.situationText, this.situationBars);
     // Kulmiin ja yläreunaan pinot, jotta paneelit eivät mene päällekkäin
     // eivätkä peitä ilmoituksia keskellä ruutua.
     this.topLeft = el('div', 'hud-top-left');
@@ -455,9 +463,36 @@ export class Hud {
    * Tilanneohje ilmoitusten alla: mitä nyt pitää tehdä (viehe maalla, sotku,
    * perhoheitto, ukkonen). Pysyy näkyvissä, kunnes tilanne ohi (null).
    */
-  setSituation(text: string | null): void {
+  setSituation(text: string | null, bars: readonly SituationBar[] | null = null): void {
     this.situation.hidden = text === null;
-    if (text !== null && this.situation.textContent !== text) this.situation.textContent = text;
+    if (text !== null && this.situationText.textContent !== text)
+      this.situationText.textContent = text;
+    this.setSituationBars(text === null ? null : bars);
+  }
+
+  /**
+   * Edistymispalkit tilanneohjeen alla (#482): täyttökisan ponttoonit.
+   * Täysi osa on vihreä ja työn alla oleva keltainen; kirkas keltainen
+   * kertoo, että pumpun kahva on ylhäällä ja seuraava veto on täysi.
+   */
+  private setSituationBars(bars: readonly SituationBar[] | null): void {
+    const key = bars?.map((b) => `${b.label}:${b.pct}:${b.state}`).join('|') ?? '';
+    if (key === this.situationBarsKey) return;
+    this.situationBarsKey = key;
+    this.situationBars.hidden = !bars;
+    this.situationBars.replaceChildren(
+      ...(bars ?? []).map((b) => {
+        const bar = el('div', `hud-bar ${b.state}`);
+        const label = el('div', 'hud-bar-label');
+        label.textContent = `${b.label} ${b.pct} %`;
+        const meter = el('div', 'hud-bar-meter');
+        const fill = el('div', 'hud-bar-fill');
+        fill.style.width = `${b.pct}%`;
+        meter.append(fill);
+        bar.append(label, meter);
+        return bar;
+      }),
+    );
   }
 
   private renderHelp(): void {
@@ -589,6 +624,14 @@ export interface HelpContext {
  * tapahtumat, `info` = vinkit ja vahvistukset (näkymä, viehe vaihdettu…).
  */
 export type MessageLevel = 'alert' | 'event' | 'info';
+
+/** Tilanneohjeen palkki (#482): nimi, täyttö prosentteina ja tila. */
+export interface SituationBar {
+  label: string;
+  pct: number;
+  /** full = valmis, ready = työn alla ja seuraava veto täysi, active = työn alla, todo = odottaa. */
+  state: 'full' | 'ready' | 'active' | 'todo';
+}
 const RANK: Record<MessageLevel, number> = { info: 0, event: 1, alert: 2 };
 
 function smallText(text: string): HTMLElement {
