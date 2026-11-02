@@ -165,6 +165,20 @@ describe('rantautuminen (#457)', () => {
     }
   });
 
+  it('laiturin kärjen luota rivi tulee rantaan eikä laiturin suuntaan (#490)', () => {
+    // Laiturin kärki (10, 80) on lähempänä kuin länsiranta: rivi silti rantaan.
+    const row = inflateRow(water, { x: 14, y: 80 }, 2, 7);
+    expect(row).toHaveLength(2);
+    for (const r of row) {
+      expect(r.pos.x).toBeLessThan(0);
+      expect(water.onPier(r.pos)).toBe(false);
+      expect(beachedBoat(water, r.pos, 7, 2)).not.toBeNull();
+    }
+    // Lähin ranta ilman laitureita on länsiranta, laitureiden kanssa laiturin kärki.
+    expect(water.closestShorePoint({ x: 14, y: 80 })!.distance).toBeCloseTo(4, 1);
+    expect(water.closestShorePoint({ x: 14, y: 80 }, Infinity, false)!.point.x).toBeCloseTo(0, 5);
+  });
+
   it('laiturille rantaudutaan, sillä kävellään ja sen päästä hypätään kyytiin', () => {
     // Rengas laiturin pohjoispuolella katse pohjoiseen: selkä laituriin.
     let t = land(createTube({ x: 6, y: 81.8 }, Math.PI / 2));

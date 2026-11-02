@@ -32,6 +32,8 @@ export class WaterBody {
   private readonly reeds: ReedIndex;
   /** Laiturien kannet maalta kärkeen: niillä kävellään kuin maalla (#457). */
   private readonly deckRings: Vec2[][];
+  /** Ensimmäinen laiturin janoista: niitä ennen ovat rantaviiva ja saaret. */
+  private readonly pierSegments: number;
 
   constructor(
     readonly map: LakeMap,
@@ -41,7 +43,9 @@ export class WaterBody {
     this.reeds = new ReedIndex(map.reeds);
     this.deckRings = (map.piers ?? []).map(pierDeckRing);
     // Laiturit ovat vesialueen sisällä kuin pienet saaret.
-    for (const ring of [map.shore, ...map.islands, ...(map.piers ?? []).map(pierRing)]) {
+    const rings = [map.shore, ...map.islands];
+    this.pierSegments = rings.reduce((n, r) => n + r.length, 0);
+    for (const ring of [...rings, ...(map.piers ?? []).map(pierRing)]) {
       for (let i = 0; i < ring.length; i++) {
         const a = ring[i]!;
         const b = ring[(i + 1) % ring.length]!;
@@ -92,8 +96,16 @@ export class WaterBody {
     return this.reeds.at(p);
   }
 
-  /** Lähin rantaviivan piste. Hakee laajenevista ruuduista. */
-  closestShorePoint(p: Vec2, maxDistance = Infinity): { point: Vec2; distance: number } | null {
+  /**
+   * Lähin rantaviivan piste. Hakee laajenevista ruuduista. `piers = false`
+   * ohittaa laiturit: maapohjan ranta täyttökisan riviin ja rantaan nostetulle
+   * veneelle (#490).
+   */
+  closestShorePoint(
+    p: Vec2,
+    maxDistance = Infinity,
+    piers = true,
+  ): { point: Vec2; distance: number } | null {
     const cx = this.cell(p.x);
     const cy = this.cell(p.y);
     let best: Vec2 | null = null;
@@ -109,6 +121,7 @@ export class WaterBody {
           const list = this.cells.get(cellKey(x, y));
           if (!list) continue;
           for (const i of list) {
+            if (!piers && i >= this.pierSegments) continue;
             const s = this.segments[i]!;
             const c = closestPointOnSegment(p, { x: s.ax, y: s.ay }, { x: s.bx, y: s.by });
             const d = Math.hypot(c.x - p.x, c.y - p.y);

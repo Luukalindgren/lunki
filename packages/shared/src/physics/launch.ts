@@ -203,7 +203,7 @@ export function beachedBoat(
   seed: number,
   crew: number,
 ): TubeState | null {
-  const c = water.closestShorePoint(slot);
+  const c = water.closestShorePoint(slot, Infinity, false);
   if (!c || c.distance < 1e-6) return null;
   const k = water.isWater(slot) ? 1 : -1;
   const inland = {
