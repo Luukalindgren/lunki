@@ -119,6 +119,7 @@ import {
 import { controlText } from '../game/controls';
 import { MANUAL_SECTIONS, manualTopics, type ManualSection } from './manual';
 import { isMine } from '../game/raceScoreboard';
+import type { RaceStatus } from '../game/raceStatus';
 import { challengeOutcome, challengeScoreText } from '../game/challenge';
 import { loadCraft, saveCraft } from '../game/tackle';
 import {
@@ -1793,6 +1794,8 @@ export class Screens {
     untimed?: boolean;
     /** Pelikellon aika järvellä, esim. 05:12. */
     clock?: string;
+    /** Kisan tilanne: kalat, paino, sija tai aika ja paras kala (#469). */
+    status?: RaceStatus | null;
     /** Perukkeen vaihto kesken kisan; katsojalla ei ole varusteita. */
     onTackle?: () => void;
     onSettings: () => void;
@@ -1822,6 +1825,7 @@ export class Screens {
     panel.append(
       h('h2', p.multiplayer ? t('pause.menu') : t('pause.title')),
       ...(p.clock ? [h('p', t('pause.clock', { time: p.clock }))] : []),
+      ...(p.status ? pauseStatus(p.status) : []),
       ...(p.multiplayer ? [h('p', t('pause.continues'), 'hint')] : []),
       menu,
       ...this.homeScreenHint(),
@@ -2865,6 +2869,41 @@ async function shareChallenge(link: string, score: string, status: HTMLElement):
     if ((err as Error).name === 'AbortError') return;
     show(t('results.challengeCopy'));
   }
+}
+
+/**
+ * Taukovalikon kisatilanne (#469): kolme ruutua (Kalat, Paino ja moninpelissä
+ * Sija, yksinpelissä kello) ja alla kisan paras kala vieheineen.
+ */
+function pauseStatus(s: RaceStatus): HTMLElement[] {
+  const tile = (label: string, value: string) => {
+    const e = h('div', '', 'pause-stat');
+    e.append(h('span', label, 'pause-stat-label'), h('span', value, 'pause-stat-value'));
+    return e;
+  };
+  const grid = h('div', '', 'pause-stats');
+  grid.append(
+    tile(t('pause.fish'), String(s.count)),
+    tile(t('pause.weight'), formatWeight(s.total)),
+    s.place
+      ? tile(t('pause.place'), t('pause.placeOf', { rank: s.place.rank, of: s.place.of }))
+      : tile(
+          t(s.time.kind === 'left' ? 'pause.timeLeft' : 'pause.elapsed'),
+          formatTime(s.time.seconds),
+        ),
+  );
+  if (!s.best) return [grid];
+  const b = s.best;
+  const fish = speciesName(b.species).toLowerCase();
+  const weight = formatWeight(b.weight);
+  const best = b.bait
+    ? t('pause.bestBait', {
+        fish,
+        weight,
+        bait: typeof b.bait === 'string' ? flyName(b.bait) : lureLabel(b.bait.lure, b.bait.variant),
+      })
+    : t('pause.best', { fish, weight });
+  return [grid, h('p', best, 'pause-best')];
 }
 
 function h(tag: string, text: string, className?: string): HTMLElement {
