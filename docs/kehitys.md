@@ -56,6 +56,9 @@ Koodi: `packages/client/src/ui/hud.ts`, tyylit `style.css`.
 - **Tilanneohje `Hud.setSituation(text | null)`:** pysyvä ohje siihen, mitä
   pelaajan pitää nyt tehdä (sotku, viehe maalla, perhoheitto, ukkonen).
   Sama tieto ei saa toistua ilmoituksena, ohjeessa ja tilarivillä.
+  Edistyminen osittain näkyy palkkeina samassa ohjeessa
+  (`setSituation(text, bars)`, täyttökisan ponttoonit #482), ei omana
+  laatikkona.
   Alimpana tasona on opastus ensimmäiseen kalaan (`game/guide.ts`, #370):
   uusi opastettava asia on uusi askel sen tilakoneeseen, ei oma ohjeruutu.
 - **Rangaistukset `Hud.setPenalties(rows, note)`** ajastimen alle (jäähy,
