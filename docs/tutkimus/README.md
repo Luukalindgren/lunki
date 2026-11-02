@@ -20,3 +20,5 @@ vaihtoehtoja eivätkä ole pelin nykyistä koodia.
 | #469  | Taukovalikkoon kisan tilanne: saalis, paino ja sija                                                    |
 | #482  | Täyttökisan edistyminen näkyy osittain: vasen, oikea ja istuin                                         |
 | #483  | Kyytiin noustua kalastaja kääntyy järvelle päin                                                        |
+| #487  | Täyttökisan ohjeesta pois prosentit, jotka palkit jo näyttävät                                         |
+| #488  | Taukovalikon sija ennen ensimmäistä kalaa                                                              |
