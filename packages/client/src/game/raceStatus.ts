@@ -23,8 +23,11 @@ export interface RaceStatus {
   /** Saaliin yhteispaino (kg). */
   total: number;
   best: { species: SpeciesId; weight: number; bait: Bait | null } | null;
-  /** Moninpelissä oma sija ja kilpailijoiden määrä; katsojalla ja yksinpelissä null. */
-  place: { rank: number; of: number } | null;
+  /**
+   * Moninpelissä oma sija ja kilpailijoiden määrä; katsojalla ja yksinpelissä
+   * null. Sija on null, kunnes on kala (#488): nollien tasapeli ei ole johto.
+   */
+  place: { rank: number | null; of: number } | null;
   /** Yksinpelin kello: jäljellä oleva aika, aikarajattomassa kulunut (s). */
   time: { kind: 'left' | 'elapsed'; seconds: number };
 }
@@ -52,7 +55,10 @@ export function raceStatus(
     best: best
       ? { species: best.species, weight: best.weight, bait: baits.get(baitKey(best)) ?? null }
       : null,
-    place: mine && standings ? { rank: mine.rank, of: standings.length } : null,
+    place:
+      mine && standings
+        ? { rank: summary.count > 0 ? mine.rank : null, of: standings.length }
+        : null,
     time: isUntimed(competition.settings)
       ? { kind: 'elapsed', seconds: Math.floor(competition.elapsed) }
       : { kind: 'left', seconds: timeLeft(competition) },

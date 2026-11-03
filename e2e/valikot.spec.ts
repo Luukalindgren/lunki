@@ -69,6 +69,8 @@ test.describe('valikot näppäimistöllä (#237)', () => {
     // Kisan tilanne (#469): kalat, paino ja yksinpelissä kello.
     await expect(page.locator('.pause-stat-label')).toHaveText(['Kalat', 'Paino', /Aikaa|Kulunut/]);
     await expect(page.locator('.pause-stat-value').first()).toHaveText('0');
+    // Ennen ensimmäistä kalaa paino on viiva (#488).
+    await expect(page.locator('.pause-stat-value').nth(1)).toHaveText('–');
     await expect.poll(() => focused(page)).toBe('Jatka');
     await page.keyboard.press('ArrowDown');
     await expect.poll(() => focused(page)).toBe('Varusteet');
