@@ -50,7 +50,9 @@ jobs:
     # Chromiumin, Firefoxin ja iPhone-WebKitin, joten se ajetaan erikseen: samalla
     # koneella se hidasti muut testit aikakatkaisuun asti.
     name: selaimet (${{ matrix.projekti }})
-    runs-on: ubuntu-latest
+    # Playwrightin WebKit tarvitsee Ubuntu 24.04:n kirjastot (libicudata.so.74):
+    # ubuntu-latest on 26.04, jossa WebKit ei käynnisty (#497).
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
