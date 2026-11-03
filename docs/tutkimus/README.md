@@ -22,3 +22,5 @@ vaihtoehtoja eivätkä ole pelin nykyistä koodia.
 | #483  | Kyytiin noustua kalastaja kääntyy järvelle päin                                                        |
 | #487  | Täyttökisan ohjeesta pois prosentit, jotka palkit jo näyttävät                                         |
 | #488  | Taukovalikon sija ennen ensimmäistä kalaa                                                              |
+| #494  | Veneen äyskäröinti palkeilla kuten renkaan täyttö                                                      |
+| #495  | Kosketusnäytöllä täyttöohje toistaa napin nimen                                                        |
