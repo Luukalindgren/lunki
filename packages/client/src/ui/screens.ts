@@ -2873,8 +2873,11 @@ async function shareChallenge(link: string, score: string, status: HTMLElement):
 
 /**
  * Taukovalikon kisatilanne (#469): kolme ruutua (Kalat, Paino ja moninpelissä
- * Sija, yksinpelissä kello) ja alla kisan paras kala vieheineen.
+ * Sija, yksinpelissä kello) ja alla kisan paras kala vieheineen. Ennen
+ * ensimmäistä kalaa paino ja sija ovat viivoja (#488).
  */
+const NO_VALUE = '–';
+
 function pauseStatus(s: RaceStatus): HTMLElement[] {
   const tile = (label: string, value: string) => {
     const e = h('div', '', 'pause-stat');
@@ -2884,9 +2887,14 @@ function pauseStatus(s: RaceStatus): HTMLElement[] {
   const grid = h('div', '', 'pause-stats');
   grid.append(
     tile(t('pause.fish'), String(s.count)),
-    tile(t('pause.weight'), formatWeight(s.total)),
+    tile(t('pause.weight'), s.count > 0 ? formatWeight(s.total) : NO_VALUE),
     s.place
-      ? tile(t('pause.place'), t('pause.placeOf', { rank: s.place.rank, of: s.place.of }))
+      ? tile(
+          t('pause.place'),
+          s.place.rank === null
+            ? NO_VALUE
+            : t('pause.placeOf', { rank: s.place.rank, of: s.place.of }),
+        )
       : tile(
           t(s.time.kind === 'left' ? 'pause.timeLeft' : 'pause.elapsed'),
           formatTime(s.time.seconds),

@@ -38,4 +38,19 @@ describe('taukovalikon kisatilanne (#469)', () => {
     expect(s.count).toBe(1);
     expect(s.best).toEqual({ species: 'perch', weight: 0.4, bait: null });
   });
+
+  it('ennen ensimmäistä kalaa sijaa ei ole, vaikka nollat ovat tasapeli (#488)', () => {
+    const c = createCompetition(DEFAULT_SETTINGS);
+    const standings = rankPlayers(
+      [
+        { id: 'me', name: 'Minä', catches: [] },
+        { id: 'b', name: 'B', catches: [] },
+      ],
+      'total',
+    );
+    const s = raceStatus(c, standings, 'me', new Map());
+    expect(standings.find((r) => r.id === 'me')!.rank).toBe(1);
+    expect(s.place).toEqual({ rank: null, of: 2 });
+    expect(s.count).toBe(0);
+  });
 });
