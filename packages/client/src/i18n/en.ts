@@ -865,7 +865,7 @@ export const en: Record<keyof typeof fi, string> = {
   'game.anchorDown': 'Anchor on the bottom ({m} m): you stay within the rope',
   'game.anchorUp': 'Anchor up',
   'game.anchorHold': 'The anchor holds: raise it ({anchor}) to move',
-  'game.inflatePump': 'Pump {pump}: {part} {pct} % (whole tube {total} %)',
+  'game.inflatePump': 'Pump {pump}: {part}',
   'game.inflateHose': 'Move the hose: {part}. Arrows {arrows}',
   'game.inflateSlipped': 'The hose slipped! Some air escaped, move it again.',
   'game.inflateAfloat': 'Afloat! Time {time}.',

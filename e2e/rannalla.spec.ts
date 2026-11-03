@@ -99,7 +99,11 @@ test('täyttökisa: pumppaus ja letkun siirto', async ({ page }) => {
           .join(' '),
       );
   }
-  await expect(situation).toContainText('oikea puolisko 0 %');
+  await expect(situation).toContainText('Pumppaa');
+  await expect(situation).toContainText('oikea puolisko');
+  // Prosentit vain palkeissa, ei ohjeen tekstissä (#487).
+  await expect(situation).not.toContainText('%');
+  await expect(bars.nth(1)).toHaveText('Oikea 0 %');
   errors.check();
 });
 
