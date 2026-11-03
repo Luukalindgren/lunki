@@ -870,7 +870,7 @@ export const fi = {
   'game.anchorDown': 'Ankkuri pohjassa ({m} m): pysyt köyden mitan sisällä',
   'game.anchorUp': 'Ankkuri ylhäällä',
   'game.anchorHold': 'Ankkuri pitää: nosta se ({anchor}), niin pääset liikkeelle',
-  'game.inflatePump': 'Pumppaa {pump}: {part} {pct} % (koko rengas {total} %)',
+  'game.inflatePump': 'Pumppaa {pump}: {part}',
   'game.inflateHose': 'Siirrä letku: {part}. Nuolet {arrows}',
   'game.inflateSlipped': 'Letku irtosi! Ilmaa karkasi, siirrä uudelleen.',
   'game.inflateAfloat': 'Vesillä! Aika {time}.',

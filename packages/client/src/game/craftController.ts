@@ -5,7 +5,6 @@ import {
   isAshore,
   type BoatLaunch,
   formatTime,
-  inflateProgress,
   inflateSequence,
   type InflateState,
   type Bailer,
@@ -502,7 +501,7 @@ export class CraftController {
 }
 
 /**
- * Täyttökisan tilanneohje (#458): pumpatessa ponttooni ja täyttö, letkua
+ * Täyttökisan tilanneohje (#458): pumpatessa ponttooni, letkua
  * siirrettäessä nuolisarja, jossa osutut nuolet on kuitattu.
  */
 export function inflateHint(s: InflateState): string {
@@ -511,11 +510,8 @@ export function inflateHint(s: InflateState): string {
     const arrows = seq.map((a, i) => (i < s.moving! ? '✓' : ARROW_GLYPHS[a])).join(' ');
     return t('game.inflateHose', { part: t(PONTOONS[s.valve + 1]!), arrows });
   }
-  return controlText('game.inflatePump', {
-    part: t(PONTOONS[s.valve]!),
-    pct: Math.floor(s.fill[s.valve]! * 100),
-    total: Math.floor(inflateProgress(s) * 100),
-  });
+  // Prosentit näkyvät palkeissa (#487), joten ohje kertoo vain osan.
+  return controlText('game.inflatePump', { part: t(PONTOONS[s.valve]!) });
 }
 
 const BAR_LABELS: readonly MsgKey[] = ['game.barLeft', 'game.barRight', 'game.barFloor'];
