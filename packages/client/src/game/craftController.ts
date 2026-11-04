@@ -10,7 +10,6 @@ import {
   type Bailer,
   launchSequence,
   launchSequenceKind,
-  launchWater,
   type RaceStatsCounter,
   SHORE,
   TUBE_RADIUS,
@@ -156,10 +155,17 @@ export class CraftController {
     return this.shoreHint ?? this.seatHint ?? this.anchorHint ?? this.rowHint;
   }
 
-  /** Täyttökisan ponttoonien palkit tilanneohjeen alle (#482). */
+  /**
+   * Täyttökisan palkit tilanneohjeen alle: renkaan ponttoonit (#482) ja
+   * veneen keula ja perä äyskäröinnin ajan (#494).
+   */
   get hintBars(): SituationBar[] | null {
+    if (this.shoreHint === null) return null;
     const f = this.host.tube.shore?.inflate;
-    return f && this.shoreHint !== null ? inflateBars(f) : null;
+    if (f) return inflateBars(f);
+    const launch = this.boatLaunch;
+    const b = this.host.tube.bailer;
+    return launch && b && !this.host.spectating ? launchBars(launch, b) : null;
   }
 
   /** Kalastaja on maalla (#457), myös kyytiin hypätessä ja veneen vesillelaskussa (#458). */
@@ -544,19 +550,43 @@ export function inflateBars(s: InflateState): SituationBar[] {
 }
 
 const BOAT_PARTS: readonly MsgKey[] = ['game.boatBow', 'game.boatStern'];
+const BOAT_BAR_LABELS: readonly MsgKey[] = ['game.barBow', 'game.barStern'];
+
+/**
+ * Veneen äyskäröinnin palkit (#494): keulan ja perän kuiva osuus, samoin
+ * kuin renkaan täytössä täysi palkki on valmis osa. Näkyvät vain
+ * äyskäröintivaiheessa; työnnössä ja airoissa on pelkkä nuolisarja.
+ */
+export function launchBars(launch: BoatLaunch, b: Bailer): SituationBar[] | null {
+  if (launch.stage !== LaunchStage.bail) return null;
+  const full = Math.max(1e-9, launch.full);
+  return launch.water.map((w, i) => {
+    const dry = w <= 0 ? 100 : Math.min(99, Math.floor((1 - w / full) * 100));
+    return {
+      label: t(BOAT_BAR_LABELS[i]!),
+      pct: dry,
+      state:
+        dry >= 100
+          ? 'full'
+          : i === b.part && b.moving === null
+            ? b.handle >= 1
+              ? 'ready'
+              : 'active'
+            : 'todo',
+    };
+  });
+}
 const BOAT_PARTS_TO: readonly MsgKey[] = ['game.boatToBow', 'game.boatToStern'];
 
 /**
- * Veneen vesillelaskun tilanneohje (#458): äyskäröidessä oman osan ja koko
- * veneen vesi, nuolisarjoissa osan vaihto, työntö tai airot.
+ * Veneen vesillelaskun tilanneohje (#458): äyskäröidessä oma osa (vesi näkyy
+ * palkeissa, #494), nuolisarjoissa osan vaihto, työntö tai airot.
  */
 export function launchHint(launch: BoatLaunch, b: Bailer): string {
   const kind = launchSequenceKind({ ...launch, stage: b.stage }, b);
   if (kind === null)
     return controlText(pressKey('game.bailScoop', 'game.bailScoopTouch'), {
       part: t(BOAT_PARTS[b.part]!),
-      pct: Math.ceil((launch.water[b.part]! / Math.max(1e-9, launch.full)) * 100),
-      total: Math.ceil(launchWater(launch) * 100),
     });
   const seq = launchSequence(launch.seed, kind);
   const arrows = seq.map((a, i) => (i < b.moving! ? '✓' : ARROW_GLYPHS[a])).join(' ');

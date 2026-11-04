@@ -133,18 +133,22 @@ test('vene täyttökisassa: kyytiläinenkin äyskäröi', async ({ page: host, b
   for (const p of [host, guest])
     await expect(p.locator('.hud-timer')).toHaveText(/^14:\d\d$/, { timeout: 30_000 });
 
-  const hostHint = host.locator('.hud-situation');
-  const guestHint = guest.locator('.hud-situation');
-  await expect(hostHint).toContainText('vettä keulassa 100 % (koko veneessä 100 %)');
-  await expect(guestHint).toContainText('vettä perässä 100 %');
-  // Kyytiläisen kauhalliset vähentävät perän vettä soutajankin veneessä.
+  const hostHint = host.locator('.hud-situation-text');
+  const guestHint = guest.locator('.hud-situation-text');
+  // Keulan ja perän kuiva osuus palkkeina (#494).
+  const hostBars = host.locator('.hud-bar-label');
+  const guestBars = guest.locator('.hud-bar-label');
+  await expect(hostHint).toContainText('keula');
+  await expect(guestHint).toContainText('perä');
+  await expect(hostBars).toHaveText(['Keula 0 %', 'Perä 0 %']);
+  // Kyytiläisen kauhalliset kuivaavat perää soutajankin veneessä.
   for (let i = 0; i < 400; i++) {
-    if (!(await hostHint.innerText()).includes('koko veneessä 100 %')) break;
+    if ((await hostBars.nth(1).innerText()) !== 'Perä 0 %') break;
     await guest.keyboard.press('Space');
   }
-  await expect(hostHint).toContainText('vettä keulassa 100 %');
-  await expect(hostHint).not.toContainText('koko veneessä 100 %');
-  await expect(guestHint).not.toContainText('vettä perässä 100 %');
+  await expect(hostBars.first()).toHaveText('Keula 0 %');
+  await expect(hostBars.nth(1)).not.toHaveText('Perä 0 %');
+  await expect(guestBars.nth(1)).not.toHaveText('Perä 0 %');
   hostErrors.check();
   guestErrors.check();
 });
