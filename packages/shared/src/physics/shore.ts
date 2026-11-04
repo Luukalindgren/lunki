@@ -406,3 +406,40 @@ export function inflateRow(
   }
   return out;
 }
+
+/** Rivin leveys: kauimmat kalastajat toisistaan (m). */
+function rowSpan(row: readonly TubeState[]): number {
+  let span = 0;
+  for (const a of row)
+    for (const b of row) span = Math.max(span, Math.hypot(a.pos.x - b.pos.x, a.pos.y - b.pos.y));
+  return span;
+}
+
+/**
+ * Täyttökisan rivi, johon mahtuvat kaikki: lähtökohtia (`near`, ensimmäinen
+ * on isännän valitsema tai arvottu paikka) kokeillaan, kunnes rivi on täysi
+ * ja suunnilleen suora. Muuten paras löydetty: pisin ja niistä tiivein.
+ * Mutkaisella rannalla rivistä jäi paikkoja puuttumaan (12 pelaajalla noin
+ * 4 % kisoista), ja ylimääräiset aloittivat vedestä täydellä renkaalla.
+ */
+export function fullInflateRow(
+  water: ShoreWater,
+  near: () => Vec2,
+  count: number,
+  seed: number,
+  tries = 40,
+): TubeState[] {
+  const straight = (count - 1) * INFLATE_ROW.spacing * 1.5;
+  let best: TubeState[] = [];
+  let bestSpan = Infinity;
+  for (let i = 0; i < tries; i++) {
+    const row = inflateRow(water, near(), count, seed);
+    const span = rowSpan(row);
+    if (row.length > best.length || (row.length === best.length && span < bestSpan)) {
+      best = row;
+      bestSpan = span;
+    }
+    if (best.length >= count && bestSpan <= straight) break;
+  }
+  return best;
+}

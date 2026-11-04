@@ -4,7 +4,7 @@ import {
   BAIL_PROTOCOL,
   beachedBoat,
   createBailer,
-  inflateRow,
+  fullInflateRow,
   isAshore,
   launchToNet,
   shoreToNet,
@@ -1186,7 +1186,14 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     const aboard = (p: PlayerState) => p.boat > 0 && p.seat !== BoatSeat.rower;
     // Täyttökisa (#458): renkaat ja veneet riviin lähtörannalle.
     const crafts = [...this.state.players.values()].filter((p) => !p.spectator && !aboard(p));
-    const row = set.inflate ? inflateRow(water, chosen ?? launch(), crafts.length, seed) : [];
+    // Ensin isännän paikka tai arvottu ranta, sitten lähistöä, kunnes kaikki mahtuvat.
+    let first = true;
+    const rowNear = () => {
+      const near = first ? (chosen ?? launch()) : launch();
+      first = false;
+      return near;
+    };
+    const row = set.inflate ? fullInflateRow(water, rowNear, crafts.length, seed) : [];
     const crews = new Map<number, [string, PlayerState][]>();
     this.state.players.forEach((p, id) => {
       if (!p.spectator && aboard(p)) crews.set(p.boat, [...(crews.get(p.boat) ?? []), [id, p]]);

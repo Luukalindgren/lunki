@@ -12,7 +12,16 @@ import {
   strokeYield,
   type InflateState,
 } from './inflate';
-import { canStand, inflateRow, shoreActionAt, shoreFromNet, shoreToNet } from './shore';
+import { Rng } from '../rng';
+import { findLaunchPoint } from '../map/geometry';
+import {
+  canStand,
+  fullInflateRow,
+  inflateRow,
+  shoreActionAt,
+  shoreFromNet,
+  shoreToNet,
+} from './shore';
 import type { TubeInput, TubeState } from './tube';
 
 const REST: TubeInput = { kick: 0, turn: 0, sprint: false };
@@ -110,6 +119,20 @@ describe('täyttökisa (#458)', () => {
 
 describe('täyttökisan rivi ja kulku Lunkinjärvellä', () => {
   const water = new WaterBody(LUNKINJARVI);
+
+  it('12 pelaajan rivi on täysi ja tiivis mutkaisellakin rannalla', () => {
+    // Pelkkä inflateRow jäi vajaaksi siemenillä 1–60 kahdesti (LAN-testi 2026-11-04).
+    for (let seed = 1; seed <= 60; seed++) {
+      const rng = new Rng(seed);
+      const near = () => findLaunchPoint(water, LUNKINJARVI.bounds, () => rng.next());
+      const row = fullInflateRow(water, near, 12, seed);
+      expect(row, `siemen ${seed}`).toHaveLength(12);
+      const span = Math.max(
+        ...row.flatMap((a) => row.map((b) => Math.hypot(a.pos.x - b.pos.x, a.pos.y - b.pos.y))),
+      );
+      expect(span, `siemen ${seed}`).toBeLessThan(100);
+    }
+  });
 
   it('rivi rannalla: kuusi paikkaa maalla, 4 m välein, rengas edessä', () => {
     const row = inflateRow(water, { x: 1030, y: -412 }, 6, 42);
