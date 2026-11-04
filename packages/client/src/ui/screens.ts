@@ -836,6 +836,9 @@ export class Screens {
       h('p', t('lobby.players', { n: anglers, max: v.maxPlayers }), 'choice-label'),
       list,
     );
+    // Täyteen aulaan liittyneet odottavat katsojina vapaata paikkaa.
+    const full = anglers >= v.maxPlayers && v.players.some((p) => p.spectator);
+    if (full && v.amHost) panel.append(h('p', t('lobby.fullHost'), 'hint'));
     // Oma kulkupeli: rengas tai oma vene; kyytiin pääsee veneen Liity-napista.
     if (v.canBoat && me && !me.spectator) {
       panel.append(
@@ -862,7 +865,12 @@ export class Screens {
           me.spectator ? 'watch' : 'play',
           (c) => actions.onSpectate(c === 'watch'),
         ),
-        ...(me.spectator ? [h('p', t('lobby.spectatorHint'), 'hint')] : []),
+        ...(me.spectator
+          ? [
+              h('p', t('lobby.spectatorHint'), 'hint'),
+              ...(full ? [h('p', t('lobby.fullWaiting'), 'hint')] : []),
+            ]
+          : []),
       );
     if (chat) {
       panel.append(h('p', t('lobby.chat'), 'choice-label'));

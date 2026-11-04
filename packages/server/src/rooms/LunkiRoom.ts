@@ -259,6 +259,11 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   private readonly seatAskUntil = new Map<string, number>();
   /** Kesken kisan katsojiksi tulleet: uudessa kisassa he ovat kalastajia. */
   private readonly lateSpectators = new Set<string>();
+  /**
+   * Täyteen aulaan liittyneet: katsojina, kunnes kalastajapaikka vapautuu
+   * (isäntä nostaa pelaajamäärää tai kalastaja lähtee). Liittymisjärjestyksessä.
+   */
+  private readonly waitingSeat = new Set<string>();
   /** Kisan aikana vapaa ei enää vaihdeta: istunnot, joiden vapa on lukittu. */
   private readonly rodFixed = new Set<string>();
   /** Kisan ensimmäinen aloituspaikka: myöhästyneet aloittavat sen läheltä. */
@@ -475,6 +480,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       this.lateSpectators.clear();
       this.rodFixed.clear();
       this.state.phase = 'lobby';
+      this.fillSeats();
       // Kisan aikana lähteneiden ja palanneiden jäljiltä veneiden numerot taas järjestykseen.
       this.packCrews();
     });
@@ -571,6 +577,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       if (valid.maxPlayers !== undefined) {
         this.maxClients = valid.maxPlayers + SPECTATOR_SLOTS;
         void this.setMatchmaking({ maxClients: this.maxClients });
+        this.fillSeats();
       }
       // Muuttuneet säännöt: muiden pitää kuitata valmius uudelleen.
       if (changed) this.state.players.forEach((p) => (p.ready = false));
@@ -613,6 +620,9 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       p.spectator = on === true;
       p.ready = false;
       this.lateSpectators.delete(client.sessionId);
+      // Oma valinta: ei enää odota paikkaa. Katsojaksi siirtynyt vapautti paikan.
+      this.waitingSeat.delete(client.sessionId);
+      this.fillSeats();
       this.packCrews();
     });
 
@@ -890,6 +900,8 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       this.state.players.set(client.sessionId, p);
       // Kesken kisan tullut on uudessa kisassa kalastaja; aulassa voi itse vaihtaa.
       if (racing) this.lateSpectators.add(client.sessionId);
+      // Täyteen aulaan tullut pääsee kalastamaan, kun paikka vapautuu (#501).
+      else this.waitingSeat.add(client.sessionId);
       if (!this.state.hostId) this.state.hostId = client.sessionId;
       client.send(ServerMsg.chatHistory, this.chatLog);
       return;
@@ -1067,6 +1079,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     if (p.tangledWith) this.untangle(id, p.tangledWith, 'cut', id);
     const playerId = this.playerIds.get(id);
     this.lateSpectators.delete(id);
+    this.waitingSeat.delete(id);
     // Katsojalla ei ole paikkaa, jota pitää vapaana.
     if (playerId && this.state.phase !== 'lobby' && !p.spectator)
       this.seats.set(playerId, {
@@ -1092,7 +1105,27 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     this.chatLimits.delete(id);
     this.emoteLimits.delete(id);
     if (this.state.hostId === id) this.passHost(true);
-    if (this.state.phase === 'lobby') this.packCrews();
+    if (this.state.phase === 'lobby') {
+      this.fillSeats();
+      this.packCrews();
+    }
+  }
+
+  /**
+   * Aulassa vapautuneet kalastajapaikat täyteen huoneeseen liittyneille
+   * katsojille liittymisjärjestyksessä. Muuten isännän nostama pelaajamäärä
+   * ei auttaisi: täyteen aulaan liittynyt jäisi katsojaksi huomaamattaan.
+   */
+  private fillSeats() {
+    if (this.state.phase !== 'lobby') return;
+    for (const id of this.waitingSeat) {
+      if (this.anglerCount() >= this.state.settings.maxPlayers) return;
+      const p = this.state.players.get(id);
+      this.waitingSeat.delete(id);
+      if (!p?.spectator) continue;
+      p.spectator = false;
+      p.ready = false;
+    }
   }
 
   /** Soutajan paikalle veneen seuraava kalastaja; vene jatkaa samasta tilasta. */

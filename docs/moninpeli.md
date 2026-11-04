@@ -73,7 +73,10 @@ muut pelaajat: SnapshotBuffer, piirretään 120 ms menneisyydestä
   Kisaan ilman tyhjää paikkaa tai `lateJoin`-asetuksen estäessä liittyvä
   pääsee katsojaksi, jos asiakas pyytää sitä (`JoinOptions.spectate`, vanha
   palvelin hylkää kuten ennen). Kesken kisan tulleet katsojat ovat uudessa
-  kisassa kalastajia. Katsojan kamera seuraa valittua kalastajaa (←/→,
+  kisassa kalastajia. Täyteen aulaan liittynyt on katsoja, kunnes
+  kalastajapaikka vapautuu: kun isäntä nostaa pelaajamäärää tai kalastaja
+  lähtee, odottavat pääsevät kalastajiksi liittymisjärjestyksessä (#501).
+  Katsojan kamera seuraa valittua kalastajaa (←/→,
   klikkaus) ylhäältä tai kalastajan silmin.
 
 - **Siimojen sotkeutuminen.** Asiakas lähettää syötteen mukana vavan kärjen,

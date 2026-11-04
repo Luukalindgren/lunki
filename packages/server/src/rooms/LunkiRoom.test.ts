@@ -1281,6 +1281,44 @@ describe('liittyminen kesken kisan', () => {
     await c.leave();
   });
 
+  it('täyteen aulaan liittynyt pääsee kalastajaksi, kun isäntä nostaa pelaajamäärää', async () => {
+    const host = await sdk().create(ROOM_NAME, { name: 'A', playerId: 'a', maxPlayers: 2 });
+    const b = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
+    const c = await sdk().joinById(host.roomId, { name: 'C', playerId: 'c', spectate: true });
+    const d = await sdk().joinById(host.roomId, { name: 'D', playerId: 'd', spectate: true });
+    const e = await sdk().joinById(host.roomId, { name: 'E', playerId: 'e', spectate: true });
+    await until(() => players(host).length === 5);
+    const watching = (r: Room) => host.state.players.get(r.sessionId)?.spectator;
+    expect([c, d, e].map(watching)).toEqual([true, true, true]);
+    // E haluaa katsoa: oma valinta pysyy.
+    e.send(ClientMsg.spectate, true);
+    await new Promise((r) => setTimeout(r, 100));
+    // Kolme paikkaa lisää: C ja D liittymisjärjestyksessä, E ei.
+    host.send(ClientMsg.settings, { maxPlayers: 4 });
+    await until(() => watching(c) === false && watching(d) === false);
+    expect(watching(e)).toBe(true);
+    // Kalastajan lähtö aulasta ei jätä paikkaa tyhjäksi odottavalta.
+    host.send(ClientMsg.settings, { maxPlayers: 8 });
+    const f = await sdk().joinById(host.roomId, { name: 'F', playerId: 'f', spectate: true });
+    await until(() => players(host).length === 6);
+    expect(watching(f)).toBe(false);
+
+    for (const r of [host, b, c, d, e, f]) await r.leave();
+  });
+
+  it('kalastajan lähtö aulasta päästää täyteen huoneeseen liittyneen kalastamaan', async () => {
+    const host = await sdk().create(ROOM_NAME, { name: 'A', playerId: 'a', maxPlayers: 2 });
+    const b = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
+    const c = await sdk().joinById(host.roomId, { name: 'C', playerId: 'c', spectate: true });
+    await until(() => players(host).length === 3);
+    expect(host.state.players.get(c.sessionId)?.spectator).toBe(true);
+    await b.leave();
+    await until(() => host.state.players.get(c.sessionId)?.spectator === false);
+
+    await host.leave();
+    await c.leave();
+  });
+
   it('"Ei" estää liittymisen kesken kisan', async () => {
     const { host, guest } = await race({ lateJoin: 'closed' });
     expect(await refusal(sdk().joinById(host.roomId, { name: 'C', playerId: 'c' }))).toBe(
