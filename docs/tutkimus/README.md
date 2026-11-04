@@ -24,3 +24,6 @@ vaihtoehtoja eivätkä ole pelin nykyistä koodia.
 | #488  | Taukovalikon sija ennen ensimmäistä kalaa                                                              |
 | #494  | Veneen äyskäröinti palkeilla kuten renkaan täyttö                                                      |
 | #495  | Kosketusnäytöllä täyttöohje toistaa napin nimen                                                        |
+| #510  | Kalojen syöntijaksot: kaaviot simulaatiosta (prototyyppi kaikille kolmelle: `510/prototyyppi.patch`)   |
+| #511  | Kesän lämmin pintavesi: kalojen paikat kartalla ja lämpökerrosten mallikuva                            |
+| #512  | Särkikalat ja vieheet, hauen puraisu vieheen mukaan                                                    |
