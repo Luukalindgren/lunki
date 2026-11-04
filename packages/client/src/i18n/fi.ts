@@ -392,6 +392,10 @@ export const fi = {
   'lobby.nextRace': 'Seuraava kisa',
   'lobby.play': 'Kalastan',
   'lobby.watch': 'Katson',
+  'lobby.fullHost':
+    'Kalastajapaikat ovat täynnä. Täyteen huoneeseen liittyneet ovat katsojina ja pääsevät kalastamaan, kun nostat pelaajamäärää (Pelaajia enintään).',
+  'lobby.fullWaiting':
+    'Kalastajapaikat ovat täynnä. Täyteen huoneeseen liittyneet pääsevät kalastamaan heti, kun paikka vapautuu tai isäntä nostaa pelaajamäärää.',
   'lobby.spectatorHint': 'Katsojana näet kaikki renkaat ja tulostaulun, ja voit chatata.',
   'lobby.chat': 'Chat',
   'lobby.startWaiting': 'Aloita (odotetaan muita)',

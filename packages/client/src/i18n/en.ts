@@ -390,6 +390,10 @@ export const en: Record<keyof typeof fi, string> = {
   'lobby.nextRace': 'Next competition',
   'lobby.play': 'I fish',
   'lobby.watch': 'I watch',
+  'lobby.fullHost':
+    'All angler places are taken. Those who joined the full room are spectators and get to fish when you raise the player limit (Max players).',
+  'lobby.fullWaiting':
+    'All angler places are taken. Those who joined the full room get to fish as soon as a place frees up or the host raises the player limit.',
   'lobby.spectatorHint': 'As a spectator you see every tube and the scoreboard, and you can chat.',
   'lobby.chat': 'Chat',
   'lobby.startWaiting': 'Start (waiting for others)',
