@@ -43,7 +43,10 @@ muut pelaajat: SnapshotBuffer, piirretään 120 ms menneisyydestä
   (`isPlausibleCatch`): laji järvessä, heitto veteen edellisen
   saaliin jälkeen ja vähintään 4 s saaliiden välillä. Hyväksytyt saaliit ovat
   kaikkien nähtävissä, ja tulostaulu lasketaan niistä voittoehdon mukaan
-  (`rankPlayers`, sama funktio kuin yksinpelin tuloksissa). Isäntä voi
+  (`rankPlayers`, sama funktio kuin yksinpelin tuloksissa). Kesken kisan
+  lähteneet ovat tilassa (`LunkiState.departed`), joten heillä on rivi
+  tulostaulussa ilman saalistakin, ja ennen loppua lähteneellä merkintä
+  "(lähti)" (#503). Isäntä voi
   palauttaa huoneen aulaan uutta kisaa varten.
 
 - **Yhteyskatkos.** Palvelin pitää katkenneen pelaajan paikkaa 60 s

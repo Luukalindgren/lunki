@@ -1169,6 +1169,9 @@ describe('liittyminen kesken kisan', () => {
     await until(() => players(host).length === 1);
     // Saalis jää tulostauluun lähteneellekin.
     expect(host.state.catches[0].player).toBe(oldId);
+    // Lähtenyt pysyy tulostaulussa ilman saalistakin (#503).
+    await until(() => host.state.departed?.get(oldId)?.name === 'B');
+    expect(host.state.departed.get(oldId).early).toBe(true);
 
     const back = await sdk().joinById(host.roomId, { name: 'Uusi nimi', playerId: 'b' });
     await until(() => players(host).length === 2 && back.state.catches?.length === 1);
@@ -1176,9 +1179,33 @@ describe('liittyminen kesken kisan', () => {
     expect(b.name).toBe('B');
     expect(Math.hypot(b.x - pos.x, b.y - pos.y)).toBeLessThan(1);
     await until(() => host.state.catches[0].player === back.sessionId);
+    // Palannut ei ole enää lähteneiden listalla.
+    await until(() => host.state.departed.size === 0);
 
     await host.leave();
     await back.leave();
+  });
+
+  it('kisan päätyttyä lähtenyt jää tulostauluun ilman merkintää, ja uusi kisa tyhjentää listan', async () => {
+    const host = await sdk().create(ROOM_NAME, {
+      name: 'A',
+      playerId: 'a',
+      testTiming: { countdown: 0.1, duration: 0.5 },
+    });
+    const guest = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
+    await until(() => players(host).length === 2);
+    guest.send(ClientMsg.ready, true);
+    await until(() => players(host).every((p) => p.ready || p.name === 'A'));
+    host.send(ClientMsg.start);
+    await until(() => host.state.phase === 'finished', 4000);
+    const oldId = guest.sessionId;
+    await guest.leave();
+    await until(() => host.state.departed?.get(oldId)?.name === 'B');
+    expect(host.state.departed.get(oldId).early).toBe(false);
+    host.send(ClientMsg.restart);
+    await until(() => host.state.phase === 'lobby' && host.state.departed.size === 0);
+
+    await host.leave();
   });
 
   it('uusi välilehti ottaa katkenneen yhteyden paikan heti', async () => {

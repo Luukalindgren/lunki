@@ -119,7 +119,7 @@ import { recordStore } from '../records';
 import { releaseCode, reserveCode } from './codes';
 import { moveToBoat, packCrews, seatChange } from './crews';
 import { FROZEN, followBoat, isPassenger, rowerOf, stepSims, type Sim } from './simulation';
-import { CatchState, LunkiState, PlayerState } from './state';
+import { CatchState, DepartedState, LunkiState, PlayerState } from './state';
 
 /** Pelaajan varusteet tilasta (ennätyksiin). */
 const playerTackle = (p: PlayerState): Tackle =>
@@ -469,6 +469,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         p.seatAsk = 0;
       });
       this.seats.clear();
+      this.state.departed.clear();
       this.seatAskUntil.clear();
       this.spawnOrigin = null;
       // Kesken kisan tulleet katsojat pääsevät nyt mukaan; aulassa itse katsojaksi
@@ -941,6 +942,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   private resumeSeat(id: string, p: PlayerState, seat: Seat) {
     p.outUntil = seat.outUntil;
     p.capsizedUntil = seat.capsizedUntil;
+    this.state.departed.delete(seat.sessionId);
     for (const c of this.state.catches) if (c.player === seat.sessionId) c.player = id;
     if (seat.sim) {
       const sim: Sim = { ...seat.sim, inputs: new InputQueue() };
@@ -1081,6 +1083,14 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     this.lateSpectators.delete(id);
     this.waitingSeat.delete(id);
     // Katsojalla ei ole paikkaa, jota pitää vapaana.
+    if (this.state.phase !== 'lobby' && !p.spectator) {
+      // Tulostauluun jää rivi, vaikka saalista ei olisi (LAN-testi #503).
+      const gone = new DepartedState();
+      gone.name = p.name;
+      gone.boat = p.boat;
+      gone.early = this.state.phase !== 'finished';
+      this.state.departed.set(id, gone);
+    }
     if (playerId && this.state.phase !== 'lobby' && !p.spectator)
       this.seats.set(playerId, {
         sessionId: id,
