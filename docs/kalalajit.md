@@ -64,10 +64,12 @@ eikä kiinnostu 30–60 s): kalastaja näkee tumman varjon vieheen perässä ja 
 
 Lajien käytös (`behavior` lajin parametreissa) jäljittelee oikeita kaloja:
 
-- **Parvet uivat yhdessä.** Ahven-, särki-, kuha- ja taimenparvella on yhteinen
-  keskipiste ja suunta, ja jokainen kala pysyy omalla paikallaan parvessa. Parvi kiertelee
-  kotipaikkansa ympärillä ja hakeutuu valon mukaiseen syvyyteen. Pimeällä parvi hajoaa
-  väljemmäksi, pakeneva parvi tiivistyy palloksi.
+- **Parvet uivat yhdessä.** Hauki ja made elävät yksin, muilla lajeilla on parvi, jolla on
+  yhteinen keskipiste ja suunta, ja jokainen kala pysyy omalla paikallaan parvessa. Parvi
+  kiertelee kotipaikkansa ympärillä ja hakeutuu valon mukaiseen syvyyteen. Pimeällä parvi
+  hajoaa väljemmäksi, pakeneva parvi tiivistyy palloksi.
+- **Made vaeltaa yksin** kotipaikkansa lähellä ja hakeutuu parvien tapaan valon mukaiseen
+  syvyyteen: päivällä syvänteeseen, hämärässä ja yöllä myös matalammalle.
 - **Hauki väijyy.** Se seisoo yksin kaislikon, kaatuneen puun tai kivikon reunassa ja vaihtaa
   paikkaa harvoin. Vieheen perään se lähtee vain lyhyeksi matkaa ja päättää muutamassa
   sekunnissa, iskeekö, mutta isku on herkempi kuin muilla.
@@ -92,16 +94,17 @@ Lajien käytös (`behavior` lajin parametreissa) jäljittelee oikeita kaloja:
 | Karppi | 1,3 | 1,4    | 0,6   | +10 % | –     | 1–3 m → 0,6–2 m                           |
 
 Luvut ovat syöntiaktiivisuuden kertoimia (1 = tavallinen päivä): ne kertovat, kuinka herkästi
-kala kiinnostuu vieheestä ja kuinka vilkkaasti se liikkuu. Ahven, hauki ja taimen saalistavat
-näön varassa, joten pimeällä ne huomaavat vieheen vain noin puolet lähempää. Kuha näkee
-hämärässä hyvin.
+kala kiinnostuu vieheestä ja kuinka vilkkaasti se liikkuu. Ahven, hauki, särki, taimen, säyne
+ja kirjolohi saalistavat näön varassa, joten pimeällä ne huomaavat vieheen vain noin puolet
+lähempää. Kuha näkee hämärässä hyvin, ja pohjakalat löytävät ruoan kylkiviivalla ja hajulla.
 
 Sää vaikuttaa kaikkiin lajeihin:
 
 - **Ennen ukkosta** (n. 4 min ennen rintamaa) syönti kiihtyy 40 %.
 - **Ukkosella ja myrskyllä** kalat painuvat pohjaan ja syönti lähes loppuu.
-- **Tuulen puoleisella rannalla** (rannalla, jota kohti tuuli puhaltaa) ahven, hauki ja kuha
-  ovat aktiivisempia, koska aallot tuovat sinne ravintoa; vastarannalla hiljaisempaa.
+- **Tuulen puoleisella rannalla** (rannalla, jota kohti tuuli puhaltaa) ahven, hauki, kuha,
+  säyne, lahna, karppi ja kirjolohi ovat aktiivisempia, koska aallot tuovat sinne ravintoa;
+  vastarannalla hiljaisempaa.
 
 Lajien erityispiirteet (`behavior`):
 

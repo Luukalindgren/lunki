@@ -1433,7 +1433,6 @@ function stepSchools(
 ) {
   if (!pop.schools) return;
   let pikes: Fish[] | null = null;
-  const dim = cond.light < 0.7 || cond.twilight > 0.5;
   for (const s of pop.schools) {
     const sp = SPECIES[s.species];
     const b = sp.behavior;
@@ -1463,7 +1462,7 @@ function stepSchools(
       speed = sp.runSpeed * 0.6;
     } else {
       s.heading += rng.normal(0, 0.35) * Math.sqrt(dt);
-      if (rng.next() < dt * 0.25) steerSchool(s, sp, lure, world, cond, dim);
+      if (rng.next() < dt * 0.25) steerSchool(s, sp, lure, world, cond);
       speed = sp.roamSpeed * (0.3 + 0.7 * Math.min(1.5, act[s.species]));
     }
     // Parvi pysyy kotipaikkansa lähellä (palvelin tarkistaa saaliin paikan siitä).
@@ -1480,23 +1479,28 @@ function stepSchools(
   }
 }
 
-/** Parven suunnan valinta: mieluisa syvyys, tuuli ja innostus vieheestä. */
-function steerSchool(
-  s: School,
+/** Hämärä tai pimeä: parvet ja yksin vaeltavat hakeutuvat `dimDepth`-syvyyteen. */
+const isDim = (cond: FishConditions) => cond.light < 0.7 || cond.twilight > 0.5;
+
+/**
+ * Suunta kohti lajin mieluisaa pohjan syvyyttä (kausi, valo): suoraan tai
+ * hieman sivuun sen mukaan, mikä vie lähimmäs syvyysväliä.
+ */
+function depthHeading(
+  pos: Vec2,
+  heading: number,
   sp: Species,
-  lure: LureInfo | null,
   world: FishWorld,
   cond: FishConditions,
-  dim: boolean,
-) {
+): number {
   const b = sp.behavior;
   const [lo, hi] =
-    b.season?.[cond.season ?? DEFAULT_SEASON]?.depth ?? (dim ? b.dimDepth : b.dayDepth);
-  let best = s.heading;
+    b.season?.[cond.season ?? DEFAULT_SEASON]?.depth ?? (isDim(cond) ? b.dimDepth : b.dayDepth);
+  let best = heading;
   let bestScore = Infinity;
   for (const turn of [0, -0.8, 0.8]) {
-    const h = s.heading + turn;
-    const p = { x: s.center.x + Math.cos(h) * 8, y: s.center.y + Math.sin(h) * 8 };
+    const h = heading + turn;
+    const p = { x: pos.x + Math.cos(h) * 8, y: pos.y + Math.sin(h) * 8 };
     if (!world.isWater(p)) continue;
     const d = world.depthAt(p);
     const score = Math.max(0, lo - d, d - hi) + Math.abs(turn) * 0.1;
@@ -1505,7 +1509,19 @@ function steerSchool(
       best = h;
     }
   }
-  s.heading = best;
+  return best;
+}
+
+/** Parven suunnan valinta: mieluisa syvyys, tuuli ja innostus vieheestä. */
+function steerSchool(
+  s: School,
+  sp: Species,
+  lure: LureInfo | null,
+  world: FishWorld,
+  cond: FishConditions,
+) {
+  const b = sp.behavior;
+  s.heading = depthHeading(s.center, s.heading, sp, world, cond);
   // Saaliskalat kulkevat aaltojen ja planktonin mukana tuulen alle.
   const w = windStrength(cond);
   if (b.prey && w > 0.25) {
@@ -1550,7 +1566,7 @@ function move(
   const sp = SPECIES[f.species];
   if (school) followSchool(f, school, sp, world, activity, dt);
   else if (sp.behavior.ambush) lurk(f, sp, world, activity, rng, dt);
-  else roam(f, world, activity, rng, dt);
+  else roam(f, world, cond, activity, rng, dt);
   // Syvyys hakeutuu lajin ja valon mukaiseen kerrokseen harvakseltaan (kallis kysely).
   if (rng.next() < dt * 0.5) {
     const target = swimDepth(sp, world.depthAt(f.pos), cond);
@@ -1605,9 +1621,22 @@ function lurk(f: Fish, sp: Species, world: FishWorld, activity: number, rng: Rng
   }
 }
 
-function roam(f: Fish, world: FishWorld, activity: number, rng: Rng, dt: number) {
+/**
+ * Yksin vaeltava kala (made) kiertelee kotipaikkansa lähellä ja hakeutuu
+ * parvien tapaan lajin mieluisaan syvyyteen: made päivällä syvänteeseen,
+ * yöllä matalammalle.
+ */
+function roam(
+  f: Fish,
+  world: FishWorld,
+  cond: FishConditions,
+  activity: number,
+  rng: Rng,
+  dt: number,
+) {
   const sp = SPECIES[f.species];
   f.heading += rng.normal(0, 0.6) * Math.sqrt(dt);
+  if (rng.next() < dt * 0.25) f.heading = depthHeading(f.pos, f.heading, sp, world, cond);
   if (distance(f.pos, f.home) > sp.homeRange) {
     const back = Math.atan2(f.home.y - f.pos.y, f.home.x - f.pos.x);
     f.heading += wrapAngle(back - f.heading) * Math.min(1, dt);

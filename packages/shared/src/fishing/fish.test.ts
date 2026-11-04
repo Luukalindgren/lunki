@@ -624,6 +624,24 @@ describe('käytös', () => {
     expect(depthOfSchools(DUSK)).toBeLessThan(depthOfSchools(DAYTIME) - 0.3);
   });
 
+  it('yksin vaeltava made hakeutuu päivällä syvemmälle kuin yöllä', () => {
+    // Madot aloittavat 2,5 m:n syvyydestä; päivän mieluisa syvyys on yli 4 m.
+    const bottomAfter = (cond: FishConditions) => {
+      const rng = new Rng(18);
+      const pop: FishPopulation = { fish: [], nextId: 1, tick: 0 };
+      for (let i = 0; i < 40; i++) {
+        const side = i % 2 === 0 ? 1 : -1;
+        pop.fish.push(spawnFish(pop, 'burbot', { x: -300 + i * 15, y: side * 100 }, lake, rng));
+      }
+      expect(pop.fish.every((f) => f.school === -1)).toBe(true);
+      run(pop, 900, cond, 0.25);
+      return pop.fish.reduce((s, f) => s + lake.depthAt(f.pos), 0) / pop.fish.length;
+    };
+    const day = bottomAfter(DAYTIME);
+    expect(day).toBeGreaterThan(2.9);
+    expect(day).toBeGreaterThan(bottomAfter(NIGHT) + 0.3);
+  });
+
   it('saadun tilalle syntyvä kala liittyy kotipaikkansa parveen', () => {
     const pop = createFishPopulation(lake, bounds, new Rng(17), 300);
     const slot = pop.fish.findIndex((f) => f.school >= 0);
