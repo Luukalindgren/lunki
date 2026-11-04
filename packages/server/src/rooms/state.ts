@@ -173,6 +173,22 @@ export const CatchState = schema(
 );
 export type CatchState = SchemaType<typeof CatchState>;
 
+/**
+ * Kesken kisan lähtenyt kalastaja tulostaulua varten: ilman saalista hän
+ * katoaisi listalta, eikä sijoituksista näkisi, että hän oli mukana.
+ */
+export const DepartedState = schema(
+  {
+    name: t.string(),
+    /** Vene lähtiessä (0 = rengas): venekunnan jäsen on joukkueensa rivillä. */
+    boat: t.uint8().default(0),
+    /** Lähti ennen kisan loppua (tulostaulussa merkintä). */
+    early: t.boolean().default(false),
+  },
+  'DepartedState',
+);
+export type DepartedState = SchemaType<typeof DepartedState>;
+
 export const LunkiState = schema(
   {
     /** Huonekoodin tunnisteosa, esim. "4F7K". */
@@ -191,6 +207,8 @@ export const LunkiState = schema(
     seed: t.uint32().default(0),
     /** Säätila palvelimen kellon mukaan (tuuli ja sade lasketaan siemenestä). */
     sky: t.string().default('calm'),
+    /** Kesken kisan lähteneet kalastajat (vanha sessionId); tyhjenee uuden kisan alkaessa. */
+    departed: t.map(DepartedState),
     /** Palvelimen protokollaversio: asiakas ei käytä uudempia viestejä vanhalla palvelimella. */
     protocol: t.uint8().default(PROTOCOL_VERSION),
   },

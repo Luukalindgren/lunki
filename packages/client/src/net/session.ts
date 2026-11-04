@@ -358,6 +358,8 @@ export interface StateSchema {
   clock: number;
   countdown: number;
   catches: Iterable<CatchSchema>;
+  /** Kesken kisan lähteneet (vanha sessionId); puuttuu vanhalta palvelimelta. */
+  departed?: Map<string, { name: string; boat: number; early: boolean }>;
   /** Puuttuu palvelimelta, joka on vanhempi kuin PROTOCOL_VERSION 2. */
   protocol?: number;
 }
@@ -687,6 +689,8 @@ export class NetSession {
     s.players.forEach((p, id) => {
       if (!p.spectator) rows.set(id, { id, name: p.name, catches: [] });
     });
+    // Lähteneet pysyvät listalla ilman saalistakin.
+    s.departed?.forEach((d, id) => rows.set(id, { id, name: departedName(d), catches: [] }));
     for (const c of s.catches) {
       let row = rows.get(c.player);
       if (!row) {
@@ -715,6 +719,7 @@ export class NetSession {
     s.players.forEach((p, id) => {
       if (!p.spectator) players.push({ id, name: p.name, boat: p.boat ?? 0 });
     });
+    s.departed?.forEach((d, id) => players.push({ id, name: departedName(d), boat: d.boat ?? 0 }));
     const catches = [...s.catches].map((c) => ({
       species: c.species as SpeciesId,
       name: c.name,
@@ -733,6 +738,10 @@ export class NetSession {
     await this.room.leave(true).catch(() => undefined);
   }
 }
+
+/** Kesken kisan lähteneen nimi tulostaulussa: "Ville (lähti)". */
+const departedName = (d: { name: string; early: boolean }): string =>
+  d.early ? t('results.left', { name: d.name }) : d.name;
 
 const RESUME_KEY = 'lunki.resume';
 

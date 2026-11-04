@@ -516,6 +516,7 @@ export const fi = {
     'Tässä selaimessa Esc irrottaa koko näytöstä hetkeksi: peli palaa siihen seuraavasta painalluksesta. Backspace jatkaa peliä ilman katkosta.',
   'fullscreen.homeScreenHint':
     'Koko näyttö iPhonella: Safarin Jaa-valikosta ”Lisää Koti-valikkoon” ja avaa peli kuvakkeesta.',
+  'results.left': '{name} (lähti)',
   'results.raceOver': 'Kisa päättyi!',
   'results.winner': 'Voittaja: {name} ({weight})',
   'results.noFish': 'Kukaan ei saanut kalaa.',
@@ -1126,7 +1127,7 @@ export const fi = {
     'Moninpeli ei vaadi kirjautumista: luo huone ja jaa sen koodi tai linkki kavereille.\nIsäntä valitsee aulassa kisan säännöt, ja jokainen valitsee kulkupelinsä.\nKesken kisan voi liittyä, jos isäntä sallii, ja katsojana voi seurata muita.',
   'manual.mp.race': 'Kisa',
   'manual.mp.raceText':
-    'Kaikki kalastavat samalla järvellä samassa säässä. Voittaja ratkeaa isännän valitseman säännön mukaan, esimerkiksi suurin kokonaissaalis.\nMuiden kalastajien tärpit ja väsytykset näkyvät ja kuuluvat järvellä.',
+    'Kaikki kalastavat samalla järvellä samassa säässä. Voittaja ratkeaa isännän valitseman säännön mukaan, esimerkiksi suurin kokonaissaalis. Tasapisteissä edellä on se, joka saavutti tuloksensa ensin. Kesken kisan lähteneet jäävät tulostauluun merkinnällä (lähti).\nMuiden kalastajien tärpit ja väsytykset näkyvät ja kuuluvat järvellä.',
   'manual.mp.tangle': 'Siimojen sotku',
   'manual.mp.tangleText':
     'Ristiin menneet siimat sotkeutuvat, kun jompikumpi kelaa. Sotkussa kalaa ei voi nostaa.\nKelatkaa yhdessä, niin sotku selviää nopeammin, tai {cut} = katkaise oma siimasi.',
