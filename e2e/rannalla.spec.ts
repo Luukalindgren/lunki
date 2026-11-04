@@ -150,7 +150,8 @@ test('täyttökisa veneellä: äyskäröinti ja siirto perään', async ({ page 
           .join(' '),
       );
   }
-  await expect(hintText).toHaveText('Äyskäröi välilyönti: perä');
+  // Kosketuksella ohjeessa ei ole napin nimeä (#495).
+  await expect(hintText).toHaveText(/^Äyskäröi( välilyönti)?: perä$/);
   await expect(bars).toHaveText(['Keula 100 %', 'Perä 0 %']);
   errors.check();
 });
