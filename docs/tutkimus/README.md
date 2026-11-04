@@ -27,3 +27,5 @@ vaihtoehtoja eivätkä ole pelin nykyistä koodia.
 | #510  | Kalojen syöntijaksot: kaaviot simulaatiosta (prototyyppi kaikille kolmelle: `510/prototyyppi.patch`)   |
 | #511  | Kesän lämmin pintavesi: kalojen paikat kartalla ja lämpökerrosten mallikuva                            |
 | #512  | Särkikalat ja vieheet, hauen puraisu vieheen mukaan                                                    |
+| #516  | Aula: täyteen huoneeseen jonottavat pelaajamäärän vieressä                                             |
+| #517  | Kisan tulostaulu ennen ensimmäistä kalaa                                                               |
