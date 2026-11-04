@@ -32,7 +32,7 @@ import type { NetWorld } from '../net/netWorld';
 import type { Hud, SituationBar } from '../ui/hud';
 import { decimal, t, type MsgKey } from '../i18n';
 import { seatName } from '../i18n/names';
-import { controlText, type Controls } from './controls';
+import { controlMode, controlText, type Controls } from './controls';
 import type { FishingView } from './fishingView';
 import { RowerSeat } from './rowing';
 import { loadCraft } from './tackle';
@@ -501,6 +501,12 @@ export class CraftController {
 }
 
 /**
+ * Kosketuksella iso nappi on jo PUMPPAA tai ÄYSKÄRÖI, joten ohje ei toista
+ * napin nimeä ("Pumppaa PUMPPAA") vaan kertoo vain, mitä tehdään (#495).
+ */
+const pressKey = (key: MsgKey, touch: MsgKey): MsgKey => (controlMode() === 'touch' ? touch : key);
+
+/**
  * Täyttökisan tilanneohje (#458): pumpatessa ponttooni, letkua
  * siirrettäessä nuolisarja, jossa osutut nuolet on kuitattu.
  */
@@ -511,7 +517,9 @@ export function inflateHint(s: InflateState): string {
     return t('game.inflateHose', { part: t(PONTOONS[s.valve + 1]!), arrows });
   }
   // Prosentit näkyvät palkeissa (#487), joten ohje kertoo vain osan.
-  return controlText('game.inflatePump', { part: t(PONTOONS[s.valve]!) });
+  return controlText(pressKey('game.inflatePump', 'game.inflatePumpTouch'), {
+    part: t(PONTOONS[s.valve]!),
+  });
 }
 
 const BAR_LABELS: readonly MsgKey[] = ['game.barLeft', 'game.barRight', 'game.barFloor'];
@@ -545,7 +553,7 @@ const BOAT_PARTS_TO: readonly MsgKey[] = ['game.boatToBow', 'game.boatToStern'];
 export function launchHint(launch: BoatLaunch, b: Bailer): string {
   const kind = launchSequenceKind({ ...launch, stage: b.stage }, b);
   if (kind === null)
-    return controlText('game.bailScoop', {
+    return controlText(pressKey('game.bailScoop', 'game.bailScoopTouch'), {
       part: t(BOAT_PARTS[b.part]!),
       pct: Math.ceil((launch.water[b.part]! / Math.max(1e-9, launch.full)) * 100),
       total: Math.ceil(launchWater(launch) * 100),

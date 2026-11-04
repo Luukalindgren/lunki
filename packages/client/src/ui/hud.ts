@@ -508,12 +508,14 @@ export class Hud {
     const bases = this.spectator
       ? [HELP.spectator]
       : [HELP.shore, ...[HELP.spin, HELP.fly].flatMap((b) => moves.map((m) => [...m, ...b]))];
-    // Maalla (#457) kävely ja rannan toiminnot, täyttökisassa (#458) pumppu ja
-    // äyskäri: kalastus ja potkut eivät silloin toimi.
+    // Maalla (#457) kävely ja rannan toiminnot, täyttökisassa (#458) renkaalla
+    // pumppu ja veneellä äyskäri (#495): kalastus ja potkut eivät silloin toimi.
     const base = this.spectator
       ? HELP.spectator
       : c.ashore === 'race'
-        ? HELP.race
+        ? c.seat === 'tube'
+          ? HELP.race
+          : HELP.raceBoat
         : c.ashore === 'walk'
           ? HELP.shore
           : [...MOVE_HELP[c.seat], ...(c.fly ? HELP.fly : HELP.spin)];
@@ -650,7 +652,11 @@ const HELP = {
   spectator: ['help.spectate'],
   shore: ['help.walk', 'help.shoreAct'],
   race: ['help.shoreRace'],
-} as const satisfies Record<'spin' | 'fly' | 'spectator' | 'shore' | 'race', readonly MsgKey[]>;
+  raceBoat: ['help.shoreRaceBoat'],
+} as const satisfies Record<
+  'spin' | 'fly' | 'spectator' | 'shore' | 'race' | 'raceBoat',
+  readonly MsgKey[]
+>;
 
 /** Liikkumisen ohjeet kulkupelin mukaan. */
 const MOVE_HELP = {

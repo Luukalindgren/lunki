@@ -683,8 +683,9 @@ export const en: Record<keyof typeof fi, string> = {
   'help.turn': '{turn} = turn · {sprint} = sprint kick (tiring) · {anchor} = anchor',
   'help.walk': '{forward|back} = walk forward or back · {turn} = turn',
   'help.shoreAct': '{pickUp} = pick up or put down the tube · at the waterline {board} = jump in',
-  'help.shoreRace':
-    'Inflation contest: {pump} = pump or bail · arrows = the arrow sequence in the hint',
+  'help.shoreRace': 'Inflation contest: {pump} = pump · arrows = the arrow sequence in the hint',
+  'help.shoreRaceBoat':
+    'Inflation contest: {bail} = bail · arrows = the arrow sequence in the hint',
   'help.row': '{back} = row · {forward} = back water · {sprint} = speed up (tiring)',
   'help.rowTurn': '{turn} = turn the boat · {oars} = oars/rod · {anchor} = anchor',
   'help.passenger': 'Passenger: the rower rows, you fish',
@@ -866,6 +867,7 @@ export const en: Record<keyof typeof fi, string> = {
   'game.anchorUp': 'Anchor up',
   'game.anchorHold': 'The anchor holds: raise it ({anchor}) to move',
   'game.inflatePump': 'Pump {pump}: {part}',
+  'game.inflatePumpTouch': 'Pump: {part}',
   'game.inflateHose': 'Move the hose: {part}. Arrows {arrows}',
   'game.inflateSlipped': 'The hose slipped! Some air escaped, move it again.',
   'game.inflateAfloat': 'Afloat! Time {time}.',
@@ -877,6 +879,7 @@ export const en: Record<keyof typeof fi, string> = {
   'game.barRight': 'Right',
   'game.barFloor': 'Seat',
   'game.bailScoop': 'Bail {bail}: water {part} {pct} % (whole boat {total} %)',
+  'game.bailScoopTouch': 'Bail: water {part} {pct} % (whole boat {total} %)',
   'game.bailMove': 'Move {part}. Arrows {arrows}',
   'game.bailSpilled': 'Water sloshed back! Start moving again.',
   'game.launchPush': 'The boat is empty! Push it into the water. Arrows {arrows}',
