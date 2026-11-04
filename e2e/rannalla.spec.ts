@@ -121,7 +121,10 @@ test('täyttökisa veneellä: äyskäröinti ja siirto perään', async ({ page 
   await raceRunning(page);
   const situation = page.locator('.hud-situation');
   await expect(situation).toContainText('Äyskäröi');
-  await expect(situation).toContainText('keulassa');
+  await expect(situation).toContainText('keula');
+  // Keulan ja perän kuiva osuus palkkeina (#494).
+  const bars = page.locator('.hud-bar-label');
+  await expect(bars).toHaveText(['Keula 0 %', 'Perä 0 %']);
 
   // Äyskäröi kauhan tahdissa, kunnes keula on tyhjä ja ohje pyytää
   // siirtymään perään. Vajaa kauhallinen tuo vain murto-osan (#482), joten
@@ -132,9 +135,12 @@ test('täyttökisa veneellä: äyskäröinti ja siirto perään', async ({ page 
     await page.waitForTimeout(300);
   }
   await expect(situation).toContainText('Siirry perään');
+  await expect(bars.first()).toHaveText('Keula 100 %');
 
   const keys: Record<string, string> = { '↑': 'KeyW', '↓': 'KeyS', '←': 'KeyA', '→': 'KeyD' };
-  const arrows = (await situation.innerText()).split('Nuolet ')[1]!.split(' ');
+  // Nuolet tekstiriviltä: palkkien nimet ovat ohjeen alla omilla riveillään.
+  const hintText = page.locator('.hud-situation-text');
+  const arrows = (await hintText.innerText()).split('Nuolet ')[1]!.split(' ');
   for (const [i, a] of arrows.entries()) {
     await page.keyboard.press(keys[a]!);
     if (i < arrows.length - 1)
@@ -144,6 +150,7 @@ test('täyttökisa veneellä: äyskäröinti ja siirto perään', async ({ page 
           .join(' '),
       );
   }
-  await expect(situation).toContainText('vettä perässä 100 %');
+  await expect(hintText).toHaveText('Äyskäröi välilyönti: perä');
+  await expect(bars).toHaveText(['Keula 100 %', 'Perä 0 %']);
   errors.check();
 });
