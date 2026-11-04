@@ -166,3 +166,53 @@ test('moninpeli: Chromium, Firefox ja iPhone samassa huoneessa', async ({ page: 
     await Promise.all(others.map((b) => b.close()));
   }
 });
+
+test('täysi aula: katsoja odottaa paikkaa ja pääsee kalastamaan rajan noustessa', async ({
+  page: host,
+  browser,
+}) => {
+  test.setTimeout(120_000);
+  const errors = [watchErrors(host)];
+  const lobby = async (page: Page, name: string, code?: string) => {
+    await page.goto('/?view=top');
+    await page.getByRole('button', { name: 'Pelaa' }).click();
+    await page.getByRole('button', { name: 'Moninpeli' }).click();
+    await expect(page.getByText('Palvelin päällä')).toBeVisible();
+    await page.getByLabel('Nimimerkki').fill(name);
+    if (code) {
+      await page.getByLabel('Huonekoodi').fill(code.toLowerCase());
+      await page.getByRole('button', { name: 'Liity koodilla', exact: true }).click();
+      await expect(page.locator('.room-code')).toHaveText(code);
+    } else await page.getByRole('button', { name: 'Luo uusi huone' }).click();
+  };
+  const row = (page: Page, label: string) =>
+    page.locator('.choice', { has: page.locator('.choice-label', { hasText: label }) });
+
+  await lobby(host, 'Isäntä');
+  const code = (await host.locator('.room-code').innerText()).trim();
+  await row(host, 'Pelaajia enintään').getByRole('button', { name: '2', exact: true }).click();
+  const [second, third] = await Promise.all(
+    [0, 1].map(async () =>
+      (await browser.newContext({ locale: 'fi-FI', baseURL: 'http://localhost:4173' })).newPage(),
+    ),
+  );
+  errors.push(watchErrors(second!), watchErrors(third!));
+  await lobby(second!, 'Toinen', code);
+  await lobby(third!, 'Kolmas', code);
+
+  // Kolmas tuli täyteen aulaan: katsoja, eikä Kalastan-nappi lupaa paikkaa (#514).
+  const nextRace = row(third!, 'Seuraava kisa');
+  await expect(nextRace.locator('button.selected')).toHaveText('Katson');
+  await expect(nextRace.getByRole('button', { name: 'Kalastan' })).toBeDisabled();
+  await expect(third!.getByText(/Kalastajapaikat ovat täynnä/)).toBeVisible();
+  // Jo valitun Katson-napin painallus ei poista paikkajonosta.
+  await nextRace.getByRole('button', { name: 'Katson' }).click();
+
+  // Isäntä nostaa rajaa: jonossa ollut pääsee kalastajaksi (#501).
+  await row(host, 'Pelaajia enintään').getByRole('button', { name: '4', exact: true }).click();
+  await expect(nextRace.locator('button.selected')).toHaveText('Kalastan');
+  await expect(host.locator('.choice-label', { hasText: 'Pelaajat 3/4' })).toBeVisible();
+  for (const e of errors) e.check();
+  await second!.context().close();
+  await third!.context().close();
+});

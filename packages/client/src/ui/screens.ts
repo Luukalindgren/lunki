@@ -859,11 +859,16 @@ export class Screens {
         this.choice(
           t('lobby.nextRace'),
           [
-            ['play', t('lobby.play')],
+            // Täydessä aulassa katsoja ei saa paikkaa pyytämällä: se tulee
+            // jonosta, kun paikka vapautuu (#514).
+            ['play', t('lobby.play'), me.spectator && anglers >= v.maxPlayers],
             ['watch', t('lobby.watch')],
           ],
           me.spectator ? 'watch' : 'play',
-          (c) => actions.onSpectate(c === 'watch'),
+          // Jo valitun painallus ei saa poistaa paikkajonosta (#514).
+          (c) => {
+            if ((c === 'watch') !== me.spectator) actions.onSpectate(c === 'watch');
+          },
         ),
         ...(me.spectator
           ? [
