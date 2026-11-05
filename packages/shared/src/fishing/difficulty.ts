@@ -34,6 +34,11 @@ export interface DifficultyParams {
   followTime: number;
   /** Arkailevatko suurkalat (varovaisuus, säikähtäminen kalastajasta). */
   wary: boolean;
+  /**
+   * Syöntijaksot (#510): parvet ja yksin elävät kalat vuorottelevat syöntiä
+   * ja lepoa. Helpolla kaikki kalat syövät koko ajan tasaisesti.
+   */
+  feedingBouts: boolean;
   /** Pohjaan tarttumisen ja rikan keräämisen yleisyyden kerroin. */
   snagRate: number;
   /** Todennäköisyys, että pohjaan tarttunut viehe irtoaa vetämällä. */
@@ -76,6 +81,7 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyParams> = {
     strikeReach: 2.5,
     followTime: 3,
     wary: false,
+    feedingBouts: false,
     snagRate: 0.3,
     snagFreeChance: 1,
     autoHook: true,
@@ -107,6 +113,7 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyParams> = {
     strikeReach: 1.2,
     followTime: 1.5,
     wary: true,
+    feedingBouts: true,
     snagRate: 0.7,
     snagFreeChance: 0.8,
     autoHook: false,
@@ -137,6 +144,7 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyParams> = {
     strikeReach: 1.2,
     followTime: 1,
     wary: true,
+    feedingBouts: true,
     snagRate: 1,
     snagFreeChance: 0.6,
     autoHook: false,

@@ -73,6 +73,7 @@ const TOPICS: Record<ManualSection, readonly Topic[]> = {
   spin: [
     { title: 'manual.spin.cast', text: 'manual.spin.castText' },
     { title: 'manual.spin.reel', text: 'manual.spin.reelText' },
+    { title: 'manual.spin.feeding', text: 'manual.spin.feedingText' },
     {
       title: 'manual.spin.strike',
       text: 'manual.spin.strikeText',

@@ -124,6 +124,18 @@ Lajien erityispiirteet (`behavior`):
   Perhoon (`flyInterest`, nymfi) ne tarttuvat entiseen tapaan (0,35, 0,25 ja 0,12), koska
   se muistuttaa niiden luonnollista ravintoa.
 
+**Syöntijaksot (#510).** Jokainen parvi ja yksin elävä kala on vuorotellen syönnillä ja
+levossa (`School.bout`, `Fish.bout`). Jakso kestää 1,5–5 minuuttia (ensimmäinen 0,5–5 min), ja
+uuden jakson alkaessa syönti arvotaan lajin senhetkisestä aktiivisuudesta: syövien osuus on
+aktiivisuus × 0,8 (3–95 %, `FEEDING`, `feedingShare`). Kesäpäivänä noin 80 % ahvenparvista
+syö, kuhista neljännes ja madoista tuskin yksikään; yöllä kuhista lähes kaikki. Syövä kala
+kiinnostuu ja iskee 1,6-kertaisesti, lepäävä vain näykkii (seuraa × 0,25, iskee × 0,35).
+Näin vuorokaudenaika ja kausi näkyvät saaliissa, ja paikan vaihto palkitsee. Syönnillä oleva
+kala käy pinnassa 1,6-kertaisesti ja lepäävä harvoin (`FISH_SIGNS.feeding/resting`).
+Helpolla jaksoja ei ole (`DifficultyParams.feedingBouts`): kaikki kalat syövät tasaisesti.
+Jaksot arvotaan kalojen askeleen arvoilla, eivät kalakannan siemenestä, joten kalakanta ja
+palvelimen tarkistus pysyvät.
+
 Vuorokaudenaika annetaan kaloille valona ja hämäryytenä (`fishConditions`). Kalojen
 liike ei vaikuta saaliin painoon tai lajiin: ne tulevat edelleen kalakannan siemenestä, ja
 parvet pysyvät kotipaikkansa lähellä, joten palvelimen tarkistus saaliin paikasta pätee.
