@@ -104,6 +104,20 @@ describe('kalojen merkit pinnalla (#369)', () => {
     expect(n).toBeLessThan(40);
   });
 
+  it('syönnillä oleva kala käy pinnassa useammin kuin lepäävä (#510)', () => {
+    const withBout = (feeding: boolean) =>
+      pop({
+        fish: Array.from({ length: 40 }, (_, i) => ({
+          ...fish('ide', i, 0.5),
+          school: -1,
+          bout: { feeding, timer: 100 },
+        })) as never,
+      });
+    const feeding = run(withBout(true), DUSK).length;
+    const resting = run(withBout(false), DUSK).length;
+    expect(feeding).toBeGreaterThan(resting * 3);
+  });
+
   it('merkkejä tulee rajattu määrä sekunnissa', () => {
     const crowd = pop({
       fish: Array.from({ length: 2000 }, (_, i) => fish('ide', i % 50, 0.2)) as never,

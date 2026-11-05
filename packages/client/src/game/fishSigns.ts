@@ -1,5 +1,6 @@
 import {
   SPECIES,
+  isFeeding,
   type Difficulty,
   type FishConditions,
   type FishPopulation,
@@ -43,6 +44,12 @@ export const FISH_SIGNS = {
   pikeDepth: 1.5,
   /** Parven pako alkaa: näin usein hauki iskee pintaan samalla. */
   fleeStrike: 0.4,
+  /**
+   * Syöntijakso (#510): syönnillä olevan parven tai kalan pintakäyntien ja
+   * hauen pintaiskujen kerroin; lepäävä kala käy pinnassa harvoin.
+   */
+  feeding: 1.6,
+  resting: 0.3,
   /** Ennen ukkosta syönti kiihtyy: merkkejä on näin monta kertaa enemmän. */
   preStorm: 1.8,
   /** Ukkosella kalat painuvat pohjaan: merkkejä on vain tämän verran. */
@@ -117,13 +124,15 @@ export class FishSigns {
     const rise = FISH_SIGNS.dayRise + (1 - FISH_SIGNS.dayRise) * dusk;
     for (const f of pop.fish) {
       if (f.mode !== 'roam' || !inRange(f.pos)) continue;
+      const feeding = isFeeding(pop, f);
+      const bout = feeding === undefined ? 1 : feeding ? FISH_SIGNS.feeding : FISH_SIGNS.resting;
       if (f.species === 'pike') {
-        if (f.depth < FISH_SIGNS.pikeDepth && chance(FISH_SIGNS.pikeEvery / (1 + dusk)))
+        if (f.depth < FISH_SIGNS.pikeDepth && chance(FISH_SIGNS.pikeEvery / ((1 + dusk) * bout)))
           add('pikeStrike', f.pos, 1.8);
       } else if (
         f.depth < FISH_SIGNS.riseDepth &&
         FISH_SIGNS.riseSpecies.includes(f.species) &&
-        chance(FISH_SIGNS.riseEvery / rise)
+        chance(FISH_SIGNS.riseEvery / (rise * bout))
       ) {
         add('rise', f.pos, 0.6);
       }

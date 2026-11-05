@@ -804,6 +804,18 @@ export interface Fish {
   goal: Vec2 | null;
   /** Kauden kotipaikka (`seasonHome`), laskettu kerran. */
   seasonHome?: { season: Season; pos: Vec2 };
+  /** Yksin elävän kalan syöntijakso (#510); parven kaloilla parven. */
+  bout?: FeedingBout;
+}
+
+/**
+ * Syöntijakso (#510): parvi tai yksin elävä kala on vuorotellen syönnillä ja
+ * levossa. Arvotaan kalojen askeleen arvoilla, ei kalakannan siemenestä.
+ */
+export interface FeedingBout {
+  feeding: boolean;
+  /** Aika (s) seuraavaan vaihtoon. */
+  timer: number;
 }
 
 /** Parvi ui yhtenä joukkona: kalat seuraavat yhteistä keskipistettä. */
@@ -819,6 +831,8 @@ export interface School {
   excitement: number;
   /** Pako hauen luota: jäljellä oleva aika (s). */
   flee: number;
+  /** Syöntijakso (#510), arvotaan ensimmäisellä askeleella. */
+  bout?: FeedingBout;
 }
 
 export interface FishPopulation {
@@ -1333,6 +1347,54 @@ function swimDepth(sp: Species, bottom: number, c: FishConditions): number {
   return Math.max(0.3, d);
 }
 
+/**
+ * Syöntijaksot (#510): syövien parvien osuus on lajin aktiivisuus · `share`
+ * (rajoissa `min`–`max`), joten vuorokaudenaika ja kausi näkyvät saaliissa.
+ * Jakso kestää `bout` sekuntia (ensimmäinen `first`). Syövä kala kiinnostuu
+ * ja iskee herkemmin, lepäävä vain näykkii.
+ */
+export const FEEDING = {
+  share: 0.8,
+  min: 0.03,
+  max: 0.95,
+  first: [30, 300] as const,
+  bout: [90, 300] as const,
+  feeding: { follow: 1.6, strike: 1.6 },
+  resting: { follow: 0.25, strike: 0.35 },
+};
+
+/** Syövien parvien osuus aktiivisuudesta. */
+export const feedingShare = (activity: number) =>
+  Math.max(FEEDING.min, Math.min(FEEDING.max, activity * FEEDING.share));
+
+/** Syöntijakson vaihto: uusi jakso arvotaan nykyisen aktiivisuuden mukaan. */
+function stepBout(bout: FeedingBout | undefined, activity: number, rng: Rng, dt: number) {
+  if (!bout) {
+    return {
+      feeding: rng.next() < feedingShare(activity),
+      timer: rng.range(FEEDING.first[0], FEEDING.first[1]),
+    };
+  }
+  bout.timer -= dt;
+  if (bout.timer <= 0) {
+    bout.feeding = rng.next() < feedingShare(activity);
+    bout.timer = rng.range(FEEDING.bout[0], FEEDING.bout[1]);
+  }
+  return bout;
+}
+
+/** Onko kala (sen parvi) syönnillä; puuttuu, jos jaksoa ei ole vielä arvottu. */
+export function isFeeding(pop: FishPopulation, f: Fish): boolean | undefined {
+  const school = f.school >= 0 ? pop.schools?.[f.school] : undefined;
+  return (school ? school.bout : f.bout)?.feeding;
+}
+
+/** Syöntijakson kerroin seuraamiselle ja iskulle. */
+function boutFactor(bout: FeedingBout | undefined, diff: DifficultyParams) {
+  if (!diff.feedingBouts || !bout) return { follow: 1, strike: 1 };
+  return bout.feeding ? FEEDING.feeding : FEEDING.resting;
+}
+
 /** Lajin kiinnostus vieheeseen tai perhoon (#512). */
 function interestIn(sp: Species, lure: LureInfo): number {
   return lure.tackle && isFly(lure.tackle) ? (sp.flyInterest ?? sp.lureInterest) : sp.lureInterest;
@@ -1352,7 +1414,7 @@ export function stepFishPopulation(
   pop.tick++;
   const act = {} as Record<SpeciesId, number>;
   for (const id of SPECIES_IDS) act[id] = speciesActivity(id, cond);
-  stepSchools(pop, lure, world, cond, act, rng, dt);
+  stepSchools(pop, lure, world, cond, act, diff, rng, dt);
   for (const f of pop.fish) {
     if (f.mode === 'hooked' || f.mode === 'gone') continue;
     const sp = SPECIES[f.species];
@@ -1362,10 +1424,14 @@ export function stepFishPopulation(
     if (f.mode === 'roam' && near > FAR_DISTANCE) {
       // Kaukana vieheestä riittää harva päivitys.
       if ((f.id + pop.tick) % FAR_STRIDE !== 0) continue;
+      if (!school && diff.feedingBouts)
+        f.bout = stepBout(f.bout, act[f.species], rng, dt * FAR_STRIDE);
       f.cooldown = Math.max(0, f.cooldown - dt * FAR_STRIDE);
       move(f, school, world, cond, act[f.species], rng, dt * FAR_STRIDE);
       continue;
     }
+    if (!school && diff.feedingBouts) f.bout = stepBout(f.bout, act[f.species], rng, dt);
+    const bout = boutFactor(school ? school.bout : f.bout, diff);
     f.cooldown = Math.max(0, f.cooldown - dt);
     // Kilpaileva parvi: kun yksi seuraa viehettä, muutkin kiinnostuvat herkemmin.
     const excite = sp.behavior.competes && school ? school.excitement : 0;
@@ -1374,7 +1440,8 @@ export function stepFishPopulation(
     if (f.mode === 'roam') {
       move(f, school, world, cond, act[f.species], rng, dt);
       if (lure && near < sense && f.cooldown === 0) {
-        const a = act[f.species] * shoreFactor(pop, f.pos, sp, cond) * (1 + 1.5 * excite);
+        const a =
+          act[f.species] * shoreFactor(pop, f.pos, sp, cond) * (1 + 1.5 * excite) * bout.follow;
         const appeal = lureAppeal(f, lure, diff.appealTolerance);
         if (rng.chance(0.6 * appeal * interestIn(sp, lure) * diff.biteRate * a, dt)) {
           f.mode = 'follow';
@@ -1436,6 +1503,7 @@ export function stepFishPopulation(
         (Math.sqrt(act[f.species]) *
           (ambush ? 1.6 : 1) *
           (1 + excite) *
+          bout.strike *
           (diff.wary ? wariness(size, act[f.species]) : 1)) /
         follows;
       if (
@@ -1470,6 +1538,7 @@ function stepSchools(
   world: FishWorld,
   cond: FishConditions,
   act: Record<SpeciesId, number>,
+  diff: DifficultyParams,
   rng: Rng,
   dt: number,
 ) {
@@ -1478,6 +1547,7 @@ function stepSchools(
   for (const s of pop.schools) {
     const sp = SPECIES[s.species];
     const b = sp.behavior;
+    if (diff.feedingBouts) s.bout = stepBout(s.bout, act[s.species], rng, dt);
     s.excitement = Math.max(0, s.excitement - dt / 20);
     // Pimeällä parvi hajoaa, pakeneva parvi tiivistyy palloksi.
     const spread =

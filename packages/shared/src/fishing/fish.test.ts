@@ -18,6 +18,7 @@ import {
   type SpeciesId,
   COOL_HOME_REACH,
   DAYTIME,
+  feedingShare,
   fishConditions,
   seasonHome,
   fishHome,
@@ -541,7 +542,7 @@ describe('käytös', () => {
     const pike = pop.fish.find((f) => f.species === 'pike')!;
     pike.pos = { x: school.center.x + 3, y: school.center.y };
     const rng = new Rng(2);
-    for (let t = 0; t < 30 && school.flee <= 0; t++)
+    for (let t = 0; t < 100 && school.flee <= 0; t++)
       stepFishPopulation(pop, null, lake, DIFFICULTIES.normal, rng, 0.1);
     expect(school.flee).toBeGreaterThan(0);
     // Pako suuntautuu poispäin hauesta.
@@ -567,8 +568,10 @@ describe('käytös', () => {
           fishable: true,
           tip: { x: school.center.x - 25, y: school.center.y },
         };
+        // Syöntijaksot (#510) pois, jotta mitataan vain parven innostus.
+        const diff = { ...DIFFICULTIES.normal, feedingBouts: false };
         for (let i = 0; i < 2 / DT; i++) {
-          stepFishPopulation(pop, lure, lake, DIFFICULTIES.normal, rng, DT);
+          stepFishPopulation(pop, lure, lake, diff, rng, DT);
           if (!excited) school.excitement = 0;
         }
         n += members.filter((f) => f.mode !== 'roam').length;
@@ -1129,5 +1132,86 @@ describe('nosto väsytyksen lopuksi (#366)', () => {
       DIFFICULTIES.realistic.landing.lungeRate,
     );
     expect(DIFFICULTIES.easy.landing.lungeEscape).toBe(0);
+  });
+});
+
+describe('syöntijaksot (#510)', () => {
+  const lake = {
+    isWater: (p: { x: number; y: number }) => Math.abs(p.x) < 400 && Math.abs(p.y) < 150,
+    depthAt: (p: { x: number; y: number }) =>
+      Math.max(0.2, Math.min(6.5, (150 - Math.abs(p.y)) * 0.05)),
+  };
+  const bounds = { minX: -400, minY: -150, maxX: 400, maxY: 150 };
+  const NIGHT: FishConditions = { ...DAYTIME, light: 0.05 };
+  const DUSK: FishConditions = { ...DAYTIME, light: 0.5, twilight: 1 };
+
+  /** Iskut 30 kerrasta, kun viehe kulkee yksin elävän kalan edessä. */
+  const strikes = (feeding: boolean, level: Difficulty) => {
+    let n = 0;
+    for (let seed = 1; seed <= 30; seed++) {
+      const rng = new Rng(seed);
+      const pop: FishPopulation = { fish: [], nextId: 1, tick: 0 };
+      const f = spawnFish(pop, 'burbot', { x: 3, y: 0 }, world, rng);
+      f.depth = 1.5;
+      f.bout = { feeding, timer: 1e9 };
+      pop.fish.push(f);
+      const lure = {
+        pos: { x: 4, y: 0 },
+        depth: 1.5,
+        speed: SPECIES.burbot.preferredSpeed,
+        fishable: true,
+        tip: { x: -20, y: 0 },
+        tackle: { ...DEFAULT_TACKLE, lure: 'jig' as const },
+      };
+      // Viehe ohittaa kalan muutamassa sekunnissa.
+      for (let i = 0; i < 6 / DT; i++) {
+        if (stepFishPopulation(pop, lure, world, DIFFICULTIES[level], rng, DT, DUSK).strike) {
+          n++;
+          break;
+        }
+      }
+    }
+    return n;
+  };
+
+  it('lepäävä kala tuskin iskee, syövä iskee herkästi; helpolla ei jaksoja', () => {
+    const resting = strikes(false, 'normal');
+    expect(strikes(true, 'normal')).toBeGreaterThan(resting * 3);
+    expect(resting).toBeLessThan(10);
+    expect(strikes(false, 'easy')).toBe(strikes(true, 'easy'));
+  });
+
+  it('syövien parvien osuus seuraa lajin aktiivisuutta', () => {
+    expect(feedingShare(speciesActivity('perch', DAYTIME))).toBeGreaterThan(
+      feedingShare(speciesActivity('perch', NIGHT)) * 2,
+    );
+    const pop = createFishPopulation(lake, bounds, new Rng(31), 1200, SPECIES_IDS);
+    const share = (cond: FishConditions, species: SpeciesId) => {
+      const rng = new Rng(5);
+      let feeding = 0;
+      let total = 0;
+      for (let i = 0; i < 4000; i++) {
+        stepFishPopulation(pop, null, lake, DIFFICULTIES.normal, rng, 0.5, cond);
+        if (i % 100 !== 99) continue;
+        for (const s of pop.schools!.filter((s) => s.species === species)) {
+          total++;
+          if (s.bout?.feeding) feeding++;
+        }
+      }
+      return feeding / total;
+    };
+    const day = share(DAYTIME, 'perch');
+    expect(day).toBeGreaterThan(feedingShare(speciesActivity('perch', DAYTIME)) - 0.15);
+    expect(day).toBeLessThan(feedingShare(speciesActivity('perch', DAYTIME)) + 0.15);
+    // Kuha syö yöllä, ahven päivällä.
+    expect(share(NIGHT, 'zander')).toBeGreaterThan(share(DAYTIME, 'zander') + 0.25);
+  });
+
+  it('jaksot eivät muuta kalakantaa', () => {
+    const a = createFishPopulation(lake, bounds, new Rng(9), 300);
+    const b = createFishPopulation(lake, bounds, new Rng(9), 300);
+    stepFishPopulation(a, null, lake, DIFFICULTIES.normal, new Rng(1), 0.5);
+    expect(a.fish.map((f) => f.weight)).toEqual(b.fish.map((f) => f.weight));
+    expect(a.schools!.every((s) => s.bout !== undefined)).toBe(true);
   });
 });
