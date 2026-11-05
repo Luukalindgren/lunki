@@ -124,16 +124,25 @@ export interface Behavior {
   /** Pakojen pituuden kerroin väsytyksessä (karppi: pitkät pakoretket). */
   runs?: number;
   /**
-   * Kevät ja syksy kesään verrattuna (#427): kesä on lajin perusluonne.
-   * Kerroin aktiivisuudelle, parven mieluisa syvyys kaikkina aikoina, sekä
-   * painon ja isojen yksilöiden (trophyChance) kertoimet.
+   * Kausien erot (#427, #511): kerroin aktiivisuudelle, parven mieluisa
+   * syvyys kaikkina aikoina, uintisyvyys sekä painon ja isojen yksilöiden
+   * (trophyChance) kertoimet. Kesän arvot koskevat viileän veden kaloja,
+   * jotka välttävät lämmintä pintavettä.
    */
   season?: Partial<Record<Season, SeasonHabit>>;
+  /**
+   * Kesän viileä paikka (#511): isot yksilöt (kokoluokasta `minSize`)
+   * siirtyvät kesäksi kotipaikkansa lähelle syvempään, vähintään `depth`
+   * metrin veteen (`seasonHome`). Pienet jäävät kasvillisuuden suojaan.
+   */
+  coolHome?: { depth: number; minSize: SizeClass };
 }
 
 export interface SeasonHabit {
   activity: number;
   depth?: [number, number];
+  /** Uintisyvyys osuutena vesipatsaasta, kuten `Behavior.column`. */
+  column?: { day: number; dark: number };
   weight?: number;
   trophy?: number;
 }
@@ -245,6 +254,8 @@ export const SPECIES: Record<SpeciesId, Species> = {
         spring: { activity: 1.4, weight: 0.9 },
         autumn: { activity: 1.5, weight: 1.1, trophy: 2 },
       },
+      // Kesällä isot hauet (yli 2,5 kg) väijyvät syvänteen reunalla viileämmässä (#511).
+      coolHome: { depth: 3, minSize: 2 },
     },
   },
   roach: {
@@ -409,8 +420,13 @@ export const SPECIES: Record<SpeciesId, Species> = {
       // Seuraa viehettä pitkään ennen iskua ja hyppii väsytyksessä.
       follows: 1.8,
       jumps: 0.3,
-      // Kylmä vesi: keväällä ja syksyllä pinnan tuntumassa ja aktiivinen (kesällä syvällä).
-      season: { spring: { activity: 2 }, autumn: { activity: 1.8 } },
+      // Kylmä vesi: keväällä ja syksyllä pinnan tuntumassa ja aktiivinen. Kesällä
+      // lämmin pintavesi painaa sen syvälle pohjan tuntumaan ja laiskemmaksi (#511).
+      season: {
+        spring: { activity: 2 },
+        summer: { activity: 0.8, depth: [4, 99], column: { day: 0.85, dark: 0.6 } },
+        autumn: { activity: 1.8 },
+      },
     },
   },
   bream: {
@@ -565,8 +581,14 @@ export const SPECIES: Record<SpeciesId, Species> = {
       prey: false,
       dayDepth: [4, 99],
       dimDepth: [2, 99],
-      // Lämmin vesi lamauttaa: keväällä ja varsinkin syksyllä aktiivisempi.
-      season: { spring: { activity: 1.6 }, autumn: { activity: 2.5 } },
+      // Lämmin vesi lamauttaa: kesällä laiska ja syvällä viileässä (#511),
+      // keväällä ja varsinkin syksyllä aktiivisempi.
+      season: {
+        spring: { activity: 1.6 },
+        summer: { activity: 0.35, depth: [5, 99] },
+        autumn: { activity: 2.5 },
+      },
+      coolHome: { depth: 5, minSize: 0 },
     },
   },
   ide: {
@@ -672,8 +694,12 @@ export const SPECIES: Record<SpeciesId, Species> = {
       dimDepth: [1, 99],
       column: { day: 0.55, dark: 0.2 },
       jumps: 0.6,
-      // Kylmä vesi: keväällä ja syksyllä aktiivinen.
-      season: { spring: { activity: 1.6 }, autumn: { activity: 1.5 } },
+      // Kylmä vesi: keväällä ja syksyllä aktiivinen, kesällä syvällä (#511).
+      season: {
+        spring: { activity: 1.6 },
+        summer: { activity: 0.8, depth: [4, 99], column: { day: 0.85, dark: 0.6 } },
+        autumn: { activity: 1.5 },
+      },
     },
   },
   carp: {
@@ -776,6 +802,8 @@ export interface Fish {
   offset: Vec2;
   /** Väijyjän seuraava väijypaikka, kun se vaihtaa paikkaa. */
   goal: Vec2 | null;
+  /** Kauden kotipaikka (`seasonHome`), laskettu kerran. */
+  seasonHome?: { season: Season; pos: Vec2 };
 }
 
 /** Parvi ui yhtenä joukkona: kalat seuraavat yhteistä keskipistettä. */
@@ -1295,7 +1323,7 @@ function senseRadius(sp: Species, c: FishConditions, diff: DifficultyParams): nu
 
 /** Uintisyvyys pohjan syvyydestä: laji, valo ja myrsky. */
 function swimDepth(sp: Species, bottom: number, c: FishConditions): number {
-  const col = sp.behavior.column;
+  const col = sp.behavior.season?.[c.season ?? DEFAULT_SEASON]?.column ?? sp.behavior.column;
   let d = bottom - sp.bottomOffset;
   if (c.storm) d = bottom - 0.3;
   else if (col) {
@@ -1399,7 +1427,7 @@ export function stepFishPopulation(
       if (
         distance(lure.pos, lure.tip) < 3.5 ||
         f.timer > (ambush ? 4 : 8 * follows) * diff.followTime ||
-        (ambush && distance(f.pos, f.home) > sp.homeRange + sp.senseRadius * diff.senseRange)
+        (ambush && distance(f.pos, homeOf(f)) > sp.homeRange + sp.senseRadius * diff.senseRange)
       ) {
         loseInterest(f, rng);
         continue;
@@ -1564,8 +1592,44 @@ function loseInterest(f: Fish, rng: Rng) {
   f.timer = 0;
   f.cooldown = rng.range(6, 15);
   // Väijyjä palaa paikalleen.
-  if (SPECIES[f.species].behavior.ambush) f.goal = { ...f.home };
+  if (SPECIES[f.species].behavior.ambush) f.goal = { ...homeOf(f) };
 }
+
+/** Kesän viileä paikka on enintään näin kaukana (m) kotipaikasta (#511). */
+export const COOL_HOME_REACH = 60;
+
+/**
+ * Kalan kotipaikka kaudella (#511): kesällä iso hauki ja made siirtyvät
+ * lähimpään vähintään `coolHome.depth` metrin syvyiseen kohtaan (tai
+ * syvimpään `COOL_HOME_REACH` metrin säteellä). Haku käy kotipaikan
+ * ympäristön läpi kiinteässä järjestyksessä ilman arpoja, joten kalakanta
+ * ja palvelimen tarkistus pysyvät samoina.
+ */
+export function seasonHome(f: Fish, world: FishWorld, season: Season = DEFAULT_SEASON): Vec2 {
+  const cool = SPECIES[f.species].behavior.coolHome;
+  if (!cool || season !== 'summer' || sizeClass(f.species, f.weight) < cool.minSize) return f.home;
+  if (f.seasonHome?.season === season) return f.seasonHome.pos;
+  let pos = f.home;
+  let best = world.depthAt(f.home);
+  search: for (let r = 4; r <= COOL_HOME_REACH && best < cool.depth; r += 4) {
+    for (let k = 0; k < 16; k++) {
+      const a = (k / 16) * Math.PI * 2;
+      const p = { x: f.home.x + Math.cos(a) * r, y: f.home.y + Math.sin(a) * r };
+      if (!world.isWater(p)) continue;
+      const d = world.depthAt(p);
+      if (d > best) {
+        best = d;
+        pos = p;
+        if (d >= cool.depth) break search;
+      }
+    }
+  }
+  f.seasonHome = { season, pos };
+  return pos;
+}
+
+/** Kalan nykyinen kotipaikka (kauden paikka, jos se on jo laskettu). */
+const homeOf = (f: Fish): Vec2 => f.seasonHome?.pos ?? f.home;
 
 /** Vapaan kalan liike: parven mukana, väijyen tai yksin vaellellen. */
 function move(
@@ -1579,8 +1643,9 @@ function move(
 ) {
   const sp = SPECIES[f.species];
   if (school) followSchool(f, school, sp, world, activity, dt);
-  else if (sp.behavior.ambush) lurk(f, sp, world, activity, rng, dt);
-  else roam(f, world, cond, activity, rng, dt);
+  else if (sp.behavior.ambush)
+    lurk(f, sp, world, seasonHome(f, world, cond.season), activity, rng, dt);
+  else roam(f, world, cond, seasonHome(f, world, cond.season), activity, rng, dt);
   // Syvyys hakeutuu lajin ja valon mukaiseen kerrokseen harvakseltaan (kallis kysely).
   if (rng.next() < dt * 0.5) {
     const target = swimDepth(sp, world.depthAt(f.pos), cond);
@@ -1616,7 +1681,15 @@ function followSchool(
 }
 
 /** Väijyjä seisoo paikallaan ja vaihtaa väijypaikkaa harvoin. */
-function lurk(f: Fish, sp: Species, world: FishWorld, activity: number, rng: Rng, dt: number) {
+function lurk(
+  f: Fish,
+  sp: Species,
+  world: FishWorld,
+  home: Vec2,
+  activity: number,
+  rng: Rng,
+  dt: number,
+) {
   if (f.goal) {
     const before = f.pos;
     swimToward(f, f.goal, sp.roamSpeed * 5, 0.3, dt);
@@ -1630,8 +1703,11 @@ function lurk(f: Fish, sp: Species, world: FishWorld, activity: number, rng: Rng
   if (rng.chance(activity / 400, dt)) {
     const a = rng.range(-Math.PI, Math.PI);
     const r = rng.range(0, sp.homeRange);
-    const p = { x: f.home.x + Math.cos(a) * r, y: f.home.y + Math.sin(a) * r };
+    const p = { x: home.x + Math.cos(a) * r, y: home.y + Math.sin(a) * r };
     if (world.isWater(p)) f.goal = p;
+  } else if (distance(f.pos, home) > sp.homeRange) {
+    // Kauden vaihtuessa väijyjä siirtyy kauden kotipaikalle.
+    f.goal = { ...home };
   }
 }
 
@@ -1644,6 +1720,7 @@ function roam(
   f: Fish,
   world: FishWorld,
   cond: FishConditions,
+  home: Vec2,
   activity: number,
   rng: Rng,
   dt: number,
@@ -1651,8 +1728,8 @@ function roam(
   const sp = SPECIES[f.species];
   f.heading += rng.normal(0, 0.6) * Math.sqrt(dt);
   if (rng.next() < dt * 0.25) f.heading = depthHeading(f.pos, f.heading, sp, world, cond);
-  if (distance(f.pos, f.home) > sp.homeRange) {
-    const back = Math.atan2(f.home.y - f.pos.y, f.home.x - f.pos.x);
+  if (distance(f.pos, home) > sp.homeRange) {
+    const back = Math.atan2(home.y - f.pos.y, home.x - f.pos.x);
     f.heading += wrapAngle(back - f.heading) * Math.min(1, dt);
   }
   const speed = sp.roamSpeed * (0.3 + 0.7 * Math.min(1.5, activity));
