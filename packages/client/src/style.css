@@ -933,6 +933,26 @@ textarea,
   color: #8fd16a;
 }
 
+/* Aula (#516): isännän vihje täydestä huoneesta ja juuri liittynyt tai valmis. */
+.screen-panel .lobby-full {
+  color: #f6d04d;
+}
+
+.screen-panel .lobby-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 12px;
+}
+
+.screen-panel .lobby-event {
+  margin-left: auto;
+  color: #8fd16a;
+}
+
+.player-list li.lobby-new {
+  background: rgba(143, 209, 106, 0.16);
+}
+
 .fish-art {
   image-rendering: pixelated;
   vertical-align: middle;

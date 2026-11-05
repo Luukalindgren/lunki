@@ -350,6 +350,12 @@ function saveSettings(s: CompetitionSettings): void {
 }
 
 /** Valikot ja ruudut (aloitus, tauko, tulokset) HUD:n päällä. */
+/** Aulan tapahtuma isännälle (#516): teksti ja korostettavat pelaajat. */
+export interface LobbyEvent {
+  text: string;
+  ids: readonly string[];
+}
+
 export class Screens {
   private readonly root: HTMLDivElement;
   /** Aulan uudelleenpiirto, joka odottaa värinäkymän sulkemista. */
@@ -757,11 +763,13 @@ export class Screens {
     notice?: string,
     /** Liittää chatin paneeliin (sama elementti säilyy uudelleenpiirroissa). */
     chat?: (parent: HTMLElement) => void,
+    /** Isännälle: kuka juuri liittyi tai on valmis (#516); rivit korostetaan. */
+    event?: LobbyEvent | null,
   ): void {
     // Luettava ennen paneelin rakentamista: chatin siirto vanhasta paneelista
     // lyhentää sitä, ja selain siirtää vierityskohtaa ylös chatin korkeuden verran.
     // Värit auki: aula piirretään vasta paluun jälkeen uusimmalla tilalla.
-    const redraw = () => this.showLobby(v, link, actions, notice, chat);
+    const redraw = () => this.showLobby(v, link, actions, notice, chat, event);
     const open = (this.root.firstElementChild as HTMLElement | null)?.dataset.screen;
     if (this.open && open === 'lobby-colors' && !this.leavingLobbySub) {
       this.pendingLobby = redraw;
@@ -799,6 +807,7 @@ export class Screens {
     list.className = 'player-list';
     const playerRow = (p: LobbyPlayer) => {
       const li = document.createElement('li');
+      li.classList.toggle('lobby-new', event?.ids.includes(p.sessionId) ?? false);
       const state = t(
         !p.connected
           ? 'lobby.disconnected'
@@ -828,17 +837,29 @@ export class Screens {
     else for (const p of v.players) list.appendChild(playerRow(p));
     // Katsojat eivät vie kalastajapaikkoja (#274).
     const anglers = v.players.filter((p) => !p.spectator).length;
+    // Täyteen aulaan liittyneet odottavat katsojina vapaata paikkaa. Määrä ja
+    // isännän vihje näkyvät otsikossa eivätkä vasta pitkän listan alla (#516).
+    const waiting =
+      anglers >= v.maxPlayers ? v.players.filter((p) => p.spectator && !p.host).length : 0;
+    const full = waiting > 0;
+    const header = h(
+      'p',
+      full
+        ? t('lobby.playersWaiting', { n: anglers, max: v.maxPlayers, waiting })
+        : t('lobby.players', { n: anglers, max: v.maxPlayers }),
+      'choice-label lobby-head',
+    );
+    // Ilmoitus samalla rivillä: lista ei hypi sen tullessa ja mennessä.
+    if (event) header.append(h('span', event.text, 'lobby-event'));
     panel.append(
       h('h2', t('lobby.title')),
       h('p', t('mp.roomCode'), 'hint'),
       code,
       copy,
-      h('p', t('lobby.players', { n: anglers, max: v.maxPlayers }), 'choice-label'),
+      header,
+      ...(full && v.amHost ? [h('p', t('lobby.fullHost'), 'hint lobby-full')] : []),
       list,
     );
-    // Täyteen aulaan liittyneet odottavat katsojina vapaata paikkaa.
-    const full = anglers >= v.maxPlayers && v.players.some((p) => p.spectator);
-    if (full && v.amHost) panel.append(h('p', t('lobby.fullHost'), 'hint'));
     // Oma kulkupeli: rengas tai oma vene; kyytiin pääsee veneen Liity-napista.
     if (v.canBoat && me && !me.spectator) {
       panel.append(

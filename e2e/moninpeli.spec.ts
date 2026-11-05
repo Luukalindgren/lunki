@@ -199,6 +199,12 @@ test('täysi aula: katsoja odottaa paikkaa ja pääsee kalastamaan rajan noustes
   errors.push(watchErrors(second!), watchErrors(third!));
   await lobby(second!, 'Toinen', code);
   await lobby(third!, 'Kolmas', code);
+  // Isäntä näkee liittyjän ja jonottajien määrän heti otsikossa (#516).
+  await expect(host.locator('.lobby-event')).toContainText('Kolmas liittyi aulaan');
+  await expect(
+    host.locator('.choice-label', { hasText: 'Pelaajat 2/2 · 1 odottaa paikkaa' }),
+  ).toBeVisible();
+  await expect(host.locator('.lobby-full')).toBeVisible();
 
   // Kolmas tuli täyteen aulaan: katsoja, eikä Kalastan-nappi lupaa paikkaa (#514).
   const nextRace = row(third!, 'Seuraava kisa');

@@ -333,6 +333,18 @@ export class Sfx {
     src.start(this.ctx.currentTime + delay);
   }
 
+  /** Aulaan liittyi pelaaja (#516): pehmeä ovikello, sävel laskee. */
+  joinChime(): void {
+    this.tone(784, 0.12, 'sine', 0.5);
+    this.tone(587, 0.2, 'sine', 0.5, 0.13);
+  }
+
+  /** Pelaaja on valmis (#516): kaksi nousevaa säveltä. */
+  readyChime(): void {
+    this.tone(659, 0.08, 'square', 0.3);
+    this.tone(988, 0.14, 'square', 0.3, 0.09);
+  }
+
   caught(): void {
     [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.1, 'square', 0.5, i * 0.09));
   }
