@@ -25,7 +25,9 @@ export type Effect =
   | 'flyTug'
   | 'flyHaul'
   | 'joy'
-  | 'fanfare';
+  | 'fanfare'
+  | 'joinChime'
+  | 'readyChime';
 
 /** Tehoste, joka riippuu tapahtuman luvuista (heiton voima, salaman etäisyys …). */
 type Play = (sfx: Sfx, a: number, b: number) => void;
@@ -122,6 +124,9 @@ export const SOUNDS = {
   // Veneen äyskäröinti (#458): kauhallinen ja osan tyhjeneminen
   bailScoop: { effect: 'plip' },
   partEmptied: { effect: 'tick' },
+  // Aula (#516): isäntä kuulee, kun joku liittyy tai on valmis.
+  lobbyJoined: { effect: 'joinChime' },
+  lobbyReady: { effect: 'readyChime' },
 } satisfies Record<string, Sound>;
 
 export type SoundEvent = keyof typeof SOUNDS;

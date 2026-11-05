@@ -30,6 +30,7 @@ import { startLoop } from './engine/loop';
 import { RetroRenderer, type PaletteMode } from './engine/retroRenderer';
 import { MENU_AMBIENCE } from './audio/ambience';
 import { Sfx } from './audio/sfx';
+import { Sounds } from './audio/sounds';
 import { Game } from './game/game';
 import { loadTackle, saveTackle } from './game/tackle';
 import { loadAppearance, saveAppearance } from './game/appearance';
@@ -45,6 +46,7 @@ import { Guide, loadGuide } from './game/guide';
 import {
   Screens,
   loadSettings,
+  type LobbyEvent,
   type ResultsSummary,
   type PauseView,
   type SettingsControls,
@@ -71,7 +73,9 @@ import {
   fetchRecords,
   inviteLink,
   submitSoloRecord,
+  type LobbyView,
 } from './net/session';
+import { LOBBY_EVENT_MS, lobbyChanges, lobbySeen, type LobbySeen } from './net/lobbyEvents';
 import { NetWorld } from './net/netWorld';
 import {
   flushSoloCatches,
@@ -116,6 +120,8 @@ installErrorReporting();
 void flushFeedback();
 preventTextSelection();
 const sfx = new Sfx();
+/** Valikoiden ja aulan äänet äänikartan kautta (pelillä on omansa). */
+const menuSounds = new Sounds(sfx);
 // Kosketuksessa selain sallii äänen vasta sormen noustessa (pointerup/touchend),
 // ei vielä painalluksessa, joten kuunnellaan molempia.
 for (const type of ['pointerdown', 'pointerup', 'touchend', 'keydown'])
@@ -571,6 +577,28 @@ function enterLobby(s: NetSession) {
   let notice: string | undefined;
   /** Isäntä valitsee aloituspaikkaa: aula ei piirry kartan päälle. */
   let picking = false;
+  /** Isännälle: kuka juuri liittyi tai on valmis (#516). */
+  let event: LobbyEvent | null = null;
+  let eventTimer: ReturnType<typeof setTimeout> | undefined;
+  let seen: LobbySeen | null = null;
+  const tellHost = (v: LobbyView) => {
+    const { joined, ready } = lobbyChanges(seen, v);
+    seen = lobbySeen(v);
+    if (!v.amHost || (joined.length === 0 && ready.length === 0)) return;
+    event = {
+      text: [
+        ...joined.map((p) => t('lobby.joined', { name: p.name })),
+        ...ready.map((p) => t('lobby.becameReady', { name: p.name })),
+      ].join(' · '),
+      ids: [...joined, ...ready].map((p) => p.sessionId),
+    };
+    menuSounds.play(ready.length > 0 ? 'lobbyReady' : 'lobbyJoined');
+    clearTimeout(eventTimer);
+    eventTimer = setTimeout(() => {
+      event = null;
+      render();
+    }, LOBBY_EVENT_MS);
+  };
   const render = () => {
     if (session !== s || game || !s.ready || picking) return;
     const v = s.view();
@@ -611,6 +639,7 @@ function enterLobby(s: NetSession) {
       },
       notice,
       (parent) => chat?.mount(parent, 'panel'),
+      event,
     );
   };
   let wasReady = false;
@@ -621,6 +650,11 @@ function enterLobby(s: NetSession) {
   s.onChange = (v) => {
     // Huoneesta jo lähdetty: myöhästynyt tila ei saa aloittaa kisaa uudelleen.
     if (session !== s) return;
+    // Kisan jälkeen aula alkaa alusta: palaajista ei ilmoiteta (#516).
+    if (v.phase !== 'lobby') {
+      seen = null;
+      event = null;
+    }
     // Kisa alkaa, kun tila aloituspaikkoineen on saapunut.
     if (v.phase !== 'lobby' && !game) {
       picking = false;
@@ -654,6 +688,7 @@ function enterLobby(s: NetSession) {
     const ready = v.players.find((p) => p.me)?.ready ?? false;
     notice = wasReady && !ready && !v.amHost ? t('mp.settingsChanged') : undefined;
     wasReady = ready;
+    tellHost(v);
     render();
   };
   s.onError = (m) => {

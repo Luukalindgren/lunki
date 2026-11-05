@@ -389,11 +389,14 @@ export const fi = {
   'lobby.waiting': 'odottaa',
   'lobby.you': ' (sinä)',
   'lobby.players': 'Pelaajat {n}/{max}',
+  'lobby.playersWaiting': 'Pelaajat {n}/{max} · {waiting} odottaa paikkaa',
+  'lobby.joined': '{name} liittyi aulaan',
+  'lobby.becameReady': '{name} on valmis',
   'lobby.nextRace': 'Seuraava kisa',
   'lobby.play': 'Kalastan',
   'lobby.watch': 'Katson',
   'lobby.fullHost':
-    'Kalastajapaikat ovat täynnä. Täyteen huoneeseen liittyneet ovat katsojina ja pääsevät kalastamaan, kun nostat pelaajamäärää (Pelaajia enintään).',
+    'Kalastajapaikat ovat täynnä. Nosta Pelaajia enintään -rajaa, niin odottajat pääsevät kalastamaan.',
   'lobby.fullWaiting':
     'Kalastajapaikat ovat täynnä. Täyteen huoneeseen liittyneet pääsevät kalastamaan heti, kun paikka vapautuu tai isäntä nostaa pelaajamäärää.',
   'lobby.spectatorHint': 'Katsojana näet kaikki renkaat ja tulostaulun, ja voit chatata.',
