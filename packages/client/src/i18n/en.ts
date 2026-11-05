@@ -390,6 +390,8 @@ export const en: Record<keyof typeof fi, string> = {
   'lobby.playersWaiting': 'Players {n}/{max} · {waiting} waiting for a place',
   'lobby.joined': '{name} joined the lobby',
   'lobby.becameReady': '{name} is ready',
+  'lobby.joinedMany': '{n} players joined the lobby',
+  'lobby.readyMany': '{n} players are ready',
   'lobby.nextRace': 'Next competition',
   'lobby.play': 'I fish',
   'lobby.watch': 'I watch',

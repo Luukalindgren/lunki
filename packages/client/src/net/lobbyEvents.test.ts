@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { lobbyChanges, lobbySeen } from './lobbyEvents';
+import { lobbyChanges, lobbyEventText, lobbySeen } from './lobbyEvents';
 import type { LobbyPlayer, LobbyView } from './session';
 
 const player = (id: string, over: Partial<LobbyPlayer> = {}) =>
@@ -30,5 +30,15 @@ describe('aulan ilmoitukset isännälle (#516)', () => {
       player('s', { ready: true, spectator: true }),
     ]);
     expect(lobbyChanges(before, v)).toEqual({ joined: [], ready: [] });
+  });
+
+  it('useampi tapahtuma kerralla näkyy määränä, ei nimilistana (#526)', () => {
+    const many = ['a', 'b', 'c'].map((id) => player(id));
+    expect(lobbyEventText([player('Kalle')], [])).toBe('Kalle liittyi aulaan');
+    expect(lobbyEventText([], [player('Kalle')])).toBe('Kalle on valmis');
+    expect(lobbyEventText([], many)).toBe('3 pelaajaa on valmiina');
+    expect(lobbyEventText(many, [player('Kalle')])).toBe(
+      '3 pelaajaa liittyi aulaan · Kalle on valmis',
+    );
   });
 });

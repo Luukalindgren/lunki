@@ -75,7 +75,13 @@ import {
   submitSoloRecord,
   type LobbyView,
 } from './net/session';
-import { LOBBY_EVENT_MS, lobbyChanges, lobbySeen, type LobbySeen } from './net/lobbyEvents';
+import {
+  LOBBY_EVENT_MS,
+  lobbyChanges,
+  lobbyEventText,
+  lobbySeen,
+  type LobbySeen,
+} from './net/lobbyEvents';
 import { NetWorld } from './net/netWorld';
 import {
   flushSoloCatches,
@@ -586,10 +592,7 @@ function enterLobby(s: NetSession) {
     seen = lobbySeen(v);
     if (!v.amHost || (joined.length === 0 && ready.length === 0)) return;
     event = {
-      text: [
-        ...joined.map((p) => t('lobby.joined', { name: p.name })),
-        ...ready.map((p) => t('lobby.becameReady', { name: p.name })),
-      ].join(' · '),
+      text: lobbyEventText(joined, ready),
       ids: [...joined, ...ready].map((p) => p.sessionId),
     };
     menuSounds.play(ready.length > 0 ? 'lobbyReady' : 'lobbyJoined');

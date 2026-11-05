@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { LobbyPlayer, LobbyView } from './session';
 
 /** Aulan pelaajat edellisellä kerralla: sessionId → valmis. */
@@ -27,4 +28,26 @@ export function lobbyChanges(
       (p) => p.ready && !p.spectator && seen.has(p.sessionId) && !seen.get(p.sessionId),
     ),
   };
+}
+
+/**
+ * Ilmoituksen teksti otsikon riville: yksi pelaaja nimellä, useampi määränä,
+ * ettei teksti rivity ja siirrä listaa, kun moni on valmis kerralla (#526).
+ */
+export function lobbyEventText(
+  joined: readonly LobbyPlayer[],
+  ready: readonly LobbyPlayer[],
+): string {
+  const part = (
+    list: readonly LobbyPlayer[],
+    one: 'lobby.joined' | 'lobby.becameReady',
+    many: 'lobby.joinedMany' | 'lobby.readyMany',
+  ) =>
+    list.length === 0
+      ? []
+      : [list.length === 1 ? t(one, { name: list[0]!.name }) : t(many, { n: list.length })];
+  return [
+    ...part(joined, 'lobby.joined', 'lobby.joinedMany'),
+    ...part(ready, 'lobby.becameReady', 'lobby.readyMany'),
+  ].join(' · ');
 }
