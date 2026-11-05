@@ -29,3 +29,5 @@ vaihtoehtoja eivätkä ole pelin nykyistä koodia.
 | #512  | Särkikalat ja vieheet, hauen puraisu vieheen mukaan                                                    |
 | #516  | Aula: täyteen huoneeseen jonottavat pelaajamäärän vieressä                                             |
 | #517  | Kisan tulostaulu ennen ensimmäistä kalaa                                                               |
+| #528  | Tulossivu: saaliittomien sija                                                                          |
+| #529  | Aula isolle porukalle: tiivis pelaajalista                                                             |
