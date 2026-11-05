@@ -166,7 +166,8 @@ describe('vieheet ja siimat', () => {
     expect(spinner).toBeGreaterThan(6);
     expect(wobbler).toBeLessThan(spinner / 2);
     expect(bitOffs(true, 'spinner')).toBe(0);
-  });
+    // 120 simuloitua väsytystä: kuormitetulla koneella yli oletusrajan 5 s (#530).
+  }, 30_000);
 
   it('puraisu tapahtuu iskun jälkeen, väsynyt hauki puraisee harvoin (#512)', () => {
     const t = tackle({ lure: 'jig' });
