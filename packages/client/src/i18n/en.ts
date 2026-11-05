@@ -1123,7 +1123,7 @@ export const en: Record<keyof typeof fi, string> = {
     'Multiplayer needs no account: create a room and share its code or link with friends.\nThe host chooses the competition rules in the lobby, and everyone picks their craft.\nYou can join a competition already running if the host allows it, and spectators can follow others.',
   'manual.mp.race': 'Competition',
   'manual.mp.raceText':
-    "Everyone fishes the same lake in the same weather. The winner is decided by the rule the host chose, for example the biggest total catch. On equal scores, whoever reached the score first ranks higher. Anglers who leave before the end stay on the scoreboard marked (left).\nOther anglers' takes and fights can be seen and heard on the lake.",
+    "Everyone fishes the same lake in the same weather. The winner is decided by the rule the host chose, for example the biggest total catch. On equal scores, whoever reached the score first ranks higher. Before the first fish the place shows a dash. Anglers who leave before the end stay on the scoreboard marked (left), × during the competition, and come last on equal scores.\nOther anglers' takes and fights can be seen and heard on the lake.",
   'manual.mp.tangle': 'Tangled lines',
   'manual.mp.tangleText':
     'Crossed lines tangle when either angler reels. While tangled, nobody can land a fish.\nReel together to untangle faster, or {cut} = cut your own line.',

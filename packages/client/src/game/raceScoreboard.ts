@@ -20,7 +20,23 @@ export function scoreboardLines(results: readonly PlayerResult[], myId: string):
 export const isMine = (r: PlayerResult, myId: string) =>
   r.id === myId || (r.members?.some((m) => m.id === myId) ?? false);
 
+/** Nimen leveys tulostaulussa (merkkiä). */
+const NAME_WIDTH = 10;
+
+/**
+ * Tulostaulun rivi. Ennen ensimmäistä kalaa sija on viiva kuten taukovalikossa
+ * (#488, #517): nollien tasapeli ei ole johto. Lähteneen nimen perään tulee
+ * lyhyt merkki ×, joka jää näkyviin, vaikka nimi katkeaa.
+ */
 function scoreLine(r: PlayerResult, me: boolean): string {
-  const name = r.name.length > 10 ? `${r.name.slice(0, 9)}…` : r.name;
-  return `${me ? '>' : ' '}${r.rank}. ${name.padEnd(10)} ${formatWeight(r.summary.score).padStart(7)}`;
+  const rank = r.summary.count > 0 ? `${r.rank}.` : '– ';
+  return `${me ? '>' : ' '}${rank} ${nameField(r)} ${formatWeight(r.summary.score).padStart(7)}`;
+}
+
+function nameField(r: PlayerResult): string {
+  // Lähteneen nimessä on tulossivun merkintä "(lähti)": taulussa sen tilalla ×.
+  const name = r.left ? r.name.replace(/\s*\([^)]*\)$/, '') : r.name;
+  const room = r.left ? NAME_WIDTH - 2 : NAME_WIDTH;
+  const short = name.length > room ? `${name.slice(0, room - 1)}…` : name;
+  return (r.left ? `${short} ×` : short).padEnd(NAME_WIDTH);
 }

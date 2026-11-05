@@ -690,7 +690,9 @@ export class NetSession {
       if (!p.spectator) rows.set(id, { id, name: p.name, catches: [] });
     });
     // Lähteneet pysyvät listalla ilman saalistakin.
-    s.departed?.forEach((d, id) => rows.set(id, { id, name: departedName(d), catches: [] }));
+    s.departed?.forEach((d, id) =>
+      rows.set(id, { id, name: departedName(d), catches: [], left: d.early }),
+    );
     for (const c of s.catches) {
       let row = rows.get(c.player);
       if (!row) {
@@ -715,11 +717,13 @@ export class NetSession {
     const s = this.room.state;
     const boatCatch = [...s.catches].some((c) => (c.boat ?? 0) > 0);
     if (!this.hasBoats && !boatCatch) return this.results();
-    const players: { id: string; name: string; boat: number }[] = [];
+    const players: { id: string; name: string; boat: number; left?: boolean }[] = [];
     s.players.forEach((p, id) => {
       if (!p.spectator) players.push({ id, name: p.name, boat: p.boat ?? 0 });
     });
-    s.departed?.forEach((d, id) => players.push({ id, name: departedName(d), boat: d.boat ?? 0 }));
+    s.departed?.forEach((d, id) =>
+      players.push({ id, name: departedName(d), boat: d.boat ?? 0, left: d.early }),
+    );
     const catches = [...s.catches].map((c) => ({
       species: c.species as SpeciesId,
       name: c.name,

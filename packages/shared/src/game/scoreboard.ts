@@ -13,6 +13,8 @@ export interface PlayerCatches {
   catches: readonly CatchRecord[];
   /** Venekunnan kalastajat (sessionId ja nimi); renkaalla kalastavalla puuttuu. */
   members?: readonly { id: string; name: string }[];
+  /** Lähti kesken kisan (#506): tasapisteissä viimeisenä (#517). */
+  left?: boolean;
 }
 
 export interface PlayerResult extends PlayerCatches {
@@ -35,7 +37,11 @@ export function rankPlayers(players: readonly PlayerCatches[], rule: WinRule): P
     return { ...p, summary, rank: 0, at: reachedAt(p, summary) };
   });
   rows.sort(
-    (a, b) => b.summary.score - a.summary.score || a.at - b.at || a.name.localeCompare(b.name),
+    (a, b) =>
+      b.summary.score - a.summary.score ||
+      a.at - b.at ||
+      Number(a.left ?? false) - Number(b.left ?? false) ||
+      a.name.localeCompare(b.name),
   );
   rows.forEach((r, i) => {
     const prev = rows[i - 1];
@@ -52,13 +58,13 @@ export function rankPlayers(players: readonly PlayerCatches[], rule: WinRule): P
  */
 export function rankTeams(
   catches: readonly (CatchRecord & { boat: number; player: string; angler: string })[],
-  players: readonly { id: string; name: string; boat: number }[],
+  players: readonly { id: string; name: string; boat: number; left?: boolean }[],
   rule: WinRule,
   boatName: (boat: number) => string,
 ): PlayerResult[] {
   type Member = { id: string; name: string };
   const teams = new Map<string, PlayerCatches & { catches: CatchRecord[]; members?: Member[] }>();
-  const team = (boat: number, id: string, name: string) => {
+  const team = (boat: number, id: string, name: string, left = false) => {
     const key = boat > 0 ? `boat:${boat}` : id;
     let t = teams.get(key);
     if (!t)
@@ -67,12 +73,12 @@ export function rankTeams(
         (t =
           boat > 0
             ? { id: key, name: boatName(boat), catches: [], members: [] }
-            : { id, name, catches: [] }),
+            : { id, name, catches: [], ...(left ? { left } : {}) }),
       );
     return t;
   };
   for (const p of [...players].sort((a, b) => a.boat - b.boat))
-    team(p.boat, p.id, p.name).members?.push({ id: p.id, name: p.name });
+    team(p.boat, p.id, p.name, p.left).members?.push({ id: p.id, name: p.name });
   for (const { boat, player, angler, ...c } of catches) team(boat, player, angler).catches.push(c);
   return rankPlayers([...teams.values()], rule);
 }
