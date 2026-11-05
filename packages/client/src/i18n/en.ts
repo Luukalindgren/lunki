@@ -19,9 +19,9 @@ export const en: Record<keyof typeof fi, string> = {
   'lure.wobbler': 'Crankbait',
   'lure.wobbler.hint': 'Floats, dives to about 2.5 m when reeled, a pike favourite',
   'lure.jig': 'Jig',
-  'lure.jig.hint': 'Sinks to the bottom, works with twitches and pauses',
+  'lure.jig.hint': 'Sinks to the bottom, works with twitches and pauses. Use a leader for pike',
   'lure.spinner': 'Spinner',
-  'lure.spinner.hint': 'A small spinner, loved by perch and roach',
+  'lure.spinner.hint': 'A small spinner, loved by perch and trout. Pike swallow it: use a leader',
   'lure.weedless': 'Weedless spoon',
   'lure.weedless.hint':
     'Weed guard: slides through reeds and weeds for pike, but strikes hook less often',
@@ -1074,7 +1074,7 @@ export const en: Record<keyof typeof fi, string> = {
     'You notice a take by the sound, the message and the twitches of the line. The lure diamond jerks in the same rhythm, and each tug sends a ring across the water, so you can see the take from above without the sonar.\nStrike by reeling ({reel}) or twitching ({twitch}). You have {normalWindow} s on Normal and {realisticWindow} s on Realistic, less for zander.\nOn Normal and Realistic big fish (e.g. pike from {pikeKg} kg, perch from {perchKg} kg) only hook on a twitch: reeling tightens the line but does not set the hook. On a heavy bite the rod nods deeper.\nThe hook sets {normalHook} % of the time on Normal and {realisticHook} % on Realistic. On Easy it sets by itself.\nOn a twitch the rod stiffness matters: on Realistic a pike hooks {pikeLight} % of the time with a light rod and {pikeHeavy} % with a heavy one.\nDo not twitch while a big fish is only following the lure: it may spook.\nAfter a late strike the fish stays away for a while.',
   'manual.spin.fight': 'Playing the fish',
   'manual.spin.fightText':
-    '{dragLess} and {dragMore} = loosen and tighten the drag. When the fish pulls harder than the drag, the drag slips and the fish takes line.\nThe line breaks when the pull exceeds its strength: 0.20 mm {thin} kg, 0.25 mm {medium} kg and 0.30 mm {thick} kg. On Easy the line does not break.\nA pike bites through the line unless you have a steel leader.\nA slack line lets the fish go: after {normalSlack} s of slack on Normal and {realisticSlack} s on Realistic.',
+    '{dragLess} and {dragMore} = loosen and tighten the drag. When the fish pulls harder than the drag, the drag slips and the fish takes line.\nThe line breaks when the pull exceeds its strength: 0.20 mm {thin} kg, 0.25 mm {medium} kg and 0.30 mm {thick} kg. On Easy the line does not break.\nWithout a steel leader a pike can bite through the line, usually right after the strike. It swallows a small spinner or jig deep, while a big wobbler stays in the corner of its mouth.\nA slack line lets the fish go: after {normalSlack} s of slack on Normal and {realisticSlack} s on Realistic.',
   'manual.spin.land': 'Landing',
   'manual.spin.landText':
     'When the fish is close and at the surface, it waits to be landed. Holding the reel does not land it.\n{land} = land with a new press. The biggest fish go into the net ({landNet}).\nAt the surface the fish may lunge. Lifting during a lunge loses the fish {normalLunge} % of the time on Normal and {realisticLunge} % on Realistic, so wait for it to calm down.',

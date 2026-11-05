@@ -10,8 +10,8 @@ tallennettuihin asetuksiin lisätään uudet omat lajit automaattisesti kerran.
 | --------- | -------- | ----- | -------------------------------- | --------------- | ----------------------- | ----------------------------------------------------------------- |
 | Ahven     | kyllä    | 12    | 1–4,5 m, rantojen tuntuma        | 140 g           | 1 %, ~0,7 kg            | Runsain, kiinnostuu reippaasta vieheestä                          |
 | Hauki     | kyllä    | yksin | 0,6–2,2 m, kaislikon reuna       | 1,3 kg          | 3 %, ~5 kg (max 12 kg)  | Vaanii paikallaan, iskee kauas ja nopeasti                        |
-| Särki     | kyllä    | 24    | 0,5–3 m, kaislikon reuna         | 110 g           | 1 %, ~0,45 kg           | Ei petokala: tarttuu harvoin, vain hitaaseen vieheeseen           |
-| Lahna     | kyllä    | 16    | 2–6 m, lahdet ja syvänteen reuna | 0,8 kg          | 3 %, ~2,5 kg (max 6 kg) | Pohjasta ruokaileva: vain hidas, pohjaa laahaava jigi             |
+| Särki     | kyllä    | 24    | 0,5–3 m, kaislikon reuna         | 110 g           | 1 %, ~0,45 kg           | Ei petokala: tarttuu uistimeen harvoin, perhoon (nymfi) hyvin     |
+| Lahna     | kyllä    | 16    | 2–6 m, lahdet ja syvänteen reuna | 0,8 kg          | 3 %, ~2,5 kg (max 6 kg) | Pohjasta ruokaileva: harvoin, lähinnä hidas pohjajigi tai nymfi   |
 | Kiiski    | kyllä    | 12    | 2–8 m, pohja                     | 40 g            | 2 %, ~120 g (max 250 g) | Harvinainen, tarttuu herkästi jigiin ja lippaan pohjassa          |
 | Made      | kyllä    | yksin | yli 4 m, syvänne ja jyrkänne     | 0,6 kg          | 3 %, ~1,5 kg (max 4 kg) | Lähes vain yöllä, paikallaan tai hitaasti nytkytetty jigi         |
 | Kuha      | ei       | 5     | yli 4 m, syvänteet               | 1 kg            | 3 %, ~4 kg              | Pohjan tuntumassa, hidas viehe, varovainen napsu                  |
@@ -119,6 +119,10 @@ Lajien erityispiirteet (`behavior`):
   ja 0,30 mm siima on tarpeen.
 - **Lahna, karppi ja made** ovat pohjakaloja: viehe kiinnostaa vain pohjan tuntumassa ja
   hitaana, joten jigi on niille ylivoimaisesti paras.
+- **Särkikalat tarttuvat uistimeen harvoin** (#512): särjen, lahnan ja karpin kiinnostus
+  vieheeseen (`lureInterest`) on 0,05, 0,025 ja 0,02, joten ne ovat virvelillä yllätyssaalis.
+  Perhoon (`flyInterest`, nymfi) ne tarttuvat entiseen tapaan (0,35, 0,25 ja 0,12), koska
+  se muistuttaa niiden luonnollista ravintoa.
 
 Vuorokaudenaika annetaan kaloille valona ja hämäryytenä (`fishConditions`). Kalojen
 liike ei vaikuta saaliin painoon tai lajiin: ne tulevat edelleen kalakannan siemenestä, ja
@@ -225,8 +229,22 @@ ja keräävät rikkaa selvästi harvemmin, kivikossa suoja auttaa puoliksi (`SNA
 työntää myös kalan suuta pois koukusta, joten isku tarttuu harvemmin (`SNAG.hookLoss`: noin 25 %
 vähemmän). Sopii kaislikon ja lumpeikon reunalla väijyvälle hauelle.
 
-Teräsperukka estää hauen hampaita katkaisemasta siimaa väsytyksessä (normaalilla ja
-realistisella noin 3 % sekunnissa), mutta muut lajit tarttuvat siihen hieman harvemmin.
+Teräsperuke estää hauen hampaita katkaisemasta siimaa (normaalilla ja realistisella), mutta
+muut lajit tarttuvat siihen hieman harvemmin. Ilman peruketta puraisu riippuu vieheen koosta
+(#512, `biteRisk`): pienen vieheen hauki nielaisee syvälle, iso jää suupieleen. Puraisu
+tapahtuu yleensä heti iskun jälkeen, kun hauki on vielä voimissaan (kestävyys yli 75 %:
+`BITE_OFF.rate` 0,25 · riski sekunnissa), väsyneempi hauki puraisee harvoin (0,2 % sekunnissa).
+
+| Viehe tai perho         | Puraisu ilman peruketta (noin) |
+| ----------------------- | ------------------------------ |
+| Lippa, nymfi            | 35 %                           |
+| Jigi, ahven-streameri   | 30 %                           |
+| Lusikka, pintapopperi   | 15 %                           |
+| Ruoholusikka            | 12 %                           |
+| Ruohostreameri          | 8 %                            |
+| Vaappu, hauki-streameri | 7 %                            |
+
+Perhon peruke kertoo riskin: tavallinen 1, fluorohiili 0,35 ja teräs 0.
 
 ### Viehepakki ja perhorasia (#365)
 

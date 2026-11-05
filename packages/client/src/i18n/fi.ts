@@ -20,9 +20,10 @@ export const fi = {
   'lure.wobbler': 'Vaappu',
   'lure.wobbler.hint': 'Kelluu, sukeltaa kelatessa n. 2,5 m:iin, hauen herkku',
   'lure.jig': 'Jigi',
-  'lure.jig.hint': 'Painuu pohjaan, toimii nykien ja tauottaen',
+  'lure.jig.hint': 'Painuu pohjaan, toimii nykien ja tauottaen. Hauelle peruke',
   'lure.spinner': 'Lippa',
-  'lure.spinner.hint': 'Pieni lippa, ahvenen ja särjen suosikki',
+  'lure.spinner.hint':
+    'Pieni lippa, ahvenen ja taimenen suosikki. Hauki nielaisee sen: käytä peruketta',
   'lure.weedless': 'Ruoholusikka',
   'lure.weedless.hint':
     'Ruohosuojattu: liukuu kaislojen ja kasvuston läpi hauelle, mutta isku tarttuu harvemmin',
@@ -1079,7 +1080,7 @@ export const fi = {
     'Tärpin tunnistaa äänestä, ilmoituksesta ja siiman nykäyksistä. Vieheen timantti nykii samassa tahdissa, ja jokainen nykäys nostaa renkaan veteen, joten tärpin näkee ylhäältäkin ilman luotainta.\nIske kelaamalla ({reel}) tai nykäisemällä ({twitch}). Aikaa on Normaalilla {normalWindow} s ja Realistisella {realisticWindow} s, kuhalla vähemmän.\nIsot kalat (esim. hauki {pikeKg} kg ja ahven {perchKg} kg alkaen) tarttuvat Normaalilla ja Realistisella vain nykäisyyn: kelaus kiristää siiman mutta ei pistä koukkua. Raskaassa tärpissä vapa nyökkää syvemmälle.\nKoukku tarttuu Normaalilla {normalHook} %:lla ja Realistisella {realisticHook} %:lla. Helpolla koukku tarttuu itsestään.\nNykäisyssä vavan jäykkyys ratkaisee: Realistisella hauki tarttuu kevyellä vavalla {pikeLight} %:lla ja järeällä {pikeHeavy} %:lla.\nÄlä nykäise, kun iso kala vasta seuraa viehettä: se voi säikähtää.\nMyöhästyneen iskun jälkeen kala ei palaa hetkeen.',
   'manual.spin.fight': 'Väsytys',
   'manual.spin.fightText':
-    '{dragLess} ja {dragMore} = löysää ja kiristä jarrua. Kun kala vetää jarrua kovemmin, jarru luistaa ja kala vie siimaa.\nSiima katkeaa, kun veto ylittää sen lujuuden: 0,20 mm {thin} kg, 0,25 mm {medium} kg ja 0,30 mm {thick} kg. Helpolla siima ei katkea.\nHauki katkaisee siiman hampaillaan, jos teräsperuketta ei ole.\nLöysä siima päästää kalan irti: Normaalilla {normalSlack} s ja Realistisella {realisticSlack} s löysän jälkeen.',
+    '{dragLess} ja {dragMore} = löysää ja kiristä jarrua. Kun kala vetää jarrua kovemmin, jarru luistaa ja kala vie siimaa.\nSiima katkeaa, kun veto ylittää sen lujuuden: 0,20 mm {thin} kg, 0,25 mm {medium} kg ja 0,30 mm {thick} kg. Helpolla siima ei katkea.\nIlman teräsperuketta hauki voi purra siiman poikki, yleensä heti iskun jälkeen. Pienen lipan tai jigin se nielaisee syvälle, iso vaappu jää suupieleen.\nLöysä siima päästää kalan irti: Normaalilla {normalSlack} s ja Realistisella {realisticSlack} s löysän jälkeen.',
   'manual.spin.land': 'Nosto',
   'manual.spin.landText':
     'Kun kala on lähellä ja pinnassa, se odottaa nostoa. Pohjassa pidetty kelaus ei nosta.\n{land} = nosta uudella painalluksella. Isoimmat kalat nostetaan haaviin ({landNet}).\nPinnassa kala voi riuhtaista. Riuhtaisun aikana nostettu kala karkaa Normaalilla {normalLunge} %:lla ja Realistisella {realisticLunge} %:lla, joten odota, että se rauhoittuu.',

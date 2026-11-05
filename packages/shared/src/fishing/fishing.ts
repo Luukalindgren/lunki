@@ -1135,7 +1135,7 @@ function fight(
     resetFishing(s);
     return;
   }
-  const biteOff = biteOffRate(s.tackle);
+  const biteOff = biteOffRate(s.tackle, f.stamina);
   if (diff.lineCanBreak && f.species === 'pike' && biteOff > 0 && rng.chance(biteOff, dt)) {
     events.lineBroken = true;
     events.bitOff = true;
