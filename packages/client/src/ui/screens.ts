@@ -133,6 +133,7 @@ import {
   type TackleBox,
 } from '../game/tackleBox';
 import { baitSummary, loadJournal, type BaitSummary } from '../game/journal';
+import { COMPACT_RESULTS_OVER, resultsText, rulesLine } from './resultsText';
 import {
   colorName,
   describeFullTackle,
@@ -1944,13 +1945,19 @@ export class Screens {
     );
     const table = document.createElement('ol');
     table.className = 'catch-list results';
+    // Iso porukka (#507): varusteet pois riveiltä (ne ovat Tilastoissa) ja
+    // pienet kalakuvat, jotta koko lista mahtuu ruutuun.
+    const compact = results.length > COMPACT_RESULTS_OVER;
+    // Pitkä nimi (esim. "Tiina (lähti)") ei siirrä muiden sarakkeita.
+    const nameWidth = Math.max(12, ...results.map((r) => r.name.length));
+    table.classList.toggle('compact', compact);
     for (const r of results) {
       const li = document.createElement('li');
       li.value = r.rank;
       li.classList.toggle('me', isMine(r, myId));
       const biggest = r.summary.biggest ? formatWeight(r.summary.biggest.weight) : '–';
       li.textContent = t('results.row', {
-        name: r.name.padEnd(12),
+        name: r.name.padEnd(nameWidth),
         count: String(r.summary.count).padStart(2),
         total: formatWeight(r.summary.total).padStart(8),
         biggest,
@@ -1958,20 +1965,18 @@ export class Screens {
       const gear = tackles?.get(r.id);
       const big = r.summary.biggest;
       if (big) li.append(fishImage(big.species, big.weight, LIST_FISH_SCALE));
-      if (gear) li.append(h('span', describeFullTackle(gear), 'player-gear'));
+      if (gear && !compact) li.append(h('span', describeFullTackle(gear), 'player-gear'));
       // Venekunta: joukkueen kalastajat veneen nimen alle.
       if (r.members?.length)
         li.append(h('span', r.members.map((m) => m.name).join(', '), 'player-gear'));
       table.appendChild(li);
     }
+    const listBox = document.createElement('div');
+    listBox.append(table, copyResults(results, settings));
     const map = race ? this.raceMap(race) : null;
     panel.append(
-      ...this.resultsViews(panel, table, map, summary),
-      h(
-        'p',
-        `${winRuleName(settings.winRule)} · ${difficultyName(settings.difficulty)} · ${t('common.minutes', { n: settings.durationMinutes })}`,
-        'hint',
-      ),
+      ...this.resultsViews(panel, listBox, map, summary),
+      h('p', rulesLine(settings), 'hint'),
     );
     if (card) panel.append(this.weighCard(card));
     if (chat) chat(panel);
@@ -2876,6 +2881,38 @@ function waveTitle(text: string): HTMLElement {
     title.append(letter);
   }
   return title;
+}
+
+/**
+ * Kopioi tulokset (#507): nappi tulosten alle. Suojaamattomalla http-sivulla
+ * (LAN-peli) leikepöytää ei ole, joten teksti tulee valittavaksi kenttään.
+ */
+function copyResults(results: readonly PlayerResult[], settings: RoomSettings): HTMLElement {
+  const box = h('div', '', 'results-copy-row');
+  const field = document.createElement('textarea');
+  field.className = 'results-copy';
+  field.readOnly = true;
+  field.setAttribute('aria-label', t('results.copyHint'));
+  const label = h('p', t('results.copyHint'), 'hint');
+  const button = document.createElement('button');
+  button.textContent = t('results.copy');
+  const showText = (text: string) => {
+    field.value = text;
+    field.rows = Math.min(16, text.split('\n').length);
+    box.replaceChildren(label, field);
+    field.focus();
+    field.select();
+  };
+  button.addEventListener('click', () => {
+    const text = resultsText(results, settings, new Date());
+    if (!navigator.clipboard) return showText(text);
+    navigator.clipboard.writeText(text).then(
+      () => (button.textContent = t('results.copied')),
+      () => showText(text),
+    );
+  });
+  box.append(button);
+  return box;
 }
 
 /**
