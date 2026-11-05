@@ -5,7 +5,7 @@ import { distance, type Vec2 } from '../vec2';
 import { DEFAULT_SEASON, type Season } from '../weather/season';
 import type { WeatherNow } from '../weather/weather';
 import type { DifficultyParams } from './difficulty';
-import { baitOf, tackleAppeal, type Tackle } from './gear';
+import { baitOf, isFly, tackleAppeal, type Tackle } from './gear';
 
 export type SpeciesId =
   | 'perch'
@@ -62,6 +62,11 @@ export interface Species {
   senseRadius: number;
   /** Kuinka herkästi laji kiinnostuu vieheestä (kerroin). */
   lureInterest: number;
+  /**
+   * Kiinnostus perhoon, jos se poikkeaa vieheestä (#512): särkikalat syövät
+   * hyönteisiä ja nymfejä, mutta tarttuvat uistimeen harvoin.
+   */
+  flyInterest?: number;
   /** Mieluisin vieheen nopeus (m/s) ja sallittu poikkeama. */
   preferredSpeed: number;
   speedTolerance: number;
@@ -266,8 +271,10 @@ export const SPECIES: Record<SpeciesId, Species> = {
     pullBase: 0.15,
     endurancePerKg: 12,
     senseRadius: 5,
-    // Ei petokala: tarttuu uistimeen harvoin ja vain hitaaseen.
-    lureInterest: 0.35,
+    // Ei petokala: tarttuu uistimeen harvoin ja vain hitaaseen (#512), perhoon
+    // (nymfi) kuitenkin hyvin.
+    lureInterest: 0.05,
+    flyInterest: 0.35,
     preferredSpeed: 0.25,
     speedTolerance: 0.3,
     roamSpeed: 0.35,
@@ -432,8 +439,9 @@ export const SPECIES: Record<SpeciesId, Species> = {
     endurancePerKg: 8,
     senseRadius: 5,
     // Pohjasta ruokaileva, ei petokala: tarttuu harvoin ja vain hitaaseen,
-    // pohjaa laahaavaan jigiin.
-    lureInterest: 0.25,
+    // pohjaa laahaavaan jigiin, lähinnä vahingossa (#512).
+    lureInterest: 0.025,
+    flyInterest: 0.25,
     preferredSpeed: 0.15,
     speedTolerance: 0.2,
     roamSpeed: 0.2,
@@ -694,8 +702,9 @@ export const SPECIES: Record<SpeciesId, Species> = {
     endurancePerKg: 10,
     senseRadius: 5,
     // Hyvin varovainen pohjasta ruokailija: tarttuu harvoin, lähinnä hitaasti
-    // pohjaa pitkin uitettuun jigiin.
-    lureInterest: 0.12,
+    // pohjaa pitkin uitettuun jigiin (#512).
+    lureInterest: 0.02,
+    flyInterest: 0.12,
     preferredSpeed: 0.12,
     speedTolerance: 0.15,
     roamSpeed: 0.15,
@@ -1296,6 +1305,11 @@ function swimDepth(sp: Species, bottom: number, c: FishConditions): number {
   return Math.max(0.3, d);
 }
 
+/** Lajin kiinnostus vieheeseen tai perhoon (#512). */
+function interestIn(sp: Species, lure: LureInfo): number {
+  return lure.tackle && isFly(lure.tackle) ? (sp.flyInterest ?? sp.lureInterest) : sp.lureInterest;
+}
+
 /** Vapaana olevien kalojen tekoäly yhdelle askeleelle. */
 export function stepFishPopulation(
   pop: FishPopulation,
@@ -1334,7 +1348,7 @@ export function stepFishPopulation(
       if (lure && near < sense && f.cooldown === 0) {
         const a = act[f.species] * shoreFactor(pop, f.pos, sp, cond) * (1 + 1.5 * excite);
         const appeal = lureAppeal(f, lure, diff.appealTolerance);
-        if (rng.chance(0.6 * appeal * sp.lureInterest * diff.biteRate * a, dt)) {
+        if (rng.chance(0.6 * appeal * interestIn(sp, lure) * diff.biteRate * a, dt)) {
           f.mode = 'follow';
           f.timer = 0;
           f.goal = null;
@@ -1398,7 +1412,7 @@ export function stepFishPopulation(
         follows;
       if (
         near < diff.strikeReach &&
-        rng.chance((0.35 + appeal * 0.9) * sp.lureInterest * diff.biteRate * a, dt)
+        rng.chance((0.35 + appeal * 0.9) * interestIn(sp, lure) * diff.biteRate * a, dt)
       ) {
         f.mode = 'struck';
         f.timer = 0;

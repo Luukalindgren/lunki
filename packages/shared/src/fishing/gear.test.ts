@@ -13,6 +13,7 @@ import {
   type FishingEvents,
 } from './fishing';
 import {
+  BITE_OFF,
   CRANK_DEPTHS,
   DEFAULT_TACKLE,
   JIG_WEIGHTS,
@@ -20,11 +21,13 @@ import {
   LURE_IDS,
   MAX_CAST_FACTOR,
   baitOf,
+  biteOffRate,
   fitsCastWeight,
   breakingStrength,
   isTackle,
   parseTackle,
   tackleCastFactor,
+  type LureId,
   type Tackle,
 } from './gear';
 import type { Structure } from '../map/bottom';
@@ -123,10 +126,10 @@ describe('vieheet ja siimat', () => {
     }
   });
 
-  it('hauki puree siiman poikki ilman teräsperuketta', () => {
-    const bitOffs = (leader: boolean) => {
+  it('hauki puree siiman poikki ilman teräsperuketta, pientä viehettä useammin (#512)', () => {
+    const bitOffs = (leader: boolean, lure: LureId) => {
       let n = 0;
-      for (let seed = 1; seed <= 20; seed++) {
+      for (let seed = 1; seed <= 40; seed++) {
         const rng = new Rng(seed);
         const pop: FishPopulation = { fish: [], nextId: 1, tick: 0 };
         const f = spawnFish(pop, 'pike', { x: 20, y: 0 }, world, rng);
@@ -134,7 +137,7 @@ describe('vieheet ja siimat', () => {
         f.mode = 'hooked';
         f.running = true;
         pop.fish.push(f);
-        const s = createFishing(tackle({ leader }));
+        const s = createFishing(tackle({ leader, lure }));
         s.stage = 'water';
         s.lure = { x: 20, y: 0 };
         s.lineLength = 18;
@@ -158,8 +161,21 @@ describe('vieheet ja siimat', () => {
       }
       return n;
     };
-    expect(bitOffs(false)).toBeGreaterThan(3);
-    expect(bitOffs(true)).toBe(0);
+    const spinner = bitOffs(false, 'spinner');
+    const wobbler = bitOffs(false, 'wobbler');
+    expect(spinner).toBeGreaterThan(6);
+    expect(wobbler).toBeLessThan(spinner / 2);
+    expect(bitOffs(true, 'spinner')).toBe(0);
+  });
+
+  it('puraisu tapahtuu iskun jälkeen, väsynyt hauki puraisee harvoin (#512)', () => {
+    const t = tackle({ lure: 'jig' });
+    expect(biteOffRate(t, 1)).toBeCloseTo(LURES.jig.biteRisk * BITE_OFF.rate);
+    expect(biteOffRate(t, 0.5)).toBeLessThan(biteOffRate(t, 1) / 20);
+    expect(biteOffRate(tackle({ lure: 'jig', leader: true }), 1)).toBe(0);
+    for (const id of LURE_IDS)
+      expect(LURES[id].biteRisk).toBeLessThanOrEqual(LURES.spinner.biteRisk);
+    expect(LURES.wobbler.biteRisk).toBeLessThan(LURES.spoon.biteRisk);
   });
 
   it('varusteet vaihtuvat vain vieheen ollessa kelalla', () => {

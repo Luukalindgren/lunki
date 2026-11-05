@@ -297,8 +297,8 @@ describe('kalalajit', () => {
     expect(perch.filter((w) => w > 0.8).length).toBeGreaterThan(5);
   });
 
-  it('särki tarttuu uistimeen harvemmin kuin ahven', () => {
-    const strikes = (id: SpeciesId) => {
+  it('särki tarttuu uistimeen harvemmin kuin ahven, perhoon hyvin (#512)', () => {
+    const strikes = (id: SpeciesId, tackle?: Tackle) => {
       let n = 0;
       for (let seed = 1; seed <= 30; seed++) {
         const rng = new Rng(seed);
@@ -313,6 +313,7 @@ describe('kalalajit', () => {
           speed: SPECIES[id].preferredSpeed,
           fishable: true,
           tip: { x: -20, y: 0 },
+          tackle,
         };
         for (let i = 0; i < 20 / DT; i++) {
           const ev = stepFishPopulation(pop, lure, world, DIFFICULTIES.normal, rng, DT);
@@ -324,7 +325,10 @@ describe('kalalajit', () => {
       }
       return n;
     };
-    expect(strikes('roach')).toBeLessThan(strikes('perch'));
+    const jig: Tackle = { ...DEFAULT_TACKLE, lure: 'jig' };
+    const nymph: Tackle = { ...DEFAULT_TACKLE, method: 'fly', fly: 'nymph' };
+    expect(strikes('roach', jig)).toBeLessThan(strikes('perch', jig) / 3);
+    expect(strikes('roach', nymph)).toBeGreaterThan(strikes('roach', jig) * 2);
   });
 });
 

@@ -29,6 +29,12 @@ export interface Lure {
    * kaislojen ja risujen läpi, mutta työntää myös kalan suuta pois koukusta.
    */
   weedGuard: number;
+  /**
+   * Hauen puraisu ilman peruketta (#512): osuus kiinni saaduista hauista,
+   * joilla viehe menee niin syvälle suuhun, että hampaat katkaisevat
+   * siiman. Pieni viehe nielaistaan, iso jää suupieleen.
+   */
+  biteRisk: number;
   /** Lyhyt kuvaus valikkoon. */
   hint: string;
 }
@@ -57,6 +63,7 @@ export const LURES: Record<LureId, Lure> = {
     stillAppeal: 0.2,
     snagRisk: 1,
     weedGuard: 0,
+    biteRisk: 0.15,
     hint: 'Heittyy pitkälle ja uppoaa, monipuolinen',
   },
   wobbler: {
@@ -82,6 +89,7 @@ export const LURES: Record<LureId, Lure> = {
     stillAppeal: 0.1,
     snagRisk: 0.7,
     weedGuard: 0,
+    biteRisk: 0.07,
     hint: 'Kelluu, sukeltaa kelatessa n. 2,5 m:iin, hauen herkku',
   },
   jig: {
@@ -107,7 +115,8 @@ export const LURES: Record<LureId, Lure> = {
     stillAppeal: 0.7,
     snagRisk: 1.4,
     weedGuard: 0,
-    hint: 'Painuu pohjaan, toimii nykien ja tauottaen',
+    biteRisk: 0.3,
+    hint: 'Painuu pohjaan, toimii nykien ja tauottaen. Hauelle peruke',
   },
   spinner: {
     id: 'spinner',
@@ -132,7 +141,8 @@ export const LURES: Record<LureId, Lure> = {
     stillAppeal: 0.1,
     snagRisk: 0.5,
     weedGuard: 0,
-    hint: 'Pieni lippa, ahvenen ja särjen suosikki',
+    biteRisk: 0.35,
+    hint: 'Pieni lippa, ahvenen ja taimenen suosikki. Hauki nielaisee sen: käytä peruketta',
   },
   weedless: {
     id: 'weedless',
@@ -159,6 +169,7 @@ export const LURES: Record<LureId, Lure> = {
     // Yksi koukku: kivikossakin vähemmän tarttuva kuin kolmihaarainen.
     snagRisk: 0.6,
     weedGuard: 0.85,
+    biteRisk: 0.12,
     hint: 'Ruohosuojattu: liukuu kaislojen ja kasvuston läpi hauelle, mutta isku tarttuu harvemmin',
   },
 };
@@ -489,6 +500,8 @@ export interface Fly {
   snagRisk: number;
   /** Ruohosuoja 0–1 (#364), kuten vieheillä. */
   weedGuard: number;
+  /** Hauen puraisun riski ilman teräsperuketta (#512), kuten vieheillä. */
+  biteRisk: number;
   /** Suurkalojen mieltymys. */
   bigFish: number;
   /** Pintaperho roiskii vedettäessä. */
@@ -521,6 +534,7 @@ export const FLIES: Record<FlyId, Fly> = {
     pauseAppeal: 0.95,
     snagRisk: 0.6,
     weedGuard: 0,
+    biteRisk: 0.07,
     bigFish: 1.5,
     surface: false,
   },
@@ -549,6 +563,7 @@ export const FLIES: Record<FlyId, Fly> = {
     pauseAppeal: 0.6,
     snagRisk: 0.15,
     weedGuard: 0,
+    biteRisk: 0.15,
     bigFish: 1.1,
     surface: true,
   },
@@ -577,6 +592,7 @@ export const FLIES: Record<FlyId, Fly> = {
     pauseAppeal: 0.6,
     snagRisk: 0.8,
     weedGuard: 0,
+    biteRisk: 0.3,
     bigFish: 0.8,
     surface: false,
   },
@@ -605,6 +621,7 @@ export const FLIES: Record<FlyId, Fly> = {
     pauseAppeal: 0.7,
     snagRisk: 1.1,
     weedGuard: 0,
+    biteRisk: 0.35,
     bigFish: 0.6,
     surface: false,
   },
@@ -633,6 +650,7 @@ export const FLIES: Record<FlyId, Fly> = {
     pauseAppeal: 0.95,
     snagRisk: 0.3,
     weedGuard: 0.85,
+    biteRisk: 0.08,
     bigFish: 1.4,
     surface: false,
   },
@@ -699,14 +717,19 @@ export const rodPower = (t: Tackle) => (isFly(t) ? FLY_RODS[t.flyRod] : RODS[t.r
 export const LEADER_SHYNESS = 0.85;
 
 /**
- * Hauen hampaat: ilman peruketta siima katkeaa väsytyksessä tällä
- * todennäköisyydellä sekunnissa (kun siima voi katketa).
+ * Hauen hampaat (#512): siima katkeaa yleensä heti iskun jälkeen, kun
+ * voimissaan oleva hauki riuhtoo vieheen nielaistuna. Kun kalan kestävyys on
+ * yli `early`, puraisun todennäköisyys sekunnissa on `rate` · vieheen
+ * `biteRisk`; väsyneempi hauki puraisee harvoin (`late`).
  */
-export const PIKE_BITE_OFF_RATE = 0.03;
+export const BITE_OFF = { early: 0.75, rate: 0.25, late: 0.002 };
 
 /** Hauen puraisun todennäköisyys sekunnissa näillä varusteilla. */
-export const biteOffRate = (t: Tackle) =>
-  PIKE_BITE_OFF_RATE * (isFly(t) ? FLY_LEADERS[t.flyLeader].biteOff : t.leader ? 0 : 1);
+export function biteOffRate(t: Tackle, stamina: number): number {
+  const guard = isFly(t) ? FLY_LEADERS[t.flyLeader].biteOff : t.leader ? 0 : 1;
+  const risk = isFly(t) ? FLIES[t.fly].biteRisk : LURES[t.lure].biteRisk;
+  return guard * (stamina > BITE_OFF.early ? risk * BITE_OFF.rate : BITE_OFF.late);
+}
 
 /** Suurkalat pitävät isosta ja hitaasta vieheestä. */
 const BIG_FISH_LURE: Record<LureId, number> = {
