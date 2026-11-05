@@ -1,5 +1,5 @@
 import { CAST, predictLanding } from '../fishing/cast';
-import { SPECIES, type SpeciesId } from '../fishing/fish';
+import { COOL_HOME_REACH, SPECIES, type SpeciesId } from '../fishing/fish';
 import { DIFFICULTIES, type DifficultyParams } from '../fishing/difficulty';
 import { MAX_CAST_FACTOR } from '../fishing/gear';
 import { distance, type Vec2 } from '../vec2';
@@ -44,5 +44,7 @@ export function catchRadius(
   diff: Pick<DifficultyParams, 'senseRange'> = DIFFICULTIES.normal,
 ): number {
   const sp = SPECIES[species];
-  return sp.homeRange + sp.senseRadius * diff.senseRange * 1.5 + maxCastDistance() + 20;
+  // Kesällä iso hauki ja made siirtyvät viileämpään (#511, `seasonHome`).
+  const cool = sp.behavior.coolHome ? COOL_HOME_REACH : 0;
+  return sp.homeRange + cool + sp.senseRadius * diff.senseRange * 1.5 + maxCastDistance() + 20;
 }

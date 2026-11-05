@@ -135,6 +135,20 @@ ja on 10 % painavampi (isoja kaksi kertaa useammin), keväällä laihempi; made 
 heräävät kylmässä vedessä, karppi ja kuha laiskistuvat. Kausi ei kuluta kalakannan
 arpoja, joten kalat ovat samoilla paikoilla, ja palvelin laskee saman painon.
 
+**Kesän lämmin pintavesi (#511).** Viileän veden kaloilla on omat kesän arvot:
+
+- **Made** on kesällä laiska (aktiivisuus × 0,35) ja pysyy yölläkin yli 5 m:n syvyydessä.
+  Keväällä ja syksyllä se on yön kala, joka nousee pimeällä matalammalle.
+- **Taimen ja kirjolohi** hakeutuvat yli 4 m:n pohjan päälle ja uivat lähellä pohjaa
+  (`SeasonHabit.column` 0,85 päivällä, 0,6 pimeällä; aktiivisuus × 0,8). Kesällä niitä
+  haetaan syvältä vaapulla, jigillä tai upotetulla lusikalla.
+- **Iso hauki (yli 2,5 kg) ja made saavat kesäksi viileämmän kotipaikan**
+  (`behavior.coolHome`, `seasonHome`): lähin vähintään 3 m:n (hauki) tai 5 m:n (made)
+  kohta enintään 60 m:n päässä kotipaikasta (`COOL_HOME_REACH`), tai syvin kohta sen
+  säteellä. Pienet hauet jäävät kaislikkoon. Paikka haetaan kiinteässä järjestyksessä ilman
+  arpoja, ja palvelimen `catchRadius` kasvaa näillä lajeilla 60 m:llä. Syksyllä isotkin
+  palaavat matalaan.
+
 ### Merkit pinnalla (#369)
 
 Kalojen käytös näkyy pinnalla kaikilla vaikeustasoilla (`game/fishSigns.ts`). Merkit ovat

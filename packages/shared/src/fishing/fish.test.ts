@@ -16,8 +16,10 @@ import {
   type FishConditions,
   type FishPopulation,
   type SpeciesId,
+  COOL_HOME_REACH,
   DAYTIME,
   fishConditions,
+  seasonHome,
   fishHome,
   fishWeight,
   sizeClass,
@@ -453,6 +455,8 @@ describe('käytös', () => {
   };
   const bounds = { minX: -400, minY: -150, maxX: 400, maxY: 150 };
   const NIGHT: FishConditions = { ...DAYTIME, light: 0.1 };
+  const SPRING: FishConditions = { ...DAYTIME, season: 'spring' };
+  const AUTUMN: FishConditions = { ...DAYTIME, season: 'autumn' };
   const DUSK: FishConditions = { ...DAYTIME, light: 0.55, twilight: 1 };
   const run = (pop: FishPopulation, seconds: number, cond = DAYTIME, dt = 0.1, seed = 1) => {
     const rng = new Rng(seed);
@@ -470,7 +474,8 @@ describe('käytös', () => {
     const members = pop.fish.filter((f) => f.school === 0);
     expect(members.length).toBeGreaterThan(5);
     const start = centroid(members);
-    run(pop, 180);
+    // Keväällä: kesällä isot hauet siirtyvät syvemmälle (#511) ja säikyttävät parvia.
+    run(pop, 180, SPRING);
     const end = centroid(members);
     // Koko parvi on siirtynyt yhdessä, eikä se ole hajonnut.
     expect(Math.hypot(end.x - start.x, end.y - start.y)).toBeGreaterThan(5);
@@ -502,11 +507,31 @@ describe('käytös', () => {
     const pop = createFishPopulation(lake, bounds, new Rng(13), 600);
     const pikes = pop.fish.filter((f) => f.species === 'pike');
     const before = pikes.map((f) => ({ ...f.pos }));
-    run(pop, 120);
+    run(pop, 120, SPRING);
     const moved = pikes.map((f, i) => distance(f.pos, before[i]!)).sort((a, b) => a - b);
     // Suurin osa hauista on samalla paikalla, eikä yksikään lähde kotipaikaltaan.
     expect(moved[Math.floor(moved.length / 2)]!).toBeLessThan(0.5);
     for (const f of pikes) expect(distance(f.pos, f.home)).toBeLessThan(SPECIES.pike.homeRange + 1);
+  });
+
+  it('kesällä isot hauet siirtyvät syvänteen reunalle, pienet jäävät rantaan (#511)', () => {
+    const pop = createFishPopulation(lake, bounds, new Rng(13), 600);
+    const pikes = pop.fish.filter((f) => f.species === 'pike');
+    for (const [i, f] of pikes.entries()) f.weight = i % 2 === 0 ? 4 : 1;
+    run(pop, 240);
+    const bottom = (big: boolean) => {
+      const fs = pikes.filter((f) => f.weight >= SPECIES.pike.sizes[1] === big);
+      return fs.reduce((s, f) => s + lake.depthAt(f.pos), 0) / fs.length;
+    };
+    expect(bottom(true)).toBeGreaterThan(2.7);
+    expect(bottom(false)).toBeLessThan(2.2);
+    for (const f of pikes) {
+      expect(distance(f.pos, f.home)).toBeLessThan(SPECIES.pike.homeRange + COOL_HOME_REACH + 1);
+      if (f.weight < SPECIES.pike.sizes[1]) expect(seasonHome(f, lake, 'summer')).toBe(f.home);
+    }
+    // Syksyllä isokin palaa matalaan.
+    run(pop, 240, AUTUMN);
+    expect(bottom(true)).toBeLessThan(2.3);
   });
 
   it('särkiparvi tiivistyy ja pakenee lähelle tullutta haukea', () => {
@@ -641,9 +666,29 @@ describe('käytös', () => {
       run(pop, 900, cond, 0.25);
       return pop.fish.reduce((s, f) => s + lake.depthAt(f.pos), 0) / pop.fish.length;
     };
-    const day = bottomAfter(DAYTIME);
+    // Kesällä made pysyy viileässä syvällä myös yöllä (#511), joten verrataan syksyllä.
+    const day = bottomAfter(AUTUMN);
     expect(day).toBeGreaterThan(2.9);
-    expect(day).toBeGreaterThan(bottomAfter(NIGHT) + 0.3);
+    expect(day).toBeGreaterThan(bottomAfter({ ...NIGHT, season: 'autumn' }) + 0.3);
+    expect(bottomAfter({ ...NIGHT, season: 'summer' })).toBeGreaterThan(4.5);
+  });
+
+  it('kesällä taimen ui syvällä ja made on laiska (#511)', () => {
+    const summer = { ...DAYTIME, season: 'summer' as const };
+    const autumn = { ...DAYTIME, season: 'autumn' as const };
+    expect(speciesActivity('burbot', { ...NIGHT, season: 'summer' })).toBeLessThan(
+      speciesActivity('burbot', { ...NIGHT, season: 'autumn' }) / 4,
+    );
+    expect(speciesActivity('trout', summer)).toBeLessThan(speciesActivity('trout', autumn));
+    const depthAfter = (cond: FishConditions) => {
+      const rng = new Rng(19);
+      const pop: FishPopulation = { fish: [], nextId: 1, tick: 0 };
+      for (let i = 0; i < 20; i++)
+        pop.fish.push(spawnFish(pop, 'trout', { x: -300 + i * 30, y: 20 }, lake, rng));
+      run(pop, 600, cond, 0.25);
+      return pop.fish.reduce((s, f) => s + f.depth, 0) / pop.fish.length;
+    };
+    expect(depthAfter(summer)).toBeGreaterThan(depthAfter(autumn) + 1.5);
   });
 
   it('saadun tilalle syntyvä kala liittyy kotipaikkansa parveen', () => {
