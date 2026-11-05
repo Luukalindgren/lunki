@@ -393,6 +393,8 @@ export const fi = {
   'lobby.playersWaiting': 'Pelaajat {n}/{max} · {waiting} odottaa paikkaa',
   'lobby.joined': '{name} liittyi aulaan',
   'lobby.becameReady': '{name} on valmis',
+  'lobby.joinedMany': '{n} pelaajaa liittyi aulaan',
+  'lobby.readyMany': '{n} pelaajaa on valmiina',
   'lobby.nextRace': 'Seuraava kisa',
   'lobby.play': 'Kalastan',
   'lobby.watch': 'Katson',
