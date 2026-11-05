@@ -962,6 +962,28 @@ textarea,
   margin-left: 12px;
 }
 
+/* Iso porukka (#507): ilman varusteita ja pienin kalakuvin koko lista näkyy. */
+.catch-list.results.compact {
+  --fish-px: 1px;
+  max-height: 60vh;
+  padding-left: 44px;
+}
+
+.results-copy-row {
+  margin: 4px 0 8px;
+}
+
+.screen-panel .results-copy {
+  box-sizing: border-box;
+  width: 100%;
+  font: inherit;
+  font-size: 18px;
+  white-space: pre;
+  color: #e8e8e8;
+  background: #12171c;
+  border: 2px solid #4d5866;
+}
+
 /*
  * Vieheen kuva (#362): ikkuna, jonka takana kuvaliuska siirtyy askelin.
  * Kuvia on 8 (LURE_FRAMES), ja liuska liikkuu oman leveytensä verran.
