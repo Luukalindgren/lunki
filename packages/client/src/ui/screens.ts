@@ -118,7 +118,7 @@ import {
 } from '../i18n';
 import { controlText } from '../game/controls';
 import { MANUAL_SECTIONS, manualTopics, type ManualSection } from './manual';
-import { isMine } from '../game/raceScoreboard';
+import { isMine, rankLabel } from '../game/raceScoreboard';
 import type { RaceStatus } from '../game/raceStatus';
 import { challengeOutcome, challengeScoreText } from '../game/challenge';
 import { loadCraft, saveCraft } from '../game/tackle';
@@ -1955,6 +1955,8 @@ export class Screens {
       const li = document.createElement('li');
       li.value = r.rank;
       li.classList.toggle('me', isMine(r, myId));
+      // Saaliittomalle viiva kuten kisan taulussa (#528).
+      li.classList.toggle('unranked', rankLabel(r) === '–');
       const biggest = r.summary.biggest ? formatWeight(r.summary.biggest.weight) : '–';
       li.textContent = t('results.row', {
         name: r.name.padEnd(nameWidth),

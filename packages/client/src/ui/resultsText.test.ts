@@ -36,7 +36,7 @@ describe('tulokset tekstinä (#507)', () => {
       '',
       '1. Bertta 1,50 kg (2 kpl, suurin 1,20 kg)',
       '2. Antti 410 g (1 kpl, suurin 410 g)',
-      '3. Cecilia (lähti) 0 g (0 kpl)',
+      '– Cecilia (lähti) 0 g (0 kpl)',
     ]);
   });
 });

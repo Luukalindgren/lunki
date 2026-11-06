@@ -29,9 +29,14 @@ const NAME_WIDTH = 10;
  * lyhyt merkki ×, joka jää näkyviin, vaikka nimi katkeaa.
  */
 function scoreLine(r: PlayerResult, me: boolean): string {
-  const rank = r.summary.count > 0 ? `${r.rank}.` : '– ';
-  return `${me ? '>' : ' '}${rank} ${nameField(r)} ${formatWeight(r.summary.score).padStart(7)}`;
+  return `${me ? '>' : ' '}${rankLabel(r).padEnd(2)} ${nameField(r)} ${formatWeight(r.summary.score).padStart(7)}`;
 }
+
+/**
+ * Sija tekstinä: "1." tai saaliittomalle viiva. Sama sääntö kisan taulussa,
+ * tulossivulla ja kopioiduissa tuloksissa (#528): nollien tasapeli ei ole sija.
+ */
+export const rankLabel = (r: PlayerResult): string => (r.summary.count > 0 ? `${r.rank}.` : '–');
 
 function nameField(r: PlayerResult): string {
   // Lähteneen nimessä on tulossivun merkintä "(lähti)": taulussa sen tilalla ×.
