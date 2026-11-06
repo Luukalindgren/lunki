@@ -31,3 +31,4 @@ vaihtoehtoja eivätkä ole pelin nykyistä koodia.
 | #517  | Kisan tulostaulu ennen ensimmäistä kalaa                                                               |
 | #528  | Tulossivu: saaliittomien sija                                                                          |
 | #529  | Aula isolle porukalle: tiivis pelaajalista                                                             |
+| #535  | Kalojen käytös pohjoismaisten lähteiden mukaan: made, lajisto (mittaus: `535/mittaus.patch`)           |

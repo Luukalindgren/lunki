@@ -1,0 +1,412 @@
+diff --git a/packages/shared/src/tutkimus/lajit.ts b/packages/shared/src/tutkimus/lajit.ts
+new file mode 100644
+index 0000000..710f7e2
+--- /dev/null
++++ b/packages/shared/src/tutkimus/lajit.ts
+@@ -0,0 +1,166 @@
++import { LUNKINJARVI, LUNKINJARVI_BOTTOM } from '../map/lunkinjarvi';
++import { LakeBottom } from '../map/bottom';
++import { WaterBody } from '../map/waterBody';
++import { findLaunchPoint } from '../map/geometry';
++import { Rng } from '../rng';
++import type { Vec2 } from '../vec2';
++import type { Season } from '../weather/season';
++import { CAST, rodTip } from '../fishing/cast';
++import { DIFFICULTIES, type Difficulty } from '../fishing/difficulty';
++import {
++  DAYTIME,
++  FISH_COUNT,
++  NATIVE_SPECIES,
++  createFishPopulation,
++  stepFishPopulation,
++  type FishConditions,
++} from '../fishing/fish';
++import type { Tackle } from '../fishing/gear';
++import { createFishing, lureInfo, stepFishing, type FishingContext } from '../fishing/fishing';
++
++/** Reaktioaika (s), jonka jälkeen tavallinen pelaaja nostaa pintaan tulleen kalan (#366). */
++const NAIVE_LAND_DELAY = 0.8;
++
++/** Kalastusta tuntemattoman pelaajan saldo simulaatiosta. */
++export interface NaiveResult {
++  minutes: number;
++  casts: number;
++  follows: number;
++  strikes: number;
++  hooked: number;
++  caught: number;
++  missed: number;
++  escaped: number;
++  lineBroken: number;
++  snagged: number;
++  lureLost: number;
++}
++
++let lake: { water: WaterBody; bottom: LakeBottom } | null = null;
++function lunkinjarvi() {
++  if (!lake) {
++    const water = new WaterBody(LUNKINJARVI);
++    const bottom = new LakeBottom(
++      water,
++      LUNKINJARVI.bounds,
++      LUNKINJARVI_BOTTOM,
++      LUNKINJARVI.reeds,
++      LUNKINJARVI.piers,
++    );
++    lake = { water, bottom };
++  }
++  return lake;
++}
++
++/**
++ * Naiivi pelaaja Lunkinjärvellä: heittää satunnaiseen suuntaan satunnaisella
++ * voimalla, kelaa tasaisesti normaalivaihteella eikä koske jarruun tai
++ * varusteisiin. Pohjaan tarttunutta kelataan, maalle juuttunut katkaistaan.
++ * Paikka vaihtuu `move` sekunnin välein (rannan lähelle, kuin potkien).
++ */
++export function simSpecies(
++  difficulty: Difficulty,
++  seed: number,
++  minutes = 10,
++  opts: { dt?: number; move?: number; cond?: FishConditions; season?: Season; tackle?: Tackle } = {},
++): Record<string, number> {
++  const dt = opts.dt ?? 1 / 30;
++  const move = opts.move ?? 120;
++  const season = opts.season ?? 'summer';
++  const cond = { ...(opts.cond ?? DAYTIME), season };
++  const { water, bottom } = lunkinjarvi();
++  const rng = new Rng(seed);
++  const me = new Rng(seed ^ 0x9e3779b9);
++  const world = {
++    isWater: (p: Vec2) => water.isWater(p),
++    depthAt: (p: Vec2) => bottom.depthAt(p),
++  };
++  const pop = createFishPopulation(
++    { ...world, structures: bottom.structures },
++    LUNKINJARVI.bounds,
++    rng,
++    FISH_COUNT,
++    [...NATIVE_SPECIES],
++    season,
++  );
++  const diff = DIFFICULTIES[difficulty];
++  const s = createFishing(opts.tackle);
++  const sp: Record<string, number> = {};
++  const r: NaiveResult = {
++    minutes,
++    casts: 0,
++    follows: 0,
++    strikes: 0,
++    hooked: 0,
++    caught: 0,
++    missed: 0,
++    escaped: 0,
++    lineBroken: 0,
++    snagged: 0,
++    lureLost: 0,
++  };
++  let pos = { x: 0, y: 0 };
++  let heading = 0;
++  const relocate = () => {
++    pos = findLaunchPoint(water, LUNKINJARVI.bounds, () => me.next());
++    const shore = water.closestShorePoint(pos)?.point ?? pos;
++    heading = Math.atan2(pos.y - shore.y, pos.x - shore.x);
++  };
++  relocate();
++  let nextMove = move;
++  let charge = 0;
++  let aim = pos;
++  const end = minutes * 60;
++  for (let t = 0; t < end; t += dt) {
++    if (t >= nextMove && s.stage === 'idle') {
++      relocate();
++      nextMove = t + move;
++    }
++    const ctx: FishingContext = {
++      tubePos: pos,
++      heading,
++      ...world,
++      structureAt: (p) => bottom.structureAt(p),
++      bottomTypeAt: (p) => bottom.bottomTypeAt(p),
++    };
++    const fe = stepFishPopulation(pop, lureInfo(s, ctx), world, diff, rng, dt, cond);
++    if (fe.follow !== undefined) r.follows++;
++    if (s.stage === 'idle' && charge <= 0) {
++      // Uusi heitto: suunta katseen ympäriltä, voimamittari pysäytetään sattumalta.
++      const a = heading + me.range(-1.2, 1.2);
++      const tip = rodTip(pos, heading);
++      aim = { x: tip.x + Math.cos(a) * 20, y: tip.y + Math.sin(a) * 20 };
++      charge = me.range(0.35, 1) * CAST.chargeTime;
++    }
++    const charging = s.stage === 'idle' || s.stage === 'charging';
++    const castHeld = charging && charge > 0 && !(s.stage === 'idle' && s.needRelease);
++    if (s.stage === 'charging') charge -= dt;
++    const ev = stepFishing(
++      s,
++      {
++        aim,
++        castHeld,
++        reel: s.stage === 'water',
++        cancel: false,
++        cut: s.stage === 'water' && s.onLand,
++        // Nosto (#366): tavallinen pelaaja nostaa, kun on huomannut kalan pinnassa.
++        land: s.landing !== null && s.landing.age > NAIVE_LAND_DELAY,
++      },
++      { ...ctx, fish: { pop, diff, rng, strike: fe.strike } },
++      dt,
++    );
++    if (ev.cast !== undefined) {
++      r.casts++;
++      charge = 0;
++    }
++    if (ev.strike) r.strikes++;
++    if (ev.hooked) r.hooked++;
++    if (ev.caught) { r.caught++; const k = ev.caught.species; sp[k] = (sp[k] ?? 0) + 1; }
++    if (ev.missed) r.missed++;
++    if (ev.escaped) r.escaped++;
++    if (ev.lineBroken) r.lineBroken++;
++    if (ev.snagged) r.snagged++;
++    if (ev.lureLost) r.lureLost++;
++  }
++  return sp;
++}
+diff --git a/packages/shared/src/tutkimus/lajit.test.ts b/packages/shared/src/tutkimus/lajit.test.ts
+new file mode 100644
+index 0000000..ce7c510
+--- /dev/null
++++ b/packages/shared/src/tutkimus/lajit.test.ts
+@@ -0,0 +1,44 @@
++import { it } from 'vitest';
++import { DAYTIME, NATIVE_SPECIES, SPECIES, speciesActivity, type FishConditions } from '../fishing/fish';
++import { DEFAULT_TACKLE } from '../fishing/gear';
++import type { Season } from '../weather/season';
++import { simSpecies } from './lajit';
++
++const TIMES: Record<string, FishConditions> = {
++  päivä: { ...DAYTIME, light: 1, twilight: 0 },
++  hämärä: { ...DAYTIME, light: 0.35, twilight: 1 },
++  yö: { ...DAYTIME, light: 0, twilight: 0 },
++};
++const SEASONS: Season[] = ['spring', 'summer', 'autumn'];
++
++it('aktiivisuus', () => {
++  const ids = [...NATIVE_SPECIES, 'zander' as const];
++  for (const s of SEASONS)
++    for (const [t, c] of Object.entries(TIMES)) {
++      const row = ids.map((id) => {
++        const a = speciesActivity(id, { ...c, season: s });
++        return `${id}=${a.toFixed(2)}`;
++      });
++      console.log(`AKT ${s} ${t} ${row.join(' ')}`);
++    }
++  for (const id of ids) console.log(`LI ${id} lureInterest=${SPECIES[id].lureInterest} abundance=${SPECIES[id].abundance}`);
++});
++
++it('saaliit', () => {
++  const seeds = Number(process.env.SEEDS ?? 4);
++  for (const lure of (process.env.LURE ? [process.env.LURE] : ['spoon', 'jig']) as ('spoon' | 'jig')[])
++    for (const s of (process.env.SEASON ? [process.env.SEASON] : SEASONS) as Season[])
++      for (const [t, c] of Object.entries(TIMES)) {
++        const tot: Record<string, number> = {};
++        for (let k = 0; k < seeds; k++) {
++          const r = simSpecies('normal', 100 + k, 30, {
++            dt: 1 / 20,
++            cond: c,
++            season: s,
++            tackle: { ...DEFAULT_TACKLE, lure, jigWeight: 'g10' },
++          });
++          for (const [id, n] of Object.entries(r)) tot[id] = (tot[id] ?? 0) + n;
++        }
++        console.log(`SAALIS ${lure} ${s} ${t} ${JSON.stringify(tot)}`);
++      }
++}, 3_600_000);
+diff --git a/packages/shared/src/tutkimus/taitava.test.ts b/packages/shared/src/tutkimus/taitava.test.ts
+new file mode 100644
+index 0000000..260fb7a
+--- /dev/null
++++ b/packages/shared/src/tutkimus/taitava.test.ts
+@@ -0,0 +1,50 @@
++import { it } from 'vitest';
++import { SPECIES, type SpeciesId } from '../fishing/fish';
++import type { Season } from '../weather/season';
++import { skilledEvents, type Style } from './taitava2';
++
++const orig = { li: SPECIES.burbot.lureInterest, season: SPECIES.burbot.behavior.season };
++function variant(v: string) {
++  const b = SPECIES.burbot;
++  if (v === 'F') {
++    b.lureInterest = 0.05;
++    b.behavior.season = {
++      spring: { activity: 1.0 },
++      summer: { activity: 0.35, depth: [5, 99] },
++      autumn: { activity: 0.5, depth: [4, 99] },
++    };
++  } else if (v.startsWith('A')) {
++    b.lureInterest = v === 'A' ? 0.3 : Number(v.slice(1));
++    b.behavior.season = {
++      spring: { activity: 1.0 },
++      summer: { activity: 0.35, depth: [5, 99] },
++      autumn: { activity: 0.8, depth: [4, 99] },
++    };
++  } else {
++    b.lureInterest = orig.li;
++    b.behavior.season = orig.season;
++  }
++}
++const CASES: [string, SpeciesId, Season, number, 'spoon' | 'jig', Style][] = [
++  ['made kevätyö jigi', 'burbot', 'spring', 23.5, 'jig', 'jig'],
++  ['made kesäyö jigi', 'burbot', 'summer', 1, 'jig', 'jig'],
++  ['made syyshämärä jigi', 'burbot', 'autumn', 19, 'jig', 'jig'],
++  ['made syysyö jigi', 'burbot', 'autumn', 22.5, 'jig', 'jig'],
++  ['hauki syyshämärä lusikka', 'pike', 'autumn', 18, 'spoon', 'steady'],
++  ['ahven kesäpäivä lusikka', 'perch', 'summer', 13, 'spoon', 'steady'],
++];
++it('taitava', () => {
++  const seeds = Number(process.env.SEEDS ?? 3);
++  for (const v of (process.env.V ? [process.env.V] : ['nyt', 'A'])) {
++    for (const [name, sp, season, hour, lure, style] of CASES) {
++      if (v !== 'nyt' && sp !== 'burbot') continue;
++      variant(v);
++      const tot: Record<string, number> = {};
++      for (let k = 0; k < seeds; k++) {
++        const r = skilledEvents(sp, season, hour, { lure }, style, 30, 11 + k);
++        for (const [key, n] of Object.entries(r)) tot[key] = (tot[key] ?? 0) + n;
++      }
++      console.log(`TAIT ${v} | ${name} | casts=${tot.casts} castStrike=${tot.castStrike ?? 0} target=${tot.target ?? 0} follow=${tot.follow}`);
++    }
++  }
++}, 3_600_000);
+diff --git a/packages/shared/src/tutkimus/taitava2.ts b/packages/shared/src/tutkimus/taitava2.ts
+new file mode 100644
+index 0000000..bdeb784
+--- /dev/null
++++ b/packages/shared/src/tutkimus/taitava2.ts
+@@ -0,0 +1,107 @@
++import { LUNKINJARVI, LUNKINJARVI_BOTTOM } from '../map/lunkinjarvi';
++import { LakeBottom } from '../map/bottom';
++import { WaterBody } from '../map/waterBody';
++import { Rng } from '../rng';
++import { distance, type Vec2 } from '../vec2';
++import { daylight } from '../weather/timeOfDay';
++import type { Season } from '../weather/season';
++import { CAST, predictLanding, rodTip } from '../fishing/cast';
++import { DIFFICULTIES } from '../fishing/difficulty';
++import { DAYTIME, FISH_COUNT, SPECIES_IDS, createFishPopulation, stepFishPopulation, type FishConditions, type SpeciesId } from '../fishing/fish';
++import { createFishing, lureInfo, stepFishing, type FishingContext } from '../fishing/fishing';
++import { DEFAULT_TACKLE, tackleCastFactor, type Tackle } from '../fishing/gear';
++
++const water = new WaterBody(LUNKINJARVI);
++const bottom = new LakeBottom(water, LUNKINJARVI.bounds, LUNKINJARVI_BOTTOM, LUNKINJARVI.reeds, LUNKINJARVI.piers);
++const world = { isWater: (p: Vec2) => water.isWater(p), depthAt: (p: Vec2) => bottom.depthAt(p) };
++
++export type Style = 'steady' | 'jig';
++export const METHODS: [string, Partial<Tackle>, Style][] = [
++  ['lusikka', { lure: 'spoon' }, 'steady'],
++  ['lippa', { lure: 'spinner', rod: 'light' }, 'steady'],
++  ['vaappu', { lure: 'wobbler' }, 'steady'],
++  ['jigi pohjassa', { lure: 'jig' }, 'jig'],
++];
++
++export interface Res { casts: number; follow: number; strike: number; caught: number; other: Partial<Record<SpeciesId, number>> }
++
++/** Taitava kalastaja heittää valitun lajin kalan yli ja uittaa vieheen sen kohdalta. */
++export function skilledEvents(species: SpeciesId, season: Season, hour: number, tackleOpt: Partial<Tackle>, style: Style, casts: number, seed: number, extra: Partial<FishConditions> = {}, level: 'easy' | 'normal' | 'realistic' = 'normal'): Record<string, number> {
++  const dt = 1 / 20;
++  const d = daylight(hour, season);
++  const cond: FishConditions = { ...DAYTIME, light: d.light, twilight: d.twilight, season, ...extra };
++  const rng = new Rng(seed);
++  const me = new Rng(seed * 7 + 3);
++  const pop = createFishPopulation({ ...world, structures: bottom.structures }, LUNKINJARVI.bounds, rng, FISH_COUNT, [...SPECIES_IDS], season);
++  const diff = DIFFICULTIES[level];
++  for (let t = 0; t < 120; t += 0.5) stepFishPopulation(pop, null, world, diff, rng, 0.5, cond);
++  const tackle: Tackle = { ...DEFAULT_TACKLE, ...tackleOpt };
++  const factor = tackleCastFactor(tackle);
++  const r: Record<string, number> = { casts: 0, follow: 0, strike: 0, caught: 0 };
++  for (let c = 0; c < casts; c++) {
++    const cands = pop.fish.filter((f) => f.species === species && f.mode === 'roam');
++    const target = cands[Math.floor(me.next() * cands.length)]!;
++    // Paikka 22 m kalasta vedessä.
++    let pos: Vec2 | null = null;
++    for (let i = 0; i < 40 && !pos; i++) {
++      const a = me.range(-Math.PI, Math.PI);
++      const p = { x: target.pos.x + Math.cos(a) * 22, y: target.pos.y + Math.sin(a) * 22 };
++      if (water.isWater(p) && water.isWater({ x: (p.x + target.pos.x) / 2, y: (p.y + target.pos.y) / 2 })) pos = p;
++    }
++    if (!pos) continue;
++    const heading = Math.atan2(target.pos.y - pos.y, target.pos.x - pos.x);
++    const tip = rodTip(pos, heading);
++    // Voima, jolla viehe lentää 8 m kalan taakse.
++    const want = distance(tip, target.pos) + 8;
++    let lo = 0.08, hi = 1;
++    for (let i = 0; i < 20; i++) {
++      const m = (lo + hi) / 2;
++      if (distance(tip, predictLanding(tip, heading, m, factor)) < want) lo = m; else hi = m;
++    }
++    const hold = lo * CAST.chargeTime;
++    const aim = { x: tip.x + Math.cos(heading) * 30, y: tip.y + Math.sin(heading) * 30 };
++    const s = createFishing(tackle);
++    const ctx: FishingContext = { tubePos: pos, heading, ...world, structureAt: (p) => bottom.structureAt(p), bottomTypeAt: (p) => bottom.bottomTypeAt(p) };
++    let held = 0;
++    let wet = 0;
++    let done = false;
++    let struck = false;
++    r.casts++;
++    for (let t = 0; t < 90 && !done; t += dt) {
++      const fe = stepFishPopulation(pop, lureInfo(s, ctx), world, diff, rng, dt, cond);
++      const spOf = (id?: number) => pop.fish.find((f) => f.id === id)?.species;
++      if (fe.follow !== undefined && spOf(fe.follow) === species) r.follow++;
++      if (fe.strike !== undefined && spOf(fe.strike) === species) {
++        r.strike++;
++        if (!struck) r.castStrike = (r.castStrike ?? 0) + 1;
++        struck = true;
++      }
++      if (fe.strike !== undefined && spOf(fe.strike) !== species) r.otherStrike = (r.otherStrike ?? 0) + 1;
++      const charging = s.stage === 'idle' || s.stage === 'charging';
++      if (charging) held += dt;
++      let reel = false;
++      if (s.stage === 'water') {
++        wet += dt;
++        const fighting = s.hookedId !== null || s.struckId !== null;
++        if (fighting || style === 'steady') reel = true;
++        else {
++          // Jigi: anna painua pohjaan, sitten 1 s kelaus ja 1,5 s tauko.
++          const bot = world.depthAt(s.lure);
++          const sunk = s.depth >= bot - 0.3 || wet > 8;
++          if (sunk) reel = ((wet % 2.5) < 1);
++        }
++      }
++      const ev = stepFishing(s, {
++        aim, castHeld: charging && held < hold, reel, cancel: false,
++        cut: s.stage === 'water' && s.onLand,
++        twitch: s.strikeBig && s.strikeAge > 0.25,
++        land: s.landing !== null && s.landing.age > 0.6,
++      } as never, { ...ctx, fish: { pop, diff, rng, strike: fe.strike } }, dt);
++      if (ev.caught && (ev.caught as { species: SpeciesId }).species === species) r.target = (r.target ?? 0) + 1;
++      for (const k of ['hooked','missed','missedTwitch','escaped','lineBroken','bitOff','jumped','lunged','caught'] as const) if ((ev as Record<string, unknown>)[k]) r[k] = (r[k] ?? 0) + 1;
++      if (ev.caught || ev.escaped || ev.lineBroken || ev.missed || ev.lureLost) done = s.hookedId === null && s.struckId === null && ev.caught !== undefined;
++      if (s.stage === 'idle' && t > 1) done = true;
++    }
++  }
++  return r;
++}
+diff --git a/packages/shared/src/tutkimus/syvyys.test.ts b/packages/shared/src/tutkimus/syvyys.test.ts
+new file mode 100644
+index 0000000..9467b36
+--- /dev/null
++++ b/packages/shared/src/tutkimus/syvyys.test.ts
+@@ -0,0 +1,15 @@
++import { it } from 'vitest';
++import { LUNKINJARVI, LUNKINJARVI_BOTTOM } from '../map/lunkinjarvi';
++import { LakeBottom } from '../map/bottom';
++import { WaterBody } from '../map/waterBody';
++it('syvyys', () => {
++  const water = new WaterBody(LUNKINJARVI);
++  const b = new LakeBottom(water, LUNKINJARVI.bounds, LUNKINJARVI_BOTTOM, LUNKINJARVI.reeds, LUNKINJARVI.piers);
++  const bb = LUNKINJARVI.bounds; const min = { x: bb.minX, y: bb.minY }, max = { x: bb.maxX, y: bb.maxY };
++  let n = 0, sum = 0, mx = 0; const hist = new Array(10).fill(0);
++  for (let x = min.x; x < max.x; x += 5) for (let y = min.y; y < max.y; y += 5) {
++    const p = { x, y }; if (!water.isWater(p)) continue;
++    const d = b.depthAt(p); n++; sum += d; mx = Math.max(mx, d); hist[Math.min(9, Math.floor(d))]++;
++  }
++  console.log(`SYV ala=${(n*25/10000).toFixed(1)} ha keski=${(sum/n).toFixed(2)} max=${mx.toFixed(2)} osuudet=${hist.map(h=>(100*h/n).toFixed(0)).join('/')}`);
++});
