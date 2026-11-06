@@ -970,6 +970,11 @@ textarea,
   margin-left: 12px;
 }
 
+/* Saaliittomalla ei ole sijaa (#528). */
+.catch-list.results li.unranked {
+  list-style-type: '–  ';
+}
+
 /* Iso porukka (#507): ilman varusteita ja pienin kalakuvin koko lista näkyy. */
 .catch-list.results.compact {
   --fish-px: 1px;
