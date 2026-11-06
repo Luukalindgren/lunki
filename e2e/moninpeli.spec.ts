@@ -218,6 +218,13 @@ test('täysi aula: katsoja odottaa paikkaa ja pääsee kalastamaan rajan noustes
   await row(host, 'Pelaajia enintään').getByRole('button', { name: '4', exact: true }).click();
   await expect(nextRace.locator('button.selected')).toHaveText('Kalastan');
   await expect(host.locator('.choice-label', { hasText: 'Pelaajat 3/4' })).toBeVisible();
+
+  // Aloita ennen kuin muut ovat valmiita: ilmoitus näkyy nappien yläpuolella
+  // eikä jää pitkän aulan loppuun vierityksen taakse.
+  await host.getByRole('button', { name: /^Aloita/ }).click();
+  const notice = host.locator('.lobby-notice');
+  await expect(notice).toContainText(/Odotetaan: .*Toinen/);
+  await expect(notice).toBeInViewport();
   for (const e of errors) e.check();
   await second!.context().close();
   await third!.context().close();
