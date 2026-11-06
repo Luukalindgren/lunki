@@ -857,6 +857,12 @@ textarea,
   color: #f08a4b;
 }
 
+/* Aulan ilmoitus omalla rivillään nappien yläpuolella. */
+.buttons .lobby-notice {
+  flex-basis: 100%;
+  margin: 0;
+}
+
 .room-code {
   font-size: 56px;
   color: #fff3b0;

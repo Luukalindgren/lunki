@@ -936,7 +936,6 @@ export class Screens {
           ]
         : []),
     );
-    if (notice) panel.append(h('p', notice, 'error'));
     const buttons: [string, () => void][] = [];
     if (v.amHost)
       buttons.push([
@@ -949,7 +948,12 @@ export class Screens {
         () => actions.onReady(!me?.ready),
       ]);
     buttons.push([t('common.leave'), actions.onLeave]);
-    panel.append(this.buttons(buttons));
+    const footer = this.buttons(buttons);
+    // Ilmoitus ("Odotetaan: …", asetukset muuttuivat) napin yläpuolelle, joka
+    // pysyy näkyvissä: pitkän aulan lopussa se jäi vierityksen taakse, eikä
+    // Aloita-napin painallus näyttänyt tekevän mitään.
+    if (notice) footer.prepend(h('p', notice, 'error lobby-notice'));
+    panel.append(footer);
     this.show(panel, { scroll });
   }
 
