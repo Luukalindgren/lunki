@@ -32,3 +32,5 @@ vaihtoehtoja eivätkä ole pelin nykyistä koodia.
 | #528  | Tulossivu: saaliittomien sija                                                                          |
 | #529  | Aula isolle porukalle: tiivis pelaajalista                                                             |
 | #535  | Kalojen käytös pohjoismaisten lähteiden mukaan: made, lajisto (mittaus: `535/mittaus.patch`)           |
+| #539  | Aula: aloitus, vaikka joku ei ole valmis                                                               |
+| #540  | Aula: renkaan teksti pois listasta                                                                     |
