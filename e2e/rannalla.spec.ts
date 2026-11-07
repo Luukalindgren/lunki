@@ -81,7 +81,13 @@ test('täyttökisa: pumppaus ja letkun siirto', async ({ page }) => {
   for (let i = 0; i < 100; i++) {
     await expect(ready.or(moveHose)).toBeVisible();
     if (await moveHose.isVisible()) break;
+    const before = await bars.first().innerText();
     await page.keyboard.press('Space');
+    // Odota, että peli otti vedon vastaan, ennen kuin katsotaan kahvaa
+    // uudelleen: hitaalla koneella HUD näyttää vielä hetken vanhaa
+    // ylhäällä-tilaa, ja heti perään painettu veto osuisi alhaalla olevaan
+    // kahvaan.
+    await expect(bars.first()).not.toHaveText(before);
   }
   await expect(situation).toContainText('Siirrä letku: oikea puolisko');
   await expect(bars.first()).toHaveText('Vasen 100 %');
