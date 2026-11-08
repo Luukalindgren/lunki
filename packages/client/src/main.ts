@@ -583,6 +583,8 @@ function enterLobby(s: NetSession) {
   let notice: string | undefined;
   /** Isäntä valitsee aloituspaikkaa: aula ei piirry kartan päälle. */
   let picking = false;
+  /** Isäntä painoi Aloita ennen muiden valmiutta: Aloita silti vai Odota (#539). */
+  let confirmStart = false;
   /** Isännälle: kuka juuri liittyi tai on valmis (#516). */
   let event: LobbyEvent | null = null;
   let eventTimer: ReturnType<typeof setTimeout> | undefined;
@@ -614,7 +616,21 @@ function enterLobby(s: NetSession) {
           wasReady = r;
           s.setReady(r);
         },
-        onStart: () => s.start(),
+        onStart: (force) => {
+          // Ensimmäinen painallus kysyy, toinen (Aloita silti) aloittaa (#539).
+          if (!force && !v.allReady && v.canForceStart) {
+            confirmStart = true;
+            notice = undefined;
+          } else {
+            confirmStart = false;
+            s.start(force);
+          }
+          render();
+        },
+        onWait: () => {
+          confirmStart = false;
+          render();
+        },
         onSpectate: (on) => s.setSpectator(on),
         onBoat: (boat) => s.sendBoat(boat),
         onSeat: (seat) => s.sendSeat(seat),
@@ -643,6 +659,7 @@ function enterLobby(s: NetSession) {
       notice,
       (parent) => chat?.mount(parent, 'panel'),
       event,
+      confirmStart,
     );
   };
   let wasReady = false;
@@ -661,6 +678,7 @@ function enterLobby(s: NetSession) {
     // Kisa alkaa, kun tila aloituspaikkoineen on saapunut.
     if (v.phase !== 'lobby' && !game) {
       picking = false;
+      confirmStart = false;
       saveLastRoom(v.code);
       startGame(v.settings, s.room.state.seed);
       // Kesken kisan mukaan (uutena, paluuna tai sivun uudelleenlatauksen jälkeen).
@@ -689,6 +707,7 @@ function enterLobby(s: NetSession) {
       hud.setVisible(false);
     }
     const ready = v.players.find((p) => p.me)?.ready ?? false;
+    if (v.allReady || !v.amHost) confirmStart = false;
     notice = wasReady && !ready && !v.amHost ? t('mp.settingsChanged') : undefined;
     wasReady = ready;
     tellHost(v);

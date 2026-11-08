@@ -42,6 +42,7 @@ import {
   JoinRefusal,
   type ChatMessage,
   type RoomError,
+  type StartOptions,
   type CatchRecord,
   type BigWaveMessage,
   type SpoutMessage,
@@ -85,7 +86,7 @@ async function until(cond: () => boolean, ms = 2000): Promise<void> {
   }
 }
 
-type PlayerView = { name: string; ready: boolean };
+type PlayerView = { name: string; ready: boolean; spectator?: boolean };
 // Tila saapuu asynkronisesti liittymisen jälkeen.
 const players = (room: Room): PlayerView[] => [
   ...((room.state as { players?: Map<string, PlayerView> } | undefined)?.players?.values() ?? []),
@@ -232,6 +233,32 @@ describe('LunkiRoom', () => {
     // Sää lasketaan samasta siemenestä kuin asiakkailla.
     const plan = planWeather(seed, 'realistic', guest.state.settings.durationMinutes * 60);
     expect(guest.state.sky).toBe(weatherAt(plan, 0).sky);
+
+    await host.leave();
+    await guest.leave();
+  });
+
+  it('isäntä voi aloittaa ilman muiden valmiutta, ja hekin kalastavat (#539)', async () => {
+    const host = await sdk().create(ROOM_NAME, { name: 'A', playerId: 'a' });
+    const guest = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
+    await until(() => players(host).length === 2);
+
+    const errors: RoomError[] = [];
+    host.onMessage(ServerMsg.error, (m: RoomError) => errors.push(m));
+    // Vieras ei voi pakottaa aloitusta.
+    const guestErrors: RoomError[] = [];
+    guest.onMessage(ServerMsg.error, (m: RoomError) => guestErrors.push(m));
+    guest.send(ClientMsg.start, { force: true } satisfies StartOptions);
+    await until(() => guestErrors.length === 1);
+    expect(guestErrors[0]).toEqual({ code: 'host-only' });
+
+    host.send(ClientMsg.start, { force: true } satisfies StartOptions);
+    await until(() => guest.state.phase === 'countdown');
+    expect(errors).toEqual([]);
+    // Valmiiksi kuittaamaton on tavallinen kalastaja eikä katsoja.
+    const b = players(guest).find((p) => p.name === 'B')!;
+    expect(b.ready).not.toBe(true);
+    expect(b.spectator).not.toBe(true);
 
     await host.leave();
     await guest.leave();
