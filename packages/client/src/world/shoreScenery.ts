@@ -23,10 +23,10 @@ const INLAND = TREE_BAND + 2;
 const STEP = 4;
 /** Metsäkuvion yhden toiston leveys (m): pikseli on suunnilleen puuspritejen kokoinen. */
 const FOREST_TEXTURE_METERS = 20;
-/** Pihan tarkistuksen suurin ulottuma (m): rakennusruudukon ruudun koko. */
-const YARD_REACH = 25;
 /** Kuinka kauas (m) metsänreuna saa siirtyä rakennusten taakse. */
-const YARD_PUSH = 60;
+const YARD_PUSH = 150;
+/** Metsänreunan välin vähimmäisetäisyys rakennuksesta (m). */
+const SEGMENT_CLEAR = 1.5;
 
 /**
  * Metsän massa siluettina POV-näkymää varten: rannan puuvyöhykkeen takana
@@ -92,7 +92,9 @@ function treeLine(
   heightScale: number,
 ): TreeLinePoint[] {
   const n = ring.length;
-  const points: TreeLinePoint[] = [];
+  const normals: Vec2[] = [];
+  const reach: number[] = [];
+  const narrow: boolean[] = [];
   for (let i = 0; i < n; i++) {
     const prev = ring[(i - 1 + n) % n]!;
     const next = ring[(i + 1) % n]!;
@@ -103,32 +105,64 @@ function treeLine(
     const len = Math.hypot(tx, ty) || 1;
     const nx = ty / len;
     const ny = -tx / len;
+    normals.push({ x: nx, y: ny });
     // Kapealla niemellä metsänreunaa ei ole: siluetti seisoisi vastarannan
     // vedessä tai aivan katsojan edessä tasaisena vihreänä seinänä. Niemen
     // puut ovat puuvyöhykkeen spritejä, ja niiden välistä näkyy vesi.
-    let narrow = false;
+    let thin = false;
     for (let d = 2; d <= inland * 1.4; d += 2) {
       if (isWater({ x: p.x + nx * d, y: p.y + ny * d })) {
-        narrow = true;
+        thin = true;
         break;
       }
     }
-    // Rakennuksen kohdalla metsänreuna siirtyy talon taakse, ettei siluetti
-    // kulje sen läpi; jos taakse ei mahdu, seinämä laskee maahan (ks. alla).
-    let reach = narrow ? 1 : inland;
-    if (!narrow) {
-      for (let back = 0; back <= YARD_PUSH; back += STEP * 2) {
-        const d = inland + back;
-        const q = { x: p.x + nx * d, y: p.y + ny * d };
-        if (isWater(q) || isWater({ x: q.x + nx * YARD, y: q.y + ny * YARD })) break;
-        if (!yards.covers(q, YARD)) {
-          reach = d;
+    narrow.push(thin);
+    reach.push(thin ? 1 : inland);
+  }
+  const at = (i: number, d: number) => ({
+    x: ring[i]!.x + normals[i]!.x * d,
+    y: ring[i]!.y + normals[i]!.y * d,
+  });
+  /** Etäisyys lähimpään veteen (m), enintään inland + STEP * 2. */
+  const shoreDistance = (q: Vec2) => {
+    let best = inland + STEP * 2;
+    for (let k = 0; k < 16; k++) {
+      const a = (k * Math.PI) / 8;
+      for (let r = 0; r < best; r += STEP)
+        if (isWater({ x: q.x + Math.cos(a) * r, y: q.y + Math.sin(a) * r })) {
+          best = r;
           break;
         }
+    }
+    return best;
+  };
+  /**
+   * Siirtää metsänreunan pistettä maalle päin, kunnes ehto täyttyy. Jos
+   * toinen ranta tai YARD_PUSH tulee vastaan, piste jää paikalleen ja palautetaan false.
+   */
+  const push = (i: number, from: number, ok: (q: Vec2) => boolean): boolean => {
+    const start = Math.min(shoreDistance(at(i, reach[i]!)), inland) * 0.8;
+    for (let d = from; d <= inland + YARD_PUSH; d += STEP) {
+      const q = at(i, d);
+      // Niemellä taaemmas siirretty seinämä tulisi toisen rannan puolelle
+      // ja peittäisi talot sieltä katsottuna: siirto loppuu, kun vesi on
+      // lähempänä kuin metsänreunan alkuperäisestä paikasta.
+      if (shoreDistance(q) < start) return false;
+      if (ok(q)) {
+        reach[i] = d;
+        return true;
       }
     }
-    const x = p.x + nx * reach;
-    const y = p.y + ny * reach;
+    return false;
+  };
+  // Rakennuksen kohdalla metsänreuna siirtyy talon taakse: talo näkyy
+  // edessä ja metsä jatkuu sen takana.
+  for (let i = 0; i < n; i++)
+    if (!narrow[i] && yards.covers(at(i, reach[i]!), YARD))
+      push(i, reach[i]!, (q) => !yards.covers(q, YARD));
+  const point = (i: number): TreeLinePoint => {
+    const p = ring[i]!;
+    const { x, y } = at(i, reach[i]!);
     // Latvojen korkeus: laaja vaihtelu (metsikkö) + terävä (yksittäiset puut).
     const broad = valueNoise(p.x / 90, p.y / 90, 21);
     const spike = Math.abs(valueNoise(p.x / 5, p.y / 5, 22));
@@ -137,22 +171,29 @@ function treeLine(
     const kind = cover?.kindAt({ x, y }) ?? null;
     const open = kind !== null && OPEN_LAND.has(kind);
     const base = Math.max(0, ground.heightAt({ x, y })) - 0.5;
-    const height = narrow ? 0 : open ? 0.5 : (15 + broad * 6 + spike * 7) * heightScale;
-    points.push({ x, y, base, height, broad });
-  }
-  // Jos rakennus on yhä lähellä, seinämä laskee siinä maahan. Lahden
-  // pohjukassa näytteet harvenevat, joten piha katsotaan naapuriväliin asti.
-  const yard = points.map((p, i) => {
-    const prev = points[(i - 1 + n) % n]!;
-    const next = points[(i + 1) % n]!;
-    const gap = Math.max(
-      Math.hypot(p.x - prev.x, p.y - prev.y),
-      Math.hypot(p.x - next.x, p.y - next.y),
-    );
-    return p.height > 0 && yards.covers(p, Math.min(YARD_REACH, Math.max(YARD, gap)));
-  });
-  points.forEach((p, i) => {
-    if (yard[i]) p.height = 0;
+    const height = narrow[i] ? 0 : open ? 0.5 : (15 + broad * 6 + spike * 7) * heightScale;
+    return { x, y, base, height, broad };
+  };
+  const points = ring.map((_, i) => point(i));
+  // Naapuripisteiden väli voi silti osua rakennukseen (lahden pohjukassa
+  // pisteet harvenevat). Siinä seinämä laskee maahan: välin päiden
+  // siirtäminen niemellä toi seinämän talojen eteen toiselta puolelta.
+  const blocked = (i: number) => {
+    const a = points[i]!;
+    const b = points[(i + 1) % n]!;
+    if (a.height <= 1 && b.height <= 1) return false;
+    const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y)));
+    for (let k = 0; k <= steps; k++) {
+      const q = { x: a.x + ((b.x - a.x) * k) / steps, y: a.y + ((b.y - a.y) * k) / steps };
+      if (yards.covers(q, SEGMENT_CLEAR)) return true;
+    }
+    return false;
+  };
+  const cut = points.map((_, i) => blocked(i));
+  cut.forEach((c, i) => {
+    if (!c) return;
+    points[i]!.height = 0;
+    points[(i + 1) % n]!.height = 0;
   });
   return points;
 }

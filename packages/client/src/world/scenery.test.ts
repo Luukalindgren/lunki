@@ -79,4 +79,20 @@ describe('rantamaisema', () => {
     }
     expect(cut).toEqual([]);
   });
+
+  it('metsänreuna jatkuu rakennusten takana eikä katkea pihoille', () => {
+    const flat = (lines: { height: number }[][]) =>
+      lines.flat().filter((p) => p.height === 0).length;
+    const withBuildings = flat(planTreeLines(map, LUNKINJARVI_SURROUNDINGS));
+    const without = flat(
+      planTreeLines(map, {
+        ...LUNKINJARVI_SURROUNDINGS,
+        areas: LUNKINJARVI_SURROUNDINGS.areas.filter((a) => a.kind !== 'building'),
+      }),
+    );
+    // Kapeilla niemillä seinämää ei ole muutenkaan. Pihat saavat lisätä vain
+    // vähän aukkoja (noin 3 % pisteistä); talon takana näkyi taivas, kun
+    // aukkoja oli lähes 500.
+    expect(withBuildings - without).toBeLessThan(100);
+  });
 });
