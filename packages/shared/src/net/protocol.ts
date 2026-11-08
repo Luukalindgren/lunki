@@ -159,10 +159,13 @@ export type JoinRefusalCode = (typeof JoinRefusal)[keyof typeof JoinRefusal];
  * pelaajien nimet. Asiakas kääntää koodin; vanha palvelin lähetti valmiin
  * suomenkielisen lauseen.
  */
-export type RoomErrorCode = 'host-only' | 'need-angler' | 'not-ready';
+export type RoomErrorCode = 'host-only' | 'need-angler' | 'not-ready' | 'outdated-peer';
 export interface RoomError {
   code: RoomErrorCode;
-  /** not-ready: pelaajat, joita odotetaan. */
+  /**
+   * not-ready: pelaajat, joita odotetaan. outdated-peer: pelaajat, joiden
+   * vanha pelin versio esti isännän valitseman asetuksen (#552).
+   */
   names?: string[];
 }
 
