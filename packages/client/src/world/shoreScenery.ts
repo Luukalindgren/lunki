@@ -13,7 +13,7 @@ import {
 import { spriteMipmaps } from '../engine/pixelMipmaps';
 import { Ground } from './ground';
 import { SEASON_COLORS, type SeasonColors } from './seasonColors';
-import { TREE_BAND } from './vegetation';
+import { BuildingIndex, TREE_BAND, YARD } from './vegetation';
 
 /** Maankäyttö, jossa rannalla ei kasva metsää. */
 const OPEN_LAND = new Set<AreaKind>(['field', 'residential', 'beach', 'bare', 'water', 'reeds']);
@@ -23,6 +23,10 @@ const INLAND = TREE_BAND + 2;
 const STEP = 4;
 /** Metsäkuvion yhden toiston leveys (m): pikseli on suunnilleen puuspritejen kokoinen. */
 const FOREST_TEXTURE_METERS = 20;
+/** Pihan tarkistuksen suurin ulottuma (m): rakennusruudukon ruudun koko. */
+const YARD_REACH = 25;
+/** Kuinka kauas (m) metsänreuna saa siirtyä rakennusten taakse. */
+const YARD_PUSH = 60;
 
 /**
  * Metsän massa siluettina POV-näkymää varten: rannan puuvyöhykkeen takana
@@ -37,23 +41,45 @@ export function createShoreScenery(
 ): THREE.Group {
   const group = new THREE.Group();
   group.name = 'shore-scenery';
-  const cover = surroundings ? new LandCover(surroundings) : null;
   const material = new THREE.MeshBasicMaterial({
     vertexColors: true,
     map: createForestTexture(),
     alphaTest: 0.5,
     side: THREE.DoubleSide,
   });
+  for (const line of planTreeLines(map, surroundings, ground))
+    group.add(treeLineMesh(line, material, SEASON_COLORS[season]));
+  return group;
+}
+
+/** Metsänreunan yläreunan piste: paikka, alareunan korkeus ja siluetin korkeus (m). */
+export interface TreeLinePoint {
+  x: number;
+  y: number;
+  base: number;
+  height: number;
+  /** Laaja vaihtelu −1…1: metsikön sävy. */
+  broad: number;
+}
+
+/** Metsänreunan siluetit järven rannalle ja saarille; erillään piirrosta testejä varten. */
+export function planTreeLines(
+  map: LakeMap,
+  surroundings?: LakeSurroundings,
+  ground = new Ground(map, surroundings?.terrain ?? null),
+): TreeLinePoint[][] {
+  const cover = surroundings ? new LandCover(surroundings) : null;
+  const yards = new BuildingIndex(surroundings);
   const isWater = ringWaterTest(map.shore, map.islands);
   const line = (ring: Vec2[], inland: number, heightScale: number) =>
-    treeLine(ring, cover, ground, isWater, material, inland, heightScale, SEASON_COLORS[season]);
-  group.add(line(resample(map.shore, STEP), INLAND, 1));
+    treeLine(ring, cover, ground, isWater, yards, inland, heightScale);
+  const lines = [line(resample(map.shore, STEP), INLAND, 1)];
   // Saaret ovat kapeita: siluetti saaren sisään, ja luotojen puut ovat matalampia.
   for (const island of map.islands) {
     const inland = Math.min(INLAND, Math.sqrt(Math.abs(signedArea(island))) / 4);
-    group.add(line(resample(island, STEP / 2), inland, 0.6));
+    lines.push(line(resample(island, STEP / 2), inland, 0.6));
   }
-  return group;
+  return lines;
 }
 
 function treeLine(
@@ -61,22 +87,12 @@ function treeLine(
   cover: LandCover | null,
   ground: Ground,
   isWater: (p: Vec2) => boolean,
-  material: THREE.Material,
+  yards: BuildingIndex,
   inland: number,
   heightScale: number,
-  look: SeasonColors,
-): THREE.Mesh {
+): TreeLinePoint[] {
   const n = ring.length;
-  const positions: number[] = [];
-  const colors: number[] = [];
-  const uvs: number[] = [];
-  let along = 0;
-  let last: Vec2 | null = null;
-  const index: number[] = [];
-  const dark = new THREE.Color(look.treeLine.dark);
-  const mid = new THREE.Color(look.treeLine.mid);
-  const birch = new THREE.Color(look.treeLine.birch);
-  const c = new THREE.Color();
+  const points: TreeLinePoint[] = [];
   for (let i = 0; i < n; i++) {
     const prev = ring[(i - 1 + n) % n]!;
     const next = ring[(i + 1) % n]!;
@@ -97,7 +113,20 @@ function treeLine(
         break;
       }
     }
-    const reach = narrow ? 1 : inland;
+    // Rakennuksen kohdalla metsänreuna siirtyy talon taakse, ettei siluetti
+    // kulje sen läpi; jos taakse ei mahdu, seinämä laskee maahan (ks. alla).
+    let reach = narrow ? 1 : inland;
+    if (!narrow) {
+      for (let back = 0; back <= YARD_PUSH; back += STEP * 2) {
+        const d = inland + back;
+        const q = { x: p.x + nx * d, y: p.y + ny * d };
+        if (isWater(q) || isWater({ x: q.x + nx * YARD, y: q.y + ny * YARD })) break;
+        if (!yards.covers(q, YARD)) {
+          reach = d;
+          break;
+        }
+      }
+    }
     const x = p.x + nx * reach;
     const y = p.y + ny * reach;
     // Latvojen korkeus: laaja vaihtelu (metsikkö) + terävä (yksittäiset puut).
@@ -108,10 +137,47 @@ function treeLine(
     const kind = cover?.kindAt({ x, y }) ?? null;
     const open = kind !== null && OPEN_LAND.has(kind);
     const base = Math.max(0, ground.heightAt({ x, y })) - 0.5;
-    const h = narrow ? 0 : open ? 0.5 : (15 + broad * 6 + spike * 7) * heightScale;
-    positions.push(x, base, -y, x, base + h, -y);
+    const height = narrow ? 0 : open ? 0.5 : (15 + broad * 6 + spike * 7) * heightScale;
+    points.push({ x, y, base, height, broad });
+  }
+  // Jos rakennus on yhä lähellä, seinämä laskee siinä maahan. Lahden
+  // pohjukassa näytteet harvenevat, joten piha katsotaan naapuriväliin asti.
+  const yard = points.map((p, i) => {
+    const prev = points[(i - 1 + n) % n]!;
+    const next = points[(i + 1) % n]!;
+    const gap = Math.max(
+      Math.hypot(p.x - prev.x, p.y - prev.y),
+      Math.hypot(p.x - next.x, p.y - next.y),
+    );
+    return p.height > 0 && yards.covers(p, Math.min(YARD_REACH, Math.max(YARD, gap)));
+  });
+  points.forEach((p, i) => {
+    if (yard[i]) p.height = 0;
+  });
+  return points;
+}
+
+function treeLineMesh(
+  points: TreeLinePoint[],
+  material: THREE.Material,
+  look: SeasonColors,
+): THREE.Mesh {
+  const n = points.length;
+  const positions: number[] = [];
+  const colors: number[] = [];
+  const uvs: number[] = [];
+  let along = 0;
+  let last: TreeLinePoint | null = null;
+  const index: number[] = [];
+  const dark = new THREE.Color(look.treeLine.dark);
+  const mid = new THREE.Color(look.treeLine.mid);
+  const birch = new THREE.Color(look.treeLine.birch);
+  const c = new THREE.Color();
+  for (let i = 0; i < n; i++) {
+    const { x, y, base, height, broad } = points[i]!;
+    positions.push(x, base, -y, x, base + height, -y);
     if (last) along += Math.hypot(x - last.x, y - last.y);
-    last = { x, y };
+    last = points[i]!;
     uvs.push(along / FOREST_TEXTURE_METERS, 0, along / FOREST_TEXTURE_METERS, 1);
     // Sävy vaihtuu metsiköittäin pehmeästi: näytteittäin vaihtuva väri
     // näkyi läheltä pystyraitoina.
