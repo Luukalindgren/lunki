@@ -21,6 +21,8 @@ export interface LakeMap {
   piers?: Pier[];
   /** Kaislikot ja lumpeikot: hidastavat rengasta, viehe voi tarttua (ks. reeds.ts). */
   reeds?: ReedBed[];
+  /** Rantaa lähellä olevien rakennusten pohjapiirrokset: niiden läpi ei kävellä (ks. shoreBuildings.ts). */
+  buildings?: Vec2[][];
 }
 
 /** Ympäristön aluetyypit (maankäyttö ja rakennukset). */

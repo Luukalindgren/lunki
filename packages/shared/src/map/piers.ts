@@ -32,6 +32,9 @@ export const PIER_DECK = 0.525;
 const PIER_LENGTH = { min: 7, max: 13 };
 const PIER_REACH = 45;
 const PIER_SPACING = 50;
+/** Kannen alku maalla rantaviivasta (m) ja lyhin, jos rakennus on tiellä. */
+const PIER_LAND = 1.5;
+const PIER_LAND_MIN = 0.3;
 
 /**
  * Laiturit: OSM:ssä niitä ei tältä järveltä ole, joten rannan mökeille
@@ -69,7 +72,20 @@ export function planPiers(map: LakeMap, s: LakeSurroundings): Pier[] {
     while (start < 1.5 && !wide(start)) start += 0.1;
     let ok = start < 1.5;
     for (let d = start; d <= len && ok; d += 0.5) ok = wide(d);
-    if (ok && wide(len)) piers.push({ from: at(-1.5), to: at(len), base: at(start) });
+    if (!ok || !wide(len)) continue;
+    // Kansi alkaa maalta, mutta ei rantasaunan sisältä: rakennus voi olla
+    // aivan rannassa (ks. shoreBuildings).
+    const ring = a.rings[0]!;
+    const inside = (d: number) => {
+      const c = at(d);
+      return (
+        pointInRing({ x: c.x + side.x, y: c.y + side.y }, ring) ||
+        pointInRing({ x: c.x - side.x, y: c.y - side.y }, ring)
+      );
+    };
+    let land = PIER_LAND;
+    while (land > PIER_LAND_MIN && inside(-land)) land -= 0.1;
+    piers.push({ from: at(-land), to: at(len), base: at(start) });
   }
   return piers;
 }
