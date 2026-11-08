@@ -916,6 +916,12 @@ textarea,
   border-bottom: 0;
 }
 
+/* Renkaalla kalastavien ryhmän otsikko veneiden alla (#540). */
+.player-list li.tube-group-head {
+  margin-top: 6px;
+  color: #8e99a4;
+}
+
 .player-seat {
   margin-right: auto;
   padding: 0 8px;

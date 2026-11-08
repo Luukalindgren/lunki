@@ -34,11 +34,13 @@ test('vene: kaksi kalastajaa samassa veneessä', async ({ page: host, browser })
   await guest.getByLabel('Huonekoodi').fill(code);
   await guest.getByRole('button', { name: 'Liity koodilla' }).click();
   await expect(guest.locator('.room-code')).toHaveText(code);
-  // Vieras on ensin renkaalla, omana rivinään veneen ulkopuolella.
+  // Vieras on ensin renkaalla, omana rivinään veneen ulkopuolella, ja
+  // renkaalla kalastavilla on oma otsikko ilman toistuvaa tekstiä (#540).
   // (hasText ei erota kirjainkokoa: "Kyyti" löytyisi myös napista "Liity kyytiin".)
+  await expect(guest.locator('.tube-group-head')).toHaveText('Kelluntarenkaalla · 1');
   await expect(
     guest.locator('.player-list li:not(.boat-crew)', { hasText: 'Kyyti (sinä)' }),
-  ).toContainText('kelluntarengas');
+  ).not.toContainText('kelluntarengas');
   await guest
     .locator('.boat-crew', { hasText: 'Vene 1' })
     .getByRole('button', { name: 'Liity kyytiin' })

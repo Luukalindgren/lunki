@@ -960,7 +960,7 @@ export class Screens {
   /**
    * Aulan pelaajat kulkupeleittäin (#263): jokainen vene on oma joukkueensa
    * (otsikko, miehistö paikkoineen ja Liity kyytiin), renkaalla kalastavat
-   * omina riveinään. Katsojat lopussa.
+   * omana ryhmänään (#540). Katsojat lopussa.
    */
   private crewRows(
     v: LobbyView,
@@ -1015,8 +1015,12 @@ export class Screens {
       team.append(head, members);
       rows.push(team);
     }
-    for (const p of v.players)
-      if (!p.spectator && p.boat === 0) rows.push(withSeat(p, t('boat.tube')));
+    // Renkaalla kalastavat ilman toistuvaa kulkupelin nimeä (#540): veneiden
+    // rinnalla otsikko kertoo jaon, ilman veneitä otsikko olisi turha.
+    const tubes = v.players.filter((p) => !p.spectator && p.boat === 0);
+    if (crews.size > 0 && tubes.length > 0)
+      rows.push(h('li', t('lobby.tubeGroup', { n: tubes.length }), 'tube-group-head'));
+    rows.push(...tubes.map(playerRow));
     rows.push(...v.players.filter((p) => p.spectator).map(playerRow));
     return rows;
   }
