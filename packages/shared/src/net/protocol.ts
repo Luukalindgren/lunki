@@ -13,7 +13,7 @@ export const ROOM_NAME = 'lunki';
  * uudelleen: asiakas ei lähetä vanhemmalle palvelimelle viestejä, joita se
  * ei tunne. Vanha palvelin ilman kenttää = 1.
  */
-export const PROTOCOL_VERSION = 15;
+export const PROTOCOL_VERSION = 16;
 /** Chat tuli versiossa 2. */
 export const CHAT_PROTOCOL = 2;
 /** Maalle juuttuneen vieheen siiman katkaisu (ClientMsg.landCut) tuli versiossa 3. */
@@ -72,6 +72,12 @@ export const BAIL_PROTOCOL = 14;
  * joten asiakas ei silloin tarjoa Aloita silti -nappia.
  */
 export const FORCE_START_PROTOCOL = 15;
+/**
+ * Siika (#535) tuli lajiksi versiossa 16, ja se on oletuslajistossa. Vanha
+ * asiakas ei tunne sitä ja arpoisi eri kalakannan, joten se ei pääse
+ * huoneeseen, jonka lajistossa on siika.
+ */
+export const WHITEFISH_PROTOCOL = 16;
 
 /** Oletuspelaajamäärä huoneessa. Rakenne sallii isomman. */
 export const DEFAULT_MAX_PLAYERS = 8;

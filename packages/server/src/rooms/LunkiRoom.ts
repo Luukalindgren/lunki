@@ -2,6 +2,7 @@ import { Room, ServerError, type Client } from '@colyseus/core';
 import {
   SHORE_PROTOCOL,
   BAIL_PROTOCOL,
+  WHITEFISH_PROTOCOL,
   beachedBoat,
   createBailer,
   fullInflateRow,
@@ -566,7 +567,11 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
           // Vanha asiakas ei osaa täyttökisaa (#458).
           continue;
         } else if (key === 'species') {
-          const list = value as string[];
+          // Vanha asiakas ei tunne siikaa (#535): se arpoisi eri kalakannan.
+          const list = (value as string[]).filter(
+            (id) => id !== 'whitefish' || !this.hasOutdatedClient(WHITEFISH_PROTOCOL),
+          );
+          if (list.length === 0) continue;
           if (list.join() !== [...s.species].join()) {
             s.species.splice(0, s.species.length, ...list);
             changed = true;
@@ -717,7 +722,9 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     const ownSeat = own !== undefined && !this.state.players.get(own)?.spectator ? 1 : 0;
     const outdated =
       (this.hasBoats() && clientProtocol(options) < BOAT_PROTOCOL) ||
-      (this.state.settings.inflate && clientProtocol(options) < BAIL_PROTOCOL);
+      (this.state.settings.inflate && clientProtocol(options) < BAIL_PROTOCOL) ||
+      (this.state.settings.species.includes('whitefish') &&
+        clientProtocol(options) < WHITEFISH_PROTOCOL);
     // Vanha asiakas ei osaa piirtää venettä eikä istua kyydissä.
     if (outdated) throw new ServerError(4403, JoinRefusal.outdated);
     const refusal =

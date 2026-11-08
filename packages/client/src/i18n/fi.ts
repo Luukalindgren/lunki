@@ -15,6 +15,7 @@ export const fi = {
   'species.ide': 'Säyne',
   'species.rainbow': 'Kirjolohi',
   'species.carp': 'Karppi',
+  'species.whitefish': 'Siika',
   'lure.spoon': 'Lusikka',
   'lure.spoon.hint': 'Heittyy pitkälle ja uppoaa, monipuolinen',
   'lure.wobbler': 'Vaappu',

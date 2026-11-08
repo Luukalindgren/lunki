@@ -1,27 +1,32 @@
 # Kalalajit
 
 Lajien parametrit ovat tiedostossa `packages/shared/src/fishing/fish.ts` (`SPECIES`).
-Oletuksena järvessä ovat Lunkinjärven omat lajit: ahven, hauki, särki, lahna, kiiski
-(harvinaisena) ja made. Kuhan, taimenen, säyneen, kirjolohen ja karpin voi lisätä
-asetuksista (yksinpelin asetusnäkymä, moninpelissä isännän aula). Ennen #225:tä
-tallennettuihin asetuksiin lisätään uudet omat lajit automaattisesti kerran.
+Oletuksena järvessä ovat Lunkinjärven omat lajit: ahven, hauki, särki, kiiski
+(harvinaisena) ja istutettu siika. Lahnan, maden, kuhan, taimenen, säyneen, kirjolohen ja
+karpin voi lisätä asetuksista (yksinpelin asetusnäkymä, moninpelissä isännän aula).
+Tallennetut lajivalinnat päivittyvät kerran, kun oletuslajisto muuttuu
+(`ui/speciesSettings.ts`): #225 lisäsi lahnan, kiisken ja maden, #535 lisäsi siian ja siirsi
+lahnan ja maden lisälajeiksi, koska Lunkinjärven koekalastuksessa 2012 niitä ei saatu
+(ks. Lähteet).
 
-| Laji      | Oma laji | Parvi | Elinalue (pohjan syvyys)         | Paino, mediaani | Iso yksilö              | Käytös                                                            |
-| --------- | -------- | ----- | -------------------------------- | --------------- | ----------------------- | ----------------------------------------------------------------- |
-| Ahven     | kyllä    | 12    | 1–4,5 m, rantojen tuntuma        | 140 g           | 1 %, ~0,7 kg            | Runsain, kiinnostuu reippaasta vieheestä                          |
-| Hauki     | kyllä    | yksin | 0,6–2,2 m, kaislikon reuna       | 1,3 kg          | 3 %, ~5 kg (max 12 kg)  | Vaanii paikallaan, iskee kauas ja nopeasti                        |
-| Särki     | kyllä    | 24    | 0,5–3 m, kaislikon reuna         | 110 g           | 1 %, ~0,45 kg           | Ei petokala: tarttuu uistimeen harvoin, perhoon (nymfi) hyvin     |
-| Lahna     | kyllä    | 16    | 2–6 m, lahdet ja syvänteen reuna | 0,8 kg          | 3 %, ~2,5 kg (max 6 kg) | Pohjasta ruokaileva: harvoin, lähinnä hidas pohjajigi tai nymfi   |
-| Kiiski    | kyllä    | 12    | 2–8 m, pohja                     | 40 g            | 2 %, ~120 g (max 250 g) | Harvinainen, tarttuu herkästi jigiin ja lippaan pohjassa          |
-| Made      | kyllä    | yksin | yli 4 m, syvänne ja jyrkänne     | 0,6 kg          | 3 %, ~1,5 kg (max 4 kg) | Lähes vain yöllä, paikallaan tai hitaasti nytkytetty jigi         |
-| Kuha      | ei       | 5     | yli 4 m, syvänteet               | 1 kg            | 3 %, ~4 kg              | Pohjan tuntumassa, hidas viehe, varovainen napsu                  |
-| Taimen    | ei       | 3     | yli 2 m, avovesi                 | 0,9 kg          | 3 %, ~3 kg              | Partioi laajasti, seuraa viehettä pitkään, hyppii                 |
-| Säyne     | ei       | 8     | 1,5–5 m, välivesi ja pinta       | 0,7 kg          | 3 %, ~1,8 kg (max 4 kg) | Iltaisin pinnassa, lippa ja pieni lusikka, hyppii                 |
-| Kirjolohi | ei       | 4     | yli 2 m, avovesi                 | 1,2 kg          | 3 %, ~3 kg (max 7 kg)   | Istutettu, ahne ja nopea, hyppii väsytyksessä                     |
-| Karppi    | ei       | 4     | 0,8–3 m, kasvillisuuden reuna    | 3 kg            | 4 %, ~8 kg (max 18 kg)  | Istutettu, hyvin varovainen pohjakala, pitkät ja voimakkaat pakot |
+| Laji      | Oma laji | Parvi | Elinalue (pohjan syvyys)           | Paino, mediaani | Iso yksilö              | Käytös                                                            |
+| --------- | -------- | ----- | ---------------------------------- | --------------- | ----------------------- | ----------------------------------------------------------------- |
+| Ahven     | kyllä    | 12    | 1–4,5 m, rantojen tuntuma          | 140 g           | 1 %, ~0,7 kg            | Runsain, kiinnostuu reippaasta vieheestä                          |
+| Hauki     | kyllä    | yksin | 0,6–2,2 m, kaislikon reuna         | 1,3 kg          | 3 %, ~5 kg (max 12 kg)  | Vaanii paikallaan, iskee kauas ja nopeasti                        |
+| Särki     | kyllä    | 24    | 0,5–3 m, kaislikon reuna           | 110 g           | 1 %, ~0,45 kg           | Ei petokala: tarttuu uistimeen harvoin, perhoon (nymfi) hyvin     |
+| Lahna     | ei       | 16    | 2–6 m, lahdet ja syvänteen reuna   | 0,8 kg          | 3 %, ~2,5 kg (max 6 kg) | Pohjasta ruokaileva: harvoin, lähinnä hidas pohjajigi tai nymfi   |
+| Kiiski    | kyllä    | 12    | 2–8 m, pohja                       | 40 g            | 2 %, ~120 g (max 250 g) | Harvinainen, tarttuu herkästi jigiin ja lippaan pohjassa          |
+| Made      | ei       | yksin | yli 4 m, syvänne ja jyrkänne       | 0,6 kg          | 3 %, ~1,5 kg (max 4 kg) | Yön yllätys pohjajigille, virvelillä harvinainen                  |
+| Kuha      | ei       | 5     | yli 4 m, syvänteet                 | 1 kg            | 3 %, ~4 kg              | Pohjan tuntumassa, hidas viehe, varovainen napsu                  |
+| Taimen    | ei       | 3     | yli 2 m, avovesi                   | 0,9 kg          | 3 %, ~3 kg              | Partioi laajasti, seuraa viehettä pitkään, hyppii                 |
+| Säyne     | ei       | 8     | 1,5–5 m, välivesi ja pinta         | 0,7 kg          | 3 %, ~1,8 kg (max 4 kg) | Iltaisin pinnassa, lippa ja pieni lusikka, hyppii                 |
+| Kirjolohi | ei       | 4     | yli 2 m, avovesi                   | 1,2 kg          | 3 %, ~3 kg (max 7 kg)   | Istutettu, ahne ja nopea, hyppii väsytyksessä                     |
+| Karppi    | ei       | 4     | 0,8–3 m, kasvillisuuden reuna      | 3 kg            | 4 %, ~8 kg (max 18 kg)  | Istutettu, hyvin varovainen pohjakala, pitkät ja voimakkaat pakot |
+| Siika     | kyllä    | 10    | yli 3 m, ulappa ja syvänteen reuna | 0,45 kg         | 2 %, ~1,3 kg (max 3 kg) | Istutettu, aamun ja illan kala, nymfi ja jigi, uistin harvoin     |
 
 Runsaus jaetaan valittujen lajien kesken suhteessa (ahven 6, särki 4, lahna 1,6, kuha 0,8,
-säyne 0,7, hauki 0,6, kirjolohi 0,6, kiiski 0,5, taimen 0,5, made 0,35, karppi 0,3). Saatu
+säyne 0,7, hauki 0,6, kirjolohi 0,6, kiiski 0,5, taimen 0,5, siika 0,4, made 0,35,
+karppi 0,3). Saatu
 kala korvautuu uudella saman lajin kalalla lajitoverin lähellä.
 
 Uudet lajit lisättiin listan loppuun, joten vanhoilla lajivalinnoilla (esim. vain ahven,
@@ -39,16 +44,16 @@ ja rengas kulkee siellä hitaasti.
 Jokaisella lajilla on viisi kokoluokkaa omin painorajoin (`sizes`). Luotaimet näyttävät
 kaiun luokan mukaan:
 
-| Luokka    | Kaiku              | Ahven    | Hauki  | Särki     | Kuha   | Taimen | Lahna | Kiiski | Made  | Säyne | Kirjolohi | Karppi |
-| --------- | ------------------ | -------- | ------ | --------- | ------ | ------ | ----- | ------ | ----- | ----- | --------- | ------ |
-| pieni     | keltainen 1 px     | < 0,2 kg | < 1 kg | < 0,15 kg | < 1 kg | < 1 kg | < 1   | < 0,06 | < 0,8 | < 0,8 | < 1,5     | < 4    |
-| iso       | oranssi 2 px       | 0,2      | 1      | 0,15      | 1      | 1      | 1     | 0,06   | 0,8   | 0,8   | 1,5       | 4      |
-| tosi iso  | punainen 3 px      | 0,4      | 2,5    | 0,3       | 2      | 2      | 2     | 0,1    | 1,5   | 1,5   | 2,5       | 7      |
-| suurkala  | violetti 4 px      | 0,8      | 5      | 0,5       | 4      | 3      | 3,5   | 0,15   | 2,5   | 2,5   | 4         | 10     |
-| jättikala | musta, 5 px, leveä | 1,2      | 8      | 0,7       | 6      | 4,5    | 5     | 0,2    | 3,2   | 3,2   | 5,5       | 14     |
+| Luokka    | Kaiku              | Ahven    | Hauki  | Särki     | Kuha   | Taimen | Lahna | Kiiski | Made  | Säyne | Kirjolohi | Karppi | Siika |
+| --------- | ------------------ | -------- | ------ | --------- | ------ | ------ | ----- | ------ | ----- | ----- | --------- | ------ | ----- |
+| pieni     | keltainen 1 px     | < 0,2 kg | < 1 kg | < 0,15 kg | < 1 kg | < 1 kg | < 1   | < 0,06 | < 0,8 | < 0,8 | < 1,5     | < 4    | < 0,7 |
+| iso       | oranssi 2 px       | 0,2      | 1      | 0,15      | 1      | 1      | 1     | 0,06   | 0,8   | 0,8   | 1,5       | 4      | 0,7   |
+| tosi iso  | punainen 3 px      | 0,4      | 2,5    | 0,3       | 2      | 2      | 2     | 0,1    | 1,5   | 1,5   | 2,5       | 7      | 1,1   |
+| suurkala  | violetti 4 px      | 0,8      | 5      | 0,5       | 4      | 3      | 3,5   | 0,15   | 2,5   | 2,5   | 4         | 10     | 1,6   |
+| jättikala | musta, 5 px, leveä | 1,2      | 8      | 0,7       | 6      | 4,5    | 5     | 0,2    | 3,2   | 3,2   | 5,5       | 14     | 2,2   |
 
 Järvessä on aina jokaista lajia vähintään yksi jättikala (hauella kaksi) ja kaksi suurkalaa
-(kiiskellä yksi).
+(kiiskellä ja siialla yksi).
 Paikat valitaan kalakannan siemenestä omalla arpojallaan, joten palvelin laskee saman kannan,
 ja saadun jättikalan tilalle syntyy taas jättikala.
 
@@ -92,6 +97,7 @@ Lajien käytös (`behavior` lajin parametreissa) jäljittelee oikeita kaloja:
 | Säyne  | 0,4 | 1,6    | 0,8   | +20 % | +10 % | välivesi → iltaisin pinnassa              |
 | Kirjo  | 0,4 | 1,3    | 0,9   | +30 % | +20 % | kirkkaalla syvemmällä, hämärässä pinnassa |
 | Karppi | 1,3 | 1,4    | 0,6   | +10 % | –     | 1–3 m → 0,6–2 m                           |
+| Siika  | 0,5 | 1,4    | 0,8   | +30 % | +10 % | yli 4 m välivedessä → 2 m:stä alkaen      |
 
 Luvut ovat syöntiaktiivisuuden kertoimia (1 = tavallinen päivä): ne kertovat, kuinka herkästi
 kala kiinnostuu vieheestä ja kuinka vilkkaasti se liikkuu. Ahven, hauki, särki, taimen, säyne
@@ -123,6 +129,14 @@ Lajien erityispiirteet (`behavior`):
   vieheeseen (`lureInterest`) on 0,05, 0,025 ja 0,02, joten ne ovat virvelillä yllätyssaalis.
   Perhoon (`flyInterest`, nymfi) ne tarttuvat entiseen tapaan (0,35, 0,25 ja 0,12), koska
   se muistuttaa niiden luonnollista ravintoa.
+- **Made on virvelillä harvinainen** (#535): Suomessa sitä pyydetään talvella verkoilla,
+  pilkillä ja katiskoilla, ja virvelin osuus mateen saaliista on 0,2 % (Luke 2024).
+  Kiinnostus vieheeseen on siksi 0,05 kuten särjellä: made on yön yllätys pohjaan
+  lasketulle jigille.
+- **Siika** (#535) syö planktonia ja pohjaeläimiä pienellä hampaattomalla suullaan.
+  Uistin kiinnostaa vähän (0,15; virvelin osuus saaliista 12 %, Luke 2024), mutta nymfi,
+  pieni perho ja jigi kelpaavat hyvin (`flyInterest` 0,8). Parvi kiertää ulapalla ja
+  syvänteen reunalla ja nousee hämärässä matalammalle.
 
 **Syöntijaksot (#510).** Jokainen parvi ja yksin elävä kala on vuorotellen syönnillä ja
 levossa (`School.bout`, `Fish.bout`). Jakso kestää 1,5–5 minuuttia (ensimmäinen 0,5–5 min), ja
@@ -143,14 +157,31 @@ parvet pysyvät kotipaikkansa lähellä, joten palvelimen tarkistus saaliin paik
 Vuodenaika (#427) on lajin käytöksessä `behavior.season`: kevään ja syksyn kerroin
 aktiivisuudelle kesään verrattuna, parven syvyys sekä painon ja isojen yksilöiden
 kertoimet. Kesä on lajin perusluonne. Esimerkiksi hauki syö syksyllä 1,5-kertaisesti
-ja on 10 % painavampi (isoja kaksi kertaa useammin), keväällä laihempi; made ja taimen
+ja on 10 % painavampi (isoja kaksi kertaa useammin), keväällä laihempi; taimen ja siika
 heräävät kylmässä vedessä, karppi ja kuha laiskistuvat. Kausi ei kuluta kalakannan
 arpoja, joten kalat ovat samoilla paikoilla, ja palvelin laskee saman painon.
+
+**Kausien arvot pohjoismaisten lähteiden mukaan (#535):**
+
+- **Made** on keväällä kudun jälkeen tavallinen (× 1). Syksyllä se lähtee liikkeelle vasta
+  alle 8 asteen vedessä, ja syyskisan vesi on 10 °C, joten se on vielä laiska (× 0,5) ja
+  pysyy yölläkin yli 4 m:n syvyydessä. Syysmade kuuluu myöhäissyksyyn ja talveen (#140).
+- **Lahna** on kevätkisassa (5.5., vesi 7 °C) vielä syvällä ja laiska (× 0,7): se kutee
+  matalissa lahdissa vasta touko–kesäkuun vaihteessa.
+- **Kuha** on keväällä laiska kylmässä vedessä (kutu vasta 10–14 °C:ssa). Syksyllä se
+  saalistaa päivälläkin pinnan läheisyydessä, joten syvärajaa ei ole ja päivän
+  uintisyvyys on ylempänä (`column` 0,5).
+- **Ahven** syö syksyllä vireämmin (× 1,2): syksy on sen parasta pyyntiaikaa.
+- **Siika** on kesällä syvällä viileässä (yli 5 m, × 0,8) ja syksyllä kutuun
+  valmistautuessaan matalammalla (2,5 m:stä alkaen, × 1,2).
 
 **Kesän lämmin pintavesi (#511).** Viileän veden kaloilla on omat kesän arvot:
 
 - **Made** on kesällä laiska (aktiivisuus × 0,35) ja pysyy yölläkin yli 5 m:n syvyydessä.
-  Keväällä ja syksyllä se on yön kala, joka nousee pimeällä matalammalle.
+  Keväällä se on yön kala, joka nousee pimeällä matalammalle.
+- **Iso hauki** hakeutuu yli 20 °C:n vedessä syvemmälle ja viileämpään: kesällä se
+  liikkuu syvänteen reunoilla 3–8 m:ssä ja isot selkävesillä (Fiskeprognos,
+  Vapaa-ajankalastajat). Syksyllä veden viiletessä hauet palaavat kaislikon kulmiin.
 - **Taimen ja kirjolohi** hakeutuvat yli 4 m:n pohjan päälle ja uivat lähellä pohjaa
   (`SeasonHabit.column` 0,85 päivällä, 0,6 pimeällä; aktiivisuus × 0,8). Kesällä niitä
   haetaan syvältä vaapulla, jigillä tai upotetulla lusikalla.
@@ -414,3 +445,34 @@ Kun löysää on renkaan edessä enemmän kuin heitto vie (voimamittariheitto), 
 löysä voi sotkeutua (ei helpolla), jolloin heitto jää lyhyeksi.
 
 Ennätyksiin ja yksinpelin ennätyslistaan tallentuu kalastustapa ja perhovälineet.
+
+## Lähteet
+
+Lajien käytös perustuu ensisijaisesti suomalaisiin ja pohjoismaisiin lähteisiin (#535).
+Muut lähteet ovat vain tukena.
+
+Lunkinjärvi:
+
+- Partanen, J. 2013: Koekalastus seitsemällä Tammelan järvellä (FCG, Tammelan kunta).
+  Koekalastus 14.–15.8.2012: ahven, särki, kiiski, siika ja hauki; ei lahnaa eikä madetta.
+- Ranta, T. 2010: Tammelan kalastusalueen käyttö- ja hoitosuunnitelma 2011–2015. Siikaa
+  istutetaan lähes joka vuosi.
+- Lunkinjärvi, Wikipedia (lähteinä OIVA ja HAMK 2010).
+
+Suomi:
+
+- Luke: Vapaa-ajankalastuksen saalis pyydyksittäin 2020–2024 (taulukko 0800_vapkal).
+- Kalatalouden Keskusliitto (ahven.net): made, hauki, ahven, lahna, kuha, siika.
+- SKES: made, hauki, siika.
+- Vapaa-ajan Kalastaja -lehti 10/2025: Hauenkalastus syksyllä.
+- Vapaa-ajankalastajat: hauki.
+- Eräkaveri: Mikä viehe mateelle?
+
+Ruotsi:
+
+- SLU Artdatabanken: lake.
+- Havs- och vattenmyndigheten: lake.
+- Sportfiskarna: lake, gädda, abborre, mört, braxen, gös, sik.
+- Fiskeprognos: gädda.
+
+Osoitteet ja mittaukset: issue #535.

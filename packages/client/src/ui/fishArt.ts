@@ -381,6 +381,33 @@ const LOOKS: Record<SpeciesId, FishLook> = {
     eyeAt: 0.09,
     mouth: 0.04,
   },
+  // Siika (#535): hopeinen ja hoikka, pieni pää ja alaleuka, rasvaevä ja syvä haarukka.
+  whitefish: {
+    condition: 1.0,
+    depth: 0.24,
+    hump: 0.4,
+    bellyPeak: 0.45,
+    belly: 0.46,
+    snout: 0.1,
+    snoutShape: 0.45,
+    peduncle: 0.3,
+    tail: 1.1,
+    fork: 0.5,
+    back: 0x5f6b78,
+    side: 0xc3cbd2,
+    bellyColor: WHITE,
+    fin: 0x8e99a4,
+    tailColor: 0x5f6b78,
+    fins: [
+      { from: 0.4, to: 0.55, height: 0.5, side: 'top', color: 0x5f6b78 },
+      { from: 0.8, to: 0.85, height: 0.2, side: 'top', color: 0x8e99a4 },
+      { from: 0.48, to: 0.56, height: 0.35, side: 'bottom', color: 0x8e99a4 },
+      { from: 0.7, to: 0.8, height: 0.3, side: 'bottom', color: 0x8e99a4 },
+    ],
+    eye: 0xc3cbd2,
+    eyeAt: 0.08,
+    mouth: 0.025,
+  },
 };
 
 /** Ruumiin osuus kuvan pituudesta, loput on pyrstöä. */
