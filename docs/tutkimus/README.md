@@ -34,3 +34,5 @@ vaihtoehtoja eivätkä ole pelin nykyistä koodia.
 | #535  | Kalojen käytös pohjoismaisten lähteiden mukaan: made, lajisto (mittaus: `535/mittaus.patch`)           |
 | #539  | Aula: aloitus, vaikka joku ei ole valmis                                                               |
 | #540  | Aula: renkaan teksti pois listasta                                                                     |
+| #554  | Aula: vanhan version pelaaja näkyy jo listalla                                                         |
+| #555  | Aula työpöydällä kahteen sarakkeeseen                                                                  |
