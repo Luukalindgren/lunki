@@ -90,6 +90,7 @@ import {
   type InputMessage,
   type JoinOptions,
   type RoomError,
+  type StartOptions,
   type BigWave,
   type BigWaveMessage,
   type SpoutMessage,
@@ -632,7 +633,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       if (p) p.name = sanitizeName(name);
     });
 
-    this.onMessage(ClientMsg.start, (client) => {
+    this.onMessage(ClientMsg.start, (client, options: unknown) => {
       if (client.sessionId !== this.state.hostId) {
         client.send(ServerMsg.error, { code: 'host-only' } satisfies RoomError);
         return;
@@ -643,11 +644,14 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         client.send(ServerMsg.error, { code: 'need-angler' } satisfies RoomError);
         return;
       }
+      // Isäntä voi aloittaa ilman muiden valmiutta; hekin kalastavat mukana (#539).
+      const force =
+        typeof options === 'object' && options !== null && (options as StartOptions).force === true;
       // Katkennutta ei odoteta: palatessaan hän jatkaa kisassa (#275).
       const notReady = anglers
         .filter(([id, p]) => !p.ready && p.connected && id !== this.state.hostId)
         .map(([, p]) => p);
-      if (notReady.length > 0) {
+      if (notReady.length > 0 && !force) {
         client.send(ServerMsg.error, {
           code: 'not-ready',
           names: notReady.map((p) => p.name),

@@ -44,6 +44,7 @@ import {
   SPECTATE_PROTOCOL,
   SEASON_PROTOCOL,
   INFLATE_PROTOCOL,
+  FORCE_START_PROTOCOL,
   type LaunchNet,
   seasonOf,
   type UntangledMessage,
@@ -56,6 +57,7 @@ import {
   type RecordMessage,
   type JoinRefusalCode,
   type RoomError,
+  type StartOptions,
   type JoinOptions,
   type LightningMessage,
   type Penalty,
@@ -241,6 +243,10 @@ export interface LobbyView {
   amHost: boolean;
   /** Kaikki muut yhteydessä olevat kalastajat kuin isäntä ovat valmiina. */
   allReady: boolean;
+  /** Ne kalastajat, joita isäntä odottaa (ei valmiina, yhteydessä). */
+  notReady: string[];
+  /** Isäntä voi aloittaa ilman muiden valmiutta (#539). */
+  canForceStart: boolean;
   /** Palvelin tuntee katsojat (vanha palvelin ei). */
   canSpectate: boolean;
   /** Palvelin osaa veneet kulkupelinä (vanha palvelin ei). */
@@ -543,6 +549,10 @@ export class NetSession {
         seatAsk: p.seatAsk ? p.seatAsk - 1 : null,
       }),
     );
+    // Katkennutta ei odoteta, kuten palvelinkaan ei (#275).
+    const notReady = players
+      .filter((p) => !p.host && !p.ready && !p.spectator && p.connected)
+      .map((p) => p.name);
     return {
       code: s.code,
       phase: s.phase as RoomPhase,
@@ -565,8 +575,9 @@ export class NetSession {
         ...(s.settings.inflate && { inflate: true }),
       },
       amHost: s.hostId === me,
-      // Katkennutta ei odoteta, kuten palvelinkaan ei (#275).
-      allReady: players.every((p) => p.host || p.ready || p.spectator || !p.connected),
+      allReady: notReady.length === 0,
+      notReady,
+      canForceStart: this.serverProtocol >= FORCE_START_PROTOCOL,
       canSpectate: this.serverProtocol >= SPECTATE_PROTOCOL,
       canBoat: this.serverProtocol >= BOAT_PROTOCOL,
       canSwapSeats: this.serverProtocol >= SEAT_PROTOCOL,
@@ -610,8 +621,11 @@ export class NetSession {
     return this.room.state?.players?.get(this.room.sessionId)?.spectator === true;
   }
 
-  start(): void {
-    this.room.send(ClientMsg.start);
+  /** `force`: aloitetaan, vaikka kaikki eivät ole valmiina (#539). */
+  start(force = false): void {
+    if (force && this.serverProtocol >= FORCE_START_PROTOCOL)
+      this.room.send(ClientMsg.start, { force: true } satisfies StartOptions);
+    else this.room.send(ClientMsg.start);
   }
 
   /** Vain isäntä; palvelin tarkistaa arvot. */

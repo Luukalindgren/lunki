@@ -748,7 +748,10 @@ export class Screens {
     link: string,
     actions: {
       onReady: (ready: boolean) => void;
-      onStart: () => void;
+      /** Isännän Aloita; `force` = Aloita silti, kun kaikki eivät ole valmiina (#539). */
+      onStart: (force: boolean) => void;
+      /** Isäntä perui Aloita silti -kysymyksen. */
+      onWait: () => void;
       /** Seuraava kisa katsojana (true) tai kalastajana. */
       onSpectate: (on: boolean) => void;
       onLeave: () => void;
@@ -766,11 +769,13 @@ export class Screens {
     chat?: (parent: HTMLElement) => void,
     /** Isännälle: kuka juuri liittyi tai on valmis (#516); rivit korostetaan. */
     event?: LobbyEvent | null,
+    /** Isäntä painoi Aloita, vaikka kaikki eivät ole valmiina (#539). */
+    confirmStart = false,
   ): void {
     // Luettava ennen paneelin rakentamista: chatin siirto vanhasta paneelista
     // lyhentää sitä, ja selain siirtää vierityskohtaa ylös chatin korkeuden verran.
     // Värit auki: aula piirretään vasta paluun jälkeen uusimmalla tilalla.
-    const redraw = () => this.showLobby(v, link, actions, notice, chat, event);
+    const redraw = () => this.showLobby(v, link, actions, notice, chat, event, confirmStart);
     const open = (this.root.firstElementChild as HTMLElement | null)?.dataset.screen;
     if (this.open && open === 'lobby-colors' && !this.leavingLobbySub) {
       this.pendingLobby = redraw;
@@ -937,10 +942,18 @@ export class Screens {
         : []),
     );
     const buttons: [string, () => void][] = [];
-    if (v.amHost)
+    // Aloita silti (#539): ei-valmiit kalastavat mukana tavallisina pelaajina.
+    const asking = v.amHost && confirmStart && !v.allReady;
+    if (asking) {
+      notice = t('lobby.startAnywayAsk', { names: v.notReady.join(', ') });
+      buttons.push(
+        [t('lobby.startAnyway'), () => actions.onStart(true)],
+        [t('lobby.wait'), actions.onWait],
+      );
+    } else if (v.amHost)
       buttons.push([
-        v.allReady ? t('settings.startRace') : t('lobby.startWaiting'),
-        actions.onStart,
+        v.allReady ? t('settings.startRace') : t('lobby.startWaiting', { n: v.notReady.length }),
+        () => actions.onStart(false),
       ]);
     else if (!me?.spectator)
       buttons.push([

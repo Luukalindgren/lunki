@@ -13,7 +13,7 @@ export const ROOM_NAME = 'lunki';
  * uudelleen: asiakas ei lähetä vanhemmalle palvelimelle viestejä, joita se
  * ei tunne. Vanha palvelin ilman kenttää = 1.
  */
-export const PROTOCOL_VERSION = 14;
+export const PROTOCOL_VERSION = 15;
 /** Chat tuli versiossa 2. */
 export const CHAT_PROTOCOL = 2;
 /** Maalle juuttuneen vieheen siiman katkaisu (ClientMsg.landCut) tuli versiossa 3. */
@@ -66,6 +66,12 @@ export const INFLATE_PROTOCOL = 13;
  * versiossa 14. Täyttökisaan pääsee vain asiakas, joka osaa äyskäröinnin.
  */
 export const BAIL_PROTOCOL = 14;
+/**
+ * Aloitus ilman muiden valmiutta (#539): ClientMsg.start ottaa vastaan
+ * StartOptions-viestin versiosta 15. Vanha palvelin odottaa aina kaikkia,
+ * joten asiakas ei silloin tarjoa Aloita silti -nappia.
+ */
+export const FORCE_START_PROTOCOL = 15;
 
 /** Oletuspelaajamäärä huoneessa. Rakenne sallii isomman. */
 export const DEFAULT_MAX_PLAYERS = 8;
@@ -152,6 +158,14 @@ export interface RoomError {
   code: RoomErrorCode;
   /** not-ready: pelaajat, joita odotetaan. */
   names?: string[];
+}
+
+/**
+ * Isännän aloitus (ClientMsg.start). `force`: aloitetaan, vaikka kaikki eivät
+ * ole valmiina; hekin kalastavat mukana tavallisina pelaajina (#539).
+ */
+export interface StartOptions {
+  force?: boolean;
 }
 
 /** Huoneen vaiheet. */

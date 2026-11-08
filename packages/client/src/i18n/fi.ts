@@ -404,7 +404,10 @@ export const fi = {
     'Kalastajapaikat ovat täynnä. Täyteen huoneeseen liittyneet pääsevät kalastamaan heti, kun paikka vapautuu tai isäntä nostaa pelaajamäärää.',
   'lobby.spectatorHint': 'Katsojana näet kaikki renkaat ja tulostaulun, ja voit chatata.',
   'lobby.chat': 'Chat',
-  'lobby.startWaiting': 'Aloita (odotetaan muita)',
+  'lobby.startWaiting': 'Aloita ({n} ei valmiina)',
+  'lobby.startAnywayAsk': 'Ei valmiina: {names}. Aloita silti, niin hekin kalastavat mukana.',
+  'lobby.startAnyway': 'Aloita silti',
+  'lobby.wait': 'Odota',
   'lobby.notReady': 'En olekaan valmis',
   'lobby.setReady': 'Valmis!',
 
@@ -1139,7 +1142,7 @@ export const fi = {
     'Kisan asetuksissa valitaan rangaistus salamasta, kaatumisesta ja maalle heitosta: esimerkiksi jäähy, saaliin menetys tai kisasta putoaminen.\nVoimassa olevat rangaistukset näkyvät ajastimen alla.',
   'manual.mp.room': 'Huone ja aula',
   'manual.mp.roomText':
-    'Moninpeli ei vaadi kirjautumista: luo huone ja jaa sen koodi tai linkki kavereille.\nIsäntä valitsee aulassa kisan säännöt, ja jokainen valitsee kulkupelinsä.\nKesken kisan voi liittyä, jos isäntä sallii, ja katsojana voi seurata muita.',
+    'Moninpeli ei vaadi kirjautumista: luo huone ja jaa sen koodi tai linkki kavereille.\nIsäntä valitsee aulassa kisan säännöt, ja jokainen valitsee kulkupelinsä. Kisa alkaa isännän Aloita-napista. Jos joku ei ole vielä valmis, isäntä voi aloittaa silti, ja hänkin kalastaa mukana.\nKesken kisan voi liittyä, jos isäntä sallii, ja katsojana voi seurata muita.',
   'manual.mp.race': 'Kisa',
   'manual.mp.raceText':
     'Kaikki kalastavat samalla järvellä samassa säässä. Voittaja ratkeaa isännän valitseman säännön mukaan, esimerkiksi suurin kokonaissaalis. Tasapisteissä edellä on se, joka saavutti tuloksensa ensin. Kalastajalla, jolla ei ole vielä kalaa, on sijan paikalla viiva, myös tulossivulla. Kesken kisan lähteneet jäävät tulostauluun merkinnällä (lähti), kisan aikana ×, ja tasapisteissä viimeisiksi. Tulossivun Kopioi tulokset -nappi antaa sijoitukset tekstinä esimerkiksi usean kisan kirjanpitoon.\nMuiden kalastajien tärpit ja väsytykset näkyvät ja kuuluvat järvellä.',

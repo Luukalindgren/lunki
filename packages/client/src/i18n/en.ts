@@ -400,7 +400,10 @@ export const en: Record<keyof typeof fi, string> = {
     'All angler places are taken. Those who joined the full room get to fish as soon as a place frees up or the host raises the player limit.',
   'lobby.spectatorHint': 'As a spectator you see every tube and the scoreboard, and you can chat.',
   'lobby.chat': 'Chat',
-  'lobby.startWaiting': 'Start (waiting for others)',
+  'lobby.startWaiting': 'Start ({n} not ready)',
+  'lobby.startAnywayAsk': 'Not ready: {names}. Start anyway and they fish along too.',
+  'lobby.startAnyway': 'Start anyway',
+  'lobby.wait': 'Wait',
   'lobby.notReady': 'Not ready after all',
   'lobby.setReady': 'Ready!',
 
@@ -1133,7 +1136,7 @@ export const en: Record<keyof typeof fi, string> = {
     'The competition settings choose the penalty for lightning, capsizing and casting ashore: for example a time-out, losing the catch or dropping out of the competition.\nActive penalties show under the timer.',
   'manual.mp.room': 'Room and lobby',
   'manual.mp.roomText':
-    'Multiplayer needs no account: create a room and share its code or link with friends.\nThe host chooses the competition rules in the lobby, and everyone picks their craft.\nYou can join a competition already running if the host allows it, and spectators can follow others.',
+    'Multiplayer needs no account: create a room and share its code or link with friends.\nThe host chooses the competition rules in the lobby, and everyone picks their craft. The host starts the competition. If someone is not ready yet, the host can start anyway and they fish along too.\nYou can join a competition already running if the host allows it, and spectators can follow others.',
   'manual.mp.race': 'Competition',
   'manual.mp.raceText':
     "Everyone fishes the same lake in the same weather. The winner is decided by the rule the host chose, for example the biggest total catch. On equal scores, whoever reached the score first ranks higher. An angler with no fish yet has a dash for a place, on the results page too. Anglers who leave before the end stay on the scoreboard marked (left), × during the competition, and come last on equal scores. The Copy results button on the results page gives the placings as text, for example for keeping score over several competitions.\nOther anglers' takes and fights can be seen and heard on the lake.",
