@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { LUNKINJARVI, LUNKINJARVI_SURROUNDINGS, pointInRing } from '@lunki/shared';
+import { LUNKINJARVI, LUNKINJARVI_SURROUNDINGS, pierDeckRing, pointInRing } from '@lunki/shared';
+import { planTreeLines } from './shoreScenery';
 import { planVegetation } from './vegetation';
 
 const map = LUNKINJARVI;
@@ -43,5 +44,39 @@ describe('rantamaisema', () => {
         t.kind !== 'reeds' && corners.some((c) => Math.hypot(c.x - t.pos.x, c.y - t.pos.y) < 8),
     );
     expect(tree).toBeUndefined();
+  });
+
+  it('laiturin kannen läpi ei kasva kaislaa eikä juuressa ole puuta', () => {
+    const piers = map.piers ?? [];
+    expect(piers.length).toBeGreaterThan(20);
+    for (const pier of piers) {
+      const deck = pierDeckRing(pier);
+      expect(plants.some((p) => p.kind === 'reeds' && pointInRing(p.pos, deck))).toBe(false);
+      const root = pier.from;
+      const tree = plants.find(
+        (t) => t.kind !== 'reeds' && Math.hypot(t.pos.x - root.x, t.pos.y - root.y) < 3,
+      );
+      expect(tree).toBeUndefined();
+    }
+  });
+
+  it('metsänreunan siluetti ei kulje rakennusten läpi', () => {
+    const buildings = LUNKINJARVI_SURROUNDINGS.areas
+      .filter((a) => a.kind === 'building')
+      .map((a) => a.rings[0]!);
+    const cut: string[] = [];
+    for (const line of planTreeLines(map, LUNKINJARVI_SURROUNDINGS)) {
+      line.forEach((a, i) => {
+        const b = line[(i + 1) % line.length]!;
+        for (let t = 0; t <= 1; t += 0.05) {
+          // Seinämän korkeus tässä kohtaa; matala reuna (pelto) ei peitä taloa.
+          if (a.height + (b.height - a.height) * t < 1) continue;
+          const q = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+          if (buildings.some((r) => pointInRing(q, r)))
+            cut.push(`${q.x.toFixed(0)},${q.y.toFixed(0)}`);
+        }
+      });
+    }
+    expect(cut).toEqual([]);
   });
 });

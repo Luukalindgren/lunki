@@ -1,12 +1,14 @@
 import * as THREE from 'three';
 import {
   LandCover,
+  PIER_WIDTH,
   pointInRing,
   ringWaterTest,
   valueNoise,
   type AreaKind,
   type LakeMap,
   type LakeSurroundings,
+  type Pier,
   type Season,
   type Vec2,
 } from '@lunki/shared';
@@ -33,8 +35,8 @@ const TREE_DENSITY: Partial<Record<AreaKind, number>> = {
 };
 /** Tuntematon maa on Suomessa useimmiten metsää. */
 const UNKNOWN_DENSITY = 0.6;
-/** Rakennusten ympärille jätetty piha (m). */
-const YARD = 9;
+/** Rakennusten ympärille jätetty piha (m): ei puita eikä metsänreunaa. */
+export const YARD = 9;
 /** Kaislojen väli kaislikossa (m) ja osuus, joka jää aukoiksi: vesi näkyy tupsujen välistä. */
 const REED_SPACING = 2.6;
 const REED_GAPS = 0.45;
@@ -176,7 +178,34 @@ export function planVegetation(
       }
     }
   }
-  return plants;
+  // Laiturin kohdalta poistetaan kaislat ja juuresta puut vasta lopuksi, jotta
+  // arvonta ja muiden kasvien paikat pysyvät ennallaan.
+  const piers = map.piers ?? [];
+  if (piers.length === 0) return plants;
+  return plants.filter((p) => {
+    const clear = p.kind === 'reeds' ? PIER_CLEAR.reeds : PIER_CLEAR.trees;
+    return !piers.some((pier) => pierDistance(p.pos, pier) < clear);
+  });
+}
+
+/**
+ * Laiturin vapaa kaista (m kannen keskiviivasta): kaislat eivät kasva kannen
+ * läpi, eikä laiturin juuressa ole puuta kulun edessä.
+ */
+const PIER_CLEAR = { reeds: PIER_WIDTH / 2 + 1, trees: 3 } as const;
+/** Laiturin juuren polku jatkuu kannen alusta maalle (m). */
+const PIER_PATH = 3;
+
+/** Etäisyys laiturin keskiviivaan, joka jatkuu kannen alusta vähän maalle. */
+function pierDistance(p: Vec2, pier: Pier): number {
+  const len = Math.hypot(pier.to.x - pier.from.x, pier.to.y - pier.from.y) || 1;
+  const ux = (pier.to.x - pier.from.x) / len;
+  const uy = (pier.to.y - pier.from.y) / len;
+  const s = Math.max(
+    -PIER_PATH,
+    Math.min(len, (p.x - pier.from.x) * ux + (p.y - pier.from.y) * uy),
+  );
+  return Math.hypot(p.x - pier.from.x - ux * s, p.y - pier.from.y - uy * s);
 }
 
 /** Rantaviivan näytteet: piste, maalle osoittava normaali ja tangentti. */
@@ -193,20 +222,32 @@ function* shoreSamples(ring: readonly Vec2[], step: number) {
   }
 }
 
-/** Rakennusten keskipisteet ruudukossa pihojen tarkistusta varten. */
-class BuildingIndex {
+/** Rakennusten kulmat ja pohjapiirrokset ruudukossa pihojen tarkistusta varten. */
+export class BuildingIndex {
   private readonly cells = new Map<string, Vec2[]>();
+  private readonly rings = new Map<string, (readonly Vec2[])[]>();
   private static readonly CELL = 25;
 
   constructor(surroundings?: LakeSurroundings) {
+    const C = BuildingIndex.CELL;
     for (const a of surroundings?.areas ?? []) {
       if (a.kind !== 'building') continue;
-      for (const p of a.rings[0]!) {
+      const ring = a.rings[0]!;
+      for (const p of ring) {
         const key = this.key(p.x, p.y);
         const list = this.cells.get(key);
         if (list) list.push(p);
         else this.cells.set(key, [p]);
       }
+      // Pohjapiirros jokaiseen ruutuun, jonka se peittää.
+      const xs = ring.map((p) => p.x);
+      const ys = ring.map((p) => p.y);
+      for (let y = Math.floor(Math.min(...ys) / C); y <= Math.floor(Math.max(...ys) / C); y++)
+        for (let x = Math.floor(Math.min(...xs) / C); x <= Math.floor(Math.max(...xs) / C); x++) {
+          const list = this.rings.get(`${x},${y}`);
+          if (list) list.push(ring);
+          else this.rings.set(`${x},${y}`, [ring]);
+        }
     }
   }
 
@@ -224,6 +265,38 @@ class BuildingIndex {
           if (Math.hypot(q.x - p.x, q.y - p.y) < r) return true;
     return false;
   }
+
+  /**
+   * Onko jokin rakennus (koko pohjapiirros, ei vain kulmat) lähempänä kuin r
+   * (r ≤ ruudun koko). Iso rakennus voi olla seinän keskeltä lähellä, vaikka
+   * kulmat ovat kaukana.
+   */
+  covers(p: Vec2, r: number): boolean {
+    const cx = Math.floor(p.x / BuildingIndex.CELL);
+    const cy = Math.floor(p.y / BuildingIndex.CELL);
+    for (let dx = -1; dx <= 1; dx++)
+      for (let dy = -1; dy <= 1; dy++)
+        for (const ring of this.rings.get(`${cx + dx},${cy + dy}`) ?? [])
+          if (pointInRing(p, ring as Vec2[]) || ringDistance(p, ring) < r) return true;
+    return false;
+  }
+}
+
+/** Pisteen etäisyys monikulmion reunaan (m). */
+function ringDistance(p: Vec2, ring: readonly Vec2[]): number {
+  let best = Infinity;
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i]!;
+    const b = ring[(i + 1) % ring.length]!;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const t = Math.max(
+      0,
+      Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy || 1)),
+    );
+    best = Math.min(best, Math.hypot(p.x - a.x - dx * t, p.y - a.y - dy * t));
+  }
+  return best;
 }
 
 /** Kaksi ristikkäistä yksikkölevyä, alareuna origossa, UV:t kuvakartan solusta k. */
