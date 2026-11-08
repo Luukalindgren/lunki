@@ -14,6 +14,7 @@ export const en: Record<keyof typeof fi, string> = {
   'species.ide': 'Ide',
   'species.rainbow': 'Rainbow trout',
   'species.carp': 'Carp',
+  'species.whitefish': 'Whitefish',
   'lure.spoon': 'Spoon',
   'lure.spoon.hint': 'Casts far and sinks, an all-rounder',
   'lure.wobbler': 'Crankbait',

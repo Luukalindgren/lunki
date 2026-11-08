@@ -33,6 +33,7 @@ import {
   PROTOCOL_VERSION,
   BoatSeat,
   BOAT_TUBE,
+  WHITEFISH_PROTOCOL,
   seatPos,
   CHAT_RATE,
   EMOTE_RATE,
@@ -75,7 +76,21 @@ import { createServer } from '../server';
 const PORT = 25000 + Math.floor(Math.random() * 5000);
 let server: Server;
 let feedback: FeedbackStore;
-const sdk = () => new Client(`ws://localhost:${PORT}`);
+/**
+ * Testien asiakas kertoo nykyisen protokollan, kuten pelin asiakas: siika on
+ * oletuslajistossa, eikä vanha asiakas pääse sellaiseen huoneeseen (#535).
+ * Vanhaa asiakasta testataan antamalla `protocol: 0`.
+ */
+const sdk = () => {
+  const c = new Client(`ws://localhost:${PORT}`);
+  const create = c.create.bind(c);
+  const joinById = c.joinById.bind(c);
+  c.create = ((...[name, options, ...rest]: Parameters<Client['create']>) =>
+    create(name, { protocol: PROTOCOL_VERSION, ...options }, ...rest)) as Client['create'];
+  c.joinById = ((...[id, options, ...rest]: Parameters<Client['joinById']>) =>
+    joinById(id, { protocol: PROTOCOL_VERSION, ...options }, ...rest)) as Client['joinById'];
+  return c;
+};
 
 /** Odottaa, kunnes ehto täyttyy (tilan päivitykset tulevat asynkronisesti). */
 async function until(cond: () => boolean, ms = 2000): Promise<void> {
@@ -1567,6 +1582,36 @@ describe('liittyminen kesken kisan', () => {
   });
 });
 
+describe('siika (#535)', () => {
+  const refusal = (p: Promise<unknown>) =>
+    p.then(
+      () => 'liittyi',
+      (e: unknown) => (e instanceof Error ? e.message : String(e)),
+    );
+  const species = (room: Room) =>
+    [...(room.state as { settings: { species: string[] } }).settings.species].join();
+
+  it('vanha asiakas ei pääse siikahuoneeseen, eikä siikaa lisätä sen ollessa aulassa', async () => {
+    const old = { protocol: WHITEFISH_PROTOCOL - 1 };
+    const host = await sdk().create(ROOM_NAME, { name: 'A', playerId: 'A' });
+    await until(() => players(host).length === 1);
+    expect(species(host)).toContain('whitefish');
+    expect(await refusal(sdk().joinById(host.roomId, { name: 'B', playerId: 'B', ...old }))).toBe(
+      JoinRefusal.outdated,
+    );
+    // Ilman siikaa vanha pääsee, ja isännän lisäämä siika jää pois.
+    host.send(ClientMsg.settings, { species: ['perch', 'pike'] });
+    await until(() => species(host) === 'perch,pike');
+    const b = await sdk().joinById(host.roomId, { name: 'B', playerId: 'B', ...old });
+    await until(() => players(host).length === 2);
+    host.send(ClientMsg.settings, { species: ['perch', 'pike', 'whitefish'] });
+    host.send(ClientMsg.settings, { species: ['perch', 'roach', 'whitefish'] });
+    await until(() => species(host) === 'perch,roach');
+    await b.leave();
+    await host.leave();
+  });
+});
+
 describe('veneet (#263)', () => {
   const refusal = (p: Promise<unknown>) =>
     p.then(
@@ -1609,9 +1654,9 @@ describe('veneet (#263)', () => {
     b.send(ClientMsg.boat, 0);
     await until(() => crew(host, b.sessionId).boat === 2);
     // Vanha asiakas ei osaa venettä.
-    expect(await refusal(sdk().joinById(host.roomId, { name: 'D', playerId: 'D' }))).toBe(
-      JoinRefusal.outdated,
-    );
+    expect(
+      await refusal(sdk().joinById(host.roomId, { name: 'D', playerId: 'D', protocol: 0 })),
+    ).toBe(JoinRefusal.outdated);
     // C siirtyy A:n veneeseen perään, sitten B jää renkaalle: veneitä on yksi.
     c.send(ClientMsg.boat, 1);
     await until(() => crew(host, c.sessionId).boat === 1);

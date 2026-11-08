@@ -18,7 +18,8 @@ export type SpeciesId =
   | 'burbot'
   | 'ide'
   | 'rainbow'
-  | 'carp';
+  | 'carp'
+  | 'whitefish';
 
 /** Lajin ominaisuudet: koko, voima, elinalue ja käytös. */
 export interface Species {
@@ -198,7 +199,8 @@ export const SPECIES: Record<SpeciesId, Species> = {
       // Kevät: kutee matalissa risukoissa. Syksy: isot parvet syvänteiden reunoilla.
       season: {
         spring: { activity: 1.1, depth: [0.6, 2.5] },
-        autumn: { activity: 1, depth: [4, 8] },
+        // Paras pyyntiaika syksyllä (ahven.net, #535).
+        autumn: { activity: 1.2, depth: [4, 8] },
       },
     },
   },
@@ -366,8 +368,13 @@ export const SPECIES: Record<SpeciesId, Species> = {
       column: { day: 0.95, dark: 0.6 },
       // Isku on usein varovainen napsu: vastaiskun ikkuna on lyhyempi.
       strikeWindow: 0.6,
-      // Kevät: kutu ja pesän vartiointi, arka. Syksy: hidastuu ja painuu syvälle.
-      season: { spring: { activity: 0.6 }, autumn: { activity: 0.8, depth: [5, 99] } },
+      // Kevät (5.5., vesi 7 °C): kylmä vesi laiskistaa, kutu vasta touko–kesäkuussa
+      // 10–14 °C:ssa (ahven.net, Sportfiskarna). Syksy: saalistaa päivälläkin pinnan
+      // läheisyydessä (ahven.net), joten ei syvärajaa ja uintisyvyys ylempänä (#535).
+      season: {
+        spring: { activity: 0.6 },
+        autumn: { activity: 0.8, column: { day: 0.5, dark: 0.5 } },
+      },
     },
   },
   trout: {
@@ -432,7 +439,8 @@ export const SPECIES: Record<SpeciesId, Species> = {
   bream: {
     id: 'bream',
     name: 'Lahna',
-    native: true,
+    // Lunkinjärven koekalastuksessa 2012 ei saatu lahnaa (#535): lisälaji.
+    native: false,
     abundance: 1.6,
     // Parvet mutapohjaisissa lahdissa ja syvänteen reunoilla.
     schoolSize: 16,
@@ -479,8 +487,9 @@ export const SPECIES: Record<SpeciesId, Species> = {
       prey: false,
       dayDepth: [2.5, 6],
       dimDepth: [1, 3],
-      // Kevät: kutuparvet matalassa. Syksy: hidastuu.
-      season: { spring: { activity: 1.1, depth: [0.8, 2.5] }, autumn: { activity: 0.7 } },
+      // Kevät (5.5., vesi 7 °C): vielä syvällä ja laiska, kutu vasta touko–kesäkuun
+      // vaihteessa (ahven.net, Sportfiskarna, #535). Syksy: hidastuu.
+      season: { spring: { activity: 0.7 }, autumn: { activity: 0.7 } },
     },
   },
   ruffe: {
@@ -536,7 +545,8 @@ export const SPECIES: Record<SpeciesId, Species> = {
   burbot: {
     id: 'burbot',
     name: 'Made',
-    native: true,
+    // Lunkinjärven koekalastuksessa 2012 ei saatu madetta (#535): lisälaji.
+    native: false,
     abundance: 0.35,
     // Yksin syvänteessä ja jyrkänteen alla kylmässä pohjavedessä.
     schoolSize: 1,
@@ -558,8 +568,10 @@ export const SPECIES: Record<SpeciesId, Species> = {
     pullBase: 0.3,
     endurancePerKg: 6,
     senseRadius: 6,
-    // Tarttuu yöllä pohjaan lasketun, paikallaan tai hitaasti nytkytetyn jigin perään.
-    lureInterest: 0.8,
+    // Virveli on mateelle harvinainen pyydys: 0,2 % saaliista (Luke 2024), sitä
+    // pyydetään talvella verkoilla, pilkillä ja katiskoilla. Yön yllätys
+    // pohjaan lasketulle, hitaasti nytkytetylle jigille (#535).
+    lureInterest: 0.05,
     preferredSpeed: 0.1,
     speedTolerance: 0.25,
     roamSpeed: 0.08,
@@ -581,12 +593,14 @@ export const SPECIES: Record<SpeciesId, Species> = {
       prey: false,
       dayDepth: [4, 99],
       dimDepth: [2, 99],
-      // Lämmin vesi lamauttaa: kesällä laiska ja syvällä viileässä (#511),
-      // keväällä ja varsinkin syksyllä aktiivisempi.
+      // Lämmin vesi lamauttaa: kesällä laiska ja syvällä viileässä (#511, SLU
+      // Artdatabanken). Keväällä kudun jälkeen tavallinen. Syksyllä made lähtee
+      // liikkeelle vasta alle 8 asteen vedessä (Eräkaveri), ja syyskisan vesi on
+      // 10 °C: vielä syvällä ja laiska (#535).
       season: {
-        spring: { activity: 1.6 },
+        spring: { activity: 1 },
         summer: { activity: 0.35, depth: [5, 99] },
-        autumn: { activity: 2.5 },
+        autumn: { activity: 0.5, depth: [4, 99] },
       },
       coolHome: { depth: 5, minSize: 0 },
     },
@@ -755,6 +769,71 @@ export const SPECIES: Record<SpeciesId, Species> = {
       runs: 2,
       // Lämpimän veden kala: keväällä ja syksyllä passiivinen.
       season: { spring: { activity: 0.3 }, autumn: { activity: 0.45 } },
+    },
+  },
+  // Siika (#535): Lunkinjärveen istutetaan plankton- ja järvisiikaa lähes joka
+  // vuosi (Tammelan kalastusalueen suunnitelma), ja koekalastuksessa 2012 saatiin
+  // kaksi. Listan lopussa, jotta vanhat lajivalinnat antavat saman kalakannan.
+  whitefish: {
+    id: 'whitefish',
+    name: 'Siika',
+    native: true,
+    abundance: 0.4,
+    // Parvissa ulapalla ja syvänteen reunoilla viileässä, happipitoisessa vedessä
+    // (SKES, ahven.net).
+    schoolSize: 10,
+    schoolSpread: 12,
+    habitat: { minDepth: 3, maxDepth: 99 },
+    wanderShare: 0.4,
+    structures: ['dropoff'],
+    structureShare: 0.15,
+    medianWeight: 0.45,
+    weightSpread: 0.45,
+    minWeight: 0.12,
+    maxWeight: 3,
+    trophyChance: 0.02,
+    trophyWeight: 1.3,
+    sizes: [0.7, 1.1, 1.6, 2.2],
+    giants: { giant: 1, huge: 1 },
+    // Sitkeä ja nopea, mutta kevyt.
+    pullPerKg: 2.2,
+    pullBase: 0.3,
+    endurancePerKg: 12,
+    senseRadius: 6,
+    // Pieni hampaaton suu, syö planktonia ja pohjaeläimiä: uistin kiinnostaa
+    // vähän (virvelin osuus saaliista 12 %, Luke 2024), nymfi ja pieni
+    // kuivaperho hyvin (Sportfiskarna, ahven.net).
+    lureInterest: 0.15,
+    flyInterest: 0.8,
+    preferredSpeed: 0.3,
+    speedTolerance: 0.3,
+    roamSpeed: 0.35,
+    homeRange: 50,
+    chaseSpeed: 1.4,
+    runSpeed: 2.2,
+    bottomOffset: 2,
+    // Aamun ja illan kala: hämärässä nousee matalammalle (Sportfiskarna).
+    behavior: {
+      night: 0.5,
+      twilight: 1.4,
+      day: 0.8,
+      cloud: 0.3,
+      wind: 0.1,
+      windShore: 0,
+      visual: true,
+      ambush: false,
+      competes: true,
+      prey: false,
+      dayDepth: [4, 99],
+      dimDepth: [2, 99],
+      column: { day: 0.6, dark: 0.35 },
+      // Viileän veden kala: kesällä syvällä (#511). Syksyllä kutuun valmistautuva
+      // siika lähestyy kivikkorantoja (kutu loka–marraskuussa, SKES, Sportfiskarna).
+      season: {
+        spring: { activity: 1.3 },
+        summer: { activity: 0.8, depth: [5, 99], column: { day: 0.85, dark: 0.6 } },
+        autumn: { activity: 1.2, depth: [2.5, 99] },
+      },
     },
   },
 };

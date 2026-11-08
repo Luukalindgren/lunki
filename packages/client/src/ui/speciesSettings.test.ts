@@ -8,9 +8,19 @@ describe('tallennettu lajisto (#225)', () => {
     expect(migrateSpecies(['pike', 'zander'], undefined)).toEqual([
       'pike',
       'zander',
-      'bream',
       'ruffe',
-      'burbot',
+      'whitefish',
+    ]);
+  });
+
+  it('made ja lahna lisälajeiksi, siika mukaan (#535)', () => {
+    expect(NATIVE_SPECIES).toEqual(['perch', 'pike', 'roach', 'ruffe', 'whitefish']);
+    expect(migrateSpecies(['perch', 'pike', 'bream', 'ruffe', 'burbot', 'carp'], 2)).toEqual([
+      'perch',
+      'pike',
+      'ruffe',
+      'carp',
+      'whitefish',
     ]);
   });
 

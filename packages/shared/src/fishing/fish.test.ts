@@ -229,18 +229,18 @@ describe('kalalajit', () => {
     pop.fish.filter((f) => f.species === id).length;
 
   it('oletuksena järvessä ovat Lunkinjärven omat lajit, kiiski harvinaisena', () => {
-    expect(NATIVE_SPECIES).toEqual(['perch', 'pike', 'roach', 'bream', 'ruffe', 'burbot']);
+    // Made ja lahna ovat lisälajeja ja siika oma laji (#535, koekalastus 2012).
+    expect(NATIVE_SPECIES).toEqual(['perch', 'pike', 'roach', 'ruffe', 'whitefish']);
     const pop = createFishPopulation(lake, bounds, new Rng(1), 1800);
     // Lajikohtainen pyöristys voi lisätä yhden kalan (kanta pysyy ennallaan).
     expect(Math.abs(pop.fish.length - 1800)).toBeLessThanOrEqual(1);
     expect(count(pop, 'perch')).toBeGreaterThan(count(pop, 'roach'));
-    expect(count(pop, 'roach')).toBeGreaterThan(count(pop, 'bream'));
-    expect(count(pop, 'bream')).toBeGreaterThan(count(pop, 'pike'));
+    expect(count(pop, 'roach')).toBeGreaterThan(count(pop, 'pike'));
     expect(count(pop, 'pike')).toBeGreaterThan(50);
+    expect(count(pop, 'whitefish')).toBeGreaterThan(30);
     expect(count(pop, 'ruffe')).toBeGreaterThan(20);
     expect(count(pop, 'ruffe')).toBeLessThan(count(pop, 'perch') / 8);
-    expect(count(pop, 'burbot')).toBeGreaterThan(20);
-    for (const id of ['zander', 'trout', 'ide', 'rainbow', 'carp'] as const)
+    for (const id of ['zander', 'trout', 'bream', 'burbot', 'ide', 'rainbow', 'carp'] as const)
       expect(count(pop, id)).toBe(0);
   });
 
@@ -430,11 +430,13 @@ describe('kalakanta palvelimen tarkistettavissa', () => {
     autumn.fish.forEach((f, i) => expect(f.weight).toBe(stockWeight(autumn, i, 0)));
   });
 
-  it('kausi muuttaa lajien syöntiä: syksyllä hauki ja made, keväällä taimen (#427)', () => {
+  it('kausi muuttaa lajien syöntiä: syksyllä hauki, keväällä taimen ja made (#427)', () => {
     const at = (id: SpeciesId, season: Season) =>
       speciesActivity(id, fishConditions(null, { light: 1, twilight: 0 }, season));
     expect(at('pike', 'autumn')).toBeGreaterThan(at('pike', 'summer') * 1.4);
-    expect(at('burbot', 'autumn')).toBeGreaterThan(at('burbot', 'summer') * 2);
+    expect(at('burbot', 'spring')).toBeGreaterThan(at('burbot', 'summer') * 1.5);
+    // Syyskisan 10 °C on mateelle vielä lämmintä (#535).
+    expect(at('burbot', 'autumn')).toBeLessThan(at('burbot', 'spring'));
     expect(at('trout', 'spring')).toBeGreaterThan(at('trout', 'summer') * 1.5);
     expect(at('carp', 'spring')).toBeLessThan(at('carp', 'summer') * 0.5);
     expect(at('zander', 'spring')).toBeLessThan(at('zander', 'summer'));
@@ -536,7 +538,8 @@ describe('käytös', () => {
   });
 
   it('särkiparvi tiivistyy ja pakenee lähelle tullutta haukea', () => {
-    const pop = createFishPopulation(lake, bounds, new Rng(14), 600);
+    const species: SpeciesId[] = ['perch', 'pike', 'roach', 'bream', 'ruffe', 'burbot'];
+    const pop = createFishPopulation(lake, bounds, new Rng(14), 600, species);
     const i = pop.schools!.findIndex((s) => s.species === 'roach');
     const school = pop.schools![i]!;
     const pike = pop.fish.find((f) => f.species === 'pike')!;
@@ -669,18 +672,21 @@ describe('käytös', () => {
       run(pop, 900, cond, 0.25);
       return pop.fish.reduce((s, f) => s + lake.depthAt(f.pos), 0) / pop.fish.length;
     };
-    // Kesällä made pysyy viileässä syvällä myös yöllä (#511), joten verrataan syksyllä.
-    const day = bottomAfter(AUTUMN);
+    // Kesällä (#511) ja syyskisan 10 °C:ssa (#535) made pysyy syvällä myös yöllä,
+    // joten verrataan keväällä.
+    const day = bottomAfter(SPRING);
+    const springNight = bottomAfter({ ...NIGHT, season: 'spring' });
     expect(day).toBeGreaterThan(2.9);
-    expect(day).toBeGreaterThan(bottomAfter({ ...NIGHT, season: 'autumn' }) + 0.3);
+    expect(day).toBeGreaterThan(springNight + 0.3);
     expect(bottomAfter({ ...NIGHT, season: 'summer' })).toBeGreaterThan(4.5);
+    expect(bottomAfter({ ...NIGHT, season: 'autumn' })).toBeGreaterThan(springNight + 0.3);
   });
 
   it('kesällä taimen ui syvällä ja made on laiska (#511)', () => {
     const summer = { ...DAYTIME, season: 'summer' as const };
     const autumn = { ...DAYTIME, season: 'autumn' as const };
     expect(speciesActivity('burbot', { ...NIGHT, season: 'summer' })).toBeLessThan(
-      speciesActivity('burbot', { ...NIGHT, season: 'autumn' }) / 4,
+      speciesActivity('burbot', { ...NIGHT, season: 'spring' }) / 2.5,
     );
     expect(speciesActivity('trout', summer)).toBeLessThan(speciesActivity('trout', autumn));
     const depthAfter = (cond: FishConditions) => {

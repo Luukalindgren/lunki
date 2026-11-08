@@ -54,6 +54,7 @@ export const SPECIES_PIN_COLORS: Record<SpeciesId, string> = {
   ide: '#f6d04d',
   rainbow: '#e58aa0',
   carp: '#b88a3a',
+  whitefish: '#dfe6ea',
 };
 
 /** 2026-10-25 → 25.10.2026 (englanniksi 25 Oct 2026) */
