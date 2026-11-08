@@ -32,6 +32,14 @@ export class WaterBody {
   private readonly reeds: ReedIndex;
   /** Laiturien kannet maalta kärkeen: niillä kävellään kuin maalla (#457). */
   private readonly deckRings: Vec2[][];
+  /** Rantarakennukset: maata, mutta niiden sisällä ei seistä. */
+  private readonly buildings: {
+    ring: Vec2[];
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+  }[];
   /** Ensimmäinen laiturin janoista: niitä ennen ovat rantaviiva ja saaret. */
   private readonly pierSegments: number;
 
@@ -42,6 +50,13 @@ export class WaterBody {
   ) {
     this.reeds = new ReedIndex(map.reeds);
     this.deckRings = (map.piers ?? []).map(pierDeckRing);
+    this.buildings = (map.buildings ?? []).map((ring) => ({
+      ring,
+      minX: Math.min(...ring.map((p) => p.x)) - BUILDING_CLEARANCE,
+      maxX: Math.max(...ring.map((p) => p.x)) + BUILDING_CLEARANCE,
+      minY: Math.min(...ring.map((p) => p.y)) - BUILDING_CLEARANCE,
+      maxY: Math.max(...ring.map((p) => p.y)) + BUILDING_CLEARANCE,
+    }));
     // Laiturit ovat vesialueen sisällä kuin pienet saaret.
     const rings = [map.shore, ...map.islands];
     this.pierSegments = rings.reduce((n, r) => n + r.length, 0);
@@ -81,9 +96,27 @@ export class WaterBody {
     return inside;
   }
 
-  /** Onko piste maata, jolla voi seistä: rantaa, saarta tai laiturin kantta (#457). */
+  /**
+   * Onko piste maata, jolla voi seistä: rantaa, saarta tai laiturin kantta
+   * (#457), mutta ei rakennuksen sisällä tai seinän vieressä.
+   */
   isLand(p: Vec2): boolean {
-    return !this.isWater(p) || this.onPier(p);
+    return (!this.isWater(p) || this.onPier(p)) && !this.inBuilding(p);
+  }
+
+  /** Onko piste rantarakennuksen sisällä tai alle BUILDING_CLEARANCE seinästä. */
+  inBuilding(p: Vec2): boolean {
+    for (const b of this.buildings) {
+      if (p.x < b.minX || p.x > b.maxX || p.y < b.minY || p.y > b.maxY) continue;
+      if (insideRing(b.ring, p)) return true;
+      for (let i = 0; i < b.ring.length; i++) {
+        const a = b.ring[i]!;
+        const c = b.ring[(i + 1) % b.ring.length]!;
+        const q = closestPointOnSegment(p, a, c);
+        if (Math.hypot(q.x - p.x, q.y - p.y) < BUILDING_CLEARANCE) return true;
+      }
+    }
+    return false;
   }
 
   /** Onko piste laiturin kannella (maalla seisova on silloin kannen korkeudella). */
@@ -230,6 +263,9 @@ function insideRing(ring: readonly Vec2[], p: Vec2): boolean {
   }
   return inside;
 }
+
+/** Kalastajan etäisyys rakennuksen seinästä vähintään (m): vartalo ei mene seinän sisään. */
+const BUILDING_CLEARANCE = 0.35;
 
 const cellKey = (x: number, y: number) => (x + 32768) * 65536 + (y + 32768);
 

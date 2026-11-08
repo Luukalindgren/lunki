@@ -5,12 +5,14 @@ import reeds from './lunkinjarvi-reeds.json';
 import surroundings from './lunkinjarvi-surroundings.json';
 import { roundRing } from './geometry';
 import { planPiers } from './piers';
+import { nudgeBuildingsAshore, shoreBuildings } from './shoreBuildings';
 import type { LakeMap, LakeSurroundings } from './types';
 
 /**
  * Lunkinjärvi (Tammela) pelin karttamuodossa. Generoitu map-pipeline-paketilla
  * (`pnpm --filter @lunki/map-pipeline build-map`); älä muokkaa JSONia käsin.
- * Laiturit päätellään rantamökeistä (ks. planPiers). Kaislikot on rajattu
+ * Laiturit päätellään rantamökeistä (ks. planPiers), ja veden päälle
+ * ulottuvat rantarakennukset siirretään maalle (ks. shoreBuildings). Kaislikot on rajattu
  * käsin ilmakuvista (lunkinjarvi-reeds.json, saa muokata).
  */
 /**
@@ -26,10 +28,14 @@ const rounded = {
   islands: data.islands.map((ring) => roundRing(ring, SHORE_ROUNDING)),
 };
 
+/** Ympäristö, jossa järven päälle ulottuneet rantasaunat on siirretty maalle. */
+const ashore = nudgeBuildingsAshore(rounded, surroundings as LakeSurroundings);
+
 export const LUNKINJARVI: LakeMap = {
   ...rounded,
-  piers: planPiers(rounded, surroundings as LakeSurroundings),
+  piers: planPiers(rounded, ashore),
   reeds: reeds.reeds,
+  buildings: shoreBuildings(rounded, ashore),
 };
 
 /**
@@ -39,4 +45,4 @@ export const LUNKINJARVI: LakeMap = {
 export const LUNKINJARVI_BOTTOM = features as BottomFeatures;
 
 /** Järven ympäristö: maankäyttö, rakennukset, tiet ja maasto (karttaputki, #19). */
-export const LUNKINJARVI_SURROUNDINGS = surroundings as LakeSurroundings;
+export const LUNKINJARVI_SURROUNDINGS = ashore;
