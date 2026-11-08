@@ -834,6 +834,8 @@ export function describeRoomError(m: RoomError | string): string {
   if (!e) return String(m);
   if (e.code === 'host-only') return t('roomError.hostOnly');
   if (e.code === 'need-angler') return t('roomError.needAngler');
+  if (e.code === 'outdated-peer')
+    return t('roomError.outdatedPeer', { names: (e.names ?? []).join(', ') });
   return t('roomError.notReady', { names: (e.names ?? []).join(', ') });
 }
 

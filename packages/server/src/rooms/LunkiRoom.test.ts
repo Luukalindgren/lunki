@@ -34,6 +34,7 @@ import {
   BoatSeat,
   BOAT_TUBE,
   WHITEFISH_PROTOCOL,
+  BAIL_PROTOCOL,
   seatPos,
   CHAT_RATE,
   EMOTE_RATE,
@@ -1604,9 +1605,14 @@ describe('siika (#535)', () => {
     await until(() => species(host) === 'perch,pike');
     const b = await sdk().joinById(host.roomId, { name: 'B', playerId: 'B', ...old });
     await until(() => players(host).length === 2);
+    const errors: RoomError[] = [];
+    host.onMessage(ServerMsg.error, (m: RoomError) => errors.push(m));
     host.send(ClientMsg.settings, { species: ['perch', 'pike', 'whitefish'] });
     host.send(ClientMsg.settings, { species: ['perch', 'roach', 'whitefish'] });
     await until(() => species(host) === 'perch,roach');
+    // Isäntä kuulee, kuka esti siian (#552).
+    await until(() => errors.length === 2);
+    expect(errors[0]).toEqual({ code: 'outdated-peer', names: ['B'] });
     await b.leave();
     await host.leave();
   });
@@ -1863,12 +1869,25 @@ describe('täyttökisa (#458)', () => {
       playerId: 'A',
       protocol: PROTOCOL_VERSION,
     });
-    const old = await sdk().joinById(host.roomId, { name: 'O', playerId: 'O' });
+    // Siikahuoneeseen vanha ei pääsisi lainkaan (#535).
+    host.send(ClientMsg.settings, { species: ['perch', 'pike'] });
+    await until(() => [...(host.state.settings?.species ?? [])].join() === 'perch,pike');
+    // Testin sdk antaa oletuksena nykyisen protokollan: vanha pitää kertoa.
+    const old = await sdk().joinById(host.roomId, {
+      name: 'O',
+      playerId: 'O',
+      protocol: BAIL_PROTOCOL - 1,
+    });
     await until(() => players(host).length === 2);
+    const errors: RoomError[] = [];
+    host.onMessage(ServerMsg.error, (m: RoomError) => errors.push(m));
     host.send(ClientMsg.settings, { inflate: true });
-    host.send(ClientMsg.settings, { durationMinutes: 15 });
-    await until(() => host.state.settings.durationMinutes === 15);
+    // 15 min on oletus: vasta muuttunut kesto kertoo, että viestit käsiteltiin.
+    host.send(ClientMsg.settings, { durationMinutes: 30 });
+    await until(() => host.state.settings.durationMinutes === 30);
     expect(host.state.settings.inflate).toBe(false);
+    // Isäntä kuulee, miksi valinta jäi pois (#552).
+    expect(errors).toEqual([{ code: 'outdated-peer', names: ['O'] }]);
     await old.leave();
     await host.leave();
   });

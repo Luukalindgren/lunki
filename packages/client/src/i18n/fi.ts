@@ -377,6 +377,8 @@ export const fi = {
   'roomError.hostOnly': 'Vain huoneen luoja voi aloittaa kisan',
   'roomError.needAngler': 'Kisaan tarvitaan ainakin yksi kalastaja',
   'roomError.notReady': 'Odotetaan: {names}',
+  'roomError.outdatedPeer':
+    'Valinta jäi pois: {names} käyttää vanhaa pelin versiota, joka ei tunne sitä. Pyydä lataamaan sivu uudelleen.',
 
   // --- Aula ---
   'lobby.title': 'Aula',

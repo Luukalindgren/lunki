@@ -549,6 +549,8 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       const valid = validateSettingsPatch(patch, this.anglerCount(), (p) => isValidStart(water, p));
       const s = this.state.settings;
       let changed = false;
+      // Vanhan asiakkaan takia pois jätetty valinta: isäntä kuulee syyn (#552).
+      let blockedBy = 0;
       for (const [key, value] of Object.entries(valid)) {
         if (key === 'start') {
           const start = value as Vec2 | null;
@@ -565,12 +567,15 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
           }
         } else if (key === 'inflate' && value === true && this.hasOutdatedClient(BAIL_PROTOCOL)) {
           // Vanha asiakas ei osaa täyttökisaa (#458).
+          blockedBy = Math.max(blockedBy, BAIL_PROTOCOL);
           continue;
         } else if (key === 'species') {
           // Vanha asiakas ei tunne siikaa (#535): se arpoisi eri kalakannan.
           const list = (value as string[]).filter(
             (id) => id !== 'whitefish' || !this.hasOutdatedClient(WHITEFISH_PROTOCOL),
           );
+          if (list.length < (value as string[]).length)
+            blockedBy = Math.max(blockedBy, WHITEFISH_PROTOCOL);
           if (list.length === 0) continue;
           if (list.join() !== [...s.species].join()) {
             s.species.splice(0, s.species.length, ...list);
@@ -588,6 +593,13 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       }
       // Muuttuneet säännöt: muiden pitää kuitata valmius uudelleen.
       if (changed) this.state.players.forEach((p) => (p.ready = false));
+      if (blockedBy > 0)
+        client.send(ServerMsg.error, {
+          code: 'outdated-peer',
+          names: [...this.state.players.entries()]
+            .filter(([id]) => (this.protocols.get(id) ?? 0) < blockedBy)
+            .map(([, p]) => p.name),
+        } satisfies RoomError);
     });
 
     // Aulassa kulkupeli (#263): toisen veneeseen, omaan uuteen veneeseen tai renkaalle.

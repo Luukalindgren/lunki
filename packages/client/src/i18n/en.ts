@@ -374,6 +374,8 @@ export const en: Record<keyof typeof fi, string> = {
   'roomError.hostOnly': 'Only the room’s creator can start the competition',
   'roomError.needAngler': 'The competition needs at least one angler',
   'roomError.notReady': 'Waiting for: {names}',
+  'roomError.outdatedPeer':
+    'Not applied: {names} has an old version of the game that does not know it. Ask them to reload the page.',
 
   // --- Lobby ---
   'lobby.title': 'Lobby',
