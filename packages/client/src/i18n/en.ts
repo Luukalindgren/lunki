@@ -388,6 +388,14 @@ export const en: Record<keyof typeof fi, string> = {
   'lobby.ready': 'ready',
   'lobby.waiting': 'waiting',
   'lobby.you': ' (you)',
+  'lobby.oldVersion': 'old version',
+  'lobby.oldVersionHint': '{names}: old game version. Ask them to reload the page.',
+  'lobby.oldVersionWhitefish':
+    '{names}: old game version. Whitefish is unavailable until the page is reloaded.',
+  'lobby.oldVersionInflate':
+    '{names}: old game version. The inflation contest is unavailable until the page is reloaded.',
+  'lobby.oldVersionBoth':
+    '{names}: old game version. Whitefish and the inflation contest are unavailable until the page is reloaded.',
   'lobby.players': 'Players {n}/{max}',
   'lobby.tubeGroup': 'On float tubes · {n}',
   'lobby.playersWaiting': 'Players {n}/{max} · {waiting} waiting for a place',

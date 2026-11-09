@@ -1781,6 +1781,29 @@ describe('veneet (#263)', () => {
   });
 });
 
+describe('asiakasversiot aulassa (#554)', () => {
+  it('versio näkyy tilassa, outo luku rajataan ja lähtijän rivi poistuu', async () => {
+    const host = await sdk().create(ROOM_NAME, { name: 'A', playerId: 'A' });
+    await until(() => players(host).length === 1);
+    // Siikahuoneeseen versiotonta asiakasta ei päästettäisi (#535).
+    host.send(ClientMsg.settings, { species: ['perch', 'pike'] });
+    await until(() => [...host.state.settings.species].join() === 'perch,pike');
+    const odd = await sdk().joinById(host.roomId, { name: 'X', playerId: 'X', protocol: 1e9 });
+    const silent = await sdk().joinById(host.roomId, {
+      name: 'S',
+      playerId: 'S',
+      protocol: undefined,
+    });
+    await until(() => host.state.protocols?.size === 3);
+    expect(host.state.protocols.get(odd.sessionId)).toBe(255);
+    expect(host.state.protocols.get(silent.sessionId)).toBe(0);
+    await odd.leave();
+    await until(() => host.state.protocols.size === 2);
+    await silent.leave();
+    await host.leave();
+  });
+});
+
 describe('täyttökisa (#458)', () => {
   type Row = { x: number; y: number; shore: number; inflate: number; fill0: number };
   const join = (room: Room, name: string) =>
@@ -1888,6 +1911,9 @@ describe('täyttökisa (#458)', () => {
     expect(host.state.settings.inflate).toBe(false);
     // Isäntä kuulee, miksi valinta jäi pois (#552).
     expect(errors).toEqual([{ code: 'outdated-peer', names: ['O'] }]);
+    // Aula näkee jokaisen version jo etukäteen (#554).
+    expect(host.state.protocols.get(old.sessionId)).toBe(BAIL_PROTOCOL - 1);
+    expect(host.state.protocols.get(host.sessionId)).toBe(PROTOCOL_VERSION);
     await old.leave();
     await host.leave();
   });

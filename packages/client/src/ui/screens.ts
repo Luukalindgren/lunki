@@ -73,7 +73,7 @@ import {
   type WeatherLevel,
   type WinRule,
 } from '@lunki/shared';
-import type { LobbyPlayer, LobbyView } from '../net/session';
+import type { LobbyPlayer, LobbyView, OldVersionView } from '../net/session';
 import type { SendResult } from '../net/report';
 import { LIBRARIES, creditText } from './credits';
 import { fishImage } from './fishArt';
@@ -835,6 +835,8 @@ export class Screens {
       swatch.style.background = cssColor(p.appearance.tube);
       const name = h('span', `${p.name}${p.me ? t('lobby.you') : ''}`);
       name.prepend(swatch);
+      // Vanhan version pelaaja näkyy jo ennen kuin isäntä yrittää valita (#554).
+      if (p.oldVersion) name.append(h('span', t('lobby.oldVersion'), 'player-old'));
       li.append(
         name,
         h('span', state, `player-state ${p.host || p.ready || p.spectator ? 'ok' : ''}`),
@@ -869,6 +871,7 @@ export class Screens {
       header,
       ...(full && v.amHost ? [h('p', t('lobby.fullHost'), 'hint lobby-full')] : []),
       list,
+      ...(v.oldVersion ? [h('p', oldVersionHint(v.oldVersion), 'hint lobby-old')] : []),
     );
     // Oma kulkupeli: rengas tai oma vene; kyytiin pääsee veneen Liity-napista.
     if (v.canBoat && me && !me.spectator) {
@@ -2886,6 +2889,15 @@ function catchesText(s: BaitSummary): string {
     time: t(`journal.time.${s.best.timeOfDay}`),
     depth: t(`journal.depth.${s.best.depth}`),
   });
+}
+
+/** Aulan selitys vanhan version pelaajista ja siitä, mitä he estävät (#554). */
+export function oldVersionHint(old: OldVersionView): string {
+  const names = old.names.join(', ');
+  if (old.whitefish && old.inflate) return t('lobby.oldVersionBoth', { names });
+  if (old.whitefish) return t('lobby.oldVersionWhitefish', { names });
+  if (old.inflate) return t('lobby.oldVersionInflate', { names });
+  return t('lobby.oldVersionHint', { names });
 }
 
 /** Aloituspaikan kuvaus asetuksiin. */

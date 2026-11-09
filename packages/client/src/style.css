@@ -950,6 +950,16 @@ textarea,
   color: #f6d04d;
 }
 
+/* Vanhan version pelaaja (#554): merkki nimen perässä ja selitys listan alla. */
+.screen-panel .player-old {
+  margin-left: 0.5em;
+  color: #f08a4b;
+}
+
+.screen-panel .lobby-old {
+  color: #f08a4b;
+}
+
 .screen-panel .lobby-head {
   display: flex;
   gap: 0 12px;

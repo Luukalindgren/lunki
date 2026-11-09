@@ -211,6 +211,11 @@ export const LunkiState = schema(
     departed: t.map(DepartedState),
     /** Palvelimen protokollaversio: asiakas ei käytä uudempia viestejä vanhalla palvelimella. */
     protocol: t.uint8().default(PROTOCOL_VERSION),
+    /**
+     * Pelaajien asiakasversiot (sessionId → protokolla; 0 = ei kertonut):
+     * aula näyttää, kuka pelaa vanhalla versiolla (#554).
+     */
+    protocols: t.map('uint8'),
   },
   'LunkiState',
 );
