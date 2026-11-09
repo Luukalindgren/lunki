@@ -251,8 +251,6 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   private readonly chatLimits = new Map<string, ChatLimiter>();
   /** Käsimerkkien nopeusrajoitus pelaajittain (sessionId). */
   private readonly emoteLimits = new Map<string, ChatLimiter>();
-  /** Asiakkaan protokollaversio pelaajittain (sessionId): vanha ei osaa venettä. */
-  private readonly protocols = new Map<string, number>();
   /** Selaimen pysyvä tunniste pelaajittain (sessionId); ei jaeta muille. */
   private readonly playerIds = new Map<string, string>();
   /** Kesken kisan lähteneiden paikat (playerId); tyhjenee uuden kisan alkaessa. */
@@ -326,7 +324,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       sim.canLand =
         !sim.boat &&
         p.lureStage === LureStage.none &&
-        (this.protocols.get(client.sessionId) ?? 0) >= SHORE_PROTOCOL;
+        (this.state.protocols.get(client.sessionId) ?? 0) >= SHORE_PROTOCOL;
       // Soutaja kääntyy tuhdolla kalastaessaan; vain näytettävä ja siiman lähtökohta.
       const look = Number(msg?.look);
       sim.look = sim.boat && !isPassenger(sim) && Number.isFinite(look) ? wrapAngle(look) : 0;
@@ -597,7 +595,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         client.send(ServerMsg.error, {
           code: 'outdated-peer',
           names: [...this.state.players.entries()]
-            .filter(([id]) => (this.protocols.get(id) ?? 0) < blockedBy)
+            .filter(([id]) => (this.state.protocols.get(id) ?? 0) < blockedBy)
             .map(([, p]) => p.name),
         } satisfies RoomError);
     });
@@ -760,7 +758,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   /** Joku huoneessa käyttää asiakasta, joka ei osaa venettä (tai täyttökisaa, `need`). */
   private hasOutdatedClient(need: number = BOAT_PROTOCOL): boolean {
     for (const id of this.state.players.keys())
-      if ((this.protocols.get(id) ?? 0) < need) return true;
+      if ((this.state.protocols.get(id) ?? 0) < need) return true;
     return false;
   }
 
@@ -912,7 +910,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     const id = playerIdOf(options);
     const racing = this.state.phase !== 'lobby';
     if (id) this.playerIds.set(client.sessionId, id);
-    this.protocols.set(client.sessionId, clientProtocol(options));
+    this.state.protocols.set(client.sessionId, clientProtocol(options));
     // Päättyneeseen kisaan tullut katsoo tuloksia ja pääsee mukaan uuteen
     // kisaan; muuten hän näkyisi tuloksissa ilman rengasta (#279).
     const afterEnd = this.state.phase === 'finished' && !this.isReturning(id);
@@ -1125,7 +1123,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         seat: p.seat,
       });
     this.playerIds.delete(id);
-    this.protocols.delete(id);
+    this.state.protocols.delete(id);
     this.state.players.delete(id);
     // Lähtevän soutajan vene jää kyytiläisille: seuraava tarttuu airoihin.
     const sim = this.sims.get(id);
@@ -1569,9 +1567,14 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
   }
 }
 
-/** Asiakkaan protokollaversio liittymisen valinnoista; vanha asiakas ei kerro. */
+/**
+ * Asiakkaan protokollaversio liittymisen valinnoista; vanha asiakas ei kerro.
+ * Tilassa uint8: outo luku rajataan väliin 0–255.
+ */
 const clientProtocol = (options: Partial<JoinOptions>) =>
-  typeof options.protocol === 'number' && Number.isFinite(options.protocol) ? options.protocol : 0;
+  typeof options.protocol === 'number' && Number.isFinite(options.protocol)
+    ? Math.min(255, Math.max(0, Math.floor(options.protocol)))
+    : 0;
 
 function writeTube(p: PlayerState, t: TubeState, ack: number) {
   p.x = t.pos.x;

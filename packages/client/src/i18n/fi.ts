@@ -391,6 +391,14 @@ export const fi = {
   'lobby.ready': 'valmis',
   'lobby.waiting': 'odottaa',
   'lobby.you': ' (sinä)',
+  'lobby.oldVersion': 'vanha versio',
+  'lobby.oldVersionHint': '{names} pelaa vanhalla versiolla. Pyydä lataamaan sivu uudelleen.',
+  'lobby.oldVersionWhitefish':
+    '{names} pelaa vanhalla versiolla: siika ei ole käytössä, ennen kuin sivu ladataan uudelleen.',
+  'lobby.oldVersionInflate':
+    '{names} pelaa vanhalla versiolla: täyttökisa ei ole käytössä, ennen kuin sivu ladataan uudelleen.',
+  'lobby.oldVersionBoth':
+    '{names} pelaa vanhalla versiolla: siika ja täyttökisa eivät ole käytössä, ennen kuin sivu ladataan uudelleen.',
   'lobby.players': 'Pelaajat {n}/{max}',
   'lobby.tubeGroup': 'Kelluntarenkaalla · {n}',
   'lobby.playersWaiting': 'Pelaajat {n}/{max} · {waiting} odottaa paikkaa',

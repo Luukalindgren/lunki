@@ -45,6 +45,8 @@ import {
   SEASON_PROTOCOL,
   INFLATE_PROTOCOL,
   FORCE_START_PROTOCOL,
+  BAIL_PROTOCOL,
+  WHITEFISH_PROTOCOL,
   type LaunchNet,
   seasonOf,
   type UntangledMessage,
@@ -232,6 +234,17 @@ export interface LobbyPlayer {
   seat: number;
   /** Paikka, johon pelaaja haluaa vaihtaa (#357); null = ei pyyntöä. */
   seatAsk: number | null;
+  /** Pelaa vanhemmalla pelin versiolla kuin palvelin (#554). */
+  oldVersion: boolean;
+}
+
+/** Vanhan version pelaajat aulassa ja mitä he estävät (#554). */
+export interface OldVersionView {
+  names: string[];
+  /** Siika ei käy: joku ei tunne sitä (#535). */
+  whitefish: boolean;
+  /** Täyttökisa ei käy (#458). */
+  inflate: boolean;
 }
 
 export interface LobbyView {
@@ -257,6 +270,8 @@ export interface LobbyView {
   canSeason: boolean;
   /** Palvelin osaa täyttökisan (#458). */
   canInflate: boolean;
+  /** Vanhan version pelaajat (#554); null = kaikilla on palvelimen versio. */
+  oldVersion: OldVersionView | null;
 }
 
 export interface PlayerSchema {
@@ -368,6 +383,8 @@ export interface StateSchema {
   departed?: Map<string, { name: string; boat: number; early: boolean }>;
   /** Puuttuu palvelimelta, joka on vanhempi kuin PROTOCOL_VERSION 2. */
   protocol?: number;
+  /** Pelaajien asiakasversiot (sessionId → protokolla, #554); vanha palvelin ei lähetä. */
+  protocols?: Map<string, number>;
 }
 
 export interface CatchSchema {
@@ -533,6 +550,8 @@ export class NetSession {
     const s = this.room.state;
     const me = this.room.sessionId;
     const players: LobbyPlayer[] = [];
+    // Vanha palvelin ei kerro asiakkaiden versioita: silloin kaikki ovat ajan tasalla.
+    const clientProtocol = (id: string) => s.protocols?.get(id) ?? this.serverProtocol;
     s.players.forEach((p, id) =>
       players.push({
         sessionId: id,
@@ -547,8 +566,11 @@ export class NetSession {
         boat: p.boat ?? 0,
         seat: p.seat ?? 0,
         seatAsk: p.seatAsk ? p.seatAsk - 1 : null,
+        oldVersion: clientProtocol(id) < this.serverProtocol,
       }),
     );
+    const old = players.filter((p) => p.oldVersion);
+    const oldest = Math.min(...old.map((p) => clientProtocol(p.sessionId)));
     // Katkennutta ei odoteta, kuten palvelinkaan ei (#275).
     const notReady = players
       .filter((p) => !p.host && !p.ready && !p.spectator && p.connected)
@@ -583,6 +605,15 @@ export class NetSession {
       canSwapSeats: this.serverProtocol >= SEAT_PROTOCOL,
       canSeason: this.serverProtocol >= SEASON_PROTOCOL,
       canInflate: this.serverProtocol >= INFLATE_PROTOCOL,
+      oldVersion:
+        old.length === 0
+          ? null
+          : {
+              names: old.map((p) => p.name),
+              // Samat rajat kuin palvelimen asetusten suodatuksessa.
+              whitefish: this.serverProtocol >= WHITEFISH_PROTOCOL && oldest < WHITEFISH_PROTOCOL,
+              inflate: this.serverProtocol >= BAIL_PROTOCOL && oldest < BAIL_PROTOCOL,
+            },
     };
   }
 
