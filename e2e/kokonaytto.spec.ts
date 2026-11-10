@@ -49,3 +49,26 @@ test('Esc ilman näppäinlukitusta: valikko aukeaa ja koko näyttö palaa', asyn
   expect(await fullscreen(page)).toBe(false);
   errors.check();
 });
+
+test('koko näytön kuvake ei peitä päävalikon otsikkoa (#600)', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto('/');
+  await expect(page.locator('.start-panel')).toBeVisible();
+  // iPhonen Safarissa koko näyttö onnistuu vain Koti-valikosta: kuvaketta ei ole.
+  test.skip((await page.locator('.fullscreen-toggle').count()) === 0, 'ei koko näytön kuvaketta');
+  // Kapealla ruudulla otsikko on paneelin levyinen ja kuvake sen yläkulmassa.
+  const covered = () =>
+    page.locator('.start-panel').evaluate((panel) => {
+      const icon = panel.querySelector('.fullscreen-toggle')!.getBoundingClientRect();
+      return [...panel.querySelectorAll('h1 .wave-letter')].some((letter) => {
+        const r = letter.getBoundingClientRect();
+        return (
+          r.right > icon.left && r.left < icon.right && r.bottom > icon.top && r.top < icon.bottom
+        );
+      });
+    });
+  expect(await covered()).toBe(false);
+  await page.setViewportSize({ width: 320, height: 568 });
+  expect(await covered()).toBe(false);
+  errors.check();
+});
