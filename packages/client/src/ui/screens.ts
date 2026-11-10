@@ -811,10 +811,9 @@ export class Screens {
     });
     const list = document.createElement('ul');
     list.className = 'player-list';
-    // Iso porukka (#529): yksi rivi pelaajaa kohden kuten tulossivulla (#507),
-    // jotta isäntä näkee kaikkien valmiuden vierittämättä. Omat varusteet
+    // Yksi rivi pelaajaa kohden (#529, #558): muiden varusteet eivät kuulu
+    // aulaan, ja isäntä näkee kaikkien valmiuden vierittämättä. Omat varusteet
     // näkyvät yhteenvetona alempana.
-    const compact = v.players.length > COMPACT_RESULTS_OVER;
     const playerRow = (p: LobbyPlayer) => {
       const li = document.createElement('li');
       li.classList.toggle('lobby-new', event?.ids.includes(p.sessionId) ?? false);
@@ -840,8 +839,6 @@ export class Screens {
       li.append(
         name,
         h('span', state, `player-state ${p.host || p.ready || p.spectator ? 'ok' : ''}`),
-        // Katsoja ei kalasta: ei varusteita.
-        ...(p.spectator || compact ? [] : [h('span', describeFullTackle(p.tackle), 'player-gear')]),
       );
       return li;
     };
