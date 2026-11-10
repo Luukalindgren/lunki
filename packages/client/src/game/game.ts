@@ -211,8 +211,6 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
   private povTubeTime = performance.now();
   /** Ohjaajan kuva nyt (#564); pelaajalla ja käsiohjauksessa null. */
   private shot: Shot | null = null;
-  /** Edellisen kuvan tunniste: uusi kuva leikataan, ei liu'uteta. */
-  private shotKey = '';
   /** Seurattavan siiman pituus edellisessä ruudussa (kelaus näkyy kelassa). */
   private followedLine = 0;
   /** Kenen värit katsojan silmin -renkaassa ovat. */
@@ -671,18 +669,21 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
   }
 
   /**
-   * Ohjaajan kuva (#564): näkymä, rajaus ja leikkaus. Uuteen kuvaan kamera
-   * hyppää kuten lähetyksessä; saman kuvan aikana se seuraa pehmeästi.
+   * Ohjaajan kuva (#564): näkymä ja rajaus. Uuteen kuvaan kamera liukuu
+   * samalla seurannalla kuin katsojan itse vaihtaessa kalastajaa; kauempaa
+   * liuku on nopeampi. Kamera hyppää vain, kun näkymä vaihtuu (ylhäältä ↔ omin silmin).
    * Väsytyksessä ja heitossa rengas ja viehe ovat samassa kuvassa, ja
    * yleiskuvassa näkyvät kaikki kalastajat.
    */
   private directCamera(shot: Shot, dt: number): void {
     const want = shot.view === 'pov' ? 'pov' : 'top';
-    if (this.viewMode !== want) this.setViewMode(want, false);
+    const cut = this.viewMode !== want;
+    if (cut) this.setViewMode(want, false);
     const others = this.net!.world.others();
     const b = this.map.bounds;
     let target: Vec2 = { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 };
     let span = { w: 0, h: 0 };
+    let stiffness = 3;
     if (shot.view === 'overview') {
       if (others.length > 0) {
         const xs = others.map((o) => o.pos.x);
@@ -705,12 +706,11 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
           w: Math.abs(o.lure.x - o.pos.x) * 1.3 + 10,
           h: Math.abs(o.lure.y - o.pos.y) * 1.3 + 10,
         };
+        stiffness = 2;
       }
     }
-    const key = `${shot.id}|${shot.since}|${shot.view}`;
-    if (key !== this.shotKey) this.view.snapTo(target);
-    else this.view.follow(target, dt, 2);
-    this.shotKey = key;
+    if (cut) this.view.snapTo(target);
+    else this.view.follow(target, dt, stiffness);
     this.view.fitSpan(span.w, span.h);
   }
 
