@@ -6,3 +6,4 @@ export * from './gear';
 export * from './sonar';
 export * from './line';
 export * from './flyCast';
+export * from './length';

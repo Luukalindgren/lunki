@@ -1,5 +1,6 @@
 import {
   DEFAULT_APPEARANCE,
+  fishLengthCm,
   formatTime,
   type Appearance,
   type CatchRecord,
@@ -8,7 +9,7 @@ import {
   type SpeciesId,
   type TimeOfDay,
 } from '@lunki/shared';
-import { fishLengthCm, fishPixels, type FishPixels } from './fishArt';
+import { fishPixels, type FishPixels } from './fishArt';
 import { formatDay, formatWeight, t } from '../i18n';
 import { seasonName, speciesName, timeOfDayName } from '../i18n/names';
 

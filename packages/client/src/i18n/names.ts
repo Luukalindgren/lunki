@@ -1,4 +1,5 @@
 import {
+  fishLengthCm,
   BoatSeat,
   LURES,
   lureVariant,
@@ -25,7 +26,7 @@ import {
   type WeatherWarning,
   type WinRule,
 } from '@lunki/shared';
-import { hasKey, t } from './index';
+import { formatWeight, hasKey, t } from './index';
 
 /**
  * Jaetun koodin tunnisteiden (laji, viehe, sää…) nimet pelaajan kielellä.
@@ -99,3 +100,11 @@ export const baitName = (tk: Tackle) =>
 
 /** Viehe tunnetaan, vaikka nimeä ei näytettäisi (tallennetut ennätykset). */
 export const isLure = (v: string): v is LureId => Object.hasOwn(LURES, v);
+
+/** Kalan pituus senteissä painosta (#577), esim. "54 cm". */
+export const lengthText = (species: SpeciesId, kg: number) =>
+  `${Math.round(fishLengthCm(species, kg))} cm`;
+
+/** Paino ja pituus (#577), esim. "1,32 kg (54 cm)". */
+export const weightWithLength = (species: SpeciesId, kg: number) =>
+  `${formatWeight(kg)} (${lengthText(species, kg)})`;

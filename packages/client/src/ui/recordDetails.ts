@@ -31,6 +31,7 @@ import {
   flyLineName,
   flyName,
   flyRodName,
+  lengthText,
   lineName,
   lureLabel,
   methodName,
@@ -83,10 +84,11 @@ export const recordTitle = (r: RecordEntry) =>
  * kuvaus (syvyys ja pohja), jos paikka on tallessa.
  */
 export function recordDetails(r: RecordEntry, spot?: string | null): [string, string][] {
-  const rows: [string, string][] = [
-    [t('common.angler'), r.angler],
-    [t('records.caught'), when(r)],
-  ];
+  const rows: [string, string][] = [[t('common.angler'), r.angler]];
+  // Pituus lasketaan painosta (#577); tuntemattomalle lajille ei arvata.
+  if (Object.hasOwn(SPECIES, r.species))
+    rows.push([t('records.length'), lengthText(r.species, r.weight)]);
+  rows.push([t('records.caught'), when(r)]);
   if (r.timeOfDay) {
     const race =
       r.raceTime !== undefined ? t('records.raceTime', { time: formatTime(r.raceTime) }) : '';

@@ -21,12 +21,11 @@ import type { VoiceId } from '../audio/voice';
 import type { NetWorld } from '../net/netWorld';
 import type { Hud } from '../ui/hud';
 import { formatWeight, ordinal, t } from '../i18n';
-import { speciesName } from '../i18n/names';
+import { lengthText, speciesName } from '../i18n/names';
 import { KnotView } from './knotView';
 import type { RaceCatchMark, RaceLog } from './raceLog';
 import { RemotePlayersView } from './remotePlayersView';
 import type { BubbleContent } from './speechBubble';
-import { fishLengthCm } from '../ui/fishArt';
 import type { TopDownCamera } from './topDownCamera';
 import { Director, type DirectorEventKind, type Shot } from './director';
 
@@ -255,11 +254,11 @@ export class NetBridge {
     this.direct('catch', [player], Math.min(60, mark.weight * 25));
     const fish = `${speciesName(mark.species)} ${formatWeight(mark.weight)}`;
     this.news = t('broadcast.caught', { name: mark.id, fish });
-    const length = Math.round(fishLengthCm(mark.species, mark.weight));
+    const length = lengthText(mark.species, mark.weight);
     const show = () =>
       this.host.hud.showWeighIn(
         t('broadcast.card', { name: mark.id, fish }),
-        `${length} cm`,
+        length,
         SPECTATOR_CARD_SECONDS,
         { species: mark.species, weight: mark.weight },
       );

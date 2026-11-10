@@ -166,6 +166,8 @@ import {
   seasonName,
   timeOfDayName,
   weatherLevelName,
+  weightWithLength,
+  lengthText,
   winRuleName,
 } from '../i18n/names';
 
@@ -1973,8 +1975,12 @@ export class Screens {
     // Iso porukka (#507): varusteet pois riveiltä (ne ovat Tilastoissa) ja
     // pienet kalakuvat, jotta koko lista mahtuu ruutuun.
     const compact = results.length > COMPACT_RESULTS_OVER;
-    // Pitkä nimi (esim. "Tiina (lähti)") ei siirrä muiden sarakkeita.
-    const nameWidth = Math.max(12, ...results.map((r) => r.name.length));
+    // Nimisarake on pisimmän nimen levyinen, kuitenkin enintään RESULT_NAME_MAX
+    // merkkiä: pidempi nimi lyhenee "…"-merkkiin (koko nimi vihjeessä), ettei
+    // paino jää piiloon ja kalan kuva mahtuu rivin perään.
+    const shortName = (name: string) =>
+      name.length > RESULT_NAME_MAX ? `${name.slice(0, RESULT_NAME_MAX - 1)}…` : name;
+    const nameWidth = Math.max(...results.map((r) => shortName(r.name).length));
     table.classList.toggle('compact', compact);
     for (const r of results) {
       const li = document.createElement('li');
@@ -1983,15 +1989,17 @@ export class Screens {
       // Saaliittomalle viiva kuten kisan taulussa (#528).
       li.classList.toggle('unranked', rankLabel(r) === '–');
       const biggest = r.summary.biggest ? formatWeight(r.summary.biggest.weight) : '–';
-      li.textContent = t('results.row', {
-        name: r.name.padEnd(nameWidth),
+      const text = t('results.row', {
+        name: shortName(r.name).padEnd(nameWidth),
         count: String(r.summary.count).padStart(2),
         total: formatWeight(r.summary.total).padStart(8),
         biggest,
       });
       const gear = tackles?.get(r.id);
       const big = r.summary.biggest;
-      if (big) li.append(fishImage(big.species, big.weight, LIST_FISH_SCALE));
+      const row = resultRow(text, big ? sizedFish(big.species, big.weight) : null);
+      if (shortName(r.name) !== r.name) row.title = r.name;
+      li.append(row);
       if (gear && !compact) li.append(h('span', describeFullTackle(gear), 'player-gear'));
       // Venekunta: joukkueen kalastajat veneen nimen alle.
       if (r.members?.length)
@@ -2078,8 +2086,12 @@ export class Screens {
       list.className = 'catch-list';
       for (const ct of [...c.catches].sort((a, b) => b.weight - a.weight)) {
         const li = document.createElement('li');
-        li.textContent = `${speciesName(ct.species).padEnd(8)} ${formatWeight(ct.weight).padStart(8)}   ${formatTime(ct.time)}`;
-        li.append(fishImage(ct.species, ct.weight, LIST_FISH_SCALE));
+        li.append(
+          resultRow(
+            `${speciesName(ct.species).padEnd(8)} ${formatWeight(ct.weight).padStart(8)}   ${formatTime(ct.time)}`,
+            sizedFish(ct.species, ct.weight),
+          ),
+        );
         list.appendChild(li);
       }
       panel.append(
@@ -2089,7 +2101,7 @@ export class Screens {
           t('results.summary', {
             count: sum.count,
             total: formatWeight(sum.total),
-            biggest: formatWeight(sum.biggest!.weight),
+            biggest: weightWithLength(sum.biggest!.species, sum.biggest!.weight),
           }),
           'total',
         ),
@@ -2869,6 +2881,30 @@ export class Screens {
   }
 }
 
+/** Tulossivun nimisarakkeen enimmäisleveys (merkkiä). */
+const RESULT_NAME_MAX = 14;
+
+/**
+ * Tulosrivi: teksti vasemmalla ja kalan kuva oikeassa reunassa, joten kuva
+ * näkyy aina kokonaan; liian pitkä teksti lyhenee "…"-merkkiin.
+ */
+function resultRow(text: string, fish: HTMLElement | null): HTMLElement {
+  const row = h('div', '', 'result-row');
+  row.append(h('span', text, 'result-text'));
+  if (fish) row.append(fish);
+  return row;
+}
+
+/** Kalan kuva ja pituus sen alla (#577): rivin teksti ei veny. */
+function sizedFish(species: SpeciesId, weight: number): HTMLElement {
+  const fig = h('span', '', 'fish-sized');
+  fig.append(
+    fishImage(species, weight, LIST_FISH_SCALE),
+    h('span', lengthText(species, weight), 'fish-length'),
+  );
+  return fig;
+}
+
 const fishCount = (n: number) => (n === 1 ? t('box.fishOne') : t('box.fishMany', { n }));
 
 /** Vieheen saaliit ja parhaat olot viehepakin vihjeeseen (#415). */
@@ -2877,6 +2913,9 @@ function catchesText(s: BaitSummary): string {
   const catches = t('box.catches', {
     fish: fishCount(s.count),
     species: s.species.map(([id, n]) => `${speciesName(id).toLocaleLowerCase()} ${n}`).join(', '),
+    biggest: s.biggest
+      ? `${speciesName(s.biggest.species).toLocaleLowerCase()} ${weightWithLength(s.biggest.species, s.biggest.weight)}`
+      : '',
   });
   if (!s.best) return catches;
   return t('box.catchesBest', {

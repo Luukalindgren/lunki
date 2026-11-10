@@ -34,8 +34,8 @@ describe('tulokset tekstinä (#507)', () => {
       'Lunkinjärvi, kisan tulokset 11.11.2026 klo 19.05',
       expect.stringContaining('15 min'),
       '',
-      '1. Bertta 1,50 kg (2 kpl, suurin 1,20 kg)',
-      '2. Antti 410 g (1 kpl, suurin 410 g)',
+      '1. Bertta 1,50 kg (2 kpl, suurin 1,20 kg, 57 cm)',
+      '2. Antti 410 g (1 kpl, suurin 410 g, 32 cm)',
       '– Cecilia (lähti) 0 g (0 kpl)',
     ]);
   });

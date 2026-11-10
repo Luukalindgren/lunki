@@ -117,6 +117,8 @@ export interface BaitSummary {
   count: number;
   /** Lajit saalismäärän mukaan, eniten ensin. */
   species: [SpeciesId, number][];
+  /** Suurin saalis (#577). */
+  biggest: { species: SpeciesId; weight: number } | null;
   /** Yleisimmät olot, kun saaliita on vähintään BEST_MIN. */
   best: { season: Season; sky: Sky; timeOfDay: TimeOfDay; depth: DepthBand } | null;
 }
@@ -138,6 +140,10 @@ export function baitSummary(journal: readonly JournalEntry[], bait: LureSlot | F
   return {
     count: mine.length,
     species: [...bySpecies].sort((a, b) => b[1] - a[1]),
+    biggest: mine.reduce<BaitSummary['biggest']>(
+      (b, e) => (!b || e.weight > b.weight ? { species: e.species, weight: e.weight } : b),
+      null,
+    ),
     best:
       mine.length >= BEST_MIN
         ? {

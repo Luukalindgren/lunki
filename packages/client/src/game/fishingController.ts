@@ -35,11 +35,17 @@ import {
 import type { Sounds } from '../audio/sounds';
 import type { Input } from '../engine/input';
 import type { NetWorld } from '../net/netWorld';
-import { fishLengthCm } from '../ui/fishArt';
 import { lureImage } from '../ui/lureArt';
 import type { Hud } from '../ui/hud';
 import { formatWeight, ordinal, t } from '../i18n';
-import { baitName, flyLeaderName, flyLineName, lineName, speciesName } from '../i18n/names';
+import {
+  baitName,
+  flyLeaderName,
+  flyLineName,
+  lengthText,
+  lineName,
+  speciesName,
+} from '../i18n/names';
 import { CastControl } from './castControl';
 import { controlMode, controlText, type Controls } from './controls';
 import { FlyCastControl, touchToRodPixels } from './flyCastControl';
@@ -652,7 +658,7 @@ export class FishingController {
     this.strikeDepth = null;
     host.fishingView.startSplash(host.fishing.lure);
     const catches = host.competition.catches;
-    const length = `${Math.round(fishLengthCm(caught.species, caught.weight))} cm`;
+    const length = lengthText(caught.species, caught.weight);
     const note =
       joy === 'record'
         ? t('game.personalBest')

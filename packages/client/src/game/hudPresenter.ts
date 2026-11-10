@@ -21,6 +21,7 @@ import {
   type TubeState,
   type WaterBody,
 } from '@lunki/shared';
+import type { Sounds } from '../audio/sounds';
 import type { NetWorld } from '../net/netWorld';
 import type { Hud, SituationBar } from '../ui/hud';
 import { decimal, formatWeight, t } from '../i18n';
@@ -29,6 +30,7 @@ import { controlText } from './controls';
 import type { Guide } from './guide';
 import type { Penalties } from './penalties';
 import type { Shot } from './director';
+import { raceEndCue } from './raceEnd';
 import { scoreboardLines } from './raceScoreboard';
 
 /** Katsojan tulostaulussa rivejä: LAN-kisan kaikki kalastajat (#564). */
@@ -37,6 +39,7 @@ const SPECTATOR_ROWS = 12;
 /** Mitä HUD tarvitsee pelistä. */
 export interface HudHost {
   readonly hud: Hud;
+  readonly sounds: Sounds;
   readonly netWorld: NetWorld | undefined;
   readonly competition: CompetitionState;
   readonly settings: CompetitionSettings;
@@ -81,6 +84,10 @@ export interface HudStep {
  */
 export class HudPresenter {
   private raceHudTimer = 0;
+  /** Edellisen askeleen jäljellä oleva aika kisan lopun merkkeihin (#566). */
+  private prevLeft: number | null = null;
+  /** Loppulaskennan numero lähtölaskennan paikalle, tai null. */
+  private endCount: string | null = null;
 
   constructor(private readonly host: HudHost) {}
 
@@ -233,6 +240,25 @@ export class HudPresenter {
     }
     const left = timeLeft(competition);
     hud.setTimer(formatTime(left), left < 60);
+    this.raceEnd(left);
+  }
+
+  /**
+   * Kisan loppu (#566): ilmoitus ja äänimerkki minuuttia ennen, viimeiset
+   * kymmenen sekuntia isoina numeroina ja piippauksin. Moninpelissä numero
+   * menee lähtölaskennan kanssa samaan paikkaan (`updateRaceHud`).
+   */
+  private raceEnd(left: number): void {
+    const { hud, sounds } = this.host;
+    const cue = raceEndCue(this.prevLeft, left);
+    this.prevLeft = left;
+    if (cue.minute) {
+      hud.showMessage(t('game.lastMinute'), 4, 'event');
+      sounds.play('raceMinute');
+    }
+    if (cue.tick !== null) sounds.play('raceTick');
+    this.endCount = cue.count === null ? null : String(cue.count);
+    if (!this.host.netWorld) hud.setCountdown(this.endCount);
   }
 
   /**
@@ -247,7 +273,7 @@ export class HudPresenter {
         ? String(Math.max(1, cd))
         : this.host.competition.elapsed < 1.2
           ? t('game.go')
-          : null,
+          : this.endCount,
     );
     if ((this.raceHudTimer = (this.raceHudTimer + 1) % 15) !== 1) return;
     const lines =

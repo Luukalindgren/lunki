@@ -992,6 +992,50 @@ textarea,
   margin-left: 12px;
 }
 
+/* Tulosrivi: kalan kuva oikeassa reunassa, teksti lyhenee tarvittaessa. */
+.catch-list .result-row {
+  display: inline-grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  width: 100%;
+  vertical-align: middle;
+}
+
+.result-row .result-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.catch-list .result-row .fish-sized,
+.catch-list .result-row > .fish-art {
+  justify-self: end;
+  margin-left: 0;
+}
+
+/* Kalan pituus kuvan alla (#577). */
+.fish-sized {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  vertical-align: middle;
+  margin-left: 12px;
+  line-height: 1;
+}
+
+.catch-list .fish-sized .fish-art {
+  margin-left: 0;
+}
+
+.fish-length {
+  font-size: 16px;
+  color: #8e99a4;
+}
+
+.catch-list.results.compact .fish-length {
+  display: none;
+}
+
 /* Saaliittomalla ei ole sijaa (#528). */
 .catch-list.results li.unranked {
   list-style-type: '–  ';
@@ -1116,7 +1160,9 @@ textarea,
  * vierittää sivuttain, eikä levitä tyhjää nimen ja päivän väliin.
  */
 /* Leveämpi kuin muut paneelit, jotta suurinkin kala mahtuu riville. */
-.screen-panel[data-screen='records'] {
+.screen-panel[data-screen='records'],
+.screen-panel[data-screen='race-results'],
+.screen-panel[data-screen='results'] {
   max-width: 816px;
 }
 

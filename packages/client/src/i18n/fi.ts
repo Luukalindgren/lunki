@@ -301,7 +301,7 @@ export const fi = {
   'box.lastLure': 'Viimeinen viehe: se jää käyttöön varavieheenä',
   'box.fishOne': '1 kala',
   'box.fishMany': '{n} kalaa',
-  'box.catches': 'Sinun saaliisi tällä: {fish} ({species})',
+  'box.catches': 'Sinun saaliisi tällä: {fish} ({species}), suurin {biggest}',
   'box.catchesBest': '{catches} · parhaiten {season} {sky} {time}, {depth} syvyydeltä',
   'box.noCatches': 'Et ole vielä saanut kalaa tällä.',
   'journal.season.spring': 'keväällä',
@@ -483,6 +483,7 @@ export const fi = {
   'records.none': 'Ei vielä saaliita',
   'records.noPlaced':
     'Tällä vaikeustasolla ei vielä ole ennätyksiä, joiden saantipaikka on tallessa.',
+  'records.length': 'Pituus',
   'records.caught': 'Saatu',
   'records.race': 'Kisa',
   'records.raceTime': ', {time} kisan alusta',
@@ -546,7 +547,7 @@ export const fi = {
   'results.copyHint': 'Valitse ja kopioi tulokset:',
   'results.copyTitle': 'Lunkinjärvi, kisan tulokset {when}',
   'results.copyRow': '{rank} {name} {total} ({count} kpl{biggest})',
-  'results.copyBiggest': ', suurin {weight}',
+  'results.copyBiggest': ', suurin {weight}, {length}',
   'results.newRace': 'Uusi kisa samalla porukalla',
   'results.hostRestarts': 'Huoneen luoja voi aloittaa uuden kisan.',
   'results.timeUp': 'Aika loppui!',
@@ -1054,6 +1055,7 @@ export const fi = {
   'broadcast.overview': 'yleiskuva',
   'broadcast.manual': 'katsojan valinta',
   'game.viewToggle': '{view}: kalastajan silmin / ylhäältä',
+  'game.lastMinute': 'Viimeinen minuutti!',
   'game.go': 'Kalastamaan!',
   'game.scoreboard': 'Tulostaulu',
   'weather.change': 'Sää muuttuu: {sky}',
@@ -1122,6 +1124,9 @@ export const fi = {
   'manual.spin.feeding': 'Syöntijaksot',
   'manual.spin.feedingText':
     'Kalat syövät jaksoittain: parvi tai yksin elävä kala on muutaman minuutin syönnillä ja sitten levossa. Lepäävä kala näkyy luotaimessa mutta tuskin iskee, joten vaihda paikkaa, jos viehe ei kelpaa: viereinen parvi voi olla syönnillä. Syövä parvi käy myös useammin pinnassa.\nMitä vireämpi laji on, sitä useampi parvi syö: ahven ja hauki päivällä ja hämärässä, kuha, made ja lahna hämärässä ja yöllä. Helpolla kalat syövät koko ajan.',
+  'manual.spin.birds': 'Linnut',
+  'manual.spin.birdsText':
+    'Lokit, tiirat ja kalasääski näyttävät, missä kala syö. Lokki- ja tiiraparvi kaartelee ja syöksyy pintaan syövän ahvenparven päällä, kun ahvenet ajavat pikkukalaa pintaan: heitä parven kohdalle. Kalasääski kaartelee korkealla keväällä ja kesällä, lekuttelee paikallaan ja syöksyy matalaan pintaveteen kalan perään. Linnut saalistavat päivänvalossa, kun ei myrskyä eikä tuule kovaa; helpolla niitä on enemmän.\nSorsat, joutsenet ja kuikat väistävät renkaita ja veneitä ja säikähtävät lähelle molskahtavaa viehettä: sorsat lentävät pois, kuikka sukeltaa ja nousee pintaan toisaalla.',
   'manual.spin.strike': 'Vastaisku',
   'manual.spin.strikeText':
     'Tärpin tunnistaa äänestä, ilmoituksesta ja siiman nykäyksistä. Vieheen timantti nykii samassa tahdissa, ja jokainen nykäys nostaa renkaan veteen, joten tärpin näkee ylhäältäkin ilman luotainta.\nIske kelaamalla ({reel}) tai nykäisemällä ({twitch}). Aikaa on Normaalilla {normalWindow} s ja Realistisella {realisticWindow} s, kuhalla vähemmän.\nIsot kalat (esim. hauki {pikeKg} kg ja ahven {perchKg} kg alkaen) tarttuvat Normaalilla ja Realistisella vain nykäisyyn: kelaus kiristää siiman mutta ei pistä koukkua. Raskaassa tärpissä vapa nyökkää syvemmälle.\nKoukku tarttuu Normaalilla {normalHook} %:lla ja Realistisella {realisticHook} %:lla. Helpolla koukku tarttuu itsestään.\nNykäisyssä vavan jäykkyys ratkaisee: Realistisella hauki tarttuu kevyellä vavalla {pikeLight} %:lla ja järeällä {pikeHeavy} %:lla.\nÄlä nykäise, kun iso kala vasta seuraa viehettä: se voi säikähtää.\nMyöhästyneen iskun jälkeen kala ei palaa hetkeen.',
@@ -1130,7 +1135,7 @@ export const fi = {
     '{dragLess} ja {dragMore} = löysää ja kiristä jarrua. Kun kala vetää jarrua kovemmin, jarru luistaa ja kala vie siimaa.\nSiima katkeaa, kun veto ylittää sen lujuuden: 0,20 mm {thin} kg, 0,25 mm {medium} kg ja 0,30 mm {thick} kg. Helpolla siima ei katkea.\nIlman teräsperuketta hauki voi purra siiman poikki, yleensä heti iskun jälkeen. Pienen lipan tai jigin se nielaisee syvälle, iso vaappu jää suupieleen.\nLöysä siima päästää kalan irti: Normaalilla {normalSlack} s ja Realistisella {realisticSlack} s löysän jälkeen.',
   'manual.spin.land': 'Nosto',
   'manual.spin.landText':
-    'Kun kala on lähellä ja pinnassa, se odottaa nostoa. Pohjassa pidetty kelaus ei nosta.\n{land} = nosta uudella painalluksella. Isoimmat kalat nostetaan haaviin ({landNet}).\nPinnassa kala voi riuhtaista. Riuhtaisun aikana nostettu kala karkaa Normaalilla {normalLunge} %:lla ja Realistisella {realisticLunge} %:lla, joten odota, että se rauhoittuu.',
+    'Kun kala on lähellä ja pinnassa, se odottaa nostoa. Pohjassa pidetty kelaus ei nosta.\n{land} = nosta uudella painalluksella. Isoimmat kalat nostetaan haaviin ({landNet}).\nPinnassa kala voi riuhtaista. Riuhtaisun aikana nostettu kala karkaa Normaalilla {normalLunge} %:lla ja Realistisella {realisticLunge} %:lla, joten odota, että se rauhoittuu.\nKisa päättyy, kun kello on nollassa: silloin väsytettävä tai nostamaton kala ei ehdi punnitukseen. Viimeisestä minuutista tulee ilmoitus, ja viimeiset kymmenen sekuntia lasketaan ääneen.',
   'manual.spin.snag': 'Pohjatartunta ja rikka',
   'manual.spin.snagText':
     'Pohjaa hipova viehe voi tarttua kiviin, kaatuneisiin puihin, risuihin, kaislikkoon tai kasvustoon.\nKelaa noin sekunnin ajan irrottaaksesi: viehe irtoaa Normaalilla {normalSnag} %:lla ja Realistisella {realisticSnag} %:lla, Helpolla aina. Muuten siima katkeaa.\nUposkasvustossa viehe kerää rikkaa, eikä se silloin kiinnosta kaloja. Kelaa se kotiin, niin se puhdistuu.\nRuoholusikka liukuu kasvuston läpi, mutta koukku tarttuu siitä huonommin.',

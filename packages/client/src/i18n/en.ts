@@ -296,7 +296,7 @@ export const en: Record<keyof typeof fi, string> = {
   'box.lastLure': 'Last lure: it stays in use as a spare',
   'box.fishOne': '1 fish',
   'box.fishMany': '{n} fish',
-  'box.catches': 'Your catches with this: {fish} ({species})',
+  'box.catches': 'Your catches with this: {fish} ({species}), biggest {biggest}',
   'box.catchesBest': '{catches} · best {season} {sky} {time}, {depth} deep',
   'box.noCatches': 'You have not caught anything with this yet.',
   'journal.season.spring': 'in spring',
@@ -478,6 +478,7 @@ export const en: Record<keyof typeof fi, string> = {
   'records.showCard': 'Show the catch card',
   'records.none': 'No catches yet',
   'records.noPlaced': 'No records with a known catch spot on this difficulty yet.',
+  'records.length': 'Length',
   'records.caught': 'Caught',
   'records.race': 'Competition',
   'records.raceTime': ', {time} into the competition',
@@ -541,7 +542,7 @@ export const en: Record<keyof typeof fi, string> = {
   'results.copyHint': 'Select and copy the results:',
   'results.copyTitle': 'Lunkinjärvi, competition results {when}',
   'results.copyRow': '{rank} {name} {total} ({count} pcs{biggest})',
-  'results.copyBiggest': ', biggest {weight}',
+  'results.copyBiggest': ', biggest {weight}, {length}',
   'results.newRace': 'New competition with the same crew',
   'results.hostRestarts': 'The room’s creator can start a new competition.',
   'results.timeUp': 'Time’s up!',
@@ -1048,6 +1049,7 @@ export const en: Record<keyof typeof fi, string> = {
   'broadcast.overview': 'overview',
   'broadcast.manual': 'viewer’s pick',
   'game.viewToggle': '{view}: angler’s view / from above',
+  'game.lastMinute': 'Last minute!',
   'game.go': 'Start fishing!',
   'game.scoreboard': 'Scoreboard',
   'weather.change': 'The weather turns: {sky}',
@@ -1116,6 +1118,9 @@ export const en: Record<keyof typeof fi, string> = {
   'manual.spin.feeding': 'Feeding bouts',
   'manual.spin.feedingText':
     'Fish feed in bouts: a school or a lone fish feeds for a few minutes and then rests. A resting fish shows on the sonar but hardly ever strikes, so move on if your lure gets no takers: the next school may be feeding. A feeding school also breaks the surface more often.\nThe livelier the species, the more schools feed: perch and pike by day and at dusk, zander, burbot and bream at dusk and at night. On Easy the fish feed all the time.',
+  'manual.spin.birds': 'Birds',
+  'manual.spin.birdsText':
+    'Gulls, terns and the osprey show where fish feed. A flock of gulls and terns circles and dives at the surface above a feeding perch school as the perch drive small fish up: cast there. In spring and summer the osprey circles high, hovers and plunges into shallow water after a fish. Birds hunt in daylight when there is no storm or strong wind; there are more of them on Easy.\nDucks, swans and loons keep away from tubes and boats and startle at a lure splashing close by: ducks fly off, a loon dives and comes up somewhere else.',
   'manual.spin.strike': 'Setting the hook',
   'manual.spin.strikeText':
     'You notice a take by the sound, the message and the twitches of the line. The lure diamond jerks in the same rhythm, and each tug sends a ring across the water, so you can see the take from above without the sonar.\nStrike by reeling ({reel}) or twitching ({twitch}). You have {normalWindow} s on Normal and {realisticWindow} s on Realistic, less for zander.\nOn Normal and Realistic big fish (e.g. pike from {pikeKg} kg, perch from {perchKg} kg) only hook on a twitch: reeling tightens the line but does not set the hook. On a heavy bite the rod nods deeper.\nThe hook sets {normalHook} % of the time on Normal and {realisticHook} % on Realistic. On Easy it sets by itself.\nOn a twitch the rod stiffness matters: on Realistic a pike hooks {pikeLight} % of the time with a light rod and {pikeHeavy} % with a heavy one.\nDo not twitch while a big fish is only following the lure: it may spook.\nAfter a late strike the fish stays away for a while.',
@@ -1124,7 +1129,7 @@ export const en: Record<keyof typeof fi, string> = {
     '{dragLess} and {dragMore} = loosen and tighten the drag. When the fish pulls harder than the drag, the drag slips and the fish takes line.\nThe line breaks when the pull exceeds its strength: 0.20 mm {thin} kg, 0.25 mm {medium} kg and 0.30 mm {thick} kg. On Easy the line does not break.\nWithout a steel leader a pike can bite through the line, usually right after the strike. It swallows a small spinner or jig deep, while a big wobbler stays in the corner of its mouth.\nA slack line lets the fish go: after {normalSlack} s of slack on Normal and {realisticSlack} s on Realistic.',
   'manual.spin.land': 'Landing',
   'manual.spin.landText':
-    'When the fish is close and at the surface, it waits to be landed. Holding the reel does not land it.\n{land} = land with a new press. The biggest fish go into the net ({landNet}).\nAt the surface the fish may lunge. Lifting during a lunge loses the fish {normalLunge} % of the time on Normal and {realisticLunge} % on Realistic, so wait for it to calm down.',
+    'When the fish is close and at the surface, it waits to be landed. Holding the reel does not land it.\n{land} = land with a new press. The biggest fish go into the net ({landNet}).\nAt the surface the fish may lunge. Lifting during a lunge loses the fish {normalLunge} % of the time on Normal and {realisticLunge} % on Realistic, so wait for it to calm down.\nThe competition ends when the clock hits zero: a fish still being played or not yet landed misses the weigh-in. You get a notice at the last minute, and the last ten seconds are counted down.',
   'manual.spin.snag': 'Snags and weed',
   'manual.spin.snagText':
     'A lure touching the bottom can snag on stones, fallen trees, brush, reeds or weed.\nReel for about a second to free it: the lure comes free {normalSnag} % of the time on Normal and {realisticSnag} % on Realistic, always on Easy. Otherwise the line breaks.\nIn submerged weed the lure collects weed and then hardly interests fish. Reel it in to clean it.\nA weedless spoon slides through weed, but strikes hook less often.',
