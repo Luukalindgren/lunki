@@ -589,6 +589,13 @@ function enterLobby(s: NetSession) {
   let event: LobbyEvent | null = null;
   let eventTimer: ReturnType<typeof setTimeout> | undefined;
   let seen: LobbySeen | null = null;
+  /**
+   * Viimeksi piirretty aula ilman yhteysviiveitä (#575): kun vain viiveet
+   * muuttuvat, rivit päivitetään paikallaan eikä aulaa piirretä uudelleen.
+   */
+  let drawnLobby: string | null = null;
+  const lobbyKey = (v: LobbyView) =>
+    JSON.stringify({ ...v, players: v.players.map((p) => ({ ...p, ping: undefined })) });
   const tellHost = (v: LobbyView) => {
     const { joined, ready } = lobbyChanges(seen, v);
     seen = lobbySeen(v);
@@ -674,6 +681,7 @@ function enterLobby(s: NetSession) {
     if (v.phase !== 'lobby') {
       seen = null;
       event = null;
+      drawnLobby = null;
     }
     // Kisa alkaa, kun tila aloituspaikkoineen on saapunut.
     if (v.phase !== 'lobby' && !game) {
@@ -698,6 +706,12 @@ function enterLobby(s: NetSession) {
     if (v.phase === 'finished' && resultsAsHost !== null && resultsAsHost !== v.amHost)
       showResults();
     if (v.phase !== 'lobby') return;
+    const key = lobbyKey(v);
+    if (!game && key === drawnLobby) {
+      screens.updateLobbyPings(v.players);
+      return;
+    }
+    drawnLobby = key;
     resultsAsHost = null;
     if (game) {
       // Isäntä palautti huoneen aulaan uutta kisaa varten.

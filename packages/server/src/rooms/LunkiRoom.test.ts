@@ -1403,6 +1403,13 @@ describe('liittyminen kesken kisan', () => {
     await until(() => ping(b) === 9999);
     b.send(ClientMsg.latency, -5);
     await until(() => ping(b) === 0);
+    // Pieni heilunta ei muuta tilaa, selvä ero muuttaa.
+    b.send(ClientMsg.latency, 3);
+    b.send(ClientMsg.latency, 12);
+    await until(() => ping(b) === 12);
+    b.send(ClientMsg.latency, 14);
+    b.send(ClientMsg.latency, 40);
+    await until(() => ping(b) === 40);
     await b.leave();
     await until(() => !host.state.pings.has(b.sessionId));
     await host.leave();

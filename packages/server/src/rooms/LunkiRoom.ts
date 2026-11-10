@@ -11,6 +11,7 @@ import {
   shoreToNet,
   COUNTDOWN_SECONDS,
   ClientMsg,
+  LATENCY_STEP_MS,
   MAX_LATENCY_MS,
   DEFAULT_MAX_PLAYERS,
   InputQueue,
@@ -544,7 +545,10 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       if (typeof ms !== 'number' || !Number.isFinite(ms)) return;
       if (!this.state.players.has(client.sessionId)) return;
       const v = Math.min(MAX_LATENCY_MS, Math.max(0, Math.round(ms)));
-      if (this.state.pings.get(client.sessionId) !== v) this.state.pings.set(client.sessionId, v);
+      // Pieni heilunta ei lähde kaikille: tila muuttuu vain selvästä erosta.
+      const old = this.state.pings.get(client.sessionId);
+      if (old === undefined || Math.abs(v - old) >= Math.max(LATENCY_STEP_MS, old * 0.25))
+        this.state.pings.set(client.sessionId, v);
     });
 
     this.onMessage(ClientMsg.ready, (client, ready: unknown) => {

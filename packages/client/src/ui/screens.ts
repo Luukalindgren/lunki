@@ -745,6 +745,23 @@ export class Screens {
   }
 
   /** Aula: pelaajat, valmius ja kisan aloitus. Piirretään uudelleen tilan muuttuessa. */
+  /**
+   * Päivittää aulan rivien yhteysmerkit paikallaan (#575). Viive muuttuu
+   * parin sekunnin välein: koko aulan uudelleenpiirto veisi napin painalluksen
+   * kesken ja tyhjentäisi ilmoitukset.
+   */
+  updateLobbyPings(players: readonly LobbyPlayer[]): void {
+    for (const p of players) {
+      const row = [
+        ...this.root.querySelectorAll<HTMLElement>('.player-list li[data-session]'),
+      ].find((li) => li.dataset.session === p.sessionId);
+      const state = row?.querySelector(':scope > .player-state');
+      if (!state) continue;
+      state.querySelector('.player-ping')?.remove();
+      if (p.connected && p.ping !== undefined) state.prepend(pingBars(p.ping));
+    }
+  }
+
   showLobby(
     v: LobbyView,
     link: string,
@@ -824,6 +841,7 @@ export class Screens {
       p.waitingSeat ?? (anglers >= v.maxPlayers && p.spectator && !p.host);
     const playerRow = (p: LobbyPlayer) => {
       const li = document.createElement('li');
+      li.dataset.session = p.sessionId;
       li.classList.toggle('lobby-new', event?.ids.includes(p.sessionId) ?? false);
       const seatWait = p.connected && p.spectator && waitsSeat(p);
       const state = t(
