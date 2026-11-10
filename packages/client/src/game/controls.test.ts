@@ -121,7 +121,7 @@ describe('toimintokartta', () => {
     expect(c.wasPressed('twitch')).toBe(true);
     expect(c.wasPressed('lift')).toBe(true);
     expect(controlText('help.reel', {}, { mode: 'pad' })).toBe(
-      'A/RT pohjassa = kelaa · X = nykäisy, ison kalan vastaisku',
+      'A/RT pohjassa = kelaa · X = nykäisy, ison kalan vastaisku · oikean tatin pyöritys = kelaus',
     );
     expect(controlText('help.cast', {}, { mode: 'pad' })).toBe('Oikea tatti = heiton suunta');
     expect(controlText('help.cast', {}, { mode: 'keys' })).toBe(

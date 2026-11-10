@@ -101,6 +101,12 @@ export const CONTROLS = {
     title: 'touch.landNetTitle',
     pad: PAD_MAIN,
   },
+  /**
+   * Peliohjaimen oikean tatin eleet virvelillä (#595, game/stickReel.ts):
+   * pyöritys kelaa ja nopea nykäisy taakse on vavan nykäisy.
+   */
+  spin: { keys: [], padLabel: 'pad.stickSpin' },
+  flick: { keys: [], padLabel: 'pad.stickFlick' },
   cancel: { keys: ['KeyX'], touch: 'touch.cancel', title: 'touch.cancelTitle', pad: ['Pad1'] },
   /** Hiiren oikea peruu latauksen; heitossa se on veto ja vedessä perhon nosto. */
   cancelCharge: { keys: ['Mouse2'] },

@@ -727,7 +727,8 @@ export const en: Record<keyof typeof fi, string> = {
   'help.passengerTurn': '{turn} = turn in your seat to cast',
   'help.cast': '{pointer}: aim, hold and release = cast · {aim} = cast direction',
   'help.castForward': 'Hold {castForward} and release = cast where you face · {cancel} = cancel',
-  'help.reel': 'Hold {pointer|reel} = reel in · {twitch} = twitch, sets the hook in a big fish',
+  'help.reel':
+    'Hold {pointer|reel} = reel in · {twitch} = twitch, sets the hook in a big fish · {spin} = reel in',
   'help.gear': '{gear} = reel speed · {gearFast} = quick retrieve · {dragLess}/{dragMore} = drag',
   'help.tools':
     '{lure} = change lure (hold: box) · {method} = spin/fly · {sonar} = finder · {lureSonar} = depth',
@@ -771,6 +772,8 @@ export const en: Record<keyof typeof fi, string> = {
   'ctl.or': 'or',
   'pad.leftStick': 'left stick',
   'pad.rightStick': 'right stick',
+  'pad.stickSpin': 'spinning the right stick',
+  'pad.stickFlick': 'right stick quickly down and back',
   'pad.stickSide': 'left stick sideways (angler view: also right)',
   'touch.cancel': 'CANCEL',
   'touch.cancelTitle': 'Cancel the cast',
@@ -1119,7 +1122,7 @@ export const en: Record<keyof typeof fi, string> = {
     '{pointer}: aim, hold and release = cast\n{aim} = cast direction, otherwise the cast goes where you look\nHold and release {castForward} = cast where you look\nThe power meter fills and then drops back, so time the release to a full meter.\n{cancel} = cancel the charge\nWind bends the cast. Lure weight, rod casting weight and line thickness affect the distance.\nA lure that lands ashore gets stuck: {cut} = cut the line, and the lure is lost.',
   'manual.spin.reel': 'Reeling and retrieve',
   'manual.spin.reelText':
-    'Hold {pointer|reel} = reel\n{gear} = reel speed, {gearFast} = fast retrieve. A lure that fast hardly interests fish.\n{twitch} = twitch: the lure hops up and sinks enticingly.\nA pause after a pull tempts pike and big fish.\nEach species likes its own speed and depth. A crankbait swims at its lip depth, and jigs and spoons sink.',
+    'Hold {pointer|reel} = reel\n{gear} = reel speed, {gearFast} = fast retrieve. A lure that fast hardly interests fish.\n{twitch} = twitch: the lure hops up and sinks enticingly.\n{spin} = reel like turning the handle: the faster you spin, the faster the reel. {flick} = twitch.\nA pause after a pull tempts pike and big fish.\nEach species likes its own speed and depth. A crankbait swims at its lip depth, and jigs and spoons sink.',
   'manual.spin.feeding': 'Feeding bouts',
   'manual.spin.feedingText':
     'Fish feed in bouts: a school or a lone fish feeds for a few minutes and then rests. A resting fish shows on the sonar but hardly ever strikes, so move on if your lure gets no takers: the next school may be feeding. A feeding school also breaks the surface more often.\nThe livelier the species, the more schools feed: perch and pike by day and at dusk, zander, burbot and bream at dusk and at night. On Easy the fish feed all the time.',
