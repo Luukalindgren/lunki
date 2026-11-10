@@ -1,7 +1,13 @@
 import * as THREE from 'three';
-import type { Fish, FishingEvents, SpeciesId, Vec2 } from '@lunki/shared';
+import {
+  fishLengthCm,
+  type Fish,
+  type FishingEvents,
+  type SpeciesId,
+  type Vec2,
+} from '@lunki/shared';
 import { toWorld } from '../world/lakeMesh';
-import { fishLengthCm, fishPixels, fishSpriteWidth } from '../ui/fishArt';
+import { fishPixels, fishSpriteWidth } from '../ui/fishArt';
 import { pixelTexture } from './pixelSprite';
 
 type Landed = NonNullable<FishingEvents['landed']>;

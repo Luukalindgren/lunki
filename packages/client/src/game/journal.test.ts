@@ -36,7 +36,12 @@ describe('saalispäiväkirja (#415)', () => {
 
   it('tyhjä päiväkirja: ei saaliita eikä vinkkiä', () => {
     expect(loadJournal()).toEqual([]);
-    expect(baitSummary([], { lure: 'spoon' })).toEqual({ count: 0, species: [], best: null });
+    expect(baitSummary([], { lure: 'spoon' })).toEqual({
+      count: 0,
+      species: [],
+      biggest: null,
+      best: null,
+    });
   });
 
   it('saaliit lasketaan vieheen säädön mukaan, perhot omanaan', () => {
@@ -69,6 +74,7 @@ describe('saalispäiväkirja (#415)', () => {
         ['pike', 3],
         ['perch', 2],
       ],
+      biggest: { species: 'pike', weight: 0.3 },
       best: { season: 'summer', sky: 'rain', timeOfDay: 'morning', depth: depthBand(2.5) },
     });
     expect([0.2, 1, 1.9, 2, 4.9, 5, 12].map(depthBand)).toEqual([0, 1, 1, 2, 3, 4, 4]);

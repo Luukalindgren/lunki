@@ -1,6 +1,6 @@
 import type { PlayerResult, RoomSettings } from '@lunki/shared';
 import { formatClock, formatDay, formatWeight, t } from '../i18n';
-import { difficultyName, winRuleName } from '../i18n/names';
+import { difficultyName, lengthText, winRuleName } from '../i18n/names';
 import { rankLabel } from '../game/raceScoreboard';
 
 /** Tulossivun lista tiivistyy, kun kalastajia on tätä enemmän (#507). */
@@ -30,7 +30,12 @@ export function resultsText(
       name: `${r.name}${crew}`,
       total: formatWeight(r.summary.total),
       count: r.summary.count,
-      biggest: big ? t('results.copyBiggest', { weight: formatWeight(big.weight) }) : '',
+      biggest: big
+        ? t('results.copyBiggest', {
+            weight: formatWeight(big.weight),
+            length: lengthText(big.species, big.weight),
+          })
+        : '',
     });
   });
   return [t('results.copyTitle', { when }), rulesLine(settings), '', ...rows].join('\n');
