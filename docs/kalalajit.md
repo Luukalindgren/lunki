@@ -216,7 +216,7 @@ näkymän omaa (`Math.random`), joten kalakanta ja saaliit pysyvät samoina sama
 Varusteet laitetaan kuntoon "kotona" päävalikon Varusteet-näkymässä (#383): kalastustapa,
 viehepakki tai perhorasia, vapa ja siima. Yksinpelin asetuksissa ja moninpelin aulassa ne näkyvät
 vain yhteenvetona. Kisassa vieheet vaihdetaan pakista pikanäppäimellä R (ks. viehepakki alla), ja
-vaihto tapahtuu, kun viehe on kelalla. Valinnat muistetaan selaimessa. Moninpelissä kaikkien varusteet näkyvät aulan pelaajalistassa ja
+vaihto tapahtuu, kun viehe on kelalla. Valinnat muistetaan selaimessa. Moninpelissä kaikkien varusteet näkyvät
 tuloksissa. "Aloittelijan varusteet" palauttaa oletukset: perusvapa, lusikka ja 0,25 mm
 siima ilman perukkaa. Parametrit: `packages/shared/src/fishing/gear.ts`.
 
