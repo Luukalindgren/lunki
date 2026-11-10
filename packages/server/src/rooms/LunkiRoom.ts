@@ -581,7 +581,8 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
           }
         } else if ((s as unknown as Record<string, unknown>)[key] !== value) {
           (s as unknown as Record<string, unknown>)[key] = value;
-          changed = true;
+          // Pelaajaraja ei muuta kisan sääntöjä: sen nosto ei vie muiden valmiutta.
+          if (key !== 'maxPlayers') changed = true;
         }
       }
       if (valid.maxPlayers !== undefined) {
