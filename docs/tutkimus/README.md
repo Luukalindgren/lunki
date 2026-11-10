@@ -36,3 +36,13 @@ vaihtoehtoja eivätkä ole pelin nykyistä koodia.
 | #540  | Aula: renkaan teksti pois listasta                                                                     |
 | #554  | Aula: vanhan version pelaaja näkyy jo listalla                                                         |
 | #555  | Aula työpöydällä kahteen sarakkeeseen                                                                  |
+| #562  | Kisasarja: pisteet usean kisan yli (sijapisteet, F1-pisteet, yhteispaino)                              |
+| #563  | Aulaan kutsun QR-koodi                                                                                 |
+| #564  | Iso näyttö -katsojatila LAN-tapahtumiin                                                                |
+| #565  | Uusia voittosääntöjä                                                                                   |
+| #566  | Kisan viimeinen minuutti ja loppulaskenta                                                              |
+| #568  | Aulassa "odottaa paikkaa"                                                                              |
+| #569  | Alamitat ja kalan vapautus                                                                             |
+| #573  | Merkit omaan profiiliin                                                                                |
+| #574  | Päivän kisa                                                                                            |
+| #575  | Yhteyden laatu aulassa                                                                                 |
