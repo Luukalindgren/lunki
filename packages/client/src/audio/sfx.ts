@@ -11,6 +11,7 @@ import {
   type DuckId,
   type DuckedBus,
 } from './mix';
+import { Rumble } from '../engine/rumble';
 import { loadAudioSettings, saveAudioSettings, volumeGain, type AudioSettings } from './settings';
 
 /**
@@ -49,6 +50,8 @@ export class Sfx {
   private ambience: Ambience | null = null;
   private music: Music | null = null;
   private settings: AudioSettings = loadAudioSettings();
+  /** Peliohjaimen värinä (#592): äänikartan tapahtumat värähtävät tämän kautta. */
+  readonly padRumble = this.createRumble();
   /** Tehosteiden paikka `at`-kutsun ajan: voimakkuus, suunta ja tummuus. */
   private place: Place = HERE;
   /** Paikan suunta- ja suodinketjut väylittäin `at`-kutsun ajan. */
@@ -113,12 +116,20 @@ export class Sfx {
     else void this.ctx.resume();
   }
 
+  private createRumble(): Rumble {
+    const rumble = new Rumble();
+    rumble.enabled = this.settings.rumble;
+    return rumble;
+  }
+
   get audioSettings(): AudioSettings {
     return { ...this.settings };
   }
 
   setAudioSettings(s: AudioSettings): void {
     this.settings = { ...s };
+    this.padRumble.enabled = s.rumble;
+    if (!s.rumble) this.padRumble.stop();
     saveAudioSettings(this.settings);
     this.applySettings();
   }

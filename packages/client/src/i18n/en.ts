@@ -440,6 +440,9 @@ export const en: Record<keyof typeof fi, string> = {
   'audio.eventVoices': 'Swearing at mishaps',
   'audio.voiceHint':
     'Players swear: emotes come with Finnish speech, including strong language. Swearing at mishaps: your angler curses when the line snaps, a fish gets away or the tube capsizes.',
+  'audio.rumble': 'Controller rumble',
+  'audio.rumbleHint':
+    'The gamepad rumbles on strikes, a pulling fish, snags and lightning. Works in Chrome and Edge.',
   'music.vaihtuva': 'Rotate',
   'music.jarvenselka': 'Open lake',
   'music.usva': 'Morning mist',

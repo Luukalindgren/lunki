@@ -444,6 +444,9 @@ export const fi = {
   'audio.eventVoices': 'Kiroilu tapahtumissa',
   'audio.voiceHint':
     'Pelaajat kiroilevat: käsimerkeissä kuuluu suomenkielistä puhetta, myös ronskia kieltä. Kiroilu tapahtumissa: oma kalastajasi sadattelee, kun siima katkeaa, kala karkaa tai rengas kaatuu.',
+  'audio.rumble': 'Ohjaimen värinä',
+  'audio.rumbleHint':
+    'Peliohjain värisee tärpistä, kalan vedosta, pohjatartunnasta ja salamasta. Toimii Chromessa ja Edgessä.',
   'music.vaihtuva': 'Vaihtuva',
   'music.jarvenselka': 'Järvenselkä',
   'music.usva': 'Aamu-usva',

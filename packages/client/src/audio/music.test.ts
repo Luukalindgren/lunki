@@ -56,6 +56,7 @@ describe('ääniasetukset', () => {
       musicTrack: 'vaihtuva',
       voice: 2,
       eventVoices: true,
+      rumble: true,
     });
   });
 

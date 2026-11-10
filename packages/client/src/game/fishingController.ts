@@ -3,6 +3,7 @@ import {
   FLY,
   FLY_CAST,
   REEL,
+  breakingStrength,
   distance,
   fishConditions,
   isFly,
@@ -65,7 +66,7 @@ import type { TopDownCamera } from './topDownCamera';
 import type { FishShadow } from '../world/fishShadow';
 import type { FishSignsView } from './fishSignsView';
 import { liftTime } from './landingView';
-import { OwnRodMotion, type RodPose } from './rodMotion';
+import { OwnRodMotion, strikeTugs, type RodPose } from './rodMotion';
 
 /** Saaliin punnituskortti näkyy näin kauan, ellei pelaaja ala heittää uudelleen. */
 const CATCH_CARD_SECONDS = 6;
@@ -157,6 +158,8 @@ export class FishingController {
   private swipeX = 0;
   private swipeY = 0;
   private lastHiss = 0;
+  /** Montako tärpin nykäystä ohjain on jo värähtänyt. */
+  private feltTugs = 0;
   /** Perhovavan edellinen kulma ja taipuma (#236). */
   private bendRod: number | null = null;
   private bend = 0;
@@ -387,6 +390,19 @@ export class FishingController {
     return this.bend;
   }
 
+  /**
+   * Ohjaimen värinä (#592): tärpin nykäykset samassa tahdissa kuin merkki
+   * nykii, ja kiinni olevan kalan veto siiman kuorman mukaan.
+   */
+  private feel(): void {
+    const s = this.host.fishing;
+    const strike = s.stage === 'water' && s.struckId !== null && s.hookedId === null;
+    const tugs = strike ? strikeTugs(s.strikeAge) : 0;
+    if (tugs > this.feltTugs) this.host.sounds.play(s.strikeBig ? 'strikeTugBig' : 'strikeTug');
+    this.feltTugs = tugs;
+    this.host.sounds.pull(s.hookedId !== null ? s.tension / breakingStrength(s.tackle) : 0);
+  }
+
   /** Siiman sihinä, enintään muutaman kerran sekunnissa. */
   private hiss(): void {
     const now = performance.now();
@@ -587,6 +603,7 @@ export class FishingController {
         host.fishingView.startLanding(events.landed, events.caught.species, events.caught.weight);
       this.onCaught(events.caught, events.landed ? liftTime(events.landed.by) : 0);
     }
+    this.feel();
     if (host.fishing.dragSlipping) sounds.play('dragSlip');
     this.reelClickTimer -= dt;
     if (reeling && this.reelClickTimer <= 0) {

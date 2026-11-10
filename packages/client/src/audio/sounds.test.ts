@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { RUMBLES } from '../engine/rumble';
 import { Sfx, type Place } from './sfx';
 import { EFFECT_RANGE, SOUNDS, Sounds, effectFalloff, type Sound, type SoundEvent } from './sounds';
 
@@ -9,6 +10,11 @@ function recorder(voicesOn = true) {
   const sfx = new Proxy({} as Sfx, {
     get(_, name: string) {
       if (name === 'eventVoicesOn') return voicesOn;
+      if (name === 'padRumble')
+        return {
+          pulse: (id: string) => calls.push(`rumble ${id}`),
+          pull: (load: number) => calls.push(`pull ${load}`),
+        };
       if (name === 'at')
         return (p: Place, play: () => void) => {
           place = p;
@@ -32,7 +38,8 @@ const EAST = { ear: { x: 0, y: 0 }, right: { x: 1, y: 0 } };
 describe('äänikartta', () => {
   it('jokaisella tapahtumalla on tehoste tai repliikki, ja tehosteet ovat olemassa', () => {
     for (const [event, sound] of Object.entries(SOUNDS) as [SoundEvent, Sound][]) {
-      expect(sound.effect ?? sound.voice, event).toBeDefined();
+      expect(sound.effect ?? sound.voice ?? sound.rumble, event).toBeDefined();
+      if (sound.rumble) expect(RUMBLES[sound.rumble], event).toBeDefined();
       for (const effect of [sound.effect, sound.fallback])
         if (typeof effect === 'string')
           expect(typeof Sfx.prototype[effect], `${event}: ${effect}`).toBe('function');
@@ -62,9 +69,20 @@ describe('äänikartta', () => {
       'eventVoice("escaped")@1.00',
       'cast(0.5)@1.00',
       'flyLand(true)@1.00',
+      'rumble hooked',
       'hooked()@1.00',
       'duck("hit")@1.00',
     ]);
+  });
+
+  it('ohjain värisee vain omista tapahtumista (#592)', () => {
+    const { sfx, calls } = recorder();
+    const sounds = new Sounds(sfx);
+    sounds.listener = EAST;
+    sounds.play('strikeTug');
+    sounds.playAt('lineBroken', { x: 5, y: 0 });
+    sounds.pull(0.5);
+    expect(calls).toEqual(['rumble tug', 'lost()@1.00 pan 0.80', 'pull 0.5']);
   });
 
   it('salama kuuluu suunnastaan täydellä voimakkuudella', () => {
