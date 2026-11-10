@@ -386,6 +386,7 @@ export const fi = {
   'lobby.linkCopied': 'Linkki kopioitu!',
   'lobby.disconnected': 'yhteys poikki',
   'lobby.hostSpectator': 'luoja, katsoja',
+  'lobby.waitingSeat': 'odottaa paikkaa',
   'lobby.spectator': 'katsoja',
   'lobby.host': 'luoja',
   'lobby.ready': 'valmis',

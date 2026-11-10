@@ -1369,13 +1369,18 @@ describe('liittyminen kesken kisan', () => {
     await until(() => players(host).length === 5);
     const watching = (r: Room) => host.state.players.get(r.sessionId)?.spectator;
     expect([c, d, e].map(watching)).toEqual([true, true, true]);
-    // E haluaa katsoa: oma valinta pysyy.
+    // Aula näkee odottajat (#568): he eivät ole itse valinneet katsomista.
+    const waiting = () => [...host.state.waiting.keys()];
+    await until(() => waiting().length === 3);
+    expect(waiting()).toEqual([c, d, e].map((r) => r.sessionId));
+    // E haluaa katsoa: oma valinta pysyy, eikä hän enää odota paikkaa.
     e.send(ClientMsg.spectate, true);
-    await new Promise((r) => setTimeout(r, 100));
+    await until(() => !waiting().includes(e.sessionId));
     // Kolme paikkaa lisää: C ja D liittymisjärjestyksessä, E ei.
     host.send(ClientMsg.settings, { maxPlayers: 4 });
     await until(() => watching(c) === false && watching(d) === false);
     expect(watching(e)).toBe(true);
+    await until(() => waiting().length === 0);
     // Kalastajan lähtö aulasta ei jätä paikkaa tyhjäksi odottavalta.
     host.send(ClientMsg.settings, { maxPlayers: 8 });
     const f = await sdk().joinById(host.roomId, { name: 'F', playerId: 'f', spectate: true });
