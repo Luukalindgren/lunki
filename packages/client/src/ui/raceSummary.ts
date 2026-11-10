@@ -1,6 +1,6 @@
 import { formatTime, type Award, type RaceStats, type SpeciesId } from '@lunki/shared';
 import { decimal, formatWeight, t, type MsgKey } from '../i18n';
-import { speciesName } from '../i18n/names';
+import { speciesName, weightWithLength } from '../i18n/names';
 import type { LifetimeStats } from '../game/lifetimeStats';
 import { AWARD_ICON, awardIcon } from './awardIcons';
 import { fishImage, fishSpriteWidth } from './fishArt';
@@ -18,7 +18,11 @@ const ONE_TEXT = new Set([
 ]);
 
 const fishText = (species: SpeciesId, weight: number) =>
+  `${speciesName(species).toLowerCase()} ${weightWithLength(species, weight)}`;
+const fishWeightText = (species: SpeciesId, weight: number) =>
   `${speciesName(species).toLowerCase()} ${formatWeight(weight)}`;
+/** Palkinnot, joiden selitteessä kalan koko on itse asia: pituus mukaan (#577). */
+const SIZE_AWARDS = new Set<Award['id']>(['biggest', 'smallest']);
 
 /** Matka metreinä tai kilometreinä. */
 export const formatDistance = (m: number): string =>
@@ -28,7 +32,9 @@ export const formatDistance = (m: number): string =>
 export function awardDetail(a: Award): string {
   const key = `award.${a.id}` as const;
   if (a.value === 1 && ONE_TEXT.has(a.id)) return t(`${key}.one` as MsgKey);
-  const fish = a.fish ? fishText(a.fish.species, a.fish.weight) : '';
+  const fish = a.fish
+    ? (SIZE_AWARDS.has(a.id) ? fishText : fishWeightText)(a.fish.species, a.fish.weight)
+    : '';
   return t(`${key}.detail` as MsgKey, {
     n: a.value,
     fish,

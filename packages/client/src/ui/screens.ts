@@ -166,6 +166,8 @@ import {
   seasonName,
   timeOfDayName,
   weatherLevelName,
+  weightWithLength,
+  lengthText,
   winRuleName,
 } from '../i18n/names';
 
@@ -1991,7 +1993,7 @@ export class Screens {
       });
       const gear = tackles?.get(r.id);
       const big = r.summary.biggest;
-      if (big) li.append(fishImage(big.species, big.weight, LIST_FISH_SCALE));
+      if (big) li.append(sizedFish(big.species, big.weight));
       if (gear && !compact) li.append(h('span', describeFullTackle(gear), 'player-gear'));
       // Venekunta: joukkueen kalastajat veneen nimen alle.
       if (r.members?.length)
@@ -2079,7 +2081,7 @@ export class Screens {
       for (const ct of [...c.catches].sort((a, b) => b.weight - a.weight)) {
         const li = document.createElement('li');
         li.textContent = `${speciesName(ct.species).padEnd(8)} ${formatWeight(ct.weight).padStart(8)}   ${formatTime(ct.time)}`;
-        li.append(fishImage(ct.species, ct.weight, LIST_FISH_SCALE));
+        li.append(sizedFish(ct.species, ct.weight));
         list.appendChild(li);
       }
       panel.append(
@@ -2089,7 +2091,7 @@ export class Screens {
           t('results.summary', {
             count: sum.count,
             total: formatWeight(sum.total),
-            biggest: formatWeight(sum.biggest!.weight),
+            biggest: weightWithLength(sum.biggest!.species, sum.biggest!.weight),
           }),
           'total',
         ),
@@ -2869,6 +2871,16 @@ export class Screens {
   }
 }
 
+/** Kalan kuva ja pituus sen alla (#577): rivin teksti ei veny. */
+function sizedFish(species: SpeciesId, weight: number): HTMLElement {
+  const fig = h('span', '', 'fish-sized');
+  fig.append(
+    fishImage(species, weight, LIST_FISH_SCALE),
+    h('span', lengthText(species, weight), 'fish-length'),
+  );
+  return fig;
+}
+
 const fishCount = (n: number) => (n === 1 ? t('box.fishOne') : t('box.fishMany', { n }));
 
 /** Vieheen saaliit ja parhaat olot viehepakin vihjeeseen (#415). */
@@ -2877,6 +2889,9 @@ function catchesText(s: BaitSummary): string {
   const catches = t('box.catches', {
     fish: fishCount(s.count),
     species: s.species.map(([id, n]) => `${speciesName(id).toLocaleLowerCase()} ${n}`).join(', '),
+    biggest: s.biggest
+      ? `${speciesName(s.biggest.species).toLocaleLowerCase()} ${weightWithLength(s.biggest.species, s.biggest.weight)}`
+      : '',
   });
   if (!s.best) return catches;
   return t('box.catchesBest', {

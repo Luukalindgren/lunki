@@ -18,6 +18,7 @@ describe('ennätyskalan tiedot', () => {
     expect(recordTitle(old)).toBe('Ahven 520 g');
     expect(recordDetails(old)).toEqual([
       ['Kalastaja', 'Luuka'],
+      ['Pituus', '35 cm'],
       ['Saatu', '20.10.2026'],
       ['Paikka', 'Ei tallessa: saalis on ajalta ennen paikkojen tallennusta'],
     ]);
@@ -45,6 +46,7 @@ describe('ennätyskalan tiedot', () => {
     expect(recordTitle(r)).toBe('Hauki 3,20 kg');
     expect(recordDetails(r, 'Syvyys 3,2 m')).toEqual([
       ['Kalastaja', 'Luuka'],
+      ['Pituus', '79 cm'],
       ['Saatu', '25.10.2026 klo 19.05'],
       ['Kisa', 'Ilta, 5:12 kisan alusta'],
       ['Sää', 'Sade, tuuli 5,3 m/s'],
@@ -66,6 +68,7 @@ describe('ennätyskalan tiedot', () => {
     };
     expect(recordDetails(r)).toEqual([
       ['Kalastaja', 'Luuka'],
+      ['Pituus', '43 cm'],
       ['Saatu', '20.10.2026'],
       ['Tapa', 'Perho'],
       ['Perho', 'Hauki-streameri'],
@@ -95,6 +98,7 @@ describe('ennätyskalan tiedot', () => {
     expect(recordTitle(r)).toBe('Pike 3.20 kg');
     expect(recordDetails(r, 'Depth 3.2 m')).toEqual([
       ['Angler', 'Luuka'],
+      ['Length', '79 cm'],
       ['Caught', '20 Oct 2026'],
       ['Competition', 'Evening'],
       ['Weather', 'Rain, wind 5.3 m/s'],
@@ -105,6 +109,10 @@ describe('ennätyskalan tiedot', () => {
   });
 
   it('tuntematon tallennettu arvo näytetään sellaisenaan', () => {
-    expect(recordDetails({ ...old, lure: 'dynamite' as never })[2]).toEqual(['Viehe', 'dynamite']);
+    expect(recordDetails({ ...old, species: 'valas' as never })[1]).toEqual([
+      'Saatu',
+      '20.10.2026',
+    ]);
+    expect(recordDetails({ ...old, lure: 'dynamite' as never })[3]).toEqual(['Viehe', 'dynamite']);
   });
 });

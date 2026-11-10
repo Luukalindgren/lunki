@@ -1,4 +1,4 @@
-import { type SpeciesId } from '@lunki/shared';
+import { fishLengthCm, type SpeciesId } from '@lunki/shared';
 
 /**
  * Kalalajien pikselikuvat saaliille ja ennätyksille. Kuva lasketaan lajin
@@ -33,8 +33,6 @@ interface Spots {
 }
 
 interface FishLook {
-  /** Kunto (Fultonin K): paino g = K · pituus³ / 100, pituus cm. */
-  condition: number;
   /** Ruumiin korkeus suhteessa pituuteen. */
   depth: number;
   /** Selän ja vatsan korkeimman kohdan paikka (0 = kuono, 1 = pyrstön tyvi). */
@@ -71,7 +69,6 @@ const WHITE = 0xeef2f3;
 
 const LOOKS: Record<SpeciesId, FishLook> = {
   perch: {
-    condition: 1.25,
     depth: 0.27,
     hump: 0.38,
     bellyPeak: 0.42,
@@ -106,7 +103,6 @@ const LOOKS: Record<SpeciesId, FishLook> = {
     mouth: 0.05,
   },
   pike: {
-    condition: 0.65,
     depth: 0.15,
     hump: 0.62,
     bellyPeak: 0.55,
@@ -132,7 +128,6 @@ const LOOKS: Record<SpeciesId, FishLook> = {
     mouth: 0.13,
   },
   roach: {
-    condition: 1.15,
     depth: 0.28,
     hump: 0.42,
     bellyPeak: 0.45,
@@ -157,7 +152,6 @@ const LOOKS: Record<SpeciesId, FishLook> = {
     mouth: 0.04,
   },
   zander: {
-    condition: 0.85,
     depth: 0.19,
     hump: 0.42,
     bellyPeak: 0.45,
@@ -184,7 +178,6 @@ const LOOKS: Record<SpeciesId, FishLook> = {
     mouth: 0.08,
   },
   trout: {
-    condition: 1.1,
     depth: 0.22,
     hump: 0.45,
     bellyPeak: 0.48,
@@ -214,7 +207,6 @@ const LOOKS: Record<SpeciesId, FishLook> = {
     mouth: 0.06,
   },
   bream: {
-    condition: 1.35,
     depth: 0.36,
     hump: 0.4,
     bellyPeak: 0.45,
@@ -239,7 +231,6 @@ const LOOKS: Record<SpeciesId, FishLook> = {
     mouth: 0.03,
   },
   ruffe: {
-    condition: 1.3,
     depth: 0.25,
     hump: 0.35,
     bellyPeak: 0.4,
@@ -273,7 +264,6 @@ const LOOKS: Record<SpeciesId, FishLook> = {
     mouth: 0.05,
   },
   burbot: {
-    condition: 0.6,
     depth: 0.14,
     hump: 0.5,
     bellyPeak: 0.4,
@@ -299,7 +289,6 @@ const LOOKS: Record<SpeciesId, FishLook> = {
     mouth: 0.07,
   },
   ide: {
-    condition: 1.2,
     depth: 0.27,
     hump: 0.42,
     bellyPeak: 0.45,
@@ -324,7 +313,6 @@ const LOOKS: Record<SpeciesId, FishLook> = {
     mouth: 0.04,
   },
   rainbow: {
-    condition: 1.2,
     depth: 0.24,
     hump: 0.45,
     bellyPeak: 0.48,
@@ -355,7 +343,6 @@ const LOOKS: Record<SpeciesId, FishLook> = {
     mouth: 0.06,
   },
   carp: {
-    condition: 1.6,
     depth: 0.33,
     hump: 0.38,
     bellyPeak: 0.5,
@@ -383,7 +370,6 @@ const LOOKS: Record<SpeciesId, FishLook> = {
   },
   // Siika (#535): hopeinen ja hoikka, pieni pää ja alaleuka, rasvaevä ja syvä haarukka.
   whitefish: {
-    condition: 1.0,
     depth: 0.24,
     hump: 0.4,
     bellyPeak: 0.45,
@@ -414,11 +400,6 @@ const LOOKS: Record<SpeciesId, FishLook> = {
 const BODY = 0.8;
 export const MIN_SPRITE_WIDTH = 22;
 export const MAX_SPRITE_WIDTH = 96;
-
-/** Kalan pituus (cm) painosta lajin kuntokertoimella. */
-export function fishLengthCm(species: SpeciesId, weightKg: number): number {
-  return Math.cbrt((Math.max(0, weightKg) * 1000 * 100) / LOOKS[species].condition);
-}
 
 /** Kuvan leveys pikseleinä: kasvaa kalan pituuden mukana. */
 export function fishSpriteWidth(species: SpeciesId, weightKg: number): number {

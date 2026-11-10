@@ -1,23 +1,8 @@
 import { SPECIES, SPECIES_IDS } from '@lunki/shared';
 import { describe, expect, it } from 'vitest';
-import {
-  MAX_SPRITE_WIDTH,
-  MIN_SPRITE_WIDTH,
-  fishLengthCm,
-  fishPixels,
-  fishSpriteWidth,
-} from './fishArt';
+import { MAX_SPRITE_WIDTH, MIN_SPRITE_WIDTH, fishPixels, fishSpriteWidth } from './fishArt';
 
 describe('kalojen kuvat', () => {
-  it('pituus painosta on lajille uskottava', () => {
-    expect(fishLengthCm('perch', 0.14)).toBeGreaterThan(18);
-    expect(fishLengthCm('perch', 0.14)).toBeLessThan(26);
-    expect(fishLengthCm('pike', 1.3)).toBeGreaterThan(50);
-    expect(fishLengthCm('pike', 1.3)).toBeLessThan(65);
-    // Hauki on samanpainoisena paljon ahventa pidempi.
-    expect(fishLengthCm('pike', 1)).toBeGreaterThan(fishLengthCm('perch', 1) * 1.15);
-  });
-
   it('kuva kasvaa painon mukana ja pysyy rajoissa', () => {
     for (const id of SPECIES_IDS) {
       const sp = SPECIES[id];
