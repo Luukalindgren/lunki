@@ -1033,6 +1033,7 @@ export const fi = {
   'game.following': 'Seuraat: {name}',
   'game.nobody': 'Järvellä ei ole ketään',
   'game.viewToggle': '{view}: kalastajan silmin / ylhäältä',
+  'game.lastMinute': 'Viimeinen minuutti!',
   'game.go': 'Kalastamaan!',
   'game.scoreboard': 'Tulostaulu',
   'weather.change': 'Sää muuttuu: {sky}',
@@ -1112,7 +1113,7 @@ export const fi = {
     '{dragLess} ja {dragMore} = löysää ja kiristä jarrua. Kun kala vetää jarrua kovemmin, jarru luistaa ja kala vie siimaa.\nSiima katkeaa, kun veto ylittää sen lujuuden: 0,20 mm {thin} kg, 0,25 mm {medium} kg ja 0,30 mm {thick} kg. Helpolla siima ei katkea.\nIlman teräsperuketta hauki voi purra siiman poikki, yleensä heti iskun jälkeen. Pienen lipan tai jigin se nielaisee syvälle, iso vaappu jää suupieleen.\nLöysä siima päästää kalan irti: Normaalilla {normalSlack} s ja Realistisella {realisticSlack} s löysän jälkeen.',
   'manual.spin.land': 'Nosto',
   'manual.spin.landText':
-    'Kun kala on lähellä ja pinnassa, se odottaa nostoa. Pohjassa pidetty kelaus ei nosta.\n{land} = nosta uudella painalluksella. Isoimmat kalat nostetaan haaviin ({landNet}).\nPinnassa kala voi riuhtaista. Riuhtaisun aikana nostettu kala karkaa Normaalilla {normalLunge} %:lla ja Realistisella {realisticLunge} %:lla, joten odota, että se rauhoittuu.',
+    'Kun kala on lähellä ja pinnassa, se odottaa nostoa. Pohjassa pidetty kelaus ei nosta.\n{land} = nosta uudella painalluksella. Isoimmat kalat nostetaan haaviin ({landNet}).\nPinnassa kala voi riuhtaista. Riuhtaisun aikana nostettu kala karkaa Normaalilla {normalLunge} %:lla ja Realistisella {realisticLunge} %:lla, joten odota, että se rauhoittuu.\nKisa päättyy, kun kello on nollassa: silloin väsytettävä tai nostamaton kala ei ehdi punnitukseen. Viimeisestä minuutista tulee ilmoitus, ja viimeiset kymmenen sekuntia lasketaan ääneen.',
   'manual.spin.snag': 'Pohjatartunta ja rikka',
   'manual.spin.snagText':
     'Pohjaa hipova viehe voi tarttua kiviin, kaatuneisiin puihin, risuihin, kaislikkoon tai kasvustoon.\nKelaa noin sekunnin ajan irrottaaksesi: viehe irtoaa Normaalilla {normalSnag} %:lla ja Realistisella {realisticSnag} %:lla, Helpolla aina. Muuten siima katkeaa.\nUposkasvustossa viehe kerää rikkaa, eikä se silloin kiinnosta kaloja. Kelaa se kotiin, niin se puhdistuu.\nRuoholusikka liukuu kasvuston läpi, mutta koukku tarttuu siitä huonommin.',

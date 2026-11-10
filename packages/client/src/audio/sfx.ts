@@ -362,6 +362,17 @@ export class Sfx {
     this.tone(988, 0.14, 'square', 0.3, 0.09);
   }
 
+  /** Viimeinen minuutti (#566): kaksi kirkasta lyöntiä kuin kellosta. */
+  minuteChime(): void {
+    this.tone(1047, 0.18, 'triangle', 0.55);
+    this.tone(1047, 0.3, 'triangle', 0.55, 0.22);
+  }
+
+  /** Loppulaskennan sekunti (#566): lyhyt piippaus. */
+  countBeep(): void {
+    this.tone(880, 0.07, 'square', 0.35);
+  }
+
   caught(): void {
     [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.1, 'square', 0.5, i * 0.09));
   }

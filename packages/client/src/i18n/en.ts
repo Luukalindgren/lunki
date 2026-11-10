@@ -1027,6 +1027,7 @@ export const en: Record<keyof typeof fi, string> = {
   'game.following': 'Following: {name}',
   'game.nobody': 'There is nobody on the lake',
   'game.viewToggle': '{view}: angler’s view / from above',
+  'game.lastMinute': 'Last minute!',
   'game.go': 'Start fishing!',
   'game.scoreboard': 'Scoreboard',
   'weather.change': 'The weather turns: {sky}',
@@ -1106,7 +1107,7 @@ export const en: Record<keyof typeof fi, string> = {
     '{dragLess} and {dragMore} = loosen and tighten the drag. When the fish pulls harder than the drag, the drag slips and the fish takes line.\nThe line breaks when the pull exceeds its strength: 0.20 mm {thin} kg, 0.25 mm {medium} kg and 0.30 mm {thick} kg. On Easy the line does not break.\nWithout a steel leader a pike can bite through the line, usually right after the strike. It swallows a small spinner or jig deep, while a big wobbler stays in the corner of its mouth.\nA slack line lets the fish go: after {normalSlack} s of slack on Normal and {realisticSlack} s on Realistic.',
   'manual.spin.land': 'Landing',
   'manual.spin.landText':
-    'When the fish is close and at the surface, it waits to be landed. Holding the reel does not land it.\n{land} = land with a new press. The biggest fish go into the net ({landNet}).\nAt the surface the fish may lunge. Lifting during a lunge loses the fish {normalLunge} % of the time on Normal and {realisticLunge} % on Realistic, so wait for it to calm down.',
+    'When the fish is close and at the surface, it waits to be landed. Holding the reel does not land it.\n{land} = land with a new press. The biggest fish go into the net ({landNet}).\nAt the surface the fish may lunge. Lifting during a lunge loses the fish {normalLunge} % of the time on Normal and {realisticLunge} % on Realistic, so wait for it to calm down.\nThe competition ends when the clock hits zero: a fish still being played or not yet landed misses the weigh-in. You get a notice at the last minute, and the last ten seconds are counted down.',
   'manual.spin.snag': 'Snags and weed',
   'manual.spin.snagText':
     'A lure touching the bottom can snag on stones, fallen trees, brush, reeds or weed.\nReel for about a second to free it: the lure comes free {normalSnag} % of the time on Normal and {realisticSnag} % on Realistic, always on Easy. Otherwise the line breaks.\nIn submerged weed the lure collects weed and then hardly interests fish. Reel it in to clean it.\nA weedless spoon slides through weed, but strikes hook less often.',
