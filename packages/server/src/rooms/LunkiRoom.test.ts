@@ -697,6 +697,15 @@ describe('LunkiRoom', () => {
     // Muutos nollaa valmiuden.
     await until(() => players(host).every((p) => !p.ready));
 
+    // Pelaajarajan nosto ei ole sääntömuutos: valmius säilyy.
+    guest.send(ClientMsg.ready, true);
+    await until(() => players(host).some((p) => p.ready));
+    host.send(ClientMsg.settings, { maxPlayers: 16 });
+    await until(() => guest.state.settings.maxPlayers === 16);
+    host.send(ClientMsg.settings, { maxPlayers: 4 });
+    await until(() => guest.state.settings.maxPlayers === 4);
+    expect(players(host).find((p) => p.name === 'B')?.ready).toBe(true);
+
     // Täysi huone ei ota lisää pelaajia.
     host.send(ClientMsg.settings, { maxPlayers: 2 });
     await until(() => guest.state.settings.maxPlayers === 2);
