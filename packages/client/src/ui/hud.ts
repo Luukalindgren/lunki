@@ -521,8 +521,8 @@ export class Hud {
         : c.ashore === 'walk'
           ? HELP.shore
           : [...MOVE_HELP[c.seat], ...(c.fly ? HELP.fly : HELP.spin)];
-    // Zoom toimii vain ylhäältä katsottaessa.
-    const opts = { skip: c.pov ? (['zoom'] as const) : [] };
+    // Zoom ja oikean tatin heittosuunta toimivat vain ylhäältä katsottaessa.
+    const opts = { skip: c.pov ? (['zoom', 'aim'] as const) : [] };
     const lines = [...base, ...tail].map((k) => controlText(k, {}, opts));
     const key = lines.join('\n');
     if (key === this.helpKey) return;

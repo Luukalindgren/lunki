@@ -248,9 +248,11 @@ export class FishingController {
     let startFlyCast = false;
     if (flyCasting && canCast) {
       const mouse = c.wasPressed('pointer');
-      if (f.stage === 'idle' && (mouse || c.wasPressed('castForward'))) {
+      // Peliohjaimella oikea tatti alas aloittaa heiton takaheitolla.
+      const stick = c.wasPressed('backCast');
+      if (f.stage === 'idle' && (mouse || stick || c.wasPressed('castForward'))) {
         startFlyCast = true;
-        this.flyCastControl.start(mouse ? (touch ? 'touch' : 'mouse') : 'keyboard');
+        this.flyCastControl.start(mouse ? (touch ? 'touch' : 'mouse') : stick ? 'pad' : 'keyboard');
       } else if (
         f.stage === 'water' &&
         f.struckId === null &&
@@ -260,7 +262,7 @@ export class FishingController {
         // Siiman nosto vedestä uuteen heittoon (kosketuksella NOSTA). Tärpissä
         // sama nosto on vastaisku (#399), ks. readFlyHand.
         startFlyCast = true;
-        this.flyCastControl.start(touch ? 'touch' : 'mouse');
+        this.flyCastControl.start(touch ? 'touch' : controlMode() === 'pad' ? 'pad' : 'mouse');
       }
       if (startFlyCast && this.flyCastControl.mode === 'mouse') input.lockPointer();
     }
@@ -285,6 +287,7 @@ export class FishingController {
                     key: c.wasPressed('castForward'),
                     dx: input.mouseDX,
                     dy: input.mouseDY,
+                    stick: { ...input.padAim, aim: host.viewMode !== 'pov' },
                   },
               dt,
             )

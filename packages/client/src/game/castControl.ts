@@ -8,7 +8,10 @@ export const KEY_AIM_DISTANCE = 30;
 export interface PadAim {
   /** Tatti, -1…1 (y kasvaa alas). */
   stick: { x: number; y: number };
-  /** Kalastajan silmin: tatti ylös on katsesuunta. Ylhäältä tatti ylös on pohjoinen. */
+  /**
+   * Kalastajan silmin heitto lähtee katsesuuntaan, ja oikea tatti kääntää
+   * kalastajaa (`lookLeft`/`lookRight`). Ylhäältä tatti ylös on pohjoinen.
+   */
   pov: boolean;
 }
 
@@ -49,14 +52,14 @@ export class CastControl {
 
   /**
    * Tähtäyspiste: hiiren osoittama kohta tai näppäimistöheitossa katsesuunta.
-   * Peliohjaimella (`pad`) katsesuunta, tai oikean tatin viimeksi osoittama
-   * suunta ennen heittoa.
+   * Peliohjaimella (`pad`) katsesuunta, tai ylhäältä oikean tatin viimeksi
+   * osoittama suunta ennen heittoa.
    */
   aim(mouseAim: Vec2, tubePos: Vec2, heading: number, pad?: PadAim): Vec2 {
     if (pad) {
       const { x, y } = pad.stick;
-      if (Math.hypot(x, y) > PAD_STICK_PRESS)
-        this.padAngle = pad.pov ? heading + Math.atan2(-x, -y) : Math.atan2(-y, x);
+      if (pad.pov) this.padAngle = null;
+      else if (Math.hypot(x, y) > PAD_STICK_PRESS) this.padAngle = Math.atan2(-y, x);
       return headingAim(tubePos, this.padAngle ?? heading);
     }
     if (!this.keyboard) return mouseAim;

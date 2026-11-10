@@ -774,7 +774,7 @@ export const fi = {
   'ctl.or': 'tai',
   'pad.leftStick': 'vasen tatti',
   'pad.rightStick': 'oikea tatti',
-  'pad.stickSide': 'vasen tatti sivulle',
+  'pad.stickSide': 'vasen tatti sivulle (silmin myös oikea)',
   'touch.cancel': 'PERU',
   'touch.cancelTitle': 'Peru heitto',
   'touch.reelSlack': 'KELALLE',
@@ -1113,7 +1113,7 @@ export const fi = {
     'Yksinpelin asetuksissa voi lähteä veneellä renkaan sijaan. Moninpelin aulassa voi valita oman veneen tai mennä toisen kyytiin. Veneessä on soutaja ja enintään kaksi kalastajaa, ja venekunta on yksi joukkue.\nSoutaja: {back} = souda, {forward} = huopaa, {turn} = käännä venettä.\n{oars} = airot tai vapa. Heittäessä ja kelatessa ei voi soutaa, mutta viehe vedessä voi uistella.\n{seat} = vaihda paikkaa, kun vene on lähes paikallaan.',
   'manual.move.pad': 'Peliohjain',
   'manual.move.padText':
-    'Xbox- ja PlayStation-ohjaimet toimivat sellaisinaan, kun ohjaimen kytkee johdolla tai Bluetoothilla ja painaa jotain sen nappia. Ohjeet näyttävät silloin ohjaimen napit.\nValikoissa ristiohjain tai vasen tatti liikkuu, A/✕ valitsee ja B/○ palaa.\nPikavalikot (viehepakki, kalastustapa, käsimerkit): pidä nappia pohjassa, osoita oikealla tatilla ja päästä irti.\nPerhoa heitetään ohjaimella rytmissä: jokainen heittonapin painallus vaihtaa suuntaa.',
+    'Xbox- ja PlayStation-ohjaimet toimivat sellaisinaan, kun ohjaimen kytkee johdolla tai Bluetoothilla ja painaa jotain sen nappia. Ohjeet näyttävät silloin ohjaimen napit.\nValikoissa ristiohjain tai vasen tatti liikkuu, A/✕ valitsee, B/○ palaa ja oikea tatti vierittää pitkää näkymää.\nPikavalikot (viehepakki, kalastustapa, käsimerkit): pidä nappia pohjassa, osoita oikealla tatilla ja päästä irti.\nKalastajan silmin oikea tatti kääntää kuten vasen, joten vasemmalla voi potkia eteen ja taakse ja oikealla kääntyä. Ylhäältä oikea tatti on heiton suunta.\nZoom ylhäältä: pidä LT/L2 pohjassa ja paina ristiohjainta ylös tai alas.\nPerhoheitossa oikea tatti on vapa: vedä tatti alas takaheittoon, pidä se siellä, kunnes siima suoristuu, ja työnnä ylös eteenheittoon. Heittonapilla perhoa heitetään rytmissä: jokainen painallus vaihtaa suuntaa.',
   'manual.move.wind': 'Tuuli ja törmäykset',
   'manual.move.windText':
     'Tuuli ajelehtii rengasta myötätuuleen, myrskyssä selvästi. Potkimalla pääsee vastatuuleenkin.\nRantaan ja kaislikkoon ei pääse, ja kalastajat tönäisevät toisiaan törmätessään. Raskas vene tönäisee rengasta enemmän kuin rengas venettä.',

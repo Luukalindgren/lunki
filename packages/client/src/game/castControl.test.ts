@@ -89,3 +89,28 @@ describe('heitto näppäimistöllä (#227)', () => {
     expect(c.aim(MOUSE_AIM, ctx.tubePos, ctx.heading)).toBe(MOUSE_AIM);
   });
 });
+
+describe('heiton suunta peliohjaimella', () => {
+  const pos = { x: 0, y: 0 };
+  const mouse = { x: 5, y: 5 };
+
+  it('ylhäältä oikea tatti osoittaa suunnan, ja se säilyy heittoon asti', () => {
+    const cc = new CastControl();
+    cc.castHeld('idle', { mouse: false, key: false });
+    // Tatti ylös on pohjoinen (y kasvaa pohjoiseen, tatin y alas).
+    const north = cc.aim(mouse, pos, 0, { stick: { x: 0, y: -1 }, pov: false });
+    expect(north.x).toBeCloseTo(0);
+    expect(north.y).toBeCloseTo(KEY_AIM_DISTANCE);
+    const kept = cc.aim(mouse, pos, 0, { stick: { x: 0, y: 0 }, pov: false });
+    expect(kept.y).toBeCloseTo(KEY_AIM_DISTANCE);
+  });
+
+  it('kalastajan silmin heitto lähtee katsesuuntaan: oikea tatti kääntää kalastajaa', () => {
+    const cc = new CastControl();
+    cc.castHeld('idle', { mouse: false, key: false });
+    cc.aim(mouse, pos, 0, { stick: { x: 0, y: -1 }, pov: false });
+    const ahead = cc.aim(mouse, pos, 0, { stick: { x: -1, y: 0 }, pov: true });
+    expect(ahead.x).toBeCloseTo(KEY_AIM_DISTANCE);
+    expect(ahead.y).toBeCloseTo(0);
+  });
+});

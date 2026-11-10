@@ -165,3 +165,60 @@ describe('perhoheitto kosketuslevyllä (#400)', () => {
     expect(ctl.read(c, { ...none, grip: false }, DT).grip).toBe(false);
   });
 });
+
+describe('perhoheitto peliohjaimella', () => {
+  const stick = (y: number, x = 0, aim = true) => ({ ...none, grip: false, stick: { x, y, aim } });
+
+  it('oikea tatti on vapa: alas takaheitto, pito kunnes siima suoristuu, ylös eteenheitto', () => {
+    const ctl = new FlyCastControl();
+    ctl.start('pad');
+    const c = createFlyCast(FLY_CAST.startAerial, false);
+    const stops: { dir: -1 | 1; speed: number }[] = [];
+    let landed: FlyCastEvents['landed'];
+    let y = 0;
+    const step = () => {
+      const ev = stepFlyCast(c, ctl.read(c, stick(y), DT), env, DT);
+      if (ev.stop) stops.push(ev.stop);
+      expect(ev.crack).toBeUndefined();
+      landed ??= ev.landed;
+    };
+    /** Tatti uuteen asentoon muutamassa askeleessa ja pito, kunnes siima on suorassa. */
+    const flick = (to: number) => {
+      const from = y;
+      for (let i = 1; i <= 4; i++) {
+        y = from + ((to - from) * i) / 4;
+        step();
+      }
+      for (let i = 0; i < 200 && !landed && !(c.phase === 'loop' && c.straight); i++) step();
+    };
+    flick(1);
+    flick(-1);
+    flick(1);
+    flick(-1);
+    for (let i = 0; i < 300 && !landed; i++) step();
+    expect(stops.map((s) => s.dir)).toEqual([-1, 1, -1, 1]);
+    // Valeheitoilla siimaa luisti ulos: perho lentää alkusiimaa pidemmälle.
+    expect(landed!.distance).toBeGreaterThan(FLY_CAST.startAerial + 3);
+  });
+
+  it('tatin sivuliike kääntää heittoa vain ylhäältä katsottuna', () => {
+    const ctl = new FlyCastControl();
+    ctl.start('pad');
+    const c = createFlyCast(8, false);
+    expect(ctl.read(c, stick(0, 1), DT).aim).toBeLessThan(0);
+    expect(ctl.read(c, stick(0, 1, false), DT).aim).toBe(0);
+  });
+
+  it('noston jälkeen heittonappi jatkaa rytmiheittona, jos tattiin ei ole koskettu', () => {
+    const ctl = new FlyCastControl();
+    ctl.start('pad');
+    const c = createFlyCast(8, false);
+    ctl.read(c, { ...stick(0), key: true }, DT);
+    expect(ctl.keyboard).toBe(true);
+    // Tatin liikkeen jälkeen heittonappi on siimakäsi.
+    ctl.start('pad');
+    ctl.read(c, stick(0.8), DT);
+    ctl.read(c, { ...stick(0.8), key: true, grip: true, gripPressed: true }, DT);
+    expect(ctl.mode).toBe('pad');
+  });
+});

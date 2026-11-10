@@ -83,9 +83,14 @@ Koodi: `packages/client/src/game/controls.ts`.
   ohjaimen joka askeleella koodeiksi (`Pad0` = A/✕, `PadLsUp` = vasen tatti
   ylös), ja kartan `pad`-kentät kytkevät ne toimintoihin. Ohjeet vaihtuvat
   ohjaimen napeiksi (`setControlMode('pad')`, Xbox- tai PS-merkinnät), kun
-  pelaaja käyttää ohjainta. Valikoissa ohjain kulkee `MenuNav.pad`-kutsulla,
-  oikea tatti tähtää heiton (`castControl.ts`) ja osoittaa pikavalikon
-  lohkon (`HeldMenu`). Uusi toiminto saa `pad`-napin, jos sellainen on vapaana.
+  pelaaja käyttää ohjainta. Valikoissa ohjain kulkee `MenuNav.pad`-kutsulla
+  ja oikea tatti vierittää näkymää (`Screens.padScroll`). Pelissä
+  oikea tatti tähtää heiton ylhäältä (`castControl.ts`), kääntää kalastajaa
+  POV:ssa (`lookLeft`/`lookRight`), on perhoheitossa vapa (`backCast`/
+  `forwardCast`, `flyCastControl.ts`) ja osoittaa pikavalikon lohkon
+  (`HeldMenu`). Uusi toiminto saa `pad`-napin, jos sellainen on vapaana;
+  muuten yhdistelmän `padWith`-kentällä (zoom on LT/L2 + ristiohjain), jolloin
+  saman napin tavallinen toiminto väistää yhdistelmän ajaksi.
 - Kosketusnapit painavat toimintoja (`controls.set` / `controls.tap`), eivät
   matki näppäimiä. Ei raakoja `KeyX`-tarkistuksia pelikoodissa eikä
   keksittyjä näppäinnimiä.

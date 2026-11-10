@@ -49,6 +49,15 @@ async function setButton(page: Page, i: number, down: boolean): Promise<void> {
   await expect.poll(() => polls(page)).toBeGreaterThan(before + 1);
 }
 
+async function setAxis(page: Page, i: number, value: number): Promise<void> {
+  await page.evaluate(
+    ([i, value]) => {
+      (window as unknown as { __pad: { axes: number[] } }).__pad.axes[i] = value;
+    },
+    [i, value] as const,
+  );
+}
+
 async function tap(page: Page, i: number): Promise<void> {
   await setButton(page, i, true);
   await setButton(page, i, false);
@@ -81,12 +90,22 @@ test('peliohjain: valikot, ohjeen napit, heitto ja tauko', async ({ page, isMobi
   await focusButton(page, 'Yksinpeli');
   await tap(page, A);
   await expect(page.getByRole('button', { name: 'Aloita kisa' })).toBeVisible();
+  // Oikea tatti alas vierittää pitkää näkymää.
+  const scrolled = () =>
+    page.evaluate(() => Math.max(...[...document.querySelectorAll('*')].map((e) => e.scrollTop)));
+  expect(await scrolled()).toBe(0);
+  await setAxis(page, 3, 1);
+  await expect.poll(scrolled).toBeGreaterThan(50);
+  await setAxis(page, 3, 0);
   await focusButton(page, 'Aloita kisa');
   await tap(page, A);
   await raceRunning(page);
 
   // Ohje näyttää ohjaimen napit.
   await expect(page.locator('.hud-help')).toContainText('A/RT pohjassa = kelaa');
+
+  // Ylhäältä zoom on LT + ristiohjain.
+  await expect(page.locator('.hud-help')).toContainText('LT+✚↑/✚↓ = zoom');
 
   // Heitto: A pohjassa ja päästä, kuten välilyönti.
   const line = async () => {

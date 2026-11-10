@@ -202,6 +202,7 @@ input.menuOpen = () => screens.open;
 // Alinäkymän (esim. tauon asetukset) Esc palaa takaisin eikä jatka peliä.
 input.menuBack = () => screens.hasBack;
 input.onPadNav = (action) => screens.padNav(action);
+input.onPadScroll = (dy) => screens.padScroll(dy);
 /** Yksinpeli alkaa oletuksena ilman aikarajaa (#360); moninpelin huoneilla on oma oletuksensa. */
 let settings = loadSettings({ ...DEFAULT_SETTINGS, durationMinutes: UNTIMED });
 let game: Game | null = null;

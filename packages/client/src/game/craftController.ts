@@ -40,7 +40,7 @@ import { loadCraft } from './tackle';
  * Näppäinasettelu: WASD tai nuolet. W vie katseen suuntaan kohti räpylöitä
  * (hitaampi melonta), S selkä edellä (tavallinen, nopeampi potkiminen).
  */
-export function readTubeInput(c: Controls, ashore = false): TubeInput {
+export function readTubeInput(c: Controls, ashore = false, look = false): TubeInput {
   const main =
     ashore &&
     (c.wasPressed('pump') ||
@@ -54,7 +54,16 @@ export function readTubeInput(c: Controls, ashore = false): TubeInput {
     c.isDown(a) || (ashore && c.wasPressed(a)) ? 1 : 0;
   return {
     kick: on('back') - on('forward'),
-    turn: on('left') - on('right'),
+    // Kalastajan silmin (`look`) myös peliohjaimen oikea tatti kääntää.
+    turn: Math.max(
+      -1,
+      Math.min(
+        1,
+        on('left') -
+          on('right') +
+          (look ? (c.isDown('lookLeft') ? 1 : 0) - (c.isDown('lookRight') ? 1 : 0) : 0),
+      ),
+    ),
     sprint: c.isDown('sprint'),
     ...(main && { main }),
   };
@@ -71,6 +80,7 @@ export interface CraftHost {
   readonly fishing: FishingState;
   readonly fishingView: FishingView;
   readonly spectating: boolean;
+  readonly viewMode: 'top' | 'pov';
   tube: TubeState;
   prevTube: TubeState;
   /** Renkaaseen vaikuttava tuuli (sää ja trombin imu). */
@@ -208,7 +218,10 @@ export class CraftController {
     // (soutu-uistelu). Heittäessä ja kelatessa kädet ovat vavassa: vene liukuu
     // ja soutaja kääntyy tuhdolla (#263).
     const wasAshore = this.ashore;
-    const raw = frozen || capsized ? still : readTubeInput(c, wasAshore);
+    // Pikavalikon ollessa pohjassa oikea tatti osoittaa sen lohkoa eikä käännä.
+    const look =
+      host.viewMode === 'pov' && !c.isDown('lure') && !c.isDown('method') && !c.isDown('emote');
+    const raw = frozen || capsized ? still : readTubeInput(c, wasAshore, look);
     const rodStage = host.fishing.stage;
     const rodInHand =
       rodStage === 'charging' ||
