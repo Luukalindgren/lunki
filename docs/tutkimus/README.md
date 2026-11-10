@@ -46,3 +46,5 @@ vaihtoehtoja eivätkä ole pelin nykyistä koodia.
 | #573  | Merkit omaan profiiliin                                                                                |
 | #574  | Päivän kisa                                                                                            |
 | #575  | Yhteyden laatu aulassa                                                                                 |
+| #601  | Tattikelauksen aloitus ei käännä kalastajaa omin silmin                                                |
+| #602  | Kelan vaihde näkyviin, kun kelataan tattia pyörittämällä                                               |
