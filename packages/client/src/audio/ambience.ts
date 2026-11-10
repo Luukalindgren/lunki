@@ -20,6 +20,8 @@ export interface AmbienceInput {
   right?: Vec2;
   /** Vuodenaika (#427); puuttuu = kesä. */
   season?: Season;
+  /** Näkyvän kuikan suunta kuulijasta (#572); puuttuu = jostain päin järveä. */
+  loonDir?: Vec2;
 }
 
 /** Valikon taustalla: tyyni kesäpäivä. */
@@ -180,7 +182,7 @@ export class Ambience {
     if (this.loonTimer <= 0) {
       // Kuikka huutaa myös sateella, mutta ei myrskyssä eikä kovassa tuulessa.
       const ok = w.windSpeed < 10 && w.rain < 0.6 && w.sky !== 'thunder' && w.sky !== 'storm';
-      const length = ok ? this.loon() : 0;
+      const length = ok ? this.loon(w.loonDir) : 0;
       // Toinen kuikka vastaa joskus heti perään.
       // Kuikat ääntelevät eniten hämärässä ja yöllä.
       const dusk = Math.max(w.twilight ?? 0, 1 - (w.light ?? 1));
@@ -263,9 +265,13 @@ export class Ambience {
     }
   }
 
-  /** Kuikan huuto tai laulu jostain päin järveä. Palauttaa kutsun keston (s). */
-  private loon(): number {
-    return this.call(loonCall(Math.random() < 0.55 ? 'wail' : 'song'), 'triangle', 3200, 0.11);
+  /**
+   * Kuikan huuto tai laulu näkyvän kuikan suunnasta (`dir`) tai jostain päin
+   * järveä. Palauttaa kutsun keston (s).
+   */
+  private loon(dir?: Vec2): number {
+    const kind = Math.random() < 0.55 ? 'wail' : 'song';
+    return this.call(loonCall(kind), 'triangle', 3200, 0.11, dir);
   }
 
   /**
@@ -273,12 +279,18 @@ export class Ambience {
    * suodin antavat sävyn: kuikalla pehmeä kolmio, kurjella ja hanhella
    * räikeämpi saha. Palauttaa kutsun keston (s).
    */
-  private call(notes: CallNote[], wave: OscillatorType, bright: number, loud: number): number {
+  private call(
+    notes: CallNote[],
+    wave: OscillatorType,
+    bright: number,
+    loud: number,
+    from?: Vec2,
+  ): number {
     const ctx = this.ctx;
     const pan = ctx.createStereoPanner();
     // Lintu huutaa jostain päin järveä; suunta seuraa kuulijan kääntymistä (update).
     const angle = Math.random() * Math.PI * 2;
-    const dir = { x: Math.cos(angle), y: Math.sin(angle) };
+    const dir = from ?? { x: Math.cos(angle), y: Math.sin(angle) };
     this.loonAt = { pan, dir };
     pan.pan.value = this.loonPan(dir);
     // Kaukainen ääni on vaimeampi ja tummempi.

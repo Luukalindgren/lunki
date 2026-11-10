@@ -283,6 +283,14 @@ Koodi: `packages/client/src/audio/sounds.ts`.
   vieheen pyörteet (`LURE_MARKER.signs`) ja perhoheiton merkki
   (`DIFFICULTIES[…].flyCast.marker`). Uusi apu lisätään näiden rinnalle eikä
   omaksi asetuksekseen.
+- Linnut ovat näkymää (`game/birdsView.ts`, #571, #572). Kalaa pyytävät
+  linnut (`game/fishBirds.ts`: lokit ja tiirat syövän ahvenparven päällä,
+  kalasääski pintaveden kalan perässä) lukevat kalakantaa ja syöntijaksoja
+  kuten kalojen merkit, eivätkä arvo mitään kalakantaan. Ne näkyvät kaikilla
+  tasoilla, koska oikeakin kalastaja näkee ne; `FISH_BIRDS` päättää määrät
+  tasoittain. Vesilinnut (`game/waterfowl.ts`) arvotaan kisan siemenestä
+  kausittain ja väistävät kulkupelejä. Uusi lintu on uusi rivi näihin
+  taulukoihin ja kuva `game/birdArt.ts`:iin, ei oma järjestelmä.
 - Pikselikuvat järvellä tehdään `game/pixelSprite.ts`:n tekstuureina
   (`alphaTest`, ei puoliläpinäkyvyyttä).
 

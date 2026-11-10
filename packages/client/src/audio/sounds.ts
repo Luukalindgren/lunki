@@ -29,7 +29,9 @@ export type Effect =
   | 'joinChime'
   | 'readyChime'
   | 'minuteChime'
-  | 'countBeep';
+  | 'countBeep'
+  | 'wingFlap'
+  | 'gullCry';
 
 /** Tehoste, joka riippuu tapahtuman luvuista (heiton voima, salaman etäisyys …). */
 type Play = (sfx: Sfx, a: number, b: number) => void;
@@ -126,6 +128,20 @@ export const SOUNDS = {
   // Veneen äyskäröinti (#458): kauhallinen ja osan tyhjeneminen
   bailScoop: { effect: 'plip' },
   partEmptied: { effect: 'tick' },
+  // Linnut (#571, #572), kuultuina paikan mukaan (playAt): sorsat lähtevät
+  // siivet läiskyen ja rääkkyen, joutsen juoksee pintaa lentoon, lokki
+  // kirkuu syövän ahvenparven päällä ja sääksi molskahtaa kalan perään.
+  duckFlush: {
+    effect: (s) => {
+      s.wingFlap();
+      s.quack();
+    },
+  },
+  swanFlush: { effect: 'wingFlap' },
+  birdLand: { effect: 'plip' },
+  birdDive: { effect: 'plip' },
+  gullCry: { effect: 'gullCry' },
+  ospreyDive: { effect: 'splash' },
   // Aula (#516): isäntä kuulee, kun joku liittyy tai on valmis.
   lobbyJoined: { effect: 'joinChime' },
   lobbyReady: { effect: 'readyChime' },
@@ -211,13 +227,22 @@ export class Sounds {
   /**
    * Ympäristöäänet säästä, vuorokaudenajasta ja trombin läheisyydestä.
    * Trombin pauhu kuuluu lähimmän trombin (`spoutAt`) suunnasta, ja kuikat
-   * pysyvät paikallaan järvellä, kun kuulija kääntyy.
+   * pysyvät paikallaan järvellä, kun kuulija kääntyy. Näkyvä kuikka (`loonAt`,
+   * #572) huutaa omasta suunnastaan.
    */
-  ambience(dt: number, w: AmbienceInput, spoutAt: Vec2 | null = null): void {
+  ambience(
+    dt: number,
+    w: AmbienceInput,
+    spoutAt: Vec2 | null = null,
+    loonAt: Vec2 | null = null,
+  ): void {
+    const ear = this.listener.ear;
+    const d = loonAt ? Math.hypot(loonAt.x - ear.x, loonAt.y - ear.y) : 0;
     this.sfx.updateAmbience(dt, {
       ...w,
       spoutPan: spoutAt ? effectPan(spoutAt, this.listener) : 0,
       right: this.listener.right,
+      ...(loonAt && d > 1 && { loonDir: { x: (loonAt.x - ear.x) / d, y: (loonAt.y - ear.y) / d } }),
     });
   }
 }
