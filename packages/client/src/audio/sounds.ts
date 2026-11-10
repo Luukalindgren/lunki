@@ -27,7 +27,9 @@ export type Effect =
   | 'joy'
   | 'fanfare'
   | 'joinChime'
-  | 'readyChime';
+  | 'readyChime'
+  | 'minuteChime'
+  | 'countBeep';
 
 /** Tehoste, joka riippuu tapahtuman luvuista (heiton voima, salaman etäisyys …). */
 type Play = (sfx: Sfx, a: number, b: number) => void;
@@ -127,6 +129,9 @@ export const SOUNDS = {
   // Aula (#516): isäntä kuulee, kun joku liittyy tai on valmis.
   lobbyJoined: { effect: 'joinChime' },
   lobbyReady: { effect: 'readyChime' },
+  // Kisan loppu (#566): viimeinen minuutti ja loppulaskennan sekunnit.
+  raceMinute: { effect: 'minuteChime' },
+  raceTick: { effect: 'countBeep' },
 } satisfies Record<string, Sound>;
 
 export type SoundEvent = keyof typeof SOUNDS;
