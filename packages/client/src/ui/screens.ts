@@ -816,21 +816,30 @@ export class Screens {
     // Yksi rivi pelaajaa kohden (#529, #558): muiden varusteet eivät kuulu
     // aulaan, ja isäntä näkee kaikkien valmiuden vierittämättä. Omat varusteet
     // näkyvät yhteenvetona alempana.
+    // Katsojat eivät vie kalastajapaikkoja (#274).
+    const anglers = v.players.filter((p) => !p.spectator).length;
+    // Täyteen aulaan liittyneet odottavat katsojina vapaata paikkaa (#568).
+    // Vanha palvelin ei kerro odottajia: silloin katsojat täydessä aulassa.
+    const waitsSeat = (p: LobbyPlayer) =>
+      p.waitingSeat ?? (anglers >= v.maxPlayers && p.spectator && !p.host);
     const playerRow = (p: LobbyPlayer) => {
       const li = document.createElement('li');
       li.classList.toggle('lobby-new', event?.ids.includes(p.sessionId) ?? false);
+      const seatWait = p.connected && p.spectator && waitsSeat(p);
       const state = t(
         !p.connected
           ? 'lobby.disconnected'
-          : p.spectator
-            ? p.host
-              ? 'lobby.hostSpectator'
-              : 'lobby.spectator'
-            : p.host
-              ? 'lobby.host'
-              : p.ready
-                ? 'lobby.ready'
-                : 'lobby.waiting',
+          : seatWait
+            ? 'lobby.waitingSeat'
+            : p.spectator
+              ? p.host
+                ? 'lobby.hostSpectator'
+                : 'lobby.spectator'
+              : p.host
+                ? 'lobby.host'
+                : p.ready
+                  ? 'lobby.ready'
+                  : 'lobby.waiting',
       );
       const swatch = h('span', '', 'player-color');
       swatch.style.background = cssColor(p.appearance.tube);
@@ -840,18 +849,19 @@ export class Screens {
       if (p.oldVersion) name.append(h('span', t('lobby.oldVersion'), 'player-old'));
       li.append(
         name,
-        h('span', state, `player-state ${p.host || p.ready || p.spectator ? 'ok' : ''}`),
+        h(
+          'span',
+          state,
+          `player-state ${seatWait ? 'seat-wait' : p.host || p.ready || p.spectator ? 'ok' : ''}`,
+        ),
       );
       return li;
     };
     if (v.canBoat) list.append(...this.crewRows(v, playerRow, actions.onBoat, actions.onSeat));
     else for (const p of v.players) list.appendChild(playerRow(p));
-    // Katsojat eivät vie kalastajapaikkoja (#274).
-    const anglers = v.players.filter((p) => !p.spectator).length;
-    // Täyteen aulaan liittyneet odottavat katsojina vapaata paikkaa. Määrä ja
-    // isännän vihje näkyvät otsikossa eivätkä vasta pitkän listan alla (#516).
-    const waiting =
-      anglers >= v.maxPlayers ? v.players.filter((p) => p.spectator && !p.host).length : 0;
+    // Odottajien määrä ja isännän vihje näkyvät otsikossa eivätkä vasta
+    // pitkän listan alla (#516).
+    const waiting = v.players.filter((p) => p.spectator && waitsSeat(p)).length;
     const full = waiting > 0;
     const header = h(
       'p',
