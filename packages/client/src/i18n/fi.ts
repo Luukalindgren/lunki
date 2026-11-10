@@ -733,7 +733,8 @@ export const fi = {
   'help.passengerTurn': '{turn} = käänny paikallasi heittämään',
   'help.cast': '{pointer}: tähtää, pidä ja päästä = heitto · {aim} = heiton suunta',
   'help.castForward': '{castForward} pohjassa ja päästä = heitto katsesuuntaan · {cancel} = peru',
-  'help.reel': '{pointer|reel} pohjassa = kelaa · {twitch} = nykäisy, ison kalan vastaisku',
+  'help.reel':
+    '{pointer|reel} pohjassa = kelaa · {twitch} = nykäisy, ison kalan vastaisku · {spin} = kelaus',
   'help.gear': '{gear} = kelausnopeus · {gearFast} = pikakelaus · {dragLess}/{dragMore} = jarru',
   'help.tools':
     '{lure} = vaihda viehe (pohjassa: pakki) · {method} = virveli/perho · {sonar} = luotain · {lureSonar} = syvyys',
@@ -777,6 +778,8 @@ export const fi = {
   'ctl.or': 'tai',
   'pad.leftStick': 'vasen tatti',
   'pad.rightStick': 'oikea tatti',
+  'pad.stickSpin': 'oikean tatin pyöritys',
+  'pad.stickFlick': 'oikea tatti nopeasti alas ja takaisin',
   'pad.stickSide': 'vasen tatti sivulle (silmin myös oikea)',
   'touch.cancel': 'PERU',
   'touch.cancelTitle': 'Peru heitto',
@@ -1125,7 +1128,7 @@ export const fi = {
     '{pointer}: tähtää, pidä pohjassa ja päästä = heitto\n{aim} = heiton suunta, muuten heitto lähtee katsesuuntaan\n{castForward} pohjassa ja päästä = heitto katsesuuntaan\nVoimamittari täyttyy ja laskee sitten takaisin, joten ajoita irrotus täyteen mittariin.\n{cancel} = peru lataus\nTuuli kaartaa heittoa. Vieheen paino, vavan heittopaino ja siiman paksuus vaikuttavat heiton pituuteen.\nMaalle osunut viehe jää kiinni: {cut} = katkaise siima, ja viehe menetetään.',
   'manual.spin.reel': 'Kelaus ja uitto',
   'manual.spin.reelText':
-    '{pointer|reel} pohjassa = kelaa\n{gear} = kelausnopeus, {gearFast} = pikakelaus. Niin nopea viehe ei juuri kiinnosta kaloja.\n{twitch} = nykäisy: viehe pomppaa ylös ja vajoaa houkuttelevasti.\nTauko vedon jälkeen houkuttaa haukea ja suuria kaloja.\nKalat pitävät oman lajinsa mieluisasta nopeudesta ja syvyydestä. Vaappu uii lippansa syvyydessä, ja jigi ja lusikka vajoavat.',
+    '{pointer|reel} pohjassa = kelaa\n{gear} = kelausnopeus, {gearFast} = pikakelaus. Niin nopea viehe ei juuri kiinnosta kaloja.\n{twitch} = nykäisy: viehe pomppaa ylös ja vajoaa houkuttelevasti.\n{spin} = kelaus kuin kelan kammesta: mitä nopeammin pyörität, sitä nopeammin kela käy. {flick} = nykäisy.\nTauko vedon jälkeen houkuttaa haukea ja suuria kaloja.\nKalat pitävät oman lajinsa mieluisasta nopeudesta ja syvyydestä. Vaappu uii lippansa syvyydessä, ja jigi ja lusikka vajoavat.',
   'manual.spin.feeding': 'Syöntijaksot',
   'manual.spin.feedingText':
     'Kalat syövät jaksoittain: parvi tai yksin elävä kala on muutaman minuutin syönnillä ja sitten levossa. Lepäävä kala näkyy luotaimessa mutta tuskin iskee, joten vaihda paikkaa, jos viehe ei kelpaa: viereinen parvi voi olla syönnillä. Syövä parvi käy myös useammin pinnassa.\nMitä vireämpi laji on, sitä useampi parvi syö: ahven ja hauki päivällä ja hämärässä, kuha, made ja lahna hämärässä ja yöllä. Helpolla kalat syövät koko ajan.',

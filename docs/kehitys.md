@@ -88,7 +88,10 @@ Koodi: `packages/client/src/game/controls.ts`.
   oikea tatti tähtää heiton ylhäältä (`castControl.ts`), kääntää kalastajaa
   POV:ssa (`lookLeft`/`lookRight`), on perhoheitossa vapa (`backCast`/
   `forwardCast`, `flyCastControl.ts`) ja osoittaa pikavalikon lohkon
-  (`HeldMenu`). Uusi toiminto saa `pad`-napin, jos sellainen on vapaana;
+  (`HeldMenu`). Virvelin viehe vedessä tatti on kelan kampi
+  (`game/stickReel.ts`, #595): pyöritys kelaa ja pyöritysnopeus valitsee
+  vaihteen, nopea nykäisy taakse on vavan nykäisy, ja tatti ei silloin käännä
+  eikä tähtää. Uusi toiminto saa `pad`-napin, jos sellainen on vapaana;
   muuten yhdistelmän `padWith`-kentällä (zoom on LT/L2 + ristiohjain), jolloin
   saman napin tavallinen toiminto väistää yhdistelmän ajaksi.
 - Kosketusnapit painavat toimintoja (`controls.set` / `controls.tap`), eivät

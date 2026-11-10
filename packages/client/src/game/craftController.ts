@@ -103,6 +103,8 @@ export interface CraftStep {
   frozen: boolean;
   capsized: boolean;
   reelHeld: boolean;
+  /** Oikea tatti on kelauksen käytössä (#595): se ei käännä kalastajaa. */
+  stickReel?: boolean;
 }
 
 /**
@@ -210,7 +212,7 @@ export class CraftController {
   step(dt: number, s: CraftStep): void {
     const host = this.host;
     const c = host.controls;
-    const { frozen, capsized, reelHeld } = s;
+    const { frozen, capsized, reelHeld, stickReel } = s;
     const still = { kick: 0, turn: 0, sprint: false };
     host.prevTube = host.tube;
     this.prevLook = this.seat.look;
@@ -220,7 +222,11 @@ export class CraftController {
     const wasAshore = this.ashore;
     // Pikavalikon ollessa pohjassa oikea tatti osoittaa sen lohkoa eikä käännä.
     const look =
-      host.viewMode === 'pov' && !c.isDown('lure') && !c.isDown('method') && !c.isDown('emote');
+      host.viewMode === 'pov' &&
+      !stickReel &&
+      !c.isDown('lure') &&
+      !c.isDown('method') &&
+      !c.isDown('emote');
     const raw = frozen || capsized ? still : readTubeInput(c, wasAshore, look);
     const rodStage = host.fishing.stage;
     const rodInHand =
