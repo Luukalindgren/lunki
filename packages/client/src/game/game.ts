@@ -21,6 +21,7 @@ import {
   clockAt,
   daylight,
   seasonOf,
+  fishConditions,
   lerpAngle,
   rodTip,
   ChatLimiter,
@@ -52,6 +53,7 @@ import { Controls, controlText, type ShoreMain } from './controls';
 import { createBottomMesh } from '../world/bottomMesh';
 import { FishShadow } from '../world/fishShadow';
 import { FishSignsView } from './fishSignsView';
+import { BirdsView } from './birdsView';
 import { staticWorldFor, type StaticWorld } from '../world/staticWorld';
 import type { RetroResolution } from '../engine/resolution';
 import type { RetroRenderer } from '../engine/retroRenderer';
@@ -163,6 +165,8 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
   readonly fishShadow = new FishShadow();
   /** Kalojen merkit pinnalla (#369), kuultuina omalta paikalta. */
   readonly fishSigns = new FishSignsView((event, at) => this.sounds.playAt(event, at));
+  /** Linnut (#571, #572): vesilinnut ja syönnin näyttävät lokit ja sääksi. */
+  private readonly birds: BirdsView;
   readonly rng: Rng;
   readonly fish: FishPopulation;
   readonly competition: CompetitionState;
@@ -237,6 +241,9 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       settings.species,
       seasonOf(settings),
     );
+    this.birds = new BirdsView(seed, seasonOf(settings), { water: this.water, map }, (e, at) =>
+      this.sounds.playAt(e, at),
+    );
     this.penalties = new Penalties(this.competition, settings, link?.world);
     this.craft = new CraftController(this);
     this.angler = new FishingController(this);
@@ -279,7 +286,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     this.weather.updateSky(0);
     this.weather.applyLight();
     this.scene.add(createBottomMesh(this.bottom, this.waterWaves));
-    this.scene.add(this.fishShadow.mesh, this.fishSigns.group);
+    this.scene.add(this.fishShadow.mesh, this.fishSigns.group, this.birds.group);
     this.ashoreFigure = new AshoreFigure(this.appearance);
     this.scene.add(
       this.tubeMesh,
@@ -588,6 +595,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       reelHeld,
     });
     const lureOut = f.stage === 'flight' || f.stage === 'water';
+    this.updateBirds(dt);
 
     // Kamera: kun viehe on ulkona, seurataan renkaan ja vieheen väliä ja loitonnetaan tarvittaessa.
     if (lureOut) {
@@ -631,6 +639,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
         season: this.season,
       },
       this.weather.spoutAt,
+      this.birds.nearestLoon(this.ear),
     );
     this.craft.paddleSounds();
     if (net) presenter.updateRaceHud();
@@ -665,6 +674,28 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     this.raceLog.sample(this.competition.elapsed, [
       { id: SOLO_ID, name: t('common.youCapital'), pos: this.tube.pos },
     ]);
+  }
+
+  /**
+   * Linnut (#571, #572): vesilinnut väistävät kaikkia kulkupelejä ja oman
+   * vieheen molskahdusta, lokit ja sääksi lukevat kalakannan syönnin.
+   */
+  private updateBirds(dt: number): void {
+    const crafts = this.netWorld ? this.netWorld.others().map((o) => o.pos) : [];
+    if (!this.spectating) crafts.push(this.tube.pos);
+    const f = this.fishing;
+    this.birds.update(dt, {
+      fish: this.fish,
+      conditions: fishConditions(
+        this.competition.finished ? null : this.weatherNow,
+        this.daylight,
+        this.season,
+      ),
+      near: this.tube.pos,
+      crafts,
+      lure: !this.spectating && f.stage === 'water' ? f.lure : null,
+      difficulty: this.settings.difficulty,
+    });
   }
 
   /** Kisan omat tilastot tulossivulle (#367). */
@@ -1039,6 +1070,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       rodEnd,
     );
     this.weather.shakeCamera(this.camera);
+    this.birds.render(this.camera, pov, pov ? this.pov.pixelSize : this.view.metersPerPixel);
     // Täyttökisan vene rannalla (#458) lepää maan pinnalla.
     this.boatsView.heightAt = groundAt;
     this.boatsView.water = this.water;

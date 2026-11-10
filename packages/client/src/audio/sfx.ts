@@ -299,6 +299,23 @@ export class Sfx {
     this.noise(0.18, 0.5);
   }
 
+  /** Siipien läiske (#572): lintu nousee vedestä lentoon. */
+  wingFlap(): void {
+    for (let i = 0; i < 7; i++) this.noise(0.07, 0.4 * (1 - i / 9), 900, 0.015, i * 0.11);
+  }
+
+  /** Sorsan rääkkäys (#572): muutama nasaali, laskeva "kväk". */
+  quack(): void {
+    for (let i = 0; i < 3; i++) this.tone(420 - i * 20, 0.14, 'square', 0.1, 0.05 + i * 0.22, 300);
+  }
+
+  /** Lokin kirkuna (#571): kaksi tai kolme kimeää, laskevaa huutoa. */
+  gullCry(): void {
+    const calls = 2 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < calls; i++)
+      this.tone(1500 + Math.random() * 300, 0.22, 'sawtooth', 0.06, i * 0.3, 950);
+  }
+
   /** Kala nousi pintaan (#369): hiljainen pisaran "plip", sävel nousee. */
   plip(): void {
     this.tone(700 + Math.random() * 500, 0.07, 'sine', 0.35, 0, 1600);
