@@ -28,6 +28,7 @@ import {
   EMOTE_RATE,
   EMOTES,
   distance,
+  LureStage,
   type EmoteId,
   type CompetitionSettings,
   type LakeBottom,
@@ -66,6 +67,8 @@ import type { Hud, SituationBar } from '../ui/hud';
 import { FishingView } from './fishingView';
 import { rodSideOffset, type LinePoint } from './lineHang';
 import { PovRod, flyRodAngle, flyRodTip } from './povRod';
+import type { Shot } from './director';
+import type { RemotePlayer } from '../net/netWorld';
 import { REST_POSE, lakePoint } from './rodMotion';
 import { PovTube } from './povTube';
 import { AshoreFigure, STANDING_EYE, wadeGround } from './shoreView';
@@ -202,6 +205,14 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
   /** Moninpelin kytkentä; yksinpelissä null. */
   private readonly net: NetBridge | null = null;
   private povTubeTime = performance.now();
+  /** Ohjaajan kuva nyt (#564); pelaajalla ja käsiohjauksessa null. */
+  private shot: Shot | null = null;
+  /** Edellisen kuvan tunniste: uusi kuva leikataan, ei liu'uteta. */
+  private shotKey = '';
+  /** Seurattavan siiman pituus edellisessä ruudussa (kelaus näkyy kelassa). */
+  private followedLine = 0;
+  /** Kenen värit katsojan silmin -renkaassa ovat. */
+  private followedLook: string | null = null;
 
   constructor(
     readonly input: Input,
@@ -552,7 +563,17 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     // Maalla (#457) luotaimet ja perhoheiton sivukuva ovat piilossa: niiden
     // näppäimet eivät tee mitään, kuten kosketuksen piilotetut napit.
     if (!this.craft.ashore) this.togglePanels();
-    if (c.wasPressed('view')) this.setViewMode(this.viewMode === 'top' ? 'pov' : 'top');
+    if (c.wasPressed('view')) {
+      this.setViewMode(this.viewMode === 'top' ? 'pov' : 'top');
+      // Katsoja vaihtoi näkymän itse: ohjaaja odottaa hetken (#564).
+      if (this.spectating) net?.manualView(this.viewMode);
+    }
+    if (this.spectating && c.wasPressed('director'))
+      this.hud.showMessage(
+        controlText(net?.toggleDirector() ? 'broadcast.directorOn' : 'broadcast.directorOff'),
+        2,
+        'info',
+      );
     if (c.wasPressed('emote') && !this.spectating) this.toggleEmoteMenu();
     this.emoteHold.step(c);
     this.lurePicker.step(dt);
@@ -588,9 +609,11 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       reelHeld,
     });
     const lureOut = f.stage === 'flight' || f.stage === 'water';
+    const shot = (this.shot = this.spectating ? (net?.stepDirector(dt) ?? null) : null);
 
     // Kamera: kun viehe on ulkona, seurataan renkaan ja vieheen väliä ja loitonnetaan tarvittaessa.
-    if (lureOut) {
+    if (shot) this.directCamera(shot, dt);
+    else if (lureOut) {
       const mid = { x: (this.tube.pos.x + f.lure.x) / 2, y: (this.tube.pos.y + f.lure.y) / 2 };
       this.view.follow(mid, dt, 2);
       this.view.fitSpan(
@@ -610,10 +633,10 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     const presenter = this.presenter;
     if (this.spectating) {
       // Katsojan HUD: kenen kisaa seurataan, tulostaulu ja kello.
-      presenter.showSpectator(net!.followed);
+      presenter.showSpectator(net!.followed, shot, net!.news);
       presenter.updateTimer();
       this.weather.update(dt);
-      presenter.updateRaceHud();
+      presenter.updateRaceHud(net!.followed);
       this.hud.update(dt);
       return;
     }
@@ -636,6 +659,50 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     if (net) presenter.updateRaceHud();
     else presenter.showSoloCatches();
     this.hud.update(dt);
+  }
+
+  /**
+   * Ohjaajan kuva (#564): näkymä, rajaus ja leikkaus. Uuteen kuvaan kamera
+   * hyppää kuten lähetyksessä; saman kuvan aikana se seuraa pehmeästi.
+   * Väsytyksessä ja heitossa rengas ja viehe ovat samassa kuvassa, ja
+   * yleiskuvassa näkyvät kaikki kalastajat.
+   */
+  private directCamera(shot: Shot, dt: number): void {
+    const want = shot.view === 'pov' ? 'pov' : 'top';
+    if (this.viewMode !== want) this.setViewMode(want, false);
+    const others = this.net!.world.others();
+    const b = this.map.bounds;
+    let target: Vec2 = { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 };
+    let span = { w: 0, h: 0 };
+    if (shot.view === 'overview') {
+      if (others.length > 0) {
+        const xs = others.map((o) => o.pos.x);
+        const ys = others.map((o) => o.pos.y);
+        const [x0, x1, y0, y1] = [
+          Math.min(...xs),
+          Math.max(...xs),
+          Math.min(...ys),
+          Math.max(...ys),
+        ];
+        target = { x: (x0 + x1) / 2, y: (y0 + y1) / 2 };
+        span = { w: (x1 - x0) * 1.2 + 80, h: (y1 - y0) * 1.2 + 80 };
+      } else span = { w: b.maxX - b.minX, h: b.maxY - b.minY };
+    } else {
+      const o = others.find((x) => x.id === shot.id);
+      target = o?.pos ?? this.tube.pos;
+      if (o?.lure) {
+        target = { x: (o.pos.x + o.lure.x) / 2, y: (o.pos.y + o.lure.y) / 2 };
+        span = {
+          w: Math.abs(o.lure.x - o.pos.x) * 1.3 + 10,
+          h: Math.abs(o.lure.y - o.pos.y) * 1.3 + 10,
+        };
+      }
+    }
+    const key = `${shot.id}|${shot.since}|${shot.view}`;
+    if (key !== this.shotKey) this.view.snapTo(target);
+    else this.view.follow(target, dt, 2);
+    this.shotKey = key;
+    this.view.fitSpan(span.w, span.h);
   }
 
   /** Pelikello (tuntia 0–24): alkaa vuorokaudenajan mukaan ja etenee kisakellon mukana. */
@@ -743,6 +810,81 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       Math.min(0.1, (now - this.povTubeTime) / 1000),
     );
     this.povTubeTime = now;
+  }
+
+  /** Seurattava kalastaja vedessä (ei maalla eikä lennossa); muuten null. */
+  private followedOnLake(): RemotePlayer | null {
+    const net = this.net;
+    if (!net?.followed || this.shot?.view === 'overview') return null;
+    const o = net.world.others().find((x) => x.id === net.followed);
+    return o && !o.shore && !o.bailing && o.lift === undefined ? o : null;
+  }
+
+  /**
+   * Katsojan silmin -kuva (#564): seurattavan rengas, sääret ja vapa kuten
+   * omassa POV:ssa. Vavan asento (heitto, vastaisku, väsytyksen taipuma)
+   * tulee muiden piirrosta, ja siima lähtee tämän vavan kärjestä.
+   */
+  private followedPov(o: RemotePlayer, pos: Vec2, heading: number): void {
+    const remote = this.net!.remoteView;
+    const pose = remote.poseOf(o.id);
+    const tube = this.povTube;
+    if (this.followedLook !== o.id) {
+      tube.setAppearance(o.appearance);
+      this.followedLook = o.id;
+    }
+    tube.group.visible = o.boat === 0;
+    const now = performance.now();
+    const rock = this.weather.rock;
+    if (tube.group.visible) {
+      tube.setFlyLine(o.fly === true, 0, o.appearance.line);
+      tube.update(
+        toWorld(pos, 0),
+        heading,
+        {
+          kickPhase: o.kickPhase,
+          sprint: false,
+          angVel: 0,
+          roll: rock.roll,
+          pitch: rock.pitch,
+          lift: rock.lift,
+          capsize: o.roll,
+          pull: 0,
+          clarity: this.daylight.light,
+          emote: null,
+          emoteAge: 0,
+        },
+        Math.min(0.1, (now - this.povTubeTime) / 1000),
+      );
+    }
+    this.povTubeTime = now;
+    const side = rodSideOffset(heading);
+    const tip = rodTip(pos, heading);
+    tip.x += side.x;
+    tip.y += side.y;
+    const length = o.lure ? distance(pos, o.lure) : 0;
+    const cranking = o.lureStage === LureStage.water && length < this.followedLine - 0.005;
+    this.followedLine = length;
+    // Vapa tarvitsee vain vieheen vaiheen ja siiman pituuden (kelan pyöritys ja kaari).
+    const stage =
+      o.lureStage === LureStage.none
+        ? 'idle'
+        : o.lureStage === LureStage.flight
+          ? 'flight'
+          : 'water';
+    const state = { stage, lineLength: length, gear: 1 } as unknown as FishingState;
+    const end = this.povRod.update(
+      this.pov.camera,
+      this.pov.pixelSize,
+      pos,
+      heading,
+      tip,
+      state,
+      cranking,
+      o.appearance.line,
+      { fly: o.fly === true, pose },
+    );
+    remote.firstPerson = { id: o.id, tip: toWorld(end, end.h) };
   }
 
   private toggleEmoteMenu(): void {
@@ -910,8 +1052,10 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       this.ashoreFigure.showAngler(!pov || shore.board !== undefined);
     } else this.ashoreFigure.hide();
     const standing = !!shore || !!bailing;
+    // Katsoja seuraa kalastajaa tämän silmin (#564): tämän vapa ja rengas.
+    const eyes = pov && this.spectating ? this.followedOnLake() : null;
     this.tubeMesh.visible = !pov && !this.spectating && !standing;
-    this.povRod.group.visible = pov && !this.spectating && !standing;
+    this.povRod.group.visible = (pov && !this.spectating && !standing) || eyes !== null;
     // Paikanvaihdossa (#357) hahmo liukuu uudelle paikalle ja vene keinahtaa.
     const now = performance.now() / 1000;
     const boatNo = w && !this.spectating ? w.boat : 0;
@@ -943,7 +1087,9 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       );
     this.view.apply();
     this.weather.render(pos, air);
-    this.youMarker.update(pos, heading, this.view.metersPerPixel, this.viewMode === 'top');
+    // Ohjaajan yleiskuvassa (#564) ei ole seurattavaa, joten merkkiä ei näytetä.
+    const marked = this.viewMode === 'top' && this.shot?.view !== 'overview';
+    this.youMarker.update(pos, heading, this.view.metersPerPixel, marked);
     this.hud.compass.update(heading);
     if (this.viewMode === 'pov') {
       const sway = this.weather.rock;
@@ -982,7 +1128,8 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
                   pitch: sway.pitch,
                 },
       );
-      this.updatePovTube(body, heading, roll, air !== null || standing);
+      if (eyes) this.followedPov(eyes, pos, heading);
+      else this.updatePovTube(body, heading, roll, air !== null || standing);
       // Vapa oikeasta kädestä kärkeen; kärki on siiman alkupiste.
       const side = rodSideOffset(heading);
       // Perhoheitossa vapa heiluu taakse ja eteen (#235).
@@ -995,7 +1142,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
         : rodTip(pos, heading);
       tip.x += side.x;
       tip.y += side.y;
-      if (!standing)
+      if (!standing && !this.spectating)
         rodEnd = this.povRod.update(
           this.pov.camera,
           this.pov.pixelSize,
@@ -1077,16 +1224,18 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       for (const o of others)
         if (o.anchor && o.seat === BoatSeat.rower)
           anchored.push({ pos: o.pos, heading: o.heading, boat: o.boat > 0, anchor: o.anchor });
-      // Katsojan silmin seurattavan oma rengas ei peitä näkymää.
-      const shown = (
-        this.spectating && this.viewMode === 'pov'
-          ? others.filter((o) => o.id !== this.net!.followed)
-          : others
-      ).map((o) => ({
-        ...o,
-        pos: this.seatSlides.place(o.id, o.boat, o.seat, o.pos, now),
-        roll: o.roll + this.seatSlides.rock(o.boat, now),
-      }));
+      // Katsojan silmin seurattavan oma rengas ei peitä näkymää: se piirretään
+      // silmin (followedPov), ja siima lähtee sen vavasta (#564).
+      if (!eyes) this.net.remoteView.firstPerson = null;
+      // Maalla seisova tai lentävä seurattava piilotetaan silmin-kuvasta kuten ennen.
+      const hidden = this.spectating && pov && !eyes ? this.net.followed : null;
+      const shown = others
+        .filter((o) => o.id !== hidden)
+        .map((o) => ({
+          ...o,
+          pos: this.seatSlides.place(o.id, o.boat, o.seat, o.pos, now),
+          roll: o.roll + this.seatSlides.rock(o.boat, now),
+        }));
       const remote = this.net.remoteView;
       remote.pov = this.viewMode === 'pov';
       remote.heightAt = groundAt;

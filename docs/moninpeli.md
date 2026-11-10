@@ -82,6 +82,24 @@ muut pelaajat: SnapshotBuffer, piirretään 120 ms menneisyydestä
   Katsojan kamera seuraa valittua kalastajaa (←/→,
   klikkaus) ylhäältä tai kalastajan silmin.
 
+- **Iso näyttö ja ohjaaja (#564).** Katsojan kuvan valitsee automaattinen
+  ohjaaja (`game/director.ts`, kytkentä `NetBridge.stepDirector`) kuten
+  urheilulähetyksessä: kala kiinni, väsytys, saalis (painon mukaan), ennätys,
+  johtoon nousu, sotku, kaatuminen ja lähisalama antavat kalastajalle
+  pisteitä, jotka hiipuvat noin 20 sekunnissa, ja kuva vaihtuu eniten
+  pisteitä keränneeseen. Lyhin kuva on 8 s (yksittäinen iso tapahtuma
+  3 s), sama kalastaja palaa vasta 20 s päästä, tyhjinä hetkinä kuva kiertää
+  tulostaulun järjestyksessä, ja yleiskuva kaikista näytetään kisan alussa,
+  tauoilla ja viimeisen minuutin alussa. Väsytys näkyy ensin ylhäältä ja
+  sitten kalastajan silmin: katsojalle piirretään seurattavan rengas, vapa
+  (asento muiden piirrosta, `RemotePlayersView.poseOf`) ja siima tämän vavan
+  kärjestä (`firstPerson`). Tilarivi on alaotsikko (SUORA · kuka · mitä),
+  tulostaulussa ovat kaikki, ja kuvaan tulevan tuoreesta saaliista näkyy
+  punnituskortti. ←/→ ja V ottavat käsiohjauksen 30 sekunniksi, O kytkee
+  ohjaajan pois. Osoite `?lahetys=LUNKI-XXXX` liittyy huoneeseen suoraan
+  katsojaksi (`JoinOptions.watch`): palvelin tekee siitä katsojan myös
+  aulassa ja kesken kisan, eikä se siirry uudessa kisassa kalastajaksi.
+
 - **Siimojen sotkeutuminen.** Asiakas lähettää syötteen mukana vavan kärjen,
   vieheen paikan ja tiedon kelaamisesta (`l`). Palvelin etsii joka
   verkkoaskeleella vedessä olevat siimat, jotka ovat ristissä, kun jompikumpi

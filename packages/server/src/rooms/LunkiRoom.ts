@@ -738,6 +738,11 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         clientProtocol(options) < WHITEFISH_PROTOCOL);
     // Vanha asiakas ei osaa piirtää venettä eikä istua kyydissä.
     if (outdated) throw new ServerError(4403, JoinRefusal.outdated);
+    // Iso näyttö (#564) katsoo aina, eikä vie kalastajan paikkaa.
+    if (options.watch === true) {
+      if (this.spectatorCount() < SPECTATOR_SLOTS) return { spectator: true, watch: true };
+      throw new ServerError(4403, JoinRefusal.full);
+    }
     const refusal =
       this.state.phase === 'lobby'
         ? this.anglerCount() - ownSeat >= this.state.settings.maxPlayers
@@ -921,10 +926,12 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       p.name = this.uniqueName(sanitizeName(options.name));
       p.spectator = true;
       this.state.players.set(client.sessionId, p);
-      // Kesken kisan tullut on uudessa kisassa kalastaja; aulassa voi itse vaihtaa.
-      if (racing) this.lateSpectators.add(client.sessionId);
+      // Iso näyttö (#564) katsoo myös seuraavat kisat. Muu kesken kisan tullut
+      // on uudessa kisassa kalastaja; aulassa voi itse vaihtaa.
+      const watch = (auth as { watch?: boolean } | undefined)?.watch === true;
+      if (racing && !watch) this.lateSpectators.add(client.sessionId);
       // Täyteen aulaan tullut pääsee kalastamaan, kun paikka vapautuu (#501).
-      else this.waitingSeat.add(client.sessionId);
+      else if (!watch) this.waitingSeat.add(client.sessionId);
       if (!this.state.hostId) this.state.hostId = client.sessionId;
       client.send(ServerMsg.chatHistory, this.chatLog);
       return;

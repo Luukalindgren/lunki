@@ -148,6 +148,18 @@ test('kutsulinkki palvelimen ollessa kiinni avaa moninpelivalikon koodin kanssa'
   errors.check();
 });
 
+test('ison näytön osoite palvelimen ollessa kiinni avaa moninpelivalikon koodin kanssa (#564)', async ({
+  page,
+}) => {
+  const errors = watchAppErrors(page);
+  await serverOff(page, 'tunnel');
+  await page.goto('/?lahetys=LUNKI-ABCD');
+  await expect(page.locator('.loader')).toHaveCount(0, { timeout: 8000 });
+  await expect(page.locator('.server-status')).toHaveText(/ei ole nyt päällä/);
+  await expect(page.getByLabel('Huonekoodi')).toHaveValue('LUNKI-ABCD');
+  errors.check();
+});
+
 test('yksinpelin saalis odottaa laitteella ja pääsee listalle saantipäivällään', async ({
   page,
   request,

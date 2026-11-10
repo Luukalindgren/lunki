@@ -236,3 +236,50 @@ test('täysi aula: katsoja odottaa paikkaa ja pääsee kalastamaan rajan noustes
   await second!.context().close();
   await third!.context().close();
 });
+
+test('iso näyttö: ?lahetys-osoite liittyy katsojaksi ja ohjaaja näyttää kisan (#564)', async ({
+  page: host,
+  browser,
+}) => {
+  test.setTimeout(120_000);
+  await host.goto('/?view=top');
+  await host.getByRole('button', { name: 'Pelaa' }).click();
+  await host.getByRole('button', { name: 'Moninpeli' }).click();
+  await expect(host.getByText('Palvelin päällä')).toBeVisible();
+  await host.getByLabel('Nimimerkki').fill('Isäntä');
+  await host.getByRole('button', { name: 'Luo uusi huone' }).click();
+  const code = (await host.locator('.room-code').innerText()).trim();
+
+  const screen = await (
+    await browser.newContext({ locale: 'fi-FI', baseURL: 'http://localhost:4173' })
+  ).newPage();
+  const errors = [watchErrors(host), watchErrors(screen)];
+  // Ei valikoita: osoite vie suoraan aulaan katsojaksi, eikä vie kalastajan paikkaa.
+  await screen.goto(`/?lahetys=${code}`);
+  await expect(screen.locator('.room-code')).toHaveText(code);
+  await expect(host.locator('.choice-label', { hasText: 'Pelaajat 1/' })).toBeVisible();
+  await expect(host.locator('.player-list')).toContainText('Iso näyttö');
+  await expect(
+    screen
+      .locator('.choice', { has: screen.locator('.choice-label', { hasText: 'Seuraava kisa' }) })
+      .locator('button.selected'),
+  ).toHaveText('Katson');
+
+  await host.getByRole('button', { name: 'Aloita kisa' }).click();
+  await expect(host.locator('.hud-timer')).toBeVisible();
+  // Lähetyksen alaotsikko: kisa alkaa yleiskuvalla, ja tulostaulussa on kalastaja.
+  const lower = screen.locator('.hud-status.live');
+  await expect(lower).toContainText('SUORA');
+  await expect(lower).toContainText('yleiskuva');
+  await expect(screen.locator('.hud-catches')).toContainText('Isäntä');
+  // Ohjaaja siirtyy yleiskuvasta ainoaan kalastajaan.
+  await expect(lower).toContainText('Isäntä', { timeout: 30_000 });
+  // O kytkee ohjaajan pois: tavallinen katsojan tilarivi.
+  await screen.keyboard.press('KeyO');
+  await expect(screen.locator('.hud-status')).toContainText('Seuraat: Isäntä');
+  await expect(lower).toHaveCount(0);
+  await screen.keyboard.press('KeyO');
+  await expect(lower).toContainText('SUORA');
+  for (const e of errors) e.check();
+  await screen.context().close();
+});

@@ -233,7 +233,8 @@ Koodi: `packages/client/src/game/game.ts` ja sen osat.
   - `CraftController`: rengas, vene, soutu, ankkuri ja paikanvaihto.
   - `FishingController`: heitto, kelaus, perho, tapahtumat ja saalis.
   - `HudPresenter`: mittarit, tilanneohje, tilarivi, luotaimet ja kello.
-  - `NetBridge`: moninpelin viestit, muut pelaajat ja katsoja.
+  - `NetBridge`: moninpelin viestit, muut pelaajat ja katsoja (ohjaaja
+    `game/director.ts`, #564).
   - `Penalties`: jäähyt, kumossaolo ja niiden selitys.
 - Uusi toiminto kuuluu siihen osaan, jota se koskee. Osat näkevät pelistä
   vain oman `…Host`-rajapintansa.

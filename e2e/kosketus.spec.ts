@@ -232,6 +232,9 @@ test('katsojalle puhelimella vain näkymän napit (#280)', async ({
     await expect(page.getByRole('button', { name: label })).toBeHidden();
   await expect(page.locator('.touch-stick')).toBeHidden();
   await expect(page.locator('.hud-tension')).toBeHidden();
+  // Ohjaaja (#564) valitsee kuvan; OHJ kytkee sen pois, ja katsoja valitsee itse.
+  await expect(page.locator('.hud-status.live')).toContainText('SUORA');
+  await page.getByRole('button', { name: 'OHJ' }).tap();
   await expect(page.locator('.hud-status')).toContainText('KAM: kalastajan silmin');
   await host.context().close();
   errors.check();

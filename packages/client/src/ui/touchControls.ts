@@ -102,6 +102,9 @@ export class TouchControls {
     this.lineButton.b.hidden = true;
     const camButton = this.tap('view');
     camButton.classList.add('touch-cam');
+    // Katsojan ohjaaja (#564): näkyy vain katsojalle.
+    const directorButton = this.tap('director');
+    directorButton.classList.add('touch-director');
     const emoteButton = this.hold('emote');
     emoteButton.classList.add('touch-emote');
     const grid = div('touch-grid');
@@ -110,6 +113,7 @@ export class TouchControls {
       this.tap('sonar'),
       this.tap('lureSonar'),
       camButton,
+      directorButton,
       emoteButton,
       this.tap('dragLess'),
       this.tap('dragMore'),

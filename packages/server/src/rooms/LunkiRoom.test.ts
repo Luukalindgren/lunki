@@ -1445,6 +1445,35 @@ describe('liittyminen kesken kisan', () => {
     await spec.leave();
   });
 
+  it('iso näyttö liittyy aina katsojaksi ja katsoo myös seuraavan kisan (#564)', async () => {
+    const host = await sdk().create(ROOM_NAME, {
+      name: 'A',
+      playerId: 'a',
+      testTiming: { countdown: 0.1, duration: 1 },
+    });
+    // Aulaan: katsojaksi, ei odota kalastajan paikkaa.
+    const screen = await sdk().joinById(host.roomId, { name: 'TV', playerId: 'tv', watch: true });
+    await until(() => players(host).length === 2);
+    const tv = () => host.state.players.get(screen.sessionId) as Spectating;
+    expect(tv().spectator).toBe(true);
+    host.send(ClientMsg.start);
+    await until(() => host.state.phase === 'playing');
+    // Kesken kisan: katsojaksi, vaikka kisaan saisi liittyä kalastajana.
+    const late = await sdk().joinById(host.roomId, { name: 'TV2', playerId: 'tv2', watch: true });
+    await until(() => players(host).length === 3);
+    const tv2 = () => host.state.players.get(late.sessionId) as Spectating;
+    expect(tv2().spectator).toBe(true);
+    await until(() => host.state.phase === 'finished', 4000);
+    host.send(ClientMsg.restart);
+    await until(() => host.state.phase === 'lobby');
+    expect(tv().spectator).toBe(true);
+    expect(tv2().spectator).toBe(true);
+
+    await host.leave();
+    await screen.leave();
+    await late.leave();
+  });
+
   it('kisan tilastot välitetään kaikille tulossivulle ja nollataan uuteen kisaan (#367)', async () => {
     const host = await sdk().create(ROOM_NAME, {
       name: 'A',

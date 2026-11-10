@@ -8,8 +8,12 @@ export const SCOREBOARD_TOP = 5;
  * Kisan aikainen tulostaulu: kärki ja oma rivi, vaikka oma sijoitus olisi
  * tasapisteiden takia kärjen numeroissa mutta listassa sen alapuolella (#276).
  */
-export function scoreboardLines(results: readonly PlayerResult[], myId: string): string[] {
-  const top = results.slice(0, SCOREBOARD_TOP);
+export function scoreboardLines(
+  results: readonly PlayerResult[],
+  myId: string,
+  rows = SCOREBOARD_TOP,
+): string[] {
+  const top = results.slice(0, rows);
   const lines = top.map((r) => scoreLine(r, isMine(r, myId)));
   const me = results.find((r) => isMine(r, myId));
   if (me && !top.includes(me)) lines.push('…', scoreLine(me, true));
