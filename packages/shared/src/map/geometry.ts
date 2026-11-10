@@ -117,12 +117,15 @@ export function findOpenWaterPoint(
 
 /**
  * Lähtöpaikka: satunnainen vesipiste noin `shoreDistance` metrin päässä
- * rannasta, kuin kalastaja olisi juuri potkinut rannasta vesille.
+ * rannasta, kuin kalastaja olisi juuri potkinut rannasta vesille. Kaislikon
+ * sisältä ei aloiteta: kaislat peittäisivät näkymän ja jarruttaisivat heti.
  */
 export function findLaunchPoint(
   water: {
     isWater(p: Vec2): boolean;
     closestShorePoint(p: Vec2): { distance: number } | null;
+    /** Kaislikko pisteessä; puuttuu vedeltä, jossa kaislikoita ei ole. */
+    reedsAt?(p: Vec2): unknown;
   },
   bounds: { minX: number; minY: number; maxX: number; maxY: number },
   random: () => number,
@@ -135,7 +138,7 @@ export function findLaunchPoint(
     };
     if (!water.isWater(p)) continue;
     const d = water.closestShorePoint(p)?.distance ?? 0;
-    if (Math.abs(d - shoreDistance) < shoreDistance * 0.25) return p;
+    if (Math.abs(d - shoreDistance) < shoreDistance * 0.25 && !water.reedsAt?.(p)) return p;
   }
   return findOpenWaterPoint(water, bounds);
 }

@@ -8,6 +8,7 @@ import {
   signedArea,
 } from './geometry';
 import { LUNKINJARVI } from './lunkinjarvi';
+import { Rng } from '../rng';
 import { WaterBody } from './waterBody';
 
 describe('Lunkinjärven kartta', () => {
@@ -39,6 +40,15 @@ describe('Lunkinjärven kartta', () => {
       const d = water.closestShorePoint(p)!.distance;
       expect(d).toBeGreaterThan(14);
       expect(d).toBeLessThan(26);
+    }
+  });
+
+  it('lähtöpaikka ei ole kaislikon sisällä', () => {
+    // Ilman tarkistusta noin joka 25. kisa alkoi kaislikosta.
+    for (let seed = 1; seed <= 400; seed++) {
+      const rng = new Rng(seed);
+      const p = findLaunchPoint(water, LUNKINJARVI.bounds, () => rng.next());
+      expect(water.reedsAt(p)).toBeNull();
     }
   });
 
