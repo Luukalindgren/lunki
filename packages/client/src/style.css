@@ -945,6 +945,11 @@ textarea,
   color: #8fd16a;
 }
 
+/* Täyteen aulaan liittynyt odottaa kalastajapaikkaa (#568). */
+.player-state.seat-wait {
+  color: #f6a53a;
+}
+
 /* Aula (#516): isännän vihje täydestä huoneesta ja juuri liittynyt tai valmis. */
 .screen-panel .lobby-full {
   color: #f6d04d;

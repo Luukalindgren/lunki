@@ -236,6 +236,11 @@ export interface LobbyPlayer {
   seatAsk: number | null;
   /** Pelaa vanhemmalla pelin versiolla kuin palvelin (#554). */
   oldVersion: boolean;
+  /**
+   * Liittyi täyteen aulaan ja odottaa kalastajapaikkaa (#568); undefined,
+   * kun palvelin on vanha eikä kerro sitä.
+   */
+  waitingSeat?: boolean;
 }
 
 /** Vanhan version pelaajat aulassa ja mitä he estävät (#554). */
@@ -385,6 +390,8 @@ export interface StateSchema {
   protocol?: number;
   /** Pelaajien asiakasversiot (sessionId → protokolla, #554); vanha palvelin ei lähetä. */
   protocols?: Map<string, number>;
+  /** Kalastajapaikkaa odottavat (#568); vanha palvelin ei lähetä. */
+  waiting?: Map<string, boolean>;
 }
 
 export interface CatchSchema {
@@ -567,6 +574,7 @@ export class NetSession {
         seat: p.seat ?? 0,
         seatAsk: p.seatAsk ? p.seatAsk - 1 : null,
         oldVersion: clientProtocol(id) < this.serverProtocol,
+        ...(s.waiting && { waitingSeat: s.waiting.has(id) }),
       }),
     );
     const old = players.filter((p) => p.oldVersion);

@@ -383,6 +383,7 @@ export const en: Record<keyof typeof fi, string> = {
   'lobby.linkCopied': 'Link copied!',
   'lobby.disconnected': 'disconnected',
   'lobby.hostSpectator': 'creator, watching',
+  'lobby.waitingSeat': 'waiting for a seat',
   'lobby.spectator': 'watching',
   'lobby.host': 'creator',
   'lobby.ready': 'ready',

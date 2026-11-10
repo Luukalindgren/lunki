@@ -205,6 +205,8 @@ test('täysi aula: katsoja odottaa paikkaa ja pääsee kalastamaan rajan noustes
     host.locator('.choice-label', { hasText: 'Pelaajat 2/2 · 1 odottaa paikkaa' }),
   ).toBeVisible();
   await expect(host.locator('.lobby-full')).toBeVisible();
+  // Jonottajan rivillä "odottaa paikkaa", ei "katsoja" (#568).
+  await expect(host.locator('.player-state.seat-wait')).toHaveText('odottaa paikkaa');
 
   // Kolmas tuli täyteen aulaan: katsoja, eikä Kalastan-nappi lupaa paikkaa (#514).
   const nextRace = row(third!, 'Seuraava kisa');

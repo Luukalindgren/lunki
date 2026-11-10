@@ -216,6 +216,12 @@ export const LunkiState = schema(
      * aula näyttää, kuka pelaa vanhalla versiolla (#554).
      */
     protocols: t.map('uint8'),
+    /**
+     * Täyteen aulaan liittyneet, jotka odottavat kalastajapaikkaa (#501),
+     * liittymisjärjestyksessä: aula näyttää heidät "odottaa paikkaa", ei
+     * katsojina (#568). Arvo on aina true.
+     */
+    waiting: t.map('boolean'),
   },
   'LunkiState',
 );
