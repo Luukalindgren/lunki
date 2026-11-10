@@ -308,7 +308,7 @@ export class NetWorld {
   onEmote: ((msg: EmoteMessage) => void) | null = null;
   onChatBubble: ((msg: ChatMessage) => void) | null = null;
   /** Uusi punnittu saalis kisan aikana ja saajan paikka (tulossivun karttaan, tunnisteena nimi). */
-  onCatchSeen: ((mark: RaceCatchMark, own: boolean) => void) | null = null;
+  onCatchSeen: ((mark: RaceCatchMark, own: boolean, player: string) => void) | null = null;
   /** Toisen pelaajan viehe putosi veteen (roiskeen ääni, #371). */
   onRemoteSplash: ((pos: Vec2) => void) | null = null;
 
@@ -708,6 +708,7 @@ export class NetWorld {
             time: c.time,
           },
           c.player === this.session.sessionId,
+          c.player,
         );
     }
     this.seenCatches = catches.length;

@@ -2215,10 +2215,11 @@ textarea,
   border-color: #d23a2a;
 }
 
-/* Katsojalle vain näkymän napit (#280). */
+/* Katsojalle vain näkymän napit (#280) ja ohjaaja (#564). */
 .touch-controls.spectator .touch-stick,
 .touch-controls.spectator .touch-reel,
-.touch-controls.spectator .touch-grid > :not(.touch-cam) {
+.touch-controls.spectator .touch-grid > :not(.touch-cam, .touch-director),
+.touch-controls:not(.spectator) .touch-director {
   display: none;
 }
 
@@ -2230,6 +2231,11 @@ textarea,
 
 .touch-controls.spectator .touch-grid {
   grid-template-columns: 56px;
+}
+
+/* Katsojan lähetyksen alaotsikko (#564): SUORA-rivi korostettuna. */
+.hud-status.live::first-line {
+  color: #f2c94c;
 }
 
 .hud.spectator .hud-tension,

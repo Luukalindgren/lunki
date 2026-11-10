@@ -135,6 +135,12 @@ export interface JoinOptions {
    * katsojaksi. Vanha palvelin ei tunne valintaa ja hylkää liittymisen.
    */
   spectate?: boolean;
+  /**
+   * Iso näyttö (#564): liitytään aina katsojaksi, myös aulaan ja kesken
+   * kisan, eikä uudessa kisassa siirrytä kalastajaksi. Vanha palvelin ei
+   * tunne valintaa; asiakas pyytää silloin aulassa katsojaksi.
+   */
+  watch?: boolean;
   /** Asiakkaan PROTOCOL_VERSION; vanha asiakas ei lähetä. */
   protocol?: number;
 }

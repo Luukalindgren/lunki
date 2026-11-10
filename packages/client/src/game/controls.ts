@@ -177,6 +177,13 @@ export const CONTROLS = {
   spectate: { keys: [], label: 'ctl.spectateKeys', touch: 'ctl.tap', pad: ['Pad0'] },
   next: { keys: ['ArrowRight', 'KeyD', 'Mouse0'], pad: ['Pad0', 'PadLsRight', DPAD.right] },
   prev: { keys: ['ArrowLeft', 'KeyA'], pad: ['PadLsLeft', DPAD.left] },
+  /** Automaattinen ohjaaja päälle tai pois (#564). */
+  director: {
+    keys: ['KeyO'],
+    touch: 'touch.director',
+    title: 'touch.directorTitle',
+    pad: ['Pad2'],
+  },
 
   // Kehittäjälle.
   palette: { keys: ['F2'] },

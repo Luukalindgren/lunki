@@ -26,7 +26,7 @@ import { flyRodTip } from './povRod';
 import { screenAnchor } from './screenAnchor';
 import { REMOTE_FIGHT, RemoteFight } from './remoteFight';
 import { SplashRings } from './splashRings';
-import { ROD_MOTION, RodMotion } from './rodMotion';
+import { REST_POSE, ROD_MOTION, RodMotion, type RodPose } from './rodMotion';
 import { LureMarker, markerPosition } from './lureMarker';
 import { lureColor } from './lureColor';
 import { AshoreFigure } from './shoreView';
@@ -57,6 +57,8 @@ interface Entry {
   rod: RodMotion;
   /** Vieheen edellinen vaihe (LureStage): vaihdoksista heitto ja vastaisku. */
   stage: number;
+  /** Viimeksi piirretty vavan asento: katsojan silmin -kuvan vapa (#564). */
+  pose: RodPose;
   /** Maalla seisova kalastaja ja rengas (#457); luodaan, kun pelaaja nousee maihin. */
   ashore: AshoreFigure | null;
 }
@@ -78,6 +80,11 @@ export class RemotePlayersView {
   pixel = 0.125;
   /** Maanpinnan korkeus maalla seisoville (#457); ylhäältä 0. */
   heightAt: (p: Vec2) => number = () => 0;
+  /**
+   * Katsoja seuraa tätä kalastajaa tämän silmin (#564): hahmo ja nimilappu
+   * piiloon, ja siima lähtee katsojan kuvan vavan kärjestä `tip`.
+   */
+  firstPerson: { id: string; tip: THREE.Vector3 } | null = null;
 
   /** `below`: lappukerros tämän (HUD) alle, ettei se peitä nappeja ja paneeleja (#277). */
   constructor(parent: HTMLElement, below: Element | null = null) {
@@ -140,7 +147,8 @@ export class RemotePlayersView {
       e.tube.rotation.x = p.tumble ?? p.roll;
       animateFins(e.tube, p.kickPhase);
       const standing = !!p.shore || !!p.bailing;
-      e.tube.visible = !standing;
+      const eyes = this.firstPerson?.id === p.id ? this.firstPerson : null;
+      e.tube.visible = !standing && !eyes;
       if (standing && !e.ashore) {
         e.ashore = new AshoreFigure(p.appearance);
         this.group.add(e.ashore.group);
@@ -153,6 +161,7 @@ export class RemotePlayersView {
           this.heightAt,
         );
       } else e.ashore?.hide();
+      if (eyes) e.ashore?.hide();
       const hooked = p.lure !== null && p.lureStage === LureStage.hooked;
       if (p.lureStage !== e.stage) {
         const m = ROD_MOTION;
@@ -162,10 +171,11 @@ export class RemotePlayersView {
         e.stage = p.lureStage;
       }
       let tip: THREE.Vector3;
-      if (hooked) tip = this.drawFight(e, p, dt);
+      if (hooked) tip = this.drawFight(e, p, dt, eyes?.tip);
       else {
         e.fight.reset();
-        tip = aimRod(e.tube, { ...e.rod.step(0, 0, dt), pull: null }, this.tip);
+        e.pose = { ...e.rod.step(0, 0, dt), pull: null };
+        tip = eyes?.tip ?? aimRod(e.tube, e.pose, this.tip);
       }
 
       const showLure = p.lure !== null && p.lureStage !== LureStage.none;
@@ -204,7 +214,7 @@ export class RemotePlayersView {
         camera,
         rect,
       );
-      e.tag.hidden = !at;
+      e.tag.hidden = !at || !!eyes;
       if (at) {
         // Täyttökisa (#458): täyttö palkkina nimilapun alareunassa ja lukuna.
         const fill = p.shore?.inflate;
@@ -219,7 +229,7 @@ export class RemotePlayersView {
       const far = camera.position.distanceTo(e.tube.position) > FAR_BUBBLE;
       if (hooked && me && distance(me, p.pos) < REMOTE_FIGHT.markRange)
         e.bubble.hold('fishOn', now);
-      e.bubble.place(at, far, now);
+      e.bubble.place(eyes ? null : at, far, now);
     }
     for (const [id, e] of this.entries) if (!seen.has(id)) this.remove(id, e);
   }
@@ -230,16 +240,13 @@ export class RemotePlayersView {
    * molskahtaa silloin tällöin. Kalan paikka on vieheen paikka. Palauttaa
    * vavan kärjen.
    */
-  private drawFight(e: Entry, p: RemotePlayer, dt: number): THREE.Vector3 {
+  private drawFight(e: Entry, p: RemotePlayer, dt: number, eyes?: THREE.Vector3): THREE.Vector3 {
     const fish = p.lure!;
     const pose = e.fight.update(fish, dt);
     // Vapa pystyssä ja taipuneena kalaa kohti; nykiminen näkyy taipumassa.
     const bend = ROD_MOTION.maxBend.spin * Math.min(1, pose.bend + pose.jerk * 4);
-    const w = aimRod(
-      e.tube,
-      { ...e.rod.step(ROD_MOTION.fight, bend, dt), pull: { ...fish, depth: 1 } },
-      this.tip,
-    );
+    e.pose = { ...e.rod.step(ROD_MOTION.fight, bend, dt), pull: { ...fish, depth: 1 } };
+    const w = eyes ?? aimRod(e.tube, e.pose, this.tip);
     const pts = hangLine([{ x: w.x, y: -w.z }, fish], w.y, 1, 0.05);
     const pos = e.line.geometry.attributes.position as THREE.BufferAttribute;
     writeLine(pos, pts);
@@ -314,6 +321,7 @@ export class RemotePlayersView {
       fight: new RemoteFight(),
       rod: new RodMotion(),
       stage: LureStage.none,
+      pose: REST_POSE,
       ashore: null,
     };
     this.entries.set(id, e);
@@ -327,6 +335,11 @@ export class RemotePlayersView {
     e.tag.style.borderColor = cssColor(a.tube);
     e.tag.style.setProperty('--tube', cssColor(a.tube));
     e.appearance = a;
+  }
+
+  /** Kalastajan vavan viimeisin asento (katsojan silmin -kuva, #564). */
+  poseOf(id: string): RodPose {
+    return this.entries.get(id)?.pose ?? REST_POSE;
   }
 
   private remove(id: string, e: Entry): void {

@@ -258,7 +258,9 @@ export class Hud {
     return m > 0 ? this.probeU.getBoundingClientRect().width / m / hudBase(this.touch) : null;
   }
 
-  setStatus(lines: string[]): void {
+  /** Tilarivi; `live` = katsojan lähetyksen alaotsikko (#564), ensimmäinen rivi korostettuna. */
+  setStatus(lines: string[], live = false): void {
+    this.status.classList.toggle('live', live);
     const text = lines.join('\n');
     if (this.status.textContent !== text) this.status.textContent = text;
   }

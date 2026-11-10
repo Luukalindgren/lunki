@@ -208,11 +208,11 @@ export async function submitSoloRecord(
 }
 
 /** Linkki, jolla kaveri pääsee suoraan huoneeseen. */
-export function inviteLink(code: string): string {
+export function inviteLink(code: string, param: 'huone' | 'lahetys' = 'huone'): string {
   const url = new URL(location.href);
   url.search = '';
   url.hash = '';
-  url.searchParams.set('huone', formatRoomCode(code));
+  url.searchParams.set(param, formatRoomCode(code));
   const server = new URLSearchParams(location.search).get('palvelin');
   if (server) url.searchParams.set('palvelin', server);
   return url.toString();

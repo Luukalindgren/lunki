@@ -138,6 +138,11 @@ const devDifficulty = (['easy', 'normal', 'realistic'] as const).find(
   (d) => d === params.get('difficulty'),
 );
 const devSeed = params.has('seed') ? Number(params.get('seed')) : undefined;
+/**
+ * Iso näyttö (#564): ?lahetys=LUNKI-XXXX liittyy huoneeseen suoraan
+ * katsojaksi ilman valikoita, ja automaattinen ohjaaja valitsee kuvan.
+ */
+const broadcastCode = parseRoomCode(params.get('lahetys') ?? '');
 
 /** ?start=x,y → aloituspaikka (pelin koordinaatit metreinä); muuten null. */
 function devStart(v: string | null): Vec2 | null {
@@ -547,9 +552,17 @@ function showMultiplayer(code = '', error?: string, serverDown = false) {
   else void checkServer().then((ok) => screens.setServerStatus(ok, customServer()));
 }
 
-/** `rejoin`: päävalikon "Palaa kisaan"; epäonnistuessa huonetta ei enää tarjota. */
-async function connect(name: string, code: string | null, rejoin = false) {
-  const options = { name: saveName(name), playerId: loadIdentity().playerId };
+/**
+ * `rejoin`: päävalikon "Palaa kisaan"; epäonnistuessa huonetta ei enää tarjota.
+ * `watch`: iso näyttö (#564) liittyy aina katsojaksi.
+ */
+async function connect(name: string, code: string | null, rejoin = false, watch = false) {
+  const options = {
+    name: watch ? name : saveName(name),
+    // Iso näyttö samassa selaimessa ei ole sama kalastaja kuin pelaajan välilehti.
+    playerId: watch ? `${loadIdentity().playerId}-tv` : loadIdentity().playerId,
+    ...(watch && { watch: true }),
+  };
   let cancelled = false;
   screens.showLoading(code ? t('mp.joining') : t('mp.creating'), t('mp.connecting'), () => {
     cancelled = true;
@@ -614,7 +627,12 @@ function enterLobby(s: NetSession) {
   const render = () => {
     if (session !== s || game || !s.ready || picking) return;
     const v = s.view();
-    history.replaceState(null, '', inviteLink(v.code));
+    history.replaceState(null, '', inviteLink(v.code, broadcastCode ? 'lahetys' : 'huone'));
+    // Iso näyttö katsoo aina: katsojaksi heti aulaan tultua (#564).
+    if (broadcastCode && !askedSpectate && v.canSpectate) {
+      askedSpectate = true;
+      if (!v.players.find((p) => p.me)?.spectator) s.setSpectator(true);
+    }
     screens.showLobby(
       v,
       inviteLink(v.code),
@@ -670,6 +688,7 @@ function enterLobby(s: NetSession) {
     );
   };
   let wasReady = false;
+  let askedSpectate = false;
   // Toisen tilastot saapuivat: tulossivu uudelleen (#367).
   s.onRaceStats = () => {
     if (session === s && resultsAsHost !== null) showResults();
@@ -882,6 +901,7 @@ if (params.has('bench')) {
     // Linkki käytetään kerran: uudelleenlataus palaa valikkoon.
     if (params.has(CHALLENGE_PARAM)) history.replaceState(null, '', location.pathname);
     if (challenge) startChallenge(challenge);
+    else if (broadcastCode) void connect(t('broadcast.screenName'), broadcastCode, false, true);
     else if (params.has('huone')) showMultiplayer(params.get('huone') ?? '');
     else showMenu();
   });

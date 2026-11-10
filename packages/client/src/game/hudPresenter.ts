@@ -29,8 +29,12 @@ import { describeTackle, speciesName } from '../i18n/names';
 import { controlText } from './controls';
 import type { Guide } from './guide';
 import type { Penalties } from './penalties';
+import type { Shot } from './director';
 import { raceEndCue } from './raceEnd';
 import { scoreboardLines } from './raceScoreboard';
+
+/** Katsojan tulostaulussa rivejä: LAN-kisan kaikki kalastajat (#564). */
+const SPECTATOR_ROWS = 12;
 
 /** Mitä HUD tarvitsee pelistä. */
 export interface HudHost {
@@ -192,14 +196,33 @@ export class HudPresenter {
     }));
   }
 
-  /** Katsojan HUD: kenen kisaa seurataan. */
-  showSpectator(followed: string | null): void {
+  /**
+   * Katsojan HUD: kenen kisaa seurataan. Ohjaajan ollessa päällä (#564)
+   * tilarivi on lähetyksen alaotsikko: SUORA, kuvattava ja mitä tapahtuu,
+   * ja viimeisin tapahtuma. Näppäimet ovat ohjeessa (H piilottaa sen).
+   */
+  showSpectator(
+    followed: string | null,
+    shot: Shot | null = null,
+    news: string | null = null,
+  ): void {
     const hud = this.host.hud;
     const name = followed ? this.host.netWorld!.playerName(followed) : null;
     hud.setPower(null);
     hud.setAshore(false);
     hud.setHelpContext({ fly: false, pov: this.host.viewMode === 'pov', seat: 'tube' });
     hud.setSituation(null);
+    if (shot) {
+      const who = shot.view === 'overview' || !name ? t('broadcast.lake') : name;
+      hud.setStatus(
+        [
+          t('broadcast.live', { who, what: t(`broadcast.${shot.reason}`) }),
+          ...(news ? [news] : []),
+        ],
+        true,
+      );
+      return;
+    }
     hud.setStatus([
       t('mp.spectating'),
       name ? t('game.following', { name }) : t('game.nobody'),
@@ -238,8 +261,11 @@ export class HudPresenter {
     if (!this.host.netWorld) hud.setCountdown(this.endCount);
   }
 
-  /** Moninpelin lähtölaskenta ja tulostaulu (top 5 + oma sijoitus). */
-  updateRaceHud(): void {
+  /**
+   * Moninpelin lähtölaskenta ja tulostaulu (top 5 + oma sijoitus). Katsojalle
+   * koko taulu ja seurattavan rivi merkittynä (`followed`, #564).
+   */
+  updateRaceHud(followed?: string | null): void {
     const w = this.host.netWorld!;
     const cd = w.phase === 'countdown' ? Math.ceil(w.countdown) : 0;
     this.host.hud.setCountdown(
@@ -250,7 +276,11 @@ export class HudPresenter {
           : this.endCount,
     );
     if ((this.raceHudTimer = (this.raceHudTimer + 1) % 15) !== 1) return;
-    this.host.hud.setCatches([t('game.scoreboard'), ...scoreboardLines(w.standings(), w.myId)]);
+    const lines =
+      followed === undefined
+        ? scoreboardLines(w.standings(), w.myId)
+        : scoreboardLines(w.standings(), followed ?? '', SPECTATOR_ROWS);
+    this.host.hud.setCatches([t('game.scoreboard'), ...lines]);
   }
 
   /** Yksinpelin saalislista: määrä ja paino sekä viisi viimeisintä. */
