@@ -992,6 +992,27 @@ textarea,
   margin-left: 12px;
 }
 
+/* Tulosrivi: kalan kuva oikeassa reunassa, teksti lyhenee tarvittaessa. */
+.catch-list .result-row {
+  display: inline-grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  width: 100%;
+  vertical-align: middle;
+}
+
+.result-row .result-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.catch-list .result-row .fish-sized,
+.catch-list .result-row > .fish-art {
+  justify-self: end;
+  margin-left: 0;
+}
+
 /* Kalan pituus kuvan alla (#577). */
 .fish-sized {
   display: inline-flex;
@@ -1139,7 +1160,9 @@ textarea,
  * vierittää sivuttain, eikä levitä tyhjää nimen ja päivän väliin.
  */
 /* Leveämpi kuin muut paneelit, jotta suurinkin kala mahtuu riville. */
-.screen-panel[data-screen='records'] {
+.screen-panel[data-screen='records'],
+.screen-panel[data-screen='race-results'],
+.screen-panel[data-screen='results'] {
   max-width: 816px;
 }
 
