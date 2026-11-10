@@ -11,6 +11,8 @@ import {
   shoreToNet,
   COUNTDOWN_SECONDS,
   ClientMsg,
+  LATENCY_STEP_MS,
+  MAX_LATENCY_MS,
   DEFAULT_MAX_PLAYERS,
   InputQueue,
   LUNKINJARVI,
@@ -536,6 +538,18 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     // Uudemman asiakkaan tuntematon viesti ohitetaan: muuten Colyseus
     // katkaisisi yhteyden (tuotantotilassa käsittelijätön viesti = potku).
     this.onMessage('*', () => undefined);
+
+    // Yhteyden laatu aulaan (#575): asiakas mittaa viiveen Colyseuksen pingillä
+    // parin sekunnin välein ja kertoo sen. Kartta päivittyy vain muuttuneilta.
+    this.onMessage(ClientMsg.latency, (client, ms: unknown) => {
+      if (typeof ms !== 'number' || !Number.isFinite(ms)) return;
+      if (!this.state.players.has(client.sessionId)) return;
+      const v = Math.min(MAX_LATENCY_MS, Math.max(0, Math.round(ms)));
+      // Pieni heilunta ei lähde kaikille: tila muuttuu vain selvästä erosta.
+      const old = this.state.pings.get(client.sessionId);
+      if (old === undefined || Math.abs(v - old) >= Math.max(LATENCY_STEP_MS, old * 0.25))
+        this.state.pings.set(client.sessionId, v);
+    });
 
     this.onMessage(ClientMsg.ready, (client, ready: unknown) => {
       const p = this.state.players.get(client.sessionId);
@@ -1125,6 +1139,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       });
     this.playerIds.delete(id);
     this.state.protocols.delete(id);
+    this.state.pings.delete(id);
     this.state.players.delete(id);
     // Lähtevän soutajan vene jää kyytiläisille: seuraava tarttuu airoihin.
     const sim = this.sims.get(id);

@@ -387,6 +387,7 @@ export const fi = {
   'lobby.disconnected': 'yhteys poikki',
   'lobby.hostSpectator': 'luoja, katsoja',
   'lobby.waitingSeat': 'odottaa paikkaa',
+  'lobby.ping': 'Yhteyden viive {ms} ms',
   'lobby.spectator': 'katsoja',
   'lobby.host': 'luoja',
   'lobby.ready': 'valmis',

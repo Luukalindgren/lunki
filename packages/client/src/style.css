@@ -945,6 +945,52 @@ textarea,
   color: #8fd16a;
 }
 
+/* Yhteyden laatu aulan rivillä (#575): pieni ja hillitty, ei kilpaile valmiuden kanssa. */
+.player-ping {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 4px;
+  margin-right: 10px;
+  font-size: 16px;
+  line-height: 1;
+  color: #5f6b78;
+}
+
+.ping-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.ping-bars i {
+  width: 3px;
+  background: #39424d;
+}
+
+.ping-bars i:nth-child(1) {
+  height: 4px;
+}
+
+.ping-bars i:nth-child(2) {
+  height: 7px;
+}
+
+.ping-bars i:nth-child(3) {
+  height: 10px;
+}
+
+.ping-3 .ping-bars i.on {
+  background: #5f8f4a;
+}
+
+.ping-2 .ping-bars i.on {
+  background: #b39a3d;
+}
+
+.ping-1 .ping-bars i.on {
+  background: #b0473f;
+}
+
 /* Täyteen aulaan liittynyt odottaa kalastajapaikkaa (#568). */
 .player-state.seat-wait {
   color: #f6a53a;

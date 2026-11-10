@@ -384,6 +384,7 @@ export const en: Record<keyof typeof fi, string> = {
   'lobby.disconnected': 'disconnected',
   'lobby.hostSpectator': 'creator, watching',
   'lobby.waitingSeat': 'waiting for a seat',
+  'lobby.ping': 'Connection delay {ms} ms',
   'lobby.spectator': 'watching',
   'lobby.host': 'creator',
   'lobby.ready': 'ready',
