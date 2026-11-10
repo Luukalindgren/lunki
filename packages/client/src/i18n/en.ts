@@ -768,7 +768,7 @@ export const en: Record<keyof typeof fi, string> = {
   'ctl.or': 'or',
   'pad.leftStick': 'left stick',
   'pad.rightStick': 'right stick',
-  'pad.stickSide': 'left stick sideways',
+  'pad.stickSide': 'left stick sideways (angler view: also right)',
   'touch.cancel': 'CANCEL',
   'touch.cancelTitle': 'Cancel the cast',
   'touch.reelSlack': 'TO REEL',
@@ -1107,7 +1107,7 @@ export const en: Record<keyof typeof fi, string> = {
     "In the single-player settings you can go out in a boat instead of a float tube. In the multiplayer lobby you can take your own boat or board someone else's. A boat has a rower and up to two anglers, and its crew is one team.\nRower: {back} = row, {forward} = back water, {turn} = turn the boat.\n{oars} = oars or rod. You cannot row while casting or reeling, but with the lure in the water you can troll.\n{seat} = change seats when the boat is nearly still.",
   'manual.move.pad': 'Game controller',
   'manual.move.padText':
-    "Xbox and PlayStation controllers work as they are: connect one by cable or Bluetooth and press any of its buttons. The help then shows the controller's buttons.\nIn menus the d-pad or left stick moves, A/✕ selects and B/○ goes back.\nQuick menus (tackle box, fishing method, hand signals): hold the button, point with the right stick and release.\nWith a controller the fly is cast in rhythm: every press of the cast button changes direction.",
+    "Xbox and PlayStation controllers work as they are: connect one by cable or Bluetooth and press any of its buttons. The help then shows the controller's buttons.\nIn menus the d-pad or left stick moves, A/✕ selects, B/○ goes back and the right stick scrolls a long view.\nQuick menus (tackle box, fishing method, hand signals): hold the button, point with the right stick and release.\nIn the angler view the right stick turns like the left one, so you can kick forward and back with the left stick and turn with the right. From above the right stick is the cast direction.\nZoom from above: hold LT/L2 and press the d-pad up or down.\nIn a fly cast the right stick is the rod: pull it down for the back cast, hold it there until the line straightens, then push it up for the forward cast. The cast button casts the fly in rhythm: every press changes direction.",
   'manual.move.wind': 'Wind and collisions',
   'manual.move.windText':
     'Wind drifts the tube downwind, clearly so in a storm. Kicking still takes you upwind.\nYou cannot go ashore or into reeds, and anglers bump each other when they collide. A heavy boat pushes a tube more than the other way round.',

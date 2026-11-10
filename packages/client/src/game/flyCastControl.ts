@@ -19,8 +19,19 @@ export const GRIP_HOLD = 0.2;
 /** Kosketuksella vavan koko liikerata vastaa tätä osuutta ruudun korkeudesta (#236). */
 export const TOUCH_ROD_SCREEN = 0.6;
 
-/** Heittotapa: hiiri, näppäimistön rytmiheitto tai sormen pyyhkäisy (#236). */
-export type FlyCastMode = 'mouse' | 'keyboard' | 'touch';
+/**
+ * Peliohjaimen oikea tatti vapana: tatin ääriasennot ovat tämän verran
+ * keskeltä (liikerata on -1…1), joten reunasta reunaan on pitkän siiman kaari.
+ */
+export const PAD_ROD_RANGE = 0.65;
+/** Tatin sivuliike kääntää heiton suuntaa ylhäältä katsottuna (rad/s). */
+export const PAD_AIM_SPEED = 0.8;
+
+/**
+ * Heittotapa: hiiri, näppäimistön rytmiheitto, sormen pyyhkäisy (#236) tai
+ * peliohjaimen oikea tatti.
+ */
+export type FlyCastMode = 'mouse' | 'keyboard' | 'touch' | 'pad';
 
 /** Sormen liike (CSS px) hiiren pikseleiksi: koko liikerata on osa ruudun korkeutta. */
 export const touchToRodPixels = (d: number, screenHeight: number) =>
@@ -38,13 +49,21 @@ export interface FlyCastButtons {
   /** Hiiren liike tällä askeleella (px); kosketuksella `touchToRodPixels`. */
   dx: number;
   dy: number;
+  /**
+   * Peliohjaimen oikea tatti (-1…1, y kasvaa alas). `aim`: sivuliike kääntää
+   * heiton suuntaa (ylhäältä; kalastajan silmin se kääntää kalastajaa).
+   */
+  stick?: { x: number; y: number; aim: boolean };
 }
 
 /**
  * Perhoheiton ohjaus (#235). Hiirellä vapaa heilutetaan pystyliikkeellä
  * (poispäin = eteen). Näppäimistöllä välilyönti tekee rytmissä vuoroin taka-
  * ja eteenheiton, ja siimakäsi on automaattinen. Kosketuksella (#236)
- * pyyhkäisy ylös on eteenheitto ja alas takaheitto.
+ * pyyhkäisy ylös on eteenheitto ja alas takaheitto. Peliohjaimella oikea
+ * tatti on vapa: tatin asento on vavan asento, eli alas takaheitto ja ylös
+ * eteenheitto, ja tatti pidetään paikallaan, kunnes siima suoristuu. Jos
+ * tattiin ei ole koskettu, heittonappi vaihtaa rytmiheittoon.
  *
  * Hiirellä ja kosketuksella siimakäsi toimii itsestään, kunnes pelaaja ottaa
  * sen: painaa siimakäden nappia (hiiren vasen, välilyönti, SIIMA) tai pitää
@@ -60,6 +79,9 @@ export class FlyCastControl {
   private manualGrip = false;
   /** Siimakäden nappi on ollut yhtäjaksoisesti pohjassa (s). */
   private gripHeld = 0;
+  /** Peliohjain: tatin edellinen asento vavan liikeradalla ja onko tattia liikutettu. */
+  private stickRod = 0;
+  private stickUsed = false;
 
   /** Heitetäänkö näppäimistöllä. */
   get keyboard(): boolean {
@@ -73,15 +95,27 @@ export class FlyCastControl {
     this.queued = mode === 'keyboard';
     this.manualGrip = false;
     this.gripHeld = 0;
+    // Tatti lähtee keskeltä: sen ensimmäinen liike on jo vavan liikettä.
+    this.stickRod = 0;
+    this.stickUsed = false;
   }
 
   read(c: FlyCastState, b: FlyCastButtons, dt: number): FlyCastInput {
+    // Nosto ohjaimella: heittonappi ennen tatin liikettä jatkaa rytmiheittona.
+    if (this.mode === 'pad' && b.key && !this.stickUsed) {
+      this.mode = 'keyboard';
+      this.queued = true;
+    }
     if (this.mode !== 'keyboard') {
       this.gripHeld = b.grip ? this.gripHeld + dt : 0;
       // Kosketuksella SIIMA-nappi ei aloita heittoa, joten jo painallus ottaa käden.
       if (b.gripPressed || (b.grip && (this.mode === 'touch' || this.gripHeld >= GRIP_HOLD)))
         this.manualGrip = true;
-      const rod = -b.dy * (2 / ROD_PIXELS);
+      const pad = this.mode === 'pad';
+      const to = pad ? -(b.stick?.y ?? 0) * PAD_ROD_RANGE : 0;
+      const rod = pad ? to - this.stickRod : -b.dy * (2 / ROD_PIXELS);
+      this.stickRod = to;
+      if (pad && rod !== 0) this.stickUsed = true;
       // Silmukan aikana alkava liike: käsi puristaa jo liikkeen ensimmäisellä askeleella.
       const grip = this.manualGrip
         ? b.grip
@@ -90,7 +124,7 @@ export class FlyCastControl {
         rod,
         grip,
         haul: b.haul,
-        aim: -b.dx * AIM_PER_PIXEL,
+        aim: pad ? (b.stick?.aim ? -b.stick.x * PAD_AIM_SPEED * dt : 0) : -b.dx * AIM_PER_PIXEL,
       };
     }
     if (b.key) this.queued = true;

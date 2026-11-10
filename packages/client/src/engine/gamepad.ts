@@ -1,7 +1,7 @@
 /**
  * Peliohjaimet selaimen Gamepad API:lla: Xbox-, PlayStation- ja muut
  * ohjaimet, joilla on selaimen vakioasettelu (`mapping: 'standard'`).
- * Napit ja tattien suunnat muutetaan koodeiksi (`Pad0`, `PadLsUp`…), jotka
+ * Napit ja tattien suunnat muutetaan koodeiksi (`Pad0`, `PadLsUp`, `PadRsLeft`…), jotka
  * syöte käsittelee kuten näppäimiä; toimintokartta (game/controls.ts)
  * päättää, mitä ne tekevät.
  *
@@ -17,6 +17,8 @@ export type PadKind = 'xbox' | 'playstation';
 export const PAD_DEAD_ZONE = 0.25;
 /** Tatin suunta on "pohjassa" tästä taipumasta (liikkuminen, valikot). */
 export const PAD_STICK_PRESS = 0.5;
+/** Oikea tatti pohjassa vierittää valikkoa näin nopeasti (CSS px/s). */
+export const PAD_SCROLL_SPEED = 900;
 /** Liipaisin on pohjassa tästä painumasta. */
 const TRIGGER_PRESS = 0.3;
 
@@ -71,7 +73,17 @@ export function readPad(pad: PadLike): PadFrame {
   if (ly > PAD_STICK_PRESS) codes.add('PadLsDown');
   if (lx < -PAD_STICK_PRESS) codes.add('PadLsLeft');
   if (lx > PAD_STICK_PRESS) codes.add('PadLsRight');
-  const aim = deadZone(pad.axes[2] ?? 0, pad.axes[3] ?? 0);
+  // Oikeasta tatista vain vallitseva suunta: pystyliike (perhoheitto) ei käännä.
+  const rx = pad.axes[2] ?? 0;
+  const ry = pad.axes[3] ?? 0;
+  if (Math.abs(rx) >= Math.abs(ry)) {
+    if (rx < -PAD_STICK_PRESS) codes.add('PadRsLeft');
+    if (rx > PAD_STICK_PRESS) codes.add('PadRsRight');
+  } else {
+    if (ry < -PAD_STICK_PRESS) codes.add('PadRsUp');
+    if (ry > PAD_STICK_PRESS) codes.add('PadRsDown');
+  }
+  const aim = deadZone(rx, ry);
   return {
     codes,
     aim,

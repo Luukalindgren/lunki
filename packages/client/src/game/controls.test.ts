@@ -130,11 +130,27 @@ describe('toimintokartta', () => {
     expect(controlText('help.move', {}, { mode: 'pad' })).toBe(
       'Vasen tatti ↑ = kohti räpylöitä · vasen tatti ↓ = selkä edellä (nopein)',
     );
+    expect(controlText('help.flyCast', {}, { mode: 'pad' })).toBe(
+      'Perhoheitto: oikea tatti ↓ = taakse, oikea tatti ↑ = eteen',
+    );
+    expect(bindingText('zoom', 'pad')).toBe('LT+✚↑/✚↓');
     setControlMode('pad', 'playstation');
+    expect(bindingText('zoom')).toBe('L2+✚↑/✚↓');
     expect(controlText('help.gear')).toBe('✚→ = kelausnopeus · ✚↓/✚↑ = jarru');
     expect(withKey('tackle.lure', 'lure')).toBe('Viehe (L1)');
     expect(controlText('help.reel')).toMatch(/^✕\/R2 pohjassa = kelaa · □ = nykäisy/);
     setControlMode('keys', 'xbox');
+  });
+
+  it('peliohjaimen yhdistelmä: LT pohjassa ristiohjain zoomaa eikä säädä jarrua', () => {
+    const drag = fakeInput(['Pad12'], ['Pad12']);
+    expect(drag.wasPressed('dragMore')).toBe(true);
+    expect(drag.wasPressed('zoomIn')).toBe(false);
+    const zoom = fakeInput(['Pad6', 'Pad13'], ['Pad13']);
+    expect(zoom.wasPressed('zoomOut')).toBe(true);
+    expect(zoom.wasPressed('zoomIn')).toBe(false);
+    expect(zoom.wasPressed('dragLess')).toBe(false);
+    expect(zoom.isDown('sprint')).toBe(true);
   });
 
   it('kaikki ohjetekstien {toiminnot} ovat kartassa', () => {

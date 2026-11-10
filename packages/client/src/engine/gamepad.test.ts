@@ -44,7 +44,7 @@ describe('peliohjain', () => {
 
   it('kaksi ohjainta yhdessä, puuttuvat ohitetaan', () => {
     const f = readPads([null, pad([1]), pad([3], [0, 0, 0, -1], 'DualShock 4')]);
-    expect([...f!.codes].sort()).toEqual(['Pad1', 'Pad3']);
+    expect([...f!.codes].sort()).toEqual(['Pad1', 'Pad3', 'PadRsUp']);
     expect(f!.aim.y).toBeCloseTo(-1);
     expect(readPads([])).toBeNull();
   });

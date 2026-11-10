@@ -437,6 +437,24 @@ export class Screens {
     this.nav.pad(action);
   }
 
+  /**
+   * Peliohjaimen oikea tatti vierittää avointa näkymää: kohdistetun kohdan
+   * vierivää aluetta, tai näkymän ensimmäistä vierivää aluetta.
+   */
+  padScroll(dy: number): void {
+    if (!this.open) return;
+    const scrolls = (e: Element) =>
+      e.scrollHeight > e.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(e).overflowY);
+    let target: Element | null = null;
+    for (let e = document.activeElement; e && this.root.contains(e); e = e.parentElement)
+      if (scrolls(e)) {
+        target = e;
+        break;
+      }
+    target ??= [this.root, ...this.root.querySelectorAll('*')].find(scrolls) ?? null;
+    target?.scrollBy(0, dy);
+  }
+
   hide(): void {
     this.rememberFocus();
     this.nav.back = null;

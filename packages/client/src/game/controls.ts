@@ -20,9 +20,15 @@ interface Binding {
   readonly title?: MsgKey;
   /**
    * Peliohjaimen napit vakioasettelussa (`Pad0` = A/✕, ks. engine/gamepad.ts)
-   * ja vasemman tatin suunnat (`PadLsUp`…).
+   * ja tattien suunnat (`PadLsUp`, `PadRsLeft`…).
    */
   readonly pad?: readonly string[];
+  /**
+   * Peliohjaimen nappi, jonka pitää olla pohjassa `pad`-nappien kanssa
+   * (yhdistelmä, esim. LT + ristiohjain). Samojen nappien muut toiminnot
+   * eivät silloin toimi.
+   */
+  readonly padWith?: string;
   /** Peliohjaimen nimi ohjeessa, kun se ei ole nappi (oikea tatti). */
   readonly padLabel?: MsgKey;
 }
@@ -32,6 +38,9 @@ const DPAD = { up: 'Pad12', down: 'Pad13', left: 'Pad14', right: 'Pad15' } as co
 /** A/✕ ja oikea liipaisin: heitto, kelaus ja nosto kuten välilyönti. */
 const PAD_MAIN = ['Pad0', 'Pad7'];
 
+/** Vasen liipaisin pohjassa ristiohjain zoomaa (muuten se säätää jarrua). */
+const PAD_ZOOM = 'Pad6';
+
 export const CONTROLS = {
   // Liikkuminen: W vie katseen suuntaan kohti räpylöitä, S selkä edellä (nopein potku).
   forward: { keys: ['KeyW', 'ArrowUp'], touch: 'ctl.stickUp', pad: ['PadLsUp'] },
@@ -39,6 +48,12 @@ export const CONTROLS = {
   left: { keys: ['KeyA', 'ArrowLeft'], pad: ['PadLsLeft'] },
   right: { keys: ['KeyD', 'ArrowRight'], pad: ['PadLsRight'] },
   turn: { keys: [], label: 'ctl.turnKeys', touch: 'ctl.stickSide', padLabel: 'pad.stickSide' },
+  /**
+   * Kalastajan silmin peliohjaimen oikea tatti kääntää kuten vasen: vasen
+   * tatti jää eteen ja taakse. Ylhäältä oikea tatti on heiton suunta (`aim`).
+   */
+  lookLeft: { keys: [], pad: ['PadRsLeft'] },
+  lookRight: { keys: [], pad: ['PadRsRight'] },
   /** Peliohjaimella vasen liipaisin: tatti on reunassa jo tavallisessa potkussa. */
   sprint: { keys: ['ShiftLeft', 'ShiftRight'], touch: 'ctl.stickEdge', pad: ['Pad6'] },
   /**
@@ -71,7 +86,7 @@ export const CONTROLS = {
 
   // Kalastus. Hiiren vasen ja sormi järvellä tähtäävät, heittävät ja kelaavat.
   pointer: { keys: ['Mouse0'], label: 'ctl.mouse', touch: 'ctl.finger' },
-  /** Peliohjaimen oikea tatti kääntää heiton suunnan katsesuunnasta (castControl.ts). */
+  /** Peliohjaimen oikea tatti on ylhäältä katsottuna heiton suunta (castControl.ts). */
   aim: { keys: [], padLabel: 'pad.rightStick' },
   castForward: { keys: ['Space'], touch: 'touch.cast', title: 'touch.castTitle', pad: PAD_MAIN },
   reel: { keys: ['Space'], touch: 'touch.reel', title: 'touch.reelTitle', pad: PAD_MAIN },
@@ -118,8 +133,9 @@ export const CONTROLS = {
   },
 
   // Perho.
-  backCast: { keys: [], label: 'ctl.mouseBack', touch: 'ctl.swipeDown' },
-  forwardCast: { keys: [], label: 'ctl.mouseForward', touch: 'ctl.swipeUp' },
+  // Peliohjaimella oikea tatti on vapa: alas takaheitto, ylös eteenheitto.
+  backCast: { keys: [], label: 'ctl.mouseBack', touch: 'ctl.swipeDown', pad: ['PadRsDown'] },
+  forwardCast: { keys: [], label: 'ctl.mouseForward', touch: 'ctl.swipeUp', pad: ['PadRsUp'] },
   /** Perhoheitto sormella: pyyhkäisy järvellä (hiirellä vavan liike, ei erillistä nimeä). */
   swipe: { keys: [], touch: 'ctl.swipe' },
   /**
@@ -165,7 +181,16 @@ export const CONTROLS = {
   lureSonar: { keys: ['KeyL'], touch: 'touch.depth', title: 'touch.depthTitle' },
   view: { keys: ['KeyV'], touch: 'touch.cam', title: 'touch.camTitle', pad: ['Pad3'] },
   emote: { keys: ['KeyG'], touch: 'touch.emote', title: 'touch.emoteTitle', pad: ['Pad8'] },
-  zoom: { keys: [], label: 'ctl.wheel', touch: '+/−' },
+  /** Ohjeen rivi; peliohjaimella vasen liipaisin pohjassa ja ristiohjain ylös tai alas. */
+  zoom: {
+    keys: [],
+    label: 'ctl.wheel',
+    touch: '+/−',
+    pad: [DPAD.up, DPAD.down],
+    padWith: PAD_ZOOM,
+  },
+  zoomIn: { keys: [], pad: [DPAD.up], padWith: PAD_ZOOM },
+  zoomOut: { keys: [], pad: [DPAD.down], padWith: PAD_ZOOM },
   help: { keys: ['KeyH'], touch: '?', title: 'touch.helpTitle' },
   pause: { keys: ['Escape'], touch: 'II', title: 'touch.pauseTitle', pad: ['Pad9'] },
   /** Taukovalikossa Backspace tai B/○ jatkaa peliä (muissa valikoissa se palaa takaisin). */
@@ -202,16 +227,42 @@ for (const a of Object.keys(CONTROLS) as Action[]) {
   CODES[a] = [...b.keys, ...(b.pad ?? [])];
 }
 
+/** Yhdistelmien napit: koodi → napit, joiden kanssa se on jonkin toiminnon yhdistelmä. */
+const COMBOS = new Map<string, string[]>();
+for (const b of Object.values(CONTROLS) as Binding[]) {
+  if (!b.padWith) continue;
+  for (const k of b.pad ?? []) {
+    const held = COMBOS.get(k) ?? [];
+    if (!held.includes(b.padWith)) held.push(b.padWith);
+    COMBOS.set(k, held);
+  }
+}
+
 /** Toimintojen tila askeleen syötteestä: näppäimet, peliohjain ja kosketusnapit yhdessä. */
 export class Controls {
   constructor(readonly input: Input) {}
 
   isDown(a: Action): boolean {
-    return this.input.isDown(virtual(a)) || CODES[a].some((k) => this.input.isDown(k));
+    return (
+      this.input.isDown(virtual(a)) || CODES[a].some((k) => this.live(a, k) && this.input.isDown(k))
+    );
   }
 
   wasPressed(a: Action): boolean {
-    return this.input.wasPressed(virtual(a)) || CODES[a].some((k) => this.input.wasPressed(k));
+    return (
+      this.input.wasPressed(virtual(a)) ||
+      CODES[a].some((k) => this.live(a, k) && this.input.wasPressed(k))
+    );
+  }
+
+  /**
+   * Koskeeko koodi nyt tätä toimintoa: yhdistelmä vaatii toisen nappinsa
+   * pohjaan, ja saman napin tavallinen toiminto jää silloin väliin.
+   */
+  private live(a: Action, k: string): boolean {
+    const b: Binding = CONTROLS[a];
+    if (b.padWith && b.pad?.includes(k)) return this.input.isDown(b.padWith);
+    return !COMBOS.get(k)?.some((m) => this.input.isDown(m));
   }
 
   /** Kosketusnappi pohjaan tai irti. */
@@ -303,8 +354,9 @@ const ARROWS: Record<string, string> = {
 
 /** Peliohjaimen napin nimi: Pad0 → A tai ✕, Pad12 → ✚↑, PadLsUp → vasen tatti ↑. */
 function padName(code: string, kind: PadKind): string {
-  const stick = /^PadLs(\w+)$/.exec(code);
-  if (stick) return `${t('pad.leftStick')} ${ARROWS[stick[1]!] ?? ''}`;
+  const stick = /^Pad([LR])s(\w+)$/.exec(code);
+  if (stick)
+    return `${t(stick[1] === 'L' ? 'pad.leftStick' : 'pad.rightStick')} ${ARROWS[stick[2]!] ?? ''}`;
   const i = Number(code.slice(3));
   const dpad = ['Up', 'Down', 'Left', 'Right'][i - 12];
   if (dpad) return `✚${ARROWS[dpad]}`;
@@ -363,7 +415,8 @@ export function bindingText(a: Action, m: ControlMode = mode): string | null {
   if (m === 'pad') {
     if (b.padLabel) return t(b.padLabel);
     const names = [...new Set((b.pad ?? []).map((c) => keyName(c)))];
-    return names.length ? names.join('/') : null;
+    if (!names.length) return null;
+    return (b.padWith ? `${keyName(b.padWith)}+` : '') + names.join('/');
   }
   if (b.label) return t(b.label);
   const names = [...new Set(b.keys.map((c) => keyName(c)))];

@@ -1,4 +1,10 @@
-import { PadMenuRepeat, readPads, type PadKind, type PadNavAction } from './gamepad';
+import {
+  PAD_SCROLL_SPEED,
+  PadMenuRepeat,
+  readPads,
+  type PadKind,
+  type PadNavAction,
+} from './gamepad';
 import { WheelZoom } from './wheelZoom';
 
 /** Yhden hiiritapahtuman suurin uskottava liike (px); suuremmat ovat lukituksen hyppyjä. */
@@ -57,6 +63,9 @@ export class Input {
   menuBack: () => boolean = () => false;
   /** Peliohjaimen valikkotoiminto (ristiohjain, A/✕, B/○), kun valikko on auki. */
   onPadNav: (action: PadNavAction) => void = () => {};
+  /** Valikon vieritys peliohjaimen oikealla tatilla (CSS px, + = alas). */
+  onPadScroll: (dy: number) => void = () => {};
+  private padScrollAt = 0;
   /** Pelaaja vaihtoi ohjaustapaa (näppäimistö, kosketus tai peliohjain). */
   onDevice: (device: InputDevice, kind: PadKind) => void = () => {};
   /** Oikea tatti, -1…1 (y kasvaa alas): heiton suunta ja pikavalikot. */
@@ -191,6 +200,11 @@ export class Input {
     for (const c of [...this.padBlocked]) if (!codes.has(c)) this.padBlocked.delete(c);
     const game = new Set<string>();
     if (menu) {
+      // Oikea tatti vierittää valikkoa taipuman mukaan.
+      const now = performance.now();
+      const dt = Math.min(0.1, (now - this.padScrollAt) / 1000);
+      this.padScrollAt = now;
+      if (this.padAim.y !== 0) this.onPadScroll(this.padAim.y * PAD_SCROLL_SPEED * dt);
       const pressed = (c: string) => codes.has(c) && !this.padPrev.has(c);
       for (const a of this.padRepeat.step(codes, performance.now() / 1000)) {
         if (a === 'back' && !this.menuBack()) game.add('Pad1');

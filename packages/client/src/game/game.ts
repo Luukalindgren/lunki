@@ -563,7 +563,8 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     }
     // Lähtölaskennan aikana rengas ja vapa odottavat.
     const frozen = this.netWorld?.phase === 'countdown';
-    if (input.wheel !== 0) this.view.zoom(input.wheel);
+    const zoom = input.wheel + (c.wasPressed('zoomOut') ? 1 : 0) - (c.wasPressed('zoomIn') ? 1 : 0);
+    if (zoom !== 0) this.view.zoom(zoom);
     if (c.wasPressed('help')) this.hud.toggleHelp();
     // Maalla (#457) luotaimet ja perhoheiton sivukuva ovat piilossa: niiden
     // näppäimet eivät tee mitään, kuten kosketuksen piilotetut napit.
