@@ -221,7 +221,15 @@ export const ClientMsg = {
   seat: 'seat',
   /** Kisan lopussa omat tilastot (RaceStats) muiden tulossivulle (#367). */
   stats: 'stats',
+  /**
+   * Oma yhteysviive (ms, Colyseuksen ping) aulan yhteyspalkkeihin (#575).
+   * Vanha palvelin ohittaa viestin.
+   */
+  latency: 'latency',
 } as const;
+
+/** Viive (ms), joka mahtuu tilan uint16-kenttään; suurempi näkyy tällä. */
+export const MAX_LATENCY_MS = 9999;
 
 /** Vieheen tila muille näytettäväksi. */
 export const LureStage = { none: 0, flight: 1, water: 2, hooked: 3 } as const;

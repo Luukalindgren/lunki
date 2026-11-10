@@ -847,14 +847,13 @@ export class Screens {
       name.prepend(swatch);
       // Vanhan version pelaaja näkyy jo ennen kuin isäntä yrittää valita (#554).
       if (p.oldVersion) name.append(h('span', t('lobby.oldVersion'), 'player-old'));
-      li.append(
-        name,
-        h(
-          'span',
-          state,
-          `player-state ${seatWait ? 'seat-wait' : p.host || p.ready || p.spectator ? 'ok' : ''}`,
-        ),
+      const stateEl = h(
+        'span',
+        state,
+        `player-state ${seatWait ? 'seat-wait' : p.host || p.ready || p.spectator ? 'ok' : ''}`,
       );
+      if (p.connected && p.ping !== undefined) stateEl.prepend(pingBars(p.ping));
+      li.append(name, stateEl);
       return li;
     };
     if (v.canBoat) list.append(...this.crewRows(v, playerRow, actions.onBoat, actions.onSeat));
@@ -2913,6 +2912,20 @@ function sizedFish(species: SpeciesId, weight: number): HTMLElement {
     h('span', lengthText(species, weight), 'fish-length'),
   );
   return fig;
+}
+
+/** Yhteyden laatu (#575): hyvä alle 30 ms, kohtalainen alle 100 ms. */
+export const pingLevel = (ms: number): 1 | 2 | 3 => (ms < 30 ? 3 : ms < 100 ? 2 : 1);
+
+/** Aulan rivin hillitty yhteysmerkki (#575): kolme pientä palkkia ja viive. */
+function pingBars(ms: number): HTMLElement {
+  const level = pingLevel(ms);
+  const el = h('span', '', `player-ping ping-${level}`);
+  el.title = t('lobby.ping', { ms });
+  const bars = h('span', '', 'ping-bars');
+  for (let i = 1; i <= 3; i++) bars.append(h('i', '', i <= level ? 'on' : ''));
+  el.append(bars, `${ms} ms`);
+  return el;
 }
 
 const fishCount = (n: number) => (n === 1 ? t('box.fishOne') : t('box.fishMany', { n }));

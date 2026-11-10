@@ -206,7 +206,9 @@ test('täysi aula: katsoja odottaa paikkaa ja pääsee kalastamaan rajan noustes
   ).toBeVisible();
   await expect(host.locator('.lobby-full')).toBeVisible();
   // Jonottajan rivillä "odottaa paikkaa", ei "katsoja" (#568).
-  await expect(host.locator('.player-state.seat-wait')).toHaveText('odottaa paikkaa');
+  await expect(host.locator('.player-state.seat-wait')).toContainText('odottaa paikkaa');
+  // Yhteyden laatu näkyy rivillä hillitysti (#575).
+  await expect(host.locator('.player-list .player-ping')).toHaveCount(3);
 
   // Kolmas tuli täyteen aulaan: katsoja, eikä Kalastan-nappi lupaa paikkaa (#514).
   const nextRace = row(third!, 'Seuraava kisa');

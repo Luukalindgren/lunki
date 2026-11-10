@@ -241,6 +241,8 @@ export interface LobbyPlayer {
    * kun palvelin on vanha eikä kerro sitä.
    */
   waitingSeat?: boolean;
+  /** Yhteysviive ms (#575), kun pelaaja on sen kertonut. */
+  ping?: number;
 }
 
 /** Vanhan version pelaajat aulassa ja mitä he estävät (#554). */
@@ -392,6 +394,8 @@ export interface StateSchema {
   protocols?: Map<string, number>;
   /** Kalastajapaikkaa odottavat (#568); vanha palvelin ei lähetä. */
   waiting?: Map<string, boolean>;
+  /** Pelaajien yhteysviive ms (#575); vanha palvelin ei lähetä. */
+  pings?: Map<string, number>;
 }
 
 export interface CatchSchema {
@@ -408,6 +412,9 @@ export interface CatchSchema {
 }
 
 /** Yhteys yhteen huoneeseen. */
+/** Aulan viivemittauksen väli (ms, #575). */
+const PING_INTERVAL_MS = 2000;
+
 export class NetSession {
   onChange: ((view: LobbyView) => void) | null = null;
   /** Jokainen tilapäivitys pelin aikana (renkaiden synkronointi). */
@@ -438,6 +445,7 @@ export class NetSession {
   /** Yhteys katkesi muusta syystä kuin omasta lähdöstä. */
   onDisconnect: (() => void) | null = null;
   private leaving = false;
+  private readonly pingTimer: ReturnType<typeof setInterval>;
 
   /** Oma yhteys katkesi hetkeksi / palasi (automaattinen uudelleenyhdistys). */
   onConnection: ((connected: boolean) => void) | null = null;
@@ -495,7 +503,17 @@ export class NetSession {
     room.onMessage(ServerMsg.emote, (m: EmoteMessage) => {
       if (m && typeof m.from === 'string' && isEmoteId(m.emote)) this.onEmote?.(m);
     });
+    // Yhteyden laatu aulaan (#575): oma viive palvelimelle muiden nähtäväksi.
+    // Vain aulassa, ettei kisan liikenne kasva; vanha palvelin ei kerro viiveitä.
+    this.pingTimer = setInterval(() => {
+      if (!this.ready || this.leaving || this.room.state.phase !== 'lobby') return;
+      if (this.room.state.pings === undefined) return;
+      this.room.ping((ms) => {
+        if (!this.leaving) this.room.send(ClientMsg.latency, ms);
+      });
+    }, PING_INTERVAL_MS);
     room.onLeave(() => {
+      clearInterval(this.pingTimer);
       clearResume();
       if (!this.leaving) this.onDisconnect?.();
     });
@@ -575,6 +593,7 @@ export class NetSession {
         seatAsk: p.seatAsk ? p.seatAsk - 1 : null,
         oldVersion: clientProtocol(id) < this.serverProtocol,
         ...(s.waiting && { waitingSeat: s.waiting.has(id) }),
+        ...(s.pings?.has(id) && { ping: s.pings.get(id) }),
       }),
     );
     const old = players.filter((p) => p.oldVersion);

@@ -222,6 +222,8 @@ export const LunkiState = schema(
      * katsojina (#568). Arvo on aina true.
      */
     waiting: t.map('boolean'),
+    /** Pelaajien yhteysviive (sessionId → ms) aulaan (#575); asiakas mittaa itse. */
+    pings: t.map('uint16'),
   },
   'LunkiState',
 );

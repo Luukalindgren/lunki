@@ -1390,6 +1390,24 @@ describe('liittyminen kesken kisan', () => {
     for (const r of [host, b, c, d, e, f]) await r.leave();
   });
 
+  it('pelaajan yhteysviive näkyy aulassa ja lähtee hänen mukanaan (#575)', async () => {
+    const host = await sdk().create(ROOM_NAME, { name: 'A', playerId: 'a' });
+    const b = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
+    await until(() => players(host).length === 2);
+    const ping = (r: Room) => host.state.pings.get(r.sessionId);
+    b.send(ClientMsg.latency, 42.6);
+    await until(() => ping(b) === 43);
+    // Roskaa ei kirjata, liian suuri rajataan.
+    b.send(ClientMsg.latency, 'nopea');
+    b.send(ClientMsg.latency, 1e9);
+    await until(() => ping(b) === 9999);
+    b.send(ClientMsg.latency, -5);
+    await until(() => ping(b) === 0);
+    await b.leave();
+    await until(() => !host.state.pings.has(b.sessionId));
+    await host.leave();
+  });
+
   it('kalastajan lähtö aulasta päästää täyteen huoneeseen liittyneen kalastamaan', async () => {
     const host = await sdk().create(ROOM_NAME, { name: 'A', playerId: 'a', maxPlayers: 2 });
     const b = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
