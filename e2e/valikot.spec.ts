@@ -474,6 +474,41 @@ test('valikkoruudut mahtuvat reunoineen ruutuun', async ({ page }) => {
   errors.check();
 });
 
+test('valikon nappi toimii hiirellä myös reunastaan (#598)', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'kosketuksella painallus ei riipu osoittimen paikasta');
+  const errors = watchErrors(page);
+  await page.goto('/');
+  const play = page.getByRole('button', { name: 'Pelaa', exact: true });
+  // Nappi nousee osoittimen alla ja painuu painettaessa: reunasta painettu
+  // nappi siirtyi osoittimen alta, eikä klikkaus mennyt perille.
+  for (const edge of ['yläreuna', 'vasen reuna', 'alareuna', 'oikea reuna'] as const) {
+    // Paikka mitataan vasta, kun paneelin ja napin sisääntulo on ohi.
+    await page.mouse.move(0, 0);
+    await play.evaluate((button) =>
+      Promise.all(
+        [button, button.closest('.screen-panel')!].flatMap((e) =>
+          e.getAnimations().map((a) => a.finished),
+        ),
+      ),
+    );
+    const b = (await play.boundingBox())!;
+    // Pikselin verran reunan sisäpuolella.
+    const at = {
+      yläreuna: [b.x + b.width / 2, b.y + 1],
+      'vasen reuna': [b.x + 1, b.y + b.height / 2],
+      alareuna: [b.x + b.width / 2, b.y + b.height - 1],
+      'oikea reuna': [b.x + b.width - 1, b.y + b.height / 2],
+    } as const;
+    await page.mouse.move(...at[edge], { steps: 2 });
+    await page.mouse.down();
+    await page.mouse.up();
+    await expect(title(page), edge).toHaveText('Pelaa');
+    await page.getByRole('button', { name: 'Takaisin' }).click();
+    await expect(play).toBeVisible();
+  }
+  errors.check();
+});
+
 test('Ohjeet: osiot päävalikosta, ohjaus laitteen mukaan (#401)', async ({ page, isMobile }) => {
   const errors = watchErrors(page);
   await page.goto('/');

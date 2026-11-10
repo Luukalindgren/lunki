@@ -2021,6 +2021,24 @@ textarea,
   box-shadow: none;
 }
 
+/* Nappi liikkuu osoittimen alla, mutta osuma-alue pysyy paikallaan (#598):
+   muuten reunasta painettu nappi siirtyy osoittimen alta, eikä klikkaus mene
+   perille. Näkymätön jatke peittää sen reunan, josta nappi väistyi (kehyksen
+   3 px + siirtymä; painettuna siirtymä on nousu ja painuma yhteensä). */
+@media (hover: hover) {
+  .screen .buttons button:hover:not(:disabled)::after {
+    content: '';
+    position: absolute;
+    inset: -3px -4px -4px -3px;
+  }
+}
+
+.screen .buttons button:active:not(:disabled)::after {
+  content: '';
+  position: absolute;
+  inset: -7px -3px -3px -7px;
+}
+
 @keyframes title-wave {
   0%,
   100% {
