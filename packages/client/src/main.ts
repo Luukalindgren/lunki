@@ -115,6 +115,7 @@ hud.setTouch(touch !== null);
 // Peliohjain (Xbox, PlayStation): ohjeet näyttävät sen napit, kun sitä käytetään.
 input.onDevice = (device, kind) => {
   setControlMode(device === 'pad' ? 'pad' : touch ? 'touch' : 'keys', kind);
+  sfx.padRumble.active = device === 'pad';
   hud.refreshHelp();
 };
 /** Pelaajan valitsema HUDin koko, tallessa selaimessa. */

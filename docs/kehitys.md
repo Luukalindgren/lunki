@@ -270,6 +270,11 @@ Koodi: `packages/client/src/audio/sounds.ts`.
   ratkaistaan `game/catchJoy.ts`:ssä päiväkirjasta ja kisan saaliista.
   Niissä kuuluu pelkkä repliikki; sävelmä (`fallback`) soi vain, kun
   repliikit ovat pois päältä, koska se peittäisi puheen.
+- Peliohjaimen värinä (#592, `engine/rumble.ts`) lähtee samasta kartasta:
+  rivin `rumble`-kenttä värähtää omassa tapahtumassa (`RUMBLES`), ja kiinni
+  olevan kalan veto tulee `sounds.pull(kuorma)`-kutsusta. Peli ei kutsu
+  `playEffect`ia itse. Värinä toimii vain, kun pelaaja käyttää ohjainta ja
+  selain tukee sitä (Chrome, Edge); asetus on Äänet-osiossa.
 - Uusi ääni on uusi rivi karttaan. Väylät (tehosteet, ympäristö, musiikki,
   puhe, ukkonen) ovat `Sfx`-luokassa ja niiden voimakkuudet `MIX`-taulukossa.
 

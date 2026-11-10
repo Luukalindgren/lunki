@@ -1498,6 +1498,19 @@ export class Screens {
         },
       ),
       h('p', t('audio.voiceHint'), 'hint'),
+      this.choice(
+        t('audio.rumble'),
+        [
+          ['1', t('common.yes')],
+          ['0', t('common.no')],
+        ],
+        a.rumble ? '1' : '0',
+        (v) => {
+          a.rumble = v === '1';
+          onChange({ ...a });
+        },
+      ),
+      h('p', t('audio.rumbleHint'), 'hint'),
     );
     return box;
   }

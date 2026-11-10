@@ -1,6 +1,7 @@
 import { LIGHTNING, distance, type Vec2 } from '@lunki/shared';
 import type { AmbienceInput } from './ambience';
 import { CENTER_LISTENER, effectMuffle, effectPan, type DuckId, type Listener } from './mix';
+import type { RumbleId } from '../engine/rumble';
 import type { Place, Sfx } from './sfx';
 import { voiceFalloff, type VoiceId } from './voice';
 
@@ -45,6 +46,8 @@ export interface Sound {
   fallback?: Effect;
   /** Oma tapahtuma hiljentää ympäristöä ja musiikkia hetkeksi (`DUCKS`). */
   duck?: DuckId;
+  /** Oma tapahtuma värähtää peliohjaimessa (#592, `RUMBLES`). */
+  rumble?: RumbleId;
 }
 
 /**
@@ -60,16 +63,19 @@ export const SOUNDS = {
   cast: { effect: (s, power) => s.cast(power) },
   follow: { effect: 'tick' },
   strike: { effect: 'strike', duck: 'hit' },
-  hooked: { effect: 'hooked', duck: 'hit' },
+  // Tärpin nykäykset tuntuvat ohjaimessa samassa tahdissa kuin merkki nykii (#592).
+  strikeTug: { rumble: 'tug' },
+  strikeTugBig: { rumble: 'tugBig' },
+  hooked: { effect: 'hooked', duck: 'hit', rumble: 'hooked' },
   missed: { voice: 'missed' },
   jumped: { effect: 'splash' },
   // Nosto (#366): kala pintaan ja viimeinen riuhtaisu
   surfaced: { effect: 'plip' },
   lunged: { effect: 'splash' },
   escaped: { effect: 'lost', voice: 'escaped' },
-  snagged: { effect: 'strike', voice: 'snagged' },
+  snagged: { effect: 'strike', voice: 'snagged', rumble: 'thud' },
   fouled: { voice: 'fouled' },
-  stuck: { effect: 'strike', voice: 'stuck' },
+  stuck: { effect: 'strike', voice: 'stuck', rumble: 'thud' },
   rattle: { effect: 'rattle' },
   pop: { effect: 'pop' },
   lureSplash: { effect: 'splash' },
@@ -77,10 +83,10 @@ export const SOUNDS = {
   fishRise: { effect: 'plip' },
   fishFlee: { effect: 'plip' },
   pikeStrike: { effect: 'splash' },
-  lineCut: { effect: 'lost' },
-  bitOff: { effect: 'lost', voice: 'bitOff' },
-  lureLost: { effect: 'lost', voice: 'lureLost' },
-  lineBroken: { effect: 'lost', voice: 'lineBroken' },
+  lineCut: { effect: 'lost', rumble: 'thud' },
+  bitOff: { effect: 'lost', voice: 'bitOff', rumble: 'thud' },
+  lureLost: { effect: 'lost', voice: 'lureLost', rumble: 'thud' },
+  lineBroken: { effect: 'lost', voice: 'lineBroken', rumble: 'thud' },
   caught: { effect: 'caught' },
   bigCatch: { effect: 'caught', voice: 'bigCatch' },
   // Iloiset saaliit (game/catchJoy.ts): oma ennätys, kala pitkän odotuksen
@@ -94,7 +100,7 @@ export const SOUNDS = {
   lineHiss: { effect: 'lineHiss' },
   // Perhokalastus (#235, #236)
   flySwish: { effect: (s, speed, duration) => s.flySwish(speed, duration) },
-  flyTug: { effect: 'flyTug' },
+  flyTug: { effect: 'flyTug', rumble: 'tick' },
   flyHaul: { effect: 'flyHaul' },
   flyCrack: { effect: 'flyCrack' },
   flyLand: { effect: (s, big) => s.flyLand(big > 0) },
@@ -108,12 +114,12 @@ export const SOUNDS = {
   paddle: { effect: 'paddle' },
   // Sää
   thunder: { effect: (s, d) => s.thunder(d, d / LIGHTNING.soundSpeed) },
-  lightningClose: { voice: 'lightning' },
+  lightningClose: { voice: 'lightning', rumble: 'slam' },
   distantThunder: { effect: 'rumble' },
   spoutSeen: { effect: 'rumble' },
-  bigWave: { effect: 'wave' },
-  capsized: { voice: 'capsized' },
-  spoutCapsized: { effect: 'wave', voice: 'capsized' },
+  bigWave: { effect: 'wave', rumble: 'slam' },
+  capsized: { voice: 'capsized', rumble: 'slam' },
+  spoutCapsized: { effect: 'wave', voice: 'capsized', rumble: 'slam' },
   landing: { effect: 'splash' },
   // Rantautuminen (#457): maihin, rengas käteen ja maahan, kyytiin hyppy
   shoreLanded: { effect: 'paddle' },
@@ -198,7 +204,8 @@ export class Sounds {
   }
 
   private sound(s: Sound, place: Place, a: number, b: number): void {
-    const { voice, duck } = s;
+    const { voice, duck, rumble } = s;
+    if (rumble) this.sfx.padRumble.pulse(rumble);
     const effect = s.fallback && !this.sfx.eventVoicesOn ? s.fallback : s.effect;
     if (effect)
       this.sfx.at(place, () => {
@@ -207,6 +214,14 @@ export class Sounds {
       });
     if (duck) this.sfx.duck(duck);
     if (voice) this.sfx.eventVoice(voice);
+  }
+
+  /**
+   * Kalan veto ohjaimen värinänä (#592): siiman kuorma 0–1 joka askeleella,
+   * nolla kun kala ei ole kiinni.
+   */
+  pull(load: number): void {
+    this.sfx.padRumble.pull(load);
   }
 
   /** Oma käsimerkin repliikki. */

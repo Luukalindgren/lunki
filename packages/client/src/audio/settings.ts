@@ -22,6 +22,8 @@ export interface AudioSettings {
   voice: VolumeLevel;
   /** Kalastaja kiroilee myös tapahtumissa (siima poikki, kala karkasi…). */
   eventVoices: boolean;
+  /** Peliohjain värisee tapahtumissa (#592). */
+  rumble: boolean;
 }
 
 export const DEFAULT_AUDIO: AudioSettings = {
@@ -31,6 +33,7 @@ export const DEFAULT_AUDIO: AudioSettings = {
   musicTrack: 'vaihtuva',
   voice: 2,
   eventVoices: true,
+  rumble: true,
 };
 
 const VOLUME_KEYS = ['effects', 'ambience', 'music', 'voice'] as const;
@@ -45,6 +48,7 @@ export function loadAudioSettings(): AudioSettings {
     for (const k of VOLUME_KEYS) if (isLevel(raw?.[k])) s[k] = raw[k];
     if (MUSIC_CHOICES.includes(raw?.musicTrack as MusicChoice)) s.musicTrack = raw!.musicTrack!;
     if (typeof raw?.eventVoices === 'boolean') s.eventVoices = raw.eventVoices;
+    if (typeof raw?.rumble === 'boolean') s.rumble = raw.rumble;
     return s;
   } catch {
     return { ...DEFAULT_AUDIO };
