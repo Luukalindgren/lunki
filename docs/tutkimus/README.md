@@ -38,7 +38,7 @@ vaihtoehtoja eivätkä ole pelin nykyistä koodia.
 | #555  | Aula työpöydällä kahteen sarakkeeseen                                                                  |
 | #562  | Kisasarja: pisteet usean kisan yli (sijapisteet, F1-pisteet, yhteispaino)                              |
 | #563  | Aulaan kutsun QR-koodi                                                                                 |
-| #564  | Iso näyttö -katsojatila LAN-tapahtumiin                                                                |
+| #564  | Iso näyttö -katsojatila LAN-tapahtumiin ja automaattinen ohjaaja (vaihtoehdot A–C, aikajana)           |
 | #565  | Uusia voittosääntöjä                                                                                   |
 | #566  | Kisan viimeinen minuutti ja loppulaskenta                                                              |
 | #568  | Aulassa "odottaa paikkaa"                                                                              |
