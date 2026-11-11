@@ -609,6 +609,16 @@ textarea,
   outline: none;
 }
 
+/* Harvoin tarvittava toiminto (Iso näyttö #564): pieni ja himmeä nappi. */
+.screen button.quiet {
+  font-size: 17px;
+  color: #8e99a4;
+  background: none;
+  border-width: 2px;
+  border-color: #39424d;
+  padding: 1px 10px;
+}
+
 /* Koko näyttö kuvakkeena paneelin oikeassa yläkulmassa. */
 .screen-panel {
   position: relative;

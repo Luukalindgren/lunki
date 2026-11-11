@@ -353,6 +353,10 @@ export const fi = {
     'Moninpelipalvelin ei ole nyt päällä, joten huoneita ei voi luoda eikä niihin liittyä. Yksinpeli toimii normaalisti.',
   'mp.customServer': ' · Muu kuin pelin oma palvelin: {url}',
   'mp.badCode': 'Tarkista koodi. Sen muoto on LUNKI-XXXX.',
+  'mp.broadcast': 'Iso näyttö',
+  'mp.broadcastHint': 'Avaa huoneen kisa katsojana telkkarille tai videotykille',
+  'mp.broadcastNeedsCode':
+    'Kirjoita ensin huonekoodi (LUNKI-XXXX), niin Iso näyttö avaa sen kisan.',
   'mp.joining': 'Liitytään…',
   'mp.creating': 'Luodaan huonetta…',
   'mp.connecting': 'Yhdistetään palvelimeen.',
@@ -1197,7 +1201,7 @@ export const fi = {
     'Ristiin menneet siimat sotkeutuvat, kun jompikumpi kelaa. Sotkussa kalaa ei voi nostaa.\nKelatkaa yhdessä, niin sotku selviää nopeammin, tai {cut} = katkaise oma siimasi.',
   'manual.mp.watch': 'Katsojana ja isolla näytöllä',
   'manual.mp.watchText':
-    'Katsojalla automaattinen ohjaaja valitsee kuvan kuten urheilulähetyksessä: kala kiinni, väsytys, saalis, johtoon nousu, sotku ja kaatuminen vievät kuvan sinne, missä tapahtuu. Väsytys näkyy ensin ylhäältä ja sitten kalastajan silmin, ja välillä näytetään yleiskuva kaikista. Tulostaulussa ovat kaikki, ja alaotsikko kertoo, kuka on kuvassa ja miksi.\n{spectate} = valitse kalastaja itse, {view} = näkymä (ohjaaja jatkaa puolen minuutin päästä), {director} = ohjaaja päälle tai pois.\nIsolle näytölle tai videotykille avaa osoite, jonka lopussa on ?lahetys=LUNKI-XXXX: kone liittyy huoneeseen suoraan katsojaksi.',
+    'Katsojalla automaattinen ohjaaja valitsee kuvan kuten urheilulähetyksessä: kala kiinni, väsytys, saalis, johtoon nousu, sotku ja kaatuminen vievät kuvan sinne, missä tapahtuu. Väsytys näkyy ensin ylhäältä ja sitten kalastajan silmin, ja välillä näytetään yleiskuva kaikista. Tulostaulussa ovat kaikki, ja alaotsikko kertoo, kuka on kuvassa ja miksi.\n{spectate} = valitse kalastaja itse, {view} = näkymä (ohjaaja jatkaa puolen minuutin päästä), {director} = ohjaaja päälle tai pois.\nIsolle näytölle tai videotykille: kirjoita Moninpeli-valikossa huonekoodi ja paina Iso näyttö (tai avaa osoite, jonka lopussa on ?lahetys=LUNKI-XXXX). Kone liittyy huoneeseen suoraan katsojaksi.',
   'manual.mp.challenge': 'Haaste ilman huonetta',
   'manual.mp.challengeText':
     'Yksinpelin tulossivulla Sama kisa aloittaa saman kisan uudelleen: sama sää, samat kalat ja aloituspaikka.\nHaasta kaveri tekee linkin, jolla kaveri pelaa saman kisan ja näkee lopuksi, voittiko hän tuloksesi. Palvelinta ei tarvita.\nUusinnat ja haasteet eivät mene ennätyslistalle, koska kalojen paikat ovat tiedossa.',

@@ -258,8 +258,16 @@ test('iso näyttö: ?lahetys-osoite liittyy katsojaksi ja ohjaaja näyttää kis
     await browser.newContext({ locale: 'fi-FI', baseURL: 'http://localhost:4173' })
   ).newPage();
   const errors = [watchErrors(host), watchErrors(screen)];
-  // Ei valikoita: osoite vie suoraan aulaan katsojaksi, eikä vie kalastajan paikkaa.
-  await screen.goto(`/?lahetys=${code}`);
+  // Moninpeli-valikon Iso näyttö -nappi vie huonekoodilla lähetysosoitteeseen:
+  // suoraan aulaan katsojaksi, eikä vie kalastajan paikkaa.
+  await screen.goto('/');
+  await screen.getByRole('button', { name: 'Pelaa' }).click();
+  await screen.getByRole('button', { name: 'Moninpeli' }).click();
+  await screen.getByRole('button', { name: 'Iso näyttö' }).click();
+  await expect(screen.locator('.error')).toContainText('Kirjoita ensin huonekoodi');
+  await screen.getByLabel('Huonekoodi').fill(code);
+  await screen.getByRole('button', { name: 'Iso näyttö' }).click();
+  await expect(screen).toHaveURL(/lahetys=LUNKI-/);
   await expect(screen.locator('.room-code')).toHaveText(code);
   await expect(host.locator('.choice-label', { hasText: 'Pelaajat 1/' })).toBeVisible();
   await expect(host.locator('.player-list')).toContainText('Iso näyttö');
