@@ -114,6 +114,12 @@ export const fi = {
   'weather.some': 'Vähän sääilmiöitä',
   'weather.lots': 'Paljon sääilmiöitä',
   'weather.chaos': 'Täysi kaaos',
+  'botFill.none': 'Tyhjinä',
+  'botFill.fill': 'Botit täyttävät',
+  'botLevel.mixed': 'Sekalainen',
+  'botLevel.novice': 'Aloittelija',
+  'botLevel.regular': 'Tavallinen',
+  'botLevel.veteran': 'Konkari',
   'lateJoin.open': 'Sallittu',
   'lateJoin.return': 'Vain paluu',
   'lateJoin.closed': 'Ei',
@@ -250,6 +256,10 @@ export const fi = {
   'settings.winRule': 'Voittaja',
   'settings.maxPlayers': 'Pelaajia enintään',
   'settings.lateJoin': 'Liittyminen kesken kisan',
+  'settings.bots': 'Tyhjät paikat',
+  'settings.botLevel': 'Bottien taito',
+  'settings.botsHint':
+    'Botit täyttävät tyhjät kalastajapaikat ja kalastavat kuin pelaajat: ne potkivat, heittävät, sotkevat siimoja ja voivat voittaa kisan. Liittyvä pelaaja saa botin paikan. Bottien saaliit eivät mene ennätyslistalle.',
   'settings.lateJoinHint':
     'Sallittu: kaverit pääsevät mukaan vielä kisan alettua, ja yhteyden katkettua pääsee takaisin omalle paikalleen. Vain paluu: vain takaisin. Ei: kumpikaan. Kisaan pääsemättömät voivat silti katsoa kisaa.',
   'solo.craftHint':
@@ -408,6 +418,9 @@ export const fi = {
     '{names} pelaa vanhalla versiolla: siika ja täyttökisa eivät ole käytössä, ennen kuin sivu ladataan uudelleen.',
   'lobby.players': 'Pelaajat {n}/{max}',
   'lobby.tubeGroup': 'Kelluntarenkaalla · {n}',
+  'lobby.playersBots': 'Pelaajat {n}/{max} · botteja {bots}',
+  'lobby.bot': 'botti · {skill}',
+  'lobby.moreBots': '… lisäksi botteja: {n}',
   'lobby.playersWaiting': 'Pelaajat {n}/{max} · {waiting} odottaa paikkaa',
   'lobby.joined': '{name} liittyi aulaan',
   'lobby.becameReady': '{name} on valmis',
@@ -547,6 +560,7 @@ export const fi = {
     'Tässä selaimessa Esc irrottaa koko näytöstä hetkeksi: peli palaa siihen seuraavasta painalluksesta. Backspace jatkaa peliä ilman katkosta.',
   'fullscreen.homeScreenHint':
     'Koko näyttö iPhonella: Safarin Jaa-valikosta ”Lisää Koti-valikkoon” ja avaa peli kuvakkeesta.',
+  'results.bot': '{name} (botti)',
   'results.left': '{name} (lähti)',
   'results.raceOver': 'Kisa päättyi!',
   'results.winner': 'Voittaja: {name} ({weight})',
@@ -1212,6 +1226,9 @@ export const fi = {
   'manual.mp.tangle': 'Siimojen sotku',
   'manual.mp.tangleText':
     'Ristiin menneet siimat sotkeutuvat, kun jompikumpi kelaa. Sotkussa kalaa ei voi nostaa.\nKelatkaa yhdessä, niin sotku selviää nopeammin, tai {cut} = katkaise oma siimasi.',
+  'manual.mp.bots': 'Botit',
+  'manual.mp.botsText':
+    'Huoneen luoja voi antaa bottien täyttää tyhjät kalastajapaikat (Tyhjät paikat: Botit täyttävät). Botit kalastavat samoilla säännöillä kuin pelaajat: ne potkivat paikasta toiseen, heittävät, väsyttävät kalansa, näyttävät käsimerkkejä ja voivat sotkea siimasi tai voittaa kisan.\nBottien taito valitaan aulassa. Aloittelija heittää minne sattuu ja hakeutuu muiden viereen, tavallinen kalastaa rannan tuntumassa, ja konkari hakee kivikot ja kaislikon reunat ja väistää muita. Sekalaisessa joukossa on kaikkia.\nLiittyvä pelaaja saa botin paikan, myös kesken kisan, jos liittyminen on sallittu. Botit näkyvät tuloksissa merkinnällä (botti), eivätkä niiden saaliit mene ennätyslistalle.',
   'manual.mp.watch': 'Katsojana ja isolla näytöllä',
   'manual.mp.watchText':
     'Katsojalla automaattinen ohjaaja valitsee kuvan kuten urheilulähetyksessä: kala kiinni, väsytys, saalis, johtoon nousu, sotku ja kaatuminen vievät kuvan sinne, missä tapahtuu. Väsytys näkyy ensin ylhäältä ja sitten kalastajan silmin, ja välillä näytetään yleiskuva kaikista. Tulostaulussa ovat kaikki, ja alaotsikko kertoo, kuka on kuvassa ja miksi.\n{spectate} = valitse kalastaja itse, {view} = näkymä (ohjaaja jatkaa puolen minuutin päästä), {director} = ohjaaja päälle tai pois.\nIsolle näytölle tai videotykille: kirjoita Moninpeli-valikossa huonekoodi ja paina Iso näyttö (tai avaa osoite, jonka lopussa on ?lahetys=LUNKI-XXXX). Kone liittyy huoneeseen suoraan katsojaksi.',

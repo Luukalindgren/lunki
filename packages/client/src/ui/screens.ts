@@ -25,6 +25,8 @@ import {
   NAME_MAX_LENGTH,
   LAND_PENALTIES,
   LATE_JOIN_OPTIONS,
+  BOT_FILL_OPTIONS,
+  BOT_LEVEL_OPTIONS,
   BOAT_CREW,
   BOAT_TUBE,
   CRAFT_IDS,
@@ -150,6 +152,9 @@ import {
   methodName,
   landPenaltyName,
   lateJoinName,
+  botFillName,
+  botLevelName,
+  botSkillName,
   craftName,
   seatName,
   lineName,
@@ -884,7 +889,9 @@ export class Screens {
     // aulaan, ja isäntä näkee kaikkien valmiuden vierittämättä. Omat varusteet
     // näkyvät yhteenvetona alempana.
     // Katsojat eivät vie kalastajapaikkoja (#274).
-    const anglers = v.players.filter((p) => !p.spectator).length;
+    // Botit (#624) väistyvät pelaajan tieltä, joten nekään eivät vie paikkoja.
+    const anglers = v.players.filter((p) => !p.spectator && !p.bot).length;
+    const botCount = v.players.filter((p) => p.bot).length;
     // Täyteen aulaan liittyneet odottavat katsojina vapaata paikkaa (#568).
     // Vanha palvelin ei kerro odottajia: silloin katsojat täydessä aulassa.
     const waitsSeat = (p: LobbyPlayer) =>
@@ -894,21 +901,24 @@ export class Screens {
       li.dataset.session = p.sessionId;
       li.classList.toggle('lobby-new', event?.ids.includes(p.sessionId) ?? false);
       const seatWait = p.connected && p.spectator && waitsSeat(p);
-      const state = t(
-        !p.connected
-          ? 'lobby.disconnected'
-          : seatWait
-            ? 'lobby.waitingSeat'
-            : p.spectator
-              ? p.host
-                ? 'lobby.hostSpectator'
-                : 'lobby.spectator'
-              : p.host
-                ? 'lobby.host'
-                : p.ready
-                  ? 'lobby.ready'
-                  : 'lobby.waiting',
-      );
+      const state = p.bot
+        ? t('lobby.bot', { skill: botSkillName(p.bot) })
+        : t(
+            !p.connected
+              ? 'lobby.disconnected'
+              : seatWait
+                ? 'lobby.waitingSeat'
+                : p.spectator
+                  ? p.host
+                    ? 'lobby.hostSpectator'
+                    : 'lobby.spectator'
+                  : p.host
+                    ? 'lobby.host'
+                    : p.ready
+                      ? 'lobby.ready'
+                      : 'lobby.waiting',
+          );
+      li.classList.toggle('lobby-bot', !!p.bot);
       const swatch = h('span', '', 'player-color');
       swatch.style.background = cssColor(p.appearance.tube);
       const name = h('span', `${p.name}${p.me ? t('lobby.you') : ''}`);
@@ -924,8 +934,17 @@ export class Screens {
       li.append(name, stateEl);
       return li;
     };
-    if (v.canBoat) list.append(...this.crewRows(v, playerRow, actions.onBoat, actions.onSeat));
-    else for (const p of v.players) list.appendChild(playerRow(p));
+    // Pitkä bottilista tiivistyy: ensimmäiset näkyvät, loput yhtenä rivinä.
+    const hidden = Math.max(0, botCount - LOBBY_BOT_ROWS);
+    let botsShown = 0;
+    const listed = v.players.filter((p) => !p.bot || ++botsShown <= LOBBY_BOT_ROWS);
+    const shown = { ...v, players: listed };
+    if (v.canBoat) list.append(...this.crewRows(shown, playerRow, actions.onBoat, actions.onSeat));
+    else for (const p of listed) list.appendChild(playerRow(p));
+    if (hidden > 0) {
+      const more = h('li', t('lobby.moreBots', { n: hidden }), 'lobby-bot lobby-more-bots');
+      list.appendChild(more);
+    }
     // Odottajien määrä ja isännän vihje näkyvät otsikossa eivätkä vasta
     // pitkän listan alla (#516).
     const waiting = v.players.filter((p) => p.spectator && waitsSeat(p)).length;
@@ -934,7 +953,9 @@ export class Screens {
       'p',
       full
         ? t('lobby.playersWaiting', { n: anglers, max: v.maxPlayers, waiting })
-        : t('lobby.players', { n: anglers, max: v.maxPlayers }),
+        : botCount > 0
+          ? t('lobby.playersBots', { n: anglers, max: v.maxPlayers, bots: botCount })
+          : t('lobby.players', { n: anglers, max: v.maxPlayers }),
       'choice-label lobby-head',
     );
     // Ilmoitus samalla rivillä: lista ei hypi sen tullessa ja mennessä.
@@ -1001,6 +1022,7 @@ export class Screens {
             actions.onPickStart,
             v.canSeason,
             v.canInflate,
+            v.canBots,
           )
         : this.settingsSummary(v.settings),
       // Katsoja ei kalasta, joten varusteita ei tarvita. Varusteet päävalikosta (#383).
@@ -2539,6 +2561,7 @@ export class Screens {
     pickStart: () => void,
     canSeason: boolean,
     canInflate: boolean,
+    canBots: boolean,
   ): HTMLElement {
     const box = document.createElement('div');
     box.className = 'settings';
@@ -2563,6 +2586,28 @@ export class Screens {
         String(s.maxPlayers),
         (v) => change({ maxPlayers: Number(v) }),
       ),
+      // Botit (#624) ovat kisan sääntö: ne täyttävät tyhjät kalastajapaikat.
+      ...(canBots
+        ? [
+            this.choice(
+              t('settings.bots'),
+              BOT_FILL_OPTIONS.map((o) => [o.value, botFillName(o.value)]),
+              s.bots,
+              (v) => change({ bots: v as RoomSettings['bots'] }),
+            ),
+            ...(s.bots === 'fill'
+              ? [
+                  this.choice(
+                    t('settings.botLevel'),
+                    BOT_LEVEL_OPTIONS.map((o) => [o.value, botLevelName(o.value)]),
+                    s.botLevel,
+                    (v) => change({ botLevel: v as RoomSettings['botLevel'] }),
+                  ),
+                ]
+              : []),
+            h('p', t('settings.botsHint'), 'hint'),
+          ]
+        : []),
       this.speciesChoice(s.species, (species) => change({ species })),
       // Vanha palvelin ei tunne kausia: kisa on silloin aina kesällä.
       ...(canSeason
@@ -2910,6 +2955,14 @@ export class Screens {
       [t('settings.winRule'), winRuleName(s.winRule)],
       [t('settings.difficultyShort'), difficultyName(s.difficulty)],
       [t('settings.maxPlayers'), String(s.maxPlayers)],
+      ...(s.bots === 'fill'
+        ? [
+            [t('settings.bots'), `${botFillName(s.bots)} (${botLevelName(s.botLevel)})`] as [
+              string,
+              string,
+            ],
+          ]
+        : []),
       [t('settings.season'), seasonName(s.season)],
       [t('settings.timeOfDay'), timeOfDayName(s.timeOfDay)],
       [t('settings.weather'), weatherLevelName(s.weather)],
@@ -2977,6 +3030,8 @@ export class Screens {
 
 /** Tulossivun nimisarakkeen enimmäisleveys (merkkiä). */
 const RESULT_NAME_MAX = 14;
+/** Aulan listassa näytetään näin monta bottia; loput tiivistyvät yhdeksi riviksi (#624). */
+const LOBBY_BOT_ROWS = 3;
 
 /**
  * Tulosrivi: teksti vasemmalla ja kalan kuva oikeassa reunassa, joten kuva

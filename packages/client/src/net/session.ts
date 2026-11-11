@@ -5,6 +5,13 @@ import {
   ServerMsg,
   formatRoomCode,
   isLateJoin,
+  isBotFill,
+  isBotLevel,
+  isBotId,
+  botIndex,
+  botSkillFor,
+  BOT_PROTOCOL,
+  type BotSkill,
   isSpeciesId,
   isTimeOfDay,
   isWeatherLevel,
@@ -243,6 +250,8 @@ export interface LobbyPlayer {
   waitingSeat?: boolean;
   /** Yhteysviive ms (#575), kun pelaaja on sen kertonut. */
   ping?: number;
+  /** Botti (#624) ja sen taito. */
+  bot?: BotSkill;
 }
 
 /** Vanhan version pelaajat aulassa ja mitä he estävät (#554). */
@@ -277,6 +286,8 @@ export interface LobbyView {
   canSeason: boolean;
   /** Palvelin osaa täyttökisan (#458). */
   canInflate: boolean;
+  /** Palvelin osaa botit (#624). */
+  canBots: boolean;
   /** Vanhan version pelaajat (#554); null = kaikilla on palvelimen versio. */
   oldVersion: OldVersionView | null;
 }
@@ -377,6 +388,9 @@ export interface StateSchema {
     lateJoin?: string;
     /** Täyttökisa (#458); puuttuu vanhalta palvelimelta. */
     inflate?: boolean;
+    /** Botit (#624); puuttuvat vanhalta palvelimelta. */
+    bots?: string;
+    botLevel?: string;
     species: Iterable<string>;
     customStart: boolean;
     startX: number;
@@ -575,6 +589,7 @@ export class NetSession {
     const s = this.room.state;
     const me = this.room.sessionId;
     const players: LobbyPlayer[] = [];
+    const botLevel = isBotLevel(s.settings.botLevel) ? s.settings.botLevel : 'mixed';
     // Vanha palvelin ei kerro asiakkaiden versioita: silloin kaikki ovat ajan tasalla.
     const clientProtocol = (id: string) => s.protocols?.get(id) ?? this.serverProtocol;
     s.players.forEach((p, id) =>
@@ -594,6 +609,7 @@ export class NetSession {
         oldVersion: clientProtocol(id) < this.serverProtocol,
         ...(s.waiting && { waitingSeat: s.waiting.has(id) }),
         ...(s.pings?.has(id) && { ping: s.pings.get(id) }),
+        ...(isBotId(id) && { bot: botSkillFor(botLevel, botIndex(id)) }),
       }),
     );
     const old = players.filter((p) => p.oldVersion);
@@ -619,6 +635,8 @@ export class NetSession {
         capsizePenalty: s.settings.capsizePenalty as Penalty,
         landPenalty: s.settings.landPenalty ?? 0,
         lateJoin: isLateJoin(s.settings.lateJoin) ? s.settings.lateJoin : 'closed',
+        bots: isBotFill(s.settings.bots) ? s.settings.bots : 'none',
+        botLevel,
         species: [...s.settings.species].filter(isSpeciesId),
         start: s.settings.customStart ? { x: s.settings.startX, y: s.settings.startY } : null,
         ...(s.settings.inflate && { inflate: true }),
@@ -632,6 +650,7 @@ export class NetSession {
       canSwapSeats: this.serverProtocol >= SEAT_PROTOCOL,
       canSeason: this.serverProtocol >= SEASON_PROTOCOL,
       canInflate: this.serverProtocol >= INFLATE_PROTOCOL,
+      canBots: this.serverProtocol >= BOT_PROTOCOL,
       oldVersion:
         old.length === 0
           ? null
@@ -759,7 +778,7 @@ export class NetSession {
     const rows = new Map<string, PlayerCatches & { catches: CatchRecord[] }>();
     // Katsojat eivät ole tulostaulussa (paitsi jos heillä on saaliita, ks. alla).
     s.players.forEach((p, id) => {
-      if (!p.spectator) rows.set(id, { id, name: p.name, catches: [] });
+      if (!p.spectator) rows.set(id, { id, name: botLabel(id, p.name), catches: [] });
     });
     // Lähteneet pysyvät listalla ilman saalistakin.
     s.departed?.forEach((d, id) =>
@@ -768,7 +787,7 @@ export class NetSession {
     for (const c of s.catches) {
       let row = rows.get(c.player);
       if (!row) {
-        row = { id: c.player, name: c.angler, catches: [] };
+        row = { id: c.player, name: botLabel(c.player, c.angler), catches: [] };
         rows.set(c.player, row);
       }
       row.catches.push({
@@ -791,7 +810,7 @@ export class NetSession {
     if (!this.hasBoats && !boatCatch) return this.results();
     const players: { id: string; name: string; boat: number; left?: boolean }[] = [];
     s.players.forEach((p, id) => {
-      if (!p.spectator) players.push({ id, name: p.name, boat: p.boat ?? 0 });
+      if (!p.spectator) players.push({ id, name: botLabel(id, p.name), boat: p.boat ?? 0 });
     });
     s.departed?.forEach((d, id) =>
       players.push({ id, name: departedName(d), boat: d.boat ?? 0, left: d.early }),
@@ -814,6 +833,10 @@ export class NetSession {
     await this.room.leave(true).catch(() => undefined);
   }
 }
+
+/** Botin nimi tulostaulussa: "Ahven-Arska (botti)" (#624). */
+const botLabel = (id: string, name: string): string =>
+  isBotId(id) ? t('results.bot', { name }) : name;
 
 /** Kesken kisan lähteneen nimi tulostaulussa: "Ville (lähti)". */
 const departedName = (d: { name: string; early: boolean }): string =>

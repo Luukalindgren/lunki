@@ -1,3 +1,4 @@
+export * from './bots';
 export * from './fishing';
 export * from './game';
 export * from './map';

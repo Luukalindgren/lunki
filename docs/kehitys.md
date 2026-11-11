@@ -251,6 +251,26 @@ Koodi: `packages/client/src/game/game.ts` ja sen osat.
 - Moninpelin erot ovat `NetBridge`-luokassa eivätkä `if (net)`-haaroina
   muualla, kun se on mahdollista.
 
+### Bottipelaajat (#624)
+
+Koodi: `packages/shared/src/bots/botAngler.ts`, palvelimella
+`LunkiRoom` (`syncBots`, `stepBots`).
+
+- Botti on `BotAngler`: se tuottaa samat syötteet kuin pelaaja (potkut ja
+  `FishingInput`) ja kalastaa samalla `stepFishing`-koodilla omasta
+  kalakannan kopiostaan. Botille ei tehdä omia oikoteitä sääntöihin: sen
+  saalis kulkee saman tarkistuksen (`landCatch`) läpi kuin pelaajan.
+- Moninpelissä botit ovat palvelimen pelaajia tunnisteella `bot:N`
+  (`isBotId`). `PlayerState` on kenttärajalla, joten botin taito lasketaan
+  tunnisteesta ja asetuksesta (`botSkillFor`), ei omasta kentästä.
+- Botit ovat kisan sääntö (`settings.bots`, `settings.botLevel`) aulassa,
+  eivät Asetukset-näkymässä. Ne täyttävät tyhjät paikat ja väistyvät
+  liittyvän pelaajan tieltä. Botit eivät mene ennätyslistalle eivätkä
+  pumppaa täyttökisassa.
+- Taidot (`BOT_SKILL`) eroavat paikan valinnassa, tähtäyksessä ja kalan
+  väsytyksessä. Uusi käytös on uusi kenttä taulukkoon, ja saalistahti
+  tarkistetaan `botAngler.test.ts`:n simulaatiolla.
+
 ### Äänet (#371)
 
 Koodi: `packages/client/src/audio/sounds.ts`.
