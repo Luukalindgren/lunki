@@ -586,16 +586,14 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     this.weather.step(dt);
     const timeOut = this.penalties.timeOutLeft;
     const capsized = this.penalties.capsizeLeft > 0;
-    // Kelaus myös peliohjaimen oikeaa tattia pyörittämällä (#595).
-    const stickReel = this.angler.stickReel;
-    const reelHeld = c.isDown('pointer') || c.isDown('reel') || stickReel.reel;
+    const reelHeld = c.isDown('pointer') || c.isDown('reel');
     const tangle = net ? net.updateTangle(c.wasPressed('cut')) : null;
     if (!frozen) this.logRace();
 
     // Maalla välilyönnin toiminto katsotaan ennen askelta: kyytiin hypyn aikana
     // toimintoa ei enää ole, eikä sama painallus ole heittoyritys (#464).
     const shoreAction = this.craft.shoreAction;
-    this.craft.step(dt, { frozen, capsized, reelHeld, stickReel: stickReel.busy });
+    this.craft.step(dt, { frozen, capsized, reelHeld });
     const f = this.fishing;
     // Maalta ei kalasteta (#457): heitto ei lähde, ja yritys kertoo miksi.
     const ashore = this.craft.ashore;
