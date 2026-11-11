@@ -67,6 +67,8 @@ const A = 0;
 const B = 1;
 const DOWN = 13;
 const MENU = 9;
+const LT = 6;
+const RS = 11;
 
 const focused = (page: Page) => page.evaluate(() => document.activeElement?.textContent?.trim());
 
@@ -106,6 +108,15 @@ test('peliohjain: valikot, ohjeen napit, heitto ja tauko', async ({ page, isMobi
 
   // Ylhäältä zoom on LT + ristiohjain.
   await expect(page.locator('.hud-help')).toContainText('LT+✚↑/✚↓ = zoom');
+
+  // Ohje piiloon ja takaisin: LT pohjassa oikean tatin painallus.
+  await expect(page.locator('.hud-help')).toContainText('LT+RS = ohje');
+  await setButton(page, LT, true);
+  await tap(page, RS);
+  await expect(page.locator('.hud-help')).toBeHidden();
+  await tap(page, RS);
+  await expect(page.locator('.hud-help')).toBeVisible();
+  await setButton(page, LT, false);
 
   // Heitto: A pohjassa ja päästä, kuten välilyönti.
   const line = async () => {

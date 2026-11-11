@@ -90,7 +90,7 @@ Koodi: `packages/client/src/game/controls.ts`.
   `forwardCast`, `flyCastControl.ts`) ja osoittaa pikavalikon lohkon
   (`HeldMenu`). Virvelin viehe vedessä tatin nopea nykäisy taakse on
   vavan nykäisy (`game/stickFlick.ts`, #595). Uusi toiminto saa `pad`-napin, jos sellainen on vapaana;
-  muuten yhdistelmän `padWith`-kentällä (zoom on LT/L2 + ristiohjain), jolloin
+  muuten yhdistelmän `padWith`-kentällä (zoom on LT/L2 + ristiohjain, ohje piiloon LT/L2 + oikean tatin painallus), jolloin
   saman napin tavallinen toiminto väistää yhdistelmän ajaksi.
 - Kosketusnapit painavat toimintoja (`controls.set` / `controls.tap`), eivät
   matki näppäimiä. Ei raakoja `KeyX`-tarkistuksia pelikoodissa eikä
