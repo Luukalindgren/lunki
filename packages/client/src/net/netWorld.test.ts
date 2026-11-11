@@ -72,6 +72,28 @@ describe('poistuneen ilmoitus', () => {
     });
 });
 
+describe('botti luovuttaa paikkansa kesken kisan (#631)', () => {
+  it('liittyjästä ilmoitetaan, botin poistumisesta ei', () => {
+    setLangForTest('fi');
+    const players = new Map([
+      ['me', { ...player('Minä', 0, 0, 'spoon'), connected: true }],
+      ['bot:2', { ...player('Kuha-Kalle', 0, 0, 'spoon'), connected: true }],
+    ]);
+    const state = { players, catches: [] };
+    const session = { sessionId: 'me', room: { state } } as unknown as NetSession;
+    const world = new NetWorld(session, new WaterBody(LUNKINJARVI));
+    const notices: string[] = [];
+    world.onPeerLeft = (name) => notices.push(`lähti ${name}`);
+    world.onPeerJoined = (name) => notices.push(`tuli ${name}`);
+    session.onState?.(state as never);
+    // Sama tilapäivitys tuo liittyjän ja vie botin.
+    players.set('y', { ...player('Myöhä', 0, 0, 'spoon'), connected: true });
+    players.delete('bot:2');
+    session.onState?.(state as never);
+    expect(notices).toEqual(['tuli Myöhä']);
+  });
+});
+
 describe('muiden liike verkon heitellessä', () => {
   it('kisan aikana tasainen liike piirtyy tasaisena, vaikka tilat saapuvat epätasaisesti', () => {
     const players = new Map([

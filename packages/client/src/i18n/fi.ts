@@ -567,6 +567,7 @@ export const fi = {
   'results.bot': '{name} (botti)',
   'results.botTag': 'botti',
   'results.left': '{name} (lähti)',
+  'results.leftTag': 'lähti',
   'results.raceOver': 'Kisa päättyi!',
   'results.winner': 'Voittaja: {name} ({weight})',
   'results.noFish': 'Kukaan ei saanut kalaa.',

@@ -562,6 +562,7 @@ export const en: Record<keyof typeof fi, string> = {
   'results.bot': '{name} (bot)',
   'results.botTag': 'bot',
   'results.left': '{name} (left)',
+  'results.leftTag': 'left',
   'results.raceOver': 'The competition is over!',
   'results.winner': 'Winner: {name} ({weight})',
   'results.noFish': 'Nobody caught a fish.',
