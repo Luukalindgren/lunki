@@ -49,3 +49,6 @@ vaihtoehtoja eivätkä ole pelin nykyistä koodia.
 | #601  | Tattikelauksen aloitus ei käännä kalastajaa omin silmin                                                |
 | #602  | Kelan vaihde näkyviin, kun kelataan tattia pyörittämällä                                               |
 | #624  | Bottipelaajat: määrä ja taito, yksittäin lisättävät, tyhjät paikat täyttävät (isommat aulat)           |
+| #633  | Nimikyltit eivät mene päällekkäin                                                                      |
+| #634  | Tulossivun rivit puhelimella pystyssä                                                                  |
+| #635  | Kisan tulostaulu näyttää, kuka sai juuri kalan                                                         |
