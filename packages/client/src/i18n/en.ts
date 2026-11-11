@@ -381,6 +381,7 @@ export const en: Record<keyof typeof fi, string> = {
   'lobby.title': 'Lobby',
   'lobby.copyLink': 'Copy invite link',
   'lobby.linkCopied': 'Link copied!',
+  'lobby.copyManual': 'Select the link and copy it:',
   'lobby.disconnected': 'disconnected',
   'lobby.hostSpectator': 'creator, watching',
   'lobby.waitingSeat': 'waiting for a seat',

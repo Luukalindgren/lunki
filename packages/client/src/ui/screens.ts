@@ -117,6 +117,7 @@ import {
   type MsgKey,
 } from '../i18n';
 import { controlText } from '../game/controls';
+import { copyText } from './clipboard';
 import { MANUAL_SECTIONS, manualTopics, type ManualSection } from './manual';
 import { isMine, rankLabel } from '../game/raceScoreboard';
 import type { RaceStatus } from '../game/raceStatus';
@@ -365,6 +366,8 @@ export class Screens {
   private pendingLobby: (() => void) | null = null;
   /** Värinäkymästä palataan: aula piirretään, vaikka näkymä on vielä auki. */
   private leavingLobbySub = false;
+  /** Aulan kutsulinkki, joka on jo näytetty napissa (LAN): säilyy uudelleenpiirroissa. */
+  private lobbyLinkShown: string | null = null;
   /** Näkymän siivous ennen seuraavaa (esim. kartan koon seuranta). */
   private cleanup: (() => void) | null = null;
   /** Tulossivulla valittuna saaliskartta (säilyy saman näkymän uudelleenpiirrossa). */
@@ -833,18 +836,37 @@ export class Screens {
     const me = v.players.find((p) => p.me);
     const myCraft: Craft = (me?.boat ?? 0) > 0 ? 'boat' : 'tube';
     const code = h('p', formatRoomCode(v.code), 'room-code');
+    // Kutsulinkki: painallus kopioi sen, ja toinen painallus kopioi uudelleen.
+    // Suojaamattomalla http-sivulla (LAN-peli) nappiin jää itse linkki, jotta
+    // sen voi myös lukea ääneen tai kirjoittaa käsin.
     const copy = document.createElement('button');
-    copy.textContent = t('lobby.copyLink');
+    copy.className = 'room-link';
+    const copyStatus = h('p', '', 'hint room-link-status');
+    copyStatus.setAttribute('role', 'status');
+    copyStatus.hidden = true;
+    const showsLink = () => this.lobbyLinkShown === link;
+    copy.textContent = showsLink() ? link : t('lobby.copyLink');
     copy.addEventListener('click', () => {
-      // Leikepöytää ei ole suojaamattomalla http-sivulla (LAN-peli): näytetään linkki.
-      if (!navigator.clipboard) {
-        copy.textContent = link;
-        return;
-      }
-      void navigator.clipboard.writeText(link).then(
-        () => (copy.textContent = t('lobby.linkCopied')),
-        () => (copy.textContent = link),
-      );
+      void copyText(link).then((ok) => {
+        if (!window.isSecureContext || !ok) this.lobbyLinkShown = link;
+        if (!ok) {
+          // Kopiointi estetty: linkki valittuna kentässä käsin kopioitavaksi.
+          const field = document.createElement('input');
+          field.type = 'text';
+          field.readOnly = true;
+          field.value = link;
+          field.className = 'room-link-field';
+          field.setAttribute('aria-label', t('lobby.copyManual'));
+          copy.replaceWith(field);
+          field.focus();
+          field.select();
+          copyStatus.textContent = t('lobby.copyManual');
+        } else {
+          copy.textContent = showsLink() ? link : t('lobby.linkCopied');
+          copyStatus.textContent = showsLink() ? t('lobby.linkCopied') : '';
+        }
+        copyStatus.hidden = copyStatus.textContent === '';
+      });
     });
     const list = document.createElement('ul');
     list.className = 'player-list';
@@ -912,6 +934,7 @@ export class Screens {
       h('p', t('mp.roomCode'), 'hint'),
       code,
       copy,
+      copyStatus,
       header,
       ...(full && v.amHost ? [h('p', t('lobby.fullHost'), 'hint lobby-full')] : []),
       list,
@@ -2375,8 +2398,8 @@ export class Screens {
           status.textContent = t('card.imageCopied');
           return;
         }
-        await navigator.clipboard.writeText(text);
-        status.textContent = t('card.textCopied');
+        const ok = await copyText(text);
+        status.textContent = t(ok ? 'card.textCopied' : 'card.shareFailed');
       } catch (err) {
         // Käyttäjä perui jakamisen tai selain esti leikepöydän.
         if ((err as Error).name !== 'AbortError') {
@@ -3080,8 +3103,8 @@ async function shareChallenge(link: string, score: string, status: HTMLElement):
       show(t('results.challengeShared', { score }));
       return;
     }
-    await navigator.clipboard.writeText(link);
-    show(t('results.challengeCopied', { score }));
+    const ok = await copyText(link);
+    show(ok ? t('results.challengeCopied', { score }) : t('results.challengeCopy'));
   } catch (err) {
     // Käyttäjä perui jakamisen.
     if ((err as Error).name === 'AbortError') return;

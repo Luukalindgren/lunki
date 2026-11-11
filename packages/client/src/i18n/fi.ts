@@ -384,6 +384,7 @@ export const fi = {
   'lobby.title': 'Aula',
   'lobby.copyLink': 'Kopioi kutsulinkki',
   'lobby.linkCopied': 'Linkki kopioitu!',
+  'lobby.copyManual': 'Valitse linkki ja kopioi se:',
   'lobby.disconnected': 'yhteys poikki',
   'lobby.hostSpectator': 'luoja, katsoja',
   'lobby.waitingSeat': 'odottaa paikkaa',
