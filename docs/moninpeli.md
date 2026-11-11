@@ -96,7 +96,8 @@ muut pelaajat: SnapshotBuffer, piirretään 120 ms menneisyydestä
   kärjestä (`firstPerson`). Tilarivi on alaotsikko (SUORA · kuka · mitä),
   tulostaulussa ovat kaikki, ja kuvaan tulevan tuoreesta saaliista näkyy
   punnituskortti. ←/→ ja V ottavat käsiohjauksen 30 sekunniksi, O kytkee
-  ohjaajan pois. Osoite `?lahetys=LUNKI-XXXX` liittyy huoneeseen suoraan
+  ohjaajan pois. Moninpeli-valikon pieni Iso näyttö -nappi (huonekoodi
+  kentässä) tai osoite `?lahetys=LUNKI-XXXX` liittyy huoneeseen suoraan
   katsojaksi (`JoinOptions.watch`): palvelin tekee siitä katsojan myös
   aulassa ja kesken kisan, eikä se siirry uudessa kisassa kalastajaksi.
 

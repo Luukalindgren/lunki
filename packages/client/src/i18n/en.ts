@@ -348,6 +348,10 @@ export const en: Record<keyof typeof fi, string> = {
     'The multiplayer server is not running right now, so rooms cannot be created or joined. Single player works normally.',
   'mp.customServer': ' · Not the game’s own server: {url}',
   'mp.badCode': 'Check the code. It looks like LUNKI-XXXX.',
+  'mp.broadcast': 'Big screen',
+  'mp.broadcastHint': 'Open the room’s competition as a spectator for a TV or projector',
+  'mp.broadcastNeedsCode':
+    'Type the room code (LUNKI-XXXX) first, then Big screen opens that competition.',
   'mp.joining': 'Joining…',
   'mp.creating': 'Creating a room…',
   'mp.connecting': 'Connecting to the server.',
@@ -1191,7 +1195,7 @@ export const en: Record<keyof typeof fi, string> = {
     'Crossed lines tangle when either angler reels. While tangled, nobody can land a fish.\nReel together to untangle faster, or {cut} = cut your own line.',
   'manual.mp.watch': 'Watching and the big screen',
   'manual.mp.watchText':
-    'For spectators an automatic director picks the shot like a sports broadcast: fish on, fights, catches, taking the lead, tangles and capsizes take the camera where the action is. A fight is shown first from above and then through the angler’s eyes, and now and then there is an overview of everyone. The scoreboard lists everyone, and the caption tells who is on screen and why.\n{spectate} = pick an angler yourself, {view} = view (the director resumes after half a minute), {director} = director on or off.\nFor a big screen or projector, open the address ending in ?lahetys=LUNKI-XXXX: the computer joins the room directly as a spectator.',
+    'For spectators an automatic director picks the shot like a sports broadcast: fish on, fights, catches, taking the lead, tangles and capsizes take the camera where the action is. A fight is shown first from above and then through the angler’s eyes, and now and then there is an overview of everyone. The scoreboard lists everyone, and the caption tells who is on screen and why.\n{spectate} = pick an angler yourself, {view} = view (the director resumes after half a minute), {director} = director on or off.\nFor a big screen or projector: type the room code in the Multiplayer menu and press Big screen (or open the address ending in ?lahetys=LUNKI-XXXX). The computer joins the room directly as a spectator.',
   'manual.mp.challenge': 'Challenge without a room',
   'manual.mp.challengeText':
     'On the solo results page, Same again starts the same competition again: same weather, same fish and start spot.\nChallenge a friend makes a link with which your friend plays the same competition and sees at the end whether they beat your result. No server needed.\nReplays and challenges do not count for the records, because the fish are known.',

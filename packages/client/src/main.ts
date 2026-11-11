@@ -549,6 +549,12 @@ function showMultiplayer(code = '', error?: string, serverDown = false) {
       showPlay();
     },
     error,
+    (c) => {
+      // Sama polku kuin ?lahetys-osoitteella: sivu latautuu lähetystilaan.
+      const parsed = parseRoomCode(c);
+      if (parsed) location.assign(inviteLink(parsed, 'lahetys'));
+      else showMultiplayer(c, t('mp.broadcastNeedsCode'));
+    },
   );
   if (serverDown) screens.setServerStatus(false, customServer());
   else void checkServer().then((ok) => screens.setServerStatus(ok, customServer()));

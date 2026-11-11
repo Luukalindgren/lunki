@@ -719,6 +719,8 @@ export class Screens {
     onJoin: (name: string, code: string) => void,
     onBack: () => void,
     error?: string,
+    /** Iso näyttö (#564): huone avataan katsojan lähetysnäkymänä. */
+    onBroadcast?: (code: string) => void,
   ): void {
     const panel = this.panel('multiplayer');
     const nameInput = this.input(t('common.nickname'), name, NAME_MAX_LENGTH, t('common.angler'));
@@ -737,6 +739,13 @@ export class Screens {
       ]),
       h('p', t('mp.hint'), 'hint'),
     );
+    if (onBroadcast) {
+      // Pieni nappi vihjeen alla: tarvitaan vain telkkarin tai videotykin koneella.
+      const b = h('button', t('mp.broadcast'), 'quiet');
+      b.title = t('mp.broadcastHint');
+      b.addEventListener('click', () => onBroadcast(codeValue()));
+      panel.append(b);
+    }
     codeInput.querySelector('input')!.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') onJoin(nameValue(), codeValue());
     });
