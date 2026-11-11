@@ -511,7 +511,7 @@ export class FishingController {
           ? t('game.missedFly')
           : events.missedTwitch
             ? controlText('game.missedTwitch')
-            : t('game.missed'),
+            : controlText('game.missed'),
         2.5,
       );
       sounds.play('missed');
@@ -597,10 +597,7 @@ export class FishingController {
       );
     } else if (events.lineBroken) {
       sounds.play('lineBroken');
-      hud.showMessage(
-        withLost(flyGear ? controlText('game.lineBrokenFly') : t('game.lineBroken')),
-        3,
-      );
+      hud.showMessage(withLost(controlText(flyGear ? 'game.lineBrokenFly' : 'game.lineBroken')), 3);
     }
     if (this.weighIn && (this.weighIn.left -= dt) <= 0) this.flushWeighIn();
     if (events.caught) {

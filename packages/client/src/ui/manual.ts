@@ -20,9 +20,10 @@ import { shortDecimal, t, type MsgKey } from '../i18n';
  * näyttävät kosketuksella napit, koneella näppäimet ja peliohjaimella sen
  * napit, ja vaikeustasoa koskevat luvut luetaan `DIFFICULTIES`-taulukosta.
  */
-export type ManualSection = 'move' | 'spin' | 'fly' | 'weather' | 'multiplayer';
+export type ManualSection = 'start' | 'move' | 'spin' | 'fly' | 'weather' | 'multiplayer';
 
 export const MANUAL_SECTIONS: readonly ManualSection[] = [
+  'start',
   'move',
   'spin',
   'fly',
@@ -46,6 +47,12 @@ const pikeHook = (rod: keyof typeof RODS) =>
   pct(1 - (1 - realistic.hookChance) * RODS[rod].hookMiss ** 2);
 
 const TOPICS: Record<ManualSection, readonly Topic[]> = {
+  // Ensikertalaiselle: sama polku kuin opastuksessa (game/guide.ts), yhdellä napilla.
+  start: [
+    { title: 'manual.start.first', text: 'manual.start.firstText' },
+    { title: 'manual.start.noBites', text: 'manual.start.noBitesText' },
+    { title: 'manual.start.screen', text: 'manual.start.screenText' },
+  ],
   move: [
     { title: 'manual.move.tube', text: 'manual.move.tubeText' },
     { title: 'manual.move.anchor', text: 'manual.move.anchorText' },

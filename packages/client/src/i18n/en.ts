@@ -556,7 +556,7 @@ export const en: Record<keyof typeof fi, string> = {
   'results.sessionOver': 'Session over',
   'results.sessionLength': 'free, {time}',
   'results.empty':
-    'No catch this time. If you get no bites, kick over to a new spot: the sonar (K) shows the fish.',
+    'No catch this time. If you get no bites, move to a new spot: the sonar ({sonar}) shows the fish.',
   'results.summary': 'Fish {count} · total {total} · biggest {biggest}',
   'results.again': 'New competition',
   'results.toMenu': 'Main menu',
@@ -691,31 +691,33 @@ export const en: Record<keyof typeof fi, string> = {
   'hud.stamina': 'STAMINA',
   'hud.compass': 'N,NE,E,SE,S,SW,W,NW',
   'guide.move':
-    'Guide 1/5: kick to get moving · {forward} = towards your fins · {back} = backwards (fastest)',
-  'guide.row': 'Guide 1/5: row to get moving · {back} = row · {forward} = back water',
+    'Guide 1/5: kick to get moving · {back} = back first (fastest) · {forward} = forward · {turn} = turn',
+  'guide.row':
+    'Guide 1/5: row to get moving · {back} = row · {forward} = back water · {turn} = turn the boat',
   'guide.cast':
-    'Guide 2/5: cast your lure · {pointer}: aim, hold and release · {castForward} = cast where you look',
-  'guide.reel': 'Guide 3/5: reel the lure back · hold {pointer|reel} = reel',
+    'Guide 2/5: cast your lure · hold {castForward} and release when the power meter is full',
+  'guide.reel': 'Guide 3/5: reel the lure back · hold {reel}',
   'guide.wait':
-    'Guide 3/5: reel steadily and cast again until a fish strikes · {sonar} = sonar shows the fish',
-  'guide.again': 'Guide: cast again · {sonar} = sonar shows the fish',
-  'guide.strike': 'Guide 4/5: a strike! Reel at once ({reel}) to set the hook',
-  'guide.strikeBig': 'Guide 4/5: a heavy strike! Twitch the rod at once ({twitch}) to set the hook',
+    'Guide 3/5: reel the lure in and cast again until a fish bites · {sonar} = sonar shows the fish',
+  'guide.again':
+    'Guide: cast again ({castForward}) · no bites? Move to a new spot · {sonar} = sonar shows the fish',
+  'guide.strike': 'Guide 4/5: a bite! Reel at once ({reel}) to hook the fish',
+  'guide.strikeBig': 'Guide 4/5: a heavy bite! Twitch at once ({twitch}) to hook the fish',
   'guide.fight':
-    'Guide 5/5: fish on! Reel while it rests · line tight = loosen the drag {dragLess}',
+    'Guide 5/5: fish on! Reel ({reel}) and keep the line tight · if TENSION hits the top, loosen the drag ({dragLess})',
   'guide.tipLure': 'Tip: {lure} = change lure · different fish like different lures',
-  'guide.tipSonar': 'Tip: {sonar} = sonar · {lureSonar} = lure depth',
+  'guide.tipSonar': 'Tip: {sonar} = sonar shows the fish · {lureSonar} = lure depth',
   'guide.flyCast':
-    'Fly guide 1/3: {castForward} = rhythm cast · {backCast} = back, {forwardCast} = forward',
+    'Fly guide 1/3: cast the fly · {castForward} starts the cast · press again each time the line straightens',
   'guide.flyStrip': 'Fly guide 2/3: work the fly with strips · {strip} = strip line',
   'guide.flyWait': 'Fly guide 2/3: strip until a fish takes · {lift} = lift for a new cast',
-  'guide.flyAgain': 'Fly guide: {castForward} = cast again',
+  'guide.flyAgain': 'Fly guide: cast again ({castForward})',
   'guide.flyStrike':
     'Fly guide 3/3: a take! Strip line ({strip}) or lift the rod ({lift}) to set the hook',
   'guide.flyFight':
     'Fly guide 3/3: fish on! {reelSlack} = slack onto the reel, then reel and tire it with the drag',
   'help.thunder': 'In thunder, reel your lure in and stay close to the shore',
-  'help.move': '{forward} = towards your fins · {back} = back first (fastest)',
+  'help.move': '{back} = kick back first (fastest) · {forward} = kick forward',
   'help.turn': '{turn} = turn · {sprint} = sprint kick (tiring) · {anchor} = anchor',
   'help.walk': '{forward|back} = walk forward or back · {turn} = turn',
   'help.shoreAct': '{pickUp} = pick up or put down the tube · at the waterline {board} = jump in',
@@ -728,7 +730,8 @@ export const en: Record<keyof typeof fi, string> = {
   'help.passengerTurn': '{turn} = turn in your seat to cast',
   'help.cast': '{pointer}: aim, hold and release = cast · {aim} = cast direction',
   'help.castForward': 'Hold {castForward} and release = cast where you face · {cancel} = cancel',
-  'help.reel': 'Hold {pointer|reel} = reel in · {twitch} = twitch, sets the hook in a big fish',
+  'help.reel':
+    'Hold {pointer|reel} = reel in (at once on a bite) · {twitch} = twitch, hooks a big fish',
   'help.gear': '{gear} = reel speed · {gearFast} = quick retrieve · {dragLess}/{dragMore} = drag',
   'help.tools':
     '{lure} = change lure (hold: box) · {method} = spin/fly · {sonar} = finder · {lureSonar} = depth',
@@ -974,7 +977,7 @@ export const en: Record<keyof typeof fi, string> = {
   'game.strikeBig': 'Heavy bite – twitch ({twitch})!',
   'game.hooked': 'Fish on!',
   'game.bigShadow': 'A big shadow followed the lure!',
-  'game.missed': 'Missed – reel right after the bite',
+  'game.missed': 'Missed – on a bite, reel at once ({reel})',
   'game.missedTwitch': 'Missed – a big fish only hooks on a twitch ({twitch})',
   'game.spooked': 'You twitched too early – the fish spooked',
   'game.jumped': 'The fish jumps – keep the line tight!',
@@ -998,14 +1001,15 @@ export const en: Record<keyof typeof fi, string> = {
   'game.lureOnLand': 'The lure stayed on land',
   'game.bitOff': 'A pike bit through the line – try a steel leader',
   'game.lureLost': 'The line snapped – the lure stayed on the bottom',
-  'game.lineBroken': 'The line snapped! Loosen the drag (Q) or switch to a thicker line',
+  'game.lineBroken': 'The line snapped! Loosen the drag ({dragLess}) or switch to a thicker line',
   'game.flyHand': 'Slack {m} m · line in hand',
   'game.onReel': 'Slack on the reel – fight with the drag',
   'game.flyTangle': 'The slack line tangled in the cast!',
   'game.flyChanged': 'Fly: {fly}',
   'game.flyCastButtons':
     '{lineGrip}: hold during the stroke, release as the line flies = more line\n{haul} in a stroke = haul · {cancel} = cancel',
-  'game.flyCastKeys': '{castForward} when the line straightens · {cancel} = cancel',
+  'game.flyCastKeys':
+    '{castForward} when the line straightens · after a forward cast, wait and the fly lands · {cancel} = cancel',
   'game.flyUntangle': 'Freeing the fly… {s} s',
   'game.flyNow': 'NOW!',
   'game.flyPanelOn': 'Fly cast side view on',
@@ -1090,7 +1094,17 @@ export const en: Record<keyof typeof fi, string> = {
   'menu.manual': 'How to play',
   'manual.title': 'How to play',
   'manual.intro':
-    'Fishing mechanics and their controls. Controls are shown for this device: buttons on touch, keys on a computer and controller buttons when you use a game controller.',
+    'Quick start takes you to your first fish, and the other sections explain the mechanics in detail. Controls are shown for this device: buttons on touch, keys on a computer and controller buttons when you use a game controller.',
+  'manual.section.start': 'Quick start',
+  'manual.start.first': 'Your first fish',
+  'manual.start.firstText':
+    'Move: {back} = kick back first (fastest), {forward} = forward, {turn} = turn.\nCast: hold {castForward} and release when the power meter is full.\nReel: hold {reel}. The lure swims back to you, and a fish bites it on the way.\nBite: reel at once ({reel}) to hook the fish. On a heavy bite, twitch ({twitch}).\nFight: reel and keep the line tight. If TENSION hits the top, loosen the drag ({dragLess}).\nLand: when the fish is at the surface, press {land} again.',
+  'manual.start.noBites': 'No bites?',
+  'manual.start.noBitesText':
+    '{sonar} = sonar shows the fish.\nMove to a new spot: fish swim in schools and feed in spells.\n{lure} = change lure. Different fish like different lures.\nOn Easy the fish always hooks and the line never snaps.',
+  'manual.start.screen': 'On screen',
+  'manual.start.screenText':
+    'The hint at the top centre tells you what to do next.\n{help} = show or hide the help for all controls.\n{view} = switch view: through the angler’s eyes or from above.\n{pause} = pause: settings, how to play and tackle.',
   'manual.section.move': 'Moving',
   'manual.section.spin': 'Spinning',
   'manual.section.fly': 'Fly',

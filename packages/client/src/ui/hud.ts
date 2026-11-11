@@ -649,7 +649,7 @@ function smallText(text: string): HTMLElement {
  * täytetään toimintokartasta (game/controls.ts) pelaajan ohjaustavalla.
  */
 const HELP = {
-  spin: ['help.cast', 'help.castForward', 'help.reel', 'help.gear', 'help.tools'],
+  spin: ['help.castForward', 'help.cast', 'help.reel', 'help.gear', 'help.tools'],
   fly: ['help.flyCast', 'help.flyCast2', 'help.flyStrip', 'help.flyReel', 'help.tools'],
   spectator: ['help.spectate'],
   shore: ['help.walk', 'help.shoreAct'],

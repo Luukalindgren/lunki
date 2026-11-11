@@ -193,7 +193,9 @@ Koodi: `packages/client/src/ui/screens.ts` (`showSettings`, `showPause`).
   (`fullscreenButton`, `ui/fullscreen.ts`) päävalikossa ja tauolla, ei oma
   rivinsä valikossa.
 - **Ohjeet** (`Screens.showManual`, sisältö `ui/manual.ts`, #401) kertovat
-  mekaniikat osioittain päävalikosta ja tauolta. Ohjaus täytetään
+  mekaniikat osioittain päävalikosta ja tauolta. Ensimmäisenä aukeaa Alkuun-osio,
+  joka vie ensikertalaisen samaa polkua kuin opastus (`game/guide.ts`): yksi
+  nappi heittää, kelaa, iskee ja nostaa. Ohjaus täytetään
   `CONTROLS`-kartasta ja vaikeustason luvut `DIFFICULTIES`-taulukosta. Kun
   mekaniikka muuttuu, päivitä sen kuvaus samassa PR:ssä.
 - Varusteet laitetaan kuntoon vain päävalikon Varusteet-näkymässä (#383).

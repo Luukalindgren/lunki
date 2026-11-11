@@ -523,7 +523,7 @@ test('Ohjeet: osiot päävalikosta, ohjaus laitteen mukaan (#401)', async ({ pag
   await page.goto('/');
   await page.getByRole('button', { name: 'Ohjeet', exact: true }).click();
   await expect(page.locator('.screen-panel h2').first()).toHaveText('Ohjeet');
-  await expect(page.locator('.manual h3').first()).toHaveText('Kelluntarengas');
+  await expect(page.locator('.manual h3').first()).toHaveText('Ensimmäinen kala');
   await page.getByRole('button', { name: 'Perho', exact: true }).click();
   await expect(page.locator('.manual h3').first()).toHaveText('Perhoheitto');
   await expect(page.locator('.manual')).toContainText(
