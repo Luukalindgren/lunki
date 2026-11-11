@@ -38,7 +38,10 @@ const DPAD = { up: 'Pad12', down: 'Pad13', left: 'Pad14', right: 'Pad15' } as co
 /** A/✕ ja oikea liipaisin: heitto, kelaus ja nosto kuten välilyönti. */
 const PAD_MAIN = ['Pad0', 'Pad7'];
 
-/** Vasen liipaisin pohjassa ristiohjain zoomaa (muuten se säätää jarrua). */
+/**
+ * Vasen liipaisin pohjassa ristiohjain zoomaa (muuten se säätää jarrua) ja
+ * oikean tatin painallus piilottaa ohjeen (muuten se vaihtaa luotainta).
+ */
 const PAD_ZOOM = 'Pad6';
 
 export const CONTROLS = {
@@ -196,7 +199,14 @@ export const CONTROLS = {
   },
   zoomIn: { keys: [], pad: [DPAD.up], padWith: PAD_ZOOM },
   zoomOut: { keys: [], pad: [DPAD.down], padWith: PAD_ZOOM },
-  help: { keys: ['KeyH'], touch: '?', title: 'touch.helpTitle' },
+  /** Ohje piiloon tai esiin; peliohjaimella vasen liipaisin pohjassa ja oikean tatin painallus. */
+  help: {
+    keys: ['KeyH'],
+    touch: '?',
+    title: 'touch.helpTitle',
+    pad: ['Pad11'],
+    padWith: PAD_ZOOM,
+  },
   pause: { keys: ['Escape'], touch: 'II', title: 'touch.pauseTitle', pad: ['Pad9'] },
   /** Taukovalikossa Backspace tai B/○ jatkaa peliä (muissa valikoissa se palaa takaisin). */
   resume: { keys: ['Backspace'], pad: ['Pad1'] },

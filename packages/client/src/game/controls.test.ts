@@ -153,6 +153,16 @@ describe('toimintokartta', () => {
     expect(zoom.isDown('sprint')).toBe(true);
   });
 
+  it('peliohjaimen yhdistelmä: LT pohjassa oikean tatin painallus piilottaa ohjeen', () => {
+    const sonar = fakeInput(['Pad11'], ['Pad11']);
+    expect(sonar.wasPressed('sonar')).toBe(true);
+    expect(sonar.wasPressed('help')).toBe(false);
+    const help = fakeInput(['Pad6', 'Pad11'], ['Pad11']);
+    expect(help.wasPressed('help')).toBe(true);
+    expect(help.wasPressed('sonar')).toBe(false);
+    expect(bindingText('help', 'pad')).toBe('LT+RS');
+  });
+
   it('kaikki ohjetekstien {toiminnot} ovat kartassa', () => {
     const vars = /\{(\w+(?:\|\w+)*)\}/g;
     for (const [k, text] of Object.entries(fi)) {
