@@ -1867,6 +1867,24 @@ textarea,
   white-space: nowrap;
 }
 
+/* Kisan säännöt tauolla: nimi himmeänä, arvo kirkkaana; rivi katkeaa kohtien välistä. */
+.screen-panel p.pause-rules {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0 14px;
+  margin: 8px 0 0;
+  font-size: 16px;
+}
+
+.pause-rule {
+  white-space: nowrap;
+}
+
+.pause-rule-label {
+  color: #c3cbd2;
+}
+
 /* Lyhyt lista ei tarvitse alareunaan kiinnitystä, joka peittäisi kellon. */
 .screen-panel > .pause-menu:last-child {
   position: static;
@@ -1901,7 +1919,8 @@ textarea,
     margin-top: 4px;
   }
 
-  .screen-panel p.pause-best {
+  .screen-panel p.pause-best,
+  .screen-panel p.pause-rules {
     margin-top: 4px;
   }
 

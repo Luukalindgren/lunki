@@ -48,6 +48,7 @@ import {
   isPlayableSeason,
   isTimeOfDay,
   seasonOf,
+  DEFAULT_SETTINGS,
   isWeatherLevel,
   summarize,
   type CompetitionSettings,
@@ -1916,6 +1917,8 @@ export class Screens {
     clock?: string;
     /** Kisan tilanne: kalat, paino, sija tai aika ja paras kala (#469). */
     status?: RaceStatus | null;
+    /** Kisan säännöt luettavaksi: vaikeus, sää, kausi, voittaja ja kesto. */
+    rules?: CompetitionSettings;
     /** Perukkeen vaihto kesken kisan; katsojalla ei ole varusteita. */
     onTackle?: () => void;
     onSettings: () => void;
@@ -1946,6 +1949,7 @@ export class Screens {
       h('h2', p.multiplayer ? t('pause.menu') : t('pause.title')),
       ...(p.clock ? [h('p', t('pause.clock', { time: p.clock }))] : []),
       ...(p.status ? pauseStatus(p.status) : []),
+      ...(p.rules ? [pauseRules(p.rules)] : []),
       ...(p.multiplayer ? [h('p', t('pause.continues'), 'hint')] : []),
       menu,
       ...this.homeScreenHint(),
@@ -3130,6 +3134,31 @@ function pauseStatus(s: RaceStatus): HTMLElement[] {
       })
     : t('pause.best', { fish, weight });
   return [grid, h('p', best, 'pause-best')];
+}
+
+/**
+ * Kisan säännöt taukovalikossa: vaikeus, sää, kausi ja vuorokaudenaika,
+ * voittaja ja kesto yhtenä rivinä. Kisan aikana niitä ei voi vaihtaa, joten
+ * ne ovat vain luettavissa; valinnat tehdään yksinpelin asetuksissa ja aulassa.
+ */
+function pauseRules(s: CompetitionSettings): HTMLElement {
+  const item = (label: string, value: string) => {
+    const e = h('span', '', 'pause-rule');
+    e.append(h('span', `${label} `, 'pause-rule-label'), value);
+    return e;
+  };
+  const row = h('p', '', 'pause-rules');
+  row.append(
+    item(t('settings.difficultyShort'), difficultyName(s.difficulty)),
+    item(t('settings.weather'), weatherLevelName(s.weather ?? DEFAULT_SETTINGS.weather!)),
+    item(
+      t('settings.season'),
+      `${seasonName(seasonOf(s))}, ${timeOfDayName(s.timeOfDay ?? DEFAULT_SETTINGS.timeOfDay!).toLowerCase()}`,
+    ),
+    item(t('settings.winRule'), winRuleName(s.winRule)),
+    item(t('settings.duration'), durationName(s.durationMinutes)),
+  );
+  return row;
 }
 
 function h(tag: string, text: string, className?: string): HTMLElement {
