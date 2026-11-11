@@ -254,6 +254,7 @@ function startGame(s: CompetitionSettings, seed = devSeed, challenge: Challenge 
     raceSeed,
     LUNKINJARVI,
     net,
+    { overlay: app!, canvas },
   );
   game.setResolution(retro.resolution);
   game.setPovFov(povFov);
@@ -443,12 +444,16 @@ function resultsSummary(g: Game, s: NetSession | null): ResultsSummary {
   const rows = s
     ? s.results()
     : [{ id: myId, name: t('common.youCapital'), catches: g.competition.catches }];
-  const entrants: AwardEntrant[] = rows.map((r) => ({
-    id: r.id,
-    name: r.name,
-    catches: r.catches,
-    stats: r.id === myId ? own : (s?.raceStats.get(r.id) ?? null),
-  }));
+  const entrants: AwardEntrant[] = [
+    ...rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      catches: r.catches,
+      stats: r.id === myId ? own : (s?.raceStats.get(r.id) ?? null),
+    })),
+    // Yksinpelin botit (#624) ovat mukana palkinnoissa ja tilastoissa.
+    ...(g.soloBots?.entrants() ?? []),
+  ];
   const mine = entrants.find((e) => e.id === myId);
   // Katsoja ei kalastanut: kisaa ei lasketa omiin tilastoihin.
   if (lifeRecordedFor !== g && mine) {
@@ -484,6 +489,29 @@ function showResults() {
       card,
       game.raceMap(),
       resultsSummary(game, s),
+    );
+    return;
+  }
+  if (game.soloBots) {
+    // Botteja vastaan (#624): sama tulossivu kuin moninpelissä.
+    const s = game.settings;
+    screens.showRaceResults(
+      game.soloBots.standings(),
+      {
+        ...s,
+        durationMinutes: isUntimed(s)
+          ? Math.round(game.competition.elapsed / 60)
+          : s.durationMinutes,
+      },
+      'me',
+      true,
+      () => startGame(s),
+      () => showMenu(),
+      undefined,
+      undefined,
+      card,
+      game.raceMap(),
+      resultsSummary(game, null),
     );
     return;
   }

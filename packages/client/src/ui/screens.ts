@@ -27,6 +27,9 @@ import {
   LATE_JOIN_OPTIONS,
   BOT_FILL_OPTIONS,
   BOT_LEVEL_OPTIONS,
+  isBotLevel,
+  isBotId,
+  type BotLevel,
   BOAT_CREW,
   BOAT_TUBE,
   CRAFT_IDS,
@@ -137,6 +140,7 @@ import {
   type TackleBox,
 } from '../game/tackleBox';
 import { baitSummary, loadJournal, type BaitSummary } from '../game/journal';
+import { SOLO_BOT_COUNTS, isSoloBotCount } from '../game/soloBots';
 import { COMPACT_RESULTS_OVER, resultsText, rulesLine } from './resultsText';
 import {
   colorName,
@@ -333,6 +337,8 @@ export function loadSettings(defaults: CompetitionSettings): CompetitionSettings
           : defaults.landPenalty,
         start: isPoint(s.start) ? { x: s.start.x, y: s.start.y } : null,
         inflate: s.inflate === true,
+        soloBots: isSoloBotCount(s.soloBots) ? s.soloBots : 0,
+        botLevel: isBotLevel(s.botLevel) ? s.botLevel : 'mixed',
       };
     }
   } catch {
@@ -684,6 +690,27 @@ export class Screens {
         (v) => (settings.landPenalty = Number(v)),
       ),
       h('p', t('settings.hazardHint'), 'hint'),
+      // Botit (#624): taito näkyy vain, kun botteja on.
+      this.choice(
+        t('settings.soloBots'),
+        SOLO_BOT_COUNTS.map((n) => [String(n), n === 0 ? t('settings.soloBotsNone') : String(n)]),
+        String(settings.soloBots ?? 0),
+        (v) => {
+          settings.soloBots = Number(v);
+          reopen();
+        },
+      ),
+      ...(settings.soloBots
+        ? [
+            this.choice(
+              t('settings.botLevel'),
+              BOT_LEVEL_OPTIONS.map((o) => [o.value, botLevelName(o.value)]),
+              settings.botLevel ?? 'mixed',
+              (v) => (settings.botLevel = v as BotLevel),
+            ),
+          ]
+        : []),
+      h('p', t('settings.soloBotsHint'), 'hint'),
       this.choice(
         t('settings.craft'),
         CRAFT_IDS.map((c) => [c, craftName(c)]),
@@ -2058,7 +2085,7 @@ export class Screens {
   /** Moninpelin lopputulokset voittoehdon mukaan. */
   showRaceResults(
     results: PlayerResult[],
-    settings: RoomSettings,
+    settings: CompetitionSettings,
     myId: string,
     amHost: boolean,
     onRestart: () => void,
@@ -2096,7 +2123,11 @@ export class Screens {
     // paino jää piiloon ja kalan kuva mahtuu rivin perään.
     const shortName = (name: string) =>
       name.length > RESULT_NAME_MAX ? `${name.slice(0, RESULT_NAME_MAX - 1)}…` : name;
-    const nameWidth = Math.max(...results.map((r) => shortName(r.name).length));
+    // Botin (#624) merkintä on rivin lopussa, ettei se katkea nimen lyhennykseen.
+    const botSuffix = t('results.bot', { name: '' });
+    const rowName = (r: PlayerResult) =>
+      isBotId(r.id) && r.name.endsWith(botSuffix) ? r.name.slice(0, -botSuffix.length) : r.name;
+    const nameWidth = Math.max(...results.map((r) => shortName(rowName(r)).length));
     table.classList.toggle('compact', compact);
     for (const r of results) {
       const li = document.createElement('li');
@@ -2105,16 +2136,18 @@ export class Screens {
       // Saaliittomalle viiva kuten kisan taulussa (#528).
       li.classList.toggle('unranked', rankLabel(r) === '–');
       const biggest = r.summary.biggest ? formatWeight(r.summary.biggest.weight) : '–';
-      const text = t('results.row', {
-        name: shortName(r.name).padEnd(nameWidth),
-        count: String(r.summary.count).padStart(2),
-        total: formatWeight(r.summary.total).padStart(8),
-        biggest,
-      });
+      const name = rowName(r);
+      const text =
+        t('results.row', {
+          name: shortName(name).padEnd(nameWidth),
+          count: String(r.summary.count).padStart(2),
+          total: formatWeight(r.summary.total).padStart(8),
+          biggest,
+        }) + (name === r.name ? '' : ` · ${t('results.botTag')}`);
       const gear = tackles?.get(r.id);
       const big = r.summary.biggest;
       const row = resultRow(text, big ? sizedFish(big.species, big.weight) : null);
-      if (shortName(r.name) !== r.name) row.title = r.name;
+      if (shortName(name) !== r.name) row.title = r.name;
       li.append(row);
       if (gear && !compact) li.append(h('span', describeFullTackle(gear), 'player-gear'));
       // Venekunta: joukkueen kalastajat veneen nimen alle.
@@ -3125,7 +3158,7 @@ function waveTitle(text: string): HTMLElement {
  * Kopioi tulokset (#507): nappi tulosten alle. Suojaamattomalla http-sivulla
  * (LAN-peli) leikepöytää ei ole, joten teksti tulee valittavaksi kenttään.
  */
-function copyResults(results: readonly PlayerResult[], settings: RoomSettings): HTMLElement {
+function copyResults(results: readonly PlayerResult[], settings: CompetitionSettings): HTMLElement {
   const box = h('div', '', 'results-copy-row');
   const field = document.createElement('textarea');
   field.className = 'results-copy';

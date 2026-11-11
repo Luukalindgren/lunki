@@ -48,6 +48,9 @@ import {
   type TubeState,
   RaceStatsCounter,
   type RaceStats,
+  isBotLevel,
+  type FishConditions,
+  type FishTag,
 } from '@lunki/shared';
 import type { Input } from '../engine/input';
 import { Controls, controlText, type ShoreMain } from './controls';
@@ -100,6 +103,7 @@ import { bottomFor } from '../world/lakeData';
 import { t } from '../i18n';
 import { CraftController, type CraftHost } from './craftController';
 import { FishingController, SOLO_ID, type FishingHost } from './fishingController';
+import { SoloBots, isSoloBotCount } from './soloBots';
 import { raceStatus, type RaceStatus } from './raceStatus';
 import { HudPresenter, type HudHost } from './hudPresenter';
 import { NetBridge, type NetHost, type NetLink } from './netBridge';
@@ -209,6 +213,8 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
   private readonly presenter: HudPresenter;
   /** Moninpelin kytkentä; yksinpelissä null. */
   private readonly net: NetBridge | null = null;
+  /** Yksinpelin botit (#624); moninpelissä botit ovat palvelimella. */
+  readonly soloBots: SoloBots | null = null;
   private povTubeTime = performance.now();
   /** Ohjaajan kuva nyt (#564); pelaajalla ja käsiohjauksessa null. */
   private shot: Shot | null = null;
@@ -227,6 +233,8 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     seed = Date.now() >>> 0,
     readonly map: LakeMap = LUNKINJARVI,
     link?: NetLink,
+    /** Nimilappujen kerros ja canvas yksinpelin boteille; valikon taustalla ei ole. */
+    private readonly stage?: Pick<NetLink, 'overlay' | 'canvas'>,
   ) {
     this.netWorld = link?.world;
     this.controls = new Controls(input);
@@ -321,6 +329,17 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       this.scene.add(this.net.knots.group, this.net.remoteView.group);
       link.world.enableAnchor((p) => this.bottom.depthAt(p));
     }
+    const bots = settings.soloBots ?? 0;
+    if (!link && stage && isSoloBotCount(bots) && bots > 0) {
+      this.soloBots = new SoloBots(
+        this,
+        bots,
+        isBotLevel(settings.botLevel) ? settings.botLevel : 'mixed',
+        seed,
+        stage.overlay,
+      );
+      this.scene.add(this.soloBots.remoteView.group);
+    }
     if (this.spectating) {
       this.tubeMesh.visible = false;
       this.fishingView.group.visible = false;
@@ -390,6 +409,25 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
   /** Tuuli nyt (m/s); kisan päätyttyä tyyntä. */
   get wind(): Vec2 {
     return this.weather.wind;
+  }
+
+  /** Ukkonen nyt (yksinpelin botit kelaavat sisään). */
+  get thunder(): boolean {
+    return this.weather.now.sky === 'thunder';
+  }
+
+  /** Kalojen olot nyt: sää, valo ja kausi. */
+  get conditions(): FishConditions {
+    return fishConditions(
+      this.competition.finished ? null : this.weatherNow,
+      this.daylight,
+      this.season,
+    );
+  }
+
+  /** Pelaaja nosti kalan: yksinpelin botit eivät saa samaa. */
+  fishTaken(tag: FishTag): void {
+    this.soloBots?.ownCatch(tag);
   }
 
   get weatherNow() {
@@ -665,7 +703,9 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       this.birds.nearestLoon(this.ear),
     );
     this.craft.paddleSounds();
+    this.soloBots?.update(dt);
     if (net) presenter.updateRaceHud();
+    else if (this.soloBots) presenter.showScoreboard(this.soloBots.standings(), SOLO_ID);
     else presenter.showSoloCatches();
     this.hud.update(dt);
   }
@@ -742,6 +782,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     if (this.net) return this.net.logRace();
     this.raceLog.sample(this.competition.elapsed, [
       { id: SOLO_ID, name: t('common.youCapital'), pos: this.tube.pos },
+      ...(this.soloBots?.routes() ?? []),
     ]);
   }
 
@@ -750,7 +791,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
    * vieheen molskahdusta, lokit ja sääksi lukevat kalakannan syönnin.
    */
   private updateBirds(dt: number): void {
-    const crafts = this.netWorld ? this.netWorld.others().map((o) => o.pos) : [];
+    const crafts = (this.netWorld?.others() ?? this.soloBots?.others() ?? []).map((o) => o.pos);
     if (!this.spectating) crafts.push(this.tube.pos);
     const f = this.fishing;
     this.birds.update(dt, {
@@ -778,7 +819,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     const w = this.netWorld;
     return raceStatus(
       this.competition,
-      w ? w.standings() : null,
+      w ? w.standings() : (this.soloBots?.standings() ?? null),
       w ? w.myId : SOLO_ID,
       this.angler.baits,
     );
@@ -792,7 +833,10 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     const d = this.raceLog.data();
     const kept = this.netWorld
       ? this.netWorld.results().flatMap((r) => r.catches.map((c) => ({ ...c, id: r.name })))
-      : this.competition.catches.map((c) => ({ ...c, id: SOLO_ID }));
+      : [
+          ...this.competition.catches.map((c) => ({ ...c, id: SOLO_ID })),
+          ...(this.soloBots?.catches() ?? []),
+        ];
     const counts = (m: { id: string; time: number; weight: number }) =>
       kept.some((c) => c.id === m.id && c.time === m.time && c.weight === m.weight);
     return { ...d, catches: d.catches.filter(counts) };
@@ -1022,6 +1066,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     this.ownBubble?.remove();
     this.boatsView.dispose();
     this.net?.dispose();
+    this.soloBots?.dispose();
     // Jaettu maailma, vesimaski ja syvyystekstuuri jäävät seuraavalle pelille.
     if (this.world.pov.parent === this.scenery)
       for (const g of [this.world.pov, this.world.top, this.world.always]) g.removeFromParent();
@@ -1276,6 +1321,14 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       remote.heightAt = groundAt;
       remote.pixel = remote.pov ? this.pov.pixelSize : this.view.metersPerPixel;
       remote.update(shown, this.camera, this.net.link.canvas, this.tube.pos);
+    }
+    const bots = this.soloBots;
+    if (bots) {
+      const remote = bots.remoteView;
+      remote.pov = this.viewMode === 'pov';
+      remote.heightAt = groundAt;
+      remote.pixel = remote.pov ? this.pov.pixelSize : this.view.metersPerPixel;
+      remote.update(bots.others(), this.camera, this.stage!.canvas, this.tube.pos);
     }
     this.anchorView.update(anchored);
     this.placeOwnBubble();

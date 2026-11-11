@@ -258,6 +258,10 @@ export const fi = {
   'settings.lateJoin': 'Liittyminen kesken kisan',
   'settings.bots': 'Tyhjät paikat',
   'settings.botLevel': 'Bottien taito',
+  'settings.soloBots': 'Botit',
+  'settings.soloBotsNone': 'Ei',
+  'settings.soloBotsHint':
+    'Botit kalastavat järvellä kanssasi samoilla säännöillä ja voivat voittaa kisan. Omat saaliisi menevät ennätyslistalle kuten ennenkin.',
   'settings.botsHint':
     'Botit täyttävät tyhjät kalastajapaikat ja kalastavat kuin pelaajat: ne potkivat, heittävät, sotkevat siimoja ja voivat voittaa kisan. Liittyvä pelaaja saa botin paikan. Bottien saaliit eivät mene ennätyslistalle.',
   'settings.lateJoinHint':
@@ -561,6 +565,7 @@ export const fi = {
   'fullscreen.homeScreenHint':
     'Koko näyttö iPhonella: Safarin Jaa-valikosta ”Lisää Koti-valikkoon” ja avaa peli kuvakkeesta.',
   'results.bot': '{name} (botti)',
+  'results.botTag': 'botti',
   'results.left': '{name} (lähti)',
   'results.raceOver': 'Kisa päättyi!',
   'results.winner': 'Voittaja: {name} ({weight})',
@@ -1228,7 +1233,7 @@ export const fi = {
     'Ristiin menneet siimat sotkeutuvat, kun jompikumpi kelaa. Sotkussa kalaa ei voi nostaa.\nKelatkaa yhdessä, niin sotku selviää nopeammin, tai {cut} = katkaise oma siimasi.',
   'manual.mp.bots': 'Botit',
   'manual.mp.botsText':
-    'Huoneen luoja voi antaa bottien täyttää tyhjät kalastajapaikat (Tyhjät paikat: Botit täyttävät). Botit kalastavat samoilla säännöillä kuin pelaajat: ne potkivat paikasta toiseen, heittävät, väsyttävät kalansa, näyttävät käsimerkkejä ja voivat sotkea siimasi tai voittaa kisan.\nBottien taito valitaan aulassa. Aloittelija heittää minne sattuu ja hakeutuu muiden viereen, tavallinen kalastaa rannan tuntumassa, ja konkari hakee kivikot ja kaislikon reunat ja väistää muita. Sekalaisessa joukossa on kaikkia.\nLiittyvä pelaaja saa botin paikan, myös kesken kisan, jos liittyminen on sallittu. Botit näkyvät tuloksissa merkinnällä (botti), eivätkä niiden saaliit mene ennätyslistalle.',
+    'Huoneen luoja voi antaa bottien täyttää tyhjät kalastajapaikat (Tyhjät paikat: Botit täyttävät). Botit kalastavat samoilla säännöillä kuin pelaajat: ne potkivat paikasta toiseen, heittävät, väsyttävät kalansa, näyttävät käsimerkkejä ja voivat sotkea siimasi tai voittaa kisan.\nBottien taito valitaan aulassa. Aloittelija heittää minne sattuu ja hakeutuu muiden viereen, tavallinen kalastaa rannan tuntumassa, ja konkari hakee kivikot ja kaislikon reunat ja väistää muita. Sekalaisessa joukossa on kaikkia.\nLiittyvä pelaaja saa botin paikan, myös kesken kisan, jos liittyminen on sallittu. Botit näkyvät tuloksissa merkinnällä (botti), eivätkä niiden saaliit mene ennätyslistalle.\nYksinpelissä botteja saa järvelle 3, 7 tai 11 (Yksinpelin asetukset: Botit). Ne kalastavat samoin ja näkyvät tulostaulussa, mutta siimat eivät yksinpelissä sotkeudu.',
   'manual.mp.watch': 'Katsojana ja isolla näytöllä',
   'manual.mp.watchText':
     'Katsojalla automaattinen ohjaaja valitsee kuvan kuten urheilulähetyksessä: kala kiinni, väsytys, saalis, johtoon nousu, sotku ja kaatuminen vievät kuvan sinne, missä tapahtuu. Väsytys näkyy ensin ylhäältä ja sitten kalastajan silmin, ja välillä näytetään yleiskuva kaikista. Tulostaulussa ovat kaikki, ja alaotsikko kertoo, kuka on kuvassa ja miksi.\n{spectate} = valitse kalastaja itse, {view} = näkymä (ohjaaja jatkaa puolen minuutin päästä), {director} = ohjaaja päälle tai pois.\nIsolle näytölle tai videotykille: kirjoita Moninpeli-valikossa huonekoodi ja paina Iso näyttö (tai avaa osoite, jonka lopussa on ?lahetys=LUNKI-XXXX). Kone liittyy huoneeseen suoraan katsojaksi.',

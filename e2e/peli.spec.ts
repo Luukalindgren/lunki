@@ -320,6 +320,31 @@ test('yksinpeli ilman aikarajaa ja ajastettuna (#360)', async ({ page, isMobile 
   errors.check();
 });
 
+test('yksinpelin botit: tulostaulu kisassa ja tulossivulla (#624)', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'puhelimet: sama näkymä, tauko kosketusnapista');
+  const errors = watchErrors(page);
+  await page.goto(soloUrl('top'));
+  await page.getByRole('button', { name: 'Pelaa' }).click();
+  await page.getByRole('button', { name: 'Yksinpeli' }).click();
+  const row = (label: string) =>
+    page.locator('.choice', { has: page.locator('.choice-label', { hasText: label }) });
+  await expect(row('Bottien taito')).toHaveCount(0);
+  await row('Botit').getByRole('button', { name: '3', exact: true }).click();
+  await expect(row('Bottien taito')).toBeVisible();
+  await page.getByRole('button', { name: 'Aloita kisa' }).click();
+  await raceRunning(page);
+  // Kolme bottia ja pelaaja tulostaulussa.
+  await expect(page.locator('.hud-catches')).toContainText('Tulostaulu');
+  await expect(page.locator('.hud-catches')).toContainText('Sinä');
+  await expect(page.locator('.name-tag')).not.toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: /^Lopeta/ }).click();
+  await expect(page.getByRole('heading', { name: 'Kisa päättyi!' })).toBeVisible();
+  await expect(page.locator('.catch-list.results li')).toHaveCount(4);
+  await expect(page.locator('.catch-list.results')).toContainText('botti');
+  errors.check();
+});
+
 test('sama kisa uudelleen ja haastelinkki (#413)', async ({ page, isMobile }) => {
   test.skip(isMobile, 'puhelimet: sama näkymä, tauko kosketusnapista');
   const errors = watchErrors(page);

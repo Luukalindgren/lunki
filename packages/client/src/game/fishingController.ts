@@ -32,6 +32,7 @@ import {
   type WaterBody,
   type WeatherNow,
   type RaceStatsCounter,
+  type FishTag,
 } from '@lunki/shared';
 import type { Sounds } from '../audio/sounds';
 import type { Input } from '../engine/input';
@@ -79,6 +80,8 @@ export interface FishingHost {
   readonly hud: Hud;
   readonly sounds: Sounds;
   readonly netWorld: NetWorld | undefined;
+  /** Oma saalis nousi: yksinpelin botit menettävät saman kalan (#624). */
+  fishTaken(tag: FishTag): void;
   readonly input: Input;
   readonly controls: Controls;
   readonly screenToInternal: (x: number, y: number) => { x: number; y: number };
@@ -633,6 +636,7 @@ export class FishingController {
     const { hud, sounds } = host;
     const net = host.netWorld;
     net?.sendCatch(caught);
+    if (caught.fish) host.fishTaken(caught.fish);
     const earlier = [...host.competition.catches];
     const record = recordCatch(host.competition, caught, host.tube.pos);
     const waited = record ? record.time - (earlier.at(-1)?.time ?? 0) : 0;
