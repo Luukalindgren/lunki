@@ -1010,7 +1010,8 @@ export const fi = {
   'game.onReel': 'Löysät kelalla – väsytä jarrulla',
   'game.flyTangle': 'Löysä siima sotkeutui heitossa!',
   'game.flyChanged': 'Perho: {fly}',
-  'game.flyCastButtons': '{lineGrip} pohjassa = siimakäsi\n{haul} = veto · {cancel} = peru',
+  'game.flyCastButtons':
+    '{lineGrip}: pidä liikkeen ajan, päästä siiman lentäessä = lisää siimaa\n{haul} liikkeessä = veto · {cancel} = peru',
   'game.flyCastKeys': '{castForward}, kun siima suoristuu · {cancel} = keskeytä',
   'game.flyUntangle': 'Irrotetaan perhoa… {s} s',
   'game.flyNow': 'NYT!',
@@ -1154,10 +1155,10 @@ export const fi = {
     'Perhoa heitetään edestakaisin: takaheitto, eteenheitto ja niin edelleen, kunnes siima laskeutuu eteen.\n{backCast} = takaheitto, {forwardCast} = eteenheitto. Sivuliike kääntää heiton suuntaa.\nJokainen liike päättyy terävään pysäytykseen. Odota, että siima suoristuu (nykäys ja sivukuvan "nyt"), ja tee sitten vastakkainen liike.\nLyhyellä siimalla tehdään pieni liike, pitkällä laaja.\n{castForward} = rytmiheitto: jokainen painallus vaihtaa suuntaa. Ajoita painallus siiman suoristumiseen.\n{cancel} = peru heitto, {flyPanel} = sivukuva heitosta',
   'manual.fly.hand': 'Siimakäsi ja ampuminen',
   'manual.fly.handText':
-    'Siimakäsi toimii itsestään: se pitää siimaa liikkeen ajan ja pidentää sitä silmukoiden auetessa.\n{lineGrip} pohjassa = siimakäsi on sinun. Jos käsi on auki liikkeen aikana, vapa ei lataudu.\nPäästä käsi irti silmukan auetessa, niin siimaa luistaa ulos. Viimeisen eteenheiton jälkeen irti päästetty käsi ampuu löysän siiman perään.',
+    'Siimakäsi toimii itsestään: se pitää siimaa liikkeen ajan ja pidentää sitä silmukoiden auetessa, kunnes ilmassa on {auto} m. Rytmiheitto toimii samoin.\n{lineGrip} pohjassa = siimakäsi on sinun. Omalla kädellä siimaa saa ilmaan {max} m, eli heitto kantaa pidemmälle.\nPidä käsi kiinni vavan liikkeen ajan: jos se on auki, vapa ei lataudu. Päästä irti heti pysäytyksen jälkeen, kun siima lentää, niin siimaa luistaa ulos. Eteenheitossa sitä lähtee yli kaksi kertaa niin paljon kuin takaheitossa. Purista taas ennen seuraavaa liikettä.\nJos pidät kättä kiinni koko ajan, siima ei pitene lainkaan. Helpolla siimaa luistaa silmukoissa myös kiinni olevasta kädestä.',
   'manual.fly.haul': 'Veto ja tuplaveto',
   'manual.fly.haulText':
-    '{haul} vavan liikkeen aikana = siimakäden veto: siima lähtee nopeammin, ja heitto pitenee.\nTuplaveto on veto sekä takaheitossa että eteenheitossa. Hetkeä ennen liikettä painettu veto lasketaan vielä mukaan.\nOsunut veto kuuluu äänenä ja näkyy sivukuvassa. Rytmiheitossa vetoa ei ole.',
+    '{haul} vavan liikkeen aikana = siimakäden veto: siima lähtee neljänneksen nopeammin. Silmukka aukeaa nopeammin, ja pitkä siima jaksaa suoristua eikä luhistu. Heiton pituutta veto ei lisää, vaan sen ratkaisee ilmassa olevan siiman määrä.\nTuplaveto on veto sekä takaheitossa että eteenheitossa. Hetkeä ennen liikettä painettu veto lasketaan vielä mukaan.\nOsunut veto kuuluu äänenä ja näkyy sivukuvassa. Rytmiheitossa vetoa ei ole.',
   'manual.fly.errors': 'Heiton virheet',
   'manual.fly.errorsText':
     'Liian aikainen suunnan vaihto läimäyttää siimaa kuin piiskaa. Realistisella perho voi katketa.\nLiian myöhään takaheitto putoaa veteen.\nLiian heikko liike pitkälle siimalle luhistuu, ja laaja liike tai laimea pysäytys tekee leveän, heikon silmukan.\nTakaheitto rantaan tai kaislikkoon jättää perhon hetkeksi kiinni.\nHelpolla ajoitus on väljä ja siima pitenee itse. Realistisella "nyt"-merkkiä ei ole.',

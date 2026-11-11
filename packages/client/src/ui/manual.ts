@@ -10,6 +10,7 @@ import {
   SPECIES,
 } from '@lunki/shared';
 import { controlText, type ControlMode } from '../game/controls';
+import { KEY_TARGET_LINE } from '../game/flyCastControl';
 import { FRONT } from '../game/stormFront';
 import { shortDecimal, t, type MsgKey } from '../i18n';
 
@@ -120,7 +121,11 @@ const TOPICS: Record<ManualSection, readonly Topic[]> = {
   ],
   fly: [
     { title: 'manual.fly.cast', text: 'manual.fly.castText' },
-    { title: 'manual.fly.hand', text: 'manual.fly.handText' },
+    {
+      title: 'manual.fly.hand',
+      text: 'manual.fly.handText',
+      vars: () => ({ auto: KEY_TARGET_LINE, max: FLY_CAST.maxAerial }),
+    },
     { title: 'manual.fly.haul', text: 'manual.fly.haulText' },
     { title: 'manual.fly.errors', text: 'manual.fly.errorsText' },
     {

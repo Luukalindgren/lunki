@@ -1003,7 +1003,8 @@ export const en: Record<keyof typeof fi, string> = {
   'game.onReel': 'Slack on the reel – fight with the drag',
   'game.flyTangle': 'The slack line tangled in the cast!',
   'game.flyChanged': 'Fly: {fly}',
-  'game.flyCastButtons': '{lineGrip} held = line hand\n{haul} = haul · {cancel} = cancel',
+  'game.flyCastButtons':
+    '{lineGrip}: hold during the stroke, release as the line flies = more line\n{haul} in a stroke = haul · {cancel} = cancel',
   'game.flyCastKeys': '{castForward} when the line straightens · {cancel} = cancel',
   'game.flyUntangle': 'Freeing the fly… {s} s',
   'game.flyNow': 'NOW!',
@@ -1148,10 +1149,10 @@ export const en: Record<keyof typeof fi, string> = {
     'A fly is cast back and forth: back cast, forward cast and so on, until the line lands in front.\n{backCast} = back cast, {forwardCast} = forward cast. Moving sideways turns the cast.\nEvery stroke ends in a crisp stop. Wait for the line to straighten (a tug and "now" in the side view), then make the opposite stroke.\nA short line needs a small stroke, a long line a wide one.\n{castForward} = rhythm cast: each press switches direction. Time it to the line straightening.\n{cancel} = cancel the cast, {flyPanel} = side view of the cast',
   'manual.fly.hand': 'Line hand and shooting',
   'manual.fly.handText':
-    'The line hand works by itself: it grips the line during strokes and lengthens it as the loops unroll.\nHold {lineGrip} = the line hand is yours. If the hand is open during a stroke, the rod does not load.\nRelease the hand as a loop unrolls to let line slip out. Releasing it after the last forward cast shoots the slack after the fly.',
+    'The line hand works by itself: it grips the line during strokes and lengthens it as the loops unroll, until {auto} m is in the air. The rhythm cast does the same.\nHold {lineGrip} = the line hand is yours. With your own hand you can carry {max} m in the air, so the cast reaches further.\nKeep the hand closed during the rod stroke: if it is open, the rod does not load. Release right after the stop, while the line flies, and line slips out. A forward cast lets out more than twice as much as a back cast. Grip again before the next stroke.\nIf you keep the hand closed all the time, the line does not lengthen at all. On Easy, line slips in the loops even from a closed hand.',
   'manual.fly.haul': 'Haul and double haul',
   'manual.fly.haulText':
-    '{haul} during a rod stroke = haul: the line goes faster and the cast is longer.\nA double haul is a haul on both the back and the forward cast. A haul pressed just before the stroke still counts.\nA hit haul makes a sound and shows in the side view. The rhythm cast has no haul.',
+    '{haul} during a rod stroke = haul: the line goes a quarter faster. The loop unrolls sooner, and a long line straightens instead of collapsing. A haul does not make the cast longer: the length comes from how much line is in the air.\nA double haul is a haul on both the back and the forward cast. A haul pressed just before the stroke still counts.\nA hit haul makes a sound and shows in the side view. The rhythm cast has no haul.',
   'manual.fly.errors': 'Casting faults',
   'manual.fly.errorsText':
     'Changing direction too early cracks the line like a whip. On Realistic the fly may snap off.\nToo late, and the back cast falls in the water.\nA stroke too weak for a long line collapses, and a wide stroke or a soft stop makes a wide, weak loop.\nA back cast into the shore or reeds snags the fly for a moment.\nOn Easy the timing is loose and the line lengthens by itself. On Realistic there is no "now" marker.',
