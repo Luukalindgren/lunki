@@ -44,7 +44,9 @@ const OAR = 2.3;
 // Puuvene: sisäpinta vaaleampaa ruskeaa kuin pohja ja tuhdot. Varjostus
 // palettirampeilla (SHADE_RAMPS): auringon puoli vaalea ja varjon puoli
 // tummempi ruskea; tavallinen valaistus pyöristyi paletissa keltaiseksi.
-const COLOR = { lining: 0x8a6a42, wood: 0x5e432b, oar: 0xb98a4e } as const;
+// Pohja on tummin: ylhäältä ja POV:sta laita, tuhto ja pohja erottuvat kolmena
+// ruskeana. Samalla sävyllä laidan varjopuoli ja pohja sulivat yhdeksi pinnaksi.
+const COLOR = { lining: 0x8a6a42, wood: 0x5e432b, floor: 0x3b2a1e, oar: 0xb98a4e } as const;
 /** Pohjavesi täyttökisan veneessä: järven sininen (harmaa sävy pyöristyi harmaaksi). */
 const BILGE_COLOR = 0x2b7aa6;
 
@@ -145,10 +147,12 @@ export function createBoatMesh(color: number): THREE.Group {
   });
   const lining = outline(WALL * 0.4);
   lining.holes.push(outline(WALL));
-  const hull = new THREE.Mesh(extrude(lining, GUNWALE + 0.1), hullMat);
+  // Laidan sisäpinta valaistaan kuin yläpinta (kuten reunalista): se pysyy
+  // tuhtoja ja pohjaa vaaleampana auringon suunnasta riippumatta.
+  const hull = new THREE.Mesh(liftNormals(extrude(lining, GUNWALE + 0.1), 100), hullMat);
   hull.position.y = -0.1;
   group.add(hull);
-  const floor = new THREE.Mesh(extrude(outline(WALL), 0.02), wood);
+  const floor = new THREE.Mesh(extrude(outline(WALL), 0.02), playerColorMaterial(COLOR.floor));
   floor.position.y = FLOOR;
   group.add(floor);
 
