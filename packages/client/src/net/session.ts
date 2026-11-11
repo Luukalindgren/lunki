@@ -782,7 +782,7 @@ export class NetSession {
     });
     // Lähteneet pysyvät listalla ilman saalistakin.
     s.departed?.forEach((d, id) =>
-      rows.set(id, { id, name: departedName(d), catches: [], left: d.early }),
+      rows.set(id, { id, name: departedName(id, d), catches: [], left: d.early }),
     );
     for (const c of s.catches) {
       let row = rows.get(c.player);
@@ -813,7 +813,7 @@ export class NetSession {
       if (!p.spectator) players.push({ id, name: botLabel(id, p.name), boat: p.boat ?? 0 });
     });
     s.departed?.forEach((d, id) =>
-      players.push({ id, name: departedName(d), boat: d.boat ?? 0, left: d.early }),
+      players.push({ id, name: departedName(id, d), boat: d.boat ?? 0, left: d.early }),
     );
     const catches = [...s.catches].map((c) => ({
       species: c.species as SpeciesId,
@@ -838,9 +838,14 @@ export class NetSession {
 const botLabel = (id: string, name: string): string =>
   isBotId(id) ? t('results.bot', { name }) : name;
 
-/** Kesken kisan lähteneen nimi tulostaulussa: "Ville (lähti)". */
-const departedName = (d: { name: string; early: boolean }): string =>
-  d.early ? t('results.left', { name: d.name }) : d.name;
+/**
+ * Kesken kisan lähteneen nimi tulostaulussa: "Ville (lähti)". Paikkansa
+ * liittyjälle luovuttanut botti pysyy bottina: "Kuha-Kalle (botti) (lähti)" (#631).
+ */
+const departedName = (id: string, d: { name: string; early: boolean }): string => {
+  const name = botLabel(id, d.name);
+  return d.early ? t('results.left', { name }) : name;
+};
 
 const RESUME_KEY = 'lunki.resume';
 

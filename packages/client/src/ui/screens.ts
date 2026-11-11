@@ -28,7 +28,6 @@ import {
   BOT_FILL_OPTIONS,
   BOT_LEVEL_OPTIONS,
   isBotLevel,
-  isBotId,
   type BotLevel,
   BOAT_CREW,
   BOAT_TUBE,
@@ -141,7 +140,7 @@ import {
 } from '../game/tackleBox';
 import { baitSummary, loadJournal, type BaitSummary } from '../game/journal';
 import { SOLO_BOT_COUNTS, isSoloBotCount } from '../game/soloBots';
-import { COMPACT_RESULTS_OVER, resultsText, rulesLine } from './resultsText';
+import { COMPACT_RESULTS_OVER, resultRowName, resultsText, rulesLine } from './resultsText';
 import {
   colorName,
   describeFullTackle,
@@ -2123,11 +2122,8 @@ export class Screens {
     // paino jää piiloon ja kalan kuva mahtuu rivin perään.
     const shortName = (name: string) =>
       name.length > RESULT_NAME_MAX ? `${name.slice(0, RESULT_NAME_MAX - 1)}…` : name;
-    // Botin (#624) merkintä on rivin lopussa, ettei se katkea nimen lyhennykseen.
-    const botSuffix = t('results.bot', { name: '' });
-    const rowName = (r: PlayerResult) =>
-      isBotId(r.id) && r.name.endsWith(botSuffix) ? r.name.slice(0, -botSuffix.length) : r.name;
-    const nameWidth = Math.max(...results.map((r) => shortName(rowName(r)).length));
+    // Botin (#624) ja lähteneen merkintä on rivin lopussa, ettei se katkea nimen lyhennykseen.
+    const nameWidth = Math.max(...results.map((r) => shortName(resultRowName(r).name).length));
     table.classList.toggle('compact', compact);
     for (const r of results) {
       const li = document.createElement('li');
@@ -2136,14 +2132,14 @@ export class Screens {
       // Saaliittomalle viiva kuten kisan taulussa (#528).
       li.classList.toggle('unranked', rankLabel(r) === '–');
       const biggest = r.summary.biggest ? formatWeight(r.summary.biggest.weight) : '–';
-      const name = rowName(r);
+      const { name, tags } = resultRowName(r);
       const text =
         t('results.row', {
           name: shortName(name).padEnd(nameWidth),
           count: String(r.summary.count).padStart(2),
           total: formatWeight(r.summary.total).padStart(8),
           biggest,
-        }) + (name === r.name ? '' : ` · ${t('results.botTag')}`);
+        }) + tags.map((tag) => ` · ${tag}`).join('');
       const gear = tackles?.get(r.id);
       const big = r.summary.biggest;
       const row = resultRow(text, big ? sizedFish(big.species, big.weight) : null);
