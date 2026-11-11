@@ -131,9 +131,17 @@ const TOPICS: Record<ManualSection, readonly Topic[]> = {
     {
       title: 'manual.fly.hand',
       text: 'manual.fly.handText',
-      vars: () => ({ auto: KEY_TARGET_LINE, max: FLY_CAST.maxAerial }),
+      vars: () => ({
+        auto: KEY_TARGET_LINE,
+        max: FLY_CAST.maxAerial,
+        hauled: FLY_CAST.maxHauled,
+      }),
     },
-    { title: 'manual.fly.haul', text: 'manual.fly.haulText' },
+    {
+      title: 'manual.fly.haul',
+      text: 'manual.fly.haulText',
+      vars: () => ({ max: FLY_CAST.maxAerial, hauled: FLY_CAST.maxHauled }),
+    },
     { title: 'manual.fly.errors', text: 'manual.fly.errorsText' },
     {
       title: 'manual.fly.strip',

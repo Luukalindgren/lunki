@@ -396,10 +396,12 @@ tiedostossa `flyCast.ts`, vaikeustasojen avut `flyCast` tiedostossa `difficulty.
   nopeudesta (helpolla itsestään). Viimeisessä eteenheitossa avoin käsi ampuu siimaa 80 %
   nopeudesta. Ilmassa enintään 22 m, eli heitto renkaasta noin 25 m. Luistava siima tulee ensin
   renkaan edestä löysästä.
+- Siimakäden veto (#622) nopeuttaa siimaa 25 % ja pidentää heittoa: vedetyn liikkeen silmukassa
+  siimaa luistaa 25 % enemmän, ja ilmassa kantaa 27 m.
 - Vedestä heittoon nostetaan enintään 10 m siimaa (hiiren oikea uiton aikana). Siima vedessä ja
   eteenpäin liike = rullaheitto, enintään 12 m.
 - Välilyönnillä rytmiheitto: jokainen painallus tekee taka- tai eteenheiton ihannekaarella, ja
-  siimakäsi pidentää siimaa itsestään 16 metriin. Heitto laskeutuu, kun painaminen loppuu.
+  siimakäsi pidentää siimaa itsestään 12 metriin. Heitto laskeutuu, kun painaminen loppuu.
 - Kosketusnäytöllä (#236) pyyhkäisy järvellä alas = takaheitto, ylös = eteenheitto (60 %
   ruudun korkeudesta = koko liikerata), ja sormen pysähtyminen on pysäytys. Siimakäsi toimii
   kuten rytmiheitossa, kunnes pelaaja painaa SIIMA-nappia: sen jälkeen SIIMA pohjassa =
