@@ -20,6 +20,7 @@ import {
   type LakeBottom,
   type TubeState,
   type WaterBody,
+  type PlayerResult,
 } from '@lunki/shared';
 import type { Sounds } from '../audio/sounds';
 import type { NetWorld } from '../net/netWorld';
@@ -281,6 +282,12 @@ export class HudPresenter {
         ? scoreboardLines(w.standings(), w.myId)
         : scoreboardLines(w.standings(), followed ?? '', SPECTATOR_ROWS);
     this.host.hud.setCatches([t('game.scoreboard'), ...lines]);
+  }
+
+  /** Yksinpelin tulostaulu, kun järvellä on botteja (#624). */
+  showScoreboard(standings: readonly PlayerResult[], myId: string): void {
+    if ((this.raceHudTimer = (this.raceHudTimer + 1) % 15) !== 1) return;
+    this.host.hud.setCatches([t('game.scoreboard'), ...scoreboardLines(standings, myId)]);
   }
 
   /** Yksinpelin saalislista: määrä ja paino sekä viisi viimeisintä. */

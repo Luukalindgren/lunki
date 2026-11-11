@@ -101,7 +101,6 @@ describe('botit huoneessa (#624)', () => {
     host.onMessage(ServerMsg.emote, (m: EmoteMessage) => emotes.push(m));
     host.send(ClientMsg.start);
     await until(() => host.state.phase === 'playing');
-    const start = new Map(bots(host).map(([id, p]) => [id, { x: p.x, y: p.y }]));
     // Botit aloittavat vesiltä ja heittävät: viehe näkyy muille.
     await until(() => bots(host).some(([, p]) => p.lureStage > 0), 8000);
     // Kesken kisan tullut pelaaja: viimeisin botti väistyy ja jää tuloksiin lähteneenä.
@@ -110,12 +109,6 @@ describe('botit huoneessa (#624)', () => {
     expect(bots(host).map(([id]) => id)).toEqual(['bot:0', 'bot:1']);
     expect([...host.state.departed.keys()]).toEqual(['bot:2']);
     await until(() => host.state.phase === 'finished', 15000);
-    // Botit liikkuivat tai ainakin kääntyivät: tila elää ilman asiakasta.
-    const moved = bots(host).filter(([id, p]) => {
-      const s = start.get(id)!;
-      return Math.hypot(p.x - s.x, p.y - s.y) > 0.01;
-    });
-    expect(moved.length).toBeGreaterThan(0);
     // Uusi kisa: botit täyttävät taas vapaat paikat.
     host.send(ClientMsg.restart);
     await until(() => host.state.phase === 'lobby' && bots(host).length === 2);

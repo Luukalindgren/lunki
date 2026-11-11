@@ -253,6 +253,10 @@ export const en: Record<keyof typeof fi, string> = {
   'settings.lateJoin': 'Joining after the start',
   'settings.bots': 'Empty places',
   'settings.botLevel': 'Bot skill',
+  'settings.soloBots': 'Bots',
+  'settings.soloBotsNone': 'None',
+  'settings.soloBotsHint':
+    'Bots fish on the lake with you by the same rules and can win the competition. Your own catches go on the records list as before.',
   'settings.botsHint':
     "Bots fill the empty angler places and fish like players: they kick, cast, tangle lines and can win the competition. A joining player takes a bot's place. Bot catches do not go on the records list.",
   'settings.lateJoinHint':
@@ -556,6 +560,7 @@ export const en: Record<keyof typeof fi, string> = {
   'fullscreen.homeScreenHint':
     'Full screen on iPhone: Safari’s Share menu → “Add to Home Screen”, then open the game from the icon.',
   'results.bot': '{name} (bot)',
+  'results.botTag': 'bot',
   'results.left': '{name} (left)',
   'results.raceOver': 'The competition is over!',
   'results.winner': 'Winner: {name} ({weight})',
@@ -1223,7 +1228,7 @@ export const en: Record<keyof typeof fi, string> = {
     'Crossed lines tangle when either angler reels. While tangled, nobody can land a fish.\nReel together to untangle faster, or {cut} = cut your own line.',
   'manual.mp.bots': 'Bots',
   'manual.mp.botsText':
-    "The room creator can let bots fill the empty angler places (Empty places: Bots fill them). Bots fish by the same rules as players: they kick from spot to spot, cast, fight their fish, show hand signals and can tangle your line or win the competition.\nBot skill is chosen in the lobby. A beginner casts anywhere and drifts next to others, a regular fishes near the shore, and a veteran looks for rocks and reed edges and keeps clear of others. A mixed group has all of them.\nA joining player takes a bot's place, also during the competition if joining is allowed. Bots show in the results marked (bot), and their catches do not go on the records list.",
+    "The room creator can let bots fill the empty angler places (Empty places: Bots fill them). Bots fish by the same rules as players: they kick from spot to spot, cast, fight their fish, show hand signals and can tangle your line or win the competition.\nBot skill is chosen in the lobby. A beginner casts anywhere and drifts next to others, a regular fishes near the shore, and a veteran looks for rocks and reed edges and keeps clear of others. A mixed group has all of them.\nA joining player takes a bot's place, also during the competition if joining is allowed. Bots show in the results marked (bot), and their catches do not go on the records list.\nIn single player you can have 3, 7 or 11 bots on the lake (Single player settings: Bots). They fish the same way and show on the scoreboard, but lines do not tangle in single player.",
   'manual.mp.watch': 'Watching and the big screen',
   'manual.mp.watchText':
     'For spectators an automatic director picks the shot like a sports broadcast: fish on, fights, catches, taking the lead, tangles and capsizes take the camera where the action is. A fight is shown first from above and then through the angler’s eyes, and now and then there is an overview of everyone. The scoreboard lists everyone, and the caption tells who is on screen and why.\n{spectate} = pick an angler yourself, {view} = view (the director resumes after half a minute), {director} = director on or off.\nFor a big screen or projector: type the room code in the Multiplayer menu and press Big screen (or open the address ending in ?lahetys=LUNKI-XXXX). The computer joins the room directly as a spectator.',

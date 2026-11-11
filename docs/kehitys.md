@@ -267,6 +267,11 @@ Koodi: `packages/shared/src/bots/botAngler.ts`, palvelimella
   eivät Asetukset-näkymässä. Ne täyttävät tyhjät paikat ja väistyvät
   liittyvän pelaajan tieltä. Botit eivät mene ennätyslistalle eivätkä
   pumppaa täyttökisassa.
+- Yksinpelissä botit laskee selain (`game/soloBots.ts`, asetus
+  `settings.soloBots` yksinpelin asetuksissa), koska yksinpeli toimii ilman
+  palvelinta. Ne piirretään kuten muut pelaajat (`RemotePlayersView`), ja
+  tulossivu on sama kuin moninpelissä (`showRaceResults`). Sotkuja ja
+  törmäyksiä yksinpelissä ei ole.
 - Taidot (`BOT_SKILL`) eroavat paikan valinnassa, tähtäyksessä ja kalan
   väsytyksessä. Uusi käytös on uusi kenttä taulukkoon, ja saalistahti
   tarkistetaan `botAngler.test.ts`:n simulaatiolla.
