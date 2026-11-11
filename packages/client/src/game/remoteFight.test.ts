@@ -35,11 +35,10 @@ describe('toisen väsytys näkyy (#368)', () => {
 
   it('vavan kahva pysyy kädessä, kun vapa nousee, kääntyy ja taipuu', () => {
     const g = createTubeMesh();
-    const rod = g.getObjectByName('rod')!;
+    const handle = g.getObjectByName('rod-handle')!;
     const butt = () => {
-      const first = rod.children[0] as THREE.Mesh;
-      first.updateMatrixWorld(true);
-      return first.localToWorld(new THREE.Vector3(-(2.1 / 6 + 0.04) / 2, 0, 0));
+      handle.updateMatrixWorld(true);
+      return handle.localToWorld(new THREE.Vector3());
     };
     const rest = aimRod(g);
     // Lepoasento: nousukulma 0,25, kärki 2,1 m kahvasta.

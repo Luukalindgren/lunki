@@ -83,6 +83,7 @@ import {
   animateEmote,
   animateFins,
   createTubeMesh,
+  setFlyRod,
   setSeated,
 } from './tubeMesh';
 import { AnchorView, type AnchoredCraft } from './anchorView';
@@ -1108,6 +1109,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     const rodPose = this.angler.rodPose();
     const flyCast = this.fishing.stage === 'casting' ? this.fishing.flyCast : null;
     let rodEnd: LinePoint | null = null;
+    setFlyRod(this.tubeMesh, isFly(this.fishing.tackle));
     if (this.viewMode !== 'pov' && !standing)
       rodEnd = lakePoint(
         aimRod(
