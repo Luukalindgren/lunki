@@ -377,7 +377,7 @@ export class Screens {
   /** Kenen tilastot tulossivulla näkyvät (moninpeli). */
   private statsPlayer: string | null = null;
   /** Ohjeiden viimeksi luettu osio. */
-  private manualSection: ManualSection = 'move';
+  private manualSection: ManualSection = 'start';
   /** Näppäimistöohjaus (#237). */
   private readonly nav: MenuNav;
   /** Kohdistettu kohde näkymittäin, jotta paluu palaa samaan kohtaan. */
@@ -2172,7 +2172,7 @@ export class Screens {
       );
     }
     if (sum.count === 0) {
-      panel.append(h('p', t('results.empty')));
+      panel.append(h('p', controlText('results.empty')));
       // Reitistä ja tilastoista näkee silti, missä tuli käytyä ja mitä sattui.
       panel.append(...this.resultsViews(panel, h('div', ''), map, summary));
     } else {

@@ -90,10 +90,10 @@ describe('toimintokartta', () => {
 
   it('sama ohjeteksti näppäimistölle ja kosketukselle', () => {
     expect(controlText('help.reel', {}, { mode: 'keys' })).toBe(
-      'Hiiri tai välilyönti pohjassa = kelaa · hiiren oikea/J = nykäisy, ison kalan vastaisku',
+      'Hiiri tai välilyönti pohjassa = kelaa (tärpissä heti) · hiiren oikea/J = nykäisy, ison kalan vastaisku',
     );
     expect(controlText('help.reel', {}, { mode: 'touch' })).toBe(
-      'Sormi järvellä tai KELAA pohjassa = kelaa · NYKÄISE = nykäisy, ison kalan vastaisku',
+      'Sormi järvellä tai KELAA pohjassa = kelaa (tärpissä heti) · NYKÄISE = nykäisy, ison kalan vastaisku',
     );
     expect(controlText('game.viewTop', {}, { mode: 'touch' })).toBe('Ylhäältä (KAM)');
     expect(controlText('game.viewTop', {}, { mode: 'keys' })).toBe('Ylhäältä (V)');
@@ -121,14 +121,14 @@ describe('toimintokartta', () => {
     expect(c.wasPressed('twitch')).toBe(true);
     expect(c.wasPressed('lift')).toBe(true);
     expect(controlText('help.reel', {}, { mode: 'pad' })).toBe(
-      'A/RT pohjassa = kelaa · X = nykäisy, ison kalan vastaisku',
+      'A/RT pohjassa = kelaa (tärpissä heti) · X = nykäisy, ison kalan vastaisku',
     );
     expect(controlText('help.cast', {}, { mode: 'pad' })).toBe('Oikea tatti = heiton suunta');
     expect(controlText('help.cast', {}, { mode: 'keys' })).toBe(
       'Hiiri: tähtää, pidä ja päästä = heitto',
     );
     expect(controlText('help.move', {}, { mode: 'pad' })).toBe(
-      'Vasen tatti ↑ = kohti räpylöitä · vasen tatti ↓ = selkä edellä (nopein)',
+      'Vasen tatti ↓ = potki selkä edellä (nopein) · vasen tatti ↑ = potki eteenpäin',
     );
     expect(controlText('help.flyCast', {}, { mode: 'pad' })).toBe(
       'Perhoheitto: oikea tatti ↓ = taakse, oikea tatti ↑ = eteen',
@@ -138,7 +138,9 @@ describe('toimintokartta', () => {
     expect(bindingText('zoom')).toBe('L2+✚↑/✚↓');
     expect(controlText('help.gear')).toBe('✚→ = kelausnopeus · ✚↓/✚↑ = jarru');
     expect(withKey('tackle.lure', 'lure')).toBe('Viehe (L1)');
-    expect(controlText('help.reel')).toMatch(/^✕\/R2 pohjassa = kelaa · □ = nykäisy/);
+    expect(controlText('help.reel')).toMatch(
+      /^✕\/R2 pohjassa = kelaa \(tärpissä heti\) · □ = nykäisy/,
+    );
     setControlMode('keys', 'xbox');
   });
 

@@ -565,7 +565,7 @@ export const fi = {
   'results.sessionOver': 'Sessio päättyi',
   'results.sessionLength': 'vapaa, kesto {time}',
   'results.empty':
-    'Ei saalista tällä kertaa. Jos tärppejä ei tule, potki uuteen paikkaan: kaikuluotain (K) näyttää kalat.',
+    'Ei saalista tällä kertaa. Jos tärppejä ei tule, vaihda paikkaa: kaikuluotain ({sonar}) näyttää kalat.',
   'results.summary': 'Kaloja {count} · yhteensä {total} · suurin {biggest}',
   'results.again': 'Uusi kisa',
   'results.toMenu': 'Valikkoon',
@@ -700,32 +700,33 @@ export const fi = {
   'hud.stamina': 'KUNTO',
   'hud.compass': 'P,KO,I,KA,E,LO,L,LU',
   'guide.move':
-    'Opastus 1/5: potki liikkeelle · {forward} = kohti räpylöitä · {back} = selkä edellä (nopein)',
-  'guide.row': 'Opastus 1/5: souda liikkeelle · {back} = souda · {forward} = huopaa',
+    'Opastus 1/5: potki liikkeelle · {back} = selkä edellä (nopein) · {forward} = eteenpäin · {turn} = käänny',
+  'guide.row':
+    'Opastus 1/5: souda liikkeelle · {back} = souda · {forward} = huopaa · {turn} = käännä venettä',
   'guide.cast':
-    'Opastus 2/5: heitä viehe · {pointer}: tähtää, pidä pohjassa ja päästä · {castForward} = heitto katsesuuntaan',
-  'guide.reel': 'Opastus 3/5: kelaa viehe takaisin · {pointer|reel} pohjassa = kelaa',
+    'Opastus 2/5: heitä viehe · pidä {castForward} pohjassa ja päästä, kun voimamittari on täynnä',
+  'guide.reel': 'Opastus 3/5: kelaa viehe takaisin · pidä {reel} pohjassa',
   'guide.wait':
-    'Opastus 3/5: kelaa tasaisesti ja heitä uudelleen, kunnes kala iskee · {sonar} = kaikuluotain näyttää kalat',
-  'guide.again': 'Opastus: heitä uudelleen · {sonar} = kaikuluotain näyttää kalat',
-  'guide.strike': 'Opastus 4/5: tärppi! Kelaa heti ({reel}), niin koukku tarttuu',
-  'guide.strikeBig':
-    'Opastus 4/5: raskas tärppi! Nykäise vapaa heti ({twitch}), niin koukku tarttuu',
+    'Opastus 3/5: kelaa viehe sisään ja heitä uudelleen, kunnes kala iskee · {sonar} = kaikuluotain näyttää kalat',
+  'guide.again':
+    'Opastus: heitä uudelleen ({castForward}) · jos ei tärppää, vaihda paikkaa · {sonar} = kaikuluotain näyttää kalat',
+  'guide.strike': 'Opastus 4/5: tärppi! Kelaa heti ({reel}), niin kala tarttuu',
+  'guide.strikeBig': 'Opastus 4/5: raskas tärppi! Nykäise heti ({twitch}), niin kala tarttuu',
   'guide.fight':
-    'Opastus 5/5: kala kiinni! Kelaa, kun kala lepää · siima kireällä = löysää jarrua {dragLess}',
+    'Opastus 5/5: kala kiinni! Kelaa ({reel}) ja pidä siima kireällä · jos KIREYS nousee huippuun, löysää jarrua ({dragLess})',
   'guide.tipLure': 'Vinkki: {lure} = vaihda viehe · eri kalat syövät eri vieheitä',
-  'guide.tipSonar': 'Vinkki: {sonar} = kaikuluotain · {lureSonar} = vieheen syvyys',
+  'guide.tipSonar': 'Vinkki: {sonar} = kaikuluotain näyttää kalat · {lureSonar} = vieheen syvyys',
   'guide.flyCast':
-    'Perho-opastus 1/3: {castForward} = rytmiheitto · {backCast} = taakse, {forwardCast} = eteen',
+    'Perho-opastus 1/3: heitä perho · {castForward} aloittaa heiton · paina uudelleen aina, kun siima suoristuu',
   'guide.flyStrip': 'Perho-opastus 2/3: uita perhoa vedoilla · {strip} = vedä siimaa',
   'guide.flyWait': 'Perho-opastus 2/3: vedä, kunnes kala ottaa · {lift} = nosta uuteen heittoon',
-  'guide.flyAgain': 'Perho-opastus: {castForward} = heitä uudelleen',
+  'guide.flyAgain': 'Perho-opastus: heitä uudelleen ({castForward})',
   'guide.flyStrike':
     'Perho-opastus 3/3: tärppi! Vedä siimaa ({strip}) tai nosta vapaa ({lift}), niin koukku tarttuu',
   'guide.flyFight':
     'Perho-opastus 3/3: kala kiinni! {reelSlack} = löysät kelalle, sitten kelaa ja väsytä jarrulla',
   'help.thunder': 'Ukkosella kelaa viehe sisään ja pysy rannan lähellä',
-  'help.move': '{forward} = kohti räpylöitä · {back} = selkä edellä (nopein)',
+  'help.move': '{back} = potki selkä edellä (nopein) · {forward} = potki eteenpäin',
   'help.turn': '{turn} = käänny · {sprint} = pikapotku (vie kuntoa) · {anchor} = ankkuri',
   'help.walk': '{forward|back} = kävele eteen tai taakse · {turn} = käänny',
   'help.shoreAct':
@@ -738,7 +739,8 @@ export const fi = {
   'help.passengerTurn': '{turn} = käänny paikallasi heittämään',
   'help.cast': '{pointer}: tähtää, pidä ja päästä = heitto · {aim} = heiton suunta',
   'help.castForward': '{castForward} pohjassa ja päästä = heitto katsesuuntaan · {cancel} = peru',
-  'help.reel': '{pointer|reel} pohjassa = kelaa · {twitch} = nykäisy, ison kalan vastaisku',
+  'help.reel':
+    '{pointer|reel} pohjassa = kelaa (tärpissä heti) · {twitch} = nykäisy, ison kalan vastaisku',
   'help.gear': '{gear} = kelausnopeus · {gearFast} = pikakelaus · {dragLess}/{dragMore} = jarru',
   'help.tools':
     '{lure} = vaihda viehe (pohjassa: pakki) · {method} = virveli/perho · {sonar} = luotain · {lureSonar} = syvyys',
@@ -985,7 +987,7 @@ export const fi = {
   'game.strikeBig': 'Raskas tärppi – nykäise ({twitch})!',
   'game.hooked': 'Kala kiinni!',
   'game.bigShadow': 'Iso varjo seurasi viehettä!',
-  'game.missed': 'Ohi meni – kelaa heti tärpin jälkeen',
+  'game.missed': 'Ohi meni – tärpissä kelaa heti ({reel})',
   'game.missedTwitch': 'Ohi meni – iso kala tarttuu vain nykäisyyn ({twitch})',
   'game.spooked': 'Nykäisit liian aikaisin – kala säikähti',
   'game.jumped': 'Kala hyppää – pidä siima kireällä!',
@@ -1009,14 +1011,15 @@ export const fi = {
   'game.lureOnLand': 'Viehe jäi maalle',
   'game.bitOff': 'Hauki katkaisi siiman hampaillaan – kokeile teräsperuketta',
   'game.lureLost': 'Siima katkesi – viehe jäi pohjaan',
-  'game.lineBroken': 'Siima katkesi! Löysää jarrua (Q) tai vaihda paksumpaan siimaan',
+  'game.lineBroken': 'Siima katkesi! Löysää jarrua ({dragLess}) tai vaihda paksumpaan siimaan',
   'game.flyHand': 'Löysää {m} m · siima kädessä',
   'game.onReel': 'Löysät kelalla – väsytä jarrulla',
   'game.flyTangle': 'Löysä siima sotkeutui heitossa!',
   'game.flyChanged': 'Perho: {fly}',
   'game.flyCastButtons':
     '{lineGrip}: pidä liikkeen ajan, päästä siiman lentäessä = lisää siimaa\n{haul} liikkeessä = veto · {cancel} = peru',
-  'game.flyCastKeys': '{castForward}, kun siima suoristuu · {cancel} = keskeytä',
+  'game.flyCastKeys':
+    '{castForward}, kun siima suoristuu · eteenheiton jälkeen odota, niin perho laskeutuu · {cancel} = keskeytä',
   'game.flyUntangle': 'Irrotetaan perhoa… {s} s',
   'game.flyNow': 'NYT!',
   'game.flyPanelOn': 'Perhoheiton sivukuva päällä',
@@ -1100,7 +1103,17 @@ export const fi = {
   'menu.manual': 'Ohjeet',
   'manual.title': 'Ohjeet',
   'manual.intro':
-    'Kalastuksen mekaniikat ja niiden ohjaus. Ohjaus näkyy tämän laitteen mukaan: kosketuksella napit, koneella näppäimet ja peliohjaimella sen napit.',
+    'Alkuun-osio vie ensimmäiseen kalaan, ja muut osiot kertovat mekaniikat tarkemmin. Ohjaus näkyy tämän laitteen mukaan: kosketuksella napit, koneella näppäimet ja peliohjaimella sen napit.',
+  'manual.section.start': 'Alkuun',
+  'manual.start.first': 'Ensimmäinen kala',
+  'manual.start.firstText':
+    'Liiku: {back} = potki selkä edellä (nopein), {forward} = eteenpäin, {turn} = käänny.\nHeitä: pidä {castForward} pohjassa ja päästä, kun voimamittari on täynnä.\nKelaa: pidä {reel} pohjassa. Viehe ui takaisin luoksesi, ja kala iskee siihen matkalla.\nTärppi: kelaa heti ({reel}), niin kala tarttuu. Raskaassa tärpissä nykäise ({twitch}).\nVäsytä: kelaa ja pidä siima kireällä. Jos KIREYS nousee huippuun, löysää jarrua ({dragLess}).\nNosta: kun kala on pinnassa, paina {land} uudelleen.',
+  'manual.start.noBites': 'Jos ei tärppää',
+  'manual.start.noBitesText':
+    '{sonar} = kaikuluotain näyttää kalat.\nVaihda paikkaa: kalat ovat parvissa ja syövät jaksoittain.\n{lure} = vaihda viehe. Eri kalat syövät eri vieheitä.\nHelpolla vaikeustasolla kala tarttuu aina, eikä siima katkea.',
+  'manual.start.screen': 'Ruudulla',
+  'manual.start.screenText':
+    'Ylhäällä keskellä oleva ohje kertoo, mitä tehdä seuraavaksi.\n{help} = kaikkien nappien ohje päälle tai pois.\n{view} = vaihda näkymää: kalastajan silmin tai ylhäältä.\n{pause} = tauko: asetukset, ohjeet ja varusteet.',
   'manual.section.move': 'Liikkuminen',
   'manual.section.spin': 'Virveli',
   'manual.section.fly': 'Perho',
