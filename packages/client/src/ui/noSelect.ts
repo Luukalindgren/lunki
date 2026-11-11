@@ -3,13 +3,13 @@
  * selaimen Kopioi/Etsi-valikkoa (iOS Safari). CSS (user-select,
  * -webkit-touch-callout) hoitaa suurimman osan; nämä estävät loput
  * valinnan aloitukset ja pitkän painalluksen valikon. Syöttökentät (nimi,
- * huonekoodi, chat, palaute) ja huonekoodi toimivat kuten ennenkin.
+ * huonekoodi, chat, palaute), huonekoodi ja kutsulinkki toimivat kuten ennenkin.
  */
 export function allowsSelection(target: EventTarget | null): boolean {
   // selectstartin kohde voi olla tekstisolmu: katsotaan sen vanhempaa.
   const el =
     target instanceof Element ? target : target instanceof Node ? target.parentElement : null;
-  return !!el?.closest('input, textarea, [contenteditable], .room-code');
+  return !!el?.closest('input, textarea, [contenteditable], .room-code, .room-link');
 }
 
 export function preventTextSelection(doc: Document = document): void {

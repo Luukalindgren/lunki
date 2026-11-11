@@ -878,6 +878,28 @@ textarea,
   margin: 0 0 8px !important;
 }
 
+/* Kutsulinkki: pitkä osoite rivittyy napissa ja on valittavissa tekstinä. */
+.screen-panel .room-link {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.screen-panel .room-link-status {
+  margin: 4px 0 0;
+  color: #f6d04d;
+}
+
+.screen-panel .room-link-field {
+  box-sizing: border-box;
+  width: 100%;
+  font: inherit;
+  color: #e8e8e8;
+  background: #12171c;
+  border: 2px solid #4d5866;
+}
+
 .player-list {
   list-style: none;
   padding: 0;
