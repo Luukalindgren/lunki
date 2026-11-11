@@ -23,6 +23,28 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Vierityspalkki kaikissa vieritettävissä paneeleissa: kapea ja paneelin
+   reunan sävyinen ilman vaaleaa uraa. Chrome ja Firefox lukevat
+   scrollbar-color-arvon, vanhempi WebKit (Safari, Orion) ::-webkit-scrollbar-säännöt. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #39424d transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #39424d;
+}
+
 /* Syöttökentät ja huonekoodi saa yhä valita ja kopioida. */
 input,
 textarea,
