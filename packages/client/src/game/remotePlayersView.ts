@@ -19,6 +19,7 @@ import {
   animateFins,
   applyAppearance,
   createTubeMesh,
+  setFlyRod,
   setSeated,
 } from './tubeMesh';
 import { FLY_LINE_POINTS, RemoteFlyLine, flyLineProfile, flyLineWorld } from './flyLine';
@@ -145,6 +146,7 @@ export class RemotePlayersView {
       e.tube.position.copy(toWorld(p.pos, (p.lift ?? 0) + (p.boat > 0 ? SEATED_LIFT : 0)));
       e.tube.rotation.y = p.heading + p.look;
       e.tube.rotation.x = p.tumble ?? p.roll;
+      setFlyRod(e.tube, p.fly === true);
       animateFins(e.tube, p.kickPhase);
       const standing = !!p.shore || !!p.bailing;
       const eyes = this.firstPerson?.id === p.id ? this.firstPerson : null;
