@@ -31,7 +31,10 @@ export const FLY_CAST = {
   minSpeedPerLength: 0.9,
   /** Terävä pysäytys: huippunopeudesta pysähdykseen enintään tämä aika (s). */
   crispStop: 0.15,
-  /** Siimakäden veto (haul) lisää siiman nopeutta. */
+  /**
+   * Siimakäden veto (haul) lisää siiman nopeutta, ja vedetyn liikkeen
+   * silmukassa siimaa luistaa samassa suhteessa enemmän (#622).
+   */
   haulBoost: 1.25,
   /** Näin vähän (s) ennen liikkeen alkua painettu veto lasketaan liikkeeseen (#398). */
   haulEarly: 0.15,
@@ -44,6 +47,8 @@ export const FLY_CAST = {
   /** Ilmassa oleva siima heiton alussa (vavan mitta ja peruke) ja enintään. */
   startAerial: 3,
   maxAerial: 22,
+  /** Vedetyn liikkeen silmukka kantaa siimaa enintään näin paljon (m, #622). */
+  maxHauled: 27,
   /** Vedestä voi nostaa heittoon enintään näin pitkän siiman (m). */
   pickupMax: 10,
   /** Rullaheitto renkaasta: enintään (m). */
@@ -168,7 +173,7 @@ export function createFlyCast(aerial: number, inWater: boolean): FlyCastState {
     phase: 'ready',
     rod: inWater ? 0.3 : 0.6,
     dir: 1,
-    aerial: Math.max(FLY_CAST.startAerial, Math.min(FLY_CAST.maxAerial, aerial)),
+    aerial: Math.max(FLY_CAST.startAerial, Math.min(FLY_CAST.maxHauled, aerial)),
     inWater,
     aim: 0,
     strokeStart: 0,
@@ -262,9 +267,13 @@ export function stepFlyCast(
     const u = c.loopAge / c.loopTime;
     // Siimakäsi auki silmukan auetessa: siimaa luistaa ulos (eteen ammuttaessa enemmän).
     const open = !input.grip;
-    if ((open || env.assist.autoSlip) && u < 1 && c.aerial < FLY_CAST.maxAerial) {
-      const share = c.dir > 0 && open ? FLY_CAST.shootShare : FLY_CAST.slipShare;
-      const out = Math.min(FLY_CAST.maxAerial - c.aerial, c.lineSpeed * share * dt);
+    // Veto pidentää heittoa: nopeampi silmukka vie enemmän siimaa ja kantaa pidemmälle.
+    const max = c.hauled ? FLY_CAST.maxHauled : FLY_CAST.maxAerial;
+    if ((open || env.assist.autoSlip) && u < 1 && c.aerial < max) {
+      const share =
+        (c.dir > 0 && open ? FLY_CAST.shootShare : FLY_CAST.slipShare) *
+        (c.hauled ? FLY_CAST.haulBoost : 1);
+      const out = Math.min(max - c.aerial, c.lineSpeed * share * dt);
       c.aerial += out;
       ev.slipped = out;
     }

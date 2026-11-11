@@ -48,8 +48,9 @@ describe('perhoheiton ohjaus (#235)', () => {
       landed = ev.landed;
     }
     expect(all.map((e) => e.stop!.dir)).toEqual([-1, 1, -1, 1, -1, 1]);
-    expect(landed!.distance).toBeGreaterThan(12);
-    expect(landed!.distance).toBeLessThan(KEY_TARGET_LINE + 6);
+    // Itsestään toimiva käsi pidentää siiman tavoitteeseen eikä ammu löysää perään (#622).
+    expect(landed!.distance).toBeGreaterThanOrEqual(KEY_TARGET_LINE);
+    expect(landed!.distance).toBeLessThan(KEY_TARGET_LINE + 3);
   });
 
   it('liian aikainen painallus läimäyttää', () => {

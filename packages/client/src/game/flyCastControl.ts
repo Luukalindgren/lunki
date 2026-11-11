@@ -9,8 +9,11 @@ export const ROD_PIXELS = 400;
 export const AIM_PER_PIXEL = 0.002;
 /** Näppäimistön rytmiheitossa yksi liike kestää näin kauan (s). */
 export const KEY_STROKE_TIME = 0.15;
-/** Näppäimistöllä siimakäsi päästää siimaa, kunnes ilmassa on näin paljon (m). */
-export const KEY_TARGET_LINE = 16;
+/**
+ * Itsestään toimiva siimakäsi (ja rytmiheitto) päästää siimaa, kunnes ilmassa
+ * on näin paljon (m). Pidempi heitto vaatii oman siimakäden (#622).
+ */
+export const KEY_TARGET_LINE = 12;
 /**
  * Heiton aloittanut hiiren nappi pohjassa näin kauan (s): siimakäsi on pelaajan.
  * Kosketuslevyn napautus irtoaa nopeammin, ja siimakäsi jää automaattiseksi (#400).
