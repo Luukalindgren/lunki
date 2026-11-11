@@ -56,7 +56,7 @@ import type { Guide } from './guide';
 import type { Penalties } from './penalties';
 import type { PovCamera } from './povCamera';
 import { QuietSpot } from './quietSpot';
-import { StickReel } from './stickReel';
+import { StickFlick } from './stickFlick';
 import type { RaceLog } from './raceLog';
 import { catchJoy, isRaceBest, JOY_SOUNDS } from './catchJoy';
 import { addJournalEntry, loadJournal } from './journal';
@@ -146,11 +146,7 @@ export class FishingController {
   /** Heitto hiirellä tai välilyönnillä katsesuuntaan (#227). */
   private readonly castControl = new CastControl();
   readonly flyCastControl = new FlyCastControl();
-  private readonly stickReelControl = new StickReel();
-  /** Oikean tatin pyöritys (#595): kelaus päällä ja tatti varattu kelaukselle. */
-  stickReel = { reel: false, busy: false };
-  /** Vaihde ennen tatilla kelaamista: palaa, kun pyöritys loppuu. */
-  private stickGear: number | null = null;
+  private readonly stickFlick = new StickFlick();
   /** Perhon vedot hiirellä. */
   private readonly flyStrip = new FlyStrip();
   private reelClickTimer = 0;
@@ -311,19 +307,10 @@ export class FishingController {
       (host.viewMode === 'pov' ? host.pov : host.view).internalToWorld(internal.x, internal.y),
       host.tube.pos,
       host.facing,
-      controlMode() === 'pad'
-        ? {
-            // Virvelin viehe ulkona: tatti on kelan kampi eikä heiton suunta.
-            stick:
-              this.stickReel.busy || (!flyCasting && f.stage !== 'idle' && f.stage !== 'charging')
-                ? NO_STICK
-                : input.padAim,
-            pov: host.viewMode === 'pov',
-          }
-        : undefined,
+      controlMode() === 'pad' ? { stick: input.padAim, pov: host.viewMode === 'pov' } : undefined,
     );
     const lureOut = f.stage === 'flight' || f.stage === 'water';
-    const spin = this.readStickReel(dt, !flyCasting && !frozen && !tangled);
+    const flick = this.readStickFlick(dt, !flyCasting && !frozen && !tangled);
     // Perho vedessä ja siima kädessä: hiiri tai välilyönti pitää siimaa ja vetää sitä.
     const flyHand = isFly(f.tackle) && !f.onReel && f.stage === 'water';
     const fly = flyHand ? this.readFlyHand(dt, frozen || tangled) : null;
@@ -363,10 +350,9 @@ export class FishingController {
               cancel: c.isDown('cancel') || (f.stage === 'charging' && c.isDown('cancelCharge')),
               dragDelta: (c.wasPressed('dragMore') ? 1 : 0) - (c.wasPressed('dragLess') ? 1 : 0),
               ...this.readGear(),
-              ...(spin.gear !== undefined ? { gear: spin.gear } : {}),
               ...(this.pendingTackle ? { tackle: this.pendingTackle } : {}),
               cut: c.wasPressed('cut'),
-              twitch: !isFly(f.tackle) && (c.wasPressed('twitch') || spin.twitch),
+              twitch: !isFly(f.tackle) && (c.wasPressed('twitch') || flick),
               land: f.landing !== null && (c.wasPressed('land') || c.wasPressed('landNet')),
               ...fly,
               reelSlack: c.isDown('reelSlack'),
@@ -740,31 +726,21 @@ export class FishingController {
 
   /** Kelan vaihde näppäimistä (1–4) tai kosketuksen NOP-napista (seuraava). */
   /**
-   * Kelaus oikeaa tattia pyörittämällä (#595): pyöritysnopeus valitsee
-   * vaihteen kelauksen ajaksi, ja nopea nykäisy taakse on vavan nykäisy.
+   * Vavan nykäisy oikean tatin nopealla nykäisyllä taakse (#595).
    * `free` = virveli kädessä eikä jäähyä tai sotkua.
    */
-  private readStickReel(dt: number, free: boolean): { gear?: number; twitch: boolean } {
+  private readStickFlick(dt: number, free: boolean): boolean {
     const host = this.host;
     const { input, controls: c } = host;
     const f = host.fishing;
     const pad = controlMode() === 'pad';
     // Pikavalikon ollessa pohjassa tatti osoittaa sen lohkoa.
     const menu = host.emoteActive || c.isDown('lure') || c.isDown('method') || c.isDown('emote');
-    const out = this.stickReelControl.step(
+    return this.stickFlick.step(
       pad ? input.padAim : NO_STICK,
       dt,
       pad && free && !menu && f.stage === 'water' && f.landing === null,
-      host.viewMode === 'pov',
     );
-    this.stickReel = { reel: out.reel, busy: out.busy };
-    if (out.reel) {
-      this.stickGear ??= f.gear;
-      return { twitch: false, ...(out.gear !== f.gear && { gear: out.gear }) };
-    }
-    const back = this.stickGear;
-    this.stickGear = null;
-    return { twitch: out.twitch, ...(back !== null && back !== f.gear && { gear: back }) };
   }
 
   private readGear(): { gear?: number } {

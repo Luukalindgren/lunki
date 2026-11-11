@@ -102,10 +102,9 @@ export const CONTROLS = {
     pad: PAD_MAIN,
   },
   /**
-   * Peliohjaimen oikean tatin eleet virvelillä (#595, game/stickReel.ts):
-   * pyöritys kelaa ja nopea nykäisy taakse on vavan nykäisy.
+   * Peliohjaimen oikean tatin nopea nykäisy taakse on vavan nykäisy (#595,
+   * game/stickFlick.ts), X/□-napin rinnalla.
    */
-  spin: { keys: [], padLabel: 'pad.stickSpin' },
   flick: { keys: [], padLabel: 'pad.stickFlick' },
   cancel: { keys: ['KeyX'], touch: 'touch.cancel', title: 'touch.cancelTitle', pad: ['Pad1'] },
   /** Hiiren oikea peruu latauksen; heitossa se on veto ja vedessä perhon nosto. */
