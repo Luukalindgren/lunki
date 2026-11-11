@@ -187,6 +187,8 @@ Koodi: `packages/client/src/ui/screens.ts` (`showSettings`, `showPause`).
 - Taukovalikko on lyhyt: Jatka, Varusteet, Asetukset, Ohjeet, Palaute,
   Lopeta kisa. Matalalla ruudulla (puhelin vaakana) napit ovat kahdessa
   sarakkeessa. Palaute on sama lomake ja jono kuin päävalikossa.
+  Kisan tilanteen alla näkyvät kisan säännöt vain luettavina (`pauseRules`:
+  vaikeus, sää, kausi, voittaja ja kesto); niitä ei vaihdeta kesken kisan.
 - Koko näyttö on pieni kuvake paneelin oikeassa yläkulmassa
   (`fullscreenButton`, `ui/fullscreen.ts`) päävalikossa ja tauolla, ei oma
   rivinsä valikossa.
