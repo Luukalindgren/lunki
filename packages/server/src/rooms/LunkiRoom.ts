@@ -118,6 +118,26 @@ import {
   type WeatherPlan,
   AnchorPhase,
   withoutAnchor,
+  BotAngler,
+  botId,
+  botIndex,
+  botName,
+  botSkillFor,
+  botTackle,
+  isBotId,
+  isBotLevel,
+  randomAppearance,
+  fishConditions,
+  daylight,
+  clockAt,
+  isTimeOfDay,
+  PROTOCOL_VERSION,
+  RaceStatsCounter,
+  type BotStep,
+  type FishTag,
+  type FishConditions,
+  type TubeInput,
+  type WeatherNow,
 } from '@lunki/shared';
 import { recordStore } from '../records';
 import { releaseCode, reserveCode } from './codes';
@@ -192,21 +212,31 @@ const rings = [LUNKINJARVI.shore, ...LUNKINJARVI.islands];
 
 /** Järven pohja kalojen sijoittelua varten; lasketaan ensimmäisen kisan alkaessa. */
 let bottom: LakeBottom | null = null;
-const fishWorld = () => {
-  bottom ??= new LakeBottom(
+const lakeBottom = () =>
+  (bottom ??= new LakeBottom(
     water,
     LUNKINJARVI.bounds,
     LUNKINJARVI_BOTTOM,
     LUNKINJARVI.reeds,
     LUNKINJARVI.piers,
-  );
-  const b = bottom;
+  ));
+const fishWorld = () => {
+  const b = lakeBottom();
   return {
     isWater: (p: Vec2) => water.isWater(p),
     depthAt: (p: Vec2) => b.depthAt(p),
     structures: b.structures,
   };
 };
+
+/** Botti huoneessa (#624): aivot, syötteiden numerointi ja kisan tilastot. */
+interface RoomBot {
+  angler: BotAngler;
+  seq: number;
+  /** Viimeisin renkaan syöte: pidetään, kunnes botti päättää uuden. */
+  input: TubeInput;
+  stats: RaceStatsCounter;
+}
 
 /** Pelaajat aloittavat vähintään näin kaukana toisistaan (m), jos mahdollista. */
 const SPAWN_SPACING = 15;
@@ -268,6 +298,8 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
    */
   /** Kisan aikana vapaa ei enää vaihdeta: istunnot, joiden vapa on lukittu. */
   private readonly rodFixed = new Set<string>();
+  /** Kisan botit (sessionId `bot:N`); aulassa botit ovat vain pelaajalistassa. */
+  private readonly bots = new Map<string, RoomBot>();
   /** Kisan ensimmäinen aloituspaikka: myöhästyneet aloittavat sen läheltä. */
   private spawnOrigin: Vec2 | null = null;
   /** Kehitystä varten: LUNKI_RACE_SECONDS lyhentää kaikki kisat. */
@@ -345,61 +377,10 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       else client.send(ServerMsg.castRejected);
     });
 
+    // Asiakas kertoo vain, mikä kala nousi; laji ja paino tulevat kalakannasta.
     this.onMessage(ClientMsg.catch, (client, msg: Partial<Catch>) => {
-      const sim = this.sims.get(client.sessionId);
-      const now = this.state.clock;
-      // Asiakas kertoo vain, mikä kala nousi; laji ja paino tulevat kalakannasta.
-      // Sama kala (paikka ja sukupolvi) voidaan nostaa vain kerran: ensimmäinen voittaa.
-      const tag = isFishTag(msg?.fish) ? msg.fish : null;
-      const stock = this.stock;
-      const fish = tag && stock ? stock.fish[tag.slot] : undefined;
-      const current = tag && tag.gen === (this.fishGens.get(tag.slot) ?? 0);
-      const home = fish && current ? fishHome(stock!, tag.slot, tag.gen) : null;
-      const landed = fish && {
-        species: fish.species,
-        name: SPECIES[fish.species].name,
-        weight: stockWeight(stock!, tag!.slot, tag!.gen),
-      };
-      const hookAt = sim?.hookAt;
-      if (sim) sim.hookAt = null;
-      if (
-        !sim ||
-        this.state.phase !== 'playing' ||
-        this.timedOut(client.sessionId) ||
-        this.state.players.get(client.sessionId)?.tangledWith ||
-        !landed ||
-        !home ||
-        !hookAt ||
-        distance(hookAt, home) >
-          catchRadius(
-            landed.species,
-            DIFFICULTIES[this.state.settings.difficulty as Difficulty] ?? DIFFICULTIES.normal,
-          ) ||
-        !isPlausibleCatch(landed, {
-          splashedSinceLastCatch: sim.splashed,
-          now,
-          lastCatchAt: sim.lastCatchAt,
-          species: [...this.state.settings.species],
-        })
-      ) {
+      if (!this.landCatch(client.sessionId, isFishTag(msg?.fish) ? msg.fish : null))
         client.send(ServerMsg.catchRejected);
-        return;
-      }
-      sim.splashed = false;
-      sim.lastCatchAt = now;
-      const c = new CatchState();
-      c.player = client.sessionId;
-      c.angler = this.state.players.get(client.sessionId)?.name ?? '';
-      c.species = landed.species;
-      c.name = landed.name;
-      c.weight = landed.weight;
-      c.time = now;
-      c.fishSlot = tag!.slot;
-      c.fishGen = tag!.gen;
-      c.boat = sim.boat ?? 0;
-      this.fishGens.set(tag!.slot, tag!.gen + 1);
-      this.state.catches.push(c);
-      this.recordCatch(client.sessionId, c, hookAt);
     });
 
     this.onMessage(ClientMsg.cutLine, (client) => {
@@ -407,16 +388,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       if (p?.tangledWith) this.untangle(client.sessionId, p.tangledWith, 'cut', client.sessionId);
     });
 
-    this.onMessage(ClientMsg.landCut, (client) => {
-      const p = this.state.players.get(client.sessionId);
-      const sim = this.sims.get(client.sessionId);
-      if (!p || !sim || this.state.phase !== 'playing') return;
-      // Uuden vieheen solmiminen: kalastaa ei voi ennen sakon loppua.
-      p.outUntil = Math.max(p.outUntil, this.state.clock + this.state.settings.landPenalty);
-      p.lureStage = 0;
-      sim.rodInHand = false;
-      sim.splashed = false;
-    });
+    this.onMessage(ClientMsg.landCut, (client) => this.landCut(client.sessionId));
 
     this.onMessage(ClientMsg.tackle, (client, msg: unknown) => {
       const p = this.state.players.get(client.sessionId);
@@ -454,6 +426,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       if (client.sessionId !== this.state.hostId || this.state.phase !== 'finished') return;
       this.setTimestep();
       this.sims.clear();
+      this.bots.clear();
       this.raceStats.clear();
       this.tangleFree.clear();
       this.stock = null;
@@ -484,6 +457,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       this.rodFixed.clear();
       this.state.phase = 'lobby';
       this.fillSeats();
+      this.syncBots();
       // Kisan aikana lähteneiden ja palanneiden jäljiltä veneiden numerot taas järjestykseen.
       this.packCrews();
     });
@@ -606,6 +580,8 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       }
       // Muuttuneet säännöt: muiden pitää kuitata valmius uudelleen.
       if (changed) this.state.players.forEach((p) => (p.ready = false));
+      // Botit pelaajamäärän ja valinnan mukaan; ne ovat aina valmiina.
+      this.syncBots();
       if (blockedBy > 0)
         client.send(ServerMsg.error, {
           code: 'outdated-peer',
@@ -655,6 +631,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       // Oma valinta: ei enää odota paikkaa. Katsojaksi siirtynyt vapautti paikan.
       this.state.waiting.delete(client.sessionId);
       this.fillSeats();
+      this.syncBots();
       this.packCrews();
     });
 
@@ -700,6 +677,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         seasonOf(this.state.settings),
       );
       this.fishGens.clear();
+      this.createBots();
       const level = this.state.settings.weather;
       this.weather = planWeather(
         this.state.seed,
@@ -901,15 +879,20 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     });
   }
 
-  /** Kalastajat huoneessa (katkenneet mukaan lukien, katsojat pois). */
+  /**
+   * Kalastajat huoneessa (katkenneet mukaan lukien, katsojat ja botit pois):
+   * botti luovuttaa paikkansa pelaajalle, joten se ei vie kalastajapaikkaa.
+   */
   private anglerCount(): number {
     let n = 0;
-    this.state.players.forEach((p) => (n += p.spectator ? 0 : 1));
+    this.state.players.forEach((p, id) => (n += p.spectator || isBotId(id) ? 0 : 1));
     return n;
   }
 
   private spectatorCount(): number {
-    return this.state.players.size - this.anglerCount();
+    let n = 0;
+    this.state.players.forEach((p) => (n += p.spectator ? 1 : 0));
+    return n;
   }
 
   /** Syy, miksi kisaan ei pääse kesken kaiken; null = pääsee. */
@@ -960,10 +943,15 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     p.name = this.uniqueName(seat?.name ?? sanitizeName(options.name));
     this.state.players.set(client.sessionId, p);
     if (!this.state.hostId) this.state.hostId = client.sessionId;
+    // Botti luovuttaa paikkansa pelaajalle, myös kesken kisan (#624).
+    this.yieldBotSeat();
     if (seat) this.resumeSeat(client.sessionId, p, seat);
     else if (this.state.phase === 'countdown' || this.state.phase === 'playing')
       this.spawnLate(client.sessionId, p);
-    else if (!racing) this.packCrews();
+    else if (!racing) {
+      this.syncBots();
+      this.packCrews();
+    }
     client.send(ServerMsg.chatHistory, this.chatLog);
   }
 
@@ -1161,6 +1149,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     if (this.state.hostId === id) this.passHost(true);
     if (this.state.phase === 'lobby') {
       this.fillSeats();
+      this.syncBots();
       this.packCrews();
     }
   }
@@ -1204,7 +1193,10 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
    * lähtiessä siirtyy kenelle tahansa jäljellä olevalle).
    */
   private passHost(leaving = false) {
-    const others = [...this.state.players.entries()].filter(([id]) => id !== this.state.hostId);
+    // Botti ei voi olla isäntä.
+    const others = [...this.state.players.entries()].filter(
+      ([id]) => id !== this.state.hostId && !isBotId(id),
+    );
     const next =
       others.find(([, p]) => p.connected && !p.spectator) ??
       others.find(([, p]) => p.connected) ??
@@ -1239,7 +1231,10 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     this.seatAskUntil.clear();
     const aboard = (p: PlayerState) => p.boat > 0 && p.seat !== BoatSeat.rower;
     // Täyttökisa (#458): renkaat ja veneet riviin lähtörannalle.
-    const crafts = [...this.state.players.values()].filter((p) => !p.spectator && !aboard(p));
+    // Botit eivät pumppaa: ne aloittavat vesiltä.
+    const crafts = [...this.state.players.entries()]
+      .filter(([id, p]) => !p.spectator && !aboard(p) && !isBotId(id))
+      .map(([, p]) => p);
     // Ensin isännän paikka tai arvottu ranta, sitten lähistöä, kunnes kaikki mahtuvat.
     let first = true;
     const rowNear = () => {
@@ -1254,7 +1249,10 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     });
     this.state.players.forEach((p, id) => {
       if (p.spectator || aboard(p)) return;
-      const slot = row.shift();
+      const bot = isBotId(id);
+      // Joka toinen botti aloittaa muualta järveltä: isossa kisassa koko järvi on käytössä.
+      const far = bot && botIndex(id) % 2 === 1;
+      const slot = bot ? undefined : row.shift();
       if (slot && p.boat === 0) {
         taken.push(slot.pos);
         this.placeTube(id, p, slot.pos, 0, slot);
@@ -1270,12 +1268,18 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         for (const [mate, q] of mates) this.seatPassenger(mate, q, rower, q.seat, true);
         return;
       }
-      let pos = taken.length === 0 && chosen ? { ...chosen } : launch();
+      const spot = () =>
+        far
+          ? findLaunchPoint(water, LUNKINJARVI.bounds, () => rng.next())
+          : bot && taken.length > 0
+            ? findStartNear(water, taken[0]!, SPAWN_RADIUS, () => rng.next())
+            : launch();
+      let pos = taken.length === 0 && chosen ? { ...chosen } : spot();
       if (taken.length > 0) {
         const fits = (q: Vec2) =>
-          distance(q, taken[0]!) < SPAWN_RADIUS &&
+          (far || distance(q, taken[0]!) < SPAWN_RADIUS) &&
           taken.every((t) => distance(t, q) >= SPAWN_SPACING);
-        for (let k = 0; k < 400 && !fits(pos); k++) pos = launch();
+        for (let k = 0; k < 400 && !fits(pos); k++) pos = spot();
       }
       taken.push(pos);
       this.placeTube(id, p, pos, p.boat);
@@ -1296,6 +1300,8 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       st.clock = Math.min(end, st.clock + NET_DT);
       if (st.clock >= end) {
         st.phase = 'finished';
+        // Bottien tilastot tulossivun palkintoihin (pelaajat lähettävät omansa).
+        for (const [id, b] of this.bots) this.raceStats.set(id, b.stats.stats);
         // Kisan aikana katkennut isäntä ei saa estää uutta kisaa.
         if (!st.players.get(st.hostId)?.connected) this.passHost();
       }
@@ -1315,6 +1321,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       return spoutWind(base, this.spouts, st.clock, sim.tube.pos);
     };
     const depthAt = st.phase === 'playing' ? fishWorld().depthAt : undefined;
+    if (st.phase === 'playing') this.stepBots(weather, base);
     for (const i of stepSims(sims, water, st.phase === 'countdown', base && wind, depthAt)) {
       const p = this.state.players.get(ids[i]!);
       if (p) writeTube(p, sims[i]!.tube, sims[i]!.inputs.lastSeq);
@@ -1388,7 +1395,8 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
    */
   private recordCatch(player: string, c: CatchState, at: Vec2): void {
     const store = recordStore();
-    if (!store) return;
+    // Bottien saaliit eivät mene ennätyslistalle (#624).
+    if (!store || isBotId(player)) return;
     const st = this.state;
     const species = c.species as SpeciesId;
     const p = st.players.get(player);
@@ -1430,6 +1438,8 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
         p.untangle = 0;
       }
       this.tangleFree.set(id, this.state.clock + 2);
+      // Botti kelaa siimansa sisään kuten pelaajan asiakas viestin saatuaan.
+      this.resetBot(id);
     }
     const msg: UntangledMessage = { players: [a, b], how, by };
     this.broadcast(ServerMsg.untangled, msg);
@@ -1512,6 +1522,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     p.lureStage = 0;
     sim.rodInHand = false;
     sim.splashed = false;
+    this.resetBot(id);
     if (outcome.loseCatch)
       for (let i = st.catches.length - 1; i >= 0; i--)
         if (st.catches[i]!.player === id) st.catches.splice(i, 1);
@@ -1576,6 +1587,248 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       for (const id of result.victims) this.punish(id, penalty);
       const msg: LightningMessage = { x: result.pos.x, y: result.pos.y, victims: result.victims };
       this.broadcast(ServerMsg.lightning, msg);
+    }
+  }
+
+  /**
+   * Saalis kisaan. Kalastaja (pelaajan asiakas tai botti) kertoo vain, mikä
+   * kala nousi; laji ja paino tulevat kalakannasta. Sama kala (paikka ja
+   * sukupolvi) voidaan nostaa vain kerran: ensimmäinen voittaa. Palauttaa
+   * false, jos saalista ei hyväksytty.
+   */
+  private landCatch(id: string, tag: FishTag | null): boolean {
+    const sim = this.sims.get(id);
+    const now = this.state.clock;
+    const stock = this.stock;
+    const fish = tag && stock ? stock.fish[tag.slot] : undefined;
+    const current = tag && tag.gen === (this.fishGens.get(tag.slot) ?? 0);
+    const home = fish && current ? fishHome(stock!, tag.slot, tag.gen) : null;
+    const landed = fish && {
+      species: fish.species,
+      name: SPECIES[fish.species].name,
+      weight: stockWeight(stock!, tag!.slot, tag!.gen),
+    };
+    const hookAt = sim?.hookAt;
+    if (sim) sim.hookAt = null;
+    if (
+      !sim ||
+      this.state.phase !== 'playing' ||
+      this.timedOut(id) ||
+      this.state.players.get(id)?.tangledWith ||
+      !landed ||
+      !home ||
+      !hookAt ||
+      distance(hookAt, home) >
+        catchRadius(
+          landed.species,
+          DIFFICULTIES[this.state.settings.difficulty as Difficulty] ?? DIFFICULTIES.normal,
+        ) ||
+      !isPlausibleCatch(landed, {
+        splashedSinceLastCatch: sim.splashed,
+        now,
+        lastCatchAt: sim.lastCatchAt,
+        species: [...this.state.settings.species],
+      })
+    )
+      return false;
+    sim.splashed = false;
+    sim.lastCatchAt = now;
+    const c = new CatchState();
+    c.player = id;
+    c.angler = this.state.players.get(id)?.name ?? '';
+    c.species = landed.species;
+    c.name = landed.name;
+    c.weight = landed.weight;
+    c.time = now;
+    c.fishSlot = tag!.slot;
+    c.fishGen = tag!.gen;
+    c.boat = sim.boat ?? 0;
+    this.fishGens.set(tag!.slot, tag!.gen + 1);
+    this.state.catches.push(c);
+    this.recordCatch(id, c, hookAt);
+    // Kala poistuu bottienkin kalakannoista, kuten pelaajien asiakkailta.
+    for (const [other, b] of this.bots) if (other !== id) b.angler.removeCaught(tag!);
+    return true;
+  }
+
+  /** Maalle juuttuneen vieheen siima katkaistiin: uuden solmiminen vie aikaa. */
+  private landCut(id: string) {
+    const p = this.state.players.get(id);
+    const sim = this.sims.get(id);
+    if (!p || !sim || this.state.phase !== 'playing') return;
+    // Uuden vieheen solmiminen: kalastaa ei voi ennen sakon loppua.
+    p.outUntil = Math.max(p.outUntil, this.state.clock + this.state.settings.landPenalty);
+    p.lureStage = 0;
+    sim.rodInHand = false;
+    sim.splashed = false;
+  }
+
+  /** Kaikki kalastajat katsojia lukuun ottamatta, botit mukana. */
+  private seatedCount(): number {
+    let n = 0;
+    this.state.players.forEach((p) => (n += p.spectator ? 0 : 1));
+    return n;
+  }
+
+  /**
+   * Aulan botit (#624): kun botit täyttävät tyhjät paikat, niitä on
+   * pelaajamäärän ja kalastajien erotus. Liittyvä pelaaja vie botin paikan
+   * ja lähtevän tilalle tulee botti. Botit ovat aina valmiina.
+   */
+  private syncBots() {
+    const st = this.state;
+    if (st.phase !== 'lobby') return;
+    const want =
+      st.settings.bots === 'fill' ? Math.max(0, st.settings.maxPlayers - this.anglerCount()) : 0;
+    const ids = [...st.players.keys()].filter(isBotId).sort((a, b) => botIndex(a) - botIndex(b));
+    while (ids.length > want) this.removeBot(ids.pop()!);
+    for (let i = 0; ids.length < want; i++) {
+      const id = botId(i);
+      if (st.players.has(id)) continue;
+      const p = new PlayerState();
+      p.name = this.uniqueName(botName(i));
+      const look = new Rng(0x62077 + i);
+      const a = randomAppearance(() => look.next());
+      p.tubeColor = a.tube;
+      p.finColor = a.fins;
+      p.shirtColor = a.shirt;
+      p.lineColor = a.line;
+      p.lure = botTackle(i).lure;
+      st.players.set(id, p);
+      st.protocols.set(id, PROTOCOL_VERSION);
+      ids.push(id);
+    }
+    for (const id of ids) st.players.get(id)!.ready = true;
+  }
+
+  /** Botti pois huoneesta; kesken kisan sen rivi jää tuloksiin lähteneenä. */
+  private removeBot(id: string) {
+    const st = this.state;
+    const p = st.players.get(id);
+    if (!p) return;
+    if (p.tangledWith) this.untangle(id, p.tangledWith, 'cut', id);
+    if (st.phase !== 'lobby') {
+      const gone = new DepartedState();
+      gone.name = p.name;
+      gone.early = st.phase !== 'finished';
+      st.departed.set(id, gone);
+    }
+    st.players.delete(id);
+    st.protocols.delete(id);
+    this.sims.delete(id);
+    this.bots.delete(id);
+    this.reeling.delete(id);
+    this.tangleFree.delete(id);
+  }
+
+  /** Pelaaja tuli täyteen huoneeseen: viimeisin botti luovuttaa paikkansa. */
+  private yieldBotSeat() {
+    if (this.seatedCount() <= this.state.settings.maxPlayers) return;
+    const last = [...this.state.players.keys()]
+      .filter(isBotId)
+      .sort((a, b) => botIndex(b) - botIndex(a))[0];
+    if (last) this.removeBot(last);
+  }
+
+  /** Kisan alku: jokaiselle botille aivot ja oma kopio kalakannasta. */
+  private createBots() {
+    this.bots.clear();
+    const st = this.state;
+    const level = isBotLevel(st.settings.botLevel) ? st.settings.botLevel : 'mixed';
+    const difficulty = Object.hasOwn(DIFFICULTIES, st.settings.difficulty)
+      ? (st.settings.difficulty as Difficulty)
+      : 'normal';
+    for (const id of st.players.keys()) {
+      if (!isBotId(id) || !this.stock) continue;
+      const index = botIndex(id);
+      this.bots.set(id, {
+        angler: new BotAngler({
+          index,
+          skill: botSkillFor(level, index),
+          seed: st.seed,
+          difficulty,
+          water,
+          bottom: lakeBottom(),
+          pop: structuredClone(this.stock),
+        }),
+        seq: 0,
+        input: FROZEN,
+        stats: new RaceStatsCounter(),
+      });
+    }
+  }
+
+  /** Botin siima poikki (rangaistus tai sotkun selvitys). */
+  private resetBot(id: string) {
+    this.bots.get(id)?.angler.reset();
+  }
+
+  /**
+   * Bottien askel (#624): botti päättää syötteensä joka toisella askeleella
+   * (kalastus 30 Hz, botit vuorotellen), ja rengas saa syötteen jonoonsa kuten
+   * pelaajan viestistä. Saalis, roiskahdus ja maalle heitto kulkevat samojen
+   * tarkistusten läpi kuin pelaajalla.
+   */
+  private stepBots(weather: WeatherNow | null, wind?: Vec2) {
+    if (this.bots.size === 0) return;
+    const st = this.state;
+    const tick = Math.round(st.clock / NET_DT);
+    let cond: FishConditions | null = null;
+    for (const [id, b] of this.bots) {
+      const sim = this.sims.get(id);
+      const p = st.players.get(id);
+      if (!sim || !p) continue;
+      if ((tick + b.angler.index) % 2 === 0) {
+        if (!cond) {
+          const season = seasonOf(st.settings);
+          const time = isTimeOfDay(st.settings.timeOfDay) ? st.settings.timeOfDay : 'day';
+          cond = fishConditions(weather, daylight(clockAt(time, st.clock, season), season), season);
+        }
+        const others: Vec2[] = [];
+        for (const [other, s] of this.sims)
+          if (other !== id && !isAshore(s.tube)) others.push(s.tube.pos);
+        const out = b.angler.step(
+          {
+            tube: sim.tube,
+            canFish: !this.timedOut(id),
+            tangled: p.tangledWith !== '',
+            thunder: weather?.sky === 'thunder',
+            others,
+            ...(wind && { wind }),
+            cond,
+          },
+          NET_DT * 2,
+        );
+        b.input = out.input;
+        this.applyBot(id, b, sim, p, out);
+      }
+      sim.inputs.push([{ seq: ++b.seq, ...(this.capsized(id) ? FROZEN : b.input) }]);
+    }
+  }
+
+  /** Botin askeleen seuraukset huoneen tilaan (vrt. ClientMsg.input, splash ja catch). */
+  private applyBot(id: string, b: RoomBot, sim: Sim, p: PlayerState, out: BotStep) {
+    const a = b.angler;
+    const ev = out.events;
+    const stage = a.lureStage;
+    if (stage === LureStage.hooked && p.lureStage !== LureStage.hooked) sim.hookAt = { ...a.lure };
+    p.lureStage = stage;
+    if (stage !== LureStage.none) {
+      p.lureX = a.lure.x;
+      p.lureY = a.lure.y;
+    }
+    sim.rodInHand = rodInHand(stage, a.reeling);
+    this.reeling.set(id, a.reeling);
+    if (ev.splash) sim.splashed = true;
+    const f = a.fishing;
+    const hooked = f.hookedId !== null ? a.pop.fish.find((x) => x.id === f.hookedId) : null;
+    b.stats.fishing(ev, sim.tube.pos, a.lure, hooked ?? null);
+    b.stats.move(sim.tube.pos, this.state.clock);
+    if (ev.lineCut) this.landCut(id);
+    if (ev.caught?.fish) this.landCatch(id, ev.caught.fish);
+    if (out.emote) {
+      const msg: EmoteMessage = { from: id, emote: out.emote };
+      this.broadcast(ServerMsg.emote, msg);
     }
   }
 

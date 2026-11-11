@@ -13,6 +13,9 @@ import {
   type FlyRodId,
   type Method,
   type LateJoin,
+  type BotFill,
+  type BotLevel,
+  type BotSkill,
   type LineId,
   type LureId,
   type Penalty,
@@ -70,6 +73,10 @@ export const winRuleName = (w: WinRule) => t(`winRule.${w}`);
 export const penaltyName = (p: Penalty) => t(`penalty.${p}`);
 export const weatherLevelName = (w: WeatherLevel) => t(`weather.${w}`);
 export const lateJoinName = (v: LateJoin) => t(`lateJoin.${v}`);
+/** Botit (#624): tyhjien paikkojen täyttö ja bottien taito. */
+export const botFillName = (v: BotFill) => t(`botFill.${v}`);
+export const botLevelName = (v: BotLevel) => t(`botLevel.${v}`);
+export const botSkillName = (v: BotSkill) => t(`botLevel.${v}`);
 export const craftName = (c: Craft) => t(`craft.${c}`);
 /** Paikka veneessä (BoatSeat): soutaja, perä tai keula. */
 export const seatName = (seat: number) =>

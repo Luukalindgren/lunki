@@ -1095,6 +1095,12 @@ textarea,
   color: #8fd16a;
 }
 
+/* Botit (#624) himmeämpinä kuin pelaajat; pitkä lista tiivistyy yhdeksi riviksi. */
+.player-list li.lobby-bot,
+.player-list li.lobby-bot .player-state {
+  color: #8e99a4;
+}
+
 .player-list li.lobby-new {
   background: rgba(143, 209, 106, 0.16);
 }

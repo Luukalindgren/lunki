@@ -110,6 +110,12 @@ export const en: Record<keyof typeof fi, string> = {
   'weather.some': 'Some weather',
   'weather.lots': 'Lots of weather',
   'weather.chaos': 'Total chaos',
+  'botFill.none': 'Empty',
+  'botFill.fill': 'Bots fill them',
+  'botLevel.mixed': 'Mixed',
+  'botLevel.novice': 'Beginner',
+  'botLevel.regular': 'Regular',
+  'botLevel.veteran': 'Veteran',
   'lateJoin.open': 'Allowed',
   'lateJoin.return': 'Return only',
   'lateJoin.closed': 'No',
@@ -245,6 +251,10 @@ export const en: Record<keyof typeof fi, string> = {
   'settings.winRule': 'Winner',
   'settings.maxPlayers': 'Max players',
   'settings.lateJoin': 'Joining after the start',
+  'settings.bots': 'Empty places',
+  'settings.botLevel': 'Bot skill',
+  'settings.botsHint':
+    "Bots fill the empty angler places and fish like players: they kick, cast, tangle lines and can win the competition. A joining player takes a bot's place. Bot catches do not go on the records list.",
   'settings.lateJoinHint':
     'Allowed: friends can still join after the competition has started, and anyone who loses their connection can return to their spot. Return only: only returning. No: neither. Those who cannot join can still watch the competition.',
   'solo.craftHint':
@@ -405,6 +415,9 @@ export const en: Record<keyof typeof fi, string> = {
     '{names}: old game version. Whitefish and the inflation contest are unavailable until the page is reloaded.',
   'lobby.players': 'Players {n}/{max}',
   'lobby.tubeGroup': 'On float tubes · {n}',
+  'lobby.playersBots': 'Players {n}/{max} · bots {bots}',
+  'lobby.bot': 'bot · {skill}',
+  'lobby.moreBots': '… more bots: {n}',
   'lobby.playersWaiting': 'Players {n}/{max} · {waiting} waiting for a place',
   'lobby.joined': '{name} joined the lobby',
   'lobby.becameReady': '{name} is ready',
@@ -542,6 +555,7 @@ export const en: Record<keyof typeof fi, string> = {
     'In this browser Esc briefly leaves full screen: the game returns to it on your next press. Backspace resumes without the interruption.',
   'fullscreen.homeScreenHint':
     'Full screen on iPhone: Safari’s Share menu → “Add to Home Screen”, then open the game from the icon.',
+  'results.bot': '{name} (bot)',
   'results.left': '{name} (left)',
   'results.raceOver': 'The competition is over!',
   'results.winner': 'Winner: {name} ({weight})',
@@ -1207,6 +1221,9 @@ export const en: Record<keyof typeof fi, string> = {
   'manual.mp.tangle': 'Tangled lines',
   'manual.mp.tangleText':
     'Crossed lines tangle when either angler reels. While tangled, nobody can land a fish.\nReel together to untangle faster, or {cut} = cut your own line.',
+  'manual.mp.bots': 'Bots',
+  'manual.mp.botsText':
+    "The room creator can let bots fill the empty angler places (Empty places: Bots fill them). Bots fish by the same rules as players: they kick from spot to spot, cast, fight their fish, show hand signals and can tangle your line or win the competition.\nBot skill is chosen in the lobby. A beginner casts anywhere and drifts next to others, a regular fishes near the shore, and a veteran looks for rocks and reed edges and keeps clear of others. A mixed group has all of them.\nA joining player takes a bot's place, also during the competition if joining is allowed. Bots show in the results marked (bot), and their catches do not go on the records list.",
   'manual.mp.watch': 'Watching and the big screen',
   'manual.mp.watchText':
     'For spectators an automatic director picks the shot like a sports broadcast: fish on, fights, catches, taking the lead, tangles and capsizes take the camera where the action is. A fight is shown first from above and then through the angler’s eyes, and now and then there is an overview of everyone. The scoreboard lists everyone, and the caption tells who is on screen and why.\n{spectate} = pick an angler yourself, {view} = view (the director resumes after half a minute), {director} = director on or off.\nFor a big screen or projector: type the room code in the Multiplayer menu and press Big screen (or open the address ending in ?lahetys=LUNKI-XXXX). The computer joins the room directly as a spectator.',
