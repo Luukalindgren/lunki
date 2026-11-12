@@ -35,6 +35,8 @@ const DIRECTOR_LIGHTNING_RANGE = 40;
 const SPECTATOR_CARD_SECONDS = 4;
 /** Saaliin kortti näytetään vielä, jos kuva tulee saajaan näin pian (s). */
 const SPECTATOR_CARD_FRESH = 10;
+/** Tämän painoinen saalis (kg) tai kisan siihen asti suurin saa kortin aina (#637). */
+const SPECTATOR_BIG_KG = 1;
 
 /** Moninpelin kytkentä: palvelin ajaa renkaan, muut pelaajat piirretään. */
 export interface NetLink {
@@ -95,6 +97,8 @@ export class NetBridge {
   /** Tuoreen saaliin punnituskortti: näytetään, kun kuva tulee saajaan. */
   private shownCard: string | null = null;
   private readonly cards = new Map<string, { at: number; show: () => void }>();
+  /** Kisan suurin katsojan näkemä saalis (kg). */
+  private biggest = 0;
 
   constructor(
     private readonly host: NetHost,
@@ -262,7 +266,10 @@ export class NetBridge {
         SPECTATOR_CARD_SECONDS,
         { species: mark.species, weight: mark.weight },
       );
-    if (player === this.followed) show();
+    // Iso saalis näytetään heti, vaikka kuvassa olisi toinen kalastaja (#637).
+    const big = mark.weight >= SPECTATOR_BIG_KG || mark.weight > this.biggest;
+    this.biggest = Math.max(this.biggest, mark.weight);
+    if (player === this.followed || big) show();
     else this.cards.set(player, { at: this.host.competition.elapsed, show });
   }
 
