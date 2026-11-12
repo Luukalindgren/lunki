@@ -767,6 +767,32 @@ textarea,
   font-size: calc(var(--u) * 8);
 }
 
+/*
+ * Tulostaulussa juuri kalan saaneen rivi korostuu hetkeksi, ja saalis näkyy
+ * rivin perässä taulun ulkopuolella (#635).
+ */
+.hud-catches .hud-score-row {
+  position: relative;
+}
+
+.hud-catches .hud-score-row.fresh {
+  margin: 0 calc(var(--u) * -3);
+  padding: 0 calc(var(--u) * 3);
+  background: #f6d04d;
+  color: #1e2530;
+  text-shadow: none;
+}
+
+.hud-catches .hud-score-note {
+  position: absolute;
+  left: calc(100% + var(--u) * 5);
+  top: 0;
+  padding: 0 calc(var(--u) * 3);
+  background: rgb(11 15 20 / 65%);
+  color: #f6d04d;
+  text-shadow: none;
+}
+
 .hud-notices-stack > .hud-weigh {
   /* Matalalla alueella kalan kuva pienenee, teksti ei. */
   flex: 0 1 auto;
