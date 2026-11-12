@@ -155,6 +155,7 @@ export class HudPresenter {
       );
     } else hud.setPower(f.stage === 'charging' ? chargePower(f.charge) : null);
     const hold = holdForce(f, { lineHand: s.lineHand });
+    hud.setSimple(simple);
     hud.setTension(f.tension, Math.min(hold, f.drag), breakingStrength(f.tackle));
     // Rangaistukset ajastimineen isona ilmoitusalueelle, ei tilapaneelin sekaan.
     host.penalties.show(hud, host.flying);

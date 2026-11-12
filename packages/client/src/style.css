@@ -2434,6 +2434,16 @@ textarea,
   display: none;
 }
 
+/* Ruudukossa on yksinkertaisella enintään KATKO: yksi sarake ison napin
+   viereen (pystyssä sen yläpuolelle oikeaan reunaan), ei keskelle ruutua. */
+.touch-controls.simple:not(.spectator) .touch-grid {
+  grid-template-columns: 56px;
+}
+
+.touch-tools .touch-cam {
+  font-size: 18px;
+}
+
 /* Katsojalle vain näkymän napit (#280) ja ohjaaja (#564). */
 .touch-controls.spectator .touch-stick,
 .touch-controls.spectator .touch-reel,
@@ -3347,4 +3357,15 @@ textarea,
 
 .pad-map-list dd {
   margin: 0;
+}
+
+/* Yksinkertainen ohjaus (#657): jarrua ei säädetä, joten kireysmittaria ei
+   ole. Kosketuksella luotain on sen paikalla oikeassa yläkulmassa. */
+.hud.simple .hud-tension {
+  display: none;
+}
+
+.hud.touch.simple .hud-gauges {
+  right: var(--edge-r);
+  top: calc(var(--m) * 4);
 }

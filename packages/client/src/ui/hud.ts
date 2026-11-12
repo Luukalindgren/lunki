@@ -281,6 +281,15 @@ export class Hud {
     this.status.classList.toggle('badge-rod', rod);
   }
 
+  /**
+   * Yksinkertainen ohjaus (#657): kireysmittari piiloon, koska jarrua ei
+   * säädetä, ja kosketuksella luotain sen paikalle oikeaan yläkulmaan.
+   */
+  setSimple(simple: boolean): void {
+    if (this.root.classList.contains('simple') !== simple)
+      this.root.classList.toggle('simple', simple);
+  }
+
   setPower(power: number | null): void {
     this.power.hidden = power === null;
     this.power.classList.remove('fly-now');

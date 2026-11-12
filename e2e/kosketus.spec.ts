@@ -212,16 +212,18 @@ test('yksinkertaisella ohjauksella puhelimella vain tatti, iso nappi, tauko ja K
   await raceRunning(page);
   await expect(page.locator('.touch-stick')).toBeVisible();
   await expect(page.locator('.touch-reel')).toHaveText('HEITÄ');
-  await expect(page.locator('.touch-grid > button:visible')).toHaveCount(1);
-  await expect(page.getByRole('button', { name: 'KAM' })).toBeVisible();
-  await expect(page.locator('.touch-tools > button:visible')).toHaveCount(1);
+  // KAM on tauon alla samassa pinossa, eikä ruudukossa ole nappeja.
+  await expect(page.locator('.touch-grid > button:visible')).toHaveCount(0);
+  await expect(page.locator('.touch-tools > button:visible')).toHaveText(['II', 'KAM']);
   for (const hidden of ['.touch-anchor', '.touch-method', '.touch-help', '.touch-zoom'])
     await expect(page.locator(hidden).first()).toBeHidden();
   // Tilapaneelia ei ole: viehe on aina lippa.
   await expect(page.locator('.hud-status')).toBeHidden();
+  // Kireysmittaria ei ole: jarrua ei säädetä.
+  await expect(page.locator('.hud-tension')).toBeHidden();
   // Ylhäältä katsottaessa zoom on käytössä.
   await page.getByRole('button', { name: 'KAM' }).tap();
-  await expect(page.locator('.touch-zoom:visible')).toHaveCount(2);
+  await expect(page.locator('.touch-tools > button:visible')).toHaveText(['II', 'KAM', '+', '−']);
   errors.check();
 });
 
