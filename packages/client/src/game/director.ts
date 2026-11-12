@@ -29,8 +29,16 @@ export const DIRECTOR = {
   minBig: 3,
   /** Näin paljon pisteitä tarvitaan, jotta kuva vaihtuu tapahtuman takia. */
   threshold: 25,
-  /** Väsytyksen pisteet sekunnissa: pitkä väsytys pysyy kuvassa. */
-  fightRate: 3,
+  /**
+   * Väsytyksen pisteet sekunnissa. Tahti kasvaa väsytyksen keston mukaan
+   * (`fightGrow` pistettä/s jokaiselta sekunnilta, enintään `fightGrowMax` s),
+   * koska pitkä väsytys on iso kala (#637): se ohittaa muualla tulevat
+   * pikkukalojen tärpit ja pysyy kuvassa nostoon asti. Tasaisella tahdilla
+   * pisteet jäivät hiipumisen takia kynnyksen alle.
+   */
+  fightRate: 4,
+  fightGrow: 0.5,
+  fightGrowMax: 40,
   /** Väsytys näytetään ensin ylhäältä (rengas ja kala), sitten kalastajan silmin. */
   fightTopFirst: 5,
   /** Yleiskuvan pituus. */
@@ -109,6 +117,8 @@ export class Director {
   /** Kiertävä kuva vuorotellen ylhäältä ja kalastajan silmin. */
   private rotatePov = false;
   private lastStep = 0;
+  /** Kuvassa olevan kalastajan tapahtuma (sotku, kaatuminen) pitää rajauksen tähän asti. */
+  private eventUntil = -Infinity;
 
   get shot(): Shot {
     return this.current;
@@ -124,6 +134,11 @@ export class Director {
     const points = DIRECTOR_POINTS[kind] + bonus;
     for (const id of ids) {
       this.add(id, points, now, kind);
+      // Kuvassa jo olevan kalastajan tapahtuma vaihtaa alaotsikon ja rajauksen.
+      if (id === this.current.id && this.current.reason !== 'manual') {
+        this.current = { ...this.current, reason: kind };
+        this.eventUntil = now + DIRECTOR.minShot;
+      }
       if (points >= DIRECTOR.big) this.scores.get(id)!.bigAt = now;
     }
   }
@@ -151,8 +166,10 @@ export class Director {
     for (const a of anglers) {
       if (!a.hooked) this.fights.delete(a.id);
       else {
+        const start = this.fights.get(a.id) ?? now;
         if (!this.fights.has(a.id)) this.fights.set(a.id, now);
-        this.add(a.id, DIRECTOR.fightRate * dt, now, 'fight');
+        const long = Math.min(DIRECTOR.fightGrowMax, now - start);
+        this.add(a.id, (DIRECTOR.fightRate + DIRECTOR.fightGrow * long) * dt, now, 'fight');
       }
     }
     for (const id of this.scores.keys()) if (!present.has(id)) this.scores.delete(id);
@@ -276,6 +293,10 @@ export class Director {
     let view: 'top' | 'pov' = 'top';
     let reason: ShotReason = shot.reason;
     const fight = this.fights.get(shot.id);
+    const fromAbove = reason === 'tangle' || reason === 'capsize' || reason === 'lightning';
+    // Tapahtuma meni ohi ja kala on yhä kiinni: takaisin väsytykseen.
+    if (fromAbove && a?.hooked && now - shot.since >= DIRECTOR.minShot && now >= this.eventUntil)
+      reason = 'fight';
     if (reason === 'tangle' || reason === 'capsize' || reason === 'lightning') {
       // Näkyvät parhaiten ylhäältä, vaikka kala olisi kiinni.
     } else if (a?.hooked && fight !== undefined) {
