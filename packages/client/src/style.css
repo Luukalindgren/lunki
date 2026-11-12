@@ -130,6 +130,26 @@ textarea,
   white-space: pre;
 }
 
+/* Soutajan asento tilapaneelin yllä (#639): keltainen, kun vapa on kädessä. */
+.hud-status[data-badge]::before {
+  content: attr(data-badge);
+  position: absolute;
+  left: calc(var(--u) * -1);
+  bottom: calc(100% + var(--u) * 3);
+  padding: calc(var(--u) * 1) calc(var(--u) * 3);
+  background: rgb(11 15 20 / 65%);
+  border: var(--u) solid #39424d;
+  color: #cfd8e3;
+  white-space: nowrap;
+}
+
+.hud-status.badge-rod[data-badge]::before {
+  background: #f2c94c;
+  border-color: #f2c94c;
+  color: #10151b;
+  text-shadow: none;
+}
+
 .hud-power {
   left: 50%;
   top: 50%;
@@ -2487,6 +2507,20 @@ textarea,
   font-size: calc(var(--u) * 7);
   left: auto;
   bottom: auto;
+}
+
+/* Kosketuksella merkki on tilapaneelin ensimmäinen rivi: pinossa ei ole tilaa yllä. */
+.hud.touch .hud-status[data-badge]::before {
+  position: static;
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #cfd8e3;
+}
+
+.hud.touch .hud-status.badge-rod[data-badge]::before {
+  color: #f2c94c;
 }
 
 .hud.touch .hud-top-left > .hud-catches,

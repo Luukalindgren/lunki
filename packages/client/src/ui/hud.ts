@@ -266,6 +266,16 @@ export class Hud {
     if (this.status.textContent !== text) this.status.textContent = text;
   }
 
+  /**
+   * Soutajan asento merkkinä tilapaneelin yllä (#639): airoissa vai vapa
+   * kädessä, ja miten asento vaihtuu. Null = ei merkkiä.
+   */
+  setSeatBadge(text: string | null, rod = false): void {
+    if (text === null) delete this.status.dataset.badge;
+    else if (this.status.dataset.badge !== text) this.status.dataset.badge = text;
+    this.status.classList.toggle('badge-rod', rod);
+  }
+
   setPower(power: number | null): void {
     this.power.hidden = power === null;
     this.power.classList.remove('fly-now');
@@ -637,8 +647,11 @@ export interface HelpContext {
   fly: boolean;
   /** Kalastajan näkymä: zoomia ei ole. */
   pov: boolean;
-  /** Kulkupeli: kelluntarengas, veneen soutaja tai kyytiläinen (#263). */
-  seat: 'tube' | 'rower' | 'passenger';
+  /**
+   * Kulkupeli: kelluntarengas, veneen soutaja tai kyytiläinen (#263).
+   * Soutajalla on oma ohjeensa airoissa ja vapa kädessä (`rowerRod`, #639).
+   */
+  seat: 'tube' | 'rower' | 'rowerRod' | 'passenger';
   /** Moninpelin veneessä paikkaa voi vaihtaa venekunnan kesken (#357). */
   crew?: boolean;
   /** Maissa kävellen (#457) tai täyttökisassa pumppaamassa tai äyskäröimässä (#458). */
@@ -686,6 +699,7 @@ const HELP = {
 const MOVE_HELP = {
   tube: ['help.move', 'help.turn'],
   rower: ['help.row', 'help.rowTurn'],
+  rowerRod: ['help.rowRod', 'help.rowRodTurn'],
   passenger: ['help.passenger', 'help.passengerTurn'],
 } as const satisfies Record<HelpContext['seat'], readonly MsgKey[]>;
 

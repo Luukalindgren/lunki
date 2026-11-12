@@ -55,6 +55,8 @@ export interface HudHost {
   readonly viewMode: 'top' | 'pov';
   readonly inBoat: boolean;
   readonly rower: boolean;
+  /** Soutaja on airoissa (muuten vapa kädessä, #639). */
+  readonly rowing: boolean;
   readonly crewSeats: boolean;
   /** Lennetään trombin mukana. */
   readonly flying: boolean;
@@ -118,10 +120,15 @@ export class HudPresenter {
     const ashore =
       host.tube.bailer || host.tube.shore?.inflate ? 'race' : host.tube.shore ? 'walk' : undefined;
     hud.setAshore(isAshore(tube));
+    const rowing = host.rower && !ashore ? host.rowing : null;
+    hud.setSeatBadge(
+      rowing === null ? null : controlText(rowing ? 'game.badgeOars' : 'game.badgeRod'),
+      rowing === false,
+    );
     hud.setHelpContext({
       fly: isFly(f.tackle),
       pov: host.viewMode === 'pov',
-      seat: !host.inBoat ? 'tube' : host.rower ? 'rower' : 'passenger',
+      seat: !host.inBoat ? 'tube' : !host.rower ? 'passenger' : host.rowing ? 'rower' : 'rowerRod',
       crew: host.crewSeats,
       ashore,
     });
@@ -212,6 +219,7 @@ export class HudPresenter {
     const name = followed ? this.host.netWorld!.playerName(followed) : null;
     hud.setPower(null);
     hud.setAshore(false);
+    hud.setSeatBadge(null);
     hud.setHelpContext({ fly: false, pov: this.host.viewMode === 'pov', seat: 'tube' });
     hud.setSituation(null);
     if (shot) {
