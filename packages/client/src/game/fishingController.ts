@@ -273,7 +273,12 @@ export class FishingController {
         // Siiman nosto vedestä uuteen heittoon (kosketuksella NOSTA). Tärpissä
         // sama nosto on vastaisku (#399), ks. readFlyHand.
         startFlyCast = true;
-        this.flyCastControl.start(touch ? 'touch' : controlMode() === 'pad' ? 'pad' : 'mouse');
+        // Näppäimistöltä ({lift} = J) nostettu siima heitetään rytmissä
+        // näppäimillä: kosketuslevyllä ei ole hiiren oikeaa (#638).
+        const keys = input.wasPressed('KeyJ');
+        this.flyCastControl.start(
+          touch ? 'touch' : controlMode() === 'pad' ? 'pad' : keys ? 'keyboard' : 'mouse',
+        );
       }
       if (startFlyCast && this.flyCastControl.mode === 'mouse') input.lockPointer();
     }

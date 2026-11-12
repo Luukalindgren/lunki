@@ -70,7 +70,7 @@ export interface CompetitionSettings {
 
 export const DEFAULT_SETTINGS: CompetitionSettings = {
   durationMinutes: 15,
-  difficulty: 'normal',
+  difficulty: 'easy',
   winRule: 'total',
   species: [...NATIVE_SPECIES],
   weather: 'realistic',

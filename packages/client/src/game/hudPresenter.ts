@@ -85,6 +85,9 @@ export interface HudStep {
  * tärkeysjärjestyksessä, jotta sama tieto ei toistu ilmoituksena, ohjeessa ja
  * tilarivillä (docs/kehitys.md).
  */
+/** Perho näin kauan vedessä ilman tärppiä (s): tilanneohje nostosta (#638). */
+const FLY_WATER_HINT = 12;
+
 export class HudPresenter {
   private raceHudTimer = 0;
   private readonly catchFlashes = new CatchFlashes();
@@ -92,6 +95,22 @@ export class HudPresenter {
   private prevLeft: number | null = null;
   /** Loppulaskennan numero lähtölaskennan paikalle, tai null. */
   private endCount: string | null = null;
+
+  /** Kuinka kauan perho on ollut vedessä ilman tärppiä (s). */
+  private flyIdle = 0;
+
+  /**
+   * Perho vedessä eikä mitään tapahdu (#638): ohje kertoo, miten siimaa
+   * vedetään ja miten se nostetaan uuteen heittoon. LAN-illassa pelaaja jäi
+   * tähän tilaan minuuteiksi.
+   */
+  private flyWaterHint(dt: number): string | null {
+    const f = this.host.fishing;
+    const waiting =
+      isFly(f.tackle) && f.stage === 'water' && f.struckId === null && f.hookedId === null;
+    this.flyIdle = waiting ? this.flyIdle + dt : 0;
+    return this.flyIdle >= FLY_WATER_HINT ? controlText('game.flyWaterHint') : null;
+  }
 
   constructor(private readonly host: HudHost) {}
 
@@ -162,7 +181,7 @@ export class HudPresenter {
                   )}`
             : host.thunderNow && (s.lureOut || f.hookedId !== null)
               ? t('help.thunder')
-              : (host.craftHint ?? (guide && controlText(guide)));
+              : (host.craftHint ?? this.flyWaterHint(dt) ?? (guide && controlText(guide)));
     hud.setSituation(
       situation,
       situation !== null && situation === host.craftHint ? host.craftHintBars : null,
