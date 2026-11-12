@@ -172,7 +172,7 @@ export const CONTROLS = {
     title: 'touch.stripTitle',
     pad: PAD_MAIN,
   },
-  lift: { keys: ['Mouse2'], touch: 'touch.lift', title: 'touch.liftTitle', pad: ['Pad2'] },
+  lift: { keys: ['Mouse2', 'KeyJ'], touch: 'touch.lift', title: 'touch.liftTitle', pad: ['Pad2'] },
   reelSlack: {
     keys: ['KeyF'],
     touch: 'touch.reelSlack',

@@ -766,8 +766,15 @@ export const en: Record<keyof typeof fi, string> = {
   'help.flyCast': 'Fly cast: {backCast} = back, {forwardCast} = forward · {swipe}',
   'help.flyCast2':
     '{castForward} = rhythm cast · {lift} = pick up (on a take: set the hook) · {flyPanel} = side view',
-  'help.flyStrip': 'Fly on the water: {strip} = strip line · {reelSlack} = slack to reel',
+  'help.flyStrip':
+    'Fly in the water: {strip} = strip line · {lift} = lift for a new cast · {reelSlack} = slack onto the reel',
   'help.flyReel': 'On the reel: hold {pointer|reel} = reel in · {dragLess}/{dragMore} = drag',
+  'help.shortMove': '{forward}/{back} = kick · {turn} = turn',
+  'help.shortCast': 'Hold and release {castForward} = cast',
+  'help.shortReel': 'Hold {pointer|reel} = reel',
+  'help.shortFly': '{castForward} = fly cast in rhythm · {lift} = lift the line off the water',
+  'help.shortFlyStrip': 'Fly in the water: {strip} = strip line',
+  'help.shortMore': '{help} = all controls · {pause} = pause',
   'help.bar':
     '{view} = view · {emote} = hand signs · {zoom} = zoom · {help} = help · {pause} = pause',
   'help.chat': '{chat} = message the others',
@@ -1019,6 +1026,8 @@ export const en: Record<keyof typeof fi, string> = {
   'game.lightningHint': 'The line burned through – lower your rod in thunder',
   'game.lureSonarOn': 'Lure depth view on',
   'game.lureSonarOff': 'Lure depth view off',
+  'game.flyWaterHint':
+    'The fly is in the water\n{strip} = strip the fly · {lift} = lift the line for a new cast',
   'game.stuckOnLand': 'The lure is stuck on land\nCut the line: {cut}',
   'game.tired': 'Out of breath! Rest a moment to get your strength back',
   'game.flying': 'You are flying with the waterspout!',
@@ -1166,7 +1175,7 @@ export const en: Record<keyof typeof fi, string> = {
     '{sonar} = sonar shows the fish.\nMove to a new spot: fish swim in schools and feed in spells.\n{lure} = change lure. Different fish like different lures.\nOn Easy the fish always hooks and the line never snaps.',
   'manual.start.screen': 'On screen',
   'manual.start.screenText':
-    'The hint at the top centre tells you what to do next.\n{help} = show or hide the help for all controls.\n{view} = switch view: through the angler’s eyes or from above.\n{pause} = pause: settings, how to play and tackle.',
+    'The hint at the top centre tells you what to do next.\nA race starts with a short help: moving, casting and reeling. {help} switches the help: all controls, hidden and back to short.\n{view} = switch view: through the angler’s eyes or from above.\n{pause} = pause: settings, how to play and tackle.',
   'manual.section.move': 'Moving',
   'manual.section.spin': 'Spinning',
   'manual.section.fly': 'Fly',

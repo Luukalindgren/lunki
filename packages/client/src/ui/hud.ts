@@ -39,6 +39,8 @@ export class Hud {
   private readonly situationBars: HTMLDivElement;
   private situationBarsKey = '';
   private helpKey = '';
+  /** Ohjeen laajuus (#638): lyhyt on oletus, {help} avaa kaiken ja piilottaa. */
+  private helpLevel: HelpLevel = loadHelpLevel();
   private readonly stamina: HTMLDivElement;
   private readonly staminaFill: HTMLDivElement;
   private readonly timer: HTMLDivElement;
@@ -445,7 +447,7 @@ export class Hud {
     if (touch) this.root.insertBefore(this.flyPanel.root, this.notices);
     else this.lureSonar.root.after(this.flyPanel.root);
     this.placeLureSonar();
-    this.helpSlot.hidden = touch;
+    this.helpSlot.hidden = touch || this.helpLevel === 'off';
     this.setHelpMode(this.multiplayer, this.spectator);
     this.updateHelpOpen();
     this.measureEdges();
@@ -555,7 +557,16 @@ export class Hud {
           : [...MOVE_HELP[c.seat], ...(c.fly ? HELP.fly : HELP.spin)];
     // Zoom ja oikean tatin heittosuunta toimivat vain ylhäältä katsottaessa.
     const opts = { skip: c.pov ? (['zoom', 'aim'] as const) : [] };
-    const lines = [...base, ...tail].map((k) => controlText(k, {}, opts));
+    // Lyhyt ohje (#638): kisan alussa vain liike, heitto ja kelaus.
+    const short =
+      this.helpLevel === 'short' && !this.spectator && !c.ashore
+        ? [
+            ...(c.seat === 'tube' ? (['help.shortMove'] as const) : MOVE_HELP[c.seat]),
+            ...(c.fly ? SHORT_HELP.fly : SHORT_HELP.spin),
+            'help.shortMore' as const,
+          ]
+        : null;
+    const lines = (short ?? [...base, ...tail]).map((k) => controlText(k, {}, opts));
     const key = lines.join('\n');
     if (key === this.helpKey) return;
     this.helpKey = key;
@@ -577,8 +588,14 @@ export class Hud {
     this.root.style.setProperty('--help-w', String(Math.ceil(6 + 3.2 * cols)));
   }
 
+  /** {help}: lyhyt ohje → kaikki ohjeet → piilossa → lyhyt. Valinta jää laitteelle. */
   toggleHelp(): void {
-    this.helpSlot.hidden = !this.helpSlot.hidden;
+    if (this.touch) return;
+    this.helpLevel =
+      this.helpLevel === 'short' ? 'full' : this.helpLevel === 'full' ? 'off' : 'short';
+    saveHelpLevel(this.helpLevel);
+    this.helpSlot.hidden = this.helpLevel === 'off';
+    this.renderHelp();
     this.updateHelpOpen();
   }
 
@@ -694,6 +711,32 @@ const HELP = {
   'spin' | 'fly' | 'spectator' | 'shore' | 'race' | 'raceBoat',
   readonly MsgKey[]
 >;
+
+/** Lyhyen ohjeen kalastusrivit (#638). */
+const SHORT_HELP = {
+  spin: ['help.shortCast', 'help.shortReel'],
+  fly: ['help.shortFly', 'help.shortFlyStrip'],
+} as const satisfies Record<'spin' | 'fly', readonly MsgKey[]>;
+
+type HelpLevel = 'short' | 'full' | 'off';
+const HELP_KEY = 'lunki.help';
+
+function loadHelpLevel(): HelpLevel {
+  try {
+    const v = localStorage.getItem(HELP_KEY);
+    return v === 'full' || v === 'off' ? v : 'short';
+  } catch {
+    return 'short';
+  }
+}
+
+function saveHelpLevel(level: HelpLevel): void {
+  try {
+    localStorage.setItem(HELP_KEY, level);
+  } catch {
+    // Tallennus estetty: valinta on voimassa tämän kisan.
+  }
+}
 
 /** Liikkumisen ohjeet kulkupelin mukaan. */
 const MOVE_HELP = {
