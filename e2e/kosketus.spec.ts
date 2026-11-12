@@ -225,6 +225,25 @@ test('yksinkertaisella ohjauksella puhelimella vain tatti, iso nappi, tauko ja K
   errors.check();
 });
 
+test('?-nappi avaa ja sulkee ohjeen puhelimella', async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'vain puhelinemuloinnit');
+  const errors = watchErrors(page);
+  await page.goto(soloUrl('pov'));
+  await page.getByRole('button', { name: 'Pelaa' }).tap();
+  await page.getByRole('button', { name: 'Yksinpeli' }).tap();
+  await page.getByRole('button', { name: 'Aloita kisa' }).tap();
+  await raceRunning(page);
+  const help = page.locator('.hud-help');
+  await expect(help).toBeHidden();
+  await page.locator('.touch-help').tap();
+  await expect(help).toBeVisible();
+  // Kaikkien nappien ohje kosketusnappien nimillä, ei lyhyt aloitusohje.
+  await expect(help).toContainText('JAR−/JAR+ = jarru');
+  await page.locator('.touch-help').tap();
+  await expect(help).toBeHidden();
+  errors.check();
+});
+
 test('katsojalle puhelimella vain näkymän napit (#280)', async ({
   page,
   browser,
