@@ -41,7 +41,14 @@ import { describeSpot } from './ui/lakeMap';
 import type { WeighCardInfo } from './ui/weighCard';
 import { ChatBox } from './ui/chat';
 import { TouchControls, isTouchDevice } from './ui/touchControls';
-import { Controls, contextActions, setControlMode } from './game/controls';
+import {
+  Controls,
+  contextActions,
+  controlMode,
+  setControlMode,
+  setFlyStickInverted,
+} from './game/controls';
+import { padSettings, setPadSettings } from './engine/padSettings';
 import { Guide, loadGuide } from './game/guide';
 import {
   Screens,
@@ -117,6 +124,19 @@ input.onDevice = (device, kind) => {
   setControlMode(device === 'pad' ? 'pad' : touch ? 'touch' : 'keys', kind);
   sfx.padRumble.active = device === 'pad';
   hud.refreshHelp();
+};
+setFlyStickInverted(padSettings().flyInvert);
+// Ohjain kytkettiin tai irtosi (#594): ilmoitus kisassa, ja yksinpeli menee
+// tauolle, jos ohjain irtoaa kesken pelaamisen sillä.
+input.onPadPresence = (connected) => {
+  if (!game || game.competition.finished) return;
+  if (connected) {
+    if (!paused) hud.showMessage(t('pad.connected'), 3, 'info');
+    return;
+  }
+  const wasPad = controlMode() === 'pad';
+  hud.showMessage(t('pad.disconnected'), 4, 'info');
+  if (wasPad && !session && !paused) togglePause();
 };
 /** Pelaajan valitsema HUDin koko, tallessa selaimessa. */
 let hudScale = loadHudScale(touch !== null);
@@ -194,6 +214,14 @@ const settingsControls = (reopen: () => void): SettingsControls => ({
     current: loadGuide().off === false,
     // Pelin aikana muutos koskee heti käynnissä olevaa kisaa.
     onChange: (on) => (game?.guide ?? new Guide(loadGuide())).setEnabled(on),
+  },
+  pad: {
+    current: padSettings(),
+    onChange: (s) => {
+      setPadSettings(s);
+      setFlyStickInverted(s.flyInvert);
+      hud.refreshHelp();
+    },
   },
   onLanguage: reopen,
 });

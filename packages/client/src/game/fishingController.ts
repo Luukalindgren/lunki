@@ -49,6 +49,7 @@ import {
   speciesName,
 } from '../i18n/names';
 import { CastControl } from './castControl';
+import { padSettings } from '../engine/padSettings';
 import { controlMode, controlText, type Controls } from './controls';
 import { FlyCastControl, touchToRodPixels } from './flyCastControl';
 import type { FishingView } from './fishingView';
@@ -297,7 +298,12 @@ export class FishingController {
                     key: c.wasPressed('castForward'),
                     dx: input.mouseDX,
                     dy: input.mouseDY,
-                    stick: { ...input.padAim, aim: host.viewMode !== 'pov' },
+                    // Käänteinen tatti (#594): ylös on takaheitto.
+                    stick: {
+                      x: input.padAim.x,
+                      y: padSettings().flyInvert ? -input.padAim.y : input.padAim.y,
+                      aim: host.viewMode !== 'pov',
+                    },
                   },
               dt,
             )

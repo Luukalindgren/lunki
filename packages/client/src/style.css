@@ -3251,3 +3251,55 @@ textarea,
   --px: 3px;
   margin: 12px 0 4px;
 }
+
+/* Ohjainkuva Ohjeissa (#594): kuva ohjaimesta ja luettelo nappien toiminnoista. */
+.pad-map {
+  margin: 8px 0 4px;
+}
+
+.pad-diagram {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto 8px;
+}
+
+.pad-diagram .pad-body {
+  fill: #2b3440;
+  stroke: #8e99a4;
+  stroke-width: 2;
+}
+
+.pad-diagram .pad-button,
+.pad-diagram .pad-stick {
+  fill: #39424d;
+  stroke: #c3cbd2;
+  stroke-width: 1.5;
+}
+
+.pad-diagram .pad-stick {
+  fill: #1c232b;
+}
+
+.pad-diagram .pad-text {
+  font-family: 'VT323', monospace;
+  font-size: 11px;
+  fill: #fff3b0;
+}
+
+.pad-map-list {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 12px;
+  margin: 0;
+  font-size: 0.85em;
+}
+
+.pad-map-list dt {
+  color: #fff3b0;
+  white-space: nowrap;
+}
+
+.pad-map-list dd {
+  margin: 0;
+}

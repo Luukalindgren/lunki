@@ -53,7 +53,8 @@ import {
   type FishTag,
 } from '@lunki/shared';
 import type { Input } from '../engine/input';
-import { Controls, controlText, type ShoreMain } from './controls';
+import { padSettings, ReelLatch } from '../engine/padSettings';
+import { contextActions, controlMode, Controls, controlText, type ShoreMain } from './controls';
 import { createBottomMesh } from '../world/bottomMesh';
 import { FishShadow } from '../world/fishShadow';
 import { FishSignsView } from './fishSignsView';
@@ -196,6 +197,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
   private readonly anchorView = new AnchorView();
   /** Paikanvaihdon siirtymä ja keinahdus piirrossa (#357). */
   private readonly seatSlides = new SeatSlides();
+  private readonly reelLatch = new ReelLatch();
   private readonly waterWaves = createWaterWaves();
   /**
    * Ylhäältä katsottavat järven osat: kaislikkokuviot ja saarten litteät
@@ -625,7 +627,19 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     this.weather.step(dt);
     const timeOut = this.penalties.timeOutLeft;
     const capsized = this.penalties.capsizeLeft > 0;
-    const reelHeld = c.isDown('pointer') || c.isDown('reel');
+    // Peliohjaimella kelaus voi olla kytkin (#594): painallus aloittaa, toinen lopettaa.
+    const fishingNow = this.fishing;
+    const reelHeld =
+      c.isDown('pointer') ||
+      this.reelLatch.step(
+        c.isDown('reel'),
+        c.wasPressed('reel'),
+        controlMode() === 'pad' &&
+          padSettings().reelToggle &&
+          fishingNow.stage === 'water' &&
+          !fishingNow.landing &&
+          contextActions(fishingNow, false).main === 'reel',
+      );
     const tangle = net ? net.updateTangle(c.wasPressed('cut')) : null;
     if (!frozen) this.logRace();
 

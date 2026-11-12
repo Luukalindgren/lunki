@@ -31,6 +31,7 @@ import type { NetWorld } from '../net/netWorld';
 import type { Hud, SituationBar } from '../ui/hud';
 import { decimal, t, type MsgKey } from '../i18n';
 import { seatName } from '../i18n/names';
+import { padSettings, TurnPulse } from '../engine/padSettings';
 import { controlMode, controlText, type Controls } from './controls';
 import type { FishingView } from './fishingView';
 import { RowerSeat } from './rowing';
@@ -117,6 +118,7 @@ export class CraftController {
   readonly seat = new RowerSeat();
   /** Tuhdolla kääntyminen edellisellä askeleella (piirron interpolointiin). */
   prevLook = 0;
+  private readonly turnPulse = new TurnPulse();
   /** Pikapotku päällä (kalastajan silmin näkyvät räpylät, #230). */
   sprinting = false;
   /** Potkuvaiheen puolikas edellisellä päivityksellä (räpylöiden äänet). */
@@ -221,7 +223,12 @@ export class CraftController {
     // Pikavalikon ollessa pohjassa oikea tatti osoittaa sen lohkoa eikä käännä.
     const look =
       host.viewMode === 'pov' && !c.isDown('lure') && !c.isDown('method') && !c.isDown('emote');
-    const raw = frozen || capsized ? still : readTubeInput(c, wasAshore, look);
+    const read = frozen || capsized ? still : readTubeInput(c, wasAshore, look);
+    // Peliohjaimen kääntymisen herkkyys (#594).
+    const raw =
+      controlMode() === 'pad'
+        ? { ...read, turn: this.turnPulse.step(read.turn, padSettings().turn) }
+        : read;
     const rodStage = host.fishing.stage;
     const rodInHand =
       rodStage === 'charging' ||

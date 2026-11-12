@@ -113,6 +113,11 @@ export function readPads(pads: readonly (PadLike | null)[] = connectedPads()): P
   return merged;
 }
 
+/** Onko jokin ohjain kytkettynä (Asetusten Peliohjain-osio, #594). */
+export function padConnected(): boolean {
+  return connectedPads().some((p) => p !== null);
+}
+
 function connectedPads(): readonly (Gamepad | null)[] {
   try {
     return typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : [];
