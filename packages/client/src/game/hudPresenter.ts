@@ -121,6 +121,8 @@ export class HudPresenter {
   private guideText(guide: MsgKey | null, touch: boolean): string | null {
     if (!guide) return null;
     if (!simpleControls()) return controlText(guide);
+    // Viehettä ei yksinkertaisella vaihdeta: vinkistä jäisi pelkkä loppuosa (#664).
+    if (guide === 'guide.tipLure') return null;
     const key =
       guide === 'guide.strikeBig'
         ? 'guide.strike'
