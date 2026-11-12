@@ -335,6 +335,12 @@ Koodi: `packages/client/src/audio/sounds.ts`.
   yhteiset. Uusi mekaniikka, jota ensikertalainen ei tarvitse, jätetään pois
   `simpleControls()`-kutsun mukaan eikä uudella vaikeustasolla. Oletustaso
   on Helppo.
+- Uuden pelaajan oletukset ovat helpoimmat: ohjaustapa Yksinkertainen
+  (`defaultStyle`; laite, jolla on jo saatu kala tai ohitettu opastus, jatkaa
+  täydellä), taso Helppo ja kieli suomi selaimen kielestä riippumatta
+  (`detectLang`; englannin saa päävalikosta ja Asetuksista). Tallennettua
+  valintaa oletus ei muuta. Selaintestit valitsevat täyden ohjauksen
+  (`fullControls`, `e2e/apu.ts`).
 - Kalastuksen vaikeustaso (`settings.difficulty`) päättää myös näkyvät
   avut: helpolla saa olla pelimäisiä apuja, realistisella vain se, minkä
   oikeakin kalastaja näkee.

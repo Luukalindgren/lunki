@@ -427,7 +427,7 @@ export function loaderHtml(label: string | null = null, variant = LOADER_VARIANT
 /**
  * Sivun ensimmäinen latausnäkymä, jonka vite.config.ts upottaa index.html:ään:
  * se näkyy heti tyylitiedoston saavuttua, kun pelin koodi vasta latautuu.
- * Kieli valitaan samoin kuin i18n:ssä (tallennettu valinta tai selaimen kieli).
+ * Kieli valitaan samoin kuin i18n:ssä (tallennettu valinta, muuten suomi).
  * Jos lataus kestää, ruutu kertoo hetken päästä, että peli latautuu yhä.
  */
 export function bootLoaderHtml(): string {
@@ -438,7 +438,6 @@ export function bootLoaderHtml(): string {
     `<p class="boot-slow">${text('Hidas yhteys? Peli latautuu yhä.', 'Slow connection? The game is still loading.')}</p>` +
     `</div>` +
     `<script>(function(){var l=null;try{l=localStorage.getItem('lunki.lang')}catch(e){}` +
-    `if(l!=='fi'&&l!=='en')l=(navigator.language||'').toLowerCase().indexOf('fi')===0?'fi':'en';` +
     `if(l==='en')document.querySelectorAll('#boot-loader [data-en]').forEach(function(e){e.textContent=e.getAttribute('data-en')})})()</script>`
   );
 }

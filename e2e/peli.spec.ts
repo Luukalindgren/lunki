@@ -437,11 +437,23 @@ test('kieli vaihtuu päävalikosta heti ja säilyy uudelleenlatauksen jälkeen',
   errors.check();
 });
 
-test('englanninkielinen selain saa pelin englanniksi', async ({ browser }) => {
+test('englanninkielinenkin selain saa pelin suomeksi ja englannin napista', async ({ browser }) => {
   const ctx = await browser.newContext({ locale: 'en-US' });
   const page = await ctx.newPage();
   await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Tietoa ja palaute' })).toBeVisible();
+  await page.getByRole('button', { name: 'English' }).click();
   await expect(page.getByRole('button', { name: 'About and feedback' })).toBeVisible();
+  await ctx.close();
+});
+
+test('uusi pelaaja saa yksinkertaisen ohjauksen', async ({ browser }) => {
+  // Tyhjä muisti: testien oletus (playwright.config.ts) valitsee täyden ohjauksen.
+  const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+  const page = await ctx.newPage();
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Asetukset' }).click();
+  await expect(page.getByRole('button', { name: 'Yksinkertainen' })).toHaveClass(/selected/);
   await ctx.close();
 });
 

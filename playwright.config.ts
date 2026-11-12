@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { fullControls } from './e2e/apu';
 
 /**
  * Selaintestit (e2e/): peli tuotantobuildina (vite preview) ja pelipalvelin
@@ -36,6 +37,9 @@ export default defineConfig({
     baseURL: 'http://localhost:4173',
     // Testit etsivät suomenkielisiä nappeja; englanti testataan erikseen.
     locale: 'fi-FI',
+    // Uuden pelaajan oletus on yksinkertainen ohjaus; testit on kirjoitettu
+    // täydelle (jarru, kelausnopeudet, perho).
+    storageState: fullControls(),
     // Service worker (#328) ohittaisi sivun pyyntöjen sieppauksen osassa
     // selaimista; se testataan erikseen (offline.spec.ts).
     serviceWorkers: 'block',

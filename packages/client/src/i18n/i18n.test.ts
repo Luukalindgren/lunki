@@ -101,13 +101,11 @@ describe('käännökset', () => {
     expect(en['settings.startRace']).toBe('Start the competition');
   });
 
-  it('kieli tallennetusta valinnasta tai selaimen kielestä', () => {
-    expect(detectLang('en', 'fi-FI')).toBe('en');
-    expect(detectLang('fi', 'en-US')).toBe('fi');
-    expect(detectLang(null, 'fi-FI')).toBe('fi');
-    expect(detectLang(null, 'FI')).toBe('fi');
-    expect(detectLang(null, 'sv-FI')).toBe('en');
-    expect(detectLang('de', undefined)).toBe('en');
+  it('kieli tallennetusta valinnasta, muuten suomi', () => {
+    expect(detectLang('en')).toBe('en');
+    expect(detectLang('fi')).toBe('fi');
+    expect(detectLang(null)).toBe('fi');
+    expect(detectLang('de')).toBe('fi');
   });
 
   it('muuttujat sijoitetaan tekstiin', () => {
