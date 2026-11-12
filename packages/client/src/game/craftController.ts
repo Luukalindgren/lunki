@@ -237,6 +237,7 @@ export class CraftController {
       (rodStage === 'water' && reelHeld && !frozen);
     const oars = this.rower && c.wasPressed('oars') && !rodInHand && !frozen;
     // Rannalla (#458) liikesuunnat ovat nuolia eivätkä soutua.
+    const wasRowing = this.seat.rowing;
     const move = this.rower && !wasAshore ? this.seat.step(raw, rodInHand, oars, dt) : raw;
     // Ankkuri (#355): renkaalla ja veneen soutajalla, ei kyydissä eikä vanhalla palvelimella.
     let anchor = c.wasPressed('anchor') && !frozen && !capsized && !host.spectating;
@@ -257,7 +258,8 @@ export class CraftController {
     const f = host.fishing;
     const lureStage = this.lureStage(f);
     this.updateSeat(c.wasPressed('seat') && !frozen && !capsized, lureStage);
-    if (oars)
+    // Asennon vaihto kerrotaan aina, myös kun heitto tai soutu vaihtaa sen (#639).
+    if (this.rower && this.seat.rowing !== wasRowing)
       host.hud.showMessage(
         controlText(this.seat.rowing ? 'game.oarsOut' : 'game.oarsIn'),
         2,

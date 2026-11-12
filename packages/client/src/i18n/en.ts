@@ -752,6 +752,8 @@ export const en: Record<keyof typeof fi, string> = {
     'Inflation contest: {bail} = bail · arrows = the arrow sequence in the hint',
   'help.row': '{back} = row · {forward} = back water · {sprint} = speed up (tiring)',
   'help.rowTurn': '{turn} = turn the boat · {oars} = oars/rod · {anchor} = anchor',
+  'help.rowRod': 'Rod in hand: the boat glides · {turn} = turn on the seat',
+  'help.rowRodTurn': '{oars|back} = take the oars · {anchor} = anchor',
   'help.passenger': 'Passenger: the rower rows, you fish',
   'help.passengerTurn': '{turn} = turn in your seat to cast',
   'help.cast': '{pointer}: aim, hold and release = cast · {aim} = cast direction',
@@ -957,6 +959,8 @@ export const en: Record<keyof typeof fi, string> = {
   'game.capsizeHintBoat': 'Keep the bow or stern towards the wave and the boat stays upright',
   'game.bigWaveBoat': 'Big wave {from}! Turn the bow or stern towards it',
   'game.rowFishing': 'You cannot row and reel at the same time: stop reeling to row.',
+  'game.badgeOars': 'AT THE OARS · casting takes the rod',
+  'game.badgeRod': 'ROD IN HAND · {oars|back} = oars',
   'game.oarsIn': 'Oars resting: you fish and turn on the seat ({turn})',
   'game.oarsOut': 'You took the oars',
   'game.passengerRow': 'Only the rower rows. You can turn in your seat to cast.',
@@ -1182,7 +1186,7 @@ export const en: Record<keyof typeof fi, string> = {
     "The inflation contest is chosen in the competition rules (Start). Everyone starts in a row on the shore next to a flat float tube and a standing hand pump, and the clock is already running while you pump.\n{pump} is one stroke. The handle takes about {handle} s to rise again: a stroke pressed before it is up is only partial (half a stroke gives just a quarter of the air), so pumping in time with the handle beats mashing. The bar of the part you are pumping brightens when the handle is up. Strokes use stamina.\nThe U of the tube is two halves with the seat between them. The halves fill in {side} strokes and the seat in {floor}. When a pontoon is full, move the hose to the next one with an arrow sequence ({forward}, {back} and {turn}). A wrong arrow pulls the hose off: the sequence starts over and about {leak} strokes of air escape.\nWhen the tube is full, pick it up and jump in at the waterline. In the results the fastest one gets the Fastest inflater award.\nBoats lie on the shore full of water. {bail} is one scoop, and the bow and stern are bailed separately: from an empty part you move to the other with an arrow sequence. The amount of water depends on the crew size, so everyone does about one tube's worth of work. The empty boat is pushed into the water and the oars are fitted, each with an arrow sequence that anyone in the crew can do.",
   'manual.move.boat': 'Boat',
   'manual.move.boatText':
-    "In the single-player settings you can go out in a boat instead of a float tube. In the multiplayer lobby you can take your own boat or board someone else's. A boat has a rower and up to two anglers, and its crew is one team.\nRower: {back} = row, {forward} = back water, {turn} = turn the boat.\n{oars} = oars or rod. You cannot row while casting or reeling, but with the lure in the water you can troll.\n{seat} = change seats when the boat is nearly still.",
+    "In the single-player settings you can go out in a boat instead of a float tube. In the multiplayer lobby you can take your own boat or board someone else's. A boat has a rower and up to two anglers, and its crew is one team.\nRower: {back} = row, {forward} = back water, {turn} = turn the boat.\nThe rower has two positions, and a badge above the status panel shows which one you are in. At the oars you row and turn the boat. With the rod in hand the boat glides and {turn} turns you on the seat. Casting and reeling take the rod, rowing takes the oars again, and {oars} switches by hand. You cannot row while casting or reeling, but with the lure in the water you can troll.\n{seat} = change seats when the boat is nearly still.",
   'manual.move.pad': 'Game controller',
   'manual.move.padText':
     "Xbox and PlayStation controllers work as they are: connect one by cable or Bluetooth and press any of its buttons. The help then shows the controller's buttons.\nIn menus the d-pad or left stick moves, A/✕ selects, B/○ goes back and the right stick scrolls a long view.\nQuick menus (tackle box, fishing method, hand signals): hold the button, point with the right stick and release.\nIn the angler view the right stick turns like the left one, so you can kick forward and back with the left stick and turn with the right. From above the right stick is the cast direction.\nZoom from above: hold LT/L2 and press the d-pad up or down.\nIn a fly cast the right stick is the rod: pull it down for the back cast, hold it there until the line straightens, then push it up for the forward cast. The cast button casts the fly in rhythm: every press changes direction.\nThe Gamepad section in Settings (shown when a controller is connected) sets the turning sensitivity, the fly cast stick direction, reeling by holding or as a toggle, and rumble.\nIf the controller disconnects during a solo game, the game pauses.",

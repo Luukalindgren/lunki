@@ -566,6 +566,10 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     return this.craft.rower;
   }
 
+  get rowing(): boolean {
+    return this.craft.seat.rowing;
+  }
+
   /** Kalastajan katsesuunta: soutaja voi kääntyä tuhdolla veneen suunnasta. */
   get facing(): number {
     return this.craft.facing;

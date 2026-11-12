@@ -757,6 +757,8 @@ export const fi = {
   'help.shoreRaceBoat': 'Täyttökisa: {bail} = äyskäröi · nuolet = tilanneohjeen nuolisarja',
   'help.row': '{back} = souda · {forward} = huopaa · {sprint} = kiihdytä (vie kuntoa)',
   'help.rowTurn': '{turn} = käännä venettä · {oars} = airot/vapa · {anchor} = ankkuri',
+  'help.rowRod': 'Vapa kädessä: vene liukuu · {turn} = käänny tuhdolla',
+  'help.rowRodTurn': '{oars|back} = tartu airoihin · {anchor} = ankkuri',
   'help.passenger': 'Kyydissä: soutaja soutaa, sinä kalastat',
   'help.passengerTurn': '{turn} = käänny paikallasi heittämään',
   'help.cast': '{pointer}: tähtää, pidä ja päästä = heitto · {aim} = heiton suunta',
@@ -963,6 +965,8 @@ export const fi = {
   'game.capsizeHintBoat': 'Pidä keula tai perä aaltoa kohti, niin vene pysyy pystyssä',
   'game.bigWaveBoat': 'Iso aalto {from}! Käännä keula tai perä aaltoa kohti',
   'game.rowFishing': 'Et voi soutaa ja kelata yhtä aikaa: lopeta kelaus, niin pääset soutamaan.',
+  'game.badgeOars': 'AIROISSA · heitto vie vavan käteen',
+  'game.badgeRod': 'VAPA KÄDESSÄ · {oars|back} = airoihin',
   'game.oarsIn': 'Airot lepäävät: kalastat ja käännyt tuhdolla ({turn})',
   'game.oarsOut': 'Tartuit airoihin',
   'game.passengerRow': 'Vain soutaja soutaa. Voit kääntyä paikallasi heittämään.',
@@ -1187,7 +1191,7 @@ export const fi = {
     'Täyttökisa valitaan kisan säännöistä (Kisan alku). Kaikki aloittavat rivistä rannalta tyhjän renkaan ja seisovan käsipumpun ääressä, ja kisakello käy jo pumpatessa.\n{pump} on yksi veto. Kahva nousee takaisin noin {handle} s:ssa: kesken nousun painettu veto jää vajaaksi (puolikas veto tuo vain neljänneksen ilmasta), joten kahvan tahdissa pumppaava voittaa hakkaajan. Työn alla olevan ponttoonin palkki kirkastuu, kun kahva on ylhäällä. Vedot vievät kuntoa.\nRenkaan U on kahtena puoliskona, ja niiden välissä on istuin. Puoliskot täyttyvät {side} vedolla ja istuin {floor} vedolla. Täyden ponttoonin jälkeen letku siirretään seuraavaan nuolisarjalla ({forward}, {back} ja {turn}). Väärä nuoli irrottaa letkun: sarja alkaa alusta ja ponttoonista karkaa noin {leak} vedon verran ilmaa.\nKun rengas on täynnä, ota se mukaan ja hyppää vesirajassa kyytiin. Kisan tuloksissa nopein saa palkinnon Nopein täyttäjä.\nVeneet ovat rannalla vettä täynnä. {bail} on yksi kauhallinen, ja keula ja perä äyskäröidään erikseen: tyhjästä osasta siirrytään toiseen nuolisarjalla. Vettä on venekunnan koon mukaan, joten jokainen tekee noin renkaan verran työtä. Tyhjä vene työnnetään vesille ja airot kiinnitetään, kumpikin nuolisarjalla, jonka kuka tahansa venekunnasta voi tehdä.',
   'manual.move.boat': 'Vene',
   'manual.move.boatText':
-    'Yksinpelin asetuksissa voi lähteä veneellä renkaan sijaan. Moninpelin aulassa voi valita oman veneen tai mennä toisen kyytiin. Veneessä on soutaja ja enintään kaksi kalastajaa, ja venekunta on yksi joukkue.\nSoutaja: {back} = souda, {forward} = huopaa, {turn} = käännä venettä.\n{oars} = airot tai vapa. Heittäessä ja kelatessa ei voi soutaa, mutta viehe vedessä voi uistella.\n{seat} = vaihda paikkaa, kun vene on lähes paikallaan.',
+    'Yksinpelin asetuksissa voi lähteä veneellä renkaan sijaan. Moninpelin aulassa voi valita oman veneen tai mennä toisen kyytiin. Veneessä on soutaja ja enintään kaksi kalastajaa, ja venekunta on yksi joukkue.\nSoutaja: {back} = souda, {forward} = huopaa, {turn} = käännä venettä.\nSoutajalla on kaksi asentoa, ja merkki tilarivin yllä kertoo, kummassa olet. Airoissa soudat ja käännät venettä. Vapa kädessä vene liukuu ja {turn} kääntää sinua tuhdolla. Heitto ja kelaus vievät vavan käteen, soutaminen takaisin airoihin, ja {oars} vaihtaa asentoa käsin. Heittäessä ja kelatessa ei voi soutaa, mutta viehe vedessä voi uistella.\n{seat} = vaihda paikkaa, kun vene on lähes paikallaan.',
   'manual.move.pad': 'Peliohjain',
   'manual.move.padText':
     'Xbox- ja PlayStation-ohjaimet toimivat sellaisinaan, kun ohjaimen kytkee johdolla tai Bluetoothilla ja painaa jotain sen nappia. Ohjeet näyttävät silloin ohjaimen napit.\nValikoissa ristiohjain tai vasen tatti liikkuu, A/✕ valitsee, B/○ palaa ja oikea tatti vierittää pitkää näkymää.\nPikavalikot (viehepakki, kalastustapa, käsimerkit): pidä nappia pohjassa, osoita oikealla tatilla ja päästä irti.\nKalastajan silmin oikea tatti kääntää kuten vasen, joten vasemmalla voi potkia eteen ja taakse ja oikealla kääntyä. Ylhäältä oikea tatti on heiton suunta.\nZoom ylhäältä: pidä LT/L2 pohjassa ja paina ristiohjainta ylös tai alas.\nPerhoheitossa oikea tatti on vapa: vedä tatti alas takaheittoon, pidä se siellä, kunnes siima suoristuu, ja työnnä ylös eteenheittoon. Heittonapilla perhoa heitetään rytmissä: jokainen painallus vaihtaa suuntaa.\nAsetusten Peliohjain-osiossa (näkyy, kun ohjain on kytketty) säädetään kääntymisen herkkyys, perhoheiton tatin suunta, kelaus pidolla tai kytkimenä ja värinä.\nJos ohjain irtoaa kesken yksinpelin, peli menee tauolle.',
