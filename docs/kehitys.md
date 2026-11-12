@@ -286,8 +286,11 @@ Koodi: `packages/shared/src/bots/botAngler.ts`, palvelimella
 - Yksinpelissä botit laskee selain (`game/soloBots.ts`, asetus
   `settings.soloBots` yksinpelin asetuksissa), koska yksinpeli toimii ilman
   palvelinta. Ne piirretään kuten muut pelaajat (`RemotePlayersView`), ja
-  tulossivu on sama kuin moninpelissä (`showRaceResults`). Sotkuja ja
-  törmäyksiä yksinpelissä ei ole.
+  tulossivu on sama kuin moninpelissä (`showRaceResults`). Törmäykset ja
+  siimasotkut lasketaan samoilla säännöillä kuin palvelimella
+  (`collideTubes`, sotkujen kirjanpito `TangleBook` `net/tangle.ts`:ssä), ja
+  oman sotkun ilmoitukset ovat yhteiset moninpelin kanssa
+  (`game/tangleNotices.ts`).
 - Taidot (`BOT_SKILL`) eroavat paikan valinnassa, tähtäyksessä ja kalan
   väsytyksessä. Uusi käytös on uusi kenttä taulukkoon, ja saalistahti
   tarkistetaan `botAngler.test.ts`:n simulaatiolla.
