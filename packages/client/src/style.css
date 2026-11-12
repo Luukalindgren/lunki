@@ -2434,6 +2434,16 @@ textarea,
   display: none;
 }
 
+/* Ruudukossa on yksinkertaisella enintään KATKO: yksi sarake ison napin
+   viereen (pystyssä sen yläpuolelle oikeaan reunaan), ei keskelle ruutua. */
+.touch-controls.simple:not(.spectator) .touch-grid {
+  grid-template-columns: 56px;
+}
+
+.touch-tools .touch-cam {
+  font-size: 18px;
+}
+
 /* Katsojalle vain näkymän napit (#280) ja ohjaaja (#564). */
 .touch-controls.spectator .touch-stick,
 .touch-controls.spectator .touch-reel,
@@ -2663,9 +2673,15 @@ textarea,
     );
   }
 
-  /* Sää kellon alapuolelle, jotta leveäkin rivi on keskellä osumatta kelloon... */
-  .hud.touch .hud-weather {
-    margin-top: max(0px, calc(var(--timer-h, 0px) - var(--compass-h, 0px)));
+  /* Kompassi on kellon korkuinen (#657): sää on heti sen alla ilman tyhjää
+     väliä, ja leveäkin säärivi jää kellon alapuolelle osumatta siihen. */
+  .hud.touch .hud-compass {
+    --compass-pad: max(0px, calc(var(--timer-h, 0px) - var(--u) * 11));
+    height: calc(var(--u) * 11 + var(--compass-pad));
+  }
+
+  .hud.touch .hud-compass-label {
+    top: calc(var(--compass-pad) / 2);
   }
 
   /* ...ja kellon alla oleva pino (saaliit tai tila) sään alapuolelle. */
@@ -3350,4 +3366,22 @@ textarea,
 
 .pad-map-list dd {
   margin: 0;
+}
+
+/* Yksinkertainen ohjaus (#657): jarrua ei säädetä, joten kireysmittaria ei
+   ole. Kosketuksella luotain on sen paikalla oikeassa yläkulmassa. */
+.hud.simple .hud-tension {
+  display: none;
+}
+
+.hud.touch.simple .hud-gauges {
+  right: var(--edge-r);
+  top: calc(var(--m) * 4);
+}
+
+/* Pystyssä kompassin ja sään alle: leveä säärivi ulottuu oikeaan reunaan asti. */
+@media (orientation: portrait) {
+  .hud.touch.simple .hud-gauges {
+    top: calc(var(--m) * 8 + var(--top-h, 0px));
+  }
 }
