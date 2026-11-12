@@ -1819,10 +1819,50 @@ textarea,
   white-space: nowrap;
 }
 
-/* Kapealla ruudulla tulosrivi rivittyy eikä leikkaudu (#278). */
+/* Kapean ruudun tulosrivin osat (#634) ovat piilossa leveällä ruudulla. */
+.result-narrow,
+.result-detail {
+  display: none;
+}
+
+/*
+ * Kapealla ruudulla (puhelin pystyssä) tulosrivi on kahdella rivillä (#634):
+ * ylhäällä nimi ja paino, alla himmeämpänä kappalemäärä, suurin kala ja
+ * merkinnät. Rivit ovat tasakorkuisia eivätkä katkea eri kohdista.
+ */
 @media (max-width: 520px) {
   .catch-list.results li {
     white-space: pre-wrap;
+  }
+
+  .result-row.has-narrow .result-text {
+    display: none;
+  }
+
+  .result-row .result-narrow {
+    display: flex;
+    justify-content: space-between;
+    column-gap: 12px;
+    min-width: 0;
+    white-space: nowrap;
+  }
+
+  .result-narrow .result-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .catch-list.results .result-detail {
+    display: block;
+    font-size: 0.8em;
+    line-height: 1.1;
+    color: #8e99a4;
+    white-space: normal;
+  }
+
+  .catch-list.results .fish-length {
+    display: none;
   }
 }
 

@@ -572,6 +572,8 @@ export const fi = {
   'results.winner': 'Voittaja: {name} ({weight})',
   'results.noFish': 'Kukaan ei saanut kalaa.',
   'results.row': '{name} {count} kpl  {total}  suurin {biggest}',
+  'results.rowCount': '{count} kpl',
+  'results.rowBiggest': 'suurin {biggest}',
   'results.copy': 'Kopioi tulokset',
   'results.copied': 'Tulokset kopioitu!',
   'results.copyHint': 'Valitse ja kopioi tulokset:',

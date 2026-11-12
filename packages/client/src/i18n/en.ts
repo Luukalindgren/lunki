@@ -567,6 +567,8 @@ export const en: Record<keyof typeof fi, string> = {
   'results.winner': 'Winner: {name} ({weight})',
   'results.noFish': 'Nobody caught a fish.',
   'results.row': '{name} {count} pcs  {total}  biggest {biggest}',
+  'results.rowCount': '{count} pcs',
+  'results.rowBiggest': 'biggest {biggest}',
   'results.copy': 'Copy results',
   'results.copied': 'Results copied!',
   'results.copyHint': 'Select and copy the results:',

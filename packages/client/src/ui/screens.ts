@@ -2142,9 +2142,18 @@ export class Screens {
         }) + tags.map((tag) => ` · ${tag}`).join('');
       const gear = tackles?.get(r.id);
       const big = r.summary.biggest;
-      const row = resultRow(text, big ? sizedFish(big.species, big.weight) : null);
+      const row = resultRow(text, big ? sizedFish(big.species, big.weight) : null, {
+        name,
+        total: formatWeight(r.summary.total),
+      });
       if (shortName(name) !== r.name) row.title = r.name;
-      li.append(row);
+      // Kapealla ruudulla (#634) kappalemäärä, suurin kala ja merkinnät ovat omalla rivillään.
+      const detail = [
+        t('results.rowCount', { count: r.summary.count }),
+        ...(big ? [t('results.rowBiggest', { biggest })] : []),
+        ...tags,
+      ].join(' · ');
+      li.append(row, h('span', detail, 'result-detail'));
       if (gear && !compact) li.append(h('span', describeFullTackle(gear), 'player-gear'));
       // Venekunta: joukkueen kalastajat veneen nimen alle.
       if (r.members?.length)
@@ -3066,9 +3075,20 @@ const LOBBY_BOT_ROWS = 3;
  * Tulosrivi: teksti vasemmalla ja kalan kuva oikeassa reunassa, joten kuva
  * näkyy aina kokonaan; liian pitkä teksti lyhenee "…"-merkkiin.
  */
-function resultRow(text: string, fish: HTMLElement | null): HTMLElement {
+function resultRow(
+  text: string,
+  fish: HTMLElement | null,
+  narrow?: { name: string; total: string },
+): HTMLElement {
   const row = h('div', '', 'result-row');
   row.append(h('span', text, 'result-text'));
+  // Puhelin pystyssä (#634): nimi ja paino ylärivillä, loput rivin alla (`.result-detail`).
+  if (narrow) {
+    const top = h('span', '', 'result-narrow');
+    top.append(h('span', narrow.name, 'result-name'), h('span', narrow.total, 'result-total'));
+    row.append(top);
+    row.classList.add('has-narrow');
+  }
   if (fish) row.append(fish);
   return row;
 }
