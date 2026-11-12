@@ -2423,6 +2423,17 @@ textarea,
   border-color: #d23a2a;
 }
 
+/* Yksinkertainen ohjaus (#653): vain tatti, iso nappi, tauko ja KAM.
+   Zoom vain ylhäältä, KATKO vain kun viehe on jumissa tai siima sotkussa. */
+.touch-controls.simple:not(.spectator) .touch-grid > :not(.touch-cam, .touch-tool),
+.touch-controls.simple:not(.spectator, .need-cut) .touch-tool,
+.touch-controls.simple:not(.spectator) .touch-anchor,
+.touch-controls.simple:not(.spectator) .touch-method,
+.touch-controls.simple .touch-help,
+.touch-controls.simple.pov .touch-zoom {
+  display: none;
+}
+
 /* Katsojalle vain näkymän napit (#280) ja ohjaaja (#564). */
 .touch-controls.spectator .touch-stick,
 .touch-controls.spectator .touch-reel,

@@ -329,8 +329,13 @@ Koodi: `packages/client/src/audio/sounds.ts`.
 - Ohjaustapa (#638, `game/controlStyle.ts`) on eri asia kuin vaikeustaso:
   Asetusten Ohjaus-osion valinta Yksinkertainen tai Täysi on pelaajan oma ja
   toimii kaikilla tasoilla. Yksinkertaisella yksi nappi heittää ja kelaa,
-  kelaus nostaa kalan (täydellä nosto on oma painalluksensa, #395), kelalla
-  on yksi nopeus, jarrua ei säädetä, perhoa ei ole ja ohje on aina lyhyt.
+  kelaus nostaa kalan (täydellä nosto on oma painalluksensa, #395) ja
+  tartuttaa myös ison kalan, kelausnopeus on 3, vieheenä on aina lippa,
+  jarrua ei säädetä, perhoa ei ole ja ohje on aina lyhyt. HUD on riisuttu
+  (#653): tilapaneelia ei ole, ja kosketuksella näkyvät vain tatti, iso
+  nappi, tauko ja KAM (`TouchControls.setSimple`; zoom vain ylhäältä, KATKO
+  vain kun viehe on jumissa tai siima sotkussa). Opastuksen rivit jättävät
+  piilotetut napit pois (`HudPresenter.guideText`).
   Se ei muuta kalojen käytöstä eikä kisan sääntöjä, joten ennätyslistat ovat
   yhteiset. Uusi mekaniikka, jota ensikertalainen ei tarvitse, jätetään pois
   `simpleControls()`-kutsun mukaan eikä uudella vaikeustasolla. Oletustaso

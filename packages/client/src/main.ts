@@ -1,4 +1,4 @@
-import { controlStyle, setControlStyle } from './game/controlStyle';
+import { controlStyle, setControlStyle, simpleControls } from './game/controlStyle';
 import {
   DEFAULT_SETTINGS,
   UNTIMED,
@@ -1101,6 +1101,11 @@ startLoop({
         game.fishing.gear,
       );
       touch?.setCrew(game.crewSeats);
+      touch?.setSimple(
+        simpleControls(),
+        game.viewMode === 'pov',
+        game.fishing.snag !== null || game.fishing.onLand || game.tangled,
+      );
       touch?.setAshore(game.shoreMain !== undefined, !!game.shoreMain);
     } else sfx.updateAmbience(dt, MENU_AMBIENCE);
     updateTime += performance.now() - t0;

@@ -139,6 +139,9 @@ export interface FishingStep {
  * kelaus ja siimakäsi, kalakannan askel, kalastuksen tapahtumat ilmoituksiksi
  * ja äänikartan ääniksi sekä saaliin kirjaus ja punnitus.
  */
+/** Yksinkertaisen ohjauksen kelausnopeus: vaihde 3 (#653). */
+const SIMPLE_GEAR = 2;
+
 export class FishingController {
   /** Vaihdettavat varusteet: otetaan käyttöön, kun viehe on kelalla. */
   pendingTackle: Tackle | null = null;
@@ -364,14 +367,17 @@ export class FishingController {
               reel: reeling,
               // Oikea nappi peruu vain latauksen: heitossa se on veto, vedessä nosto.
               cancel: c.isDown('cancel') || (f.stage === 'charging' && c.isDown('cancelCharge')),
-              // Yksinkertaisella ohjauksella (#638) kelalla on yksi nopeus eikä jarrua säädetä.
+              // Yksinkertaisella ohjauksella (#638) kelalla on yksi nopeus (3, #653) eikä jarrua säädetä.
               dragDelta: simple
                 ? 0
                 : (c.wasPressed('dragMore') ? 1 : 0) - (c.wasPressed('dragLess') ? 1 : 0),
-              ...(simple ? {} : this.readGear()),
+              ...(simple ? (f.gear === SIMPLE_GEAR ? {} : { gear: SIMPLE_GEAR }) : this.readGear()),
               ...(this.pendingTackle ? { tackle: this.pendingTackle } : {}),
               cut: c.wasPressed('cut'),
-              twitch: !isFly(f.tackle) && (c.wasPressed('twitch') || flick),
+              // Yksinkertaisella ohjauksella kelaus on myös ison kalan vastaisku (#653).
+              twitch:
+                !isFly(f.tackle) &&
+                (c.wasPressed('twitch') || flick || (simple && reeling && f.strikeBig)),
               // Nosto on oma painalluksensa (#395); yksinkertaisella ohjauksella kelaus nostaa kalan.
               land:
                 f.landing !== null &&

@@ -48,6 +48,9 @@ export interface LurePickerHost {
  * Kisassa pakkia ei muokata; se laitetaan kuntoon päävalikon Varusteissa (#383).
  * Kalastustapa vaihdetaan omasta pikavalikosta (M tai VAPA): virveli tai perho.
  */
+/** Yksinkertaisen ohjauksen ainoa viehe (#653). */
+const SIMPLE_LURE = 'spinner';
+
 export class LurePicker {
   box: TackleBox = loadTackleBox();
   private menu: RingMenu | null = null;
@@ -81,8 +84,15 @@ export class LurePicker {
     // Yksinkertaisella ohjauksella (#638) kalastetaan vain virvelillä, myös
     // kun ohjaustapa vaihdetaan Asetuksista kesken kisan.
     const simple = simpleControls();
-    if (simple && isFly(this.host.tackle) && this.host.fishing.stage === 'idle')
-      this.host.setTackle(this.withMethod('spin'));
+    // Vieheenä on aina lippa (#653): yleispätevin viehe, eikä valittavaa ole.
+    const tk = this.host.tackle;
+    if (simple && (isFly(tk) || tk.lure !== SIMPLE_LURE) && this.host.fishing.stage === 'idle')
+      this.host.setTackle({ ...tk, method: 'spin', lure: SIMPLE_LURE });
+    if (simple && c.wasPressed('lure')) {
+      this.close();
+      this.host.hud.showMessage(t('game.lureSimple'), 2.5, 'info');
+      return;
+    }
     if (c.wasPressed('method') && simple) {
       this.host.hud.showMessage(t('game.methodSimple'), 2.5, 'info');
     } else if (c.wasPressed('method')) {

@@ -26,9 +26,9 @@ import {
 import type { Sounds } from '../audio/sounds';
 import type { NetWorld } from '../net/netWorld';
 import type { Hud, SituationBar } from '../ui/hud';
-import { decimal, formatWeight, t } from '../i18n';
+import { decimal, formatWeight, t, type MsgKey } from '../i18n';
 import { describeTackle, speciesName } from '../i18n/names';
-import { controlText } from './controls';
+import { controlText, type Action } from './controls';
 import type { Guide } from './guide';
 import type { Penalties } from './penalties';
 import type { Shot } from './director';
@@ -113,6 +113,26 @@ export class HudPresenter {
     return this.flyIdle >= FLY_WATER_HINT ? controlText('game.flyWaterHint') : null;
   }
 
+  /**
+   * Opastuksen rivi. Yksinkertaisella ohjauksella (#653) kelaus tartuttaa
+   * myös ison kalan, jarrua ja vieheen vaihtoa ei ole, ja kosketuksella
+   * luotainten napit ovat piilossa: niistä kertovat kohdat jäävät pois.
+   */
+  private guideText(guide: MsgKey | null, touch: boolean): string | null {
+    if (!guide) return null;
+    if (!simpleControls()) return controlText(guide);
+    const key =
+      guide === 'guide.strikeBig'
+        ? 'guide.strike'
+        : guide === 'guide.move'
+          ? 'guide.moveSimple'
+          : guide;
+    const skip: Action[] = touch
+      ? ['dragLess', 'lure', 'sonar', 'lureSonar']
+      : ['dragLess', 'lure'];
+    return controlText(key, {}, { skip }) || null;
+  }
+
   constructor(private readonly host: HudHost) {}
 
   /** Kalastajan HUD yhdeltä askeleelta. */
@@ -120,6 +140,7 @@ export class HudPresenter {
     const host = this.host;
     const { hud, fishing: f, tube } = host;
     const touch = hud.touchMode;
+    const simple = simpleControls();
     hud.setStamina(tube.stamina, STAMINA.tired);
     if (tube.stamina <= 0 && host.prevTube.stamina > 0)
       hud.showMessage(t('game.tired'), 2.5, 'info');
@@ -150,7 +171,7 @@ export class HudPresenter {
       pov: host.viewMode === 'pov',
       seat: !host.inBoat ? 'tube' : !host.rower ? 'passenger' : host.rowing ? 'rower' : 'rowerRod',
       crew: host.crewSeats,
-      simple: simpleControls(),
+      simple,
       ashore,
     });
     const tangle = s.tangle;
@@ -183,24 +204,28 @@ export class HudPresenter {
                   )}`
             : host.thunderNow && (s.lureOut || f.hookedId !== null)
               ? t('help.thunder')
-              : (host.craftHint ?? this.flyWaterHint(dt) ?? (guide && controlText(guide)));
+              : (host.craftHint ?? this.flyWaterHint(dt) ?? this.guideText(guide, touch));
     hud.setSituation(
       situation,
       situation !== null && situation === host.craftHint ? host.craftHintBars : null,
     );
     const lureOut = s.lureOut;
-    hud.setStatus([
-      describeTackle(f.tackle),
-      t('game.line', { m: decimal(f.lineLength, 1) }),
-      isFly(f.tackle) && !f.onReel
-        ? t('game.flyHand', { m: decimal(f.slack, 1) })
-        : t('game.drag', {
-            kg: decimal(f.drag, 2),
-            gear: f.gear === REEL.fastGear ? t('game.fastGear') : f.gear + 1,
-          }),
-      t('game.lureDepth', { m: decimal(f.stage === 'water' && !f.onLand ? f.depth : 0, 1) }),
-      t('game.bottom', { m: decimal(host.bottom.depthAt(lureOut ? f.lure : tube.pos), 1) }),
-    ]);
+    // Yksinkertaisella ohjauksella (#653) tilapaneelia ei ole: viehe on aina
+    // lippa, siimaa ja jarrua ei tarvitse seurata, ja pohjan syvyys näkyy luotaimessa.
+    if (simple) hud.setStatus([]);
+    else
+      hud.setStatus([
+        describeTackle(f.tackle),
+        t('game.line', { m: decimal(f.lineLength, 1) }),
+        isFly(f.tackle) && !f.onReel
+          ? t('game.flyHand', { m: decimal(f.slack, 1) })
+          : t('game.drag', {
+              kg: decimal(f.drag, 2),
+              gear: f.gear === REEL.fastGear ? t('game.fastGear') : f.gear + 1,
+            }),
+        t('game.lureDepth', { m: decimal(f.stage === 'water' && !f.onLand ? f.depth : 0, 1) }),
+        t('game.bottom', { m: decimal(host.bottom.depthAt(lureOut ? f.lure : tube.pos), 1) }),
+      ]);
     hud.sonar.update(dt, () =>
       sonarPing(tube.pos, host.fish.fish, host.bottom.depthAt(tube.pos), {
         floor: host.bottom.bottomTypeAt(tube.pos),
