@@ -175,7 +175,7 @@ test('yksinpelin saalis odottaa laitteella ja p채채see listalle saantip채iv채ll�
       // Ahvenen enimm채ispaino on 1,6 kg: aloitetaan kauempaa, jotta toistoille j채채 tilaa.
       weight: await topWeight(request, 'perch', 0.5),
       angler,
-      difficulty: 'normal',
+      difficulty: 'easy',
       at: day.toISOString(),
     },
   ];

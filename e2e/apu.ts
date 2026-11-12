@@ -148,7 +148,7 @@ export async function topWeight(
   request: APIRequestContext,
   species: string,
   base: number,
-  difficulty = 'normal',
+  difficulty = 'easy',
 ): Promise<number> {
   const res = await request.get(`${SERVER_URL}/records/solo`);
   expect(res.ok()).toBe(true);
