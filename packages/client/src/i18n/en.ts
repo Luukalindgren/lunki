@@ -1175,7 +1175,7 @@ export const en: Record<keyof typeof fi, string> = {
     '{sonar} = sonar shows the fish.\nMove to a new spot: fish swim in schools and feed in spells.\n{lure} = change lure. Different fish like different lures.\nOn Easy the fish always hooks and the line never snaps.',
   'manual.start.screen': 'On screen',
   'manual.start.screenText':
-    'The hint at the top centre tells you what to do next.\nA race starts with a short help: moving, casting and reeling. {help} switches the help: all controls, hidden and back to short.\n{view} = switch view: through the angler’s eyes or from above.\n{pause} = pause: settings, how to play and tackle.',
+    'The hint at the top centre tells you what to do next.\nA competition starts with a short help: moving, casting and reeling. {help} switches the help: all controls, hidden and back to short.\n{view} = switch view: through the angler’s eyes or from above.\n{pause} = pause: settings, how to play and tackle.',
   'manual.section.move': 'Moving',
   'manual.section.spin': 'Spinning',
   'manual.section.fly': 'Fly',
