@@ -1,0 +1,195 @@
+diff --git a/packages/client/src/dev/modernLook.js b/packages/client/src/dev/modernLook.js
+new file mode 100644
+index 0000000..2b293b5
+--- /dev/null
++++ b/packages/client/src/dev/modernLook.js
+@@ -0,0 +1,109 @@
++window.applyLook = (level, opts = {}) => {
++  const g = window.lunki, T = window.THREE, retro = window.retro, r = retro.renderer;
++  const scene = g.scene;
++  const byName = (name) => { const out = []; scene.traverse((o) => { if (o.name === name) out.push(o); }); return out; };
++  let sun, hemi;
++  scene.traverse((o) => { if (o.isDirectionalLight) sun = o; if (o.isHemisphereLight) hemi = o; });
++  const log = [];
++  // Reunanpehmennys
++  try {
++    const t = retro.sceneTarget; t.samples = 4; t.texture.minFilter = T.LinearFilter; t.texture.magFilter = T.LinearFilter; t.dispose();
++  } catch (e) { log.push('msaa ' + e.message); }
++  if (level < 2) return log;
++
++  const colored = (geo, hex) => {
++    geo = geo.index ? geo.toNonIndexed() : geo;
++    const c = new T.Color(hex); const n = geo.attributes.position.count; const arr = new Float32Array(n * 3);
++    for (let i = 0; i < n; i++) { arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b; }
++    geo.setAttribute('color', new T.BufferAttribute(arr, 3)); geo.deleteAttribute('uv'); geo.computeVertexNormals();
++    return geo;
++  };
++  const merge = (list) => window.BGU.mergeGeometries(list, false);
++  const blob = (rad, x, y, z, sy, hex, detail = 1) => colored(new T.IcosahedronGeometry(rad, detail).scale(1, sy, 1).translate(x, y, z), hex);
++  const trees = {
++    spruce: () => {
++      const parts = [colored(new T.CylinderGeometry(0.035, 0.05, 0.2, 6).translate(0, 0.1, 0), 0x4a3526)];
++      for (let i = 0; i < 5; i++) {
++        const h = 0.3 - i * 0.02, rad = 0.46 - i * 0.085, y0 = 0.1 + i * 0.165;
++        parts.push(colored(new T.ConeGeometry(rad, h, 8).rotateY(i * 0.7).translate(0, y0 + h / 2, 0), i % 2 ? 0x1f4d2c : 0x245a31));
++      }
++      return merge(parts);
++    },
++    pine: () => merge([
++      colored(new T.CylinderGeometry(0.028, 0.05, 0.74, 6).translate(0, 0.37, 0), 0x9a5a36),
++      blob(0.34, 0, 0.82, 0, 0.5, 0x2f6b34), blob(0.24, 0.14, 0.7, -0.08, 0.5, 0x3a7a3c), blob(0.2, -0.16, 0.74, 0.1, 0.5, 0x2a6030),
++    ]),
++    birch: () => merge([
++      colored(new T.CylinderGeometry(0.02, 0.035, 0.62, 6).translate(0, 0.31, 0), 0xe6e4d8),
++      blob(0.3, 0, 0.7, 0, 1.0, 0x7fb04a), blob(0.22, 0.16, 0.54, 0.1, 1.0, 0x6a9a3e), blob(0.22, -0.14, 0.56, -0.1, 1.0, 0x8cbc52),
++      blob(0.16, 0.02, 0.92, 0.02, 1.0, 0x8cbc52),
++    ]),
++  };
++  const treeMat = new T.MeshLambertMaterial({ vertexColors: true, flatShading: true });
++  if (opts.trees !== false) for (const kind of Object.keys(trees)) {
++    const geo = trees[kind]();
++    for (const mesh of byName(kind)) {
++      if (!mesh.isInstancedMesh) continue;
++      mesh.geometry = geo; mesh.material = treeMat; mesh.castShadow = true; mesh.receiveShadow = true;
++    }
++  }
++  // Kaukainen metsänreuna ja kaislat pehmeiksi
++  if (opts.trees !== false) for (const name of ['shore-scenery', 'vegetation']) for (const grp of byName(name)) grp.traverse((o) => {
++    if (o.material && o.material.map && o.material.alphaTest) { o.material.map.magFilter = T.LinearFilter; o.material.map.needsUpdate = true; }
++  });
++  // Pelaajan värit sileällä varjostuksella
++  scene.traverse((o) => {
++    if (opts.trees !== false && o.isMesh && o.material && o.material.userData && o.material.userData.ramp) {
++      o.material = new T.MeshStandardMaterial({ color: o.material.color.clone(), roughness: 0.6 });
++      o.castShadow = true; o.receiveShadow = true;
++    } else if (o.isMesh && o.material && (o.material.isMeshLambertMaterial) && o.name !== 'water' && o.name !== 'swell') {
++      o.receiveShadow = true; if (!o.isInstancedMesh && o.geometry.boundingSphere && o.geometry.boundingSphere.radius < 30) o.castShadow = true;
++      o.material.needsUpdate = true;
++    }
++  });
++  // Varjot
++  r.shadowMap.enabled = true; r.shadowMap.type = T.PCFSoftShadowMap;
++  sun.castShadow = true; sun.shadow.mapSize.set(4096, 4096);
++  const sc = sun.shadow.camera; sc.left = -260; sc.right = 260; sc.top = 260; sc.bottom = -260; sc.near = 1; sc.far = 600; sc.updateProjectionMatrix();
++  sun.shadow.bias = -0.0015; sun.shadow.normalBias = 0.05;
++  // Vesi: heijastus ja väreily
++  const size = 256, cv = document.createElement('canvas'); cv.width = cv.height = size;
++  const ctx = cv.getContext('2d'), img = ctx.createImageData(size, size);
++  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
++  const wavesN = []; for (let i = 0; i < 26; i++) { const kx = Math.round((rnd() - 0.5) * 28), ky = Math.round((rnd() - 0.5) * 28); const k = Math.hypot(kx, ky) || 1; wavesN.push([kx, ky, rnd() * 6.28, 1 / k]); }
++  const H = (x, y) => { let h = 0; for (const [kx, ky, p, a] of wavesN) h += a * Math.sin((kx * x + ky * y) * 2 * Math.PI / size + p); return h; };
++  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
++    const dx = (H(x + 1, y) - H(x - 1, y)) * 2.2, dy = (H(x, y + 1) - H(x, y - 1)) * 2.2; const l = Math.hypot(dx, dy, 1); const k = (y * size + x) * 4;
++    img.data[k] = (-dx / l * 0.5 + 0.5) * 255; img.data[k + 1] = (-dy / l * 0.5 + 0.5) * 255; img.data[k + 2] = (1 / l * 0.5 + 0.5) * 255; img.data[k + 3] = 255;
++  }
++  ctx.putImageData(img, 0, 0);
++  const normals = new T.CanvasTexture(cv); normals.wrapS = normals.wrapT = T.RepeatWrapping;
++  const old = byName('water')[0];
++  const water = new window.Water(old.geometry, {
++    textureWidth: 1024, textureHeight: 1024, waterNormals: normals,
++    sunDirection: sun.position.clone().normalize(), sunColor: 0xfff3d0, waterColor: opts.waterColor ?? 0x0b3350,
++    distortionScale: opts.distortion ?? 1.6, fog: false, alpha: 1,
++  });
++  water.material.fragmentShader = water.material.fragmentShader
++    .replace('( sunColor * diffuseLight * 0.3 + scatter )', '( scatter + vec3( 0.004, 0.02, 0.035 ) )')
++    .replace('float rf0 = 0.02;', 'float rf0 = 0.05;');
++  water.rotation.copy(old.rotation); water.position.copy(old.position); water.name = 'modern-water';
++  water.material.uniforms.size.value = opts.size ?? 5;
++  old.parent.add(water); old.visible = false;
++  for (const s of byName('swell')) s.visible = false;
++  const orig = retro.render.bind(retro);
++  retro.render = (s, c, gr) => { water.material.uniforms.time.value += 1 / 60; old.visible = false; orig(s, c, gr); };
++  window.modernWater = water;
++  if (level >= 3) {
++    const sky = new window.Sky(); sky.scale.setScalar(3000); sky.name = 'modern-sky';
++    const u = sky.material.uniforms; u.turbidity.value = 4; u.rayleigh.value = 1.6; u.mieCoefficient.value = 0.004; u.mieDirectionalG.value = 0.85;
++    u.sunPosition.value.copy(sun.position).normalize();
++    sky.material.fragmentShader = sky.material.fragmentShader.replace(/gl_FragColor = vec4\( retColor, 1\.0 \);/, 'gl_FragColor = vec4( retColor * 0.45, 0.0 );');
++    for (const d of byName('sky')) d.visible = false;
++    scene.add(sky);
++    const o2 = retro.render; retro.render = (s, c, gr) => { sky.position.copy(c.position); for (const d of byName('sky')) d.visible = false; o2(s, c, gr); };
++    // Tiheämmät, sileät puut
++    treeMat.flatShading = false; treeMat.needsUpdate = true;
++  }
++  return log;
++};
+diff --git a/packages/client/src/engine/resolution.ts b/packages/client/src/engine/resolution.ts
+index a75944c..0f2db14 100644
+--- a/packages/client/src/engine/resolution.ts
++++ b/packages/client/src/engine/resolution.ts
+@@ -1,5 +1,6 @@
+ /** Tavoitekorkeus sisäiselle renderöinnille (pikseliä). */
+-export const TARGET_HEIGHT = 270;
++const Q = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams();
++export const TARGET_HEIGHT = Number(Q.get('h')) || 270;
+ export const MIN_HEIGHT = 180;
+ 
+ export interface RetroResolution {
+diff --git a/packages/client/src/engine/retroRenderer.ts b/packages/client/src/engine/retroRenderer.ts
+index 0411e2e..31b2c62 100644
+--- a/packages/client/src/engine/retroRenderer.ts
++++ b/packages/client/src/engine/retroRenderer.ts
+@@ -129,7 +129,7 @@ function makeTarget(width: number, height: number) {
+ export class RetroRenderer {
+   readonly renderer: THREE.WebGLRenderer;
+   resolution: RetroResolution = { width: 1, height: 1, scale: 1 };
+-  paletteMode: PaletteMode = 'palette';
++  paletteMode: PaletteMode = (new URLSearchParams(location.search).get('pal') as PaletteMode) || 'palette';
+ 
+   private readonly sceneTarget = makeTarget(1, 1);
+   private readonly quadCamera = new THREE.Camera();
+@@ -141,7 +141,7 @@ export class RetroRenderer {
+   constructor(readonly canvas: HTMLCanvasElement) {
+     this.renderer = new THREE.WebGLRenderer({
+       canvas,
+-      antialias: false,
++      antialias: false, preserveDrawingBuffer: true,
+       powerPreference: 'high-performance',
+     });
+     this.renderer.setPixelRatio(1);
+diff --git a/packages/client/src/main.ts b/packages/client/src/main.ts
+index dd69dbd..77ad154 100644
+--- a/packages/client/src/main.ts
++++ b/packages/client/src/main.ts
+@@ -1,3 +1,7 @@
++import * as THREE from 'three';
++import * as BGU from 'three/examples/jsm/utils/BufferGeometryUtils.js';
++import { Water } from 'three/examples/jsm/objects/Water.js';
++import { Sky } from 'three/examples/jsm/objects/Sky.js';
+ import { controlStyle, setControlStyle, simpleControls } from './game/controlStyle';
+ import {
+   DEFAULT_SETTINGS,
+@@ -364,7 +368,7 @@ function startGame(s: CompetitionSettings, seed = devSeed, challenge: Challenge
+   hud.setStandingMessage(practice ? controlText('mp.practiceNote') : null);
+   touch?.setMultiplayer(session !== null);
+   touch?.setSpectator(game.spectating);
+-  if (import.meta.env.DEV) Object.assign(window, { lunki: game });
++  if (import.meta.env.DEV) Object.assign(window, { lunki: game, retro, THREE, Water, Sky, BGU });
+   paused = false;
+   screens.hide();
+   hud.setVisible(true);
+diff --git a/packages/client/src/world/depthShade.ts b/packages/client/src/world/depthShade.ts
+index 33451d8..86cf413 100644
+--- a/packages/client/src/world/depthShade.ts
++++ b/packages/client/src/world/depthShade.ts
+@@ -3,9 +3,17 @@ import type { LakeBottom } from '@lunki/shared';
+ 
+ /** Syvyysvyöhykkeet pinnan sävyyn (sRGB 0–255, peitto): matala ranta vaalea, syvänne tumma. */
+ const DEPTH_BANDS: [number, [number, number, number, number]][] = [
+-  [1, [120, 180, 165, 0.5]],
+-  [2, [95, 170, 160, 0.32]],
+-  [3.5, [60, 140, 170, 0.18]],
++  ...((typeof location !== 'undefined' && location.search.includes('pal=off')
++    ? [
++        [1, [80, 160, 200, 0.45]],
++        [2, [60, 140, 190, 0.3]],
++        [3.5, [45, 120, 180, 0.18]],
++      ]
++    : [
++        [1, [120, 180, 165, 0.5]],
++        [2, [95, 170, 160, 0.32]],
++        [3.5, [60, 140, 170, 0.18]],
++      ]) as [number, [number, number, number, number]][]),
+   [6, [0, 0, 0, 0]],
+   [8, [10, 30, 70, 0.22]],
+   [Infinity, [5, 15, 45, 0.4]],
