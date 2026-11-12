@@ -9,7 +9,7 @@ import {
   type Page,
 } from '@playwright/test';
 import { FIREFOX_WEBGL } from '../playwright.config';
-import { watchErrors } from './apu';
+import { fullControls, watchErrors } from './apu';
 
 /**
  * Sama huone kolmella selainmoottorilla: Chromium luo huoneen, Firefox ja
@@ -55,7 +55,11 @@ test('moninpeli: Chromium, Firefox ja iPhone samassa huoneessa', async ({ page: 
         ...(launcher === firefox ? FIREFOX_WEBGL : {}),
       });
       others.push(browser);
-      const ctx = await browser.newContext({ ...options, baseURL: 'http://localhost:4173' });
+      const ctx = await browser.newContext({
+        ...options,
+        baseURL: 'http://localhost:4173',
+        storageState: fullControls(options.locale === 'en-US' ? 'en' : 'fi'),
+      });
       const page = await ctx.newPage();
       pages.push([name, watchErrors(page)]);
       return page;

@@ -1,6 +1,24 @@
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
 
 /**
+ * Selaimen muisti, jossa ohjaustavaksi on valittu Täysi. Uuden pelaajan oletus
+ * on Yksinkertainen, mutta testit käyttävät jarrua, kelausnopeuksia ja perhoa.
+ * Peli on oletuksena suomeksi; `en` valitsee englannin kuten pelaaja valikosta.
+ */
+export const fullControls = (lang: 'fi' | 'en' = 'fi') => ({
+  cookies: [],
+  origins: [
+    {
+      origin: 'http://localhost:4173',
+      localStorage: [
+        { name: 'lunki.controlStyle', value: 'full' },
+        ...(lang === 'en' ? [{ name: 'lunki.lang', value: 'en' }] : []),
+      ],
+    },
+  ],
+});
+
+/**
  * Kerää sivun kaatumiset ja konsolin virheet. Testin lopussa `check()`
  * varmistaa, ettei peli heittänyt poikkeuksia missään selaimessa.
  */

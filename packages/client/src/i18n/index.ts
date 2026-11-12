@@ -14,10 +14,9 @@ type Vars = Record<string, string | number>;
 const DICTS: Record<Lang, Dictionary> = { fi, en };
 const KEY = 'lunki.lang';
 
-/** Tallennettu valinta, muuten selaimen kieli: suomi vain suomenkieliselle selaimelle. */
-export function detectLang(saved: string | null, browser: string | undefined): Lang {
-  if (saved === 'fi' || saved === 'en') return saved;
-  return browser?.toLowerCase().startsWith('fi') ? 'fi' : 'en';
+/** Tallennettu valinta, muuten suomi: englannin saa päävalikosta tai Asetuksista. */
+export function detectLang(saved: string | null): Lang {
+  return saved === 'en' ? 'en' : 'fi';
 }
 
 function savedLang(): string | null {
@@ -28,10 +27,7 @@ function savedLang(): string | null {
   }
 }
 
-let current: Lang = detectLang(
-  savedLang(),
-  typeof navigator === 'undefined' ? undefined : navigator.language,
-);
+let current: Lang = detectLang(savedLang());
 const listeners = new Set<() => void>();
 if (typeof document !== 'undefined') document.documentElement.lang = current;
 
