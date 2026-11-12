@@ -1,18 +1,24 @@
 import {
   BotAngler,
+  CRAFTS,
   LureStage,
   NET_DT,
   RaceStatsCounter,
   Rng,
+  TangleBook,
   botId,
   botName,
   botSkillFor,
+  collideCraftWithShore,
+  collideTubes,
   createTube,
   findLaunchPoint,
   findStartNear,
+  isAshore,
   randomAppearance,
   rankPlayers,
   removeCaughtFish,
+  rodTip,
   stepPlayerTube,
   type Appearance,
   type BotLevel,
@@ -25,8 +31,10 @@ import {
   type FishingState,
   type LakeBottom,
   type LakeMap,
+  type LineInWater,
   type PlayerResult,
   type RaceStats,
+  type TanglePair,
   type TubeInput,
   type TubeState,
   type Vec2,
@@ -38,8 +46,10 @@ import type { RemotePlayer } from '../net/netWorld';
 import type { Hud } from '../ui/hud';
 import { t } from '../i18n';
 import { SOLO_ID } from './fishingController';
+import { KnotView } from './knotView';
 import type { RaceLog } from './raceLog';
 import { RemotePlayersView } from './remotePlayersView';
+import { tangleEnded, tangleStarted, type TangleNoticeHost } from './tangleNotices';
 
 /** Yksinpelin bottimäärät (#624); 0 = ei botteja. */
 export const SOLO_BOT_COUNTS = [0, 3, 7, 11] as const;
@@ -51,7 +61,7 @@ const NEAR_START = 60;
 const REST: TubeInput = { kick: 0, turn: 0, sprint: false };
 
 /** Mitä yksinpelin botit tarvitsevat pelistä. */
-export interface SoloBotsHost {
+export interface SoloBotsHost extends TangleNoticeHost {
   readonly hud: Hud;
   readonly sounds: Sounds;
   readonly competition: CompetitionState;
@@ -63,7 +73,13 @@ export interface SoloBotsHost {
   readonly bottom: LakeBottom;
   readonly map: LakeMap;
   readonly raceLog: RaceLog;
-  readonly tube: TubeState;
+  /** Oma kulkupeli: botin tönäisy siirtää sitä. */
+  tube: TubeState;
+  readonly inBoat: boolean;
+  /** Kalastajan katsesuunta (vavan kärki). */
+  readonly facing: number;
+  /** Trombi lennättää pelaajaa: ilmassa ei törmätä. */
+  readonly flying: boolean;
   readonly wind: Vec2;
   /** Ukkonen nyt: taitava botti kelaa sisään. */
   readonly thunder: boolean;
@@ -88,11 +104,15 @@ interface SoloBot {
  * Yksinpelin botit (#624): samat `BotAngler`-kalastajat kuin moninpelissä,
  * mutta askel lasketaan selaimessa, koska yksinpeli toimii ilman palvelinta.
  * Botit piirretään kuten muut pelaajat (`RemotePlayersView`), ja niiden saaliit
- * menevät kisan tulostauluun ja tulossivulle. Siimasotkuja ja törmäyksiä ei
- * yksinpelissä ole.
+ * menevät kisan tulostauluun ja tulossivulle. Botteihin törmää ja siimat
+ * sotkeutuvat niiden kanssa samoilla säännöillä kuin moninpelissä
+ * (`collideTubes`, `TangleBook`).
  */
 export class SoloBots {
   readonly remoteView: RemotePlayersView;
+  /** Sotkujen merkit järvellä kuten moninpelissä. */
+  readonly knots = new KnotView();
+  private readonly book = new TangleBook();
   private readonly bots: SoloBot[] = [];
   private acc = 0;
   private tick = 0;
@@ -158,7 +178,7 @@ export class SoloBots {
           {
             tube: b.tube,
             canFish: now >= b.outUntil,
-            tangled: false,
+            tangled: this.book.of(b.id) !== null,
             thunder: host.thunder,
             others,
             wind: host.wind,
@@ -186,6 +206,97 @@ export class SoloBots {
       }
       b.tube = stepPlayerTube(b.tube, b.input, host.water, NET_DT, host.wind);
     }
+    this.collide();
+  }
+
+  /**
+   * Törmäykset kuten palvelimen askeleessa (`stepSims`): pelaajan kulkupeli ja
+   * bottien renkaat tönäisevät toisiaan, ja tönäisty ei päädy rantaan.
+   */
+  private collide(): void {
+    const host = this.host;
+    const own = !host.flying && !isAshore(host.tube);
+    const before = [...(own ? [host.tube] : []), ...this.bots.map((b) => b.tube)];
+    const specs = before.map((_, k) => (own && k === 0 && host.inBoat ? CRAFTS.boat : CRAFTS.tube));
+    const after = [...before];
+    for (const k of collideTubes(after, specs)) {
+      const tube = collideCraftWithShore(before[k]!, after[k]!, host.water, specs[k]);
+      if (own && k === 0) host.tube = tube;
+      else this.bots[own ? k - 1 : k]!.tube = tube;
+    }
+  }
+
+  /** Oma siima on sotkussa botin siiman kanssa (kosketuksen KATKO-nappi). */
+  get tangled(): boolean {
+    return this.book.of(SOLO_ID) !== null;
+  }
+
+  /** Käynnissä olevat sotkut tulossivun karttaan. */
+  tangleSpots(): { key: string; pos: Vec2 }[] {
+    return this.book.active.map((p) => ({ key: `${p.a}|${p.b}`, pos: p.at }));
+  }
+
+  /**
+   * Siimasotkut (vrt. palvelimen `updateTangles`): oma ja bottien siimat
+   * sotkeutuvat ristissä, kun jompikumpi kelaa, ja selviävät yhdessä kelaamalla
+   * tai omalla katkaisulla. Palauttaa oman sotkun tilanneohjeeseen tai null.
+   */
+  updateTangle(
+    dt: number,
+    cut: boolean,
+    reelHeld: boolean,
+  ): { with: string; at: Vec2; progress: number } | null {
+    const host = this.host;
+    const now = host.competition.elapsed;
+    const book = this.book;
+    const mine = book.of(SOLO_ID);
+    if (mine && cut) {
+      book.cut(SOLO_ID, now);
+      this.resetBots(mine);
+      tangleEnded(host, 'cut', null);
+    }
+    const lines: LineInWater[] = [];
+    if (host.fishing.stage === 'water')
+      lines.push({
+        id: SOLO_ID,
+        tip: rodTip(host.tube.pos, host.facing),
+        lure: host.fishing.lure,
+        reeling: reelHeld,
+      });
+    for (const b of this.bots)
+      if (b.angler.lureStage >= LureStage.water)
+        lines.push({
+          id: b.id,
+          tip: rodTip(b.tube.pos, b.tube.heading),
+          lure: b.angler.lure,
+          reeling: b.angler.reeling,
+        });
+    const { started, untangled, dropped } = book.step(lines, now, dt);
+    for (const p of untangled) {
+      this.resetBots(p);
+      if (this.otherOf(p)) tangleEnded(host, 'untangled', null);
+    }
+    // Siima katosi sotkusta (rangaistus, kaatuminen): toinenkin kelaa sisään.
+    for (const p of dropped) this.resetBots(p);
+    for (const p of started) {
+      const other = this.otherOf(p);
+      if (other) tangleStarted(host, other);
+    }
+    this.knots.update(book.active.map((p) => p.at));
+    const own = book.of(SOLO_ID);
+    return own ? { with: this.otherOf(own)!, at: own.at, progress: own.progress } : null;
+  }
+
+  /** Oman sotkun toisen osapuolen nimi; null, jos sotku on bottien välinen. */
+  private otherOf(p: TanglePair): string | null {
+    if (p.a !== SOLO_ID && p.b !== SOLO_ID) return null;
+    const id = p.a === SOLO_ID ? p.b : p.a;
+    return this.bots.find((b) => b.id === id)?.name ?? '?';
+  }
+
+  /** Sotkusta päässeet botit kelaavat siimansa sisään kuten palvelimella. */
+  private resetBots(p: TanglePair): void {
+    for (const b of this.bots) if (b.id === p.a || b.id === p.b) b.angler.reset();
   }
 
   /** Botti nosti kalan: tulostauluun, kartalle ja sama kala pois muiden kalakannoista. */

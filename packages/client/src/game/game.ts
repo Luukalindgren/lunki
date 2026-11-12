@@ -340,7 +340,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
         seed,
         stage.overlay,
       );
-      this.scene.add(this.soloBots.remoteView.group);
+      this.scene.add(this.soloBots.knots.group, this.soloBots.remoteView.group);
     }
     if (this.spectating) {
       this.tubeMesh.visible = false;
@@ -582,7 +582,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
 
   /** Siima on sotkussa toisen kalastajan siiman kanssa (KATKO-nappi). */
   get tangled(): boolean {
-    return this.net?.tangled ?? false;
+    return this.net?.tangled ?? this.soloBots?.tangled ?? false;
   }
 
   /** Perhoa heitetään rytmissä (välilyönti tai HEITÄ): kosketuksen iso nappi on yhä HEITÄ. */
@@ -644,7 +644,9 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
           !fishingNow.landing &&
           contextActions(fishingNow, false).main === 'reel',
       );
-    const tangle = net ? net.updateTangle(c.wasPressed('cut')) : null;
+    const tangle = net
+      ? net.updateTangle(c.wasPressed('cut'))
+      : (this.soloBots?.updateTangle(dt, c.wasPressed('cut'), reelHeld) ?? null);
     if (!frozen) this.logRace();
 
     // Maalla välilyönnin toiminto katsotaan ennen askelta: kyytiin hypyn aikana
@@ -802,6 +804,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       { id: SOLO_ID, name: t('common.youCapital'), pos: this.tube.pos },
       ...(this.soloBots?.routes() ?? []),
     ]);
+    if (this.soloBots) this.raceLog.tangles(this.soloBots.tangleSpots(), this.competition.elapsed);
   }
 
   /**

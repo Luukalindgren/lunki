@@ -23,6 +23,7 @@ import type { Hud } from '../ui/hud';
 import { formatWeight, ordinal, t } from '../i18n';
 import { lengthText, speciesName } from '../i18n/names';
 import { KnotView } from './knotView';
+import { tangleEnded, tangleStarted } from './tangleNotices';
 import type { RaceCatchMark, RaceLog } from './raceLog';
 import { RemotePlayersView } from './remotePlayersView';
 import type { BubbleContent } from './speechBubble';
@@ -205,11 +206,7 @@ export class NetBridge {
   updateTangle(cut: boolean): NetWorld['tangle'] {
     const w = this.world;
     const tangle = w.tangle;
-    if (tangle && !this.wasTangled) {
-      this.host.raceStatsCounter.tangle();
-      this.host.sounds.play('tangled');
-      this.host.hud.showMessage(t('game.tangled', { name: tangle.with }), 3, 'alert');
-    }
+    if (tangle && !this.wasTangled) tangleStarted(this.host, tangle.with);
     this.wasTangled = tangle !== null;
     this.knots.update(w.tangles());
     if (tangle && cut) w.cutLine();
@@ -219,18 +216,7 @@ export class NetBridge {
   /** Sotku selvisi palvelimella. */
   private onUntangled(m: UntangledMessage, me: string): void {
     if (!m.players.includes(me)) return;
-    const hud = this.host.hud;
-    const hooked = this.host.fishing.hookedId !== null;
-    if (m.how === 'untangled') {
-      this.host.resetFishing();
-      hud.showMessage(hooked ? t('game.untangledLost') : t('game.untangled'), 2.5);
-    } else if (m.by === me) {
-      this.host.resetFishing();
-      this.host.sounds.play('lineCutFree');
-      hud.showMessage(t('game.youCut'), 2);
-    } else {
-      hud.showMessage(t('game.otherCut', { name: this.world.playerName(m.by) }), 2.5);
-    }
+    tangleEnded(this.host, m.how, m.by === me ? null : this.world.playerName(m.by));
   }
 
   /** Saalis pääsi järven ennätyslistalle. */

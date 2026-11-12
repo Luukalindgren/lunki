@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findTangles, segmentsCross } from './tangle';
+import { TangleBook, findTangles, segmentsCross } from './tangle';
 
 describe('siimojen sotkeutuminen', () => {
   it('ristissä olevat janat leikkaavat', () => {
@@ -42,5 +42,52 @@ describe('siimojen sotkeutuminen', () => {
       line('c', 0, 10, 20, 10, true),
     ]);
     expect(tangles).toHaveLength(1);
+  });
+});
+
+describe('TangleBook', () => {
+  const line = (id: string, x: number, reeling: boolean, crossed = true) => ({
+    id,
+    // Kaksi siimaa ristissä pisteessä (0, 5), tai rinnakkain.
+    tip: { x, y: 0 },
+    lure: { x: crossed ? -x : x, y: 10 },
+    reeling,
+  });
+
+  it('sotkee ristissä olevat siimat, kun jompikumpi kelaa, ja selvittää kelaamalla', () => {
+    const book = new TangleBook();
+    expect(book.step([line('a', -3, false), line('b', 3, false)], 0, 0.1).started).toHaveLength(0);
+    const { started } = book.step([line('a', -3, true), line('b', 3, false)], 0.1, 0.1);
+    expect(started).toHaveLength(1);
+    expect(book.of('a')?.at.y).toBeCloseTo(5);
+    expect(book.of('b')).toBe(book.of('a'));
+    // Yksi kelaa: 6 s. Kaksi kelaa: puolet nopeammin.
+    let now = 0.1;
+    let done = 0;
+    for (let i = 0; i < 31 && done === 0; i++) {
+      now += 0.1;
+      done = book.step([line('a', -3, true), line('b', 3, true)], now, 0.1).untangled.length;
+    }
+    expect(done).toBe(1);
+    expect(now).toBeGreaterThan(2.9);
+    expect(book.of('a')).toBeNull();
+    // Heti selvityksen jälkeen samat siimat eivät sotkeudu uudelleen.
+    expect(book.step([line('a', -3, true), line('b', 3, true)], now + 1, 0.1).started).toHaveLength(
+      0,
+    );
+    expect(book.step([line('a', -3, true), line('b', 3, true)], now + 3, 0.1).started).toHaveLength(
+      1,
+    );
+  });
+
+  it('purkaa sotkun, kun siima katkaistaan tai katoaa', () => {
+    const book = new TangleBook();
+    book.step([line('a', -3, true), line('b', 3, false)], 0, 0.1);
+    expect(book.cut('b', 1)?.a).toBe('a');
+    expect(book.active).toHaveLength(0);
+    book.step([line('a', -3, true), line('b', 3, false)], 5, 0.1);
+    expect(book.active).toHaveLength(1);
+    expect(book.step([line('a', -3, true)], 5.1, 0.1).dropped).toHaveLength(1);
+    expect(book.active).toHaveLength(0);
   });
 });
