@@ -2588,7 +2588,10 @@ textarea,
   top: calc(var(--m) * 8 + var(--top-h, calc(var(--m) * 4 + var(--u) * 26)));
   transform: translateX(-50%);
   font-size: calc(var(--u) * 7);
-  background: rgb(11 15 20 / 90%);
+  /* Pelaaja avasi ohjeen itse (?): se on ilmoitusten ja tilanneohjeen päällä,
+     kunnes hän sulkee sen. */
+  z-index: 3;
+  background: rgb(11 15 20 / 96%);
   /* Kapealla ruudulla pitkät rivit rivittyvät, ettei ohje valu reunojen yli. */
   white-space: pre-line;
   box-sizing: border-box;

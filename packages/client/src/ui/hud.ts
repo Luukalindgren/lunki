@@ -41,6 +41,8 @@ export class Hud {
   private helpKey = '';
   /** Ohjeen laajuus (#638): lyhyt on oletus, {help} avaa kaiken ja piilottaa. */
   private helpLevel: HelpLevel = loadHelpLevel();
+  /** Kosketuksella ohje on aluksi piilossa, ja ?-nappi avaa kaikkien nappien ohjeen. */
+  private touchHelp = false;
   private readonly stamina: HTMLDivElement;
   private readonly staminaFill: HTMLDivElement;
   private readonly timer: HTMLDivElement;
@@ -450,7 +452,7 @@ export class Hud {
     if (touch) this.root.insertBefore(this.flyPanel.root, this.notices);
     else this.lureSonar.root.after(this.flyPanel.root);
     this.placeLureSonar();
-    this.helpSlot.hidden = touch || this.helpLevel === 'off';
+    this.helpSlot.hidden = touch ? !this.touchHelp : this.helpLevel === 'off';
     this.setHelpMode(this.multiplayer, this.spectator);
     this.updateHelpOpen();
     this.measureEdges();
@@ -563,7 +565,7 @@ export class Hud {
     const opts = { skip: c.pov ? (['zoom', 'aim'] as const) : [] };
     // Lyhyt ohje (#638): kisan alussa vain liike, heitto ja kelaus.
     const short =
-      (this.helpLevel === 'short' || c.simple) && !this.spectator && !c.ashore
+      ((this.helpLevel === 'short' && !this.touch) || c.simple) && !this.spectator && !c.ashore
         ? [
             ...(c.seat === 'tube' ? (['help.shortMove'] as const) : MOVE_HELP[c.seat]),
             ...(c.fly ? SHORT_HELP.fly : SHORT_HELP.spin),
@@ -592,9 +594,18 @@ export class Hud {
     this.root.style.setProperty('--help-w', String(Math.ceil(6 + 3.2 * cols)));
   }
 
-  /** {help}: lyhyt ohje → kaikki ohjeet → piilossa → lyhyt. Valinta jää laitteelle. */
+  /**
+   * {help}: lyhyt ohje → kaikki ohjeet → piilossa → lyhyt. Valinta jää laitteelle.
+   * Kosketuksella napit on nimetty, joten ?-nappi vain avaa ja sulkee kaikkien
+   * nappien ohjeen, eikä valinta tallennu.
+   */
   toggleHelp(): void {
-    if (this.touch) return;
+    if (this.touch) {
+      this.touchHelp = !this.touchHelp;
+      this.helpSlot.hidden = !this.touchHelp;
+      this.renderHelp();
+      return;
+    }
     // Yksinkertaisella ohjauksella kaikkien nappien ohjetta ei ole: lyhyt tai piilossa.
     const full = this.helpContext.simple ? 'off' : 'full';
     this.helpLevel =

@@ -63,7 +63,8 @@ Koodi: `packages/client/src/ui/hud.ts`, tyylit `style.css`.
   uusi opastettava asia on uusi askel sen tilakoneeseen, ei oma ohjeruutu.
 - **Ohjelaatikko on kisan alussa lyhyt** (#638): liike, heitto ja kelaus.
   {help} kiertää lyhyt → kaikki napit → piilossa, ja valinta jää laitteelle
-  (`lunki.help`). Uusi ohjerivi menee kaikkien nappien ohjeeseen (`HELP`);
+  (`lunki.help`). Kosketuksella ohje on aluksi piilossa, ja ?-nappi avaa
+  ja sulkee kaikkien nappien ohjeen ilmoitusten päälle. Uusi ohjerivi menee kaikkien nappien ohjeeseen (`HELP`);
   lyhyeen (`SHORT_HELP`) vain se, mitä ensimmäiseen kalaan tarvitaan.
 - **Rangaistukset `Hud.setPenalties(rows, note)`** ajastimen alle (jäähy,
   kaatuminen, salama, maalle heitto), ei erillistä korttia.
