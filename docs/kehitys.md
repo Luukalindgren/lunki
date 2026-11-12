@@ -215,6 +215,10 @@ Koodi: `packages/client/src/ui/screens.ts` (`showSettings`, `showPause`).
   pikavalikostaan (M). Taukovalikon Varusteet (`showPauseTackle`) vaihtaa
   kesken kisan siiman ja perukkeen (virvelin siima ja teräsperuke, perhosiima ja perhon peruke); vapa vaihdetaan vain päävalikossa. Värit ovat omana
   alanäkymänään yksinpelin asetusten ja aulan yhteenvetoriviltä.
+- Aulassa voi harjoitella odottaessa (#638, `startPractice` `main.ts`:ssä):
+  harjoitus on yksinpeli huoneen säännöillä ilman kelloa ja ennätyksiä, ja
+  se vaihtuu kisaan, kun isäntä aloittaa. Huonetta käyttävä koodi kysyy
+  kisan huoneen `raceSession()`-kutsulla, joka on harjoitellessa null.
 - Kisan säännöt (kesto, sää, rangaistukset, lajit) kuuluvat yksinpelin
   asetuksiin ja moninpelin aulaan, eivät Asetukset-näkymään.
 
