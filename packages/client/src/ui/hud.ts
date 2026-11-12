@@ -217,7 +217,6 @@ export class Hud {
     s.setProperty('--timer-w', px(this.timer.offsetWidth));
     s.setProperty('--timer-h', px(this.timer.offsetHeight));
     s.setProperty('--compass-w', px(this.compass.root.offsetWidth));
-    s.setProperty('--compass-h', px(this.compass.root.offsetHeight));
     const gauges = this.gauges.offsetWidth;
     s.setProperty('--right-w', px(gauges));
     s.setProperty('--right-h', px(this.gauges.offsetHeight));
