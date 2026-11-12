@@ -155,7 +155,7 @@ for (const type of ['pointerdown', 'pointerup', 'touchend', 'keydown'])
   window.addEventListener(type, () => sfx.unlock(), { passive: true });
 // Kehitystä varten: ?difficulty=easy&seed=123&minutes=1&weather=chaos&time=evening aloittaa suoraan.
 const params = new URLSearchParams(location.search);
-const devDifficulty = (['easy', 'normal', 'realistic'] as const).find(
+const devDifficulty = (['relaxed', 'easy', 'normal', 'realistic'] as const).find(
   (d) => d === params.get('difficulty'),
 );
 const devSeed = params.has('seed') ? Number(params.get('seed')) : undefined;

@@ -1,4 +1,11 @@
-import { METHODS, isFly, type Difficulty, type Method, type Tackle } from '@lunki/shared';
+import {
+  DIFFICULTIES,
+  METHODS,
+  isFly,
+  type Difficulty,
+  type Method,
+  type Tackle,
+} from '@lunki/shared';
 import { t } from '../i18n';
 import { baitName, methodName } from '../i18n/names';
 import type { Hud } from '../ui/hud';
@@ -54,6 +61,13 @@ export class LurePicker {
     const tk = host.tackle;
     const first = boxTackles(tk, this.box)[0];
     if (!host.spectating && first && currentSlot(tk, this.box) < 0) host.setTackle(first);
+    // Rennolla (#638) kalastetaan vain virvelillä.
+    if (!host.spectating && this.simple && isFly(host.tackle))
+      host.setTackle(this.withMethod('spin'));
+  }
+
+  private get simple(): boolean {
+    return DIFFICULTIES[this.host.difficulty].simple;
   }
 
   /** Realistisella menetetty viehe on poissa loppukisan. */
@@ -68,7 +82,9 @@ export class LurePicker {
       this.close();
       return;
     }
-    if (c.wasPressed('method')) {
+    if (c.wasPressed('method') && this.simple) {
+      this.host.hud.showMessage(t('game.methodSimple'), 2.5, 'info');
+    } else if (c.wasPressed('method')) {
       if (this.methodMenu?.open) this.methodMenu.close();
       else {
         this.openMethodMenu();

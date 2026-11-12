@@ -9,6 +9,10 @@ describe('kalastusta tuntematon pelaaja', () => {
     expect(easy.caught).toBeGreaterThanOrEqual(7);
     expect(easy.caught).toBeGreaterThanOrEqual(easy.casts * 0.5);
     expect(easy.lineBroken).toBe(0);
+    // Rento (#638) on Helpon kalat ilman pohjatartuntoja: saalista vähintään yhtä paljon.
+    const relaxed = simulateNaiveAngler('relaxed', 1000, 10);
+    expect(relaxed.caught).toBeGreaterThanOrEqual(7);
+    expect(relaxed.lineBroken).toBe(0);
     const normal = simulateNaiveAngler('normal', 1000, 10);
     expect(normal.caught).toBeLessThan(easy.caught / 2);
   }, 60_000);

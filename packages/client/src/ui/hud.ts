@@ -488,6 +488,7 @@ export class Hud {
       c.pov === context.pov &&
       c.seat === context.seat &&
       !!c.crew === !!context.crew &&
+      !!c.simple === !!context.simple &&
       c.ashore === context.ashore
     )
       return;
@@ -559,11 +560,11 @@ export class Hud {
     const opts = { skip: c.pov ? (['zoom', 'aim'] as const) : [] };
     // Lyhyt ohje (#638): kisan alussa vain liike, heitto ja kelaus.
     const short =
-      this.helpLevel === 'short' && !this.spectator && !c.ashore
+      (this.helpLevel === 'short' || c.simple) && !this.spectator && !c.ashore
         ? [
             ...(c.seat === 'tube' ? (['help.shortMove'] as const) : MOVE_HELP[c.seat]),
             ...(c.fly ? SHORT_HELP.fly : SHORT_HELP.spin),
-            'help.shortMore' as const,
+            c.simple ? ('help.shortHide' as const) : ('help.shortMore' as const),
           ]
         : null;
     const lines = (short ?? [...base, ...tail]).map((k) => controlText(k, {}, opts));
@@ -591,8 +592,10 @@ export class Hud {
   /** {help}: lyhyt ohje → kaikki ohjeet → piilossa → lyhyt. Valinta jää laitteelle. */
   toggleHelp(): void {
     if (this.touch) return;
+    // Rennolla kaikkien nappien ohjetta ei ole: lyhyt tai piilossa.
+    const full = this.helpContext.simple ? 'off' : 'full';
     this.helpLevel =
-      this.helpLevel === 'short' ? 'full' : this.helpLevel === 'full' ? 'off' : 'short';
+      this.helpLevel === 'short' ? full : this.helpLevel === 'full' ? 'off' : 'short';
     saveHelpLevel(this.helpLevel);
     this.helpSlot.hidden = this.helpLevel === 'off';
     this.renderHelp();
@@ -671,6 +674,8 @@ export interface HelpContext {
   seat: 'tube' | 'rower' | 'rowerRod' | 'passenger';
   /** Moninpelin veneessä paikkaa voi vaihtaa venekunnan kesken (#357). */
   crew?: boolean;
+  /** Rento-taso (#638): ohje on aina lyhyt, koska muita nappeja ei tarvita. */
+  simple?: boolean;
   /** Maissa kävellen (#457) tai täyttökisassa pumppaamassa tai äyskäröimässä (#458). */
   ashore?: 'walk' | 'race';
 }

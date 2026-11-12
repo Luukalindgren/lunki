@@ -149,6 +149,7 @@ export class HudPresenter {
       pov: host.viewMode === 'pov',
       seat: !host.inBoat ? 'tube' : !host.rower ? 'passenger' : host.rowing ? 'rower' : 'rowerRod',
       crew: host.crewSeats,
+      simple: DIFFICULTIES[host.settings.difficulty].simple,
       ashore,
     });
     const tangle = s.tangle;

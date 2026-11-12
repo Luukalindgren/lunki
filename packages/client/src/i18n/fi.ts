@@ -100,6 +100,7 @@ export const fi = {
   'season.summer': 'Kesä',
   'season.autumn': 'Syksy',
   'season.winter': 'Talvi',
+  'difficulty.relaxed': 'Rento',
   'difficulty.easy': 'Helppo',
   'difficulty.normal': 'Normaali',
   'difficulty.realistic': 'Realistinen',
@@ -232,7 +233,7 @@ export const fi = {
   'settings.difficulty': 'Kalastuksen vaikeus',
   'settings.difficultyShort': 'Vaikeus',
   'settings.difficultyHint':
-    'Helppo: kalat tulevat vieheelle kaukaa, tarttuvat aina ja tulevat ylös kelaamalla. Realistinen: vastaisku, jarru ja siiman kireys ratkaisevat.',
+    'Rento: ensimmäiseen kisaan. Yksi nappi heittää ja kelaa, ja kelaus tuo kalan kyytiin. Ei jarrua, kelausnopeuksia, pohjatartuntoja eikä perhoa. Helppo: kalat tulevat vieheelle kaukaa, tarttuvat aina ja tulevat ylös kelaamalla. Realistinen: vastaisku, jarru ja siiman kireys ratkaisevat.',
   'settings.timeOfDay': 'Vuorokaudenaika',
   'settings.season': 'Vuodenaika',
   'settings.seasonHint':
@@ -780,6 +781,7 @@ export const fi = {
   'help.shortFly': '{castForward} = perhoheitto rytmissä · {lift} = nosta siima vedestä',
   'help.shortFlyStrip': 'Perho vedessä: {strip} = vedä siimaa',
   'help.shortMore': '{help} = kaikki ohjeet · {pause} = tauko',
+  'help.shortHide': '{help} = ohje piiloon · {pause} = tauko',
   'help.bar':
     '{view} = näkymä · {emote} = käsimerkit · {zoom} = zoom · {help} = ohje · {pause} = tauko',
   'help.chat': '{chat} = viesti muille',
@@ -1034,6 +1036,7 @@ export const fi = {
   'game.lureSonarOff': 'Vieheen syvyysnäkymä pois',
   'game.flyWaterHint':
     'Perho on vedessä\n{strip} = vedä perhoa · {lift} = nosta siima uuteen heittoon',
+  'game.methodSimple': 'Rennolla kalastetaan virvelillä. Perho on käytössä muilla vaikeustasoilla.',
   'game.stuckOnLand': 'Viehe jäi kiinni maalle\nKatkaise siima: {cut}',
   'game.tired': 'Puuskutat! Lepää hetki, niin jaksat taas',
   'game.flying': 'Lennät trombin mukana!',
@@ -1177,7 +1180,7 @@ export const fi = {
     'Liiku: {back} = potki selkä edellä (nopein), {forward} = eteenpäin, {turn} = käänny.\nHeitä: pidä {castForward} pohjassa ja päästä, kun voimamittari on täynnä.\nKelaa: pidä {reel} pohjassa. Viehe ui takaisin luoksesi, ja kala iskee siihen matkalla.\nTärppi: kelaa heti ({reel}), niin kala tarttuu. Raskaassa tärpissä nykäise ({twitch}).\nVäsytä: kelaa ja pidä siima kireällä. Jos KIREYS nousee huippuun, löysää jarrua ({dragLess}).\nNosta: kun kala on pinnassa, paina {land} uudelleen.',
   'manual.start.noBites': 'Jos ei tärppää',
   'manual.start.noBitesText':
-    '{sonar} = kaikuluotain näyttää kalat.\nVaihda paikkaa: kalat ovat parvissa ja syövät jaksoittain.\n{lure} = vaihda viehe. Eri kalat syövät eri vieheitä.\nHelpolla vaikeustasolla kala tarttuu aina, eikä siima katkea.',
+    '{sonar} = kaikuluotain näyttää kalat.\nVaihda paikkaa: kalat ovat parvissa ja syövät jaksoittain.\n{lure} = vaihda viehe. Eri kalat syövät eri vieheitä.\nHelpolla vaikeustasolla kala tarttuu aina, eikä siima katkea.\nRento on ensimmäiseen kisaan: yksi nappi heittää ja kelaa, kelaus tuo kalan kyytiin, eikä jarrua, kelausnopeuksia tai perhoa ole.',
   'manual.start.screen': 'Ruudulla',
   'manual.start.screenText':
     'Ylhäällä keskellä oleva ohje kertoo, mitä tehdä seuraavaksi.\nKisa alkaa lyhyellä ohjeella: liike, heitto ja kelaus. {help} vaihtaa ohjetta: kaikki napit, piilossa ja takaisin lyhyt.\n{view} = vaihda näkymää: kalastajan silmin tai ylhäältä.\n{pause} = tauko: asetukset, ohjeet ja varusteet.',

@@ -61,6 +61,10 @@ Koodi: `packages/client/src/ui/hud.ts`, tyylit `style.css`.
   laatikkona.
   Alimpana tasona on opastus ensimmäiseen kalaan (`game/guide.ts`, #370):
   uusi opastettava asia on uusi askel sen tilakoneeseen, ei oma ohjeruutu.
+- **Ohjelaatikko on kisan alussa lyhyt** (#638): liike, heitto ja kelaus.
+  {help} kiertää lyhyt → kaikki napit → piilossa, ja valinta jää laitteelle
+  (`lunki.help`). Uusi ohjerivi menee kaikkien nappien ohjeeseen (`HELP`);
+  lyhyeen (`SHORT_HELP`) vain se, mitä ensimmäiseen kalaan tarvitaan.
 - **Rangaistukset `Hud.setPenalties(rows, note)`** ajastimen alle (jäähy,
   kaatuminen, salama, maalle heitto), ei erillistä korttia.
 - **Asettelu kiinteissä vyöhykkeissä.** Ylhäällä keskellä olevat osat ovat
@@ -317,6 +321,12 @@ Koodi: `packages/client/src/audio/sounds.ts`.
 
 ### Vaikeustaso ja avut (#391)
 
+- Rento (`relaxed`, #638) on ensikertalaisen taso: Helpon kalat ja
+  yksinkertaistettu ohjaus (`DIFFICULTIES.relaxed.simple`). Yksi nappi heittää
+  ja kelaa, kelaus nostaa kalan (muilla tasoilla nosto on oma painalluksensa,
+  #395), kelalla on yksi nopeus, jarrua ei säädetä eikä perhoa ole. Uusi
+  mekaniikka, jota ensikertalainen ei tarvitse, jätetään Rennolta pois
+  `simple`-kentän mukaan eikä omalla asetuksella. Oletustaso on Helppo.
 - Kalastuksen vaikeustaso (`settings.difficulty`) päättää myös näkyvät
   avut: helpolla saa olla pelimäisiä apuja, realistisella vain se, minkä
   oikeakin kalastaja näkee.

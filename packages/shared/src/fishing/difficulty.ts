@@ -1,7 +1,11 @@
 import type { FlyCastAssist } from './flyCast';
 
 /** Kalastuksen vaikeustaso valitaan peliä luodessa. */
-export type Difficulty = 'easy' | 'normal' | 'realistic';
+/**
+ * `relaxed` (Rento, #638) on ensikertalaisen taso: Helpon kalat ja lisäksi
+ * yksinkertaistettu ohjaus (`simple`).
+ */
+export type Difficulty = 'relaxed' | 'easy' | 'normal' | 'realistic';
 
 export interface DifficultyParams {
   /** Kalan vetovoiman kerroin. */
@@ -60,6 +64,13 @@ export interface DifficultyParams {
   slackEscape: number;
   /** Perhoheiton ajoitusikkunat ja avut (#235). */
   flyCast: FlyCastAssist;
+  /**
+   * Yksinkertaistettu ohjaus (#638): yksi nappi heittää ja kelaa, kelaus
+   * nostaa pintaan väsyneen kalan, kelalla on yksi nopeus eikä jarrua
+   * säädetä, ja kalastetaan vain virvelillä. Asiakas jättää pois näppäimet,
+   * joita ei tarvita, ja ohje näyttää vain lyhyet rivit.
+   */
+  simple: boolean;
   /** Nosto väsytyksen lopuksi (#366). */
   landing: {
     /** Riuhtaisuja sekunnissa täysin voimissaan olevalla kalalla (kerrotaan voimilla). */
@@ -70,6 +81,39 @@ export interface DifficultyParams {
 }
 
 export const DIFFICULTIES: Record<Difficulty, DifficultyParams> = {
+  relaxed: {
+    fishStrength: 0.45,
+    bodyDrag: 0.15,
+    staminaDrain: 4,
+    biteRate: 3,
+    appealTolerance: 2.2,
+    senseRange: 5,
+    chaseSpeed: 1.8,
+    strikeReach: 2.5,
+    followTime: 3,
+    wary: false,
+    feedingBouts: false,
+    snagRate: 0,
+    snagFreeChance: 1,
+    autoHook: true,
+    hookWindow: Infinity,
+    hookChance: 1,
+    reelHookSize: 4,
+    lineCanBreak: false,
+    slackEscape: Infinity,
+    flyCast: {
+      early: 0.35,
+      late: 1.5,
+      lateMin: 0.8,
+      marker: true,
+      autoSlip: true,
+      harsh: false,
+      errors: false,
+    },
+    // Kala ei riuhdo nostossa: kelaus tuo sen kyytiin.
+    simple: true,
+    landing: { lungeRate: 0, lungeEscape: 0 },
+  },
   easy: {
     fishStrength: 0.45,
     bodyDrag: 0.15,
@@ -100,6 +144,7 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyParams> = {
       errors: false,
     },
     // Helpolla anteeksiantava: harva riuhtaisu, eikä kala karkaa nostossa.
+    simple: false,
     landing: { lungeRate: 0.08, lungeEscape: 0 },
   },
   normal: {
@@ -131,6 +176,7 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyParams> = {
       harsh: false,
       errors: true,
     },
+    simple: false,
     landing: { lungeRate: 0.5, lungeEscape: 0.5 },
   },
   realistic: {
@@ -162,11 +208,13 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyParams> = {
       harsh: true,
       errors: true,
     },
+    simple: false,
     landing: { lungeRate: 0.8, lungeEscape: 0.8 },
   },
 };
 
 export const DIFFICULTY_NAMES: Record<Difficulty, string> = {
+  relaxed: 'Rento',
   easy: 'Helppo',
   normal: 'Normaali',
   realistic: 'Realistinen',
