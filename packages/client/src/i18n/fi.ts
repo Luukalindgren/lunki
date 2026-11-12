@@ -254,7 +254,7 @@ export const fi = {
   'settings.controlSimple': 'Yksinkertainen',
   'settings.controlFull': 'Täysi',
   'settings.controlStyleHint':
-    'Yksinkertainen: yksi nappi heittää ja kelaa, ja kelaus tuo kalan kyytiin. Ei jarrua, kelausnopeuksia eikä perhoa. Täysi: kaikki mekaniikat. Valinta on oma, eikä se vaikuta kisan sääntöihin tai ennätyslistoihin.',
+    'Yksinkertainen: yksi nappi heittää ja kelaa, ja kelaus tuo kalan kyytiin. Vieheenä on lippa ja kelausnopeus on 3. Ei jarrua, vieheen vaihtoa eikä perhoa. Täysi: kaikki mekaniikat. Valinta on oma, eikä se vaikuta kisan sääntöihin tai ennätyslistoihin.',
   'settings.guide': 'Opastus',
   'settings.guideOn': 'Näytä alusta',
   'settings.guideOff': 'Pois',
@@ -732,6 +732,7 @@ export const fi = {
   'hud.compass': 'P,KO,I,KA,E,LO,L,LU',
   'guide.move':
     'Opastus 1/5: potki liikkeelle · {back} = selkä edellä (nopein) · {forward} = eteenpäin · {turn} = käänny',
+  'guide.moveSimple': 'Opastus 1/5: potki liikkeelle · {back} = nopein suunta · {turn} = käänny',
   'guide.row':
     'Opastus 1/5: souda liikkeelle · {back} = souda · {forward} = huopaa · {turn} = käännä venettä',
   'guide.cast':
@@ -1044,6 +1045,8 @@ export const fi = {
   'game.lureSonarOff': 'Vieheen syvyysnäkymä pois',
   'game.flyWaterHint':
     'Perho on vedessä\n{strip} = vedä perhoa · {lift} = nosta siima uuteen heittoon',
+  'game.lureSimple':
+    'Yksinkertaisella ohjauksella vieheenä on lippa. Muut vieheet saa käyttöön vaihtamalla ohjaustavan Asetuksista.',
   'game.methodSimple':
     'Yksinkertaisella ohjauksella kalastetaan virvelillä. Perhon saa käyttöön vaihtamalla ohjaustavan Asetuksista.',
   'game.stuckOnLand': 'Viehe jäi kiinni maalle\nKatkaise siima: {cut}',
@@ -1189,7 +1192,7 @@ export const fi = {
     'Liiku: {back} = potki selkä edellä (nopein), {forward} = eteenpäin, {turn} = käänny.\nHeitä: pidä {castForward} pohjassa ja päästä, kun voimamittari on täynnä.\nKelaa: pidä {reel} pohjassa. Viehe ui takaisin luoksesi, ja kala iskee siihen matkalla.\nTärppi: kelaa heti ({reel}), niin kala tarttuu. Raskaassa tärpissä nykäise ({twitch}).\nVäsytä: kelaa ja pidä siima kireällä. Jos KIREYS nousee huippuun, löysää jarrua ({dragLess}).\nNosta: kun kala on pinnassa, paina {land} uudelleen.',
   'manual.start.noBites': 'Jos ei tärppää',
   'manual.start.noBitesText':
-    '{sonar} = kaikuluotain näyttää kalat.\nVaihda paikkaa: kalat ovat parvissa ja syövät jaksoittain.\n{lure} = vaihda viehe. Eri kalat syövät eri vieheitä.\nHelpolla vaikeustasolla kala tarttuu aina, eikä siima katkea.\nAsetusten Ohjaustapa-valinnalla Yksinkertainen yksi nappi heittää ja kelaa, kelaus tuo kalan kyytiin, eikä jarrua, kelausnopeuksia tai perhoa ole. Se toimii kaikilla vaikeustasoilla.',
+    '{sonar} = kaikuluotain näyttää kalat.\nVaihda paikkaa: kalat ovat parvissa ja syövät jaksoittain.\n{lure} = vaihda viehe. Eri kalat syövät eri vieheitä.\nHelpolla vaikeustasolla kala tarttuu aina, eikä siima katkea.\nAsetusten Ohjaustapa-valinnalla Yksinkertainen yksi nappi heittää ja kelaa, kelaus tuo kalan kyytiin, vieheenä on lippa ja kelausnopeus on 3, eikä jarrua, vieheen vaihtoa tai perhoa ole. Se toimii kaikilla vaikeustasoilla.',
   'manual.start.screen': 'Ruudulla',
   'manual.start.screenText':
     'Ylhäällä keskellä oleva ohje kertoo, mitä tehdä seuraavaksi.\nKisa alkaa lyhyellä ohjeella: liike, heitto ja kelaus. {help} vaihtaa ohjetta: kaikki napit, piilossa ja takaisin lyhyt.\n{view} = vaihda näkymää: kalastajan silmin tai ylhäältä.\n{pause} = tauko: asetukset, ohjeet ja varusteet.',

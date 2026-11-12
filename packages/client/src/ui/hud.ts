@@ -266,6 +266,9 @@ export class Hud {
     this.status.classList.toggle('live', live);
     const text = lines.join('\n');
     if (this.status.textContent !== text) this.status.textContent = text;
+    // Tyhjä paneeli piiloon (yksinkertainen ohjaus, #653); soutajan merkki pitää sen näkyvissä.
+    const empty = text === '' && this.status.dataset.badge === undefined;
+    if (this.status.hidden !== empty) this.status.hidden = empty;
   }
 
   /**

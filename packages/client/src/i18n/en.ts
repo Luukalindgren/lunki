@@ -249,7 +249,7 @@ export const en: Record<keyof typeof fi, string> = {
   'settings.controlSimple': 'Simple',
   'settings.controlFull': 'Full',
   'settings.controlStyleHint':
-    'Simple: one button casts and reels, and reeling brings the fish in. No drag, reel speeds or fly fishing. Full: all mechanics. The choice is your own and does not affect the competition rules or the record lists.',
+    'Simple: one button casts and reels, and reeling brings the fish in. The lure is a spinner and the reel speed is 3. No drag, lure change or fly fishing. Full: all mechanics. The choice is your own and does not affect the competition rules or the record lists.',
   'settings.guide': 'Guide',
   'settings.guideOn': 'Show from start',
   'settings.guideOff': 'Off',
@@ -728,6 +728,7 @@ export const en: Record<keyof typeof fi, string> = {
   'hud.compass': 'N,NE,E,SE,S,SW,W,NW',
   'guide.move':
     'Guide 1/5: kick to get moving · {back} = back first (fastest) · {forward} = forward · {turn} = turn',
+  'guide.moveSimple': 'Guide 1/5: kick to get moving · {back} = fastest way · {turn} = turn',
   'guide.row':
     'Guide 1/5: row to get moving · {back} = row · {forward} = back water · {turn} = turn the boat',
   'guide.cast':
@@ -1039,6 +1040,8 @@ export const en: Record<keyof typeof fi, string> = {
   'game.lureSonarOff': 'Lure depth view off',
   'game.flyWaterHint':
     'The fly is in the water\n{strip} = strip the fly · {lift} = lift the line for a new cast',
+  'game.lureSimple':
+    'Simple controls fish with a spinner. For other lures, change the control style in Settings.',
   'game.methodSimple':
     'Simple controls are spin fishing only. To fly fish, change the control style in Settings.',
   'game.stuckOnLand': 'The lure is stuck on land\nCut the line: {cut}',
@@ -1185,7 +1188,7 @@ export const en: Record<keyof typeof fi, string> = {
     'Move: {back} = kick back first (fastest), {forward} = forward, {turn} = turn.\nCast: hold {castForward} and release when the power meter is full.\nReel: hold {reel}. The lure swims back to you, and a fish bites it on the way.\nBite: reel at once ({reel}) to hook the fish. On a heavy bite, twitch ({twitch}).\nFight: reel and keep the line tight. If TENSION hits the top, loosen the drag ({dragLess}).\nLand: when the fish is at the surface, press {land} again.',
   'manual.start.noBites': 'No bites?',
   'manual.start.noBitesText':
-    '{sonar} = sonar shows the fish.\nMove to a new spot: fish swim in schools and feed in spells.\n{lure} = change lure. Different fish like different lures.\nOn Easy the fish always hooks and the line never snaps.\nWith the Simple control style in Settings, one button casts and reels, reeling brings the fish in, and there is no drag, reel speeds or fly fishing. It works on every difficulty level.',
+    '{sonar} = sonar shows the fish.\nMove to a new spot: fish swim in schools and feed in spells.\n{lure} = change lure. Different fish like different lures.\nOn Easy the fish always hooks and the line never snaps.\nWith the Simple control style in Settings, one button casts and reels, reeling brings the fish in, the lure is a spinner and the reel speed is 3, and there is no drag, lure change or fly fishing. It works on every difficulty level.',
   'manual.start.screen': 'On screen',
   'manual.start.screenText':
     'The hint at the top centre tells you what to do next.\nA competition starts with a short help: moving, casting and reeling. {help} switches the help: all controls, hidden and back to short.\n{view} = switch view: through the angler’s eyes or from above.\n{pause} = pause: settings, how to play and tackle.',
