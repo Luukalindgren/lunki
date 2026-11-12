@@ -242,6 +242,26 @@ for (const a of Object.keys(CONTROLS) as Action[]) {
   CODES[a] = [...b.keys, ...(b.pad ?? [])];
 }
 
+/** Toiminnon peliohjaimen napit; perhoheiton tatti voi olla käänteinen (#594). */
+function padCodes(a: Action): readonly string[] {
+  const b: Binding = CONTROLS[a];
+  if (flyInverted && a === 'backCast') return CONTROLS.forwardCast.pad;
+  if (flyInverted && a === 'forwardCast') return CONTROLS.backCast.pad;
+  return b.pad ?? [];
+}
+
+let flyInverted = false;
+
+/**
+ * Perhoheiton tatti käänteisenä (asetus, #594): takaheitto ylös ja
+ * eteenheitto alas. Vaihtaa toimintojen napit ja ohjetekstit kerralla.
+ */
+export function setFlyStickInverted(on: boolean): void {
+  flyInverted = on;
+  for (const a of ['backCast', 'forwardCast'] as const)
+    CODES[a] = [...CONTROLS[a].keys, ...padCodes(a)];
+}
+
 /** Yhdistelmien napit: koodi → napit, joiden kanssa se on jonkin toiminnon yhdistelmä. */
 const COMBOS = new Map<string, string[]>();
 for (const b of Object.values(CONTROLS) as Binding[]) {
@@ -420,6 +440,16 @@ export function controlMode(): ControlMode {
   return mode;
 }
 
+/** Viimeksi käytetyn peliohjaimen merkintätapa (ohjainkuva Ohjeissa). */
+export function currentPadKind(): PadKind {
+  return padKind;
+}
+
+/** Peliohjaimen napin nimi ohjainkuvaan: Pad0 → A tai ✕. */
+export function padButtonName(code: string, kind: PadKind = padKind): string {
+  return padName(code, kind);
+}
+
 /** Toiminnon ohjaus pelaajan ohjaustavalla, tai null, jos sitä ei ole. */
 export function bindingText(a: Action, m: ControlMode = mode): string | null {
   const b: Binding = CONTROLS[a];
@@ -429,7 +459,7 @@ export function bindingText(a: Action, m: ControlMode = mode): string | null {
   }
   if (m === 'pad') {
     if (b.padLabel) return t(b.padLabel);
-    const names = [...new Set((b.pad ?? []).map((c) => keyName(c)))];
+    const names = [...new Set(padCodes(a).map((c) => keyName(c)))];
     if (!names.length) return null;
     return (b.padWith ? `${keyName(b.padWith)}+` : '') + names.join('/');
   }

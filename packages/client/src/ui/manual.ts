@@ -36,6 +36,8 @@ interface Topic {
   /** Rivit erotetaan rivinvaihdolla; rivi, jonka ohjausta ei ole tällä laitteella, jää pois. */
   readonly text: MsgKey;
   readonly vars?: () => Record<string, string | number>;
+  /** Aiheen alle piirrettävä kuva (ohjainkuva, #594). */
+  readonly diagram?: 'pad';
 }
 
 const pct = (v: number) => Math.round(v * 100);
@@ -76,7 +78,7 @@ const TOPICS: Record<ManualSection, readonly Topic[]> = {
     },
     { title: 'manual.move.boat', text: 'manual.move.boatText' },
     { title: 'manual.move.wind', text: 'manual.move.windText' },
-    { title: 'manual.move.pad', text: 'manual.move.padText' },
+    { title: 'manual.move.pad', text: 'manual.move.padText', diagram: 'pad' },
   ],
   spin: [
     { title: 'manual.spin.cast', text: 'manual.spin.castText' },
@@ -185,6 +187,7 @@ const TOPICS: Record<ManualSection, readonly Topic[]> = {
 export interface ManualTopic {
   title: string;
   lines: string[];
+  diagram?: 'pad';
 }
 
 /** Osion aiheet pelaajan kielellä ja ohjaustavalla. */
@@ -195,5 +198,6 @@ export function manualTopics(
   return TOPICS[section].map((topic) => ({
     title: t(topic.title),
     lines: controlText(topic.text, topic.vars?.() ?? {}, opts).split('\n'),
+    ...(topic.diagram && { diagram: topic.diagram }),
   }));
 }

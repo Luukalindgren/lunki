@@ -138,3 +138,51 @@ test('peliohjain: valikot, ohjeen napit, heitto ja tauko', async ({ page, isMobi
   await expect(page.getByRole('button', { name: 'Jatka' })).toBeHidden();
   errors.check();
 });
+
+test('peliohjaimen asetukset, ohjainkuva ja tauko ohjaimen irrotessa (#594)', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, 'puhelimilla sama näkymä');
+  const errors = watchErrors(page);
+  await page.addInitScript(installPad);
+  await page.goto(soloUrl());
+  await expect(page.getByRole('button', { name: 'Pelaa' })).toBeVisible();
+  // Ohjaimen painallus: peli siirtyy ohjaimen ohjaukseen.
+  await tap(page, DOWN);
+
+  // Asetuksissa on Peliohjain-osio, kun ohjain on kytketty, ja valinta tallentuu.
+  await page.getByRole('button', { name: 'Asetukset' }).click();
+  await expect(page.locator('.settings-section', { hasText: 'Peliohjain' })).toBeVisible();
+  await page.getByRole('button', { name: 'Kytkin' }).click();
+  await page.getByRole('button', { name: 'Ylös = takaheitto' }).click();
+  expect(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('lunki.pad') ?? '{}') as unknown),
+  ).toMatchObject({ reelToggle: true, flyInvert: true });
+  await page.getByRole('button', { name: 'Takaisin' }).click();
+
+  // Ohjeissa on kuva ohjaimesta ja nappien toiminnot toimintokartasta.
+  await page.getByRole('button', { name: 'Ohjeet' }).click();
+  await page.getByRole('button', { name: 'Liikkuminen' }).click();
+  await expect(page.locator('.pad-diagram')).toBeVisible();
+  await expect(page.locator('.pad-map-list')).toContainText('heitä, kelaa ja nosta kala');
+  await expect(page.locator('.pad-map-list dt').first()).toHaveText('A/RT');
+  await page.getByRole('button', { name: 'Takaisin' }).click();
+
+  // Yksinpeli menee tauolle, kun ohjain irtoaa kesken kisan.
+  await focusButton(page, 'Pelaa');
+  await tap(page, A);
+  await focusButton(page, 'Yksinpeli');
+  await tap(page, A);
+  await focusButton(page, 'Aloita kisa');
+  await tap(page, A);
+  await raceRunning(page);
+  await page.evaluate(() => {
+    Object.defineProperty(Navigator.prototype, 'getGamepads', {
+      configurable: true,
+      value: () => [],
+    });
+  });
+  await expect(page.getByRole('button', { name: 'Jatka' })).toBeVisible();
+  errors.check();
+});

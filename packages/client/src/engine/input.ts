@@ -68,6 +68,9 @@ export class Input {
   private padScrollAt = 0;
   /** Pelaaja vaihtoi ohjaustapaa (näppäimistö, kosketus tai peliohjain). */
   onDevice: (device: InputDevice, kind: PadKind) => void = () => {};
+  /** Peliohjain kytkettiin tai irtosi (#594); ensimmäistä lukua ei ilmoiteta. */
+  onPadPresence: (connected: boolean) => void = () => {};
+  private padPresent: boolean | null = null;
   /** Oikea tatti, -1…1 (y kasvaa alas): heiton suunta ja pikavalikot. */
   padAim = { x: 0, y: 0 };
   private device: InputDevice | null = null;
@@ -185,6 +188,12 @@ export class Input {
    */
   private pollPads(): void {
     const frame = readPads();
+    const present = frame !== null;
+    if (present !== this.padPresent) {
+      // Sivun auetessa jo kytketty (tai puuttuva) ohjain ei ole uutinen.
+      if (this.padPresent !== null) this.onPadPresence(present);
+      this.padPresent = present;
+    }
     const codes: ReadonlySet<string> = frame?.codes ?? new Set();
     this.padAim = frame?.aim ?? { x: 0, y: 0 };
     if (frame?.active) this.useDevice('pad', frame.kind);

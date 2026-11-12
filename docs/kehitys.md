@@ -92,6 +92,13 @@ Koodi: `packages/client/src/game/controls.ts`.
   vavan nykäisy (`game/stickFlick.ts`, #595). Uusi toiminto saa `pad`-napin, jos sellainen on vapaana;
   muuten yhdistelmän `padWith`-kentällä (zoom on LT/L2 + ristiohjain, ohje piiloon LT/L2 + oikean tatin painallus), jolloin
   saman napin tavallinen toiminto väistää yhdistelmän ajaksi.
+- Peliohjaimen asetukset (#594, `engine/padSettings.ts`): kääntymisen
+  herkkyys (`TurnPulse` jättää osan askelista väliin, koska käännös kulkee
+  palvelimelle arvoina -1, 0 ja 1), perhoheiton tatti käänteisenä
+  (`setFlyStickInverted` vaihtaa toimintojen napit ja ohjeet) ja kelaus
+  kytkimenä (`ReelLatch`). Ohjeiden ohjainkuva (`ui/padDiagram.ts`) täytetään
+  kartasta. Ohjaimen kytkeminen ja irtoaminen ilmoitetaan `info`-tasolla
+  (`Input.onPadPresence`), ja yksinpeli menee tauolle ohjaimen irrotessa.
 - Kosketusnapit painavat toimintoja (`controls.set` / `controls.tap`), eivät
   matki näppäimiä. Ei raakoja `KeyX`-tarkistuksia pelikoodissa eikä
   keksittyjä näppäinnimiä.
@@ -177,8 +184,8 @@ Koodi: `packages/client/src/world/lakeMesh.ts`.
 Koodi: `packages/client/src/ui/screens.ts` (`showSettings`, `showPause`).
 
 - **Pelaajan asetukset vain jaetussa Asetukset-näkymässä**
-  (`Screens.showSettings`): Näyttö (HUD-koko, näkökenttä, opastus), Äänet
-  ja Kieli.
+  (`Screens.showSettings`): Näyttö (HUD-koko, näkökenttä, opastus), Äänet,
+  Peliohjain (näkyy, kun ohjain on kytketty; myös värinä, #594) ja Kieli.
   Sama näkymä aukeaa päävalikosta ja taukovalikosta.
 - Päävalikko on lyhyt: Pelaa (alavalikossa Yksinpeli ja Moninpeli),
   Varusteet, Järvikartta, Ennätykset, Ohjeet, Asetukset ja Tietoa ja palaute
@@ -304,7 +311,7 @@ Koodi: `packages/client/src/audio/sounds.ts`.
   rivin `rumble`-kenttä värähtää omassa tapahtumassa (`RUMBLES`), ja kiinni
   olevan kalan veto tulee `sounds.pull(kuorma)`-kutsusta. Peli ei kutsu
   `playEffect`ia itse. Värinä toimii vain, kun pelaaja käyttää ohjainta ja
-  selain tukee sitä (Chrome, Edge); asetus on Äänet-osiossa.
+  selain tukee sitä (Chrome, Edge); asetus on Asetusten Peliohjain-osiossa.
 - Uusi ääni on uusi rivi karttaan. Väylät (tehosteet, ympäristö, musiikki,
   puhe, ukkonen) ovat `Sfx`-luokassa ja niiden voimakkuudet `MIX`-taulukossa.
 

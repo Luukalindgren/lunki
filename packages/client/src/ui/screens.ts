@@ -121,9 +121,12 @@ import {
   type Lang,
   type MsgKey,
 } from '../i18n';
-import { controlText } from '../game/controls';
+import { padConnected } from '../engine/gamepad';
+import { DEFAULT_PAD_SETTINGS, PAD_TURNS, type PadSettings } from '../engine/padSettings';
+import { controlText, currentPadKind } from '../game/controls';
 import { copyText } from './clipboard';
 import { MANUAL_SECTIONS, manualTopics, type ManualSection } from './manual';
+import { padDiagram } from './padDiagram';
 import { isMine, rankLabel } from '../game/raceScoreboard';
 import type { RaceStatus } from '../game/raceStatus';
 import { challengeOutcome, challengeScoreText } from '../game/challenge';
@@ -231,6 +234,8 @@ export interface SettingsControls {
   };
   /** Opastus ensimmäiseen kalaan (#370): päälle alusta tai pois. */
   guide: { current: boolean; onChange: (on: boolean) => void };
+  /** Peliohjaimen asetukset (#594). */
+  pad: { current: PadSettings; onChange: (s: PadSettings) => void };
   /** Kieli vaihtui: näkymä avataan uudelleen uudella kielellä. */
   onLanguage: () => void;
 }
@@ -1248,6 +1253,10 @@ export class Screens {
       ),
       h('h3', t('settings.sound'), 'settings-section'),
       this.audioEditor(c.audio.current, c.audio.onChange),
+      // Peliohjain (#594) näkyy, kun ohjain on kytketty.
+      ...(padConnected()
+        ? [h('h3', t('settings.pad'), 'settings-section'), this.padEditor(c)]
+        : []),
       h('h3', t('menu.language'), 'settings-section'),
       language,
       this.buttons([[t('common.back'), onBack]]),
@@ -1579,17 +1588,73 @@ export class Screens {
         },
       ),
       h('p', t('audio.voiceHint'), 'hint'),
+    );
+    return box;
+  }
+
+  /**
+   * Peliohjaimen asetukset (#594): kääntymisen herkkyys, perhoheiton tatin
+   * suunta, kelaus pidolla tai kytkimenä ja värinä.
+   */
+  private padEditor(c: SettingsControls): HTMLElement {
+    const pad = { ...c.pad.current };
+    const box = document.createElement('div');
+    box.className = 'settings';
+    /** Kaksi vaihtoehtoa; `names` on [pois, päällä], oletuksena Kyllä ja Ei. */
+    const yesNo = (
+      label: string,
+      on: boolean,
+      onChange: (on: boolean) => void,
+      names?: [string, string],
+    ) =>
       this.choice(
-        t('audio.rumble'),
-        [
-          ['1', t('common.yes')],
-          ['0', t('common.no')],
-        ],
-        a.rumble ? '1' : '0',
-        (v) => {
-          a.rumble = v === '1';
-          onChange({ ...a });
+        label,
+        names
+          ? [
+              ['0', names[0]],
+              ['1', names[1]],
+            ]
+          : [
+              ['1', t('common.yes')],
+              ['0', t('common.no')],
+            ],
+        on ? '1' : '0',
+        (v) => onChange(v === '1'),
+      );
+    box.append(
+      this.stepSlider({
+        id: 'pad-turn',
+        steps: PAD_TURNS,
+        current: pad.turn,
+        fallback: DEFAULT_PAD_SETTINGS.turn,
+        onChange: (turn) => {
+          pad.turn = turn;
+          c.pad.onChange({ ...pad });
         },
+        ends: ['-', '+'],
+        label: (turn) => t('settings.padTurn', { pct: Math.round(turn * 100) }),
+      }),
+      yesNo(
+        t('settings.padFly'),
+        pad.flyInvert,
+        (on) => {
+          pad.flyInvert = on;
+          c.pad.onChange({ ...pad });
+        },
+        [t('settings.padFlyNormal'), t('settings.padFlyInverted')],
+      ),
+      yesNo(
+        t('settings.padReel'),
+        pad.reelToggle,
+        (on) => {
+          pad.reelToggle = on;
+          c.pad.onChange({ ...pad });
+        },
+        [t('settings.padReelHold'), t('settings.padReelToggle')],
+      ),
+      h('p', t('settings.padReelHint'), 'hint'),
+      yesNo(t('audio.rumble'), c.audio.current.rumble, (on) =>
+        c.audio.onChange({ ...c.audio.current, rumble: on }),
       ),
       h('p', t('audio.rumbleHint'), 'hint'),
     );
@@ -1715,6 +1780,8 @@ export class Screens {
           const list = document.createElement('ul');
           for (const line of topic.lines) list.append(h('li', line));
           section.append(h('h3', topic.title), list);
+          // Ohjainkuva (#594) viimeksi käytetyn ohjaimen merkinnöin.
+          if (topic.diagram === 'pad') section.append(padDiagram(currentPadKind()));
           return section;
         }),
       );
