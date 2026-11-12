@@ -1496,6 +1496,9 @@ textarea,
   inset: 0;
   pointer-events: none;
   overflow: hidden;
+  /* Oma pinoamiskonteksti: kylttien keskinäinen z-index (#633) ei nosta niitä
+     HUDin paneelien eikä valikoiden päälle (#277, #662). */
+  isolation: isolate;
 }
 
 .name-tag {
