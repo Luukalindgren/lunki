@@ -33,9 +33,8 @@ export const FISH_BIRDS = {
   /** Parvet ahvenparvien päällä tätä lähempänä kalastajaa (m). */
   range: 350,
   /** Parvien enimmäismäärä ja koko vaikeustasoittain. */
-  flocks: { relaxed: 3, easy: 3, normal: 2, realistic: 2 } satisfies Record<Difficulty, number>,
+  flocks: { easy: 3, normal: 2, realistic: 2 } satisfies Record<Difficulty, number>,
   size: {
-    relaxed: [5, 7],
     easy: [5, 7],
     normal: [3, 5],
     realistic: [2, 4],
@@ -45,15 +44,12 @@ export const FISH_BIRDS = {
    * arvotaan, käykö parvi pinnassa (vaikeustasoittain). Helpolla kalat
    * syövät koko ajan, joten arvonta uusitaan `easyBout` sekunnin välein.
    */
-  surface: { relaxed: 0.6, easy: 0.6, normal: 0.35, realistic: 0.35 } satisfies Record<
-    Difficulty,
-    number
-  >,
+  surface: { easy: 0.6, normal: 0.35, realistic: 0.35 } satisfies Record<Difficulty, number>,
   easyBout: 150,
   /** Parven kalat uivat keskimäärin tätä matalammalla (m): pintaan ajo näkyy. */
   depth: 2.5,
   /** Yhden linnun syöksyjen väli keskimäärin (s). */
-  diveEvery: { relaxed: 4, easy: 4, normal: 6, realistic: 8 } satisfies Record<Difficulty, number>,
+  diveEvery: { easy: 4, normal: 6, realistic: 8 } satisfies Record<Difficulty, number>,
   /** Lokin kirkuna parvesta keskimäärin näin usein (s). */
   cryEvery: 5,
   /** Lintuja ei näy hämärämmässä (valo 0–1) eikä kovemmassa tuulessa (m/s). */
@@ -67,10 +63,7 @@ export const FISH_BIRDS = {
   terns: { spring: 2, summer: 2, autumn: 0, winter: 0 },
   osprey: {
     /** Sääksi käy keskimäärin näin usein (s) keväällä ja kesällä. */
-    every: { relaxed: 120, easy: 120, normal: 200, realistic: 300 } satisfies Record<
-      Difficulty,
-      number
-    >,
+    every: { easy: 120, normal: 200, realistic: 300 } satisfies Record<Difficulty, number>,
     minLight: 0.45,
     maxWind: 8,
     /** Saalis: pintavedessä (m) uiva sopivan kokoinen kala tällä etäisyydellä kalastajasta. */

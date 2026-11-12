@@ -1,3 +1,4 @@
+import { simpleControls } from './controlStyle';
 import {
   DIFFICULTIES,
   REEL,
@@ -149,7 +150,7 @@ export class HudPresenter {
       pov: host.viewMode === 'pov',
       seat: !host.inBoat ? 'tube' : !host.rower ? 'passenger' : host.rowing ? 'rower' : 'rowerRod',
       crew: host.crewSeats,
-      simple: DIFFICULTIES[host.settings.difficulty].simple,
+      simple: simpleControls(),
       ashore,
     });
     const tangle = s.tangle;

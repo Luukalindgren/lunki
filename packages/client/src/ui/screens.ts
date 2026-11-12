@@ -1,3 +1,4 @@
+import type { ControlStyle } from '../game/controlStyle';
 import {
   APPEARANCE_PARTS,
   colorOptions,
@@ -234,6 +235,8 @@ export interface SettingsControls {
   };
   /** Opastus ensimmäiseen kalaan (#370): päälle alusta tai pois. */
   guide: { current: boolean; onChange: (on: boolean) => void };
+  /** Ohjaustapa (#638): yksinkertainen tai täysi. */
+  controlStyle: { current: ControlStyle; onChange: (s: ControlStyle) => void };
   /** Peliohjaimen asetukset (#594). */
   pad: { current: PadSettings; onChange: (s: PadSettings) => void };
   /** Kieli vaihtui: näkymä avataan uudelleen uudella kielellä. */
@@ -1256,6 +1259,17 @@ export class Screens {
         c.guide.current ? 'on' : 'off',
         (v) => c.guide.onChange(v === 'on'),
       ),
+      h('h3', t('settings.controls'), 'settings-section'),
+      this.choice(
+        t('settings.controlStyle'),
+        [
+          ['simple', t('settings.controlSimple')],
+          ['full', t('settings.controlFull')],
+        ],
+        c.controlStyle.current,
+        (v) => c.controlStyle.onChange(v as ControlStyle),
+      ),
+      h('p', t('settings.controlStyleHint'), 'hint'),
       h('h3', t('settings.sound'), 'settings-section'),
       this.audioEditor(c.audio.current, c.audio.onChange),
       // Peliohjain (#594) näkyy, kun ohjain on kytketty.

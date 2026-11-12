@@ -592,7 +592,7 @@ export class Hud {
   /** {help}: lyhyt ohje → kaikki ohjeet → piilossa → lyhyt. Valinta jää laitteelle. */
   toggleHelp(): void {
     if (this.touch) return;
-    // Rennolla kaikkien nappien ohjetta ei ole: lyhyt tai piilossa.
+    // Yksinkertaisella ohjauksella kaikkien nappien ohjetta ei ole: lyhyt tai piilossa.
     const full = this.helpContext.simple ? 'off' : 'full';
     this.helpLevel =
       this.helpLevel === 'short' ? full : this.helpLevel === 'full' ? 'off' : 'short';
@@ -674,7 +674,7 @@ export interface HelpContext {
   seat: 'tube' | 'rower' | 'rowerRod' | 'passenger';
   /** Moninpelin veneessä paikkaa voi vaihtaa venekunnan kesken (#357). */
   crew?: boolean;
-  /** Rento-taso (#638): ohje on aina lyhyt, koska muita nappeja ei tarvita. */
+  /** Yksinkertainen ohjaus (#638): ohje on aina lyhyt, koska muita nappeja ei tarvita. */
   simple?: boolean;
   /** Maissa kävellen (#457) tai täyttökisassa pumppaamassa tai äyskäröimässä (#458). */
   ashore?: 'walk' | 'race';

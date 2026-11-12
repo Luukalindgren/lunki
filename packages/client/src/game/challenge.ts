@@ -46,7 +46,7 @@ export interface Challenge {
  * Vanhat linkit toimivat vain, jos taulukoihin lisätään arvoja vain loppuun.
  */
 const DURATION_CODES: readonly number[] = [0, 10, 15, 30];
-const DIFFICULTY_CODES: readonly Difficulty[] = ['easy', 'normal', 'realistic', 'relaxed'];
+const DIFFICULTY_CODES: readonly Difficulty[] = ['easy', 'normal', 'realistic'];
 const WIN_RULE_CODES: readonly WinRule[] = ['total', 'biggest'];
 const WEATHER_CODES: readonly WeatherLevel[] = ['calm', 'realistic', 'some', 'lots', 'chaos'];
 const TIME_CODES: readonly TimeOfDay[] = ['morning', 'day', 'evening', 'night'];

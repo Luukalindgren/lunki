@@ -1,3 +1,4 @@
+import { controlStyle, setControlStyle } from './game/controlStyle';
 import {
   DEFAULT_SETTINGS,
   UNTIMED,
@@ -156,7 +157,7 @@ for (const type of ['pointerdown', 'pointerup', 'touchend', 'keydown'])
   window.addEventListener(type, () => sfx.unlock(), { passive: true });
 // Kehitystä varten: ?difficulty=easy&seed=123&minutes=1&weather=chaos&time=evening aloittaa suoraan.
 const params = new URLSearchParams(location.search);
-const devDifficulty = (['relaxed', 'easy', 'normal', 'realistic'] as const).find(
+const devDifficulty = (['easy', 'normal', 'realistic'] as const).find(
   (d) => d === params.get('difficulty'),
 );
 const devSeed = params.has('seed') ? Number(params.get('seed')) : undefined;
@@ -215,6 +216,10 @@ const settingsControls = (reopen: () => void): SettingsControls => ({
     current: loadGuide().off === false,
     // Pelin aikana muutos koskee heti käynnissä olevaa kisaa.
     onChange: (on) => (game?.guide ?? new Guide(loadGuide())).setEnabled(on),
+  },
+  controlStyle: {
+    current: controlStyle(),
+    onChange: setControlStyle,
   },
   pad: {
     current: padSettings(),

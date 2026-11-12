@@ -1,8 +1,9 @@
+import { simpleControls } from './controlStyle';
 import {
-  DIFFICULTIES,
   METHODS,
   isFly,
   type Difficulty,
+  type FishingState,
   type Method,
   type Tackle,
 } from '@lunki/shared';
@@ -34,6 +35,8 @@ export interface LurePickerHost {
   /** Maissa (#457) viehepakki ja kalastustapa eivät aukea: maalta ei kalasteta. */
   readonly ashore: boolean;
   readonly tackle: Tackle;
+  /** Kalastuksen tila: varusteet vaihtuvat vain vieheen ollessa kelalla. */
+  readonly fishing: FishingState;
   setTackle(tk: Tackle): void;
 }
 
@@ -61,13 +64,6 @@ export class LurePicker {
     const tk = host.tackle;
     const first = boxTackles(tk, this.box)[0];
     if (!host.spectating && first && currentSlot(tk, this.box) < 0) host.setTackle(first);
-    // Rennolla (#638) kalastetaan vain virvelillä.
-    if (!host.spectating && this.simple && isFly(host.tackle))
-      host.setTackle(this.withMethod('spin'));
-  }
-
-  private get simple(): boolean {
-    return DIFFICULTIES[this.host.difficulty].simple;
   }
 
   /** Realistisella menetetty viehe on poissa loppukisan. */
@@ -82,7 +78,12 @@ export class LurePicker {
       this.close();
       return;
     }
-    if (c.wasPressed('method') && this.simple) {
+    // Yksinkertaisella ohjauksella (#638) kalastetaan vain virvelillä, myös
+    // kun ohjaustapa vaihdetaan Asetuksista kesken kisan.
+    const simple = simpleControls();
+    if (simple && isFly(this.host.tackle) && this.host.fishing.stage === 'idle')
+      this.host.setTackle(this.withMethod('spin'));
+    if (c.wasPressed('method') && simple) {
       this.host.hud.showMessage(t('game.methodSimple'), 2.5, 'info');
     } else if (c.wasPressed('method')) {
       if (this.methodMenu?.open) this.methodMenu.close();
