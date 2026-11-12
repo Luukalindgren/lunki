@@ -55,10 +55,7 @@ export const FISH_SIGNS = {
   /** Ukkosella kalat painuvat pohjaan: merkkejä on vain tämän verran. */
   storm: 0.2,
   /** Merkkien määrän kerroin vaikeustason mukaan. */
-  difficulty: { relaxed: 1.4, easy: 1.4, normal: 1, realistic: 0.7 } satisfies Record<
-    Difficulty,
-    number
-  >,
+  difficulty: { easy: 1.4, normal: 1, realistic: 0.7 } satisfies Record<Difficulty, number>,
   /** Enintään näin monta uutta merkkiä sekunnissa: pinta ei levottomoidu. */
   maxPerSecond: 4,
 } as const;

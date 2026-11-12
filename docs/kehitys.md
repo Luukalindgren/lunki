@@ -188,7 +188,8 @@ Koodi: `packages/client/src/world/lakeMesh.ts`.
 Koodi: `packages/client/src/ui/screens.ts` (`showSettings`, `showPause`).
 
 - **Pelaajan asetukset vain jaetussa Asetukset-näkymässä**
-  (`Screens.showSettings`): Näyttö (HUD-koko, näkökenttä, opastus), Äänet,
+  (`Screens.showSettings`): Näyttö (HUD-koko, näkökenttä, opastus), Ohjaus
+  (ohjaustapa, #638), Äänet,
   Peliohjain (näkyy, kun ohjain on kytketty; myös värinä, #594) ja Kieli.
   Sama näkymä aukeaa päävalikosta ja taukovalikosta.
 - Päävalikko on lyhyt: Pelaa (alavalikossa Yksinpeli ja Moninpeli),
@@ -325,12 +326,15 @@ Koodi: `packages/client/src/audio/sounds.ts`.
 
 ### Vaikeustaso ja avut (#391)
 
-- Rento (`relaxed`, #638) on ensikertalaisen taso: Helpon kalat ja
-  yksinkertaistettu ohjaus (`DIFFICULTIES.relaxed.simple`). Yksi nappi heittää
-  ja kelaa, kelaus nostaa kalan (muilla tasoilla nosto on oma painalluksensa,
-  #395), kelalla on yksi nopeus, jarrua ei säädetä eikä perhoa ole. Uusi
-  mekaniikka, jota ensikertalainen ei tarvitse, jätetään Rennolta pois
-  `simple`-kentän mukaan eikä omalla asetuksella. Oletustaso on Helppo.
+- Ohjaustapa (#638, `game/controlStyle.ts`) on eri asia kuin vaikeustaso:
+  Asetusten Ohjaus-osion valinta Yksinkertainen tai Täysi on pelaajan oma ja
+  toimii kaikilla tasoilla. Yksinkertaisella yksi nappi heittää ja kelaa,
+  kelaus nostaa kalan (täydellä nosto on oma painalluksensa, #395), kelalla
+  on yksi nopeus, jarrua ei säädetä, perhoa ei ole ja ohje on aina lyhyt.
+  Se ei muuta kalojen käytöstä eikä kisan sääntöjä, joten ennätyslistat ovat
+  yhteiset. Uusi mekaniikka, jota ensikertalainen ei tarvitse, jätetään pois
+  `simpleControls()`-kutsun mukaan eikä uudella vaikeustasolla. Oletustaso
+  on Helppo.
 - Kalastuksen vaikeustaso (`settings.difficulty`) päättää myös näkyvät
   avut: helpolla saa olla pelimäisiä apuja, realistisella vain se, minkä
   oikeakin kalastaja näkee.

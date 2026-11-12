@@ -100,7 +100,6 @@ export const fi = {
   'season.summer': 'Kesä',
   'season.autumn': 'Syksy',
   'season.winter': 'Talvi',
-  'difficulty.relaxed': 'Rento',
   'difficulty.easy': 'Helppo',
   'difficulty.normal': 'Normaali',
   'difficulty.realistic': 'Realistinen',
@@ -233,7 +232,7 @@ export const fi = {
   'settings.difficulty': 'Kalastuksen vaikeus',
   'settings.difficultyShort': 'Vaikeus',
   'settings.difficultyHint':
-    'Rento: ensimmäiseen kisaan. Yksi nappi heittää ja kelaa, ja kelaus tuo kalan kyytiin. Ei jarrua, kelausnopeuksia, pohjatartuntoja eikä perhoa. Helppo: kalat tulevat vieheelle kaukaa, tarttuvat aina ja tulevat ylös kelaamalla. Realistinen: vastaisku, jarru ja siiman kireys ratkaisevat.',
+    'Helppo: kalat tulevat vieheelle kaukaa, tarttuvat aina ja tulevat ylös kelaamalla. Realistinen: vastaisku, jarru ja siiman kireys ratkaisevat.',
   'settings.timeOfDay': 'Vuorokaudenaika',
   'settings.season': 'Vuodenaika',
   'settings.seasonHint':
@@ -250,6 +249,12 @@ export const fi = {
   'settings.tackleAtHome': 'Varusteet: {tackle}. Vaihda ne päävalikon Varusteet-näkymässä.',
   'settings.changeColors': 'Muuta värejä',
   'settings.display': 'Näyttö',
+  'settings.controls': 'Ohjaus',
+  'settings.controlStyle': 'Ohjaustapa',
+  'settings.controlSimple': 'Yksinkertainen',
+  'settings.controlFull': 'Täysi',
+  'settings.controlStyleHint':
+    'Yksinkertainen: yksi nappi heittää ja kelaa, ja kelaus tuo kalan kyytiin. Ei jarrua, kelausnopeuksia eikä perhoa. Täysi: kaikki mekaniikat. Valinta on oma, eikä se vaikuta kisan sääntöihin tai ennätyslistoihin.',
   'settings.guide': 'Opastus',
   'settings.guideOn': 'Näytä alusta',
   'settings.guideOff': 'Pois',
@@ -1039,7 +1044,8 @@ export const fi = {
   'game.lureSonarOff': 'Vieheen syvyysnäkymä pois',
   'game.flyWaterHint':
     'Perho on vedessä\n{strip} = vedä perhoa · {lift} = nosta siima uuteen heittoon',
-  'game.methodSimple': 'Rennolla kalastetaan virvelillä. Perho on käytössä muilla vaikeustasoilla.',
+  'game.methodSimple':
+    'Yksinkertaisella ohjauksella kalastetaan virvelillä. Perhon saa käyttöön vaihtamalla ohjaustavan Asetuksista.',
   'game.stuckOnLand': 'Viehe jäi kiinni maalle\nKatkaise siima: {cut}',
   'game.tired': 'Puuskutat! Lepää hetki, niin jaksat taas',
   'game.flying': 'Lennät trombin mukana!',
@@ -1183,7 +1189,7 @@ export const fi = {
     'Liiku: {back} = potki selkä edellä (nopein), {forward} = eteenpäin, {turn} = käänny.\nHeitä: pidä {castForward} pohjassa ja päästä, kun voimamittari on täynnä.\nKelaa: pidä {reel} pohjassa. Viehe ui takaisin luoksesi, ja kala iskee siihen matkalla.\nTärppi: kelaa heti ({reel}), niin kala tarttuu. Raskaassa tärpissä nykäise ({twitch}).\nVäsytä: kelaa ja pidä siima kireällä. Jos KIREYS nousee huippuun, löysää jarrua ({dragLess}).\nNosta: kun kala on pinnassa, paina {land} uudelleen.',
   'manual.start.noBites': 'Jos ei tärppää',
   'manual.start.noBitesText':
-    '{sonar} = kaikuluotain näyttää kalat.\nVaihda paikkaa: kalat ovat parvissa ja syövät jaksoittain.\n{lure} = vaihda viehe. Eri kalat syövät eri vieheitä.\nHelpolla vaikeustasolla kala tarttuu aina, eikä siima katkea.\nRento on ensimmäiseen kisaan: yksi nappi heittää ja kelaa, kelaus tuo kalan kyytiin, eikä jarrua, kelausnopeuksia tai perhoa ole.',
+    '{sonar} = kaikuluotain näyttää kalat.\nVaihda paikkaa: kalat ovat parvissa ja syövät jaksoittain.\n{lure} = vaihda viehe. Eri kalat syövät eri vieheitä.\nHelpolla vaikeustasolla kala tarttuu aina, eikä siima katkea.\nAsetusten Ohjaustapa-valinnalla Yksinkertainen yksi nappi heittää ja kelaa, kelaus tuo kalan kyytiin, eikä jarrua, kelausnopeuksia tai perhoa ole. Se toimii kaikilla vaikeustasoilla.',
   'manual.start.screen': 'Ruudulla',
   'manual.start.screenText':
     'Ylhäällä keskellä oleva ohje kertoo, mitä tehdä seuraavaksi.\nKisa alkaa lyhyellä ohjeella: liike, heitto ja kelaus. {help} vaihtaa ohjetta: kaikki napit, piilossa ja takaisin lyhyt.\n{view} = vaihda näkymää: kalastajan silmin tai ylhäältä.\n{pause} = tauko: asetukset, ohjeet ja varusteet.',

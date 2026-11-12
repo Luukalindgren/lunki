@@ -96,7 +96,6 @@ export const en: Record<keyof typeof fi, string> = {
   'season.summer': 'Summer',
   'season.autumn': 'Autumn',
   'season.winter': 'Winter',
-  'difficulty.relaxed': 'Relaxed',
   'difficulty.easy': 'Easy',
   'difficulty.normal': 'Normal',
   'difficulty.realistic': 'Realistic',
@@ -228,7 +227,7 @@ export const en: Record<keyof typeof fi, string> = {
   'settings.difficulty': 'Fishing difficulty',
   'settings.difficultyShort': 'Difficulty',
   'settings.difficultyHint':
-    'Relaxed: for your first competition. One button casts and reels, and reeling brings the fish in. No drag, reel speeds, snags or fly fishing. Easy: fish come to the lure from afar, always get hooked and come up as you reel. Realistic: the hookset, the drag and the line tension decide.',
+    'Easy: fish come to the lure from afar, always get hooked and come up as you reel. Realistic: the hookset, the drag and the line tension decide.',
   'settings.timeOfDay': 'Time of day',
   'settings.season': 'Season',
   'settings.seasonHint':
@@ -245,6 +244,12 @@ export const en: Record<keyof typeof fi, string> = {
   'settings.tackleAtHome': 'Tackle: {tackle}. Change it in the Tackle view of the main menu.',
   'settings.changeColors': 'Change colours',
   'settings.display': 'Display',
+  'settings.controls': 'Controls',
+  'settings.controlStyle': 'Control style',
+  'settings.controlSimple': 'Simple',
+  'settings.controlFull': 'Full',
+  'settings.controlStyleHint':
+    'Simple: one button casts and reels, and reeling brings the fish in. No drag, reel speeds or fly fishing. Full: all mechanics. The choice is your own and does not affect the competition rules or the record lists.',
   'settings.guide': 'Guide',
   'settings.guideOn': 'Show from start',
   'settings.guideOff': 'Off',
@@ -1035,7 +1040,7 @@ export const en: Record<keyof typeof fi, string> = {
   'game.flyWaterHint':
     'The fly is in the water\n{strip} = strip the fly · {lift} = lift the line for a new cast',
   'game.methodSimple':
-    'Relaxed is spin fishing only. Fly fishing is available on the other difficulty levels.',
+    'Simple controls are spin fishing only. To fly fish, change the control style in Settings.',
   'game.stuckOnLand': 'The lure is stuck on land\nCut the line: {cut}',
   'game.tired': 'Out of breath! Rest a moment to get your strength back',
   'game.flying': 'You are flying with the waterspout!',
@@ -1180,7 +1185,7 @@ export const en: Record<keyof typeof fi, string> = {
     'Move: {back} = kick back first (fastest), {forward} = forward, {turn} = turn.\nCast: hold {castForward} and release when the power meter is full.\nReel: hold {reel}. The lure swims back to you, and a fish bites it on the way.\nBite: reel at once ({reel}) to hook the fish. On a heavy bite, twitch ({twitch}).\nFight: reel and keep the line tight. If TENSION hits the top, loosen the drag ({dragLess}).\nLand: when the fish is at the surface, press {land} again.',
   'manual.start.noBites': 'No bites?',
   'manual.start.noBitesText':
-    '{sonar} = sonar shows the fish.\nMove to a new spot: fish swim in schools and feed in spells.\n{lure} = change lure. Different fish like different lures.\nOn Easy the fish always hooks and the line never snaps.\nRelaxed is for your first competition: one button casts and reels, reeling brings the fish in, and there is no drag, reel speeds or fly fishing.',
+    '{sonar} = sonar shows the fish.\nMove to a new spot: fish swim in schools and feed in spells.\n{lure} = change lure. Different fish like different lures.\nOn Easy the fish always hooks and the line never snaps.\nWith the Simple control style in Settings, one button casts and reels, reeling brings the fish in, and there is no drag, reel speeds or fly fishing. It works on every difficulty level.',
   'manual.start.screen': 'On screen',
   'manual.start.screenText':
     'The hint at the top centre tells you what to do next.\nA competition starts with a short help: moving, casting and reeling. {help} switches the help: all controls, hidden and back to short.\n{view} = switch view: through the angler’s eyes or from above.\n{pause} = pause: settings, how to play and tackle.',
