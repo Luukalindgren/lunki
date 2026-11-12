@@ -32,7 +32,7 @@ import type { Guide } from './guide';
 import type { Penalties } from './penalties';
 import type { Shot } from './director';
 import { raceEndCue } from './raceEnd';
-import { scoreboardLines } from './raceScoreboard';
+import { CatchFlashes, scoreboardRows, type ScoreRow } from './raceScoreboard';
 
 /** Katsojan tulostaulussa rivejä: LAN-kisan kaikki kalastajat (#564). */
 const SPECTATOR_ROWS = 12;
@@ -85,6 +85,7 @@ export interface HudStep {
  */
 export class HudPresenter {
   private raceHudTimer = 0;
+  private readonly catchFlashes = new CatchFlashes();
   /** Edellisen askeleen jäljellä oleva aika kisan lopun merkkeihin (#566). */
   private prevLeft: number | null = null;
   /** Loppulaskennan numero lähtölaskennan paikalle, tai null. */
@@ -277,17 +278,42 @@ export class HudPresenter {
           : this.endCount,
     );
     if ((this.raceHudTimer = (this.raceHudTimer + 1) % 15) !== 1) return;
-    const lines =
+    const standings = w.standings();
+    this.setScoreboard(
+      standings,
       followed === undefined
-        ? scoreboardLines(w.standings(), w.myId)
-        : scoreboardLines(w.standings(), followed ?? '', SPECTATOR_ROWS);
-    this.host.hud.setCatches([t('game.scoreboard'), ...lines]);
+        ? scoreboardRows(standings, w.myId)
+        : scoreboardRows(standings, followed ?? '', SPECTATOR_ROWS),
+      w.myId,
+    );
+  }
+
+  /** Tulostaulu HUDiin; juuri kalan saaneen rivi korostuu ja näyttää saaliin (#635). */
+  private setScoreboard(
+    standings: readonly PlayerResult[],
+    rows: readonly ScoreRow[],
+    myId: string,
+  ): void {
+    const fresh = this.catchFlashes.update(standings, myId, this.host.competition.elapsed);
+    const notes = new Map<number, string>();
+    rows.forEach((row, i) => {
+      const fish = row.id === null ? undefined : fresh.get(row.id);
+      if (fish)
+        notes.set(
+          i + 1,
+          t('game.scoreCatch', {
+            weight: formatWeight(fish.weight),
+            species: speciesName(fish.species).toLowerCase(),
+          }),
+        );
+    });
+    this.host.hud.setCatches([t('game.scoreboard'), ...rows.map((r) => r.text)], notes);
   }
 
   /** Yksinpelin tulostaulu, kun järvellä on botteja (#624). */
   showScoreboard(standings: readonly PlayerResult[], myId: string): void {
     if ((this.raceHudTimer = (this.raceHudTimer + 1) % 15) !== 1) return;
-    this.host.hud.setCatches([t('game.scoreboard'), ...scoreboardLines(standings, myId)]);
+    this.setScoreboard(standings, scoreboardRows(standings, myId), myId);
   }
 
   /** Yksinpelin saalislista: määrä ja paino sekä viisi viimeisintä. */

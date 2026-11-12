@@ -1095,6 +1095,7 @@ export const fi = {
   'game.lastMinute': 'Viimeinen minuutti!',
   'game.go': 'Kalastamaan!',
   'game.scoreboard': 'Tulostaulu',
+  'game.scoreCatch': '+{weight} {species}',
   'weather.change': 'Sää muuttuu: {sky}',
   'wind.0': 'itätuuli',
   'wind.1': 'koillistuuli',

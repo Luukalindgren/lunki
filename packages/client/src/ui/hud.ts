@@ -44,6 +44,7 @@ export class Hud {
   private readonly timer: HTMLDivElement;
   private readonly weather: HTMLDivElement;
   private readonly catches: HTMLDivElement;
+  private catchesKey = '';
   private readonly weigh: HTMLDivElement;
   private readonly countdown: HTMLDivElement;
   /** Rangaistukset (jäähy, kumossa, trombin kyydissä) ajastimineen. */
@@ -310,10 +311,31 @@ export class Hud {
   }
 
   /** Viimeisimmät saaliit vasemmassa yläkulmassa. */
-  setCatches(lines: string[]): void {
+  setCatches(lines: string[], notes?: ReadonlyMap<number, string>): void {
     this.catches.hidden = lines.length === 0;
     const text = lines.join('\n');
-    if (this.catches.textContent !== text) this.catches.textContent = text;
+    // Tulostaulun korostetut rivit (#635): rivin numero ja sen perään tuleva saalis.
+    const key = notes?.size ? `${text}\n${[...notes].join('|')}` : text;
+    if (this.catchesKey === key) return;
+    this.catchesKey = key;
+    if (!notes?.size) {
+      this.catches.textContent = text;
+      return;
+    }
+    this.catches.replaceChildren(
+      ...lines.map((line, i) => {
+        const note = notes.get(i);
+        const row = el('div', note ? 'hud-score-row fresh' : 'hud-score-row');
+        row.textContent = line;
+        if (note) {
+          const tag = document.createElement('span');
+          tag.className = 'hud-score-note';
+          tag.textContent = note;
+          row.append(tag);
+        }
+        return row;
+      }),
+    );
   }
 
   /**

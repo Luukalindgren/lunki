@@ -1090,6 +1090,7 @@ export const en: Record<keyof typeof fi, string> = {
   'game.lastMinute': 'Last minute!',
   'game.go': 'Start fishing!',
   'game.scoreboard': 'Scoreboard',
+  'game.scoreCatch': '+{weight} {species}',
   'weather.change': 'The weather turns: {sky}',
   'wind.0': 'east wind',
   'wind.1': 'northeast wind',
