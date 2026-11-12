@@ -1480,7 +1480,9 @@ textarea,
 
 .name-tag {
   position: fixed;
-  transform: translate(-50%, calc(-100% - 14px));
+  /* Pinossa (#633) kyltti nousee `--lift`in verran; nousu liukuu, ettei kyltti hypi. */
+  transform: translate(-50%, calc(-100% - 14px - var(--lift, 0px)));
+  transition: transform 0.12s linear;
   font-family: 'VT323', monospace;
   font-size: 18px;
   color: #eef2f3;
@@ -1488,6 +1490,17 @@ textarea,
   border-bottom: 3px solid;
   padding: 0 6px;
   white-space: nowrap;
+}
+
+/* Pinoon nousseesta kyltistä vie ohut renkaan värinen viiva kalastajaan (#633). */
+.name-tag.lifted::after {
+  content: '';
+  position: absolute;
+  left: calc(50% - 1px);
+  top: calc(100% + 3px);
+  width: 2px;
+  height: calc(var(--lift) + 8px);
+  background: var(--tube);
 }
 
 /* Täyttökisa (#458): alareunan viiva täyttyy renkaan värillä. */
