@@ -24,6 +24,7 @@ import {
 } from './tubeMesh';
 import { FLY_LINE_POINTS, RemoteFlyLine, flyLineProfile, flyLineWorld } from './flyLine';
 import { flyRodTip } from './povRod';
+import { stackTags, type TagBox } from './nameTagStack';
 import { screenAnchor } from './screenAnchor';
 import { REMOTE_FIGHT, RemoteFight } from './remoteFight';
 import { SplashRings } from './splashRings';
@@ -47,6 +48,9 @@ interface Entry {
   flyLine: THREE.Line;
   fly: RemoteFlyLine;
   tag: HTMLDivElement;
+  /** Kyltin teksti ja mitattu koko: mitataan vain tekstin vaihtuessa (#633). */
+  tagText: string;
+  tagSize: { w: number; h: number };
   bubble: SpeechBubble;
   /** Käynnissä oleva käsimerkki ja sen alku (ms). */
   emote: { id: EmoteId; start: number } | null;
@@ -128,6 +132,14 @@ export class RemotePlayersView {
     this.splashes.update(dt);
     const seen = new Set<string>();
     const rect = canvas.getBoundingClientRect();
+    const boxes: TagBox[] = [];
+    const placing: {
+      e: Entry;
+      id: string;
+      text: string;
+      at: { x: number; y: number } | null;
+      far: boolean;
+    }[] = [];
     for (const p of players) {
       seen.add(p.id);
       const e = this.entries.get(p.id) ?? this.add(p.id, p.appearance);
@@ -216,22 +228,53 @@ export class RemotePlayersView {
         camera,
         rect,
       );
-      e.tag.hidden = !at || !!eyes;
-      if (at) {
-        // Täyttökisa (#458): täyttö palkkina nimilapun alareunassa ja lukuna.
-        const fill = p.shore?.inflate;
-        const pct = fill ? Math.floor(inflateProgress(fill) * 100) : null;
-        e.tag.textContent = pct === null ? p.name : `${p.name} ${pct} %`;
-        e.tag.classList.toggle('inflating', pct !== null);
-        if (pct !== null) e.tag.style.setProperty('--fill', `${pct}%`);
-        e.tag.style.left = `${at.x}px`;
-        e.tag.style.top = `${at.y}px`;
-      }
+      // Täyttökisa (#458): täyttö palkkina nimilapun alareunassa ja lukuna.
+      const fill = p.shore?.inflate;
+      const pct = fill ? Math.floor(inflateProgress(fill) * 100) : null;
+      e.tag.classList.toggle('inflating', pct !== null);
+      if (pct !== null) e.tag.style.setProperty('--fill', `${pct}%`);
+      const shown = at && !eyes;
+      if (shown)
+        boxes.push({
+          id: p.id,
+          x: at.x,
+          y: at.y,
+          w: e.tagSize.w,
+          h: e.tagSize.h,
+          dist: camera.position.distanceTo(body),
+        });
       // Kaukana (kalastajan silmin) kupla pienenee eikä näytä viestin tekstiä.
       const far = camera.position.distanceTo(e.tube.position) > FAR_BUBBLE;
       if (hooked && me && distance(me, p.pos) < REMOTE_FIGHT.markRange)
         e.bubble.hold('fishOn', now);
-      e.bubble.place(eyes ? null : at, far, now);
+      placing.push({
+        e,
+        id: p.id,
+        text: pct === null ? p.name : `${p.name} ${pct} %`,
+        at: shown ? at : null,
+        far,
+      });
+    }
+    // Samassa suunnassa olevien kyltit pinoon (#633): lähin pitää paikkansa.
+    const slots = stackTags(boxes);
+    for (const { e, id, text, at, far } of placing) {
+      const slot = slots.get(id);
+      e.tag.hidden = !at || !slot || slot.hidden;
+      const lift = slot?.lift ?? 0;
+      if (at && slot && !slot.hidden) {
+        const label = slot.more > 0 ? `${text} +${slot.more}` : text;
+        if (e.tagText !== label) {
+          e.tag.textContent = e.tagText = label;
+          e.tagSize = { w: e.tag.offsetWidth, h: e.tag.offsetHeight };
+        }
+        e.tag.style.left = `${at.x}px`;
+        e.tag.style.top = `${at.y}px`;
+        e.tag.style.setProperty('--lift', `${lift}px`);
+        e.tag.classList.toggle('lifted', lift > 0);
+        // Alempi kyltti piirtyy ylemmän viivan päälle.
+        e.tag.style.zIndex = String(1000 - Math.round(lift));
+      }
+      e.bubble.place(at && { x: at.x, y: at.y - lift }, far, now);
     }
     for (const [id, e] of this.entries) if (!seen.has(id)) this.remove(id, e);
   }
@@ -317,6 +360,8 @@ export class RemotePlayersView {
       flyLine,
       fly: new RemoteFlyLine(),
       tag,
+      tagText: '',
+      tagSize: { w: 0, h: 0 },
       bubble,
       emote: null,
       appearance,
