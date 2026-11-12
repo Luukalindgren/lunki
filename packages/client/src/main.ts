@@ -45,6 +45,7 @@ import {
   Controls,
   contextActions,
   controlMode,
+  controlText,
   setControlMode,
   setFlyStickInverted,
 } from './game/controls';
@@ -136,7 +137,7 @@ input.onPadPresence = (connected) => {
   }
   const wasPad = controlMode() === 'pad';
   hud.showMessage(t('pad.disconnected'), 4, 'info');
-  if (wasPad && !session && !paused) togglePause();
+  if (wasPad && !raceSession() && !paused) togglePause();
 };
 /** Pelaajan valitsema HUDin koko, tallessa selaimessa. */
 let hudScale = loadHudScale(touch !== null);
@@ -155,7 +156,7 @@ for (const type of ['pointerdown', 'pointerup', 'touchend', 'keydown'])
   window.addEventListener(type, () => sfx.unlock(), { passive: true });
 // Kehitystä varten: ?difficulty=easy&seed=123&minutes=1&weather=chaos&time=evening aloittaa suoraan.
 const params = new URLSearchParams(location.search);
-const devDifficulty = (['easy', 'normal', 'realistic'] as const).find(
+const devDifficulty = (['relaxed', 'easy', 'normal', 'realistic'] as const).find(
   (d) => d === params.get('difficulty'),
 );
 const devSeed = params.has('seed') ? Number(params.get('seed')) : undefined;
@@ -239,6 +240,14 @@ let paused = false;
 let bench: Bench | null = null;
 /** Moninpelihuone, jos pelaaja on sellaisessa. */
 let session: NetSession | null = null;
+/**
+ * Harjoittelu aulassa (#638): pelaaja kalastaa yksin odottaessaan isännän
+ * aloitusta. Peli on silloin yksinpeli, vaikka huone on auki: kisan alkaessa
+ * harjoitus vaihtuu kisaan.
+ */
+let practice = false;
+/** Huone, jonka kisaa peli nyt pelaa: null yksinpelissä ja harjoitellessa. */
+const raceSession = () => (practice ? null : session);
 /** Moninpelin chat (aulassa, kisan aikana ja tulossivulla). */
 let chat: ChatBox | null = null;
 if (touch) touch.onChat = () => chat?.open();
@@ -264,7 +273,8 @@ const raceStart = { buildMs: 0, compileMs: 0 };
  * kisa uudelleen, haaste, kehitystilan ?seed=) saalis ei mene ennätyslistalle.
  */
 function startGame(s: CompetitionSettings, seed = devSeed, challenge: Challenge | null = null) {
-  if (!session) settings = s;
+  const session = raceSession();
+  if (!session && !practice) settings = s;
   game?.dispose();
   input.dropPresses();
   const t0 = performance.now();
@@ -309,12 +319,14 @@ function startGame(s: CompetitionSettings, seed = devSeed, challenge: Challenge 
   resultsAsHost = null;
   game.onFinished = () => {
     // Moninpelissä omat tilastot muiden tulossivulle (#367).
+    // Harjoitus (#638) ei pääty kelloon; varmuuden vuoksi takaisin aulaan.
+    if (practice) return endPractice();
     if (session && game) session.sendRaceStats(game.raceStats());
     showResults();
   };
   soloRecordNotes = [];
   // Tiedossa olevalla siemenellä kalojen paikat tunnetaan: saalis ei ole reilu ennätys.
-  if (!session && seed === undefined) {
+  if (!session && !practice && seed === undefined) {
     /** Palvelin kiinni: kerrotaan kerran kisan aikana, että saaliit odottavat. */
     let queuedNotice = false;
     g.onSoloCatch = (entry) => {
@@ -344,6 +356,7 @@ function startGame(s: CompetitionSettings, seed = devSeed, challenge: Challenge 
   }
   hud.setHelpMode(session !== null, game.spectating);
   if (session) chat?.mount(hud.root, 'hud');
+  hud.setStandingMessage(practice ? controlText('mp.practiceNote') : null);
   touch?.setMultiplayer(session !== null);
   touch?.setSpectator(game.spectating);
   if (import.meta.env.DEV) Object.assign(window, { lunki: game });
@@ -501,6 +514,7 @@ function showResults() {
   if (!game) return;
   const card = weighCardFor(game);
   hud.setVisible(false);
+  const session = raceSession();
   if (session) {
     const s = session;
     const v = s.view();
@@ -724,6 +738,15 @@ function enterLobby(s: NetSession) {
         onBoat: (boat) => s.sendBoat(boat),
         onSeat: (seat) => s.sendSeat(seat),
         onLeave: leaveRoom,
+        onPractice: () => {
+          // Harjoittelija on valmis: isännän ei tarvitse odottaa häntä.
+          if (!v.amHost && !wasReady) {
+            wasReady = true;
+            s.setReady(true);
+          }
+          drawnLobby = null;
+          startPractice(v.settings);
+        },
         onSettings: (patch) => s.changeSettings(patch),
         onAppearance: (a) => {
           saveAppearance(a);
@@ -767,7 +790,9 @@ function enterLobby(s: NetSession) {
       drawnLobby = null;
     }
     // Kisa alkaa, kun tila aloituspaikkoineen on saapunut.
-    if (v.phase !== 'lobby' && !game) {
+    if (v.phase !== 'lobby' && (!game || practice)) {
+      // Harjoittelu (#638) vaihtuu kisaan, kun isäntä aloittaa.
+      practice = false;
       picking = false;
       confirmStart = false;
       saveLastRoom(v.code);
@@ -789,6 +814,8 @@ function enterLobby(s: NetSession) {
     if (v.phase === 'finished' && resultsAsHost !== null && resultsAsHost !== v.amHost)
       showResults();
     if (v.phase !== 'lobby') return;
+    // Harjoitellessa aulaa ei piirretä: se piirtyy, kun pelaaja palaa.
+    if (practice) return;
     const key = lobbyKey(v);
     if (!game && key === drawnLobby) {
       screens.updateLobbyPings(v.players);
@@ -818,6 +845,7 @@ function enterLobby(s: NetSession) {
   s.onDisconnect = () => {
     if (session !== s) return;
     session = null;
+    practice = false;
     hud.setStandingMessage(null);
     chat?.dispose();
     chat = null;
@@ -852,6 +880,7 @@ async function tryResume(): Promise<boolean> {
 function leaveRoom() {
   const s = session;
   session = null;
+  practice = false;
   hud.setStandingMessage(null);
   clearLastRoom();
   chat?.dispose();
@@ -861,6 +890,24 @@ function leaveRoom() {
   game = null;
   history.replaceState(null, '', location.pathname);
   showMenu();
+}
+
+/** Harjoittelu aulasta (#638): yksinpeli huoneen säännöillä ilman kelloa ja ennätyksiä. */
+function startPractice(s: CompetitionSettings) {
+  practice = true;
+  startGame({ ...s, durationMinutes: UNTIMED, inflate: false, start: null, soloBots: 0 });
+}
+
+/** Harjoittelusta takaisin aulaan (taukovalikosta). */
+function endPractice() {
+  if (!practice) return;
+  practice = false;
+  hud.setStandingMessage(null);
+  game?.dispose();
+  game = null;
+  paused = false;
+  hud.setVisible(false);
+  session?.onChange?.(session.view());
 }
 
 function togglePause() {
@@ -883,15 +930,19 @@ function showPauseMenu(from?: PauseView) {
     // Moninpelin kisa voi päättyä alinäkymän ollessa auki.
     if (paused && game === g) showPauseMenu(sub);
   };
+  const session = raceSession();
   screens.showPause({
     onResume: togglePause,
-    onQuit: session
-      ? leaveRoom
-      : () => {
-          g.competition.finished = true;
-          showResults();
-        },
+    onQuit: practice
+      ? endPractice
+      : session
+        ? leaveRoom
+        : () => {
+            g.competition.finished = true;
+            showResults();
+          },
     multiplayer: session !== null,
+    practice,
     untimed: !session && isUntimed(g.settings),
     clock: formatClock(g.clock),
     status: g.raceStatus(),
@@ -918,7 +969,7 @@ function showPauseMenu(from?: PauseView) {
           sendFeedback({
             ...f,
             context: reportContext(
-              `kisa: ${session ? 'moninpeli' : 'yksinpeli'} ${formatClock(g.clock)}`,
+              `kisa: ${raceSession() ? 'moninpeli' : 'yksinpeli'} ${formatClock(g.clock)}`,
             ),
           }),
         back('feedback'),
@@ -1037,7 +1088,7 @@ startLoop({
     bench?.script(dt);
     const t0 = performance.now();
     // Moninpelissä kisa jatkuu valikon ollessa auki.
-    if (game && ((!paused && !screens.open) || (session && paused))) game.update(dt);
+    if (game && ((!paused && !screens.open) || (raceSession() && paused))) game.update(dt);
     if (game) {
       touch?.update(
         contextActions(game.fishing, game.flyRhythm, game.tangled, game.shoreMain),

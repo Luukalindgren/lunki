@@ -21,6 +21,7 @@ export const JOY_SOUNDS = {
  * normaali 0,4 ja realistinen 0,2 kalaa minuutissa).
  */
 export const RELIEF_AFTER: Record<Difficulty, number> = {
+  relaxed: 180,
   easy: 180,
   normal: 360,
   realistic: 600,

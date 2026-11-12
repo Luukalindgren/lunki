@@ -331,6 +331,7 @@ export class FishingController {
     if (!flyHand) this.flyStrip.reset();
     // Sotkussa vapa on kiinni: kelaaminen selvittää sotkua palvelimella.
     const reeling = !flyHand && !frozen && !tangled && lureOut && reelHeld;
+    const simple = DIFFICULTIES[host.settings.difficulty].simple;
     this.cranking = !flyHand && !frozen && lureOut && reelHeld;
     const world = {
       isWater: (p: Vec2) => host.water.isWater(p),
@@ -362,12 +363,18 @@ export class FishingController {
               reel: reeling,
               // Oikea nappi peruu vain latauksen: heitossa se on veto, vedessä nosto.
               cancel: c.isDown('cancel') || (f.stage === 'charging' && c.isDown('cancelCharge')),
-              dragDelta: (c.wasPressed('dragMore') ? 1 : 0) - (c.wasPressed('dragLess') ? 1 : 0),
-              ...this.readGear(),
+              // Rennolla (#638) kelalla on yksi nopeus eikä jarrua säädetä.
+              dragDelta: simple
+                ? 0
+                : (c.wasPressed('dragMore') ? 1 : 0) - (c.wasPressed('dragLess') ? 1 : 0),
+              ...(simple ? {} : this.readGear()),
               ...(this.pendingTackle ? { tackle: this.pendingTackle } : {}),
               cut: c.wasPressed('cut'),
               twitch: !isFly(f.tackle) && (c.wasPressed('twitch') || flick),
-              land: f.landing !== null && (c.wasPressed('land') || c.wasPressed('landNet')),
+              // Nosto on oma painalluksensa (#395); vain Rennolla kelaus nostaa kalan.
+              land:
+                f.landing !== null &&
+                (c.wasPressed('land') || c.wasPressed('landNet') || (simple && reeling)),
               ...fly,
               reelSlack: c.isDown('reelSlack'),
               ...(startFlyCast ? { startFlyCast } : {}),

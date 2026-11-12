@@ -15,7 +15,10 @@ export const LURE_MARKER = {
   povY: 0.06,
   topY: 0.3,
   /** Viehettä seuraavan kalan pyörteet ja pohjan pölläys: realistisella ei. */
-  signs: { easy: true, normal: true, realistic: false } satisfies Record<Difficulty, boolean>,
+  signs: { relaxed: true, easy: true, normal: true, realistic: false } satisfies Record<
+    Difficulty,
+    boolean
+  >,
 } as const;
 
 /** Merkin paikka: ylhäältä lentokorkeus näkyy siirtymänä pohjoiseen kuten varjosta. */

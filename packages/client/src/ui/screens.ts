@@ -841,6 +841,8 @@ export class Screens {
       /** Seuraava kisa katsojana (true) tai kalastajana. */
       onSpectate: (on: boolean) => void;
       onLeave: () => void;
+      /** Harjoittelu odottaessa (#638): yksinpeli huoneen säännöillä, kunnes kisa alkaa. */
+      onPractice: () => void;
       onSettings: (patch: Partial<RoomSettings>) => void;
       onAppearance: (a: Appearance) => void;
       /** Isäntä avaa kartan aloituspaikan valintaan. */
@@ -1093,6 +1095,9 @@ export class Screens {
         me?.ready ? t('lobby.notReady') : t('lobby.setReady'),
         () => actions.onReady(!me?.ready),
       ]);
+    // Harjoittelu (#638): näppäimet tutuiksi ennen kuin kisakello käy.
+    if (!asking && v.phase === 'lobby' && !me?.spectator)
+      buttons.push([t('lobby.practice'), actions.onPractice]);
     buttons.push([t('common.leave'), actions.onLeave]);
     const footer = this.buttons(buttons);
     // Ilmoitus ("Odotetaan: …", asetukset muuttuivat) napin yläpuolelle, joka
@@ -2060,6 +2065,8 @@ export class Screens {
     multiplayer: boolean;
     /** Aikarajaton yksinpelin sessio: lopetus punnitsee saaliin (#360). */
     untimed?: boolean;
+    /** Harjoittelu aulasta (#638): lopetus palaa aulaan. */
+    practice?: boolean;
     /** Pelikellon aika järvellä, esim. 05:12. */
     clock?: string;
     /** Kisan tilanne: kalat, paino, sija tai aika ja paras kala (#469). */
@@ -2082,11 +2089,13 @@ export class Screens {
       [t('menu.manual'), p.onManual],
       [t('menu.feedback'), p.onFeedback],
       [
-        p.multiplayer
-          ? t('pause.leaveRace')
-          : p.untimed
-            ? t('pause.endSession')
-            : t('pause.endRace'),
+        p.practice
+          ? t('pause.backToLobby')
+          : p.multiplayer
+            ? t('pause.leaveRace')
+            : p.untimed
+              ? t('pause.endSession')
+              : t('pause.endRace'),
         p.onQuit,
       ],
     ]);
