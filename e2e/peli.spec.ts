@@ -337,6 +337,11 @@ test('yksinpelin botit: tulostaulu kisassa ja tulossivulla (#624)', async ({ pag
   await expect(page.locator('.hud-catches')).toContainText('Tulostaulu');
   await expect(page.locator('.hud-catches')).toContainText('Sinä');
   await expect(page.locator('.name-tag')).not.toHaveCount(0);
+  // Kylttien keskinäinen järjestys (z-index) pysyy kylttien kerroksessa: kyltit
+  // eivät nouse HUDin paneelien eivätkä valikoiden päälle (#662).
+  expect(
+    await page.evaluate(() => getComputedStyle(document.querySelector('.name-tags')!).isolation),
+  ).toBe('isolate');
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: /^Lopeta/ }).click();
   await expect(page.getByRole('heading', { name: 'Kisa päättyi!' })).toBeVisible();
