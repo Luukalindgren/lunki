@@ -72,9 +72,16 @@ export function decimal(v: number, digits = 1): string {
 export const shortDecimal = (v: number): string =>
   current === 'fi' ? String(v).replace('.', ',') : String(v);
 
-/** Paino: alle kilon grammoina, muuten kahdella desimaalilla. */
+/**
+ * Paino: alle kilon grammoina, muuten kahdella desimaalilla. Paino on gramman
+ * tarkkuudella, ja se pyöristetään grammojen kautta: 3,085 kg on aina 3,09 kg,
+ * tuli luku palvelimelta 32-bittisenä (3,0850000381) tai omasta laskusta
+ * (3,085 on liukulukuna hieman alle ja pyöristyisi muuten alas). Näin kalan
+ * paino ja yhden kalan yhteispaino näkyvät samana lukuna (#663).
+ */
 export function formatWeight(kg: number): string {
-  return kg < 1 ? `${Math.round(kg * 1000)} g` : `${decimal(kg, 2)} kg`;
+  const grams = Math.round(kg * 1000);
+  return grams < 1000 ? `${grams} g` : `${decimal(Math.round(grams / 10) / 100, 2)} kg`;
 }
 
 /** Järjestysluku: suomeksi "2.", englanniksi "2nd". */
