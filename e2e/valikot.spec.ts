@@ -200,7 +200,7 @@ test('ennätyslistan saaliskortti avautuu ja sulkeutuu (#238)', async ({
       species: 'pike',
       weight: wideWeight,
       angler: 'W'.repeat(16),
-      difficulty: 'normal',
+      difficulty: 'easy',
     }),
   });
   expect(wide.ok()).toBe(true);
@@ -212,7 +212,7 @@ test('ennätyslistan saaliskortti avautuu ja sulkeutuu (#238)', async ({
       species: 'pike',
       weight: wideWeight + 0.001,
       angler,
-      difficulty: 'normal',
+      difficulty: 'easy',
       timeOfDay: 'evening',
       appearance: { tube: 0xf6d04d, fins: 0x1c232b, shirt: 0x2f9e8f, line: 0xc3cbd2 },
     }),

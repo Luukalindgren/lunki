@@ -771,8 +771,15 @@ export const fi = {
   'help.flyCast': 'Perhoheitto: {backCast} = taakse, {forwardCast} = eteen · {swipe}',
   'help.flyCast2':
     '{castForward} = rytmiheitto · {lift} = nosto (tärpissä vastaisku) · {flyPanel} = sivukuva',
-  'help.flyStrip': 'Perho vedessä: {strip} = vedä siimaa · {reelSlack} = löysät kelalle',
+  'help.flyStrip':
+    'Perho vedessä: {strip} = vedä siimaa · {lift} = nosta uuteen heittoon · {reelSlack} = löysät kelalle',
   'help.flyReel': 'Kelalla: {pointer|reel} pohjassa = kelaa · {dragLess}/{dragMore} = jarru',
+  'help.shortMove': '{forward}/{back} = potki · {turn} = käänny',
+  'help.shortCast': '{castForward} pohjassa ja päästä = heitto',
+  'help.shortReel': '{pointer|reel} pohjassa = kelaa',
+  'help.shortFly': '{castForward} = perhoheitto rytmissä · {lift} = nosta siima vedestä',
+  'help.shortFlyStrip': 'Perho vedessä: {strip} = vedä siimaa',
+  'help.shortMore': '{help} = kaikki ohjeet · {pause} = tauko',
   'help.bar':
     '{view} = näkymä · {emote} = käsimerkit · {zoom} = zoom · {help} = ohje · {pause} = tauko',
   'help.chat': '{chat} = viesti muille',
@@ -1025,6 +1032,8 @@ export const fi = {
   'game.lightningHint': 'Siima paloi poikki – laske vapa ukkosella',
   'game.lureSonarOn': 'Vieheen syvyysnäkymä päällä',
   'game.lureSonarOff': 'Vieheen syvyysnäkymä pois',
+  'game.flyWaterHint':
+    'Perho on vedessä\n{strip} = vedä perhoa · {lift} = nosta siima uuteen heittoon',
   'game.stuckOnLand': 'Viehe jäi kiinni maalle\nKatkaise siima: {cut}',
   'game.tired': 'Puuskutat! Lepää hetki, niin jaksat taas',
   'game.flying': 'Lennät trombin mukana!',
@@ -1171,7 +1180,7 @@ export const fi = {
     '{sonar} = kaikuluotain näyttää kalat.\nVaihda paikkaa: kalat ovat parvissa ja syövät jaksoittain.\n{lure} = vaihda viehe. Eri kalat syövät eri vieheitä.\nHelpolla vaikeustasolla kala tarttuu aina, eikä siima katkea.',
   'manual.start.screen': 'Ruudulla',
   'manual.start.screenText':
-    'Ylhäällä keskellä oleva ohje kertoo, mitä tehdä seuraavaksi.\n{help} = kaikkien nappien ohje päälle tai pois.\n{view} = vaihda näkymää: kalastajan silmin tai ylhäältä.\n{pause} = tauko: asetukset, ohjeet ja varusteet.',
+    'Ylhäällä keskellä oleva ohje kertoo, mitä tehdä seuraavaksi.\nKisa alkaa lyhyellä ohjeella: liike, heitto ja kelaus. {help} vaihtaa ohjetta: kaikki napit, piilossa ja takaisin lyhyt.\n{view} = vaihda näkymää: kalastajan silmin tai ylhäältä.\n{pause} = tauko: asetukset, ohjeet ja varusteet.',
   'manual.section.move': 'Liikkuminen',
   'manual.section.spin': 'Virveli',
   'manual.section.fly': 'Perho',

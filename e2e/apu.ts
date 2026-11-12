@@ -109,7 +109,7 @@ export function soloUrl(view: 'pov' | 'top' = 'top'): string {
 }
 
 /**
- * Yksinpeli oletusasetuksilla. Kisa alkaa pelissä kalastajan silmin (POV), mutta
+ * Yksinpeli oletusasetuksilla, vaikeustasona Normaali. Kisa alkaa pelissä kalastajan silmin (POV), mutta
  * testit, jotka eivät koske näkymää, ajetaan ylhäältä (?view=top): POV piirtyy
  * CI:n ohjelmistorenderöinnillä vain muutaman kuvan sekunnissa.
  */
@@ -117,6 +117,11 @@ export async function startSolo(page: Page, view: 'pov' | 'top' = 'top'): Promis
   await page.goto(soloUrl(view));
   await page.getByRole('button', { name: 'Pelaa' }).click();
   await page.getByRole('button', { name: 'Yksinpeli' }).click();
+  // Oletustaso on Helppo (#638); testit on kirjoitettu Normaalin mekaniikoille.
+  await page
+    .locator('.choice', { has: page.locator('.choice-label', { hasText: 'Kalastuksen vaikeus' }) })
+    .getByRole('button', { name: 'Normaali' })
+    .click();
   await page.getByRole('button', { name: 'Aloita kisa' }).click();
   await raceRunning(page);
 }
@@ -143,7 +148,7 @@ export async function topWeight(
   request: APIRequestContext,
   species: string,
   base: number,
-  difficulty = 'normal',
+  difficulty = 'easy',
 ): Promise<number> {
   const res = await request.get(`${SERVER_URL}/records/solo`);
   expect(res.ok()).toBe(true);

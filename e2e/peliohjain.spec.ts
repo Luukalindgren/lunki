@@ -106,12 +106,14 @@ test('peliohjain: valikot, ohjeen napit, heitto ja tauko', async ({ page, isMobi
   // Ohje näyttää ohjaimen napit.
   await expect(page.locator('.hud-help')).toContainText('A/RT pohjassa = kelaa');
 
+  // Kisa alkaa lyhyellä ohjeella (#638): LT pohjassa oikean tatin painallus
+  // avaa kaikki ohjeet, piilottaa ohjeen ja tuo lyhyen takaisin.
+  await expect(page.locator('.hud-help')).toContainText('LT+RS = kaikki ohjeet');
+  await setButton(page, LT, true);
+  await tap(page, RS);
   // Ylhäältä zoom on LT + ristiohjain.
   await expect(page.locator('.hud-help')).toContainText('LT+✚↑/✚↓ = zoom');
-
-  // Ohje piiloon ja takaisin: LT pohjassa oikean tatin painallus.
   await expect(page.locator('.hud-help')).toContainText('LT+RS = ohje');
-  await setButton(page, LT, true);
   await tap(page, RS);
   await expect(page.locator('.hud-help')).toBeHidden();
   await tap(page, RS);

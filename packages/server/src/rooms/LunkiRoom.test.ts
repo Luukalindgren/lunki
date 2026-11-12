@@ -796,7 +796,10 @@ describe('LunkiRoom', () => {
     const board = (await (
       await fetch(`http://localhost:${PORT}${RECORDS_PATH}`)
     ).json()) as RecordBoard;
-    const listed = Object.values(board.easy ?? {}).flat();
+    // Helppo on oletustaso (#638), joten listalla on myös muiden testien saaliita.
+    const listed = Object.values(board.easy ?? {})
+      .flat()
+      .filter((r) => names.includes(r.angler));
     expect(listed.map((r) => [r.angler, r.weight]).sort()).toEqual(
       names.map((n, i) => [n, weights[i]]).sort(),
     );
