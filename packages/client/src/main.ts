@@ -28,7 +28,6 @@ import { FpsMeter } from './engine/fpsMeter';
 import { Input } from './engine/input';
 import { startLoop } from './engine/loop';
 import { RetroRenderer, type PaletteMode } from './engine/retroRenderer';
-import { MENU_AMBIENCE } from './audio/ambience';
 import { Sfx } from './audio/sfx';
 import { Sounds } from './audio/sounds';
 import { Game } from './game/game';
@@ -974,6 +973,9 @@ startLoop({
     if (controls.wasPressed('pause') || (paused && controls.wasPressed('resume'))) togglePause();
     bench?.script(dt);
     const t0 = performance.now();
+    // Sää, linnut ja ukkonen kuuluvat vain kisassa (myös tauolla): valikoissa
+    // ja tulossivulla soi vain musiikki ja nappien äänet.
+    sfx.setRaceAudio(game !== null && !game.competition.finished);
     // Moninpelissä kisa jatkuu valikon ollessa auki.
     if (game && ((!paused && !screens.open) || (session && paused))) game.update(dt);
     if (game) {
@@ -984,7 +986,7 @@ startLoop({
       );
       touch?.setCrew(game.crewSeats);
       touch?.setAshore(game.shoreMain !== undefined, !!game.shoreMain);
-    } else sfx.updateAmbience(dt, MENU_AMBIENCE);
+    }
     updateTime += performance.now() - t0;
     updateCount++;
   },

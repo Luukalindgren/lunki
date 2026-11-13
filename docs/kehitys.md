@@ -278,6 +278,10 @@ Koodi: `packages/client/src/audio/sounds.ts`.
   olevan kalan veto tulee `sounds.pull(kuorma)`-kutsusta. Peli ei kutsu
   `playEffect`ia itse. Värinä toimii vain, kun pelaaja käyttää ohjainta ja
   selain tukee sitä (Chrome, Edge); asetus on Äänet-osiossa.
+- Sää, linnut ja ukkonen kuuluvat vain kisassa (myös tauolla): ne kulkevat
+  kisan äänten portin läpi (`Sfx.setRaceAudio`), jonka pääsilmukka avaa kisan
+  ajaksi. Päävalikossa, aulassa ja tulossivulla soi vain musiikki ja nappien
+  äänet. Uusi jatkuva tai viiveellä soiva kisan ääni kytketään samaan porttiin.
 - Uusi ääni on uusi rivi karttaan. Väylät (tehosteet, ympäristö, musiikki,
   puhe, ukkonen) ovat `Sfx`-luokassa ja niiden voimakkuudet `MIX`-taulukossa.
 

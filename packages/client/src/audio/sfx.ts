@@ -48,6 +48,15 @@ export class Sfx {
   /** Ukkosen oma väylä: kovempi kuin muut tehosteet, rajoitin estää säröytymisen. */
   private thunderBus: GainNode | null = null;
   private ambience: Ambience | null = null;
+  /**
+   * Kisan äänten portti: sää, linnut ja ukkonen kulkevat tämän läpi ja
+   * kuuluvat vain kisassa (`setRaceAudio`). Valikoissa ja tulossivulla soi
+   * vain musiikki ja nappien äänet.
+   */
+  private raceGate: GainNode | null = null;
+  private raceAudio = false;
+  /** Soivat ja viiveellä tulevat jyrähdykset: katkaistaan kisan päättyessä. */
+  private readonly thunders = new Set<AudioBufferSourceNode>();
   private music: Music | null = null;
   private settings: AudioSettings = loadAudioSettings();
   /** Peliohjaimen värinä (#592): äänikartan tapahtumat värähtävät tämän kautta. */
@@ -99,7 +108,10 @@ export class Sfx {
       limiter.connect(this.ctx.destination);
       this.thunderBus = this.ctx.createGain();
       this.thunderBus.connect(limiter);
-      this.ambience = new Ambience(this.ctx, this.ambienceBus);
+      this.raceGate = ctx.createGain();
+      this.raceGate.gain.value = this.raceAudio ? 1 : 0;
+      this.raceGate.connect(this.ambienceBus);
+      this.ambience = new Ambience(this.ctx, this.raceGate);
       this.music = new Music(this.ctx, this.musicBus);
       this.applySettings();
       // Taustalla olevassa välilehdessä peli ei piirry: tuuli, sade ja musiikki
@@ -213,9 +225,25 @@ export class Sfx {
     if (this.settings.voice > 0) this.voices?.preload(ids);
   }
 
-  /** Ympäristöäänet seuraavat säätä; kutsutaan joka päivityksessä. */
+  /**
+   * Kisan äänet päälle tai pois. Kisan ulkopuolella (päävalikko, aula,
+   * tulossivu) sää ja linnut vaikenevat, tulossa olevat jyrähdykset
+   * katkeavat ja kalan vedon värinä loppuu; uusi kisa alkaa hiljaisuudesta.
+   */
+  setRaceAudio(on: boolean): void {
+    if (on === this.raceAudio) return;
+    this.raceAudio = on;
+    if (this.ctx) this.raceGate?.gain.setTargetAtTime(on ? 1 : 0, this.ctx.currentTime, 0.08);
+    if (on) return;
+    this.ambience?.silence();
+    for (const src of this.thunders) src.stop();
+    this.thunders.clear();
+    this.padRumble.stop();
+  }
+
+  /** Ympäristöäänet seuraavat säätä; kutsutaan kisassa joka päivityksessä. */
   updateAmbience(dt: number, w: AmbienceInput): void {
-    if (this.settings.ambience > 0) this.ambience?.update(dt, w);
+    if (this.raceAudio && this.settings.ambience > 0) this.ambience?.update(dt, w);
   }
 
   /** Heitto: viuhahdus, voimakkaampi kovalla heitolla. */
@@ -349,7 +377,7 @@ export class Sfx {
   }
 
   private playThunder(distance: number, volume: number, delay: number): void {
-    if (this.muted || !this.ctx || !this.thunderBus) return;
+    if (this.muted || !this.raceAudio || !this.ctx || !this.thunderBus) return;
     const data = thunderClap(this.ctx.sampleRate, distance);
     const buffer = this.ctx.createBuffer(1, data.length, this.ctx.sampleRate);
     buffer.copyToChannel(data, 0);
@@ -359,6 +387,8 @@ export class Sfx {
     gain.gain.value = volume * this.place.gain;
     src.connect(gain).connect(this.route(this.thunderBus));
     src.start(this.ctx.currentTime + delay);
+    this.thunders.add(src);
+    src.onended = () => this.thunders.delete(src);
   }
 
   /** Aulaan liittyi pelaaja (#516): pehmeä ovikello, sävel laskee. */

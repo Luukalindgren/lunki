@@ -24,9 +24,6 @@ export interface AmbienceInput {
   loonDir?: Vec2;
 }
 
-/** Valikon taustalla: tyyni kesäpäivä. */
-export const MENU_AMBIENCE: AmbienceInput = { sky: 'calm', windSpeed: 2, rain: 0 };
-
 /**
  * Tuuli, sade ja linnut. Tuuli on suodatettua silmukkakohinaa; sade on
  * pehmeää, tummaa kohinaa ja sen päällä erillisten pisaroiden ropinaa
@@ -195,6 +192,24 @@ export class Ambience {
 
     this.seasonTimer -= dt;
     if (this.seasonTimer <= 0) this.seasonTimer = this.seasonCall(season, w);
+  }
+
+  /**
+   * Hiljentää tuulen, sateen ja trombin pauhun (kisa päättyi tai valikko
+   * aukesi): seuraava kisa alkaa hiljaisuudesta eikä edellisen säästä.
+   */
+  silence(): void {
+    const t = this.ctx.currentTime;
+    for (const g of [
+      this.wind,
+      this.rainBed,
+      this.rainLight,
+      this.rainHeavy,
+      this.rainPour,
+      this.rainRoar,
+      this.spout,
+    ])
+      g.gain.setTargetAtTime(0, t, 0.05);
   }
 
   /** Silmukoituva pisarakerros; kanavilla omat pisarat, jolloin sade kuuluu laajana. */
