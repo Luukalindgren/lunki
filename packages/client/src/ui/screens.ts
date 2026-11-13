@@ -1,4 +1,4 @@
-import type { Look } from '../engine/look';
+import { QUALITIES, type Look, type LookQuality } from '../engine/look';
 import type { ControlStyle } from '../game/controlStyle';
 import {
   APPEARANCE_PARTS,
@@ -234,8 +234,17 @@ export interface SettingsControls {
     /** Toteutunut pysty-FOV tällä ruudulla valinnalla `fov`. */
     effective: (fov: number) => number;
   };
-  /** Ilme (#674): Retro tai Terävä. */
-  look: { current: Look; onChange: (look: Look) => void };
+  /**
+   * Ilme (#674, #650): Retro, Terävä tai Moderni. Moderni ladataan vasta
+   * valittaessa: `onChange` palauttaa silloin lupauksen siitä, tuliko ilme
+   * käyttöön. `modern` kertoo, tarjotaanko Modernia tällä laitteella.
+   */
+  look: {
+    current: Look;
+    onChange: (look: Look) => void | Promise<boolean>;
+    modern: boolean;
+    quality: { current: LookQuality; onChange: (quality: LookQuality) => void };
+  };
   /** Opastus ensimmäiseen kalaan (#370): päälle alusta tai pois. */
   guide: { current: boolean; onChange: (on: boolean) => void };
   /** Ohjaustapa (#638): yksinkertainen tai täysi. */
@@ -1267,16 +1276,7 @@ export class Screens {
       h('h3', t('settings.display'), 'settings-section'),
       this.hudSizeSlider(c.hudSize),
       this.povFovSlider(c.povFov),
-      this.choice(
-        t('settings.look'),
-        [
-          ['retro', t('settings.lookRetro')],
-          ['sharp', t('settings.lookSharp')],
-        ],
-        c.look.current,
-        (v) => c.look.onChange(v as Look),
-      ),
-      h('p', t('settings.lookHint'), 'hint'),
+      ...this.lookRows(c.look),
       this.choice(
         t('settings.guide'),
         [
@@ -2683,6 +2683,57 @@ export class Screens {
     first?.focus({ preventScroll: true });
   }
 
+  /**
+   * Ilme ja Modernin laatu (#674, #650). Moderni ladataan vasta valittaessa:
+   * latauksen ajan vihje kertoo siitä, ja jos lataus ei onnistu, valinta
+   * palaa entiseen ilmeeseen.
+   */
+  private lookRows(c: SettingsControls['look']): HTMLElement[] {
+    let current = c.current;
+    let pick = 0;
+    const hint = h('p', '', 'hint');
+    hint.setAttribute('aria-live', 'polite');
+    const quality = this.choice(
+      t('settings.quality'),
+      QUALITIES.map((q) => [q, t(`settings.quality.${q}`)]),
+      c.quality.current,
+      (v) => c.quality.onChange(v as LookQuality),
+    );
+    quality.classList.add('look-quality');
+    const show = (note?: MsgKey) => {
+      hint.textContent = t(
+        note ?? (current === 'modern' ? 'settings.lookModernHint' : 'settings.lookHint'),
+      );
+      quality.hidden = current !== 'modern';
+    };
+    const options: [string, string][] = [
+      ['retro', t('settings.lookRetro')],
+      ['sharp', t('settings.lookSharp')],
+    ];
+    if (c.modern) options.push(['modern', t('settings.lookModern')]);
+    const look = this.choice(t('settings.look'), options, current, (v) => {
+      const mine = ++pick;
+      const done = c.onChange(v as Look);
+      if (!done) {
+        current = v as Look;
+        show();
+        return;
+      }
+      show('settings.lookLoading');
+      void done.then((ok) => {
+        if (mine !== pick) return;
+        if (ok) current = v as Look;
+        else
+          look
+            .querySelectorAll<HTMLButtonElement>('button')
+            .forEach((b) => b.classList.toggle('selected', b.dataset.value === current));
+        show(ok ? undefined : 'settings.lookFailed');
+      });
+    });
+    show();
+    return [look, hint, quality];
+  }
+
   private choice(
     label: string,
     options: [string, string, boolean?][],
@@ -2697,6 +2748,7 @@ export class Screens {
     for (const [value, text, disabled] of options) {
       const b = document.createElement('button');
       b.textContent = text;
+      b.dataset.value = value;
       b.disabled = disabled === true;
       b.classList.toggle('selected', value === selected);
       b.addEventListener('click', () => {

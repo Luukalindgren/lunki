@@ -3,13 +3,89 @@
  * saman kohtauksen näytön täydellä tarkkuudella ilman palettia ja reunat
  * pehmennettyinä. Laitteen asetus kuten HUDin koko, ei pelaajan profiilissa.
  *
- * Ilme muuttaa vain piirron tarkkuutta ja värien pyöristystä: näkymän rajaus,
- * merkkien koko, HUD ja säännöt lasketaan kummassakin samasta sisäisestä
- * (retron) tarkkuudesta.
+ * Moderni (#650) on tietokoneille tehty oma ilmeensä: sileä maalattu maailma,
+ * varjot ja eräkarttateema. Sen koodi ja tyylit ladataan vasta valittaessa
+ * (`engine/modernHost.ts`, `src/modern/`).
+ *
+ * Ilme muuttaa vain piirtoa: näkymän rajaus, merkkien koko, HUDin mitta ja
+ * säännöt lasketaan kaikissa samasta sisäisestä (retron) tarkkuudesta.
  */
-export type Look = 'retro' | 'sharp';
+export type Look = 'retro' | 'sharp' | 'modern';
 
-export const LOOKS: readonly Look[] = ['retro', 'sharp'];
+export const LOOKS: readonly Look[] = ['retro', 'sharp', 'modern'];
+
+/** Näytön tarkkuudella ilman palettia piirtävät ilmeet (Terävä ja Moderni). */
+export const smoothLook = (look: Look): boolean => look !== 'retro';
+
+/** Modernin laatutaso (#650): tarkkuus, reunanpehmennys ja varjot yhdellä valinnalla. */
+export type LookQuality = 'low' | 'medium' | 'high';
+
+export const QUALITIES: readonly LookQuality[] = ['low', 'medium', 'high'];
+
+/** Moderni on tehty tietokoneille, joten oletus on paras laatu. */
+export const DEFAULT_QUALITY: LookQuality = 'high';
+
+export interface QualityLevel {
+  /**
+   * Ylinäytteistys: kuva piirretään enintään näin moninkertaisella
+   * tarkkuudella (sivua kohden) ja pienennetään näytölle, jolloin reunat
+   * pehmenevät. 1 = näytön tarkkuus.
+   */
+  supersample: number;
+  /** Varjokartan sivu (kuvapistettä); 0 = ei varjoja. */
+  shadowMap: number;
+  /** Pehmeät varjon reunat. */
+  softShadows: boolean;
+}
+
+export const QUALITY: Record<LookQuality, QualityLevel> = {
+  low: { supersample: 1, shadowMap: 1024, softShadows: false },
+  medium: { supersample: 1, shadowMap: 2048, softShadows: true },
+  high: { supersample: 2, shadowMap: 4096, softShadows: true },
+};
+
+/** Ylinäytteistetyn kuvan suurin koko (kuvapistettä): noin 4K-näytön verran. */
+export const SUPERSAMPLE_MAX_PIXELS = 9_000_000;
+
+/**
+ * Montako kuvapistettä yhden sisäisen pikselin sivulla piirretään. Retro 1,
+ * Terävä näytön tarkkuus (`scale`), Moderni laadun mukaan sitä enemmän.
+ */
+export function lookDetail(
+  look: Look,
+  quality: LookQuality,
+  res: { width: number; height: number; scale: number },
+): number {
+  if (look === 'retro') return 1;
+  if (look === 'sharp') return res.scale;
+  const most = Math.floor(Math.sqrt(SUPERSAMPLE_MAX_PIXELS / (res.width * res.height)));
+  const wanted = Math.round(res.scale * QUALITY[quality].supersample);
+  return Math.max(res.scale, Math.min(wanted, most));
+}
+
+/** Yhtä kevyempi laatu, tai null kun kevyempää ei ole. */
+export function lowerQuality(quality: LookQuality): LookQuality | null {
+  return QUALITIES[QUALITIES.indexOf(quality) - 1] ?? null;
+}
+
+const QUALITY_KEY = 'lunki.look.quality';
+
+export function loadQuality(): LookQuality {
+  try {
+    const saved = localStorage.getItem(QUALITY_KEY);
+    return QUALITIES.includes(saved as LookQuality) ? (saved as LookQuality) : DEFAULT_QUALITY;
+  } catch {
+    return DEFAULT_QUALITY;
+  }
+}
+
+export function saveQuality(quality: LookQuality): void {
+  try {
+    localStorage.setItem(QUALITY_KEY, quality);
+  } catch {
+    // Tallennus estetty: valinta on voimassa tämän käynnin.
+  }
+}
 
 export const DEFAULT_LOOK: Look = 'retro';
 
@@ -57,13 +133,15 @@ export function onLookChange(listener: (look: Look) => void): () => void {
  * päivittää arvot ilmeen ja ikkunan koon vaihtuessa.
  */
 export const LOOK_UNIFORMS = {
-  /** 1 = Terävä (ei palettia), 0 = Retro. */
+  /** 1 = ei palettia (Terävä ja Moderni), 0 = Retro. */
   uLookSharp: { value: 0 },
+  /** 1 = Moderni: sileä vesi ja omat sävyt. */
+  uLookModern: { value: 0 },
   /** Montako piirrettyä kuvapistettä on yhden sisäisen pikselin sivulla. */
   uLookDetail: { value: 1 },
 };
 
-/** Alle tämän ruutunopeuden Terävä on laitteelle liian raskas. */
+/** Alle tämän ruutunopeuden Terävä tai Moderni on laitteelle liian raskas. */
 export const SHARP_MIN_FPS = 30;
 /** Kisan alun varjostimien kääntöä ja latausta ei lasketa (s). */
 const GUARD_WARMUP = 3;
@@ -75,8 +153,9 @@ const GUARD_PAUSE = 0.5;
 const GUARD_STALLS = 3;
 
 /**
- * Vahtii Terävän ruutunopeutta kisan aikana: `frame` palauttaa true, kun
- * mittausjakson keskiarvo jää alle rajan ja ilme pitää palauttaa Retroon.
+ * Vahtii raskaan ilmeen ruutunopeutta kisan aikana: `frame` palauttaa true,
+ * kun mittausjakson keskiarvo jää alle rajan. Terävä palaa silloin Retroon,
+ * ja Moderni pudottaa ensin laatua.
  */
 export class LookGuard {
   private warm = 0;
