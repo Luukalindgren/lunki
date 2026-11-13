@@ -111,6 +111,11 @@ export class LightningView {
       new THREE.SpriteMaterial({ map: glowTexture(), alphaTest: 0.5, fog: false, ...LIGHT_SOURCE }),
     );
     this.glow.visible = false;
+    // Nimet ilmeen kerrokselle (Moderni piirtää salaman näistä, #650).
+    this.bolt.name = 'bolt';
+    this.halo.name = 'bolt-halo';
+    this.glow.name = 'bolt-glow';
+    this.ring.name = 'bolt-ring';
     this.group.add(this.halo, this.bolt, this.glow, this.ring);
     this.group.name = 'lightning';
   }
@@ -133,6 +138,7 @@ export class LightningView {
   /** `far` = kaukainen salama rintaman alla: ohut, ilman hehkua ja shokkiaaltoa. */
   strike(pos: Vec2, far = false): void {
     this.far = far;
+    this.group.userData.far = far;
     const spread = far ? FAR_SPREAD : 1;
     this.paths.length = 0;
     const main: THREE.Vector3[] = [];
@@ -178,6 +184,7 @@ export class LightningView {
     const r = this.age / RING_SECONDS;
     this.ring.visible = r < 1 && !this.far;
     if (r < 1) this.ring.scale.setScalar(2 + RING_RADIUS * Math.sqrt(r));
+    this.ring.userData.life = Math.min(1, r);
   }
 
   /**

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { gemShape } from './markShapes';
+import { unveil, veil } from './veil';
 
 /** Kohtaus käydään läpi näin monen ruudun välein: uudet pelaajat saavat merkkinsä. */
 const SCAN_FRAMES = 20;
@@ -70,25 +71,8 @@ export class Marks {
 
   /** Rengas läpikuultavaksi. Alfakanava on usvan tiheys, joten siihen ei kirjoiteta. */
   private fade(ring: THREE.Mesh): void {
-    const material = ring.material as THREE.MeshBasicMaterial;
-    material.transparent = true;
-    material.depthWrite = false;
-    material.blending = THREE.CustomBlending;
-    material.blendSrc = THREE.SrcAlphaFactor;
-    material.blendDst = THREE.OneMinusSrcAlphaFactor;
-    material.blendSrcAlpha = THREE.ZeroFactor;
-    material.blendDstAlpha = THREE.OneFactor;
-    material.needsUpdate = true;
+    veil(ring.material as THREE.Material);
     this.ripples.add(ring);
-  }
-
-  private solid(ring: THREE.Mesh): void {
-    const material = ring.material as THREE.MeshBasicMaterial;
-    material.transparent = false;
-    material.depthWrite = true;
-    material.opacity = 1;
-    material.blending = THREE.NormalBlending;
-    material.needsUpdate = true;
   }
 
   private fit(group: THREE.Object3D): void {
@@ -133,7 +117,7 @@ export class Marks {
   }
 
   dispose(): void {
-    for (const ring of this.ripples) this.solid(ring);
+    for (const ring of this.ripples) unveil(ring.material as THREE.Material);
     this.ripples.clear();
     for (const gem of [...this.gems.values()]) this.unfit(gem);
     this.shape.dispose();

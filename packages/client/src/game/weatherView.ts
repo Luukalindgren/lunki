@@ -86,6 +86,7 @@ export class WeatherView {
       new THREE.LineBasicMaterial({ color: 0xb8c8d8, transparent: true, opacity: 0.7 }),
     );
     this.drops.frustumCulled = false;
+    this.drops.name = 'rain';
     this.group.add(this.drops);
     this.group.name = 'weather';
   }
