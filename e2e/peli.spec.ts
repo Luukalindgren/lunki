@@ -320,6 +320,36 @@ test('yksinpeli ilman aikarajaa ja ajastettuna (#360)', async ({ page, isMobile 
   errors.check();
 });
 
+test('yksinpelin botit: tulostaulu kisassa ja tulossivulla (#624)', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'puhelimet: sama näkymä, tauko kosketusnapista');
+  const errors = watchErrors(page);
+  await page.goto(soloUrl('top'));
+  await page.getByRole('button', { name: 'Pelaa' }).click();
+  await page.getByRole('button', { name: 'Yksinpeli' }).click();
+  const row = (label: string) =>
+    page.locator('.choice', { has: page.locator('.choice-label', { hasText: label }) });
+  await expect(row('Bottien taito')).toHaveCount(0);
+  await row('Botit').getByRole('button', { name: '3', exact: true }).click();
+  await expect(row('Bottien taito')).toBeVisible();
+  await page.getByRole('button', { name: 'Aloita kisa' }).click();
+  await raceRunning(page);
+  // Kolme bottia ja pelaaja tulostaulussa.
+  await expect(page.locator('.hud-catches')).toContainText('Tulostaulu');
+  await expect(page.locator('.hud-catches')).toContainText('Sinä');
+  await expect(page.locator('.name-tag')).not.toHaveCount(0);
+  // Kylttien keskinäinen järjestys (z-index) pysyy kylttien kerroksessa: kyltit
+  // eivät nouse HUDin paneelien eivätkä valikoiden päälle (#662).
+  expect(
+    await page.evaluate(() => getComputedStyle(document.querySelector('.name-tags')!).isolation),
+  ).toBe('isolate');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: /^Lopeta/ }).click();
+  await expect(page.getByRole('heading', { name: 'Kisa päättyi!' })).toBeVisible();
+  await expect(page.locator('.catch-list.results li')).toHaveCount(4);
+  await expect(page.locator('.catch-list.results')).toContainText('botti');
+  errors.check();
+});
+
 test('sama kisa uudelleen ja haastelinkki (#413)', async ({ page, isMobile }) => {
   test.skip(isMobile, 'puhelimet: sama näkymä, tauko kosketusnapista');
   const errors = watchErrors(page);
@@ -412,11 +442,23 @@ test('kieli vaihtuu päävalikosta heti ja säilyy uudelleenlatauksen jälkeen',
   errors.check();
 });
 
-test('englanninkielinen selain saa pelin englanniksi', async ({ browser }) => {
+test('englanninkielinenkin selain saa pelin suomeksi ja englannin napista', async ({ browser }) => {
   const ctx = await browser.newContext({ locale: 'en-US' });
   const page = await ctx.newPage();
   await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Tietoa ja palaute' })).toBeVisible();
+  await page.getByRole('button', { name: 'English' }).click();
   await expect(page.getByRole('button', { name: 'About and feedback' })).toBeVisible();
+  await ctx.close();
+});
+
+test('uusi pelaaja saa yksinkertaisen ohjauksen', async ({ browser }) => {
+  // Tyhjä muisti: testien oletus (playwright.config.ts) valitsee täyden ohjauksen.
+  const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+  const page = await ctx.newPage();
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Asetukset' }).click();
+  await expect(page.getByRole('button', { name: 'Yksinkertainen' })).toHaveClass(/selected/);
   await ctx.close();
 });
 

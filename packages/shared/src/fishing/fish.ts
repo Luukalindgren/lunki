@@ -1962,8 +1962,3 @@ export function stepHookedFish(
   const away = Math.atan2(f.pos.y - tip.y, f.pos.x - tip.x);
   return { pull, outSpeed: speed * Math.cos(f.heading - away) };
 }
-
-/** Paino suomalaisittain: alle kilon grammoina, muuten kiloina. */
-export function formatWeight(kg: number): string {
-  return kg < 1 ? `${Math.round(kg * 1000)} g` : `${kg.toFixed(2).replace('.', ',')} kg`;
-}

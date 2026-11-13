@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { LakeMap, Season, Vec2 } from '@lunki/shared';
+import { LOOK_UNIFORMS } from '../engine/look';
 import { DEPTH_PIXEL, DEPTH_SHADE_GLSL, DEPTH_TEX_RANGE } from './depthShade';
 import { SEASON_COLORS } from './seasonColors';
 
@@ -9,7 +10,8 @@ export const toWorld = (p: Vec2, height = 0): THREE.Vector3 => new THREE.Vector3
 const toShapePoints = (ring: readonly Vec2[]) => ring.map((p) => new THREE.Vector2(p.x, p.y));
 
 /**
- * Prototyypin järvi: tasainen maa, vesialue saarineen ja rantaviiva.
+ * Prototyypin järvi: tasainen maa, vesialue saarineen ja kaislikot. Rantaa ei
+ * rajata viivalla: sen näkee maan ja veden väristä.
  * Muodot piirretään XY-tasoon ja käännetään vaakatasoon (y → -z).
  */
 export function createLakeMesh(
@@ -70,15 +72,6 @@ export function createLakeMesh(
     group.add(patch);
   }
 
-  const shoreMaterial = new THREE.LineBasicMaterial({ color: 0xb99a68 });
-  for (const ring of [map.shore, ...map.islands]) {
-    const points = ring.map((p) => toWorld(p, 0.02));
-    const line = new THREE.LineLoop(
-      new THREE.BufferGeometry().setFromPoints(points),
-      shoreMaterial,
-    );
-    group.add(line);
-  }
   return group;
 }
 
@@ -165,6 +158,8 @@ export function createWaterWaves() {
     uPov: { value: 0 },
     /** Kaukaisen veden vaalennus (0 = ei): päivällä täysi, hämärässä ja yöllä pois. */
     uSheen: { value: 0.6 },
+    /** Taivaanrannan väri: modernissa ilmeessä (#650) pinta heijastaa sitä loivassa kulmassa. */
+    uSkyTint: { value: new THREE.Color(0xb4dbee) },
     /** Vesialue tekstuurina (punainen = vettä) ja sen rajat: minX, minY, leveys, korkeus. */
     uWaterMask: { value: null as THREE.Texture | null },
     uWaterMaskBounds: { value: new THREE.Vector4(0, 0, 1, 1) },
@@ -176,6 +171,8 @@ export function createWaterWaves() {
     uDepthBounds: { value: new THREE.Vector4(0, 0, 1, 1) },
     /** 1 = pohjan sävy piirretään vesishaderissa (ks. createBottomMesh). */
     uBottomShadeOn: { value: 0 },
+    /** Ilme (#674): syvyyssävyt ja kimalluksen rivit sisäisen pikselin mukaan. */
+    ...LOOK_UNIFORMS,
   };
 }
 export type WaterWaves = ReturnType<typeof createWaterWaves>;
@@ -185,6 +182,12 @@ const POV_NEAR: [number, number] = [18, 32];
 /** GLSL: 1 lähellä, 0 kaukana vaakaetäisyydestä `xy` (ks. POV_NEAR). */
 const POV_NEAR_GLSL = (xy: string) =>
   `(1.0 - smoothstep(${POV_NEAR[0].toFixed(1)}, ${POV_NEAR[1].toFixed(1)}, length(${xy})))`;
+
+/**
+ * Modernin ilmeen (#650) veden perusväri (lineaarinen): tumma sinivihreä.
+ * Sama väri ylhäältä ja kalastajan silmin.
+ */
+const MODERN_WATER = 'vec3(0.009, 0.056, 0.082)';
 
 /**
  * Vesi: pinnan viivakuvio (aallonharjojen suuntaiset viivat, kulkevat tuulen
@@ -211,9 +214,11 @@ varying vec3 vGlitterPos;
 uniform sampler2D uDepthTex;
 uniform vec4 uDepthBounds;
 uniform float uBottomShadeOn;
+uniform float uLookDetail;
 uniform vec2 uDrift;
 uniform float uPov;
 uniform float uSheen;
+uniform vec3 uSkyTint;
 #ifdef SWELL_PATCH
 varying float vSwell;
 varying float vSwellK;
@@ -312,10 +317,14 @@ vec2 waterDash(vec2 p, float cell, float seed, float chance, vec2 dir, float t) 
         vec3 bColor = (d1.x > 0.5 ? d1.y : d2.y) > 0.5 ? vec3(0.024, 0.195, 0.381) : vec3(0.006, 0.042, 0.107);
         sampledDiffuseColor.rgb = mix(sampledDiffuseColor.rgb, bColor, bDash);
       }
-      vec2 depthXY = (floor(waterXY / ${DEPTH_PIXEL.toFixed(1)}) + 0.5) * ${DEPTH_PIXEL.toFixed(1)};
+      // Modernissa ilmeessä syvyys luetaan portaitta, jolloin sävy liukuu sileästi.
+      vec2 depthXY = uLookModern > 0.5
+        ? waterXY
+        : (floor(waterXY / ${DEPTH_PIXEL.toFixed(1)}) + 0.5) * ${DEPTH_PIXEL.toFixed(1)};
       float waterDepth = uBottomShadeOn > 0.5
         ? texture2D(uDepthTex, (depthXY - uDepthBounds.xy) / uDepthBounds.zw).r * ${DEPTH_TEX_RANGE.toFixed(1)}
         : 10.0;
+      float depthStep = fwidth(waterDepth);
       // POV-näkymässä kuvion 0,25 m tekselit kasvaisivat aivan kameran edessä
       // isoiksi tummiksi ja vaaleiksi laatoiksi: lähivesi on tasaväristä.
       // Matalikolla kuvio jätetään pois: vaalean pohjan sävyn alla viivat
@@ -395,6 +404,19 @@ vec2 waterDash(vec2 p, float cell, float seed, float chance, vec2 dir, float t) 
         waterFoam = max(waterFoam, foam);
         waterTrough = max(waterTrough, trough);
       }
+      // Moderni ilme (#650): tasainen sinivihreä pinta ilman viivakuviota. Pinta
+      // elää hitaasti ajelehtivasta kohinasta, ja aallokon muodot näkyvät valosta.
+      float modernRipple = 0.0;
+      if (uLookModern > 0.5) {
+        // Väreet ovat aallonharjojen suuntaisia juovia ja kulkevat vain tuulen mukana.
+        vec2 rp = waterXY - uDrift;
+        vec2 rxy = vec2(dot(rp, uWaveDir) * 0.55, dot(rp, crestDir) * 0.14);
+        float ripple = waterNoise(rxy) + 0.5 * waterNoise(rxy * 2.3 + 5.7);
+        float rippleFar = 1.0 - uPov * smoothstep(30.0, 180.0, eyeDist);
+        sampledDiffuseColor.rgb = ${MODERN_WATER} * (1.0 + 0.36 * (ripple - 0.75) * rippleFar);
+        modernRipple = smoothstep(0.85, 1.3, ripple) * rippleFar;
+        waterTrough = 0.0;
+      }
       diffuseColor *= sampledDiffuseColor;`,
     );
     // Vaahto on valkoista myös varjossa ja pilvisellä säällä.
@@ -412,13 +434,28 @@ vec2 waterDash(vec2 p, float cell, float seed, float chance, vec2 dir, float t) 
       if (uBottomShadeOn > 0.5) {
         vec4 bottomShade = depthShade(waterDepth);
         outgoingLight = mix(outgoingLight, bottomShade.rgb, bottomShade.a * (1.0 - waterTrough) * povNear);
+        // Moderni ylhäältä: syvyyskäyrät ohuina vaaleina viivoina kuten kartassa.
+        if (uLookModern > 0.5 && uPov < 0.5) {
+          float contour = depthContour(waterDepth, depthStep);
+          outgoingLight = mix(outgoingLight, outgoingLight * 1.35 + 0.02, 0.5 * contour);
+        }
       }
       // Taivaan heijastus vaalentaa vettä samassa sävyssä: taivaanrannan väri
       // sellaisenaan pyöristyisi paletissa harmaaksi tai hiekaksi.
       if (uPov > 0.5) {
         float grazing = toEyeW.y / max(length(toEyeW), 1e-3);
-        float sheen = 1.0 - smoothstep(0.01, 0.06, grazing);
-        outgoingLight *= 1.0 + uSheen * sheen * (1.0 - waterFoam);
+        if (uLookModern > 0.5) {
+          // Moderni: pinta heijastaa taivaanrantaa sitä enemmän, mitä loivemmin sitä katsoo.
+          float fresnel = pow(1.0 - clamp(grazing, 0.0, 1.0), 7.0);
+          vec3 skyGlow = uSkyTint * (0.2 + 0.4 * uSheen / 0.6);
+          outgoingLight = mix(outgoingLight, skyGlow, 0.4 * fresnel * (1.0 - waterFoam));
+          // Väreiden harjat kääntyvät taivasta kohti ja vaalenevat hieman.
+          float lift = pow(1.0 - clamp(grazing, 0.0, 1.0), 3.0);
+          outgoingLight += skyGlow * 0.12 * modernRipple * lift * (1.0 - waterFoam);
+        } else {
+          float sheen = 1.0 - smoothstep(0.01, 0.06, grazing);
+          outgoingLight *= 1.0 + uSheen * sheen * (1.0 - waterFoam);
+        }
       }
       outgoingLight = mix(outgoingLight, vec3(0.9, 0.95, 1.0), waterFoam);
       // Auringon tai kuun silta pikselitaiteen tapaan: vaakasuoria viivoja,
@@ -426,7 +463,22 @@ vec2 waterDash(vec2 p, float cell, float seed, float chance, vec2 dir, float t) 
       // harvenee, ja viivat hajoavat lyhyiksi välkkeiksi, kuten aallonharjoilla.
       // Viivat vaihtuvat nykäyksittäin, jolloin silta välkehtii. uGlitter on
       // välkkeiden tiheys; väri on aina täysi, ettei se pyöristy paletissa vihreäksi.
-      if (uGlitter > 0.0) {
+      if (uGlitter > 0.0 && uLookModern > 0.5) {
+        // Moderni: silta on pehmeä hohde, jossa aallot välkkyvät, ei pikselirivejä.
+        vec3 toEye = normalize(cameraPosition - vGlitterPos);
+        vec3 refl = vec3(-toEye.x, toEye.y, -toEye.z);
+        vec2 sunXZ = normalize(uGlitterDir.xz);
+        vec2 rXZ = normalize(refl.xz);
+        float ax = atan(rXZ.x * sunXZ.y - rXZ.y * sunXZ.x, dot(rXZ, sunXZ));
+        float below = refl.y - uGlitterDir.y;
+        float reach = 1.0 - smoothstep(0.0, 0.3, max(below, 0.0));
+        float width = mix(0.02, 0.07, reach);
+        float core = exp(-ax * ax / (width * width)) * reach;
+        vec2 gxy = vGlitterPos.xz * vec2(0.9, 2.6);
+        float sparkle = waterNoise(gxy + vec2(uWaterTime * 0.9, 0.0)) * waterNoise(gxy * 1.9 - vec2(0.0, uWaterTime * 1.3));
+        float glint = core * (0.25 + 1.6 * smoothstep(0.18, 0.5, sparkle));
+        outgoingLight += uGlitterColor * min(1.0, glint) * uGlitter * 0.85;
+      } else if (uGlitter > 0.0) {
         vec3 toEye = normalize(cameraPosition - vGlitterPos);
         vec3 refl = vec3(-toEye.x, toEye.y, -toEye.z);
         vec2 sunXZ = normalize(uGlitterDir.xz);
@@ -437,7 +489,11 @@ vec2 waterDash(vec2 p, float cell, float seed, float chance, vec2 dir, float t) 
         // Horisontin puolella silta jatkuu rantaan asti kapeampana.
         float far = below < 0.0 ? clamp(-below / max(uGlitterDir.y, 0.02), 0.0, 1.0) : 0.0;
         float halfWidth = mix(0.004, 0.026, reach) * (1.0 - 0.45 * far);
-        float row = floor(gl_FragCoord.y);
+        // Rivit ovat sisäisiä pikseleitä, joten silta on yhtä leveä ja pitkä
+        // kummassakin ilmeessä. Terävällä rivi on puolet ohuempi ja välkkeitä on
+        // rivillä enemmän: sama silta hienompina viivoina.
+        float rowHeight = uLookSharp > 0.5 ? max(1.0, uLookDetail * 0.5) : uLookDetail;
+        float row = floor(gl_FragCoord.y / rowHeight);
         // Lähellä aallot näkyvät harvemmassa: rivien väli kasvaa.
         float stride = refl.y < 0.12 ? 2.0 : 3.0;
         if (reach > 0.0 && abs(ax) < halfWidth && mod(row, stride) < 1.0) {
@@ -447,7 +503,7 @@ vec2 waterDash(vec2 p, float cell, float seed, float chance, vec2 dir, float t) 
           float chance = uGlitter * (0.85 - 0.6 * (1.0 - reach) - 0.25 * far);
           float rowOn = step(1.0 - chance, h1);
           // Kaukana yksi yhtenäinen viiva, lähempänä 2–4 lyhyttä välkettä.
-          float pieces = floor(mix(1.0, 4.0, smoothstep(0.06, 0.25, refl.y)) + 0.5);
+          float pieces = floor(mix(1.0, 4.0 + 2.0 * uLookSharp, smoothstep(0.06, 0.25, refl.y)) + 0.5);
           float t = ((ax / halfWidth - (h2 - 0.5) * 0.4) * 0.5 + 0.5) * pieces;
           float piece = floor(t);
           float on = pieces > 1.5 ? step(0.4, waterHash(vec2(row * 5.0 + piece, tick + 9.0))) : 1.0;
@@ -556,6 +612,28 @@ export function createSwellPatch(map: LakeMap, waves: WaterWaves): THREE.Mesh {
   mesh.frustumCulled = false;
   mesh.visible = false;
   mesh.name = 'swell';
+  mesh.renderOrder = SWELL_ORDER;
+  return mesh;
+}
+
+/**
+ * Lähivesi piirretään muiden läpinäkymättömien kappaleiden jälkeen, ja
+ * `swellMask` sitä ennen: maskin takana oleva vesi jää piirtämättä.
+ */
+const SWELL_ORDER = 0.75;
+
+/**
+ * Näkymätön kansi kuivan tilan suulle (veneen laitojen väli): kirjoittaa vain
+ * syvyyden, joten aallonharja ei piirry sen takana olevan pohjan läpi.
+ * Aallokko on pidempi kuin vene, eikä runko voi myötäillä pintaa joka kohdasta.
+ */
+export function swellMask(geometry: THREE.BufferGeometry): THREE.Mesh {
+  const mesh = new THREE.Mesh(
+    geometry,
+    new THREE.MeshBasicMaterial({ colorWrite: false, side: THREE.DoubleSide }),
+  );
+  mesh.name = 'swellMask';
+  mesh.renderOrder = SWELL_ORDER - 0.25;
   return mesh;
 }
 

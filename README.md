@@ -121,7 +121,8 @@ ja kukin selain kääntää ne pelaajan kielelle.
   [docs/pohja.md](docs/pohja.md).
 
 Pelin _Tekijät ja lähteet_ -näkymä listaa samat maininnat sekä kirjastot (three.js, Colyseus
-ja Zod, kaikki MIT) ja VT323-fontin (SIL Open Font License 1.1). Aineistot haetaan
+ja Zod, kaikki MIT) ja fontit (VT323 sekä modernin ilmeen Alegreya Sans ja Fraunces, kaikki
+SIL Open Font License 1.1; lisenssit `packages/client/src/modern/fonts/`). Aineistot haetaan
 `Karttadata`-työnkulussa (GitHub Actions → Run workflow) tai paikallisesti:
 
 ```sh

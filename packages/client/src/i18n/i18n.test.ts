@@ -101,13 +101,11 @@ describe('käännökset', () => {
     expect(en['settings.startRace']).toBe('Start the competition');
   });
 
-  it('kieli tallennetusta valinnasta tai selaimen kielestä', () => {
-    expect(detectLang('en', 'fi-FI')).toBe('en');
-    expect(detectLang('fi', 'en-US')).toBe('fi');
-    expect(detectLang(null, 'fi-FI')).toBe('fi');
-    expect(detectLang(null, 'FI')).toBe('fi');
-    expect(detectLang(null, 'sv-FI')).toBe('en');
-    expect(detectLang('de', undefined)).toBe('en');
+  it('kieli tallennetusta valinnasta, muuten suomi', () => {
+    expect(detectLang('en')).toBe('en');
+    expect(detectLang('fi')).toBe('fi');
+    expect(detectLang(null)).toBe('fi');
+    expect(detectLang('de')).toBe('fi');
   });
 
   it('muuttujat sijoitetaan tekstiin', () => {
@@ -119,6 +117,10 @@ describe('käännökset', () => {
   it('luvut, päivät ja järjestysluvut kielen mukaan', () => {
     expect(formatWeight(1.234)).toBe('1,23 kg');
     expect(formatWeight(0.52)).toBe('520 g');
+    // Yhteispaino (double) ja suurin kala (float32) pyöristyvät samoin (#663).
+    expect(formatWeight(3.085)).toBe('3,09 kg');
+    expect(formatWeight(Math.fround(3.085))).toBe('3,09 kg');
+    expect(formatWeight(0.9996)).toBe('1,00 kg');
     expect(ordinal(2)).toBe('2.');
     expect(formatDay(25, 10, 2026)).toBe('25.10.2026');
     expect(formatClock(19, 5)).toBe('klo 19.05');

@@ -10,6 +10,7 @@ import {
   SPECIES,
 } from '@lunki/shared';
 import { controlText, type ControlMode } from '../game/controls';
+import { KEY_TARGET_LINE } from '../game/flyCastControl';
 import { FRONT } from '../game/stormFront';
 import { shortDecimal, t, type MsgKey } from '../i18n';
 
@@ -19,9 +20,10 @@ import { shortDecimal, t, type MsgKey } from '../i18n';
  * näyttävät kosketuksella napit, koneella näppäimet ja peliohjaimella sen
  * napit, ja vaikeustasoa koskevat luvut luetaan `DIFFICULTIES`-taulukosta.
  */
-export type ManualSection = 'move' | 'spin' | 'fly' | 'weather' | 'multiplayer';
+export type ManualSection = 'start' | 'move' | 'spin' | 'fly' | 'weather' | 'multiplayer';
 
 export const MANUAL_SECTIONS: readonly ManualSection[] = [
+  'start',
   'move',
   'spin',
   'fly',
@@ -34,6 +36,8 @@ interface Topic {
   /** Rivit erotetaan rivinvaihdolla; rivi, jonka ohjausta ei ole tällä laitteella, jää pois. */
   readonly text: MsgKey;
   readonly vars?: () => Record<string, string | number>;
+  /** Aiheen alle piirrettävä kuva (ohjainkuva, #594). */
+  readonly diagram?: 'pad';
 }
 
 const pct = (v: number) => Math.round(v * 100);
@@ -45,6 +49,12 @@ const pikeHook = (rod: keyof typeof RODS) =>
   pct(1 - (1 - realistic.hookChance) * RODS[rod].hookMiss ** 2);
 
 const TOPICS: Record<ManualSection, readonly Topic[]> = {
+  // Ensikertalaiselle: sama polku kuin opastuksessa (game/guide.ts), yhdellä napilla.
+  start: [
+    { title: 'manual.start.first', text: 'manual.start.firstText' },
+    { title: 'manual.start.noBites', text: 'manual.start.noBitesText' },
+    { title: 'manual.start.screen', text: 'manual.start.screenText' },
+  ],
   move: [
     { title: 'manual.move.tube', text: 'manual.move.tubeText' },
     { title: 'manual.move.anchor', text: 'manual.move.anchorText' },
@@ -68,7 +78,7 @@ const TOPICS: Record<ManualSection, readonly Topic[]> = {
     },
     { title: 'manual.move.boat', text: 'manual.move.boatText' },
     { title: 'manual.move.wind', text: 'manual.move.windText' },
-    { title: 'manual.move.pad', text: 'manual.move.padText' },
+    { title: 'manual.move.pad', text: 'manual.move.padText', diagram: 'pad' },
   ],
   spin: [
     { title: 'manual.spin.cast', text: 'manual.spin.castText' },
@@ -120,8 +130,20 @@ const TOPICS: Record<ManualSection, readonly Topic[]> = {
   ],
   fly: [
     { title: 'manual.fly.cast', text: 'manual.fly.castText' },
-    { title: 'manual.fly.hand', text: 'manual.fly.handText' },
-    { title: 'manual.fly.haul', text: 'manual.fly.haulText' },
+    {
+      title: 'manual.fly.hand',
+      text: 'manual.fly.handText',
+      vars: () => ({
+        auto: KEY_TARGET_LINE,
+        max: FLY_CAST.maxAerial,
+        hauled: FLY_CAST.maxHauled,
+      }),
+    },
+    {
+      title: 'manual.fly.haul',
+      text: 'manual.fly.haulText',
+      vars: () => ({ max: FLY_CAST.maxAerial, hauled: FLY_CAST.maxHauled }),
+    },
     { title: 'manual.fly.errors', text: 'manual.fly.errorsText' },
     {
       title: 'manual.fly.strip',
@@ -155,6 +177,7 @@ const TOPICS: Record<ManualSection, readonly Topic[]> = {
     { title: 'manual.mp.room', text: 'manual.mp.roomText' },
     { title: 'manual.mp.race', text: 'manual.mp.raceText' },
     { title: 'manual.mp.tangle', text: 'manual.mp.tangleText' },
+    { title: 'manual.mp.bots', text: 'manual.mp.botsText' },
     { title: 'manual.mp.watch', text: 'manual.mp.watchText' },
     { title: 'manual.mp.talk', text: 'manual.mp.talkText' },
     { title: 'manual.mp.challenge', text: 'manual.mp.challengeText' },
@@ -164,6 +187,7 @@ const TOPICS: Record<ManualSection, readonly Topic[]> = {
 export interface ManualTopic {
   title: string;
   lines: string[];
+  diagram?: 'pad';
 }
 
 /** Osion aiheet pelaajan kielellä ja ohjaustavalla. */
@@ -174,5 +198,6 @@ export function manualTopics(
   return TOPICS[section].map((topic) => ({
     title: t(topic.title),
     lines: controlText(topic.text, topic.vars?.() ?? {}, opts).split('\n'),
+    ...(topic.diagram && { diagram: topic.diagram }),
   }));
 }

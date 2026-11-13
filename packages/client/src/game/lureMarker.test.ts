@@ -1,6 +1,6 @@
 import type * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { LURE_MARKER, LureMarker, markerPosition } from './lureMarker';
+import { LURE_MARKER, LureMarker, diamondPixels, markerPosition } from './lureMarker';
 import { lureColor } from './lureColor';
 
 describe('vieheen merkki (#391)', () => {
@@ -43,5 +43,33 @@ describe('vieheen merkki (#391)', () => {
   it('pohjan pölläys ja seuraajan pyörteet eivät näy realistisella', () => {
     expect(LURE_MARKER.signs.realistic).toBe(false);
     expect(LURE_MARKER.signs.easy && LURE_MARKER.signs.normal).toBe(true);
+  });
+
+  it('timantti on Retrossa seitsemän pikselin merkki ja Terävällä sama muoto tarkempana', () => {
+    const rows = (size: number, edge: number, facets: boolean) => {
+      const px = diamondPixels(size, edge, facets);
+      return Array.from({ length: size }, (_, y) =>
+        Array.from({ length: size }, (_, x) => px.data[y * size + x]!),
+      );
+    };
+    const retro = rows(7, 1, false).map((r) =>
+      r.map((c) => (c < 0 ? '.' : c === 0xffffff ? '#' : 'o')).join(''),
+    );
+    expect(retro).toEqual([
+      '...o...',
+      '..o#o..',
+      '.o###o.',
+      'o#####o',
+      '.o###o.',
+      '..o#o..',
+      '...o...',
+    ]);
+    const fine = rows(42, 3, true);
+    // Kulmat ovat läpinäkyvät, keskirivi on reunasta reunaan ja reuna on tumma.
+    expect(fine[0]![0]).toBe(-1);
+    expect(fine[21]!.every((c) => c >= 0)).toBe(true);
+    expect(fine[21]![0]).toBe(0x1c232b);
+    // Valo tulee ylävasemmalta: vasen yläpinta on vaaleampi kuin oikea alapinta.
+    expect(fine[14]![14]).toBeGreaterThan(fine[28]![28]!);
   });
 });

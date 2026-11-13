@@ -1,3 +1,4 @@
+import { controlStyle, setControlStyle, simpleControls } from './game/controlStyle';
 import {
   DEFAULT_SETTINGS,
   UNTIMED,
@@ -26,6 +27,18 @@ import {
 } from '@lunki/shared';
 import { FpsMeter } from './engine/fpsMeter';
 import { Input } from './engine/input';
+import {
+  LookGuard,
+  loadLook,
+  loadQuality,
+  lowerQuality,
+  saveLook,
+  saveQuality,
+  setActiveLook,
+  smoothLook,
+  type Look,
+} from './engine/look';
+import { ModernHost } from './engine/modernHost';
 import { startLoop } from './engine/loop';
 import { RetroRenderer, type PaletteMode } from './engine/retroRenderer';
 import { Sfx } from './audio/sfx';
@@ -40,7 +53,15 @@ import { describeSpot } from './ui/lakeMap';
 import type { WeighCardInfo } from './ui/weighCard';
 import { ChatBox } from './ui/chat';
 import { TouchControls, isTouchDevice } from './ui/touchControls';
-import { Controls, contextActions, setControlMode } from './game/controls';
+import {
+  Controls,
+  contextActions,
+  controlMode,
+  controlText,
+  setControlMode,
+  setFlyStickInverted,
+} from './game/controls';
+import { padSettings, setPadSettings } from './engine/padSettings';
 import { Guide, loadGuide } from './game/guide';
 import {
   Screens,
@@ -48,6 +69,7 @@ import {
   type LobbyEvent,
   type ResultsSummary,
   type PauseView,
+  type PracticeLobby,
   type SettingsControls,
   type SoloReplay,
 } from './ui/screens';
@@ -104,6 +126,14 @@ canvas.className = 'game-canvas';
 app.appendChild(canvas);
 
 const retro = createRenderer(canvas, app);
+const modern = new ModernHost();
+retro.setQuality(loadQuality());
+// Moderni (#650) on tietokoneen ilme: kosketuslaitteella sitä ei tarjota.
+const modernOffered = !isTouchDevice();
+/** Pelaajan viimeksi valitsema ilme; Moderni tulee käyttöön vasta latauduttuaan. */
+let wantedLook: Look = loadLook();
+if (wantedLook === 'modern' && !modernOffered) wantedLook = 'retro';
+applyLook(wantedLook === 'modern' ? 'retro' : wantedLook);
 const input = new Input(canvas);
 const fps = new FpsMeter(app, import.meta.env.DEV);
 const hud = new Hud(app);
@@ -116,6 +146,19 @@ input.onDevice = (device, kind) => {
   setControlMode(device === 'pad' ? 'pad' : touch ? 'touch' : 'keys', kind);
   sfx.padRumble.active = device === 'pad';
   hud.refreshHelp();
+};
+setFlyStickInverted(padSettings().flyInvert);
+// Ohjain kytkettiin tai irtosi (#594): ilmoitus kisassa, ja yksinpeli menee
+// tauolle, jos ohjain irtoaa kesken pelaamisen sillä.
+input.onPadPresence = (connected) => {
+  if (!game || game.competition.finished) return;
+  if (connected) {
+    if (!paused) hud.showMessage(t('pad.connected'), 3, 'info');
+    return;
+  }
+  const wasPad = controlMode() === 'pad';
+  hud.showMessage(t('pad.disconnected'), 4, 'info');
+  if (wasPad && !raceSession() && !paused) togglePause();
 };
 /** Pelaajan valitsema HUDin koko, tallessa selaimessa. */
 let hudScale = loadHudScale(touch !== null);
@@ -174,6 +217,44 @@ const povFovControl = () => ({
     effectivePovFov(fov, retro.resolution.width / Math.max(1, retro.resolution.height)),
 });
 
+/** Ilme käyttöön: piirron tarkkuus, pikselikuvien versiot ja kuvien suurennus sivulla. */
+function applyLook(look: Look): void {
+  retro.setLook(look);
+  setActiveLook(look);
+  const root = document.documentElement.classList;
+  root.toggle('look-sharp', smoothLook(look));
+  root.toggle('look-modern', look === 'modern');
+}
+
+/**
+ * Ilmeen valinta. Moderni haetaan vasta nyt: lupaus kertoo, saatiinko se
+ * käyttöön. Jos lataus ei onnistu (verkko poikki eikä tiedostoja laitteella),
+ * entinen ilme jää voimaan.
+ */
+function chooseLook(look: Look): void | Promise<boolean> {
+  wantedLook = look;
+  lookGuard.reset();
+  if (look !== 'modern' || modern.loaded) {
+    saveLook(look);
+    applyLook(look);
+    return;
+  }
+  return modern.ensure().then(
+    () => {
+      // Pelaaja ehti valita toisen ilmeen latauksen aikana.
+      if (wantedLook !== 'modern') return false;
+      saveLook('modern');
+      applyLook('modern');
+      lookGuard.reset();
+      return true;
+    },
+    () => {
+      if (wantedLook === 'modern') wantedLook = retro.look;
+      return false;
+    },
+  );
+}
+
 /** Asetusnäkymän säätimet; `reopen` piirtää näkymän uudelleen kielen vaihtuessa. */
 const settingsControls = (reopen: () => void): SettingsControls => ({
   audio: { current: sfx.audioSettings, onChange: (a) => sfx.setAudioSettings(a) },
@@ -189,10 +270,35 @@ const settingsControls = (reopen: () => void): SettingsControls => ({
     effective: () => hud.effectiveScale(),
   },
   povFov: povFovControl(),
+  look: {
+    current: retro.look,
+    onChange: chooseLook,
+    modern: modernOffered,
+    quality: {
+      current: retro.quality,
+      onChange: (quality) => {
+        saveQuality(quality);
+        retro.setQuality(quality);
+        lookGuard.reset();
+      },
+    },
+  },
   guide: {
     current: loadGuide().off === false,
     // Pelin aikana muutos koskee heti käynnissä olevaa kisaa.
     onChange: (on) => (game?.guide ?? new Guide(loadGuide())).setEnabled(on),
+  },
+  controlStyle: {
+    current: controlStyle(),
+    onChange: setControlStyle,
+  },
+  pad: {
+    current: padSettings(),
+    onChange: (s) => {
+      setPadSettings(s);
+      setFlyStickInverted(s.flyInvert);
+      hud.refreshHelp();
+    },
   },
   onLanguage: reopen,
 });
@@ -210,6 +316,14 @@ let paused = false;
 let bench: Bench | null = null;
 /** Moninpelihuone, jos pelaaja on sellaisessa. */
 let session: NetSession | null = null;
+/**
+ * Harjoittelu aulassa (#638): pelaaja kalastaa yksin odottaessaan isännän
+ * aloitusta. Peli on silloin yksinpeli, vaikka huone on auki: kisan alkaessa
+ * harjoitus vaihtuu kisaan.
+ */
+let practice = false;
+/** Huone, jonka kisaa peli nyt pelaa: null yksinpelissä ja harjoitellessa. */
+const raceSession = () => (practice ? null : session);
 /** Moninpelin chat (aulassa, kisan aikana ja tulossivulla). */
 let chat: ChatBox | null = null;
 if (touch) touch.onChat = () => chat?.open();
@@ -235,7 +349,8 @@ const raceStart = { buildMs: 0, compileMs: 0 };
  * kisa uudelleen, haaste, kehitystilan ?seed=) saalis ei mene ennätyslistalle.
  */
 function startGame(s: CompetitionSettings, seed = devSeed, challenge: Challenge | null = null) {
-  if (!session) settings = s;
+  const session = raceSession();
+  if (!session && !practice) settings = s;
   game?.dispose();
   input.dropPresses();
   const t0 = performance.now();
@@ -253,6 +368,7 @@ function startGame(s: CompetitionSettings, seed = devSeed, challenge: Challenge 
     raceSeed,
     LUNKINJARVI,
     net,
+    { overlay: app!, canvas },
   );
   game.setResolution(retro.resolution);
   game.setPovFov(povFov);
@@ -279,12 +395,14 @@ function startGame(s: CompetitionSettings, seed = devSeed, challenge: Challenge 
   resultsAsHost = null;
   game.onFinished = () => {
     // Moninpelissä omat tilastot muiden tulossivulle (#367).
+    // Harjoitus (#638) ei pääty kelloon; varmuuden vuoksi takaisin aulaan.
+    if (practice) return endPractice();
     if (session && game) session.sendRaceStats(game.raceStats());
     showResults();
   };
   soloRecordNotes = [];
   // Tiedossa olevalla siemenellä kalojen paikat tunnetaan: saalis ei ole reilu ennätys.
-  if (!session && seed === undefined) {
+  if (!session && !practice && seed === undefined) {
     /** Palvelin kiinni: kerrotaan kerran kisan aikana, että saaliit odottavat. */
     let queuedNotice = false;
     g.onSoloCatch = (entry) => {
@@ -314,6 +432,7 @@ function startGame(s: CompetitionSettings, seed = devSeed, challenge: Challenge 
   }
   hud.setHelpMode(session !== null, game.spectating);
   if (session) chat?.mount(hud.root, 'hud');
+  hud.setStandingMessage(practice ? controlText('mp.practiceNote') : null);
   touch?.setMultiplayer(session !== null);
   touch?.setSpectator(game.spectating);
   if (import.meta.env.DEV) Object.assign(window, { lunki: game });
@@ -442,12 +561,16 @@ function resultsSummary(g: Game, s: NetSession | null): ResultsSummary {
   const rows = s
     ? s.results()
     : [{ id: myId, name: t('common.youCapital'), catches: g.competition.catches }];
-  const entrants: AwardEntrant[] = rows.map((r) => ({
-    id: r.id,
-    name: r.name,
-    catches: r.catches,
-    stats: r.id === myId ? own : (s?.raceStats.get(r.id) ?? null),
-  }));
+  const entrants: AwardEntrant[] = [
+    ...rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      catches: r.catches,
+      stats: r.id === myId ? own : (s?.raceStats.get(r.id) ?? null),
+    })),
+    // Yksinpelin botit (#624) ovat mukana palkinnoissa ja tilastoissa.
+    ...(g.soloBots?.entrants() ?? []),
+  ];
   const mine = entrants.find((e) => e.id === myId);
   // Katsoja ei kalastanut: kisaa ei lasketa omiin tilastoihin.
   if (lifeRecordedFor !== g && mine) {
@@ -467,6 +590,7 @@ function showResults() {
   if (!game) return;
   const card = weighCardFor(game);
   hud.setVisible(false);
+  const session = raceSession();
   if (session) {
     const s = session;
     const v = s.view();
@@ -483,6 +607,29 @@ function showResults() {
       card,
       game.raceMap(),
       resultsSummary(game, s),
+    );
+    return;
+  }
+  if (game.soloBots) {
+    // Botteja vastaan (#624): sama tulossivu kuin moninpelissä.
+    const s = game.settings;
+    screens.showRaceResults(
+      game.soloBots.standings(),
+      {
+        ...s,
+        durationMinutes: isUntimed(s)
+          ? Math.round(game.competition.elapsed / 60)
+          : s.durationMinutes,
+      },
+      'me',
+      true,
+      () => startGame(s),
+      () => showMenu(),
+      undefined,
+      undefined,
+      card,
+      game.raceMap(),
+      resultsSummary(game, null),
     );
     return;
   }
@@ -548,6 +695,12 @@ function showMultiplayer(code = '', error?: string, serverDown = false) {
       showPlay();
     },
     error,
+    (c) => {
+      // Sama polku kuin ?lahetys-osoitteella: sivu latautuu lähetystilaan.
+      const parsed = parseRoomCode(c);
+      if (parsed) location.assign(inviteLink(parsed, 'lahetys'));
+      else showMultiplayer(c, t('mp.broadcastNeedsCode'));
+    },
   );
   if (serverDown) screens.setServerStatus(false, customServer());
   else void checkServer().then((ok) => screens.setServerStatus(ok, customServer()));
@@ -661,6 +814,15 @@ function enterLobby(s: NetSession) {
         onBoat: (boat) => s.sendBoat(boat),
         onSeat: (seat) => s.sendSeat(seat),
         onLeave: leaveRoom,
+        onPractice: () => {
+          // Harjoittelija on valmis: isännän ei tarvitse odottaa häntä.
+          if (!v.amHost && !wasReady) {
+            wasReady = true;
+            s.setReady(true);
+          }
+          drawnLobby = null;
+          startPractice(v.settings);
+        },
         onSettings: (patch) => s.changeSettings(patch),
         onAppearance: (a) => {
           saveAppearance(a);
@@ -704,7 +866,9 @@ function enterLobby(s: NetSession) {
       drawnLobby = null;
     }
     // Kisa alkaa, kun tila aloituspaikkoineen on saapunut.
-    if (v.phase !== 'lobby' && !game) {
+    if (v.phase !== 'lobby' && (!game || practice)) {
+      // Harjoittelu (#638) vaihtuu kisaan, kun isäntä aloittaa.
+      practice = false;
       picking = false;
       confirmStart = false;
       saveLastRoom(v.code);
@@ -726,6 +890,13 @@ function enterLobby(s: NetSession) {
     if (v.phase === 'finished' && resultsAsHost !== null && resultsAsHost !== v.amHost)
       showResults();
     if (v.phase !== 'lobby') return;
+    // Harjoitellessa aulaa ei piirretä: se piirtyy, kun pelaaja palaa.
+    // Tauolla aulan tilanne päivittyy paikallaan (#668).
+    if (practice) {
+      const lobby = paused ? practiceLobby() : null;
+      if (lobby) screens.updatePausePractice(lobby);
+      return;
+    }
     const key = lobbyKey(v);
     if (!game && key === drawnLobby) {
       screens.updateLobbyPings(v.players);
@@ -755,6 +926,7 @@ function enterLobby(s: NetSession) {
   s.onDisconnect = () => {
     if (session !== s) return;
     session = null;
+    practice = false;
     hud.setStandingMessage(null);
     chat?.dispose();
     chat = null;
@@ -789,6 +961,7 @@ async function tryResume(): Promise<boolean> {
 function leaveRoom() {
   const s = session;
   session = null;
+  practice = false;
   hud.setStandingMessage(null);
   clearLastRoom();
   chat?.dispose();
@@ -798,6 +971,41 @@ function leaveRoom() {
   game = null;
   history.replaceState(null, '', location.pathname);
   showMenu();
+}
+
+/** Harjoittelu aulasta (#638): yksinpeli huoneen säännöillä ilman kelloa ja ennätyksiä. */
+function startPractice(s: CompetitionSettings) {
+  practice = true;
+  startGame({ ...s, durationMinutes: UNTIMED, inflate: false, start: null, soloBots: 0 });
+}
+
+/** Aulan tilanne harjoittelun taukovalikkoon (#668). */
+function practiceLobby(): PracticeLobby | null {
+  if (!practice || !session || !game) return null;
+  const v = session.view();
+  const anglers = v.players.filter((p) => !p.spectator && !p.bot);
+  // Sama joukko kuin isännän odottamat: katkennutta ei odoteta.
+  const awaited = anglers.filter((p) => !p.host && p.connected);
+  return {
+    anglers: anglers.length,
+    max: v.maxPlayers,
+    ready: awaited.filter((p) => p.ready).length,
+    awaited: awaited.length,
+    seconds: Math.floor(game.competition.elapsed),
+    rules: v.settings,
+  };
+}
+
+/** Harjoittelusta takaisin aulaan (taukovalikosta). */
+function endPractice() {
+  if (!practice) return;
+  practice = false;
+  hud.setStandingMessage(null);
+  game?.dispose();
+  game = null;
+  paused = false;
+  hud.setVisible(false);
+  session?.onChange?.(session.view());
 }
 
 function togglePause() {
@@ -820,18 +1028,24 @@ function showPauseMenu(from?: PauseView) {
     // Moninpelin kisa voi päättyä alinäkymän ollessa auki.
     if (paused && game === g) showPauseMenu(sub);
   };
+  const session = raceSession();
   screens.showPause({
     onResume: togglePause,
-    onQuit: session
-      ? leaveRoom
-      : () => {
-          g.competition.finished = true;
-          showResults();
-        },
+    onQuit: practice
+      ? endPractice
+      : session
+        ? leaveRoom
+        : () => {
+            g.competition.finished = true;
+            showResults();
+          },
     multiplayer: session !== null,
+    practice: practiceLobby(),
     untimed: !session && isUntimed(g.settings),
     clock: formatClock(g.clock),
     status: g.raceStatus(),
+    // Kosketuksella tulostaulu on täällä eikä HUDissa.
+    scoreboard: touch ? g.scoreboard() : null,
     rules: g.settings,
     // Peruke vaihtuu kesken kisan; muut varusteet päävalikon Varusteissa.
     onTackle: g.spectating
@@ -855,7 +1069,7 @@ function showPauseMenu(from?: PauseView) {
           sendFeedback({
             ...f,
             context: reportContext(
-              `kisa: ${session ? 'moninpeli' : 'yksinpeli'} ${formatClock(g.clock)}`,
+              `kisa: ${raceSession() ? 'moninpeli' : 'yksinpeli'} ${formatClock(g.clock)}`,
             ),
           }),
         back('feedback'),
@@ -953,6 +1167,15 @@ const menuReady = () => (menuWarm = true);
 menuScene.precompile(retro).then(menuReady, menuReady);
 setTimeout(menuReady, WARM_TIMEOUT_MS);
 
+const lookGuard = new LookGuard();
+/** Ilmoitus, joka näytetään kisan alkaessa (valikossa HUD on piilossa). */
+let raceNotice: string | null = null;
+// Tallennettu Moderni: peli aukeaa Retrona ja vaihtuu, kun ilme on latautunut.
+if (wantedLook === 'modern') {
+  void Promise.resolve(chooseLook('modern')).then((ok) => {
+    if (ok === false && wantedLook !== 'modern') raceNotice = t('look.modernFailed');
+  });
+}
 const paletteModes: PaletteMode[] = ['palette', 'dither', 'off'];
 
 // Pelin tiedostot laitteelle (#328). Uusi versio otetaan käyttöön vasta
@@ -977,7 +1200,7 @@ startLoop({
     // ja tulossivulla soi vain musiikki ja nappien äänet.
     sfx.setRaceAudio(game !== null && !game.competition.finished);
     // Moninpelissä kisa jatkuu valikon ollessa auki.
-    if (game && ((!paused && !screens.open) || (session && paused))) game.update(dt);
+    if (game && ((!paused && !screens.open) || (raceSession() && paused))) game.update(dt);
     if (game) {
       touch?.update(
         contextActions(game.fishing, game.flyRhythm, game.tangled, game.shoreMain),
@@ -985,6 +1208,11 @@ startLoop({
         game.fishing.gear,
       );
       touch?.setCrew(game.crewSeats);
+      touch?.setSimple(
+        simpleControls(),
+        game.viewMode === 'pov',
+        game.fishing.snag !== null || game.fishing.onLand || game.tangled,
+      );
       touch?.setAshore(game.shoreMain !== undefined, !!game.shoreMain);
     }
     updateTime += performance.now() - t0;
@@ -995,12 +1223,42 @@ startLoop({
     const active = game ?? menuScene;
     const t0 = performance.now();
     active.render(alpha);
+    modern.frame(
+      retro.look === 'modern',
+      active.scene,
+      active.camera,
+      retro.renderer,
+      retro.quality,
+    );
     retro.render(active.scene, active.camera, active.grade);
     bench?.timing(updateTime, performance.now() - t0, updateCount);
     updateTime = 0;
     updateCount = 0;
-    const { width, height, scale } = retro.resolution;
+    const { width, height } = retro.renderSize;
+    const { scale } = retro.resolution;
     fps.frame(frameTime, `${width}×${height} ×${scale} · ${active.view.metersPerPixel} m/px`);
+    if (raceNotice && game !== null && !screens.open) {
+      hud.showMessage(raceNotice, 6, 'info');
+      raceNotice = null;
+    }
+    // Terävä ja Moderni ovat raskaita: jos kisa nykii, Moderni keventää ensin
+    // laatua ja lopulta ilme palaa Retroon. Siitä kerrotaan (#674, #650).
+    const racing = game !== null && !paused && !screens.open && !bench;
+    if (retro.look !== 'retro' && racing && lookGuard.frame(frameTime)) {
+      const lighter = retro.look === 'modern' ? lowerQuality(retro.quality) : null;
+      if (lighter) {
+        saveQuality(lighter);
+        retro.setQuality(lighter);
+        lookGuard.reset();
+        hud.showMessage(t('look.qualityDropped'), 6, 'info');
+      } else {
+        const fell = retro.look === 'modern' ? 'look.modernFellBack' : 'look.fellBack';
+        wantedLook = 'retro';
+        saveLook('retro');
+        applyLook('retro');
+        hud.showMessage(t(fell), 6, 'info');
+      }
+    }
     bench?.frame(frameTime);
     dismissBootLoader();
   },

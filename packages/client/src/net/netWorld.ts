@@ -1,5 +1,6 @@
 import {
   ANCHOR_PROTOCOL,
+  isBotId,
   SHORE_PROTOCOL,
   shoreFromNet,
   type ShoreState,
@@ -680,7 +681,9 @@ export class NetWorld {
       if (!seen.has(id)) {
         this.remotes.delete(id);
         this.peerConnected.delete(id);
-        this.onPeerLeft?.(r.player);
+        // Botti poistuu kesken kisan vain luovuttaessaan paikkansa liittyjälle:
+        // liittyjän ilmoitus kertoo asian, eikä botin lähtö saa peittää sitä (#631).
+        if (!isBotId(id)) this.onPeerLeft?.(r.player);
       }
     // Kyydissä ei törmätä mihinkään: vene on soutajan.
     this.latestOthers = this.passenger ? [] : others;

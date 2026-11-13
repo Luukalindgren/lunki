@@ -14,10 +14,9 @@ type Vars = Record<string, string | number>;
 const DICTS: Record<Lang, Dictionary> = { fi, en };
 const KEY = 'lunki.lang';
 
-/** Tallennettu valinta, muuten selaimen kieli: suomi vain suomenkieliselle selaimelle. */
-export function detectLang(saved: string | null, browser: string | undefined): Lang {
-  if (saved === 'fi' || saved === 'en') return saved;
-  return browser?.toLowerCase().startsWith('fi') ? 'fi' : 'en';
+/** Tallennettu valinta, muuten suomi: englannin saa päävalikosta tai Asetuksista. */
+export function detectLang(saved: string | null): Lang {
+  return saved === 'en' ? 'en' : 'fi';
 }
 
 function savedLang(): string | null {
@@ -28,10 +27,7 @@ function savedLang(): string | null {
   }
 }
 
-let current: Lang = detectLang(
-  savedLang(),
-  typeof navigator === 'undefined' ? undefined : navigator.language,
-);
+let current: Lang = detectLang(savedLang());
 const listeners = new Set<() => void>();
 if (typeof document !== 'undefined') document.documentElement.lang = current;
 
@@ -76,9 +72,16 @@ export function decimal(v: number, digits = 1): string {
 export const shortDecimal = (v: number): string =>
   current === 'fi' ? String(v).replace('.', ',') : String(v);
 
-/** Paino: alle kilon grammoina, muuten kahdella desimaalilla. */
+/**
+ * Paino: alle kilon grammoina, muuten kahdella desimaalilla. Paino on gramman
+ * tarkkuudella, ja se pyöristetään grammojen kautta: 3,085 kg on aina 3,09 kg,
+ * tuli luku palvelimelta 32-bittisenä (3,0850000381) tai omasta laskusta
+ * (3,085 on liukulukuna hieman alle ja pyöristyisi muuten alas). Näin kalan
+ * paino ja yhden kalan yhteispaino näkyvät samana lukuna (#663).
+ */
 export function formatWeight(kg: number): string {
-  return kg < 1 ? `${Math.round(kg * 1000)} g` : `${decimal(kg, 2)} kg`;
+  const grams = Math.round(kg * 1000);
+  return grams < 1000 ? `${grams} g` : `${decimal(Math.round(grams / 10) / 100, 2)} kg`;
 }
 
 /** Järjestysluku: suomeksi "2.", englanniksi "2nd". */

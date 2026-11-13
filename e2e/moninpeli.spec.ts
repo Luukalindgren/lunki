@@ -9,7 +9,7 @@ import {
   type Page,
 } from '@playwright/test';
 import { FIREFOX_WEBGL } from '../playwright.config';
-import { watchErrors } from './apu';
+import { fullControls, watchErrors } from './apu';
 
 /**
  * Sama huone kolmella selainmoottorilla: Chromium luo huoneen, Firefox ja
@@ -55,7 +55,11 @@ test('moninpeli: Chromium, Firefox ja iPhone samassa huoneessa', async ({ page: 
         ...(launcher === firefox ? FIREFOX_WEBGL : {}),
       });
       others.push(browser);
-      const ctx = await browser.newContext({ ...options, baseURL: 'http://localhost:4173' });
+      const ctx = await browser.newContext({
+        ...options,
+        baseURL: 'http://localhost:4173',
+        storageState: fullControls(options.locale === 'en-US' ? 'en' : 'fi'),
+      });
       const page = await ctx.newPage();
       pages.push([name, watchErrors(page)]);
       return page;
@@ -223,9 +227,28 @@ test('täysi aula: katsoja odottaa paikkaa ja pääsee kalastamaan rajan noustes
   await expect(nextRace.locator('button.selected')).toHaveText('Kalastan');
   await expect(host.locator('.choice-label', { hasText: 'Pelaajat 3/4' })).toBeVisible();
 
+  // Harjoittelun tauko kertoo aulan tilanteen ja tulevan kisan säännöt (#668).
+  await third!.getByRole('button', { name: 'Harjoittele odottaessa' }).click();
+  await expect(third!.locator('.hud-timer')).toBeVisible();
+  await third!.keyboard.press('Escape');
+  const pause = third!.locator('[data-screen="pause"]');
+  await expect(pause.getByRole('heading', { name: 'Harjoittelu' })).toBeVisible();
+  await expect(pause.getByText('Harjoittelun saaliit eivät jää talteen')).toBeVisible();
+  const tile = (label: string) =>
+    pause.locator('.pause-stat', { hasText: label }).locator('.pause-stat-value');
+  await expect(tile('Aulassa')).toHaveText('3 / 4');
+  // Harjoittelija kuittautui valmiiksi, Toinen ei vielä.
+  await expect(tile('Valmiina')).toHaveText('1 / 2');
+  await expect(pause.locator('.pause-rules')).toContainText('Kilpailuaika 15 min');
+  // Aulan muutos päivittyy tauolle paikallaan.
+  await row(host, 'Pelaajia enintään').getByRole('button', { name: '8', exact: true }).click();
+  await expect(tile('Aulassa')).toHaveText('3 / 8');
+  await third!.getByRole('button', { name: 'Takaisin aulaan' }).click();
+  await expect(third!.locator('.room-code')).toHaveText(code);
+
   // Aloita ennen kuin muut ovat valmiita: kysymys näkyy nappien yläpuolella
   // eikä jää pitkän aulan loppuun vierityksen taakse (#539).
-  await host.getByRole('button', { name: 'Aloita (2 ei valmiina)' }).click();
+  await host.getByRole('button', { name: 'Aloita (1 ei valmiina)' }).click();
   const notice = host.locator('.lobby-notice');
   await expect(notice).toContainText(/Ei valmiina: .*Toinen/);
   await expect(notice).toBeInViewport();
@@ -233,7 +256,7 @@ test('täysi aula: katsoja odottaa paikkaa ja pääsee kalastamaan rajan noustes
   await host.getByRole('button', { name: 'Odota', exact: true }).click();
   await expect(notice).toBeHidden();
   // Aloita silti: valmiiksi kuittaamattomatkin kalastavat mukana.
-  await host.getByRole('button', { name: 'Aloita (2 ei valmiina)' }).click();
+  await host.getByRole('button', { name: 'Aloita (1 ei valmiina)' }).click();
   await host.getByRole('button', { name: 'Aloita silti' }).click();
   for (const p of [host, second!, third!]) await expect(p.locator('.hud-timer')).toBeVisible();
   for (const e of errors) e.check();
@@ -258,8 +281,16 @@ test('iso näyttö: ?lahetys-osoite liittyy katsojaksi ja ohjaaja näyttää kis
     await browser.newContext({ locale: 'fi-FI', baseURL: 'http://localhost:4173' })
   ).newPage();
   const errors = [watchErrors(host), watchErrors(screen)];
-  // Ei valikoita: osoite vie suoraan aulaan katsojaksi, eikä vie kalastajan paikkaa.
-  await screen.goto(`/?lahetys=${code}`);
+  // Moninpeli-valikon Iso näyttö -nappi vie huonekoodilla lähetysosoitteeseen:
+  // suoraan aulaan katsojaksi, eikä vie kalastajan paikkaa.
+  await screen.goto('/');
+  await screen.getByRole('button', { name: 'Pelaa' }).click();
+  await screen.getByRole('button', { name: 'Moninpeli' }).click();
+  await screen.getByRole('button', { name: 'Iso näyttö' }).click();
+  await expect(screen.locator('.error')).toContainText('Kirjoita ensin huonekoodi');
+  await screen.getByLabel('Huonekoodi').fill(code);
+  await screen.getByRole('button', { name: 'Iso näyttö' }).click();
+  await expect(screen).toHaveURL(/lahetys=LUNKI-/);
   await expect(screen.locator('.room-code')).toHaveText(code);
   await expect(host.locator('.choice-label', { hasText: 'Pelaajat 1/' })).toBeVisible();
   await expect(host.locator('.player-list')).toContainText('Iso näyttö');

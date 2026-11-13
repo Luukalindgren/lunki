@@ -13,7 +13,7 @@ export const ROOM_NAME = 'lunki';
  * uudelleen: asiakas ei lähetä vanhemmalle palvelimelle viestejä, joita se
  * ei tunne. Vanha palvelin ilman kenttää = 1.
  */
-export const PROTOCOL_VERSION = 16;
+export const PROTOCOL_VERSION = 17;
 /** Chat tuli versiossa 2. */
 export const CHAT_PROTOCOL = 2;
 /** Maalle juuttuneen vieheen siiman katkaisu (ClientMsg.landCut) tuli versiossa 3. */
@@ -78,6 +78,12 @@ export const FORCE_START_PROTOCOL = 15;
  * huoneeseen, jonka lajistossa on siika.
  */
 export const WHITEFISH_PROTOCOL = 16;
+/**
+ * Botit (#624): SettingsState.bots ja botLevel tulivat versiossa 17. Vanha
+ * palvelin ei tunne botteja, joten aula ei silloin tarjoa niitä. Vanhalle
+ * asiakkaalle botit näkyvät tavallisina pelaajina.
+ */
+export const BOT_PROTOCOL = 17;
 
 /** Oletuspelaajamäärä huoneessa. Rakenne sallii isomman. */
 export const DEFAULT_MAX_PLAYERS = 8;

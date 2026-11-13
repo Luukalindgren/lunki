@@ -1,4 +1,12 @@
-import { METHODS, isFly, type Difficulty, type Method, type Tackle } from '@lunki/shared';
+import { simpleControls } from './controlStyle';
+import {
+  METHODS,
+  isFly,
+  type Difficulty,
+  type FishingState,
+  type Method,
+  type Tackle,
+} from '@lunki/shared';
 import { t } from '../i18n';
 import { baitName, methodName } from '../i18n/names';
 import type { Hud } from '../ui/hud';
@@ -27,6 +35,8 @@ export interface LurePickerHost {
   /** Maissa (#457) viehepakki ja kalastustapa eivät aukea: maalta ei kalasteta. */
   readonly ashore: boolean;
   readonly tackle: Tackle;
+  /** Kalastuksen tila: varusteet vaihtuvat vain vieheen ollessa kelalla. */
+  readonly fishing: FishingState;
   setTackle(tk: Tackle): void;
 }
 
@@ -38,6 +48,9 @@ export interface LurePickerHost {
  * Kisassa pakkia ei muokata; se laitetaan kuntoon päävalikon Varusteissa (#383).
  * Kalastustapa vaihdetaan omasta pikavalikosta (M tai VAPA): virveli tai perho.
  */
+/** Yksinkertaisen ohjauksen ainoa viehe (#653). */
+const SIMPLE_LURE = 'spinner';
+
 export class LurePicker {
   box: TackleBox = loadTackleBox();
   private menu: RingMenu | null = null;
@@ -68,7 +81,21 @@ export class LurePicker {
       this.close();
       return;
     }
-    if (c.wasPressed('method')) {
+    // Yksinkertaisella ohjauksella (#638) kalastetaan vain virvelillä, myös
+    // kun ohjaustapa vaihdetaan Asetuksista kesken kisan.
+    const simple = simpleControls();
+    // Vieheenä on aina lippa (#653): yleispätevin viehe, eikä valittavaa ole.
+    const tk = this.host.tackle;
+    if (simple && (isFly(tk) || tk.lure !== SIMPLE_LURE) && this.host.fishing.stage === 'idle')
+      this.host.setTackle({ ...tk, method: 'spin', lure: SIMPLE_LURE });
+    if (simple && c.wasPressed('lure')) {
+      this.close();
+      this.host.hud.showMessage(t('game.lureSimple'), 2.5, 'info');
+      return;
+    }
+    if (c.wasPressed('method') && simple) {
+      this.host.hud.showMessage(t('game.methodSimple'), 2.5, 'info');
+    } else if (c.wasPressed('method')) {
       if (this.methodMenu?.open) this.methodMenu.close();
       else {
         this.openMethodMenu();

@@ -1,3 +1,4 @@
+import { simpleControls } from './controlStyle';
 import {
   DIFFICULTIES,
   REEL,
@@ -20,18 +21,19 @@ import {
   type LakeBottom,
   type TubeState,
   type WaterBody,
+  type PlayerResult,
 } from '@lunki/shared';
 import type { Sounds } from '../audio/sounds';
 import type { NetWorld } from '../net/netWorld';
 import type { Hud, SituationBar } from '../ui/hud';
-import { decimal, formatWeight, t } from '../i18n';
+import { decimal, formatWeight, t, type MsgKey } from '../i18n';
 import { describeTackle, speciesName } from '../i18n/names';
-import { controlText } from './controls';
+import { controlText, type Action } from './controls';
 import type { Guide } from './guide';
 import type { Penalties } from './penalties';
 import type { Shot } from './director';
 import { raceEndCue } from './raceEnd';
-import { scoreboardLines } from './raceScoreboard';
+import { CatchFlashes, scoreboardRows, type ScoreRow } from './raceScoreboard';
 
 /** Katsojan tulostaulussa rivejä: LAN-kisan kaikki kalastajat (#564). */
 const SPECTATOR_ROWS = 12;
@@ -54,6 +56,8 @@ export interface HudHost {
   readonly viewMode: 'top' | 'pov';
   readonly inBoat: boolean;
   readonly rower: boolean;
+  /** Soutaja on airoissa (muuten vapa kädessä, #639). */
+  readonly rowing: boolean;
   readonly crewSeats: boolean;
   /** Lennetään trombin mukana. */
   readonly flying: boolean;
@@ -82,12 +86,54 @@ export interface HudStep {
  * tärkeysjärjestyksessä, jotta sama tieto ei toistu ilmoituksena, ohjeessa ja
  * tilarivillä (docs/kehitys.md).
  */
+/** Perho näin kauan vedessä ilman tärppiä (s): tilanneohje nostosta (#638). */
+const FLY_WATER_HINT = 12;
+
 export class HudPresenter {
   private raceHudTimer = 0;
+  private readonly catchFlashes = new CatchFlashes();
   /** Edellisen askeleen jäljellä oleva aika kisan lopun merkkeihin (#566). */
   private prevLeft: number | null = null;
   /** Loppulaskennan numero lähtölaskennan paikalle, tai null. */
   private endCount: string | null = null;
+
+  /** Kuinka kauan perho on ollut vedessä ilman tärppiä (s). */
+  private flyIdle = 0;
+
+  /**
+   * Perho vedessä eikä mitään tapahdu (#638): ohje kertoo, miten siimaa
+   * vedetään ja miten se nostetaan uuteen heittoon. LAN-illassa pelaaja jäi
+   * tähän tilaan minuuteiksi.
+   */
+  private flyWaterHint(dt: number): string | null {
+    const f = this.host.fishing;
+    const waiting =
+      isFly(f.tackle) && f.stage === 'water' && f.struckId === null && f.hookedId === null;
+    this.flyIdle = waiting ? this.flyIdle + dt : 0;
+    return this.flyIdle >= FLY_WATER_HINT ? controlText('game.flyWaterHint') : null;
+  }
+
+  /**
+   * Opastuksen rivi. Yksinkertaisella ohjauksella (#653) kelaus tartuttaa
+   * myös ison kalan, jarrua ja vieheen vaihtoa ei ole, ja kosketuksella
+   * luotainten napit ovat piilossa: niistä kertovat kohdat jäävät pois.
+   */
+  private guideText(guide: MsgKey | null, touch: boolean): string | null {
+    if (!guide) return null;
+    if (!simpleControls()) return controlText(guide);
+    // Viehettä ei yksinkertaisella vaihdeta: vinkistä jäisi pelkkä loppuosa (#664).
+    if (guide === 'guide.tipLure') return null;
+    const key =
+      guide === 'guide.strikeBig'
+        ? 'guide.strike'
+        : guide === 'guide.move'
+          ? 'guide.moveSimple'
+          : guide;
+    const skip: Action[] = touch
+      ? ['dragLess', 'lure', 'sonar', 'lureSonar']
+      : ['dragLess', 'lure'];
+    return controlText(key, {}, { skip }) || null;
+  }
 
   constructor(private readonly host: HudHost) {}
 
@@ -96,6 +142,7 @@ export class HudPresenter {
     const host = this.host;
     const { hud, fishing: f, tube } = host;
     const touch = hud.touchMode;
+    const simple = simpleControls();
     hud.setStamina(tube.stamina, STAMINA.tired);
     if (tube.stamina <= 0 && host.prevTube.stamina > 0)
       hud.showMessage(t('game.tired'), 2.5, 'info');
@@ -110,17 +157,24 @@ export class HudPresenter {
       );
     } else hud.setPower(f.stage === 'charging' ? chargePower(f.charge) : null);
     const hold = holdForce(f, { lineHand: s.lineHand });
+    hud.setSimple(simple);
     hud.setTension(f.tension, Math.min(hold, f.drag), breakingStrength(f.tackle));
     // Rangaistukset ajastimineen isona ilmoitusalueelle, ei tilapaneelin sekaan.
     host.penalties.show(hud, host.flying);
     const ashore =
       host.tube.bailer || host.tube.shore?.inflate ? 'race' : host.tube.shore ? 'walk' : undefined;
     hud.setAshore(isAshore(tube));
+    const rowing = host.rower && !ashore ? host.rowing : null;
+    hud.setSeatBadge(
+      rowing === null ? null : controlText(rowing ? 'game.badgeOars' : 'game.badgeRod'),
+      rowing === false,
+    );
     hud.setHelpContext({
       fly: isFly(f.tackle),
       pov: host.viewMode === 'pov',
-      seat: !host.inBoat ? 'tube' : host.rower ? 'rower' : 'passenger',
+      seat: !host.inBoat ? 'tube' : !host.rower ? 'passenger' : host.rowing ? 'rower' : 'rowerRod',
       crew: host.crewSeats,
+      simple,
       ashore,
     });
     const tangle = s.tangle;
@@ -153,24 +207,28 @@ export class HudPresenter {
                   )}`
             : host.thunderNow && (s.lureOut || f.hookedId !== null)
               ? t('help.thunder')
-              : (host.craftHint ?? (guide && controlText(guide)));
+              : (host.craftHint ?? this.flyWaterHint(dt) ?? this.guideText(guide, touch));
     hud.setSituation(
       situation,
       situation !== null && situation === host.craftHint ? host.craftHintBars : null,
     );
     const lureOut = s.lureOut;
-    hud.setStatus([
-      describeTackle(f.tackle),
-      t('game.line', { m: decimal(f.lineLength, 1) }),
-      isFly(f.tackle) && !f.onReel
-        ? t('game.flyHand', { m: decimal(f.slack, 1) })
-        : t('game.drag', {
-            kg: decimal(f.drag, 2),
-            gear: f.gear === REEL.fastGear ? t('game.fastGear') : f.gear + 1,
-          }),
-      t('game.lureDepth', { m: decimal(f.stage === 'water' && !f.onLand ? f.depth : 0, 1) }),
-      t('game.bottom', { m: decimal(host.bottom.depthAt(lureOut ? f.lure : tube.pos), 1) }),
-    ]);
+    // Yksinkertaisella ohjauksella (#653) tilapaneelia ei ole: viehe on aina
+    // lippa, siimaa ja jarrua ei tarvitse seurata, ja pohjan syvyys näkyy luotaimessa.
+    if (simple) hud.setStatus([]);
+    else
+      hud.setStatus([
+        describeTackle(f.tackle),
+        t('game.line', { m: decimal(f.lineLength, 1) }),
+        isFly(f.tackle) && !f.onReel
+          ? t('game.flyHand', { m: decimal(f.slack, 1) })
+          : t('game.drag', {
+              kg: decimal(f.drag, 2),
+              gear: f.gear === REEL.fastGear ? t('game.fastGear') : f.gear + 1,
+            }),
+        t('game.lureDepth', { m: decimal(f.stage === 'water' && !f.onLand ? f.depth : 0, 1) }),
+        t('game.bottom', { m: decimal(host.bottom.depthAt(lureOut ? f.lure : tube.pos), 1) }),
+      ]);
     hud.sonar.update(dt, () =>
       sonarPing(tube.pos, host.fish.fish, host.bottom.depthAt(tube.pos), {
         floor: host.bottom.bottomTypeAt(tube.pos),
@@ -210,6 +268,7 @@ export class HudPresenter {
     const name = followed ? this.host.netWorld!.playerName(followed) : null;
     hud.setPower(null);
     hud.setAshore(false);
+    hud.setSeatBadge(null);
     hud.setHelpContext({ fly: false, pov: this.host.viewMode === 'pov', seat: 'tube' });
     hud.setSituation(null);
     if (shot) {
@@ -276,11 +335,42 @@ export class HudPresenter {
           : this.endCount,
     );
     if ((this.raceHudTimer = (this.raceHudTimer + 1) % 15) !== 1) return;
-    const lines =
+    const standings = w.standings();
+    this.setScoreboard(
+      standings,
       followed === undefined
-        ? scoreboardLines(w.standings(), w.myId)
-        : scoreboardLines(w.standings(), followed ?? '', SPECTATOR_ROWS);
-    this.host.hud.setCatches([t('game.scoreboard'), ...lines]);
+        ? scoreboardRows(standings, w.myId)
+        : scoreboardRows(standings, followed ?? '', SPECTATOR_ROWS),
+      w.myId,
+    );
+  }
+
+  /** Tulostaulu HUDiin; juuri kalan saaneen rivi korostuu ja näyttää saaliin (#635). */
+  private setScoreboard(
+    standings: readonly PlayerResult[],
+    rows: readonly ScoreRow[],
+    myId: string,
+  ): void {
+    const fresh = this.catchFlashes.update(standings, myId, this.host.competition.elapsed);
+    const notes = new Map<number, string>();
+    rows.forEach((row, i) => {
+      const fish = row.id === null ? undefined : fresh.get(row.id);
+      if (fish)
+        notes.set(
+          i + 1,
+          t('game.scoreCatch', {
+            weight: formatWeight(fish.weight),
+            species: speciesName(fish.species).toLowerCase(),
+          }),
+        );
+    });
+    this.host.hud.setCatches([t('game.scoreboard'), ...rows.map((r) => r.text)], notes);
+  }
+
+  /** Yksinpelin tulostaulu, kun järvellä on botteja (#624). */
+  showScoreboard(standings: readonly PlayerResult[], myId: string): void {
+    if ((this.raceHudTimer = (this.raceHudTimer + 1) % 15) !== 1) return;
+    this.setScoreboard(standings, scoreboardRows(standings, myId), myId);
   }
 
   /** Yksinpelin saalislista: määrä ja paino sekä viisi viimeisintä. */

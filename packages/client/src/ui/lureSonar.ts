@@ -10,6 +10,15 @@ import {
 } from '@lunki/shared';
 import { lureColor } from '../game/lureColor';
 import { decimal, t } from '../i18n';
+import {
+  SONAR_COLORS,
+  drawBed,
+  drawCover,
+  drawFishShape,
+  drawWater,
+  panelContext,
+  type BedColumn,
+} from './sonarArt';
 
 /** Näytön koko sisäisinä pikseleinä (yksi pikseli = HUD:n --u). */
 const WIDTH = 96;
@@ -23,25 +32,7 @@ const TRAIL_MAX = 300;
 /** Lähempänä pohjaa (m) viehe voi tarttua rakenteisiin. */
 const NEAR_BOTTOM = 0.35;
 
-const COLORS = {
-  water: '#12324a',
-  surface: '#83c2db',
-  grid: '#1d4a66',
-  bottom: '#6b4a2b',
-  bottomLine: '#e0b060',
-  /** Kova kivikkopohja kaikuu kirkkaampana, pehmeä lieju himmeämpänä. */
-  rockLine: '#fff0c0',
-  mudLine: '#9a7444',
-  land: '#3f6b2a',
-  rocks: '#8e99a4',
-  tree: '#a0703c',
-  reeds: '#5fae3c',
-  weed: '#3f8f3a',
-  brush: '#7a5230',
-  trail: '#4f6f86',
-  glint: '#eef2f3',
-  bite: '#d23a2a',
-};
+const COLORS = SONAR_COLORS;
 
 export interface LureSonarFish {
   pos: Vec2;
@@ -77,7 +68,7 @@ export interface LureSonarFrame {
 /** Yksi sarake pohjan profiilia: syvyys (m) ja rakenne, null = maata. */
 export interface ProfileColumn {
   bottom: number | null;
-  structure: Structure['kind'] | null;
+  structure: Exclude<Structure['kind'], 'dropoff'> | null;
   /** Rakenteen korkeus pohjasta (m): kivi, kasvusto, risukko. */
   height: number;
   /** Pohjan laatu, jos tiedossa. */
@@ -125,7 +116,6 @@ export function lureProfile(
 export class LureSonarDisplay {
   readonly root: HTMLDivElement;
   private readonly canvas: HTMLCanvasElement;
-  private readonly ctx: CanvasRenderingContext2D | null;
   private readonly label: HTMLDivElement;
   /** Pelaaja on piilottanut näkymän (L / SYV). */
   private off = false;
@@ -144,9 +134,6 @@ export class LureSonarDisplay {
     this.root.className = 'hud-lure-sonar hud-panel';
     this.root.hidden = true;
     this.canvas = document.createElement('canvas');
-    this.canvas.width = WIDTH;
-    this.canvas.height = HEIGHT;
-    this.ctx = this.canvas.getContext('2d');
     this.label = document.createElement('div');
     this.label.className = 'hud-sonar-label';
     this.root.append(this.canvas, this.label);
@@ -216,8 +203,13 @@ export class LureSonarDisplay {
   }
 
   private draw(frame: LureSonarFrame): void {
-    const g = this.ctx;
-    if (!g) return;
+    const panel = panelContext(this.canvas, WIDTH, HEIGHT);
+    if (!panel) return;
+    const { g } = panel;
+    if (panel.sharp) {
+      this.drawSharp(g, frame);
+      return;
+    }
     const x = (dist: number) => Math.round((dist / this.span) * (WIDTH - 1));
     const y = (depth: number) =>
       SURFACE_ROW + 1 + Math.round((depth / this.range) * (HEIGHT - SURFACE_ROW - 2));
@@ -307,6 +299,93 @@ export class LureSonarDisplay {
     g.fillRect(lx, ly, 2, 2);
     g.fillStyle = COLORS.glint;
     g.fillRect(lx, ly, 1, 1);
+  }
+
+  /**
+   * Terävä kuva: sama poikkileikkaus tarkempana. Pohja on kaari, rakenteet
+   * piirretään muotoina, vieheen jälki on viiva ja kalat näkyvät sivulta.
+   */
+  private drawSharp(g: CanvasRenderingContext2D, frame: LureSonarFrame): void {
+    const x = (dist: number) => (dist / this.span) * (WIDTH - 1) + 0.5;
+    const y = (depth: number) =>
+      SURFACE_ROW + 1 + (depth / this.range) * (HEIGHT - SURFACE_ROW - 2);
+    drawWater(
+      g,
+      WIDTH,
+      HEIGHT,
+      Array.from({ length: Math.max(0, Math.ceil(this.range) - 1) }, (_, i) => y(i + 1)),
+    );
+    // Pohja vesijaksoittain; maa nousee pinnan yläpuolelle asti.
+    let run: BedColumn[] = [];
+    const flush = () => {
+      drawBed(g, run, HEIGHT);
+      drawCover(g, run);
+      run = [];
+    };
+    this.profile.forEach((c, i) => {
+      if (c.bottom === null) {
+        flush();
+        g.fillStyle = COLORS.land;
+        g.fillRect(i, SURFACE_ROW, 1.02, HEIGHT - SURFACE_ROW);
+        g.fillStyle = COLORS.landDark;
+        g.fillRect(i, SURFACE_ROW + 3, 1.02, HEIGHT - SURFACE_ROW - 3);
+        return;
+      }
+      const by = y(c.bottom);
+      // Kaislat kasvavat pohjasta pintaan asti, muut korkeutensa verran.
+      const top =
+        c.structure === 'reeds' ? SURFACE_ROW + 1 : Math.min(by - 1, y(c.bottom - c.height));
+      run.push({
+        x: i + 0.5,
+        y: by,
+        floor: c.floor,
+        cover: c.structure ? { kind: c.structure, top } : null,
+        key: i,
+      });
+    });
+    flush();
+    g.fillStyle = COLORS.surface;
+    g.fillRect(0, SURFACE_ROW, WIDTH, 0.6);
+
+    // Vieheen jälki: uppoaminen ja nousu yhtenä kaarena.
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
+    g.strokeStyle = COLORS.trail;
+    g.lineWidth = 0.5;
+    g.beginPath();
+    this.trail.forEach((t, i) => {
+      const tx = x(alongLine(frame.tip, this.dir, t.pos));
+      if (i === 0) g.moveTo(tx, y(t.depth));
+      else g.lineTo(tx, y(t.depth));
+    });
+    g.stroke();
+
+    const lx = Math.min(WIDTH - 2, x(distance(frame.tip, frame.lure)));
+    const ly = Math.min(HEIGHT - 2, y(frame.depth));
+    for (const f of frame.fish) {
+      const fx = x(alongLine(frame.tip, this.dir, f.pos));
+      if (fx < 0 || fx >= WIDTH) continue;
+      drawFishShape(g, fx, y(f.depth), sizeClass(f.species, f.weight), fx <= lx ? 1 : -1);
+    }
+
+    const flash = Math.floor(this.blink / 0.15) % 2 === 0;
+    if (frame.bite && flash) {
+      // Tärppi: punainen rengas vieheen ympärillä.
+      g.strokeStyle = COLORS.bite;
+      g.lineWidth = 0.7;
+      g.beginPath();
+      g.arc(lx, ly, 3, 0, Math.PI * 2);
+      g.stroke();
+    }
+    // Viehe: pieni pisara, kärki kalastajaa kohti, ja kiilto.
+    g.fillStyle = frame.snag ? COLORS.bite : hex(lureColor(frame.depth));
+    g.beginPath();
+    g.ellipse(lx, ly, 1.5, 0.8, 0, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = COLORS.glint;
+    g.beginPath();
+    g.ellipse(lx - 0.4, ly - 0.25, 0.5, 0.22, 0, 0, Math.PI * 2);
+    g.fill();
   }
 }
 

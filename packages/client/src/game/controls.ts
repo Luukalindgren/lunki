@@ -38,7 +38,10 @@ const DPAD = { up: 'Pad12', down: 'Pad13', left: 'Pad14', right: 'Pad15' } as co
 /** A/✕ ja oikea liipaisin: heitto, kelaus ja nosto kuten välilyönti. */
 const PAD_MAIN = ['Pad0', 'Pad7'];
 
-/** Vasen liipaisin pohjassa ristiohjain zoomaa (muuten se säätää jarrua). */
+/**
+ * Vasen liipaisin pohjassa ristiohjain zoomaa (muuten se säätää jarrua) ja
+ * oikean tatin painallus piilottaa ohjeen (muuten se vaihtaa luotainta).
+ */
 const PAD_ZOOM = 'Pad6';
 
 export const CONTROLS = {
@@ -169,7 +172,7 @@ export const CONTROLS = {
     title: 'touch.stripTitle',
     pad: PAD_MAIN,
   },
-  lift: { keys: ['Mouse2'], touch: 'touch.lift', title: 'touch.liftTitle', pad: ['Pad2'] },
+  lift: { keys: ['Mouse2', 'KeyJ'], touch: 'touch.lift', title: 'touch.liftTitle', pad: ['Pad2'] },
   reelSlack: {
     keys: ['KeyF'],
     touch: 'touch.reelSlack',
@@ -196,7 +199,14 @@ export const CONTROLS = {
   },
   zoomIn: { keys: [], pad: [DPAD.up], padWith: PAD_ZOOM },
   zoomOut: { keys: [], pad: [DPAD.down], padWith: PAD_ZOOM },
-  help: { keys: ['KeyH'], touch: '?', title: 'touch.helpTitle' },
+  /** Ohje piiloon tai esiin; peliohjaimella vasen liipaisin pohjassa ja oikean tatin painallus. */
+  help: {
+    keys: ['KeyH'],
+    touch: '?',
+    title: 'touch.helpTitle',
+    pad: ['Pad11'],
+    padWith: PAD_ZOOM,
+  },
   pause: { keys: ['Escape'], touch: 'II', title: 'touch.pauseTitle', pad: ['Pad9'] },
   /** Taukovalikossa Backspace tai B/○ jatkaa peliä (muissa valikoissa se palaa takaisin). */
   resume: { keys: ['Backspace'], pad: ['Pad1'] },
@@ -230,6 +240,26 @@ const CODES = {} as Record<Action, readonly string[]>;
 for (const a of Object.keys(CONTROLS) as Action[]) {
   const b: Binding = CONTROLS[a];
   CODES[a] = [...b.keys, ...(b.pad ?? [])];
+}
+
+/** Toiminnon peliohjaimen napit; perhoheiton tatti voi olla käänteinen (#594). */
+function padCodes(a: Action): readonly string[] {
+  const b: Binding = CONTROLS[a];
+  if (flyInverted && a === 'backCast') return CONTROLS.forwardCast.pad;
+  if (flyInverted && a === 'forwardCast') return CONTROLS.backCast.pad;
+  return b.pad ?? [];
+}
+
+let flyInverted = false;
+
+/**
+ * Perhoheiton tatti käänteisenä (asetus, #594): takaheitto ylös ja
+ * eteenheitto alas. Vaihtaa toimintojen napit ja ohjetekstit kerralla.
+ */
+export function setFlyStickInverted(on: boolean): void {
+  flyInverted = on;
+  for (const a of ['backCast', 'forwardCast'] as const)
+    CODES[a] = [...CONTROLS[a].keys, ...padCodes(a)];
 }
 
 /** Yhdistelmien napit: koodi → napit, joiden kanssa se on jonkin toiminnon yhdistelmä. */
@@ -410,6 +440,16 @@ export function controlMode(): ControlMode {
   return mode;
 }
 
+/** Viimeksi käytetyn peliohjaimen merkintätapa (ohjainkuva Ohjeissa). */
+export function currentPadKind(): PadKind {
+  return padKind;
+}
+
+/** Peliohjaimen napin nimi ohjainkuvaan: Pad0 → A tai ✕. */
+export function padButtonName(code: string, kind: PadKind = padKind): string {
+  return padName(code, kind);
+}
+
 /** Toiminnon ohjaus pelaajan ohjaustavalla, tai null, jos sitä ei ole. */
 export function bindingText(a: Action, m: ControlMode = mode): string | null {
   const b: Binding = CONTROLS[a];
@@ -419,7 +459,7 @@ export function bindingText(a: Action, m: ControlMode = mode): string | null {
   }
   if (m === 'pad') {
     if (b.padLabel) return t(b.padLabel);
-    const names = [...new Set((b.pad ?? []).map((c) => keyName(c)))];
+    const names = [...new Set(padCodes(a).map((c) => keyName(c)))];
     if (!names.length) return null;
     return (b.padWith ? `${keyName(b.padWith)}+` : '') + names.join('/');
   }

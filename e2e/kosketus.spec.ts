@@ -3,6 +3,7 @@ import {
   audioStates,
   canvasColors,
   compassOffset,
+  raceRunning,
   soloUrl,
   timer,
   trackAudio,
@@ -195,6 +196,75 @@ test.describe('puhelin', () => {
     await expect(page.locator('.touch-grid > button:visible')).toHaveCount(9);
     errors.check();
   });
+});
+
+test('yksinkertaisella ohjauksella puhelimella vain tatti, iso nappi, tauko ja KAM (#653)', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, 'vain puhelinemuloinnit');
+  const errors = watchErrors(page);
+  await page.addInitScript(() => localStorage.setItem('lunki.controlStyle', 'simple'));
+  await page.goto(soloUrl('pov'));
+  await page.getByRole('button', { name: 'Pelaa' }).tap();
+  await page.getByRole('button', { name: 'Yksinpeli' }).tap();
+  await page
+    .locator('.choice', { has: page.locator('.choice-label', { hasText: 'Botit' }) })
+    .getByRole('button', { name: '3', exact: true })
+    .tap();
+  await page.getByRole('button', { name: 'Aloita kisa' }).tap();
+  await raceRunning(page);
+  await expect(page.locator('.touch-stick')).toBeVisible();
+  await expect(page.locator('.touch-reel')).toHaveText('HEITÄ');
+  // KAM on tauon alla samassa pinossa, eikä ruudukossa ole nappeja.
+  await expect(page.locator('.touch-grid > button:visible')).toHaveCount(0);
+  await expect(page.locator('.touch-tools > button:visible')).toHaveText(['II', 'KAM']);
+  for (const hidden of ['.touch-anchor', '.touch-method', '.touch-help', '.touch-zoom'])
+    await expect(page.locator(hidden).first()).toBeHidden();
+  // Tilapaneelia ei ole: viehe on aina lippa.
+  await expect(page.locator('.hud-status')).toBeHidden();
+  // Kireysmittaria ei ole: jarrua ei säädetä.
+  await expect(page.locator('.hud-tension')).toBeHidden();
+  // Luotain on oikeassa yläkulmassa kellon tasalla, eikä sää ulotu sen päälle (#671).
+  const box = async (selector: string) => (await page.locator(selector).boundingBox())!;
+  await expect
+    .poll(async () => Math.abs((await box('.hud-sonar')).y - (await box('.hud-timer')).y))
+    .toBeLessThan(2);
+  const sonar = await box('.hud-sonar');
+  for (const selector of ['.hud-weather', '.hud-compass']) {
+    const b = await box(selector);
+    expect(b.x + b.width).toBeLessThanOrEqual(sonar.x);
+  }
+  // Vieheluotaimen paikka on alareunassa tatin ja ison napin välissä, ei pinossa.
+  await expect(page.locator('.hud > .hud-lure-sonar')).toHaveCount(1);
+  // Tulostaulu ei ole HUDissa vaan taukovalikossa.
+  await expect(page.locator('.hud-catches')).toBeHidden();
+  await page.getByRole('button', { name: 'II' }).tap();
+  await expect(page.locator('.pause-scoreboard')).toContainText('Sinä');
+  await page.getByRole('button', { name: 'Jatka' }).tap();
+  // Ylhäältä katsottaessa zoom on käytössä.
+  await page.getByRole('button', { name: 'KAM' }).tap();
+  await expect(page.locator('.touch-tools > button:visible')).toHaveText(['II', 'KAM', '+', '−']);
+  errors.check();
+});
+
+test('?-nappi avaa ja sulkee ohjeen puhelimella', async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'vain puhelinemuloinnit');
+  const errors = watchErrors(page);
+  await page.goto(soloUrl('pov'));
+  await page.getByRole('button', { name: 'Pelaa' }).tap();
+  await page.getByRole('button', { name: 'Yksinpeli' }).tap();
+  await page.getByRole('button', { name: 'Aloita kisa' }).tap();
+  await raceRunning(page);
+  const help = page.locator('.hud-help');
+  await expect(help).toBeHidden();
+  await page.locator('.touch-help').tap();
+  await expect(help).toBeVisible();
+  // Kaikkien nappien ohje kosketusnappien nimillä, ei lyhyt aloitusohje.
+  await expect(help).toContainText('JAR−/JAR+ = jarru');
+  await page.locator('.touch-help').tap();
+  await expect(help).toBeHidden();
+  errors.check();
 });
 
 test('katsojalle puhelimella vain näkymän napit (#280)', async ({

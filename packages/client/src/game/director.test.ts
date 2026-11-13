@@ -77,6 +77,35 @@ describe('ohjaaja (#564)', () => {
     expect(run(d, 30, 21 + DIRECTOR.maxShot * 2, list).id).toBe('c');
   });
 
+  it('pitkä väsytys pääsee kuvaan, vaikka muualla tulee pikkukalojen tärppejä (#637)', () => {
+    const d = new Director();
+    run(d, 0, 9);
+    const list = anglers(...ORDER);
+    // b väsyttää isoa kalaa 12–57 s; a, c ja d saavat lyhyitä tärppejä vuorotellen.
+    const small = [
+      { id: 'a', at: 10 },
+      { id: 'c', at: 18 },
+      { id: 'd', at: 27 },
+      { id: 'a', at: 37 },
+      { id: 'c', at: 45 },
+    ];
+    let seenAt = -1;
+    for (let t = 10; t <= 57; t++) {
+      for (const a of list) {
+        const bite = small.find((s) => s.id === a.id && t >= s.at && t < s.at + 4);
+        a.hooked = a.id === 'b' ? t >= 12 : !!bite;
+      }
+      for (const s of small) if (s.at === t) d.event('fishOn', [s.id], t);
+      if (t === 12) d.event('fishOn', ['b'], t);
+      const shot = d.step(t, list, ORDER, LONG - t);
+      if (shot.id === 'b' && seenAt < 0) seenAt = t;
+      // Kun kuva on tullut, se pysyy nostoon asti.
+      if (seenAt >= 0) expect(shot.id).toBe('b');
+    }
+    expect(seenAt).toBeGreaterThan(0);
+    expect(seenAt).toBeLessThanOrEqual(12 + 15);
+  });
+
   it('väsytyksen päätyttyä alaotsikko kertoo saaliin eikä enää väsytystä', () => {
     const d = new Director();
     run(d, 0, 20);

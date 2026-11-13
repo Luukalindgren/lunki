@@ -21,7 +21,8 @@ export function lobbyChanges(
   v: LobbyView,
 ): { joined: LobbyPlayer[]; ready: LobbyPlayer[] } {
   if (!seen) return { joined: [], ready: [] };
-  const others = v.players.filter((p) => !p.me);
+  // Botit (#624) tulevat ja menevät paikkojen mukana: niistä ei ilmoiteta.
+  const others = v.players.filter((p) => !p.me && !p.bot);
   return {
     joined: others.filter((p) => !seen.has(p.sessionId)),
     ready: others.filter(

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { topWeight, watchErrors } from './apu';
+import { soloUrl, topWeight, watchErrors } from './apu';
 
 /**
  * Pelipalvelin (Luukan pelikone) on usein kiinni. Silloin kaiken muun kuin
@@ -175,7 +175,7 @@ test('yksinpelin saalis odottaa laitteella ja pääsee listalle saantipäiväll�
       // Ahvenen enimmäispaino on 1,6 kg: aloitetaan kauempaa, jotta toistoille jää tilaa.
       weight: await topWeight(request, 'perch', 0.5),
       angler,
-      difficulty: 'normal',
+      difficulty: 'easy',
       at: day.toISOString(),
     },
   ];
@@ -204,4 +204,49 @@ test('yksinpelin saalis odottaa laitteella ja pääsee listalle saantipäiväll�
   const date = `${day.getUTCDate()}.${day.getUTCMonth() + 1}.${day.getUTCFullYear()}`;
   await expect(page.locator('li.record-row', { hasText: angler }).first()).toContainText(date);
   errors.check();
+});
+
+test.describe('moderni ilme ei lataudu (#650)', () => {
+  const look = (page: Page) =>
+    page.locator('.choice', { has: page.locator('.choice-label', { hasText: /^Ilme$/ }) });
+
+  test('valinta palaa entiseen ilmeeseen ja Asetukset kertoo syyn', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'Modernia ei tarjota kosketuslaitteella');
+    const errors = watchAppErrors(page);
+    await page.route(/\/modern\//, (route) => route.abort('connectionrefused'));
+    await page.goto('/?view=top');
+    await page.getByRole('button', { name: 'Asetukset' }).click();
+    await look(page)
+      .getByRole('button', { name: /^Moderni/ })
+      .click();
+    await expect(page.getByText(/Moderni ilme ei latautunut/)).toBeVisible({ timeout: 10_000 });
+    await expect(look(page).getByRole('button', { name: 'Retro' })).toHaveClass(/selected/);
+    await expect(page.locator('html')).not.toHaveClass(/look-modern/);
+    expect(await page.evaluate(() => localStorage.getItem('lunki.look'))).not.toBe('modern');
+    errors.check();
+  });
+
+  test('tallennettu Moderni ei estä peliä: valikko aukeaa ja kisa alkaa Retrona', async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, 'Modernia ei tarjota kosketuslaitteella');
+    const errors = watchAppErrors(page);
+    // Roikkuva verkko: tiedostot eivät tule koskaan perille.
+    await page.route(/\/modern\//, () => undefined);
+    await page.addInitScript(() => localStorage.setItem('lunki.look', 'modern'));
+    // Kiinteä siemen: tyyni sää, jottei säävaroitus vie ilmoituksen paikkaa.
+    // Sivun load-tapahtuma odottaisi roikkuvia tiedostoja; peli ei odota.
+    await page.goto(soloUrl(), { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'Pelaa' }).click();
+    await page.getByRole('button', { name: 'Yksinpeli' }).click();
+    await page.getByRole('button', { name: 'Aloita kisa' }).click();
+    await expect(page.locator('.hud-timer')).toHaveText(/\d+:\d\d/);
+    await expect(page.locator('html')).not.toHaveClass(/look-modern/);
+    // Aikarajan jälkeen peli kertoo, että ilme jäi Retroksi.
+    await expect(page.locator('.hud-message')).toHaveText(/Moderni ilme ei latautunut/, {
+      timeout: 25_000,
+    });
+    errors.check();
+  });
 });

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { DEFAULT_APPEARANCE, EMOTE_DURATION, type Appearance, type EmoteId } from '@lunki/shared';
+import { activeLook, smoothLook } from '../engine/look';
 import { emoteIcon } from '../ui/emoteIcons';
 import { playerColorMaterial, setPlayerColor } from './playerColor';
 
@@ -118,7 +119,7 @@ export interface SlackCoil {
 }
 
 /**
- * Löysän siiman kiekurat kasana verkkotason päällä: soikeat lenkit vähän eri
+ * Löysän siiman kiekurat kasana verkkotason päällä (ks. `slackPilePoint`): soikeat lenkit vähän eri
  * kohdissa vuorotellen keskilinjan kummallakin puolella, jokainen edellisen
  * päällä. Kiinteä "satunnainen" sijoittelu, jotta kasa ei elä kuvasta toiseen.
  */
@@ -129,7 +130,7 @@ export function slackCoilLayout(): SlackCoil[] {
     coils.push({
       x: 0.36 + ((c * 29) % 6) * 0.022,
       y: DIM.apronY + 0.01 + c * 0.004,
-      z: side * (0.03 + ((c * 17) % 5) * 0.028),
+      z: side * (0.02 + ((c * 17) % 5) * 0.014),
       rx: 0.05 + ((c * 37) % 5) * 0.007,
       rz: 0.08 + ((c * 53) % 7) * 0.007,
     });
@@ -137,20 +138,64 @@ export function slackCoilLayout(): SlackCoil[] {
   return coils;
 }
 
-/** Kiekuran reunan pisteet: lenkki on vähän kuhmurainen, ei täydellinen soikio. */
-export function coilPoint(k: SlackCoil, c: number, a: number): THREE.Vector3 {
+/**
+ * Kasan piste: siima kiertää kiekuralta seuraavalle yhtenä viivana. `t` on
+ * kierrosten määrä kasan pohjalta (0 … `SLACK_COILS`); kierroksen aikana
+ * keskipiste ja säteet liukuvat kiekuralta seuraavalle, ja lenkki on vähän
+ * kuhmurainen, ei täydellinen soikio.
+ */
+export function slackPilePoint(t: number, coils = slackCoilLayout()): THREE.Vector3 {
+  const last = coils.length - 1;
+  const c = Math.min(last, Math.floor(t));
+  const f = Math.min(1, t - c);
+  const k0 = coils[c]!;
+  const k1 = coils[Math.min(last, c + 1)]!;
+  const s = f * f * (3 - 2 * f);
+  const mix = (a: number, b: number) => a + (b - a) * s;
+  const a = t * Math.PI * 2;
   const r = 1 + 0.12 * Math.sin(a * 3 + c);
-  return new THREE.Vector3(k.x + Math.cos(a) * k.rx * r, k.y, k.z + Math.sin(a) * k.rz * r);
+  return new THREE.Vector3(
+    mix(k0.x, k1.x) + Math.cos(a) * mix(k0.rx, k1.rx) * r,
+    mix(k0.y, k1.y),
+    mix(k0.z, k1.z) + Math.sin(a) * mix(k0.rz, k1.rz) * r,
+  );
 }
 
-function slackCoils(material: THREE.LineBasicMaterial): THREE.LineSegments {
-  const points: THREE.Vector3[] = [];
-  slackCoilLayout().forEach((k, c) => {
-    const at = (i: number) => coilPoint(k, c, (i / COIL_POINTS) * Math.PI * 2 + c);
-    for (let i = 0; i < COIL_POINTS; i++) points.push(at(i), at(i + 1));
-  });
-  const line = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(points), material);
+/** Kelalta ja siimakädeltä kasaan riippuvan siiman pisteet. */
+const HANG_POINTS = 10;
+/** Löysää siimaa (m) yhtä kiekuraa kohden. */
+const SLACK_PER_COIL = 2.5;
+
+/**
+ * Riippuva siima ylhäältä (`from`) kasaan (`to`): putoaa ensin lähes suoraan
+ * alas ja kääntyy tasoa pitkin kasaan. Pisteet kirjoitetaan taulukkoon `out`.
+ */
+export function slackHang(from: THREE.Vector3, to: THREE.Vector3, out: THREE.Vector3[]): void {
+  const cx = from.x + (to.x - from.x) * 0.25;
+  const cz = from.z + (to.z - from.z) * 0.25;
+  const cy = Math.min(from.y, to.y + 0.01);
+  for (let i = 0; i < out.length; i++) {
+    const u = i / (out.length - 1);
+    const a = (1 - u) * (1 - u);
+    const b = 2 * u * (1 - u);
+    const c = u * u;
+    out[i]!.set(
+      a * from.x + b * cx + c * to.x,
+      a * from.y + b * cy + c * to.y,
+      a * from.z + b * cz + c * to.z,
+    );
+  }
+}
+
+/** Löysän siiman viiva: kelalta kasaan, kasan kiekurat ja kasasta siimakädelle. */
+function slackLine(material: THREE.LineBasicMaterial): THREE.Line {
+  const points = Array.from(
+    { length: HANG_POINTS * 2 + SLACK_COILS * COIL_POINTS + 1 },
+    () => new THREE.Vector3(),
+  );
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), material);
   line.geometry.setDrawRange(0, 0);
+  line.frustumCulled = false;
   return line;
 }
 
@@ -189,6 +234,7 @@ function netPanel(from: number, to: number): THREE.Group {
     new THREE.PlaneGeometry(len, DIM.apronHalf * 2),
     new THREE.MeshLambertMaterial({ map: netTexture(len) }),
   );
+  net.name = 'pov-net';
   net.rotation.x = -Math.PI / 2;
   net.position.set(from + len / 2, DIM.apronY, 0);
   const frame = new THREE.MeshLambertMaterial({ color: COLOR.apron });
@@ -250,17 +296,25 @@ export class PovTube {
   private readonly legs: Leg[] = [];
   private readonly hand = new THREE.Group();
   private readonly palmMaterial: THREE.MeshBasicMaterial;
-  private readonly icons = new Map<EmoteId, THREE.CanvasTexture>();
+  private readonly icons = new Map<string, THREE.CanvasTexture>();
   private readonly splashes: Splash[] = [];
   private finColor: number = DEFAULT_APPEARANCE.fins;
   private lastPhase = 0;
   private time = 0;
   private lastClarity = -1;
-  /** Perhon löysä siima kiekuroina verkkotasolla (#234). */
+  /**
+   * Perhon löysä siima (#234): yksi viiva kelalta verkkotasolle, tasolla
+   * kiekuroina ja kasasta ylös siimakädelle.
+   */
   private readonly slackMaterial = new THREE.LineBasicMaterial({ color: DEFAULT_APPEARANCE.line });
-  private readonly slackLine: THREE.LineSegments;
+  private readonly slackLine: THREE.Line;
+  private slackMeters = 0;
+  private readonly slackCoils = slackCoilLayout();
+  private readonly hang = Array.from({ length: HANG_POINTS }, () => new THREE.Vector3());
+  private readonly slackFrom = new THREE.Vector3();
 
   constructor(appearance: Appearance = DEFAULT_APPEARANCE) {
+    this.group.name = 'pov-tube';
     this.group.add(this.body);
     this.tubeMaterial = playerColorMaterial(appearance.tube);
     this.finDry = playerColorMaterial(appearance.fins);
@@ -272,6 +326,7 @@ export class PovTube {
         new THREE.CylinderGeometry(DIM.pontoonRadius, DIM.pontoonRadius, len, 10, 1, true),
         this.tubeMaterial,
       );
+      tube.name = 'pov-pontoon';
       tube.rotation.z = Math.PI / 2;
       tube.position.set(DIM.pontoonTip - len / 2, DIM.pontoonY, side * DIM.pontoonSide);
       const tip = new THREE.Mesh(
@@ -296,7 +351,7 @@ export class PovTube {
     this.apron.add(netPanel(DIM.apronFrom, DIM.apronTo));
     this.flap.add(netPanel(DIM.apronTo, DIM.flapTo));
     this.flap.visible = false;
-    this.slackLine = slackCoils(this.slackMaterial);
+    this.slackLine = slackLine(this.slackMaterial);
     this.slackLine.visible = false;
     // Kiekurat piirretään verkon jälkeen: muuten niiden syvyys estäisi verkon
     // piirron ja verkon alle jäävät räpylät näkyisivät viivojen kohdalla.
@@ -318,10 +373,13 @@ export class PovTube {
       shinDry.position.y = -dry / 2;
       const wet = DIM.shin - dry;
       const shinWet = new THREE.Mesh(new THREE.BoxGeometry(0.09, wet, 0.09), this.wetLeg);
+      shinWet.name = 'pov-wet';
       shinWet.position.y = -dry - wet / 2;
       const ankle = new THREE.Group();
       ankle.position.y = -DIM.shin;
       const fin = new THREE.Mesh(finGeometry(), this.wetFin);
+      fin.name = 'pov-wet';
+      fin.userData.shape = 'fin';
       fin.position.x = -0.05;
       ankle.add(fin);
       pivot.add(shinDry, shinWet, ankle);
@@ -374,17 +432,41 @@ export class PovTube {
   }
 
   /** `origin` = renkaan kohta maailmassa vedenpinnalla, `heading` = katsesuunta. */
-  /**
-   * Perhovarusteilla siimataso esiin ja sen päälle löysä siima (m) kiekuroina:
-   * yksi kiekura noin kahta ja puolta metriä kohden.
-   */
+  /** Perhovarusteilla siimataso esiin ja sen päälle löysä siima (m), ks. `hangSlack`. */
   setFlyLine(fly: boolean, meters: number, color: number): void {
     this.flap.visible = fly;
-    if (!fly) meters = 0;
-    const coils = Math.min(SLACK_COILS, Math.ceil(meters / 2.5));
-    this.slackLine.visible = meters > 0.2;
-    this.slackLine.geometry.setDrawRange(0, coils * COIL_POINTS * 2);
+    this.slackMeters = fly ? meters : 0;
+    this.slackLine.visible = this.slackMeters > 0.2;
     this.slackMaterial.color.setHex(color);
+  }
+
+  /**
+   * Piirtää löysän siiman: kelalta (`ends.reel`) alas verkkotasolle, tasolla
+   * kiekuroina (yksi noin kahta ja puolta metriä kohden) ja kasasta ylös
+   * siimakädelle (`ends.hand`). Pisteet ovat maailmassa; kutsutaan vavan
+   * päivityksen jälkeen. Ilman vapaa (`null`) piirretään vain kasa.
+   */
+  hangSlack(ends: { reel: THREE.Vector3; hand: THREE.Vector3 } | null): void {
+    if (!this.slackLine.visible) return;
+    const coils = Math.min(SLACK_COILS, Math.max(0.5, this.slackMeters / SLACK_PER_COIL));
+    const turns = Math.ceil(coils * COIL_POINTS);
+    const attr = this.slackLine.geometry.getAttribute('position') as THREE.BufferAttribute;
+    let n = 0;
+    const put = (p: THREE.Vector3) => attr.setXYZ(n++, p.x, p.y, p.z);
+    const first = slackPilePoint(0, this.slackCoils);
+    const last = slackPilePoint(coils, this.slackCoils);
+    if (ends) {
+      this.body.updateWorldMatrix(true, false);
+      slackHang(this.body.worldToLocal(this.slackFrom.copy(ends.reel)), first, this.hang);
+      this.hang.forEach(put);
+    } else put(first);
+    for (let i = 1; i < turns; i++) put(slackPilePoint((i / turns) * coils, this.slackCoils));
+    if (ends) {
+      slackHang(this.body.worldToLocal(this.slackFrom.copy(ends.hand)), last, this.hang);
+      for (let i = this.hang.length - 1; i >= 0; i--) put(this.hang[i]!);
+    } else put(last);
+    attr.needsUpdate = true;
+    this.slackLine.geometry.setDrawRange(0, n);
   }
 
   update(origin: THREE.Vector3, heading: number, input: PovTubeInput, dt: number): void {
@@ -486,13 +568,17 @@ export class PovTube {
     }
     this.hand.position.y += lift;
     this.hand.rotation.set(tilt, 0, 0);
-    let icon = this.icons.get(emote);
+    // Kuva ilmeen mukaan: Retrossa pikselit, Terävällä sileä versio.
+    const sharp = smoothLook(activeLook());
+    const key = `${emote}:${sharp}`;
+    let icon = this.icons.get(key);
     if (!icon) {
       icon = new THREE.CanvasTexture(emoteIcon(emote));
       icon.colorSpace = THREE.SRGBColorSpace;
-      icon.magFilter = THREE.NearestFilter;
-      icon.minFilter = THREE.NearestFilter;
-      this.icons.set(emote, icon);
+      icon.magFilter = sharp ? THREE.LinearFilter : THREE.NearestFilter;
+      icon.minFilter = sharp ? THREE.LinearFilter : THREE.NearestFilter;
+      icon.generateMipmaps = false;
+      this.icons.set(key, icon);
     }
     if (this.palmMaterial.map !== icon) {
       this.palmMaterial.map = icon;

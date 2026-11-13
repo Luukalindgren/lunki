@@ -1,7 +1,7 @@
 import { rankPlayers } from '@lunki/shared';
 import { describe, expect, it } from 'vitest';
 import { setLangForTest } from '../i18n';
-import { resultsText } from './resultsText';
+import { resultRowName, resultsText } from './resultsText';
 
 describe('tulokset tekstinä (#507)', () => {
   it('otsikko päivämäärineen, säännöt ja sijoitukset rivi riviltä', () => {
@@ -38,5 +38,39 @@ describe('tulokset tekstinä (#507)', () => {
       '2. Antti 410 g (1 kpl, suurin 410 g, 32 cm)',
       '– Cecilia (lähti) 0 g (0 kpl)',
     ]);
+  });
+});
+
+describe('tulosrivin nimi ja merkinnät (#631)', () => {
+  it('botti ja lähtenyt merkitään rivin loppuun, ei nimeen', () => {
+    setLangForTest('fi');
+    expect(resultRowName({ id: 'a', name: 'Antti' })).toEqual({ name: 'Antti', tags: [] });
+    expect(resultRowName({ id: 'bot:0', name: 'Ahven-Arska (botti)' })).toEqual({
+      name: 'Ahven-Arska',
+      tags: ['botti'],
+    });
+    expect(resultRowName({ id: 'c', name: 'Kalamies-Pekka (lähti)', left: true })).toEqual({
+      name: 'Kalamies-Pekka',
+      tags: ['lähti'],
+    });
+    // Paikkansa liittyjälle luovuttanut botti on yhä botti.
+    expect(resultRowName({ id: 'bot:2', name: 'Kuha-Kalle (botti) (lähti)', left: true })).toEqual({
+      name: 'Kuha-Kalle',
+      tags: ['botti', 'lähti'],
+    });
+  });
+
+  it('pelaajan oma sulkumerkintä nimessä säilyy', () => {
+    setLangForTest('fi');
+    expect(resultRowName({ id: 'a', name: 'Ville (lähti)' })).toEqual({
+      name: 'Ville (lähti)',
+      tags: [],
+    });
+    setLangForTest('en');
+    expect(resultRowName({ id: 'bot:1', name: 'Hauki-Heikki (bot) (left)', left: true })).toEqual({
+      name: 'Hauki-Heikki',
+      tags: ['bot', 'left'],
+    });
+    setLangForTest('fi');
   });
 });

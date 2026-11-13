@@ -27,14 +27,14 @@ const CHUNK = 300;
 /** Puiden vyöhyke rannasta maalle (m); sen takana on metsänreunan siluetti. */
 export const TREE_BAND = 48;
 /** Puuston tiheys maankäytön mukaan (todennäköisyys näytepistettä kohden). */
-const TREE_DENSITY: Partial<Record<AreaKind, number>> = {
+export const TREE_DENSITY: Partial<Record<AreaKind, number>> = {
   forest: 0.85,
   scrub: 0.5,
   wetland: 0.35,
   residential: 0.15,
 };
 /** Tuntematon maa on Suomessa useimmiten metsää. */
-const UNKNOWN_DENSITY = 0.6;
+export const UNKNOWN_DENSITY = 0.6;
 /** Rakennusten ympärille jätetty piha (m): ei puita eikä metsänreunaa. */
 export const YARD = 9;
 /** Kaislojen väli kaislikossa (m) ja osuus, joka jää aukoiksi: vesi näkyy tupsujen välistä. */

@@ -1,3 +1,4 @@
+import { simpleControls } from './controlStyle';
 import {
   DIFFICULTIES,
   FLY,
@@ -32,6 +33,7 @@ import {
   type WaterBody,
   type WeatherNow,
   type RaceStatsCounter,
+  type FishTag,
 } from '@lunki/shared';
 import type { Sounds } from '../audio/sounds';
 import type { Input } from '../engine/input';
@@ -48,6 +50,7 @@ import {
   speciesName,
 } from '../i18n/names';
 import { CastControl } from './castControl';
+import { padSettings } from '../engine/padSettings';
 import { controlMode, controlText, type Controls } from './controls';
 import { FlyCastControl, touchToRodPixels } from './flyCastControl';
 import type { FishingView } from './fishingView';
@@ -79,6 +82,8 @@ export interface FishingHost {
   readonly hud: Hud;
   readonly sounds: Sounds;
   readonly netWorld: NetWorld | undefined;
+  /** Oma saalis nousi: yksinpelin botit menettävät saman kalan (#624). */
+  fishTaken(tag: FishTag): void;
   readonly input: Input;
   readonly controls: Controls;
   readonly screenToInternal: (x: number, y: number) => { x: number; y: number };
@@ -134,6 +139,9 @@ export interface FishingStep {
  * kelaus ja siimakäsi, kalakannan askel, kalastuksen tapahtumat ilmoituksiksi
  * ja äänikartan ääniksi sekä saaliin kirjaus ja punnitus.
  */
+/** Yksinkertaisen ohjauksen kelausnopeus: vaihde 3 (#653). */
+const SIMPLE_GEAR = 2;
+
 export class FishingController {
   /** Vaihdettavat varusteet: otetaan käyttöön, kun viehe on kelalla. */
   pendingTackle: Tackle | null = null;
@@ -269,7 +277,12 @@ export class FishingController {
         // Siiman nosto vedestä uuteen heittoon (kosketuksella NOSTA). Tärpissä
         // sama nosto on vastaisku (#399), ks. readFlyHand.
         startFlyCast = true;
-        this.flyCastControl.start(touch ? 'touch' : controlMode() === 'pad' ? 'pad' : 'mouse');
+        // Näppäimistöltä ({lift} = J) nostettu siima heitetään rytmissä
+        // näppäimillä: kosketuslevyllä ei ole hiiren oikeaa (#638).
+        const keys = input.wasPressed('KeyJ');
+        this.flyCastControl.start(
+          touch ? 'touch' : controlMode() === 'pad' ? 'pad' : keys ? 'keyboard' : 'mouse',
+        );
       }
       if (startFlyCast && this.flyCastControl.mode === 'mouse') input.lockPointer();
     }
@@ -294,7 +307,12 @@ export class FishingController {
                     key: c.wasPressed('castForward'),
                     dx: input.mouseDX,
                     dy: input.mouseDY,
-                    stick: { ...input.padAim, aim: host.viewMode !== 'pov' },
+                    // Käänteinen tatti (#594): ylös on takaheitto.
+                    stick: {
+                      x: input.padAim.x,
+                      y: padSettings().flyInvert ? -input.padAim.y : input.padAim.y,
+                      aim: host.viewMode !== 'pov',
+                    },
                   },
               dt,
             )
@@ -317,6 +335,7 @@ export class FishingController {
     if (!flyHand) this.flyStrip.reset();
     // Sotkussa vapa on kiinni: kelaaminen selvittää sotkua palvelimella.
     const reeling = !flyHand && !frozen && !tangled && lureOut && reelHeld;
+    const simple = simpleControls();
     this.cranking = !flyHand && !frozen && lureOut && reelHeld;
     const world = {
       isWater: (p: Vec2) => host.water.isWater(p),
@@ -348,12 +367,21 @@ export class FishingController {
               reel: reeling,
               // Oikea nappi peruu vain latauksen: heitossa se on veto, vedessä nosto.
               cancel: c.isDown('cancel') || (f.stage === 'charging' && c.isDown('cancelCharge')),
-              dragDelta: (c.wasPressed('dragMore') ? 1 : 0) - (c.wasPressed('dragLess') ? 1 : 0),
-              ...this.readGear(),
+              // Yksinkertaisella ohjauksella (#638) kelalla on yksi nopeus (3, #653) eikä jarrua säädetä.
+              dragDelta: simple
+                ? 0
+                : (c.wasPressed('dragMore') ? 1 : 0) - (c.wasPressed('dragLess') ? 1 : 0),
+              ...(simple ? (f.gear === SIMPLE_GEAR ? {} : { gear: SIMPLE_GEAR }) : this.readGear()),
               ...(this.pendingTackle ? { tackle: this.pendingTackle } : {}),
               cut: c.wasPressed('cut'),
-              twitch: !isFly(f.tackle) && (c.wasPressed('twitch') || flick),
-              land: f.landing !== null && (c.wasPressed('land') || c.wasPressed('landNet')),
+              // Yksinkertaisella ohjauksella kelaus on myös ison kalan vastaisku (#653).
+              twitch:
+                !isFly(f.tackle) &&
+                (c.wasPressed('twitch') || flick || (simple && reeling && f.strikeBig)),
+              // Nosto on oma painalluksensa (#395); yksinkertaisella ohjauksella kelaus nostaa kalan.
+              land:
+                f.landing !== null &&
+                (c.wasPressed('land') || c.wasPressed('landNet') || (simple && reeling)),
               ...fly,
               reelSlack: c.isDown('reelSlack'),
               ...(startFlyCast ? { startFlyCast } : {}),
@@ -511,7 +539,7 @@ export class FishingController {
           ? t('game.missedFly')
           : events.missedTwitch
             ? controlText('game.missedTwitch')
-            : t('game.missed'),
+            : controlText('game.missed'),
         2.5,
       );
       sounds.play('missed');
@@ -597,10 +625,7 @@ export class FishingController {
       );
     } else if (events.lineBroken) {
       sounds.play('lineBroken');
-      hud.showMessage(
-        withLost(flyGear ? controlText('game.lineBrokenFly') : t('game.lineBroken')),
-        3,
-      );
+      hud.showMessage(withLost(controlText(flyGear ? 'game.lineBrokenFly' : 'game.lineBroken')), 3);
     }
     if (this.weighIn && (this.weighIn.left -= dt) <= 0) this.flushWeighIn();
     if (events.caught) {
@@ -636,6 +661,7 @@ export class FishingController {
     const { hud, sounds } = host;
     const net = host.netWorld;
     net?.sendCatch(caught);
+    if (caught.fish) host.fishTaken(caught.fish);
     const earlier = [...host.competition.catches];
     const record = recordCatch(host.competition, caught, host.tube.pos);
     const waited = record ? record.time - (earlier.at(-1)?.time ?? 0) : 0;

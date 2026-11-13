@@ -17,6 +17,7 @@ import {
 } from '../weather/season';
 import { WEATHER_LEVELS, WEATHER_LEVEL_IDS, type WeatherLevel } from '../weather/weather';
 import type { Vec2 } from '../vec2';
+import { isBotLevel, type BotLevel } from '../bots/botAngler';
 import { MAX_PLAYERS_LIMIT } from './protocol';
 
 /**
@@ -41,7 +42,30 @@ export interface RoomSettings extends CompetitionSettings {
   species: SpeciesId[];
   /** Pääseekö kisaan mukaan sen jo alettua (ks. LATE_JOIN_OPTIONS). */
   lateJoin: LateJoin;
+  /** Tyhjät kalastajapaikat (#624): tyhjinä vai botit täyttävät. */
+  bots: BotFill;
+  /** Bottien taito. */
+  botLevel: BotLevel;
 }
+
+/**
+ * Tyhjät paikat (#624): `fill` = botit täyttävät huoneen pelaajamäärään asti,
+ * ja liittyvä pelaaja saa botin paikan (myös kesken kisan, jos liittyminen on
+ * sallittu).
+ */
+export type BotFill = 'none' | 'fill';
+export const BOT_FILL_OPTIONS: { value: BotFill; label: string }[] = [
+  { value: 'none', label: 'Tyhjinä' },
+  { value: 'fill', label: 'Botit täyttävät' },
+];
+export const isBotFill = (v: unknown): v is BotFill => v === 'none' || v === 'fill';
+
+export const BOT_LEVEL_OPTIONS: { value: BotLevel; label: string }[] = [
+  { value: 'mixed', label: 'Sekalainen' },
+  { value: 'novice', label: 'Aloittelija' },
+  { value: 'regular', label: 'Tavallinen' },
+  { value: 'veteran', label: 'Konkari' },
+];
 
 /**
  * Liittyminen kesken kisan: `open` = uudetkin pelaajat, `return` = vain
@@ -60,7 +84,7 @@ export const isLateJoin = (v: unknown): v is LateJoin =>
   LATE_JOIN_OPTIONS.some((o) => o.value === v);
 
 /** Valinnat aulaan. `ready` = toteutettu, muut näytetään tulossa olevina. */
-export const PLAYER_COUNTS = [2, 4, 8, 12, 16] as const;
+export const PLAYER_COUNTS = [2, 4, 8, 12, 16, 24, 32] as const;
 
 export const WEATHER_OPTIONS: { value: WeatherLevel; label: string; ready: boolean }[] =
   WEATHER_LEVEL_IDS.map((id) => ({ value: id, label: WEATHER_LEVELS[id].label, ready: true }));
@@ -134,6 +158,8 @@ export function validateSettingsPatch(
     out.landPenalty = p.landPenalty as number;
   if (isLateJoin(p.lateJoin)) out.lateJoin = p.lateJoin;
   if (typeof p.inflate === 'boolean') out.inflate = p.inflate;
+  if (isBotFill(p.bots)) out.bots = p.bots;
+  if (isBotLevel(p.botLevel)) out.botLevel = p.botLevel;
   if (Array.isArray(p.species)) {
     // Järjestys aina sama, jotta sama valinta tuottaa saman järven.
     const wanted = new Set<unknown>(p.species);

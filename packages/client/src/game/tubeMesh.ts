@@ -8,6 +8,7 @@ import {
 } from '@lunki/shared';
 import { toWorld } from '../world/lakeMesh';
 import { playerColorMaterial, setPlayerColor } from './playerColor';
+import { ROD_COLOR } from './rodModel';
 import { REST_POSE, bendRod, type RodPose } from './rodMotion';
 
 /** Räpylöiden lepokohta renkaan etureunan edessä (paikallinen x), korkeus ja pituus. */
@@ -132,6 +133,7 @@ export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THR
     const fin = new THREE.Mesh(new THREE.BoxGeometry(FIN_LENGTH, 0.05, 0.22), finMat);
     fin.position.set(FIN_X, FIN_Y, z);
     fin.name = 'fin';
+    fin.userData.shape = 'fin';
     group.add(fin);
   }
 
@@ -142,14 +144,8 @@ export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THR
   const skin = new THREE.MeshLambertMaterial({ color: SKIN });
   for (const side of [-1, 1] as const) group.add(createArm(side, shirtMat, skin));
 
-  // Virveli osoittaa eteen; aihio on paloina, jotta se taipuu (#368).
-  const rod = new THREE.Group();
-  rod.name = 'rod';
-  const rodMat = new THREE.MeshLambertMaterial({ color: 0xf6d04d });
-  for (let i = 0; i < ROD_SEGMENTS; i++)
-    rod.add(
-      new THREE.Mesh(new THREE.BoxGeometry(ROD_LENGTH / ROD_SEGMENTS + 0.04, 0.08, 0.08), rodMat),
-    );
+  // Virveli osoittaa eteen: kahva, kela ja ohut aihio kuten kalastajan silmin.
+  const rod = createRod();
   group.add(rod);
   aimRod(group);
 
@@ -159,14 +155,130 @@ export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THR
 }
 
 const ROD_LENGTH = 2.1;
-const ROD_SEGMENTS = 6;
+const ROD_SEGMENTS = 8;
 /** Lepoasennon nousukulma (rad). */
 const ROD_REST = 0.25;
 /** Vapa kääntyy kalaa kohti enintään näin paljon (rad); takana olevaa kalaa väsytetään sivulta. */
 const ROD_YAW = 1.2;
+/**
+ * Kahvan osat vapaa pitkin (m kahvan päästä, joka on kämmenen takana):
+ * takakahva, kelan istukka kämmenessä, etukahva ja siitä aihio kärkeen.
+ * Mitat ovat käsien tapaan hieman liioitellut, jotta vavan erottaa kaukaa.
+ */
+const HANDLE = { rear: -0.2, seat: 0.04, fore: 0.34, blank: 0.46, thick: 0.07 } as const;
+/** Aihion paksuus etukahvalla ja kärjessä (m). */
+const BLANK_THICK = [0.045, 0.018] as const;
+/** Kela vavan alla kämmenen edessä (kahvan kehyksessä: x vapaa pitkin, y ylös, z oikealle). */
+const REEL = { x: 0.3, y: -0.11 } as const;
 const X_AXIS = new THREE.Vector3(1, 0, 0);
 const rodPts = Array.from({ length: ROD_SEGMENTS + 1 }, () => new THREE.Vector3());
-const rodV = { dir: new THREE.Vector3(), pull: new THREE.Vector3(), d: new THREE.Vector3() };
+const rodV = {
+  dir: new THREE.Vector3(),
+  pull: new THREE.Vector3(),
+  d: new THREE.Vector3(),
+  up: new THREE.Vector3(),
+  right: new THREE.Vector3(),
+  m: new THREE.Matrix4(),
+};
+
+/**
+ * Kalastajan kädessä oleva vapa samoilla osilla ja väreillä kuin kalastajan
+ * silmin (`povRod.ts`, `ROD_COLOR`): korkkikahva, kelan istukka, kela ja
+ * kärkeä kohti oheneva aihio. Aihio on paloina, jotta se taipuu (#368), ja
+ * sen keskiviiva piirretään lisäksi pikselin levyisenä viivana, joten ohut
+ * vapa näkyy katkeamatta myös kaukaa ja ylhäältä.
+ */
+function createRod(): THREE.Group {
+  const rod = new THREE.Group();
+  rod.name = 'rod';
+  const mat = (color: number) => new THREE.MeshLambertMaterial({ color });
+  const box = (
+    material: THREE.Material,
+    size: [number, number, number],
+    at: [number, number, number],
+  ) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(...size), material);
+    m.position.set(...at);
+    return m;
+  };
+  const span = (material: THREE.Material, from: number, to: number, thick: number) =>
+    box(material, [to - from, thick, thick], [(from + to) / 2, 0, 0]);
+
+  const handle = new THREE.Group();
+  handle.name = 'rod-handle';
+  const cork = mat(ROD_COLOR.cork);
+  const dark = mat(ROD_COLOR.dark);
+  handle.add(
+    span(cork, HANDLE.rear, HANDLE.seat, HANDLE.thick),
+    span(mat(ROD_COLOR.corkShade), HANDLE.rear - 0.03, HANDLE.rear, HANDLE.thick + 0.01),
+    span(dark, HANDLE.seat, HANDLE.fore, HANDLE.thick - 0.01),
+    span(cork, HANDLE.fore, HANDLE.blank, HANDLE.thick),
+  );
+
+  // Virvelin avokela: jalka, runko, roottori, puola ja kampi vasemmalla.
+  const reel = new THREE.Group();
+  reel.name = 'rod-reel';
+  reel.position.set(REEL.x, 0, 0);
+  const light = mat(ROD_COLOR.light);
+  reel.add(
+    box(dark, [0.03, -REEL.y, 0.025], [0, REEL.y / 2, 0]),
+    box(mat(ROD_COLOR.body), [0.1, 0.08, 0.06], [-0.02, REEL.y, 0]),
+    box(mat(ROD_COLOR.rotor), [0.04, 0.09, 0.09], [0.05, REEL.y, 0]),
+    box(light, [0.06, 0.07, 0.07], [0.1, REEL.y, 0]),
+    box(dark, [0.02, 0.02, 0.07], [-0.02, REEL.y, -0.06]),
+    box(mat(ROD_COLOR.knob), [0.03, 0.06, 0.03], [-0.02, REEL.y + 0.03, -0.1]),
+  );
+  handle.add(reel);
+
+  // Perhokela (#236) roikkuu kahvan tyvessä kämmenen takana.
+  const flyReel = new THREE.Group();
+  flyReel.name = 'rod-fly-reel';
+  flyReel.position.set(HANDLE.rear + 0.08, -0.1, 0);
+  const disc = (r: number, w: number, material: THREE.Material) => {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, w, 8), material);
+    m.rotation.x = Math.PI / 2;
+    return m;
+  };
+  flyReel.add(
+    disc(0.085, 0.05, mat(ROD_COLOR.body)),
+    disc(0.065, 0.056, light),
+    disc(0.03, 0.062, dark),
+  );
+  flyReel.visible = false;
+  handle.add(flyReel);
+  rod.add(handle);
+
+  const blankMat = mat(ROD_COLOR.rod);
+  blankMat.name = 'blank';
+  const piece = new THREE.BoxGeometry(1, 1, 1);
+  for (let i = 0; i < ROD_SEGMENTS; i++) {
+    const seg = new THREE.Mesh(piece, blankMat);
+    seg.name = 'rod-blank';
+    rod.add(seg);
+  }
+  const line = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(rodPts),
+    new THREE.LineBasicMaterial({ color: ROD_COLOR.rod }),
+  );
+  line.name = 'rod-line';
+  line.frustumCulled = false;
+  rod.add(line);
+  return rod;
+}
+
+/** Perhovapa (#236) on vihreä ja kela on kahvan tyvessä; muuten virveli. */
+export function setFlyRod(group: THREE.Object3D, fly: boolean): void {
+  const rod = group.getObjectByName('rod');
+  if (!rod || rod.userData.fly === fly) return;
+  rod.userData.fly = fly;
+  const color = fly ? ROD_COLOR.flyRod : ROD_COLOR.rod;
+  rod.traverse((c) => {
+    if (c.name === 'rod-reel') c.visible = !fly;
+    else if (c.name === 'rod-fly-reel') c.visible = fly;
+    else if (c.name === 'rod-blank' || c.name === 'rod-line')
+      ((c as THREE.Mesh).material as THREE.MeshLambertMaterial).color.setHex(color);
+  });
+}
 
 /**
  * Vavan asento (#368): `pose` nostaa vapaa ja taivuttaa aihiota vedon
@@ -189,20 +301,46 @@ export function aimRod(
     ? Math.max(-ROD_YAW, Math.min(ROD_YAW, Math.atan2(-target.z, target.x))) *
       Math.min(1, pose.bend / 0.6)
     : 0;
-  const { dir, pull, d } = rodV;
+  const { dir, pull, d, up, right, m } = rodV;
   dir.set(Math.cos(pitch) * Math.cos(yaw), Math.sin(pitch), -Math.cos(pitch) * Math.sin(yaw));
   let pullDir: THREE.Vector3 | null = null;
   if (target) {
     pull.copy(target).sub(d.copy(ROD_BUTT).addScaledVector(dir, ROD_LENGTH));
     if (pull.lengthSq() > 1e-6) pullDir = pull.normalize();
   }
-  bendRod(ROD_BUTT, dir, ROD_LENGTH, pullDir, pose.bend, pose.flex, rodPts);
-  rod.children.forEach((seg, i) => {
-    const a = rodPts[i]!;
-    const b = rodPts[i + 1]!;
-    seg.position.lerpVectors(a, b, 0.5);
-    seg.quaternion.setFromUnitVectors(X_AXIS, d.subVectors(b, a).normalize());
-  });
+  // Kahva ja kela ovat suorat; vain aihio etukahvasta kärkeen taipuu.
+  up.set(0, 1, 0).addScaledVector(dir, -dir.y).normalize();
+  right.crossVectors(dir, up);
+  const blankLength = ROD_LENGTH - HANDLE.blank;
+  bendRod(
+    d.copy(ROD_BUTT).addScaledVector(dir, HANDLE.blank),
+    dir,
+    blankLength,
+    pullDir,
+    pose.bend,
+    pose.flex,
+    rodPts,
+  );
+  let i = 0;
+  for (const part of rod.children) {
+    if (part.name === 'rod-handle') {
+      part.position.copy(ROD_BUTT);
+      part.quaternion.setFromRotationMatrix(m.makeBasis(dir, up, right));
+    } else if (part.name === 'rod-blank') {
+      const a = rodPts[i]!;
+      const b = rodPts[i + 1]!;
+      const thick = BLANK_THICK[0] + (BLANK_THICK[1] - BLANK_THICK[0]) * ((i + 0.5) / ROD_SEGMENTS);
+      part.position.lerpVectors(a, b, 0.5);
+      part.quaternion.setFromUnitVectors(X_AXIS, d.subVectors(b, a).normalize());
+      // Palat limittyvät hieman, jottei taipuneeseen aihioon jää rakoja.
+      part.scale.set(a.distanceTo(b) + 0.02, thick, thick);
+      i++;
+    } else {
+      const attr = (part as THREE.Line).geometry.getAttribute('position') as THREE.BufferAttribute;
+      rodPts.forEach((p, k) => attr.setXYZ(k, p.x, p.y, p.z));
+      attr.needsUpdate = true;
+    }
+  }
   return group.localToWorld(out.copy(rodPts[ROD_SEGMENTS]!));
 }
 

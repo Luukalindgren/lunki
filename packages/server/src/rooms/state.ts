@@ -140,6 +140,10 @@ export const SettingsState = schema(
     landPenalty: t.uint8().default(DEFAULT_SETTINGS.landPenalty!),
     /** LateJoin: liittyminen kesken kisan. */
     lateJoin: t.string().default('open'),
+    /** BotFill (#624): täyttävätkö botit tyhjät kalastajapaikat. */
+    bots: t.string().default('none'),
+    /** BotLevel: bottien taito. */
+    botLevel: t.string().default('mixed'),
     species: t.array('string').default(() => new ArraySchema<string>(...NATIVE_SPECIES)),
     /** Täyttökisa (#458): kisa alkaa rannalta tyhjällä renkaalla. */
     inflate: t.boolean().default(false),

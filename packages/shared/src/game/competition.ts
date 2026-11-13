@@ -1,6 +1,7 @@
 import type { Difficulty } from '../fishing/difficulty';
 import { NATIVE_SPECIES, type SpeciesId } from '../fishing/fish';
 import type { Catch } from '../fishing/fishing';
+import type { BotLevel } from '../bots/botAngler';
 import type { Vec2 } from '../vec2';
 import type { Penalty } from '../weather/lightning';
 import type { Season } from '../weather/season';
@@ -61,11 +62,15 @@ export interface CompetitionSettings {
    * lähtöranta. Puuttuu = kisa alkaa vedestä.
    */
   inflate?: boolean;
+  /** Yksinpelin bottien määrä (#624); moninpelissä botit täyttävät tyhjät paikat (`RoomSettings.bots`). */
+  soloBots?: number;
+  /** Bottien taito; oletuksena sekalainen. */
+  botLevel?: BotLevel;
 }
 
 export const DEFAULT_SETTINGS: CompetitionSettings = {
   durationMinutes: 15,
-  difficulty: 'normal',
+  difficulty: 'easy',
   winRule: 'total',
   species: [...NATIVE_SPECIES],
   weather: 'realistic',

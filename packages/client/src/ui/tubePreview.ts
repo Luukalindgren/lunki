@@ -1,4 +1,5 @@
 import type { Appearance, Craft } from '@lunki/shared';
+import { activeLook, smoothLook } from '../engine/look';
 
 const css = (hex: number) => `#${hex.toString(16).padStart(6, '0')}`;
 
@@ -58,6 +59,10 @@ export function drawTubePreview(canvas: HTMLCanvasElement, a: Appearance): void 
 
 /** Esikatselu kulkupelin mukaan: rengas tai vene. */
 export function drawCraftPreview(canvas: HTMLCanvasElement, a: Appearance, craft: Craft): void {
+  // Terävällä (#674) sama piirros nelinkertaisella tarkkuudella: kaaret ovat sileitä.
+  const k = smoothLook(activeLook()) ? 4 : 1;
+  canvas.width = canvas.height = 40 * k;
+  canvas.getContext('2d')?.setTransform(k, 0, 0, k, 0, 0);
   if (craft === 'boat') drawBoatPreview(canvas, a);
   else drawTubePreview(canvas, a);
 }

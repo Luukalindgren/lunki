@@ -31,6 +31,7 @@ import type { NetWorld } from '../net/netWorld';
 import type { Hud, SituationBar } from '../ui/hud';
 import { decimal, t, type MsgKey } from '../i18n';
 import { seatName } from '../i18n/names';
+import { padSettings, TurnPulse } from '../engine/padSettings';
 import { controlMode, controlText, type Controls } from './controls';
 import type { FishingView } from './fishingView';
 import { RowerSeat } from './rowing';
@@ -117,6 +118,7 @@ export class CraftController {
   readonly seat = new RowerSeat();
   /** Tuhdolla kääntyminen edellisellä askeleella (piirron interpolointiin). */
   prevLook = 0;
+  private readonly turnPulse = new TurnPulse();
   /** Pikapotku päällä (kalastajan silmin näkyvät räpylät, #230). */
   sprinting = false;
   /** Potkuvaiheen puolikas edellisellä päivityksellä (räpylöiden äänet). */
@@ -221,7 +223,12 @@ export class CraftController {
     // Pikavalikon ollessa pohjassa oikea tatti osoittaa sen lohkoa eikä käännä.
     const look =
       host.viewMode === 'pov' && !c.isDown('lure') && !c.isDown('method') && !c.isDown('emote');
-    const raw = frozen || capsized ? still : readTubeInput(c, wasAshore, look);
+    const read = frozen || capsized ? still : readTubeInput(c, wasAshore, look);
+    // Peliohjaimen kääntymisen herkkyys (#594).
+    const raw =
+      controlMode() === 'pad'
+        ? { ...read, turn: this.turnPulse.step(read.turn, padSettings().turn) }
+        : read;
     const rodStage = host.fishing.stage;
     const rodInHand =
       rodStage === 'charging' ||
@@ -230,6 +237,7 @@ export class CraftController {
       (rodStage === 'water' && reelHeld && !frozen);
     const oars = this.rower && c.wasPressed('oars') && !rodInHand && !frozen;
     // Rannalla (#458) liikesuunnat ovat nuolia eivätkä soutua.
+    const wasRowing = this.seat.rowing;
     const move = this.rower && !wasAshore ? this.seat.step(raw, rodInHand, oars, dt) : raw;
     // Ankkuri (#355): renkaalla ja veneen soutajalla, ei kyydissä eikä vanhalla palvelimella.
     let anchor = c.wasPressed('anchor') && !frozen && !capsized && !host.spectating;
@@ -250,7 +258,8 @@ export class CraftController {
     const f = host.fishing;
     const lureStage = this.lureStage(f);
     this.updateSeat(c.wasPressed('seat') && !frozen && !capsized, lureStage);
-    if (oars)
+    // Asennon vaihto kerrotaan aina, myös kun heitto tai soutu vaihtaa sen (#639).
+    if (this.rower && this.seat.rowing !== wasRowing)
       host.hud.showMessage(
         controlText(this.seat.rowing ? 'game.oarsOut' : 'game.oarsIn'),
         2,

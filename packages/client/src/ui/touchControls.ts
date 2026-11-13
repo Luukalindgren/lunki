@@ -40,6 +40,12 @@ export class TouchControls {
   /** KATKO, heiton aikana PERU. */
   private readonly toolButton: ContextButton<ContextActions['tool']>;
   private fly = false;
+  /** KAM: ruudukossa, yksinkertaisella ohjauksella työkalupinossa tauon alla. */
+  private readonly camButton: HTMLButtonElement;
+  private readonly helpButton: HTMLButtonElement;
+  private readonly directorButton: HTMLButtonElement;
+  private camInTools = false;
+  private spectator = false;
   /** VIESTI-nappi: avaa moninpelin chatin. */
   onChat: (() => void) | null = null;
   private stickPointer: number | null = null;
@@ -87,23 +93,27 @@ export class TouchControls {
     // Kalastustapaa vaihdetaan harvoin: VAPA ankkurin luona, ei 3×3-ruudukossa.
     const methodButton = this.hold('method');
     methodButton.classList.add('touch-method');
+    this.helpButton = this.tap('help');
+    const helpButton = this.helpButton;
+    helpButton.classList.add('touch-help');
+    const zoomIn = this.button('+', 'common.closer', () => controls.input.scroll(-1));
+    const zoomOut = this.button('−', 'common.farther', () => controls.input.scroll(1));
+    zoomIn.classList.add('touch-zoom');
+    zoomOut.classList.add('touch-zoom');
     const tools = div('touch-tools');
-    tools.append(
-      this.tap('pause'),
-      this.tap('help'),
-      this.button('+', 'common.closer', () => controls.input.scroll(-1)),
-      this.button('−', 'common.farther', () => controls.input.scroll(1)),
-      this.chatButton,
-    );
+    tools.append(this.tap('pause'), helpButton, zoomIn, zoomOut, this.chatButton);
 
     this.gearButton = this.tap('gearNext');
     this.toolButton = this.contextButton<ContextActions['tool']>('cut');
+    this.toolButton.b.classList.add('touch-tool');
     this.lineButton = this.contextButton<ContextActions['line']>('lineGrip');
     this.lineButton.b.hidden = true;
-    const camButton = this.tap('view');
+    this.camButton = this.tap('view');
+    const camButton = this.camButton;
     camButton.classList.add('touch-cam');
     // Katsojan ohjaaja (#564): näkyy vain katsojalle.
-    const directorButton = this.tap('director');
+    this.directorButton = this.tap('director');
+    const directorButton = this.directorButton;
     directorButton.classList.add('touch-director');
     const emoteButton = this.hold('emote');
     emoteButton.classList.add('touch-emote');
@@ -157,6 +167,7 @@ export class TouchControls {
 
   /** Katsojalle vain näkymän napit: kalastajan ohjaimet eivät tee mitään (#280). */
   setSpectator(spectator: boolean): void {
+    this.spectator = spectator;
     this.root.classList.toggle('spectator', spectator);
   }
 
@@ -169,6 +180,27 @@ export class TouchControls {
   setAshore(ashore: boolean, action: boolean): void {
     this.root.classList.toggle('ashore', ashore);
     this.root.classList.toggle('no-action', ashore && !action);
+  }
+
+  /**
+   * Yksinkertainen ohjaus (#653): näkyvissä vain tatti, iso nappi sekä
+   * vasemmassa yläkulmassa tauko ja sen alla KAM. Napit, jotka eivät yksinkertaisella tee mitään (jarru,
+   * kelausnopeus, VIEHE, VAPA) tai joita ensimmäiseen kalaan ei tarvita (luotainten
+   * valinnat, ankkuri, käsimerkit, ohje), ovat piilossa. Zoom näkyy vain
+   * ylhäältä katsottaessa, ja KATKO vain, kun viehe on jumissa tai siima sotkussa.
+   */
+  setSimple(simple: boolean, pov: boolean, cut: boolean): void {
+    const c = this.root.classList;
+    c.toggle('simple', simple);
+    c.toggle('pov', pov);
+    c.toggle('need-cut', cut);
+    // KAM tauon alle samaan pinoon: yksin ruudukossa se jäisi kellumaan keskelle
+    // ruutua. Katsojalla se pysyy ruudukossa ohjaajan napin vieressä.
+    const inTools = simple && !this.spectator;
+    if (inTools === this.camInTools) return;
+    this.camInTools = inTools;
+    if (inTools) this.helpButton.before(this.camButton);
+    else this.directorButton.before(this.camButton);
   }
 
   /**

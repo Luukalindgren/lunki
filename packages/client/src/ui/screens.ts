@@ -1,3 +1,5 @@
+import { QUALITIES, type Look, type LookQuality } from '../engine/look';
+import type { ControlStyle } from '../game/controlStyle';
 import {
   APPEARANCE_PARTS,
   colorOptions,
@@ -25,6 +27,10 @@ import {
   NAME_MAX_LENGTH,
   LAND_PENALTIES,
   LATE_JOIN_OPTIONS,
+  BOT_FILL_OPTIONS,
+  BOT_LEVEL_OPTIONS,
+  isBotLevel,
+  type BotLevel,
   BOAT_CREW,
   BOAT_TUBE,
   CRAFT_IDS,
@@ -117,9 +123,12 @@ import {
   type Lang,
   type MsgKey,
 } from '../i18n';
-import { controlText } from '../game/controls';
+import { padConnected } from '../engine/gamepad';
+import { DEFAULT_PAD_SETTINGS, PAD_TURNS, type PadSettings } from '../engine/padSettings';
+import { controlText, currentPadKind } from '../game/controls';
 import { copyText } from './clipboard';
 import { MANUAL_SECTIONS, manualTopics, type ManualSection } from './manual';
+import { padDiagram } from './padDiagram';
 import { isMine, rankLabel } from '../game/raceScoreboard';
 import type { RaceStatus } from '../game/raceStatus';
 import { challengeOutcome, challengeScoreText } from '../game/challenge';
@@ -135,7 +144,8 @@ import {
   type TackleBox,
 } from '../game/tackleBox';
 import { baitSummary, loadJournal, type BaitSummary } from '../game/journal';
-import { COMPACT_RESULTS_OVER, resultsText, rulesLine } from './resultsText';
+import { SOLO_BOT_COUNTS, isSoloBotCount } from '../game/soloBots';
+import { COMPACT_RESULTS_OVER, resultRowName, resultsText, rulesLine } from './resultsText';
 import {
   colorName,
   describeFullTackle,
@@ -150,6 +160,9 @@ import {
   methodName,
   landPenaltyName,
   lateJoinName,
+  botFillName,
+  botLevelName,
+  botSkillName,
   craftName,
   seatName,
   lineName,
@@ -221,8 +234,23 @@ export interface SettingsControls {
     /** Toteutunut pysty-FOV tällä ruudulla valinnalla `fov`. */
     effective: (fov: number) => number;
   };
+  /**
+   * Ilme (#674, #650): Retro, Terävä tai Moderni. Moderni ladataan vasta
+   * valittaessa: `onChange` palauttaa silloin lupauksen siitä, tuliko ilme
+   * käyttöön. `modern` kertoo, tarjotaanko Modernia tällä laitteella.
+   */
+  look: {
+    current: Look;
+    onChange: (look: Look) => void | Promise<boolean>;
+    modern: boolean;
+    quality: { current: LookQuality; onChange: (quality: LookQuality) => void };
+  };
   /** Opastus ensimmäiseen kalaan (#370): päälle alusta tai pois. */
   guide: { current: boolean; onChange: (on: boolean) => void };
+  /** Ohjaustapa (#638): yksinkertainen tai täysi. */
+  controlStyle: { current: ControlStyle; onChange: (s: ControlStyle) => void };
+  /** Peliohjaimen asetukset (#594). */
+  pad: { current: PadSettings; onChange: (s: PadSettings) => void };
   /** Kieli vaihtui: näkymä avataan uudelleen uudella kielellä. */
   onLanguage: () => void;
 }
@@ -259,6 +287,20 @@ export interface TackleBinding {
 }
 
 /** Taukovalikon alanäkymät: paluu kohdistaa sen napin. */
+/** Aulan tilanne harjoittelun taukovalikkoon (#668). */
+export interface PracticeLobby {
+  /** Kalastajat aulassa (ei katsojia eikä botteja) ja huoneen paikat. */
+  anglers: number;
+  max: number;
+  /** Isännän odottamat kalastajat ja heistä valmiina olevat. */
+  ready: number;
+  awaited: number;
+  /** Harjoiteltu aika (s). */
+  seconds: number;
+  /** Tulevan kisan säännöt: harjoitus itse on aikarajaton. */
+  rules: CompetitionSettings;
+}
+
 export type PauseView = 'tackle' | 'settings' | 'manual' | 'feedback';
 const PAUSE_VIEW_LABELS: Record<PauseView, MsgKey> = {
   tackle: 'menu.tackle',
@@ -328,6 +370,8 @@ export function loadSettings(defaults: CompetitionSettings): CompetitionSettings
           : defaults.landPenalty,
         start: isPoint(s.start) ? { x: s.start.x, y: s.start.y } : null,
         inflate: s.inflate === true,
+        soloBots: isSoloBotCount(s.soloBots) ? s.soloBots : 0,
+        botLevel: isBotLevel(s.botLevel) ? s.botLevel : 'mixed',
       };
     }
   } catch {
@@ -377,7 +421,7 @@ export class Screens {
   /** Kenen tilastot tulossivulla näkyvät (moninpeli). */
   private statsPlayer: string | null = null;
   /** Ohjeiden viimeksi luettu osio. */
-  private manualSection: ManualSection = 'move';
+  private manualSection: ManualSection = 'start';
   /** Näppäimistöohjaus (#237). */
   private readonly nav: MenuNav;
   /** Kohdistettu kohde näkymittäin, jotta paluu palaa samaan kohtaan. */
@@ -679,6 +723,27 @@ export class Screens {
         (v) => (settings.landPenalty = Number(v)),
       ),
       h('p', t('settings.hazardHint'), 'hint'),
+      // Botit (#624): taito näkyy vain, kun botteja on.
+      this.choice(
+        t('settings.soloBots'),
+        SOLO_BOT_COUNTS.map((n) => [String(n), n === 0 ? t('settings.soloBotsNone') : String(n)]),
+        String(settings.soloBots ?? 0),
+        (v) => {
+          settings.soloBots = Number(v);
+          reopen();
+        },
+      ),
+      ...(settings.soloBots
+        ? [
+            this.choice(
+              t('settings.botLevel'),
+              BOT_LEVEL_OPTIONS.map((o) => [o.value, botLevelName(o.value)]),
+              settings.botLevel ?? 'mixed',
+              (v) => (settings.botLevel = v as BotLevel),
+            ),
+          ]
+        : []),
+      h('p', t('settings.soloBotsHint'), 'hint'),
       this.choice(
         t('settings.craft'),
         CRAFT_IDS.map((c) => [c, craftName(c)]),
@@ -719,6 +784,8 @@ export class Screens {
     onJoin: (name: string, code: string) => void,
     onBack: () => void,
     error?: string,
+    /** Iso näyttö (#564): huone avataan katsojan lähetysnäkymänä. */
+    onBroadcast?: (code: string) => void,
   ): void {
     const panel = this.panel('multiplayer');
     const nameInput = this.input(t('common.nickname'), name, NAME_MAX_LENGTH, t('common.angler'));
@@ -737,6 +804,13 @@ export class Screens {
       ]),
       h('p', t('mp.hint'), 'hint'),
     );
+    if (onBroadcast) {
+      // Pieni nappi vihjeen alla: tarvitaan vain telkkarin tai videotykin koneella.
+      const b = h('button', t('mp.broadcast'), 'quiet');
+      b.title = t('mp.broadcastHint');
+      b.addEventListener('click', () => onBroadcast(codeValue()));
+      panel.append(b);
+    }
     codeInput.querySelector('input')!.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') onJoin(nameValue(), codeValue());
     });
@@ -796,6 +870,8 @@ export class Screens {
       /** Seuraava kisa katsojana (true) tai kalastajana. */
       onSpectate: (on: boolean) => void;
       onLeave: () => void;
+      /** Harjoittelu odottaessa (#638): yksinpeli huoneen säännöillä, kunnes kisa alkaa. */
+      onPractice: () => void;
       onSettings: (patch: Partial<RoomSettings>) => void;
       onAppearance: (a: Appearance) => void;
       /** Isäntä avaa kartan aloituspaikan valintaan. */
@@ -875,7 +951,9 @@ export class Screens {
     // aulaan, ja isäntä näkee kaikkien valmiuden vierittämättä. Omat varusteet
     // näkyvät yhteenvetona alempana.
     // Katsojat eivät vie kalastajapaikkoja (#274).
-    const anglers = v.players.filter((p) => !p.spectator).length;
+    // Botit (#624) väistyvät pelaajan tieltä, joten nekään eivät vie paikkoja.
+    const anglers = v.players.filter((p) => !p.spectator && !p.bot).length;
+    const botCount = v.players.filter((p) => p.bot).length;
     // Täyteen aulaan liittyneet odottavat katsojina vapaata paikkaa (#568).
     // Vanha palvelin ei kerro odottajia: silloin katsojat täydessä aulassa.
     const waitsSeat = (p: LobbyPlayer) =>
@@ -885,21 +963,24 @@ export class Screens {
       li.dataset.session = p.sessionId;
       li.classList.toggle('lobby-new', event?.ids.includes(p.sessionId) ?? false);
       const seatWait = p.connected && p.spectator && waitsSeat(p);
-      const state = t(
-        !p.connected
-          ? 'lobby.disconnected'
-          : seatWait
-            ? 'lobby.waitingSeat'
-            : p.spectator
-              ? p.host
-                ? 'lobby.hostSpectator'
-                : 'lobby.spectator'
-              : p.host
-                ? 'lobby.host'
-                : p.ready
-                  ? 'lobby.ready'
-                  : 'lobby.waiting',
-      );
+      const state = p.bot
+        ? t('lobby.bot', { skill: botSkillName(p.bot) })
+        : t(
+            !p.connected
+              ? 'lobby.disconnected'
+              : seatWait
+                ? 'lobby.waitingSeat'
+                : p.spectator
+                  ? p.host
+                    ? 'lobby.hostSpectator'
+                    : 'lobby.spectator'
+                  : p.host
+                    ? 'lobby.host'
+                    : p.ready
+                      ? 'lobby.ready'
+                      : 'lobby.waiting',
+          );
+      li.classList.toggle('lobby-bot', !!p.bot);
       const swatch = h('span', '', 'player-color');
       swatch.style.background = cssColor(p.appearance.tube);
       const name = h('span', `${p.name}${p.me ? t('lobby.you') : ''}`);
@@ -915,8 +996,17 @@ export class Screens {
       li.append(name, stateEl);
       return li;
     };
-    if (v.canBoat) list.append(...this.crewRows(v, playerRow, actions.onBoat, actions.onSeat));
-    else for (const p of v.players) list.appendChild(playerRow(p));
+    // Pitkä bottilista tiivistyy: ensimmäiset näkyvät, loput yhtenä rivinä.
+    const hidden = Math.max(0, botCount - LOBBY_BOT_ROWS);
+    let botsShown = 0;
+    const listed = v.players.filter((p) => !p.bot || ++botsShown <= LOBBY_BOT_ROWS);
+    const shown = { ...v, players: listed };
+    if (v.canBoat) list.append(...this.crewRows(shown, playerRow, actions.onBoat, actions.onSeat));
+    else for (const p of listed) list.appendChild(playerRow(p));
+    if (hidden > 0) {
+      const more = h('li', t('lobby.moreBots', { n: hidden }), 'lobby-bot lobby-more-bots');
+      list.appendChild(more);
+    }
     // Odottajien määrä ja isännän vihje näkyvät otsikossa eivätkä vasta
     // pitkän listan alla (#516).
     const waiting = v.players.filter((p) => p.spectator && waitsSeat(p)).length;
@@ -925,7 +1015,9 @@ export class Screens {
       'p',
       full
         ? t('lobby.playersWaiting', { n: anglers, max: v.maxPlayers, waiting })
-        : t('lobby.players', { n: anglers, max: v.maxPlayers }),
+        : botCount > 0
+          ? t('lobby.playersBots', { n: anglers, max: v.maxPlayers, bots: botCount })
+          : t('lobby.players', { n: anglers, max: v.maxPlayers }),
       'choice-label lobby-head',
     );
     // Ilmoitus samalla rivillä: lista ei hypi sen tullessa ja mennessä.
@@ -992,6 +1084,7 @@ export class Screens {
             actions.onPickStart,
             v.canSeason,
             v.canInflate,
+            v.canBots,
           )
         : this.settingsSummary(v.settings),
       // Katsoja ei kalasta, joten varusteita ei tarvita. Varusteet päävalikosta (#383).
@@ -1031,6 +1124,9 @@ export class Screens {
         me?.ready ? t('lobby.notReady') : t('lobby.setReady'),
         () => actions.onReady(!me?.ready),
       ]);
+    // Harjoittelu (#638): näppäimet tutuiksi ennen kuin kisakello käy.
+    if (!asking && v.phase === 'lobby' && !me?.spectator)
+      buttons.push([t('lobby.practice'), actions.onPractice]);
     buttons.push([t('common.leave'), actions.onLeave]);
     const footer = this.buttons(buttons);
     // Ilmoitus ("Odotetaan: …", asetukset muuttuivat) napin yläpuolelle, joka
@@ -1180,6 +1276,7 @@ export class Screens {
       h('h3', t('settings.display'), 'settings-section'),
       this.hudSizeSlider(c.hudSize),
       this.povFovSlider(c.povFov),
+      ...this.lookRows(c.look),
       this.choice(
         t('settings.guide'),
         [
@@ -1189,8 +1286,23 @@ export class Screens {
         c.guide.current ? 'on' : 'off',
         (v) => c.guide.onChange(v === 'on'),
       ),
+      h('h3', t('settings.controls'), 'settings-section'),
+      this.choice(
+        t('settings.controlStyle'),
+        [
+          ['simple', t('settings.controlSimple')],
+          ['full', t('settings.controlFull')],
+        ],
+        c.controlStyle.current,
+        (v) => c.controlStyle.onChange(v as ControlStyle),
+      ),
+      h('p', t('settings.controlStyleHint'), 'hint'),
       h('h3', t('settings.sound'), 'settings-section'),
       this.audioEditor(c.audio.current, c.audio.onChange),
+      // Peliohjain (#594) näkyy, kun ohjain on kytketty.
+      ...(padConnected()
+        ? [h('h3', t('settings.pad'), 'settings-section'), this.padEditor(c)]
+        : []),
       h('h3', t('menu.language'), 'settings-section'),
       language,
       this.buttons([[t('common.back'), onBack]]),
@@ -1522,17 +1634,73 @@ export class Screens {
         },
       ),
       h('p', t('audio.voiceHint'), 'hint'),
+    );
+    return box;
+  }
+
+  /**
+   * Peliohjaimen asetukset (#594): kääntymisen herkkyys, perhoheiton tatin
+   * suunta, kelaus pidolla tai kytkimenä ja värinä.
+   */
+  private padEditor(c: SettingsControls): HTMLElement {
+    const pad = { ...c.pad.current };
+    const box = document.createElement('div');
+    box.className = 'settings';
+    /** Kaksi vaihtoehtoa; `names` on [pois, päällä], oletuksena Kyllä ja Ei. */
+    const yesNo = (
+      label: string,
+      on: boolean,
+      onChange: (on: boolean) => void,
+      names?: [string, string],
+    ) =>
       this.choice(
-        t('audio.rumble'),
-        [
-          ['1', t('common.yes')],
-          ['0', t('common.no')],
-        ],
-        a.rumble ? '1' : '0',
-        (v) => {
-          a.rumble = v === '1';
-          onChange({ ...a });
+        label,
+        names
+          ? [
+              ['0', names[0]],
+              ['1', names[1]],
+            ]
+          : [
+              ['1', t('common.yes')],
+              ['0', t('common.no')],
+            ],
+        on ? '1' : '0',
+        (v) => onChange(v === '1'),
+      );
+    box.append(
+      this.stepSlider({
+        id: 'pad-turn',
+        steps: PAD_TURNS,
+        current: pad.turn,
+        fallback: DEFAULT_PAD_SETTINGS.turn,
+        onChange: (turn) => {
+          pad.turn = turn;
+          c.pad.onChange({ ...pad });
         },
+        ends: ['-', '+'],
+        label: (turn) => t('settings.padTurn', { pct: Math.round(turn * 100) }),
+      }),
+      yesNo(
+        t('settings.padFly'),
+        pad.flyInvert,
+        (on) => {
+          pad.flyInvert = on;
+          c.pad.onChange({ ...pad });
+        },
+        [t('settings.padFlyNormal'), t('settings.padFlyInverted')],
+      ),
+      yesNo(
+        t('settings.padReel'),
+        pad.reelToggle,
+        (on) => {
+          pad.reelToggle = on;
+          c.pad.onChange({ ...pad });
+        },
+        [t('settings.padReelHold'), t('settings.padReelToggle')],
+      ),
+      h('p', t('settings.padReelHint'), 'hint'),
+      yesNo(t('audio.rumble'), c.audio.current.rumble, (on) =>
+        c.audio.onChange({ ...c.audio.current, rumble: on }),
       ),
       h('p', t('audio.rumbleHint'), 'hint'),
     );
@@ -1658,6 +1826,8 @@ export class Screens {
           const list = document.createElement('ul');
           for (const line of topic.lines) list.append(h('li', line));
           section.append(h('h3', topic.title), list);
+          // Ohjainkuva (#594) viimeksi käytetyn ohjaimen merkinnöin.
+          if (topic.diagram === 'pad') section.append(padDiagram(currentPadKind()));
           return section;
         }),
       );
@@ -1936,10 +2106,17 @@ export class Screens {
     multiplayer: boolean;
     /** Aikarajaton yksinpelin sessio: lopetus punnitsee saaliin (#360). */
     untimed?: boolean;
+    /**
+     * Harjoittelu aulasta (#638): lopetus palaa aulaan, ja kisan tilanteen
+     * paikalla on aulan tilanne (#668).
+     */
+    practice?: PracticeLobby | null;
     /** Pelikellon aika järvellä, esim. 05:12. */
     clock?: string;
     /** Kisan tilanne: kalat, paino, sija tai aika ja paras kala (#469). */
     status?: RaceStatus | null;
+    /** Koko tulostaulu riveinä, kun se ei ole HUDissa (kosketus). */
+    scoreboard?: string[] | null;
     /** Kisan säännöt luettavaksi: vaikeus, sää, kausi, voittaja ja kesto. */
     rules?: CompetitionSettings;
     /** Perukkeen vaihto kesken kisan; katsojalla ei ole varusteita. */
@@ -1958,21 +2135,31 @@ export class Screens {
       [t('menu.manual'), p.onManual],
       [t('menu.feedback'), p.onFeedback],
       [
-        p.multiplayer
-          ? t('pause.leaveRace')
-          : p.untimed
-            ? t('pause.endSession')
-            : t('pause.endRace'),
+        p.practice
+          ? t('pause.backToLobby')
+          : p.multiplayer
+            ? t('pause.leaveRace')
+            : p.untimed
+              ? t('pause.endSession')
+              : t('pause.endRace'),
         p.onQuit,
       ],
     ]);
     menu.classList.add('main-menu', 'pause-menu');
     panel.classList.add('pause-panel');
     panel.append(
-      h('h2', p.multiplayer ? t('pause.menu') : t('pause.title')),
+      h(
+        'h2',
+        p.practice ? t('pause.practice') : p.multiplayer ? t('pause.menu') : t('pause.title'),
+      ),
       ...(p.clock ? [h('p', t('pause.clock', { time: p.clock }))] : []),
-      ...(p.status ? pauseStatus(p.status) : []),
-      ...(p.rules ? [pauseRules(p.rules)] : []),
+      ...(p.practice
+        ? [pausePractice(p.practice), h('p', t('pause.practiceNote'), 'hint')]
+        : [
+            ...(p.status ? pauseStatus(p.status) : []),
+            ...(p.scoreboard?.length ? [pauseScoreboard(p.scoreboard)] : []),
+            ...(p.rules ? [pauseRules(p.rules)] : []),
+          ]),
       ...(p.multiplayer ? [h('p', t('pause.continues'), 'hint')] : []),
       menu,
       ...this.homeScreenHint(),
@@ -1985,6 +2172,11 @@ export class Screens {
       const label = t(PAUSE_VIEW_LABELS[p.from]);
       [...menu.querySelectorAll('button')].find((b) => b.textContent === label)?.focus();
     }
+  }
+
+  /** Aulan tilanne muuttui harjoittelun tauolla: ruudut ja säännöt paikallaan (#668). */
+  updatePausePractice(lobby: PracticeLobby): void {
+    this.root.querySelector('.pause-practice')?.replaceWith(pausePractice(lobby));
   }
 
   /**
@@ -2027,7 +2219,7 @@ export class Screens {
   /** Moninpelin lopputulokset voittoehdon mukaan. */
   showRaceResults(
     results: PlayerResult[],
-    settings: RoomSettings,
+    settings: CompetitionSettings,
     myId: string,
     amHost: boolean,
     onRestart: () => void,
@@ -2065,7 +2257,8 @@ export class Screens {
     // paino jää piiloon ja kalan kuva mahtuu rivin perään.
     const shortName = (name: string) =>
       name.length > RESULT_NAME_MAX ? `${name.slice(0, RESULT_NAME_MAX - 1)}…` : name;
-    const nameWidth = Math.max(...results.map((r) => shortName(r.name).length));
+    // Botin (#624) ja lähteneen merkintä on rivin lopussa, ettei se katkea nimen lyhennykseen.
+    const nameWidth = Math.max(...results.map((r) => shortName(resultRowName(r).name).length));
     table.classList.toggle('compact', compact);
     for (const r of results) {
       const li = document.createElement('li');
@@ -2074,17 +2267,28 @@ export class Screens {
       // Saaliittomalle viiva kuten kisan taulussa (#528).
       li.classList.toggle('unranked', rankLabel(r) === '–');
       const biggest = r.summary.biggest ? formatWeight(r.summary.biggest.weight) : '–';
-      const text = t('results.row', {
-        name: shortName(r.name).padEnd(nameWidth),
-        count: String(r.summary.count).padStart(2),
-        total: formatWeight(r.summary.total).padStart(8),
-        biggest,
-      });
+      const { name, tags } = resultRowName(r);
+      const text =
+        t('results.row', {
+          name: shortName(name).padEnd(nameWidth),
+          count: String(r.summary.count).padStart(2),
+          total: formatWeight(r.summary.total).padStart(8),
+          biggest,
+        }) + tags.map((tag) => ` · ${tag}`).join('');
       const gear = tackles?.get(r.id);
       const big = r.summary.biggest;
-      const row = resultRow(text, big ? sizedFish(big.species, big.weight) : null);
-      if (shortName(r.name) !== r.name) row.title = r.name;
-      li.append(row);
+      const row = resultRow(text, big ? sizedFish(big.species, big.weight) : null, {
+        name,
+        total: formatWeight(r.summary.total),
+      });
+      if (shortName(name) !== r.name) row.title = r.name;
+      // Kapealla ruudulla (#634) kappalemäärä, suurin kala ja merkinnät ovat omalla rivillään.
+      const detail = [
+        t('results.rowCount', { count: r.summary.count }),
+        ...(big ? [t('results.rowBiggest', { biggest })] : []),
+        ...tags,
+      ].join(' · ');
+      li.append(row, h('span', detail, 'result-detail'));
       if (gear && !compact) li.append(h('span', describeFullTackle(gear), 'player-gear'));
       // Venekunta: joukkueen kalastajat veneen nimen alle.
       if (r.members?.length)
@@ -2163,7 +2367,7 @@ export class Screens {
       );
     }
     if (sum.count === 0) {
-      panel.append(h('p', t('results.empty')));
+      panel.append(h('p', controlText('results.empty')));
       // Reitistä ja tilastoista näkee silti, missä tuli käytyä ja mitä sattui.
       panel.append(...this.resultsViews(panel, h('div', ''), map, summary));
     } else {
@@ -2479,6 +2683,57 @@ export class Screens {
     first?.focus({ preventScroll: true });
   }
 
+  /**
+   * Ilme ja Modernin laatu (#674, #650). Moderni ladataan vasta valittaessa:
+   * latauksen ajan vihje kertoo siitä, ja jos lataus ei onnistu, valinta
+   * palaa entiseen ilmeeseen.
+   */
+  private lookRows(c: SettingsControls['look']): HTMLElement[] {
+    let current = c.current;
+    let pick = 0;
+    const hint = h('p', '', 'hint');
+    hint.setAttribute('aria-live', 'polite');
+    const quality = this.choice(
+      t('settings.quality'),
+      QUALITIES.map((q) => [q, t(`settings.quality.${q}`)]),
+      c.quality.current,
+      (v) => c.quality.onChange(v as LookQuality),
+    );
+    quality.classList.add('look-quality');
+    const show = (note?: MsgKey) => {
+      hint.textContent = t(
+        note ?? (current === 'modern' ? 'settings.lookModernHint' : 'settings.lookHint'),
+      );
+      quality.hidden = current !== 'modern';
+    };
+    const options: [string, string][] = [
+      ['retro', t('settings.lookRetro')],
+      ['sharp', t('settings.lookSharp')],
+    ];
+    if (c.modern) options.push(['modern', t('settings.lookModern')]);
+    const look = this.choice(t('settings.look'), options, current, (v) => {
+      const mine = ++pick;
+      const done = c.onChange(v as Look);
+      if (!done) {
+        current = v as Look;
+        show();
+        return;
+      }
+      show('settings.lookLoading');
+      void done.then((ok) => {
+        if (mine !== pick) return;
+        if (ok) current = v as Look;
+        else
+          look
+            .querySelectorAll<HTMLButtonElement>('button')
+            .forEach((b) => b.classList.toggle('selected', b.dataset.value === current));
+        show(ok ? undefined : 'settings.lookFailed');
+      });
+    });
+    show();
+    return [look, hint, quality];
+  }
+
   private choice(
     label: string,
     options: [string, string, boolean?][],
@@ -2493,6 +2748,7 @@ export class Screens {
     for (const [value, text, disabled] of options) {
       const b = document.createElement('button');
       b.textContent = text;
+      b.dataset.value = value;
       b.disabled = disabled === true;
       b.classList.toggle('selected', value === selected);
       b.addEventListener('click', () => {
@@ -2530,6 +2786,7 @@ export class Screens {
     pickStart: () => void,
     canSeason: boolean,
     canInflate: boolean,
+    canBots: boolean,
   ): HTMLElement {
     const box = document.createElement('div');
     box.className = 'settings';
@@ -2554,6 +2811,28 @@ export class Screens {
         String(s.maxPlayers),
         (v) => change({ maxPlayers: Number(v) }),
       ),
+      // Botit (#624) ovat kisan sääntö: ne täyttävät tyhjät kalastajapaikat.
+      ...(canBots
+        ? [
+            this.choice(
+              t('settings.bots'),
+              BOT_FILL_OPTIONS.map((o) => [o.value, botFillName(o.value)]),
+              s.bots,
+              (v) => change({ bots: v as RoomSettings['bots'] }),
+            ),
+            ...(s.bots === 'fill'
+              ? [
+                  this.choice(
+                    t('settings.botLevel'),
+                    BOT_LEVEL_OPTIONS.map((o) => [o.value, botLevelName(o.value)]),
+                    s.botLevel,
+                    (v) => change({ botLevel: v as RoomSettings['botLevel'] }),
+                  ),
+                ]
+              : []),
+            h('p', t('settings.botsHint'), 'hint'),
+          ]
+        : []),
       this.speciesChoice(s.species, (species) => change({ species })),
       // Vanha palvelin ei tunne kausia: kisa on silloin aina kesällä.
       ...(canSeason
@@ -2901,6 +3180,14 @@ export class Screens {
       [t('settings.winRule'), winRuleName(s.winRule)],
       [t('settings.difficultyShort'), difficultyName(s.difficulty)],
       [t('settings.maxPlayers'), String(s.maxPlayers)],
+      ...(s.bots === 'fill'
+        ? [
+            [t('settings.bots'), `${botFillName(s.bots)} (${botLevelName(s.botLevel)})`] as [
+              string,
+              string,
+            ],
+          ]
+        : []),
       [t('settings.season'), seasonName(s.season)],
       [t('settings.timeOfDay'), timeOfDayName(s.timeOfDay)],
       [t('settings.weather'), weatherLevelName(s.weather)],
@@ -2968,14 +3255,27 @@ export class Screens {
 
 /** Tulossivun nimisarakkeen enimmäisleveys (merkkiä). */
 const RESULT_NAME_MAX = 14;
+/** Aulan listassa näytetään näin monta bottia; loput tiivistyvät yhdeksi riviksi (#624). */
+const LOBBY_BOT_ROWS = 3;
 
 /**
  * Tulosrivi: teksti vasemmalla ja kalan kuva oikeassa reunassa, joten kuva
  * näkyy aina kokonaan; liian pitkä teksti lyhenee "…"-merkkiin.
  */
-function resultRow(text: string, fish: HTMLElement | null): HTMLElement {
+function resultRow(
+  text: string,
+  fish: HTMLElement | null,
+  narrow?: { name: string; total: string },
+): HTMLElement {
   const row = h('div', '', 'result-row');
   row.append(h('span', text, 'result-text'));
+  // Puhelin pystyssä (#634): nimi ja paino ylärivillä, loput rivin alla (`.result-detail`).
+  if (narrow) {
+    const top = h('span', '', 'result-narrow');
+    top.append(h('span', narrow.name, 'result-name'), h('span', narrow.total, 'result-total'));
+    row.append(top);
+    row.classList.add('has-narrow');
+  }
   if (fish) row.append(fish);
   return row;
 }
@@ -3061,7 +3361,7 @@ function waveTitle(text: string): HTMLElement {
  * Kopioi tulokset (#507): nappi tulosten alle. Suojaamattomalla http-sivulla
  * (LAN-peli) leikepöytää ei ole, joten teksti tulee valittavaksi kenttään.
  */
-function copyResults(results: readonly PlayerResult[], settings: RoomSettings): HTMLElement {
+function copyResults(results: readonly PlayerResult[], settings: CompetitionSettings): HTMLElement {
   const box = h('div', '', 'results-copy-row');
   const field = document.createElement('textarea');
   field.className = 'results-copy';
@@ -3157,6 +3457,37 @@ function pauseStatus(s: RaceStatus): HTMLElement[] {
       })
     : t('pause.best', { fish, weight });
   return [grid, h('p', best, 'pause-best')];
+}
+
+/**
+ * Harjoittelun tauko (#668): omien kalojen sijaan aulan tilanne (kalastajat,
+ * valmiina olevat ja harjoiteltu aika) ja tulevan kisan säännöt.
+ */
+function pausePractice(p: PracticeLobby): HTMLElement {
+  const tile = (label: string, value: string) => {
+    const e = h('div', '', 'pause-stat');
+    e.append(h('span', label, 'pause-stat-label'), h('span', value, 'pause-stat-value'));
+    return e;
+  };
+  const grid = h('div', '', 'pause-stats');
+  grid.append(
+    tile(t('pause.inLobby'), t('pause.placeOf', { rank: p.anglers, of: p.max })),
+    tile(
+      t('pause.lobbyReady'),
+      p.awaited > 0 ? t('pause.placeOf', { rank: p.ready, of: p.awaited }) : NO_VALUE,
+    ),
+    tile(t('pause.practised'), formatTime(p.seconds)),
+  );
+  const box = h('div', '', 'pause-practice');
+  box.append(grid, pauseRules(p.rules));
+  return box;
+}
+
+/** Koko tulostaulu tauolla: puhelimella se ei ole HUDissa viemässä tilaa. */
+function pauseScoreboard(lines: string[]): HTMLElement {
+  const box = h('div', '', 'pause-scoreboard');
+  box.append(h('span', t('game.scoreboard'), 'pause-stat-label'), h('pre', lines.join('\n')));
+  return box;
 }
 
 /**

@@ -1,4 +1,6 @@
 import type { EmoteId } from '@lunki/shared';
+import type { PixelImage } from '../engine/smoothPixels';
+import { lookArt, paintPixels } from './lookArt';
 
 /**
  * Käsimerkkien pikseli-ikonit (16 × 16): s iho, o hiha, y keltaiset
@@ -161,26 +163,30 @@ const OUTLINE = '#1c232b';
  */
 export function pixelIcon(rows: readonly string[], className: string): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = ICON_SIZE;
   canvas.className = className;
-  const g = canvas.getContext('2d');
-  if (!g) return canvas;
   const at = (x: number, y: number) => rows[y]?.[x] ?? '.';
   const coloured = (c: string) => c !== '.' && c !== 'k';
+  const data: number[] = [];
   for (let y = 0; y < ICON_SIZE; y++)
     for (let x = 0; x < ICON_SIZE; x++) {
       const c = at(x, y);
-      if (c !== '.') g.fillStyle = COLORS[c] ?? OUTLINE;
-      else if (
-        // Ääriviiva: tyhjä pikseli kiinni värissä.
-        [at(x - 1, y), at(x + 1, y), at(x, y - 1), at(x, y + 1)].some(coloured)
-      )
-        g.fillStyle = OUTLINE;
-      else continue;
-      g.fillRect(x, y, 1, 1);
+      if (c !== '.') data.push(hex(COLORS[c] ?? OUTLINE));
+      // Ääriviiva: tyhjä pikseli kiinni värissä.
+      else if ([at(x - 1, y), at(x + 1, y), at(x, y - 1), at(x, y + 1)].some(coloured))
+        data.push(hex(OUTLINE));
+      else data.push(-1);
     }
-  return canvas;
+  const px = { width: ICON_SIZE, height: ICON_SIZE, data };
+  icons.set(canvas, px);
+  return lookArt(canvas, redrawIcon);
 }
+
+const hex = (css: string) => parseInt(css.slice(1), 16);
+const icons = new WeakMap<HTMLCanvasElement, PixelImage>();
+const redrawIcon = (canvas: HTMLCanvasElement) => {
+  const px = icons.get(canvas);
+  if (px) paintPixels(canvas, px);
+};
 
 /** Käsimerkin ikoni. */
 export const emoteIcon = (id: EmoteId): HTMLCanvasElement =>

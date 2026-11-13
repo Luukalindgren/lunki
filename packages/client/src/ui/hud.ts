@@ -39,11 +39,16 @@ export class Hud {
   private readonly situationBars: HTMLDivElement;
   private situationBarsKey = '';
   private helpKey = '';
+  /** Ohjeen laajuus (#638): lyhyt on oletus, {help} avaa kaiken ja piilottaa. */
+  private helpLevel: HelpLevel = loadHelpLevel();
+  /** Kosketuksella ohje on aluksi piilossa, ja ?-nappi avaa kaikkien nappien ohjeen. */
+  private touchHelp = false;
   private readonly stamina: HTMLDivElement;
   private readonly staminaFill: HTMLDivElement;
   private readonly timer: HTMLDivElement;
   private readonly weather: HTMLDivElement;
   private readonly catches: HTMLDivElement;
+  private catchesKey = '';
   private readonly weigh: HTMLDivElement;
   private readonly countdown: HTMLDivElement;
   /** Rangaistukset (jäähy, kumossa, trombin kyydissä) ajastimineen. */
@@ -214,7 +219,6 @@ export class Hud {
     s.setProperty('--timer-w', px(this.timer.offsetWidth));
     s.setProperty('--timer-h', px(this.timer.offsetHeight));
     s.setProperty('--compass-w', px(this.compass.root.offsetWidth));
-    s.setProperty('--compass-h', px(this.compass.root.offsetHeight));
     const gauges = this.gauges.offsetWidth;
     s.setProperty('--right-w', px(gauges));
     s.setProperty('--right-h', px(this.gauges.offsetHeight));
@@ -263,6 +267,30 @@ export class Hud {
     this.status.classList.toggle('live', live);
     const text = lines.join('\n');
     if (this.status.textContent !== text) this.status.textContent = text;
+    // Tyhjä paneeli piiloon (yksinkertainen ohjaus, #653); soutajan merkki pitää sen näkyvissä.
+    const empty = text === '' && this.status.dataset.badge === undefined;
+    if (this.status.hidden !== empty) this.status.hidden = empty;
+  }
+
+  /**
+   * Soutajan asento merkkinä tilapaneelin yllä (#639): airoissa vai vapa
+   * kädessä, ja miten asento vaihtuu. Null = ei merkkiä.
+   */
+  setSeatBadge(text: string | null, rod = false): void {
+    if (text === null) delete this.status.dataset.badge;
+    else if (this.status.dataset.badge !== text) this.status.dataset.badge = text;
+    this.status.classList.toggle('badge-rod', rod);
+  }
+
+  /**
+   * Yksinkertainen ohjaus (#657): kireysmittari piiloon, koska jarrua ei
+   * säädetä, ja kosketuksella luotain sen paikalle oikeaan yläkulmaan.
+   */
+  setSimple(simple: boolean): void {
+    if (this.root.classList.contains('simple') === simple) return;
+    this.root.classList.toggle('simple', simple);
+    this.placeLureSonar();
+    this.measureEdges();
   }
 
   setPower(power: number | null): void {
@@ -310,10 +338,31 @@ export class Hud {
   }
 
   /** Viimeisimmät saaliit vasemmassa yläkulmassa. */
-  setCatches(lines: string[]): void {
+  setCatches(lines: string[], notes?: ReadonlyMap<number, string>): void {
     this.catches.hidden = lines.length === 0;
     const text = lines.join('\n');
-    if (this.catches.textContent !== text) this.catches.textContent = text;
+    // Tulostaulun korostetut rivit (#635): rivin numero ja sen perään tuleva saalis.
+    const key = notes?.size ? `${text}\n${[...notes].join('|')}` : text;
+    if (this.catchesKey === key) return;
+    this.catchesKey = key;
+    if (!notes?.size) {
+      this.catches.textContent = text;
+      return;
+    }
+    this.catches.replaceChildren(
+      ...lines.map((line, i) => {
+        const note = notes.get(i);
+        const row = el('div', note ? 'hud-score-row fresh' : 'hud-score-row');
+        row.textContent = line;
+        if (note) {
+          const tag = document.createElement('span');
+          tag.className = 'hud-score-note';
+          tag.textContent = note;
+          row.append(tag);
+        }
+        return row;
+      }),
+    );
   }
 
   /**
@@ -389,13 +438,17 @@ export class Hud {
   }
 
   /**
-   * Pystypuhelimella vieheluotain tilapaneelin alle: oikean reunan sarakkeessa
-   * luotainten alle ei jäisi korkeutta ilmoituksille.
+   * Vieheluotaimen paikka kosketuksella: alareunassa tatin ja ison napin
+   * välissä, missä se ei peitä järveä. Yksinkertaisella väli on aina vapaa,
+   * täydellä vain pystyssä (vaakana siinä ovat ankkuri ja napit, joten luotain
+   * on oikeassa reunassa luotaimen alla kuten työpöydällä).
    */
   private placeLureSonar(): void {
-    if (this.touch && this.portrait.matches) this.topLeft.appendChild(this.lureSonar.root);
-    else if (this.lureSonar.root.parentElement !== this.gauges)
-      this.sonar.root.after(this.lureSonar.root);
+    const root = this.lureSonar.root;
+    const simple = this.root.classList.contains('simple');
+    if (this.touch && (simple || this.portrait.matches)) {
+      if (root.parentElement !== this.root) this.root.insertBefore(root, this.notices);
+    } else if (root.parentElement !== this.gauges) this.sonar.root.after(root);
   }
 
   /** Kosketusohjaimet näkyvissä: HUD väistää ne ja ohje on aluksi piilossa. */
@@ -413,7 +466,7 @@ export class Hud {
     if (touch) this.root.insertBefore(this.flyPanel.root, this.notices);
     else this.lureSonar.root.after(this.flyPanel.root);
     this.placeLureSonar();
-    this.helpSlot.hidden = touch;
+    this.helpSlot.hidden = touch ? !this.touchHelp : this.helpLevel === 'off';
     this.setHelpMode(this.multiplayer, this.spectator);
     this.updateHelpOpen();
     this.measureEdges();
@@ -454,6 +507,7 @@ export class Hud {
       c.pov === context.pov &&
       c.seat === context.seat &&
       !!c.crew === !!context.crew &&
+      !!c.simple === !!context.simple &&
       c.ashore === context.ashore
     )
       return;
@@ -523,7 +577,16 @@ export class Hud {
           : [...MOVE_HELP[c.seat], ...(c.fly ? HELP.fly : HELP.spin)];
     // Zoom ja oikean tatin heittosuunta toimivat vain ylhäältä katsottaessa.
     const opts = { skip: c.pov ? (['zoom', 'aim'] as const) : [] };
-    const lines = [...base, ...tail].map((k) => controlText(k, {}, opts));
+    // Lyhyt ohje (#638): kisan alussa vain liike, heitto ja kelaus.
+    const short =
+      ((this.helpLevel === 'short' && !this.touch) || c.simple) && !this.spectator && !c.ashore
+        ? [
+            ...(c.seat === 'tube' ? (['help.shortMove'] as const) : MOVE_HELP[c.seat]),
+            ...(c.fly ? SHORT_HELP.fly : SHORT_HELP.spin),
+            c.simple ? ('help.shortHide' as const) : ('help.shortMore' as const),
+          ]
+        : null;
+    const lines = (short ?? [...base, ...tail]).map((k) => controlText(k, {}, opts));
     const key = lines.join('\n');
     if (key === this.helpKey) return;
     this.helpKey = key;
@@ -545,8 +608,25 @@ export class Hud {
     this.root.style.setProperty('--help-w', String(Math.ceil(6 + 3.2 * cols)));
   }
 
+  /**
+   * {help}: lyhyt ohje → kaikki ohjeet → piilossa → lyhyt. Valinta jää laitteelle.
+   * Kosketuksella napit on nimetty, joten ?-nappi vain avaa ja sulkee kaikkien
+   * nappien ohjeen, eikä valinta tallennu.
+   */
   toggleHelp(): void {
-    this.helpSlot.hidden = !this.helpSlot.hidden;
+    if (this.touch) {
+      this.touchHelp = !this.touchHelp;
+      this.helpSlot.hidden = !this.touchHelp;
+      this.renderHelp();
+      return;
+    }
+    // Yksinkertaisella ohjauksella kaikkien nappien ohjetta ei ole: lyhyt tai piilossa.
+    const full = this.helpContext.simple ? 'off' : 'full';
+    this.helpLevel =
+      this.helpLevel === 'short' ? full : this.helpLevel === 'full' ? 'off' : 'short';
+    saveHelpLevel(this.helpLevel);
+    this.helpSlot.hidden = this.helpLevel === 'off';
+    this.renderHelp();
     this.updateHelpOpen();
   }
 
@@ -615,10 +695,15 @@ export interface HelpContext {
   fly: boolean;
   /** Kalastajan näkymä: zoomia ei ole. */
   pov: boolean;
-  /** Kulkupeli: kelluntarengas, veneen soutaja tai kyytiläinen (#263). */
-  seat: 'tube' | 'rower' | 'passenger';
+  /**
+   * Kulkupeli: kelluntarengas, veneen soutaja tai kyytiläinen (#263).
+   * Soutajalla on oma ohjeensa airoissa ja vapa kädessä (`rowerRod`, #639).
+   */
+  seat: 'tube' | 'rower' | 'rowerRod' | 'passenger';
   /** Moninpelin veneessä paikkaa voi vaihtaa venekunnan kesken (#357). */
   crew?: boolean;
+  /** Yksinkertainen ohjaus (#638): ohje on aina lyhyt, koska muita nappeja ei tarvita. */
+  simple?: boolean;
   /** Maissa kävellen (#457) tai täyttökisassa pumppaamassa tai äyskäröimässä (#458). */
   ashore?: 'walk' | 'race';
 }
@@ -649,7 +734,7 @@ function smallText(text: string): HTMLElement {
  * täytetään toimintokartasta (game/controls.ts) pelaajan ohjaustavalla.
  */
 const HELP = {
-  spin: ['help.cast', 'help.castForward', 'help.reel', 'help.gear', 'help.tools'],
+  spin: ['help.castForward', 'help.cast', 'help.reel', 'help.gear', 'help.tools'],
   fly: ['help.flyCast', 'help.flyCast2', 'help.flyStrip', 'help.flyReel', 'help.tools'],
   spectator: ['help.spectate'],
   shore: ['help.walk', 'help.shoreAct'],
@@ -660,10 +745,37 @@ const HELP = {
   readonly MsgKey[]
 >;
 
+/** Lyhyen ohjeen kalastusrivit (#638). */
+const SHORT_HELP = {
+  spin: ['help.shortCast', 'help.shortReel'],
+  fly: ['help.shortFly', 'help.shortFlyStrip'],
+} as const satisfies Record<'spin' | 'fly', readonly MsgKey[]>;
+
+type HelpLevel = 'short' | 'full' | 'off';
+const HELP_KEY = 'lunki.help';
+
+function loadHelpLevel(): HelpLevel {
+  try {
+    const v = localStorage.getItem(HELP_KEY);
+    return v === 'full' || v === 'off' ? v : 'short';
+  } catch {
+    return 'short';
+  }
+}
+
+function saveHelpLevel(level: HelpLevel): void {
+  try {
+    localStorage.setItem(HELP_KEY, level);
+  } catch {
+    // Tallennus estetty: valinta on voimassa tämän kisan.
+  }
+}
+
 /** Liikkumisen ohjeet kulkupelin mukaan. */
 const MOVE_HELP = {
   tube: ['help.move', 'help.turn'],
   rower: ['help.row', 'help.rowTurn'],
+  rowerRod: ['help.rowRod', 'help.rowRodTurn'],
   passenger: ['help.passenger', 'help.passengerTurn'],
 } as const satisfies Record<HelpContext['seat'], readonly MsgKey[]>;
 

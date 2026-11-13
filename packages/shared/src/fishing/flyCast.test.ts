@@ -232,6 +232,25 @@ describe('perhoheiton virheet (#235)', () => {
     expect(speed({ haul: true })).toBeCloseTo(base * FLY_CAST.haulBoost);
   });
 
+  it('veto pidentää heittoa: siimaa luistaa enemmän ja ilmassa kantaa pidemmälle (#622)', () => {
+    const slip = (haul: boolean) => {
+      const c = createFlyCast(10, false);
+      stroke(c, env(), -idealArc(10) / 2, 0.3, { haul });
+      return waitStraight(c, env(), false).slipped ?? 0;
+    };
+    expect(slip(true)).toBeGreaterThan(slip(false) * 1.15);
+    // Katto: ilman vetoa maxAerial, vedetyn liikkeen silmukassa maxHauled.
+    const reach = (haul: boolean) => {
+      const c = createFlyCast(FLY_CAST.maxAerial - 1, false);
+      stroke(c, env(), -idealArc(c.aerial) / 2, 0.15, { haul });
+      waitStraight(c, env(), false);
+      return c.aerial;
+    };
+    expect(reach(false)).toBeCloseTo(FLY_CAST.maxAerial);
+    expect(reach(true)).toBeGreaterThan(FLY_CAST.maxAerial + 2);
+    expect(reach(true)).toBeLessThanOrEqual(FLY_CAST.maxHauled);
+  });
+
   it('veto hetkeä ennen liikettä lasketaan, ja osunut veto ilmoitetaan (#398)', () => {
     const speed = (early: number) => {
       const c = createFlyCast(10, false);

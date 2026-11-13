@@ -67,6 +67,8 @@ const A = 0;
 const B = 1;
 const DOWN = 13;
 const MENU = 9;
+const LT = 6;
+const RS = 11;
 
 const focused = (page: Page) => page.evaluate(() => document.activeElement?.textContent?.trim());
 
@@ -104,8 +106,19 @@ test('peliohjain: valikot, ohjeen napit, heitto ja tauko', async ({ page, isMobi
   // Ohje näyttää ohjaimen napit.
   await expect(page.locator('.hud-help')).toContainText('A/RT pohjassa = kelaa');
 
+  // Kisa alkaa lyhyellä ohjeella (#638): LT pohjassa oikean tatin painallus
+  // avaa kaikki ohjeet, piilottaa ohjeen ja tuo lyhyen takaisin.
+  await expect(page.locator('.hud-help')).toContainText('LT+RS = kaikki ohjeet');
+  await setButton(page, LT, true);
+  await tap(page, RS);
   // Ylhäältä zoom on LT + ristiohjain.
   await expect(page.locator('.hud-help')).toContainText('LT+✚↑/✚↓ = zoom');
+  await expect(page.locator('.hud-help')).toContainText('LT+RS = ohje');
+  await tap(page, RS);
+  await expect(page.locator('.hud-help')).toBeHidden();
+  await tap(page, RS);
+  await expect(page.locator('.hud-help')).toBeVisible();
+  await setButton(page, LT, false);
 
   // Heitto: A pohjassa ja päästä, kuten välilyönti.
   const line = async () => {
@@ -125,5 +138,53 @@ test('peliohjain: valikot, ohjeen napit, heitto ja tauko', async ({ page, isMobi
   await expect(page.getByRole('button', { name: 'Jatka' })).toBeVisible();
   await tap(page, B);
   await expect(page.getByRole('button', { name: 'Jatka' })).toBeHidden();
+  errors.check();
+});
+
+test('peliohjaimen asetukset, ohjainkuva ja tauko ohjaimen irrotessa (#594)', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, 'puhelimilla sama näkymä');
+  const errors = watchErrors(page);
+  await page.addInitScript(installPad);
+  await page.goto(soloUrl());
+  await expect(page.getByRole('button', { name: 'Pelaa' })).toBeVisible();
+  // Ohjaimen painallus: peli siirtyy ohjaimen ohjaukseen.
+  await tap(page, DOWN);
+
+  // Asetuksissa on Peliohjain-osio, kun ohjain on kytketty, ja valinta tallentuu.
+  await page.getByRole('button', { name: 'Asetukset' }).click();
+  await expect(page.locator('.settings-section', { hasText: 'Peliohjain' })).toBeVisible();
+  await page.getByRole('button', { name: 'Kytkin' }).click();
+  await page.getByRole('button', { name: 'Ylös = takaheitto' }).click();
+  expect(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('lunki.pad') ?? '{}') as unknown),
+  ).toMatchObject({ reelToggle: true, flyInvert: true });
+  await page.getByRole('button', { name: 'Takaisin' }).click();
+
+  // Ohjeissa on kuva ohjaimesta ja nappien toiminnot toimintokartasta.
+  await page.getByRole('button', { name: 'Ohjeet' }).click();
+  await page.getByRole('button', { name: 'Liikkuminen' }).click();
+  await expect(page.locator('.pad-diagram')).toBeVisible();
+  await expect(page.locator('.pad-map-list')).toContainText('heitä, kelaa ja nosta kala');
+  await expect(page.locator('.pad-map-list dt').first()).toHaveText('A/RT');
+  await page.getByRole('button', { name: 'Takaisin' }).click();
+
+  // Yksinpeli menee tauolle, kun ohjain irtoaa kesken kisan.
+  await focusButton(page, 'Pelaa');
+  await tap(page, A);
+  await focusButton(page, 'Yksinpeli');
+  await tap(page, A);
+  await focusButton(page, 'Aloita kisa');
+  await tap(page, A);
+  await raceRunning(page);
+  await page.evaluate(() => {
+    Object.defineProperty(Navigator.prototype, 'getGamepads', {
+      configurable: true,
+      value: () => [],
+    });
+  });
+  await expect(page.getByRole('button', { name: 'Jatka' })).toBeVisible();
   errors.check();
 });

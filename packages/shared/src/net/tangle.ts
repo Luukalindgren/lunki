@@ -55,3 +55,82 @@ export function findTangles(lines: readonly LineInWater[]): { a: string; b: stri
   }
   return out;
 }
+
+/** Käynnissä oleva sotku: kaksi siimaa, sotkukohta ja selvityksen edistyminen 0–1. */
+export interface TanglePair {
+  a: string;
+  b: string;
+  at: Vec2;
+  progress: number;
+}
+
+/** Selvinneen siiman saa heittää ja se voi sotkeutua uudelleen vasta tämän ajan kuluttua (s). */
+const TANGLE_REST = 2;
+
+/**
+ * Sotkujen kirjanpito ilman palvelinta (yksinpelin botit): samat säännöt kuin
+ * moninpelin huoneessa. Ristissä olevat siimat sotkeutuvat, kun jompikumpi
+ * kelaa, ja sotku selviää, kun osapuolet kelaavat yhteensä
+ * `TANGLE.untangleSeconds`, tai kun toinen katkaisee siimansa.
+ */
+export class TangleBook {
+  private readonly pairs: TanglePair[] = [];
+  private readonly freeAt = new Map<string, number>();
+
+  /**
+   * Askel. `lines` = kaikki vedessä olevat siimat (myös sotkussa olevat).
+   * Palauttaa alkaneet, kelaamalla selvinneet ja siiman kadottua purkautuneet
+   * sotkut (esimerkiksi rangaistus vei siiman).
+   */
+  step(
+    lines: readonly LineInWater[],
+    now: number,
+    dt: number,
+  ): { started: TanglePair[]; untangled: TanglePair[]; dropped: TanglePair[] } {
+    const byId = new Map(lines.map((l) => [l.id, l]));
+    const untangled: TanglePair[] = [];
+    const dropped: TanglePair[] = [];
+    for (const p of [...this.pairs]) {
+      const a = byId.get(p.a);
+      const b = byId.get(p.b);
+      if (!a || !b) {
+        this.release(p, now);
+        dropped.push(p);
+        continue;
+      }
+      const holders = Number(a.reeling) + Number(b.reeling);
+      p.progress = Math.min(1, p.progress + (holders * dt) / TANGLE.untangleSeconds);
+      if (p.progress >= 1) {
+        this.release(p, now);
+        untangled.push(p);
+      }
+    }
+    const free = lines.filter((l) => !this.of(l.id) && now >= (this.freeAt.get(l.id) ?? 0));
+    const started = findTangles(free).map((t) => ({ ...t, progress: 0 }));
+    this.pairs.push(...started);
+    return { started, untangled, dropped };
+  }
+
+  /** Sotku, jossa siima on mukana, tai null. */
+  of(id: string): TanglePair | null {
+    return this.pairs.find((p) => p.a === id || p.b === id) ?? null;
+  }
+
+  /** Siima katkaistiin: sotku purkautuu. Palauttaa puretun sotkun tai null. */
+  cut(id: string, now: number): TanglePair | null {
+    const p = this.of(id);
+    if (p) this.release(p, now);
+    return p;
+  }
+
+  /** Käynnissä olevat sotkut. */
+  get active(): readonly TanglePair[] {
+    return this.pairs;
+  }
+
+  private release(p: TanglePair, now: number): void {
+    this.pairs.splice(this.pairs.indexOf(p), 1);
+    this.freeAt.set(p.a, now + TANGLE_REST);
+    this.freeAt.set(p.b, now + TANGLE_REST);
+  }
+}

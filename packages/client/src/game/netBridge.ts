@@ -23,6 +23,7 @@ import type { Hud } from '../ui/hud';
 import { formatWeight, ordinal, t } from '../i18n';
 import { lengthText, speciesName } from '../i18n/names';
 import { KnotView } from './knotView';
+import { tangleEnded, tangleStarted } from './tangleNotices';
 import type { RaceCatchMark, RaceLog } from './raceLog';
 import { RemotePlayersView } from './remotePlayersView';
 import type { BubbleContent } from './speechBubble';
@@ -35,6 +36,8 @@ const DIRECTOR_LIGHTNING_RANGE = 40;
 const SPECTATOR_CARD_SECONDS = 4;
 /** Saaliin kortti näytetään vielä, jos kuva tulee saajaan näin pian (s). */
 const SPECTATOR_CARD_FRESH = 10;
+/** Tämän painoinen saalis (kg) tai kisan siihen asti suurin saa kortin aina (#637). */
+const SPECTATOR_BIG_KG = 1;
 
 /** Moninpelin kytkentä: palvelin ajaa renkaan, muut pelaajat piirretään. */
 export interface NetLink {
@@ -95,6 +98,8 @@ export class NetBridge {
   /** Tuoreen saaliin punnituskortti: näytetään, kun kuva tulee saajaan. */
   private shownCard: string | null = null;
   private readonly cards = new Map<string, { at: number; show: () => void }>();
+  /** Kisan suurin katsojan näkemä saalis (kg). */
+  private biggest = 0;
 
   constructor(
     private readonly host: NetHost,
@@ -201,11 +206,7 @@ export class NetBridge {
   updateTangle(cut: boolean): NetWorld['tangle'] {
     const w = this.world;
     const tangle = w.tangle;
-    if (tangle && !this.wasTangled) {
-      this.host.raceStatsCounter.tangle();
-      this.host.sounds.play('tangled');
-      this.host.hud.showMessage(t('game.tangled', { name: tangle.with }), 3, 'alert');
-    }
+    if (tangle && !this.wasTangled) tangleStarted(this.host, tangle.with);
     this.wasTangled = tangle !== null;
     this.knots.update(w.tangles());
     if (tangle && cut) w.cutLine();
@@ -215,18 +216,7 @@ export class NetBridge {
   /** Sotku selvisi palvelimella. */
   private onUntangled(m: UntangledMessage, me: string): void {
     if (!m.players.includes(me)) return;
-    const hud = this.host.hud;
-    const hooked = this.host.fishing.hookedId !== null;
-    if (m.how === 'untangled') {
-      this.host.resetFishing();
-      hud.showMessage(hooked ? t('game.untangledLost') : t('game.untangled'), 2.5);
-    } else if (m.by === me) {
-      this.host.resetFishing();
-      this.host.sounds.play('lineCutFree');
-      hud.showMessage(t('game.youCut'), 2);
-    } else {
-      hud.showMessage(t('game.otherCut', { name: this.world.playerName(m.by) }), 2.5);
-    }
+    tangleEnded(this.host, m.how, m.by === me ? null : this.world.playerName(m.by));
   }
 
   /** Saalis pääsi järven ennätyslistalle. */
@@ -262,7 +252,10 @@ export class NetBridge {
         SPECTATOR_CARD_SECONDS,
         { species: mark.species, weight: mark.weight },
       );
-    if (player === this.followed) show();
+    // Iso saalis näytetään heti, vaikka kuvassa olisi toinen kalastaja (#637).
+    const big = mark.weight >= SPECTATOR_BIG_KG || mark.weight > this.biggest;
+    this.biggest = Math.max(this.biggest, mark.weight);
+    if (player === this.followed || big) show();
     else this.cards.set(player, { at: this.host.competition.elapsed, show });
   }
 
