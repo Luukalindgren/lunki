@@ -110,6 +110,36 @@ export class PovCamera {
     this.camera.updateMatrixWorld();
   }
 
+  /**
+   * Takaa-näkymä (#691): kamera kiertää kohdetta `dir`-suunnan takana kaaren
+   * (`elevation`, `distance`) päässä ja katsoo kohteen yli järvelle. Suunta
+   * ja kallistus porrastetaan pikseleihin kuten silmin. `floor` on veden tai
+   * maan pinnan korkeus kameran kohdalla; kamera pysyy sen yläpuolella.
+   */
+  applyOrbit(
+    target: Vec2,
+    height: number,
+    dir: number,
+    arc: { elevation: number; distance: number; lookAhead: number; clearance: number },
+    floor: (p: Vec2) => number = () => 0,
+  ): void {
+    this.yaw = snapAngle(dir, this.yaw, this.pixelAngle);
+    this.pitch = snapAngle(arc.lookAhead - arc.elevation, this.pitch, this.pixelAngle);
+    this.roll = 0;
+    const back = Math.cos(arc.elevation) * arc.distance;
+    const at = {
+      x: target.x - Math.cos(this.yaw) * back,
+      y: target.y - Math.sin(this.yaw) * back,
+    };
+    const y = Math.max(
+      height + Math.sin(arc.elevation) * arc.distance,
+      Math.max(0, floor(at)) + arc.clearance,
+    );
+    this.camera.position.copy(toWorld(at, y));
+    this.camera.rotation.set(this.pitch, this.yaw - Math.PI / 2, 0, 'YXZ');
+    this.camera.updateMatrixWorld();
+  }
+
   /** Sisäisen resoluution pikseli → piste vedenpinnalla (säde kamerasta). */
   internalToWorld(px: number, py: number): Vec2 {
     const { width, height } = this.resolution;

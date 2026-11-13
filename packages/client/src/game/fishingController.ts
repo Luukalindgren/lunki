@@ -1,3 +1,4 @@
+import { lakeLevel, type ViewMode } from './chaseCamera';
 import { simpleControls } from './controlStyle';
 import {
   DIFFICULTIES,
@@ -51,7 +52,7 @@ import {
 } from '../i18n/names';
 import { CastControl } from './castControl';
 import { padSettings } from '../engine/padSettings';
-import { controlMode, controlText, type Controls } from './controls';
+import { controlMode, controlText, orbitCamera, type Controls } from './controls';
 import { FlyCastControl, touchToRodPixels } from './flyCastControl';
 import type { FishingView } from './fishingView';
 import { FlyStrip } from './flyStrip';
@@ -99,7 +100,7 @@ export interface FishingHost {
   readonly facing: number;
   readonly inBoat: boolean;
   readonly spectating: boolean;
-  readonly viewMode: 'top' | 'pov';
+  readonly viewMode: ViewMode;
   readonly view: TopDownCamera;
   readonly pov: PovCamera;
   readonly fishingView: FishingView;
@@ -252,7 +253,9 @@ export class FishingController {
     // sormen pyyhkäisyllä (#236).
     const flyCasting = isFly(f.tackle);
     const touch = host.hud.touchMode;
-    this.collectSwipe(touch);
+    // Takaa-näkymässä (#691) sormen veto on kameran: perho heitetään rytmissä napista.
+    const swipes = touch && !orbitCamera();
+    this.collectSwipe(swipes);
     const castHeld =
       this.castControl.castHeld(f.stage, {
         mouse: c.isDown('pointer'),
@@ -281,7 +284,15 @@ export class FishingController {
         // näppäimillä: kosketuslevyllä ei ole hiiren oikeaa (#638).
         const keys = input.wasPressed('KeyJ');
         this.flyCastControl.start(
-          touch ? 'touch' : controlMode() === 'pad' ? 'pad' : keys ? 'keyboard' : 'mouse',
+          touch
+            ? swipes
+              ? 'touch'
+              : 'keyboard'
+            : controlMode() === 'pad'
+              ? 'pad'
+              : keys
+                ? 'keyboard'
+                : 'mouse',
         );
       }
       if (startFlyCast && this.flyCastControl.mode === 'mouse') input.lockPointer();
@@ -309,9 +320,9 @@ export class FishingController {
                     dy: input.mouseDY,
                     // Käänteinen tatti (#594): ylös on takaheitto.
                     stick: {
-                      x: input.padAim.x,
-                      y: padSettings().flyInvert ? -input.padAim.y : input.padAim.y,
-                      aim: host.viewMode !== 'pov',
+                      x: c.aimStick.x,
+                      y: padSettings().flyInvert ? -c.aimStick.y : c.aimStick.y,
+                      aim: !lakeLevel(host.viewMode),
                     },
                   },
               dt,
@@ -322,10 +333,10 @@ export class FishingController {
     if (!startFlyCast) this.swipeX = this.swipeY = 0;
     const internal = host.screenToInternal(input.mouseX, input.mouseY);
     this.aim = this.castControl.aim(
-      (host.viewMode === 'pov' ? host.pov : host.view).internalToWorld(internal.x, internal.y),
+      (lakeLevel(host.viewMode) ? host.pov : host.view).internalToWorld(internal.x, internal.y),
       host.tube.pos,
       host.facing,
-      controlMode() === 'pad' ? { stick: input.padAim, pov: host.viewMode === 'pov' } : undefined,
+      controlMode() === 'pad' ? { stick: c.aimStick, pov: lakeLevel(host.viewMode) } : undefined,
     );
     const lureOut = f.stage === 'flight' || f.stage === 'water';
     const flick = this.readStickFlick(dt, !flyCasting && !frozen && !tangled);
@@ -757,13 +768,13 @@ export class FishingController {
    */
   private readStickFlick(dt: number, free: boolean): boolean {
     const host = this.host;
-    const { input, controls: c } = host;
+    const c = host.controls;
     const f = host.fishing;
     const pad = controlMode() === 'pad';
     // Pikavalikon ollessa pohjassa tatti osoittaa sen lohkoa.
     const menu = host.emoteActive || c.isDown('lure') || c.isDown('method') || c.isDown('emote');
     return this.stickFlick.step(
-      pad ? input.padAim : NO_STICK,
+      pad ? c.aimStick : NO_STICK,
       dt,
       pad && free && !menu && f.stage === 'water' && f.landing === null,
     );

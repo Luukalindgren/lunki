@@ -1,3 +1,4 @@
+import { lakeLevel, type ViewMode } from './chaseCamera';
 import * as THREE from 'three';
 import {
   BIG_WAVE,
@@ -104,7 +105,7 @@ export interface WeatherHost {
   readonly inBoat: boolean;
   /** Kalastajan katsesuunta. */
   readonly facing: number;
-  readonly viewMode: 'top' | 'pov';
+  readonly viewMode: ViewMode;
   readonly view: TopDownCamera;
   readonly pov: PovCamera;
   readonly clock: number;
@@ -510,7 +511,7 @@ export class WeatherController {
       dt,
       host.competition.elapsed,
       host.tube.pos,
-      host.viewMode === 'pov'
+      lakeLevel(host.viewMode)
         ? null
         : { metersPerPixel: host.view.metersPerPixel, width: host.view.width },
       {
@@ -599,11 +600,11 @@ export class WeatherController {
       view.front,
     );
     this.sky.grade.invert = this.flashInvert && this.lightning.sinceStrike < 0.08;
-    this.mist.update(dt, this.sky.mist, wind, host.viewMode === 'pov');
+    this.mist.update(dt, this.sky.mist, wind, lakeLevel(host.viewMode));
     const g = this.sky.glitter;
     ww.uGlitterDir.value.copy(g.dir);
     ww.uGlitterColor.value.copy(g.color);
-    ww.uGlitter.value = host.viewMode === 'pov' ? g.amount : 0;
+    ww.uGlitter.value = lakeLevel(host.viewMode) ? g.amount : 0;
     ww.uSkyTint.value.copy(this.sky.lighting.horizon);
     // Taivaan heijastus vaalentaa kaukaista vettä vain valoisalla: yöllä ja
     // ukkospilvien alla vaalea järvenselkä korostui liikaa.
@@ -624,7 +625,7 @@ export class WeatherController {
     this.sun.position.copy(sky.lightDir).multiplyScalar(120);
     // Päivänvalon määrä ilmeen kerrokselle (Modernin mökkien ikkunat syttyvät hämärässä).
     scene.userData.daylight = this.host.daylight.light;
-    const pov = this.host.viewMode === 'pov';
+    const pov = lakeLevel(this.host.viewMode);
     // Kaukosumu lasketaan jälkikäsittelyssä usvan kanssa (ks. RetroRenderer).
     this.sky.grade.fog = pov ? sky.fog : null;
     const bg = scene.background;
@@ -645,7 +646,7 @@ export class WeatherController {
    * varjo ylhäältä, taivas ja usva seuraavat kameraa.
    */
   render(pos: Vec2, air: ReturnType<typeof flightPose> | null): void {
-    const pov = this.host.viewMode === 'pov';
+    const pov = lakeLevel(this.host.viewMode);
     // Tyynellä lähivesi on tasainen, joten pohjan kivet ja sävyt näkyvät kuten ennenkin.
     const rough = this.waterWaves.uSwellFade.value > 0;
     placeSwellPatch(this.swellPatch, this.waterWaves, pov && rough ? pos : null);
@@ -673,7 +674,7 @@ export class WeatherController {
       if (px !== 0) {
         const jx = Math.round((Math.random() * 2 - 1) * px);
         const jy = Math.round((Math.random() * 2 - 1) * px);
-        if (this.host.viewMode === 'pov') {
+        if (lakeLevel(this.host.viewMode)) {
           // Silmien kohdalla pikseli on noin pari senttiä: kallistetaan katsetta.
           const pov = this.host.pov.camera;
           const a = 1.5 / this.heightPx;

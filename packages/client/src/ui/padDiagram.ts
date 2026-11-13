@@ -26,6 +26,7 @@ const ROWS: readonly (readonly [Action | 'leftStick' | 'rightStick', MsgKey])[] 
   ['emote', 'padmap.emote'],
   ['pause', 'padmap.pause'],
   ['zoom', 'padmap.zoom'],
+  ['camera', 'padmap.camera'],
   ['help', 'padmap.help'],
 ];
 

@@ -70,7 +70,9 @@ test.describe('puhelin', () => {
     await drag(page, browserName, centre, { x: centre.x + 60, y: centre.y }, 1500);
     await expect.poll(() => compassOffset(page)).not.toBe(before);
 
-    // Kisa alkoi kalastajan silmin; KAM-nappi vaihtaa ylhäältä katsottuun.
+    // Kisa alkoi kalastajan silmin; KAM-nappi vaihtaa takaa (#691) ja ylhäältä katsottuun.
+    await page.getByRole('button', { name: 'KAM' }).tap();
+    await expect(page.locator('.hud-message')).toHaveText('Takaa (KAM)');
     await page.getByRole('button', { name: 'KAM' }).tap();
     await expect(page.locator('.hud-message')).toHaveText('Ylhäältä (KAM)');
     await expect.poll(() => canvasColors(page)).toBeGreaterThan(8);
@@ -242,7 +244,9 @@ test('yksinkertaisella ohjauksella puhelimella vain tatti, iso nappi, tauko ja K
   await page.getByRole('button', { name: 'II' }).tap();
   await expect(page.locator('.pause-scoreboard')).toContainText('Sinä');
   await page.getByRole('button', { name: 'Jatka' }).tap();
-  // Ylhäältä katsottaessa zoom on käytössä.
+  // Ylhäältä katsottaessa zoom on käytössä (KAM: silmin → takaa → ylhäältä).
+  await page.getByRole('button', { name: 'KAM' }).tap();
+  await expect(page.locator('.touch-tools > button:visible')).toHaveText(['II', 'KAM']);
   await page.getByRole('button', { name: 'KAM' }).tap();
   await expect(page.locator('.touch-tools > button:visible')).toHaveText(['II', 'KAM', '+', '−']);
   errors.check();

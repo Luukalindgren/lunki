@@ -14,7 +14,12 @@ function setup(minHold = 0) {
   const keys = { down: true };
   const clock = { ms: 0 };
   const input = { padAim: { x: 0, y: 0 } };
-  const c = { isDown: () => keys.down, input } as unknown as Controls;
+  const c = {
+    isDown: () => keys.down,
+    get aimStick() {
+      return input.padAim;
+    },
+  } as unknown as Controls;
   const hold = new HeldMenu(
     () => menu,
     'method',

@@ -1210,7 +1210,7 @@ startLoop({
       touch?.setCrew(game.crewSeats);
       touch?.setSimple(
         simpleControls(),
-        game.viewMode === 'pov',
+        game.viewMode !== 'top',
         game.fishing.snag !== null || game.fishing.onLand || game.tangled,
       );
       touch?.setAshore(game.shoreMain !== undefined, !!game.shoreMain);

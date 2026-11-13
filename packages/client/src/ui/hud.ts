@@ -505,6 +505,7 @@ export class Hud {
     if (
       c.fly === context.fly &&
       c.pov === context.pov &&
+      !!c.chase === !!context.chase &&
       c.seat === context.seat &&
       !!c.crew === !!context.crew &&
       !!c.simple === !!context.simple &&
@@ -555,6 +556,8 @@ export class Hud {
     const mp = this.multiplayer;
     const c = this.helpContext;
     const tail: MsgKey[] = [
+      // Kameran rivi näkyy vain takaa-näkymässä (#691).
+      ...(c.chase && !this.spectator ? (['help.camera'] as const) : []),
       this.spectator ? 'help.spectateBar' : 'help.bar',
       ...(mp ? [c.crew ? ('help.chatCrew' as const) : ('help.chat' as const)] : []),
     ];
@@ -693,8 +696,10 @@ export interface MessageOptions {
 export interface HelpContext {
   /** Perhovälineet (muuten virveli). */
   fly: boolean;
-  /** Kalastajan näkymä: zoomia ei ole. */
+  /** Näkymä järven tasolta (silmin tai takaa): zoomia ei ole. */
   pov: boolean;
+  /** Takaa-näkymä (#691): ohjeessa on kameran rivi, ja nuolet ovat kameran. */
+  chase?: boolean;
   /**
    * Kulkupeli: kelluntarengas, veneen soutaja tai kyytiläinen (#263).
    * Soutajalla on oma ohjeensa airoissa ja vapa kädessä (`rowerRod`, #639).

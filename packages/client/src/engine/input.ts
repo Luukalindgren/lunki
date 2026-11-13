@@ -53,6 +53,11 @@ export class Input {
   private dragAccY = 0;
   /** Kosketus, joka toimii hiirenä pelikuvan päällä (yksi kerrallaan). */
   private aimPointer: number | null = null;
+
+  /** Sormi on pelikuvalla (ei hiiri): takaa-näkymässä se vetää kameraa (#691). */
+  get finger(): boolean {
+    return this.aimPointer !== null;
+  }
   /**
    * Valikko auki: näppäimet ohjaavat valikkoa eivätkä peliä (esim. välilyönti
    * ei kelaa taustalla moninpelin tauolla). Esc, Backspace ja F-näppäimet

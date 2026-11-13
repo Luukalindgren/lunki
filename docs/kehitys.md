@@ -107,6 +107,27 @@ Koodi: `packages/client/src/game/controls.ts`.
   vavan nykäisy (`game/stickFlick.ts`, #595). Uusi toiminto saa `pad`-napin, jos sellainen on vapaana;
   muuten yhdistelmän `padWith`-kentällä (zoom on LT/L2 + ristiohjain, ohje piiloon LT/L2 + oikean tatin painallus), jolloin
   saman napin tavallinen toiminto väistää yhdistelmän ajaksi.
+- **Näkymiä on kolme** (`ViewMode`, `game/chaseCamera.ts`, #691): kalastajan
+  silmin, takaa ja ylhäältä, ja {view} kiertää ne tässä järjestyksessä
+  (`nextView`; katsojalla vain silmin ja ylhäältä). Silmin ja takaa ovat
+  järven tasolla (`lakeLevel`): sama perspektiivikamera (`PovCamera`),
+  maisema, usva ja merkkien koot. Koodi, joka kysyy "perspektiivi vai
+  kartta", käyttää `lakeLevel`-kutsua; `viewMode === 'pov'` tarkoittaa vain
+  omin silmin piirrettäviä osia (oma vapa ja rengas edessä).
+  - Takaa-näkymässä kamera kiertää kalastajaa yhtä kaarta (`ChaseOrbit`,
+    `CHASE`): sivulle se kiertää pystyakselin ympäri, ylös se nousee ja
+    loittonee. Kamera vain katsoo: liike ja heitto kulkevat kalastajan
+    suuntaan, eikä palvelin tiedä kamerasta. Potkiessa sivukierto palaa selän
+    taakse, korkeus jää.
+  - Kameraa ohjataan nuolilla (`camLeft`…`camDown`), peliohjaimella LT/L2 +
+    oikealla tatilla ja kosketuksella sormen vedolla järvellä
+    (`Controls.cameraInput`). `setOrbitCamera` kertoo toimintokartalle, että
+    takaa-näkymä on päällä: silloin nuolet eivät liikuta kalastajaa, sormi
+    järvellä ei kelaa eikä heitä perhoa (napit toimivat), ja ohjetekstit
+    jättävät nämä pois. Uusi sormen ele järvellä tai nuolinäppäimen käyttö
+    tarkistaa saman tilan toimintokartasta eikä näkymästä.
+  - Oikean tatin lukijat (heiton suunta, perhovapa, pikavalikko, nykäisy)
+    käyttävät `Controls.aimStick`ia, joka on nolla, kun tatti kääntää kameraa.
 - Peliohjaimen asetukset (#594, `engine/padSettings.ts`): kääntymisen
   herkkyys (`TurnPulse` jättää osan askelista väliin, koska käännös kulkee
   palvelimelle arvoina -1, 0 ja 1), perhoheiton tatti käänteisenä

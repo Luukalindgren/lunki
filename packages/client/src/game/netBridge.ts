@@ -1,3 +1,4 @@
+import { lakeLevel, type ViewMode } from './chaseCamera';
 import {
   LureStage,
   distance,
@@ -60,7 +61,7 @@ export interface NetHost {
   readonly raceLog: RaceLog;
   readonly raceStatsCounter: RaceStatsCounter;
   readonly view: TopDownCamera;
-  readonly viewMode: 'top' | 'pov';
+  readonly viewMode: ViewMode;
   /** Nollaa oman kalastuksen (siima poikki, sotku selvisi). */
   resetFishing(): void;
   onStrike(pos: Vec2, hitMe: boolean): void;
@@ -346,7 +347,7 @@ export class NetBridge {
       i = (i + step + others.length) % others.length;
       this.host.hud.showMessage(t('game.following', { name: others[i]!.name }), 1.5, 'info');
       // Katsoja valitsi itse: ohjaaja odottaa hetken (#564).
-      const view = this.host.viewMode;
+      const view = lakeLevel(this.host.viewMode) ? 'pov' : 'top';
       if (this.directing) this.director?.manual(others[i]!.id, view, this.host.competition.elapsed);
     }
     const f = others[i]!;
