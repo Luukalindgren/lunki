@@ -56,3 +56,6 @@ vaihtoehtoja eivätkä ole pelin nykyistä koodia.
 | #668  | Harjoittelun taukovalikko: otsikko ja rivi, aulan tilanne                                                       |
 | #669  | Kisan tulostaulun nimet: leveämpi sarake, bottien etunimet                                                      |
 | #691  | Kolmas kamerakulma takaa (3rd person): nuolet, ohjaimen yhdistelmä, sormen veto                                 |
+| #707  | Takaa-näkymä: kamera siirtyy noston ajaksi                                                                      |
+| #708  | Takaa-näkymä: vihje kameran kääntämisestä                                                                       |
+| #709  | Puhelin: zoomnapit piiloon näkymissä, joissa ne eivät tee mitään                                                |
