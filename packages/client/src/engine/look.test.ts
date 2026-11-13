@@ -30,4 +30,11 @@ describe('LookGuard', () => {
     expect(guard.frame(5)).toBe(false);
     expect(run(guard, 60, 10)).toBe(false);
   });
+
+  it('palauttaa Retroon, kun joka ruutu kestää yli puoli sekuntia', () => {
+    const guard = new LookGuard();
+    let fell = false;
+    for (let i = 0; i < 12; i++) fell = guard.frame(0.8) || fell;
+    expect(fell).toBe(true);
+  });
 });

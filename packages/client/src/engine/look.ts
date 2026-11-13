@@ -50,8 +50,10 @@ export const SHARP_MIN_FPS = 30;
 const GUARD_WARMUP = 3;
 /** Mittausjakso (s): yksittäinen nykäys ei vielä vaihda ilmettä. */
 const GUARD_WINDOW = 4;
-/** Tätä pidempi ruutu on tauko (välilehti taustalla), ei hidas piirto. */
+/** Tätä pidempi yksittäinen ruutu on tauko (välilehti taustalla), ei hidas piirto. */
 const GUARD_PAUSE = 0.5;
+/** Näin monta pitkää ruutua peräkkäin on hidasta piirtoa, ei taukoa. */
+const GUARD_STALLS = 3;
 
 /**
  * Vahtii Terävän ruutunopeutta kisan aikana: `frame` palauttaa true, kun
@@ -61,8 +63,10 @@ export class LookGuard {
   private warm = 0;
   private time = 0;
   private frames = 0;
+  private stalls = 0;
 
   reset(): void {
+    this.stalls = 0;
     this.warm = 0;
     this.time = 0;
     this.frames = 0;
@@ -71,11 +75,16 @@ export class LookGuard {
   frame(frameTime: number): boolean {
     if (frameTime <= 0) return false;
     if (frameTime > GUARD_PAUSE) {
-      // Tauon jälkeen mittaus alkaa alusta.
+      // Tauon jälkeen mittaus alkaa alusta. Jos joka ruutu on näin pitkä,
+      // laite piirtää alle kaksi kuvaa sekunnissa eikä kyse ole tauosta.
       this.time = 0;
       this.frames = 0;
-      return false;
+      this.warm = Math.min(GUARD_WARMUP, this.warm + GUARD_PAUSE);
+      if (++this.stalls < GUARD_STALLS || this.warm < GUARD_WARMUP) return false;
+      this.stalls = 0;
+      return true;
     }
+    this.stalls = 0;
     if (this.warm < GUARD_WARMUP) {
       this.warm += frameTime;
       return false;
