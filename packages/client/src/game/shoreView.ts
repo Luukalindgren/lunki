@@ -112,7 +112,11 @@ export class AshoreFigure {
         if (k !== undefined) {
           const m = c as THREE.Mesh;
           // Puoliskon kärjet muistiin: tyhjänä se lässähtää keskilinjansa ympäriltä leveäksi.
-          if (k < 2) m.userData.deflate = deflateBase(m.geometry, k === 0 ? -1 : 1);
+          if (k < 2) {
+            m.userData.deflate = deflateBase(m.geometry, k === 0 ? -1 : 1);
+            // Ilme voi vaihtaa osan muodon (Modernin pyöristys): sama täyttö uuteen muotoon.
+            m.userData.reshape = () => deflate(m, (m.userData.deflate as DeflateBase).k);
+          }
           this.pontoons[k]!.push(m);
         }
       } else if (c.name === 'leg' || c.name === 'fin' || c.name === 'rod' || c.userData.seated)
@@ -370,6 +374,9 @@ export class AshoreFigure {
 
 /** Tyhjän puoliskon kärjet: alkuperäinen paikka ja lähin kohta putken keskilinjalla. */
 interface DeflateBase {
+  /** Muoto, josta kärjet on luettu, ja puoli (-1 vasen, 1 oikea). */
+  geometry: THREE.BufferGeometry;
+  side: number;
   base: Float32Array;
   center: Float32Array;
   /** Viimeksi piirretty täyttö (ei turhia päivityksiä). */
@@ -380,9 +387,14 @@ interface DeflateBase {
  * Kärkien keskilinja U:n puoliskossa (`side` -1 vasen, 1 oikea): takakaaren
  * osalla lähin kohta kaarella, kyljessä ja kärjessä kyljen akselilla.
  */
-function deflateBase(geometry: THREE.BufferGeometry, side: number): DeflateBase {
+export function deflateBase(geometry: THREE.BufferGeometry, side: number): DeflateBase {
   const pos = geometry.getAttribute('position') as THREE.BufferAttribute;
-  const base = new Float32Array(pos.array as ArrayLike<number>);
+  // Täysi muoto kulkee muodon mukana (`userData.rest`): ilme lukee siitä osan
+  // oikean muodon, ja takaisin vaihdettu muoto tietää lepomuotonsa.
+  const base =
+    (geometry.userData.rest as Float32Array | undefined) ??
+    new Float32Array(pos.array as ArrayLike<number>);
+  geometry.userData.rest = base;
   const center = new Float32Array(base.length);
   for (let i = 0; i < pos.count; i++) {
     const x = base[i * 3]!;
@@ -396,16 +408,20 @@ function deflateBase(geometry: THREE.BufferGeometry, side: number): DeflateBase 
       center[i * 3 + 2] = side * TUBE_CENTER;
     }
   }
-  return { base, center, k: 1 };
+  return { geometry, side, base, center, k: 1 };
 }
 
 /**
  * Puolisko täytön `k` mukaan (FLAT … 1): putki litistyy keskilinjansa
  * ympäriltä matalaksi ja leveäksi ja painuu maahan.
  */
-function deflate(m: THREE.Mesh, k: number): void {
-  const d = m.userData.deflate as DeflateBase;
+export function deflate(m: THREE.Mesh, k: number): void {
+  let d = m.userData.deflate as DeflateBase;
   m.position.y = TUBE_LIFT * k;
+  if (d.geometry !== m.geometry) {
+    d = m.userData.deflate = deflateBase(m.geometry, d.side);
+    d.k = NaN;
+  }
   if (d.k === k) return;
   d.k = k;
   const spread = 1 + (1 - k) * SPREAD;

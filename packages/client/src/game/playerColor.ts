@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { LOOK_UNIFORMS } from '../engine/look';
 import { shadeRamp } from '../engine/palette';
 
 /**
@@ -16,7 +17,8 @@ type Ramp = [THREE.Color, THREE.Color, THREE.Color];
  * (`SHADE_RAMPS`): Lambert-valaistus lasketaan tavalliseen tapaan, mutta
  * tulos vaihdetaan valon voimakkuuden mukaan rampin sävyksi. Näin varjopuoli
  * pysyy samaa väriä eikä pyöristy paletissa ruskeaksi. Kirkkaus tulee silti
- * yhdestä sävytyksestä (SkyView.grade) paletin jälkeen.
+ * yhdestä sävytyksestä (SkyView.grade) paletin jälkeen. Modernissa ilmeessä
+ * (`uLookModern`) portaita ei ole: väri varjostuu liukuvasti pehmeillä pinnoilla.
  */
 export function playerColorMaterial(hex: number): THREE.MeshLambertMaterial {
   const material = new THREE.MeshLambertMaterial({ color: hex });
@@ -26,15 +28,19 @@ export function playerColorMaterial(hex: number): THREE.MeshLambertMaterial {
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uRamp = { value: ramp };
     shader.uniforms.uShadeSteps = { value: SHADE_STEPS };
+    shader.uniforms.uLookModern = LOOK_UNIFORMS.uLookModern;
     shader.fragmentShader = shader.fragmentShader
-      .replace('void main() {', 'uniform vec3 uRamp[3];\nuniform vec2 uShadeSteps;\nvoid main() {')
+      .replace(
+        'void main() {',
+        'uniform vec3 uRamp[3];\nuniform vec2 uShadeSteps;\nuniform float uLookModern;\nvoid main() {',
+      )
       .replace(
         '#include <opaque_fragment>',
         /* glsl */ `
         // Valo pinnan väristä riippumatta: vihreä maavalo ei saa tummentaa punaista.
         vec3 rampIrradiance = outgoingLight / max(diffuseColor.rgb, vec3(1e-3));
         float rampLight = dot(rampIrradiance, vec3(0.299, 0.587, 0.114));
-        outgoingLight = rampLight > uShadeSteps.x ? uRamp[0]
+        if (uLookModern < 0.5) outgoingLight = rampLight > uShadeSteps.x ? uRamp[0]
           : rampLight > uShadeSteps.y ? uRamp[1] : uRamp[2];
         #include <opaque_fragment>`,
       );

@@ -40,8 +40,10 @@ function serviceWorker(): Plugin {
 
 /** Buildin kansio modernin ilmeen tiedostoille (ks. `optionalList`). */
 const MODERN_DIR = 'modern';
+const inModern = (id: string): boolean => id.replaceAll('\\', '/').includes('src/modern/');
+/** Modernin oma koodi ja kirjaston osat, joita vain se käyttää (three.js:n lisämuodot). */
 const modernModule = (ids: readonly string[]): boolean =>
-  ids.length > 0 && ids.every((id) => id.replaceAll('\\', '/').includes('src/modern/'));
+  ids.some(inModern) && ids.every((id) => inModern(id) || id.includes('node_modules'));
 
 export default defineConfig({
   // Suhteellinen polku, jotta build toimii myös GitHub Pagesin alipolussa.
