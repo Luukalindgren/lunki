@@ -34,7 +34,7 @@ interface Spots {
   maxR: number;
 }
 
-interface FishLook {
+export interface FishLook {
   /** Ruumiin korkeus suhteessa pituuteen. */
   depth: number;
   /** Selän ja vatsan korkeimman kohdan paikka (0 = kuono, 1 = pyrstön tyvi). */
@@ -400,6 +400,44 @@ const LOOKS: Record<SpeciesId, FishLook> = {
 
 /** Ruumiin osuus kuvan pituudesta, loput on pyrstöä. */
 const BODY = 0.8;
+export const FISH_BODY = BODY;
+
+/** Lajin muoto ja värit: samasta tehdään pikselikuva ja Modernin ilmeen malli. */
+export const fishLook = (species: SpeciesId): FishLook => LOOKS[species];
+
+/**
+ * Ruumiin ääriviiva: selän (`top`) ja vatsan (`bottom`) etäisyys keskiviivasta
+ * kohdassa `t` (0 = kuono, 1 = pyrstön tyvi). `depth` on ruumiin suurin
+ * korkeus halutussa yksikössä (oletus osuutena kalan pituudesta).
+ */
+export function fishOutline(
+  look: FishLook,
+  depth = look.depth,
+): { top: (t: number) => number; bottom: (t: number) => number } {
+  const profile = (t: number, peak: number) => {
+    const e = Math.log(0.5) / Math.log(peak);
+    const s = Math.pow(Math.sin(Math.PI * Math.pow(t, e)), 0.8);
+    const taper = t < look.snout ? Math.pow(t / look.snout, look.snoutShape) : 1;
+    return (look.peduncle + (1 - look.peduncle) * s) * taper;
+  };
+  return {
+    top: (t) => depth * (1 - look.belly) * profile(t, look.hump),
+    bottom: (t) => depth * look.belly * profile(t, look.bellyPeak),
+  };
+}
+
+/**
+ * Onko kohdassa pystyraita (ahven, kuha). `t` on paikka ruumiin pituudella ja
+ * `r` kyljen korkeudella (-1 = selkä, 1 = vatsa).
+ */
+export function fishBar(look: FishLook, t: number, r: number): boolean {
+  const bars = look.bars;
+  if (!bars || t < bars.from || t > bars.to || r >= bars.depth) return false;
+  const phase = ((t - bars.from) / (bars.to - bars.from)) * bars.count;
+  // Raita kapenee vatsaa kohti.
+  const width = 0.42 - Math.max(0, r) * 0.4;
+  return phase % 1 < width && r > -0.85;
+}
 export const MIN_SPRITE_WIDTH = 22;
 export const MAX_SPRITE_WIDTH = 96;
 
@@ -436,15 +474,7 @@ export function fishPixels(species: SpeciesId, width: number): FishPixels {
     if (i >= 0 && i < W && j >= 0 && j < H) data[j * W + i] = c;
   };
 
-  // Ruumiin ääriviiva: selän ja vatsan etäisyys keskiviivasta.
-  const profile = (t: number, peak: number) => {
-    const e = Math.log(0.5) / Math.log(peak);
-    const s = Math.pow(Math.sin(Math.PI * Math.pow(t, e)), 0.8);
-    const taper = t < look.snout ? Math.pow(t / look.snout, look.snoutShape) : 1;
-    return (look.peduncle + (1 - look.peduncle) * s) * taper;
-  };
-  const top = (t: number) => depthPx * (1 - look.belly) * profile(t, look.hump);
-  const bottom = (t: number) => depthPx * look.belly * profile(t, look.bellyPeak);
+  const { top, bottom } = fishOutline(look, depthPx);
 
   const bodyEnd = BODY * W;
   const pedHalf = (look.peduncle * depthPx) / 2;
@@ -542,12 +572,7 @@ export function fishPixels(species: SpeciesId, width: number): FishPixels {
 
 /** Kyljen väri: selkä tumma, vatsa vaalea, väliin raidat ja täplät. */
 function bodyColor(look: FishLook, t: number, r: number, i: number, j: number, W: number): number {
-  if (look.bars && t >= look.bars.from && t <= look.bars.to && r < look.bars.depth) {
-    const phase = ((t - look.bars.from) / (look.bars.to - look.bars.from)) * look.bars.count;
-    // Raita kapenee vatsaa kohti.
-    const width = 0.42 - Math.max(0, r) * 0.4;
-    if (phase % 1 < width && r > -0.85) return look.bars.color;
-  }
+  if (look.bars && fishBar(look, t, r)) return look.bars.color;
   for (const s of look.spots ?? []) {
     if (r < s.minR || r > s.maxR || t < 0.2 || t > 0.97) continue;
     const size = Math.max(2, Math.round(s.cell * W));

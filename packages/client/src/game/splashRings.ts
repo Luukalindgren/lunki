@@ -28,11 +28,14 @@ export class SplashRings {
   private next = 0;
 
   constructor(count = 1) {
+    this.group.name = 'splash-rings';
     const geometry = new THREE.RingGeometry(0.8, 1, 12);
     for (let i = 0; i < count; i++) {
       const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: FOAM }));
       mesh.rotation.x = -Math.PI / 2;
       mesh.visible = false;
+      // Moderni ilme piirtää renkaan väreenä (`modern/soften.ts`).
+      mesh.userData.shape = 'ripple';
       this.group.add(mesh);
       this.rings.push({ mesh, age: Infinity, size: 1, time: SPLASH_TIME });
     }
@@ -60,6 +63,8 @@ export class SplashRings {
       r.mesh.visible = r.age < r.time;
       if (!r.mesh.visible) continue;
       const t = r.age / r.time;
+      // Renkaan ikä 0–1: Moderni ilme haalistaa renkaan sen mukaan (`modern/marks.ts`).
+      r.mesh.userData.life = t;
       r.mesh.scale.setScalar((0.4 + t * 1.6) * r.size);
     }
   }

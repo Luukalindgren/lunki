@@ -1,14 +1,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { ROD_COLOR } from '../game/rodModel';
-import { mergeParts, paint, solid } from './shapes';
-
-/** Osa yhdistettäväksi: ei indeksejä eikä kuvakoordinaatteja. */
-function part(geo: THREE.BufferGeometry): THREE.BufferGeometry {
-  const plain = geo.index ? geo.toNonIndexed() : geo;
-  if (plain !== geo) geo.dispose();
-  return solid(plain);
-}
+import { lump, mergeParts, paint, part } from './shapes';
 
 /**
  * Räpylä: jalkatasku kantapäässä, kärkeä kohti levenevä lapa pyöristetyin
@@ -121,18 +114,6 @@ function along(from: number, to: number, r0: number, r1: number, color: number) 
   const geo = new THREE.CylinderGeometry(r0, r1, to - from, 14);
   geo.rotateZ(Math.PI / 2);
   geo.translate((from + to) / 2, 0, 0);
-  return paint(part(geo), () => color);
-}
-
-/** Pallosta venytetty pehmeä osa. */
-function lump(
-  center: readonly [number, number, number],
-  radii: readonly [number, number, number],
-  color: number,
-) {
-  const geo = new THREE.SphereGeometry(1, 14, 10);
-  geo.scale(...radii);
-  geo.translate(...center);
   return paint(part(geo), () => color);
 }
 

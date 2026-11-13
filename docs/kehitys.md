@@ -240,6 +240,24 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
     kaikki palautetaan, kun ilme vaihtuu.
   - Pelaajan värit (`playerColorMaterial`) varjostuvat Modernissa liukuvasti
     (`uLookModern`), eivät kolmella palettisävyllä.
+- **Eläimet ja veden pinnan merkit ovat Modernissa malleja pelin kuvien
+  paikalla.** Peli piirtää ne edelleen itse (pikselikuva tai rengas) ja kertoo
+  kuvan `userData`ssa, mitä se esittää; Moderni piirtää tilalle mallin samaan
+  paikkaan ja kokoon joka ruudulla, joten liike, koko ja säännöt ovat pelin.
+  - Linnut (`modern/birds.ts`, ryhmä `birds`): kuva kertoo asennon
+    (`userData.bird`, `userData.grow`). Mallit ovat `modern/birdShapes.ts`:n
+    taulukossa `BIRDS` (mitat ja värit lajeittain, uiva ja lentävä muoto,
+    siivet lyövät asennon `flap`-vaiheen mukaan). Uusi laji on rivi siihen.
+  - Nostettava kala ja haavi (`modern/landing.ts`, ryhmä `landing`): kuva
+    kertoo lajin ja asennon (`userData.fish`). Kalan malli (`fishShape`)
+    lasketaan samoista lajin tiedoista kuin pikselikuva (`fishLook`,
+    `fishOutline`, `ui/fishArt.ts`), joten uusi laji tai muutettu muoto näkyy
+    molemmissa. Haavi (`landing-net`) saa kehän, pussin ja varren.
+  - Roiskerenkaat (`splash-rings`, `userData.shape = 'ripple'`) ovat väreitä,
+    jotka haalistuvat renkaan iän (`userData.life`) mukana, ja vieheen merkki
+    (`lure-marker`) on hiottu timantti tilan värissä (`modern/marks.ts`).
+    Läpikuultava merkki ei kirjoita alfakanavaan (usvan tiheys). Tasaväriset
+    renkaat ja ympyrät (tähtäin, oman paikan merkki) pyöristää `Softener`.
 - **Modernin teema** (`modern/theme.css`) vaihtaa käyttöliittymän värit
   `style.css`:n `--c-`-muuttujilla ja kirjasimet luokan `.look-modern` alla.
   Uusi valikon tai HUDin osa käyttää näitä muuttujia eikä kirjoita värejä
@@ -532,7 +550,8 @@ Koodi: `packages/client/src/audio/sounds.ts`.
   tasoilla, koska oikeakin kalastaja näkee ne; `FISH_BIRDS` päättää määrät
   tasoittain. Vesilinnut (`game/waterfowl.ts`) arvotaan kisan siemenestä
   kausittain ja väistävät kulkupelejä. Uusi lintu on uusi rivi näihin
-  taulukoihin ja kuva `game/birdArt.ts`:iin, ei oma järjestelmä.
+  taulukoihin, kuva `game/birdArt.ts`:iin ja Modernin malli
+  `modern/birdShapes.ts`:ään, ei oma järjestelmä.
 - Pikselikuvat järvellä tehdään `game/pixelSprite.ts`:n tekstuureina
   (`alphaTest`, ei puoliläpinäkyvyyttä).
 

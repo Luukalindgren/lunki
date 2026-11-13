@@ -128,6 +128,55 @@ export function blob(
   return geo;
 }
 
+/** Osa yhdistettäväksi: ei indeksejä eikä kuvakoordinaatteja. */
+export function part(geo: THREE.BufferGeometry): THREE.BufferGeometry {
+  const plain = geo.index ? geo.toNonIndexed() : geo;
+  if (plain !== geo) geo.dispose();
+  return solid(plain);
+}
+
+/** Osan väri: yksi väri tai väri kärjen paikasta ja normaalin pystyosasta (`paint`). */
+export type Tone =
+  | THREE.ColorRepresentation
+  | ((x: number, y: number, z: number, up: number) => THREE.ColorRepresentation);
+
+const toneOf = (tone: Tone) => (typeof tone === 'function' ? tone : () => tone);
+
+/** Pallosta venytetty pehmeä osa: keskikohta, säteet ja väri. */
+export function lump(
+  center: readonly [number, number, number],
+  radii: readonly [number, number, number],
+  tone: Tone,
+  segments = 14,
+): THREE.BufferGeometry {
+  const geo = new THREE.SphereGeometry(1, segments, Math.max(6, Math.round(segments * 0.7)));
+  geo.scale(...radii);
+  geo.translate(...center);
+  return paint(part(geo), toneOf(tone));
+}
+
+const limbAxis = new THREE.Vector3();
+const limbTurn = new THREE.Quaternion();
+const UP = new THREE.Vector3(0, 1, 0);
+
+/** Lieriö pisteestä toiseen (kaula, nokka, varsi): säde `r0` alussa ja `r1` lopussa. */
+export function limb(
+  from: readonly [number, number, number],
+  to: readonly [number, number, number],
+  r0: number,
+  r1: number,
+  tone: Tone,
+  segments = 10,
+): THREE.BufferGeometry {
+  limbAxis.set(to[0] - from[0], to[1] - from[1], to[2] - from[2]);
+  const length = limbAxis.length();
+  // Lieriön yläpää (+y) on loppupiste.
+  const geo = new THREE.CylinderGeometry(r1, r0, length, segments);
+  geo.applyQuaternion(limbTurn.setFromUnitVectors(UP, limbAxis.normalize()));
+  geo.translate((from[0] + to[0]) / 2, (from[1] + to[1]) / 2, (from[2] + to[2]) / 2);
+  return paint(part(geo), toneOf(tone));
+}
+
 /** Yhdistää osat yhdeksi verkoksi ja vapauttaa osat. */
 export function mergeParts(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
   const merged = mergeGeometries(parts);
