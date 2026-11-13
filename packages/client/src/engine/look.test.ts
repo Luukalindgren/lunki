@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LookGuard } from './look';
+import { LookGuard, defaultLook } from './look';
 
 /** Ajaa vahtia tasaisella ruutunopeudella; palauttaa, vaatiko se paluuta Retroon. */
 function run(guard: LookGuard, fps: number, seconds: number): boolean {
@@ -36,5 +36,15 @@ describe('LookGuard', () => {
     let fell = false;
     for (let i = 0; i < 12; i++) fell = guard.frame(0.8) || fell;
     expect(fell).toBe(true);
+  });
+});
+
+describe('defaultLook', () => {
+  it('on Terävä, kun ilmettä ei ole valittu', () => {
+    expect(defaultLook(false)).toBe('sharp');
+  });
+
+  it('on Retro automaation ohjaamassa selaimessa', () => {
+    expect(defaultLook(true)).toBe('retro');
   });
 });

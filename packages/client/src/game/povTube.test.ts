@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import * as THREE from 'three';
 import { EMOTE_DURATION } from '@lunki/shared';
-import { DIM, coilPoint, finPose, handRaise, slackCoilLayout } from './povTube';
+import { DIM, finPose, handRaise, slackCoilLayout, slackHang, slackPilePoint } from './povTube';
 
 describe('POV-kellukan räpylät ja käsi (#230)', () => {
   it('räpylät potkivat vuorotellen ja pikapotku heiluttaa enemmän', () => {
@@ -41,20 +42,37 @@ describe('POV-kellukan räpylät ja käsi (#230)', () => {
 });
 
 describe('perhon löysä siima POV:ssa', () => {
-  it('kiekurat ovat siimatason päällä, eivät vedessä', () => {
-    slackCoilLayout().forEach((k, c) => {
-      for (let i = 0; i < 32; i++) {
-        const p = coilPoint(k, c, (i / 32) * Math.PI * 2);
-        expect(p.x).toBeGreaterThan(DIM.apronFrom);
-        expect(p.x).toBeLessThan(DIM.flapTo);
-        expect(Math.abs(p.z)).toBeLessThan(DIM.apronHalf);
-        expect(p.y).toBeGreaterThan(DIM.apronY);
-      }
-    });
+  const coils = slackCoilLayout();
+
+  it('kasa on siimatason päällä, ei vedessä', () => {
+    for (let i = 0; i <= coils.length * 32; i++) {
+      const p = slackPilePoint(i / 32);
+      expect(p.x).toBeGreaterThan(DIM.apronFrom);
+      expect(p.x).toBeLessThan(DIM.flapTo);
+      expect(Math.abs(p.z)).toBeLessThan(DIM.apronHalf);
+      expect(p.y).toBeGreaterThan(DIM.apronY);
+    }
   });
 
   it('kiekurat kasautuvat toistensa päälle', () => {
-    const ys = slackCoilLayout().map((k) => k.y);
+    const ys = coils.map((k) => k.y);
     for (let i = 1; i < ys.length; i++) expect(ys[i]).toBeGreaterThan(ys[i - 1]!);
+  });
+
+  it('siima on yksi yhtenäinen viiva kiekuralta toiselle', () => {
+    // Peräkkäiset pisteet ovat lähellä toisiaan myös kiekuran vaihtuessa.
+    for (let i = 1; i <= coils.length * 64; i++) {
+      expect(slackPilePoint(i / 64).distanceTo(slackPilePoint((i - 1) / 64))).toBeLessThan(0.03);
+    }
+  });
+
+  it('riippuva siima alkaa kelalta, päättyy kasaan eikä painu tason läpi', () => {
+    const reel = new THREE.Vector3(0.2, 0.36, 0.27);
+    const pile = slackPilePoint(0);
+    const pts = Array.from({ length: 10 }, () => new THREE.Vector3());
+    slackHang(reel, pile, pts);
+    expect(pts[0]!.distanceTo(reel)).toBeLessThan(1e-6);
+    expect(pts[9]!.distanceTo(pile)).toBeLessThan(1e-6);
+    for (const p of pts) expect(p.y).toBeGreaterThanOrEqual(pile.y - 1e-6);
   });
 });

@@ -9,13 +9,17 @@ import {
   type SpeciesId,
   type TimeOfDay,
 } from '@lunki/shared';
+import { activeLook } from '../engine/look';
+import { pixelBytes, smoothPixels } from '../engine/smoothPixels';
 import { fishPixels, type FishPixels } from './fishArt';
+import { uiFont } from './lookArt';
 import { formatDay, formatWeight, t } from '../i18n';
 import { seasonName, speciesName, timeOfDayName } from '../i18n/names';
 
 /**
  * Punnituskortti: pikselikuva, jossa kalastaja pitelee saalista renkaassaan,
  * ja saaliin tiedot. Kortin voi tallentaa kuvana tai jakaa kavereille.
+ * Terävällä ilmeellä (#674) kuva on saman piirroksen sileä versio.
  */
 
 export interface WeighCardInfo {
@@ -101,16 +105,30 @@ export function sceneFishWidth(species: SpeciesId, weightKg: number): number {
   return Math.max(10, Math.round(fishLengthCm(species, weightKg) * PX_PER_CM));
 }
 
-/** Kortin kuva: kalastaja renkaassa pitelee kalaa järvellä. */
+/** Kahden värin sekoitus (k = 0 … 1). */
+function blend(a: number, b: number, k: number): number {
+  const ch = (shift: number) =>
+    Math.round(((a >> shift) & 0xff) + (((b >> shift) & 0xff) - ((a >> shift) & 0xff)) * k);
+  return (ch(16) << 16) | (ch(8) << 8) | ch(0);
+}
+
+/**
+ * Kortin kuva: kalastaja renkaassa pitelee kalaa järvellä. `smooth` on
+ * Terävän ilmeen pohja: taivas jää läpinäkyväksi (kortti piirtää sen
+ * liukuvärinä) ja usva on tasainen sävy rasteroinnin sijaan, jotta kuvasta voi
+ * tehdä sileän version (`smoothPixels`).
+ */
 export function anglerScene(
   species: SpeciesId,
   weightKg: number,
   look: Appearance,
   time: TimeOfDay,
+  smooth = false,
 ): FishPixels {
   const W = SCENE_WIDTH;
   const H = SCENE_HEIGHT;
   const data = new Int32Array(W * H);
+  if (smooth) data.fill(-1);
   const set = (x: number, y: number, c: number) => {
     x = Math.round(x);
     y = Math.round(y);
@@ -119,7 +137,7 @@ export function anglerScene(
   const sky = SKIES[time];
 
   // Taivas kolmena kaistana, rajoilla ruudukkorasterointi.
-  for (let y = 0; y < HORIZON; y++) {
+  for (let y = 0; y < (smooth ? 0 : HORIZON); y++) {
     const band = (y / HORIZON) * 3;
     for (let x = 0; x < W; x++) {
       const i = Math.floor(band);
@@ -165,7 +183,10 @@ export function anglerScene(
       if (wave < 0.12 + near * 0.08) c = shade(sky.water, 1.35);
       // Valon heijastus kapenee kohti katsojaa ja hajoaa väreiksi.
       if (Math.abs(x - l.x) < l.r * (1 - near * 0.6) && hash(x + y * 97, 13) < 0.3) c = sky.glint;
-      if (sky.mist && y < HORIZON + 8 && (x + y) % 2 === 0) c = sky.mist;
+      if (sky.mist && y < HORIZON + 8) {
+        if (smooth) c = blend(c, sky.mist, 0.55 * (1 - (y - HORIZON) / 8));
+        else if ((x + y) % 2 === 0) c = sky.mist;
+      }
       set(x, y, c);
     }
   }
@@ -313,7 +334,7 @@ export function drawWeighCard(info: WeighCardInfo): HTMLCanvasElement {
   canvas.height = CARD_HEIGHT;
   canvas.className = 'weigh-card';
   paintCard(canvas, info);
-  document.fonts?.load('40px VT323').then(
+  document.fonts?.load(uiFont(40)).then(
     () => paintCard(canvas, info),
     () => undefined,
   );
@@ -327,20 +348,38 @@ function paintCard(canvas: HTMLCanvasElement, info: WeighCardInfo): void {
   ctx.fillStyle = css(0x39424d);
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const scene = anglerScene(f.species, f.weight, info.appearance, info.timeOfDay);
-  const img = ctx.createImageData(scene.width, scene.height);
-  scene.data.forEach((c, k) => {
-    img.data[k * 4] = (c >> 16) & 0xff;
-    img.data[k * 4 + 1] = (c >> 8) & 0xff;
-    img.data[k * 4 + 2] = c & 0xff;
-    img.data[k * 4 + 3] = 255;
-  });
-  const small = document.createElement('canvas');
-  small.width = scene.width;
-  small.height = scene.height;
-  small.getContext('2d')?.putImageData(img, 0, 0);
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(small, FRAME, FRAME, scene.width * CARD_SCALE, scene.height * CARD_SCALE);
+  const sharp = activeLook() === 'sharp';
+  const scene = anglerScene(f.species, f.weight, info.appearance, info.timeOfDay, sharp);
+  if (sharp) {
+    // Terävä: taivas liukuvärinä ja sama kuva sileänä versiona sen päälle.
+    const sky = SKIES[info.timeOfDay].sky;
+    const fill = ctx.createLinearGradient(0, FRAME, 0, FRAME + HORIZON * CARD_SCALE);
+    sky.forEach((c, i) => fill.addColorStop(i / (sky.length - 1), css(c)));
+    ctx.fillStyle = fill;
+    ctx.fillRect(FRAME, FRAME, scene.width * CARD_SCALE, HORIZON * CARD_SCALE);
+    const fine = smoothPixels(scene, CARD_SCALE);
+    const layer = document.createElement('canvas');
+    layer.width = fine.width;
+    layer.height = fine.height;
+    const img = new ImageData(fine.width, fine.height);
+    img.data.set(pixelBytes(fine));
+    layer.getContext('2d')?.putImageData(img, 0, 0);
+    ctx.drawImage(layer, FRAME, FRAME);
+  } else {
+    const img = ctx.createImageData(scene.width, scene.height);
+    scene.data.forEach((c, k) => {
+      img.data[k * 4] = (c >> 16) & 0xff;
+      img.data[k * 4 + 1] = (c >> 8) & 0xff;
+      img.data[k * 4 + 2] = c & 0xff;
+      img.data[k * 4 + 3] = 255;
+    });
+    const small = document.createElement('canvas');
+    small.width = scene.width;
+    small.height = scene.height;
+    small.getContext('2d')?.putImageData(img, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(small, FRAME, FRAME, scene.width * CARD_SCALE, scene.height * CARD_SCALE);
+  }
 
   const px = FRAME * 2 + scene.width * CARD_SCALE;
   ctx.fillStyle = css(0x1c232b);
@@ -349,12 +388,12 @@ function paintCard(canvas: HTMLCanvasElement, info: WeighCardInfo): void {
   const maxWidth = PANEL_WIDTH - 40;
   let y = FRAME + 14;
   const line = (text: string, size: number, color: number, gap = 6) => {
-    ctx.font = `${size}px VT323, monospace`;
+    ctx.font = uiFont(size);
     // Pitkä rivi pienenee, jotta se mahtuu paneeliin.
     let s = size;
     while (s > 16 && ctx.measureText(text).width > maxWidth) {
       s -= 2;
-      ctx.font = `${s}px VT323, monospace`;
+      ctx.font = uiFont(s);
     }
     ctx.fillStyle = css(color);
     ctx.textBaseline = 'top';

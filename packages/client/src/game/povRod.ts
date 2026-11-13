@@ -101,6 +101,9 @@ const blank = (off: number): RodPiece[] =>
     to: { blank: (i + 1) / BLANK_SEGMENTS },
   }));
 
+/** Siimakäden kohta kelan suulta ensimmäiselle ohjaimelle (osuus matkasta). */
+const SLACK_HAND = 0.3;
+
 /** Perhokela vavan tyvessä (kelan kehyksessä): keskipiste, säde ja leveys. */
 const FLY_REEL = { x: -ROD.butt + 0.04, y: -0.055, radius: 0.045, width: 0.022 };
 
@@ -146,6 +149,11 @@ export class PovRod {
   private readonly flyReel = new THREE.Group();
   private readonly along: THREE.Line;
   private readonly coil: THREE.Line;
+  /**
+   * Perhon löysän siiman päät maailmassa: kelan suu ja siimakäden kohta
+   * vavalla. Rengas ripustaa löysän siiman näistä (`PovTube.hangSlack`).
+   */
+  readonly slackEnds = { reel: new THREE.Vector3(), hand: new THREE.Vector3() };
   private readonly reel = new THREE.Group();
   private readonly rotor = new THREE.Group();
   private readonly bail = new THREE.Group();
@@ -442,12 +450,15 @@ export class PovRod {
         : this.roller.getWorldPosition(v.b);
     const attr = this.along.geometry.getAttribute('position') as THREE.BufferAttribute;
     attr.setXYZ(0, exit.x, exit.y, exit.z);
+    this.slackEnds.reel.copy(exit);
     ROD.guides.forEach(([at, drop], i) => {
       along(at * length, v.b);
       // Ohjain riippuu vavan alla; vähintään kahden pikselin päässä, jotta siima erottuu vavasta.
       const depth = v.a.subVectors(v.b, camera.position).dot(v.camFwd);
       shift(v.b, Math.max(2, Math.round(drop / (depth * pixelSize))));
       attr.setXYZ(i + 1, v.b.x, v.b.y, v.b.z);
+      // Siimakäsi pitää siimaa kelan ja ensimmäisen ohjaimen välissä.
+      if (i === 0) this.slackEnds.hand.lerpVectors(this.slackEnds.reel, v.b, SLACK_HAND);
     });
     attr.setXYZ(ROD.guides.length + 1, v.tip.x, v.tip.y, v.tip.z);
     attr.needsUpdate = true;

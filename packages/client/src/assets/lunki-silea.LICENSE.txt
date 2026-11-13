@@ -1,0 +1,9 @@
+Lunki Silea (lunki-silea.woff2)
+
+Johdannainen VT323-fontista: sama fontti, jonka portaat on pehmennetty
+sileiksi (scripts/fontti/sileafontti.py).
+
+Copyright 2011, The VT323 Project Authors (peter.hull@oikoi.com)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+This license is available with a FAQ at: https://openfontlicense.org

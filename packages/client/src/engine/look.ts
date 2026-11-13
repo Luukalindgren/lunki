@@ -11,16 +11,29 @@ export type Look = 'retro' | 'sharp';
 
 export const LOOKS: readonly Look[] = ['retro', 'sharp'];
 
-export const DEFAULT_LOOK: Look = 'retro';
+/**
+ * Oletus on Terävä kaikilla laitteilla, joilla ilmettä ei ole valittu.
+ * Liian hitaalla laitteella `LookGuard` palauttaa Retron ja tallentaa sen.
+ */
+export const DEFAULT_LOOK: Look = 'sharp';
+
+/**
+ * Ilme ilman tallennettua valintaa. Automaation ohjaama selain (selaintestit)
+ * saa Retron: ohjelmistorenderöinnillä Terävä on liian hidas, ja testi, joka
+ * koskee Terävää, valitsee sen itse.
+ */
+export function defaultLook(automated = globalThis.navigator?.webdriver === true): Look {
+  return automated ? 'retro' : DEFAULT_LOOK;
+}
 
 const KEY = 'lunki.look';
 
 export function loadLook(): Look {
   try {
     const saved = localStorage.getItem(KEY);
-    return LOOKS.includes(saved as Look) ? (saved as Look) : DEFAULT_LOOK;
+    return LOOKS.includes(saved as Look) ? (saved as Look) : defaultLook();
   } catch {
-    return DEFAULT_LOOK;
+    return defaultLook();
   }
 }
 
@@ -32,7 +45,7 @@ export function saveLook(look: Look): void {
   }
 }
 
-let active: Look = DEFAULT_LOOK;
+let active: Look = 'retro';
 const listeners = new Set<(look: Look) => void>();
 
 /** Käytössä oleva ilme: kuvat ja tekstuurit, jotka piirretään ilmeen mukaan, kysyvät tästä. */

@@ -164,9 +164,11 @@ Koodi: `packages/client/src/game/skyView.ts`, `engine/retroRenderer.ts`.
 Koodi: `packages/client/src/engine/look.ts`, `engine/retroRenderer.ts`.
 
 - Asetusten Näyttö-osion valinta **Ilme: Retro / Terävä** on laitteen asetus
-  (`lunki.look`, oletus Retro). Terävä piirtää saman kohtauksen näytön
-  tarkkuudella ilman palettia ja reunat pehmennettyinä; sisältö, säännöt ja
-  HUD ovat samat. Uusi ilme (Moderni, #650) on uusi arvo samaan valintaan.
+  (`lunki.look`). Oletus on Terävä jokaisella laitteella, jolla ilmettä ei ole
+  valittu (`defaultLook`); Retro jää valittavaksi. Terävä piirtää saman
+  kohtauksen näytön tarkkuudella ilman palettia ja reunat pehmennettyinä;
+  sisältö, säännöt ja HUD ovat samat. Uusi ilme (Moderni, #650) on uusi arvo
+  samaan valintaan.
 - **Sisäinen tarkkuus on kummassakin ilmeessä sama** (`RetroRenderer.resolution`):
   kamerat, zoomitasot, merkkien koot ja HUDin mitta lasketaan siitä, joten
   näkyvä alue ei riipu ilmeestä. Terävä piirtää jokaisen sisäisen pikselin
@@ -190,11 +192,28 @@ Koodi: `packages/client/src/engine/look.ts`, `engine/retroRenderer.ts`.
   kulkupelin esikatselu) vaihtuvat ilmeen mukana itsestään
   (`activeLook`, `onLookChange`). Uusi pikselikuva käyttää näitä eikä piirrä
   omaa kangasta tai tekstuuria, eikä Terävälle tehdä rinnakkaista taidetta.
-  Maiseman tekstuurit (puiden lehvästö) ja HUDin fontti ovat kummassakin
-  ilmeessä samat.
+  Laskemalla piirretty kuva (vieheen timantti, `diamondPixels`) voi antaa
+  `pixelTexture`lle saman muodon suoraan tarkempana. Maiseman tekstuurit
+  (puiden lehvästö) ovat kummassakin ilmeessä samat.
+- **Fontti vaihtuu ilmeen mukana** CSS-muuttujalla `--font`: Retrossa VT323,
+  Terävällä Lunki Silea, joka on sama fontti portaat sileiksi pehmennettynä
+  (`scripts/fontti/sileafontti.py`, `src/assets/lunki-silea.woff2`). Merkkien
+  leveydet ovat samat, joten asettelu ei muutu. Uusi tyyli käyttää
+  `font-family: var(--font)` ja kankaalle piirrettävä teksti `uiFont(px)`
+  (`ui/lookArt.ts`), ei fontin nimeä.
+- **HUDin pienet näytöt** (kaikuluotain, vieheluotain, perhoheiton sivukuva)
+  ottavat piirtopintansa `panelContext`illa (`ui/sonarArt.ts`): mitat ovat
+  aina sisäisiä pikseleitä, ja Terävällä kankaassa on neljä kuvapistettä
+  pikseliä kohden. Terävän kuva piirretään muotoina samoista tiedoista
+  (pohja kaarena, kasvit varsina, kivet kumpuina, kalat kaarina); uusi
+  rakenne tai näyttö käyttää näitä eikä omaa kangaskokoa. Punnituskortti ja
+  järvikartta tekevät Terävälle sileän version samasta piirroksesta
+  (`smoothPixels`).
 - Terävä on raskas: jos kisan ruutunopeus jää alle 30 (`LookGuard`), ilme
-  palaa Retroon ja siitä kerrotaan `info`-ilmoituksella. Selaintestit ajetaan
-  Retrolla; `e2e/ilme.spec.ts` vaihtaa ilmeen ja aloittaa kisan.
+  palaa Retroon, valinta tallennetaan ja siitä kerrotaan `info`-ilmoituksella.
+  Selaintestit ajetaan Retrolla: automaation ohjaama selain
+  (`navigator.webdriver`) saa oletukseksi Retron, ja `e2e/ilme.spec.ts`
+  vaihtaa ilmeen ja aloittaa kisan.
 
 ### Vuodenaika (#427)
 

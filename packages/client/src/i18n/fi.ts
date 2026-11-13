@@ -259,7 +259,7 @@ export const fi = {
   'settings.lookRetro': 'Retro',
   'settings.lookSharp': 'Terävä',
   'settings.lookHint':
-    'Terävä piirtää saman grafiikan näytön täydellä tarkkuudella. Se on raskaampi: jos peli alkaa nykiä, ilme palaa Retroon.',
+    'Terävä piirtää grafiikan näytön täydellä tarkkuudella. Jos peli alkaa nykiä, ilme palaa Retroon. Retro on kevyempi pikseli-ilme.',
   'look.fellBack': 'Terävä ilme oli tälle laitteelle liian raskas. Ilme vaihtui Retroon.',
   'settings.guide': 'Opastus',
   'settings.guideOn': 'Näytä alusta',
@@ -496,7 +496,7 @@ export const fi = {
     'Lunkinjärvestä ei ole julkista luotausaineistoa, joten pohja on laskettu rantaviivasta ja syvänteet ja karikot ovat keksittyjä.',
   'credits.libraries': 'Kirjastot',
   'credits.osmCopyright': 'OpenStreetMapin tekijänoikeudet',
-  'credits.font': 'VT323-fontti (Peter Hull), Fontsource',
+  'credits.font': 'VT323-fontti (Peter Hull), Fontsource, ja siitä tehty sileä versio',
   'credits.osm': '© OpenStreetMapin tekijät, ODbL 1.0',
   'credits.dem':
     'Copernicus DEM GLO-30: © DLR e.V. 2010–2014 ja © Airbus Defence and Space GmbH 2014–2018, Copernicus (EU, ESA)',

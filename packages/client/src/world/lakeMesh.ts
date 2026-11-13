@@ -441,8 +441,11 @@ vec2 waterDash(vec2 p, float cell, float seed, float chance, vec2 dir, float t) 
         // Horisontin puolella silta jatkuu rantaan asti kapeampana.
         float far = below < 0.0 ? clamp(-below / max(uGlitterDir.y, 0.02), 0.0, 1.0) : 0.0;
         float halfWidth = mix(0.004, 0.026, reach) * (1.0 - 0.45 * far);
-        // Rivit ovat sisäisiä pikseleitä, joten silta on sama kummassakin ilmeessä.
-        float row = floor(gl_FragCoord.y / uLookDetail);
+        // Rivit ovat sisäisiä pikseleitä, joten silta on yhtä leveä ja pitkä
+        // kummassakin ilmeessä. Terävällä rivi on puolet ohuempi ja välkkeitä on
+        // rivillä enemmän: sama silta hienompina viivoina.
+        float rowHeight = uLookSharp > 0.5 ? max(1.0, uLookDetail * 0.5) : uLookDetail;
+        float row = floor(gl_FragCoord.y / rowHeight);
         // Lähellä aallot näkyvät harvemmassa: rivien väli kasvaa.
         float stride = refl.y < 0.12 ? 2.0 : 3.0;
         if (reach > 0.0 && abs(ax) < halfWidth && mod(row, stride) < 1.0) {
@@ -452,7 +455,7 @@ vec2 waterDash(vec2 p, float cell, float seed, float chance, vec2 dir, float t) 
           float chance = uGlitter * (0.85 - 0.6 * (1.0 - reach) - 0.25 * far);
           float rowOn = step(1.0 - chance, h1);
           // Kaukana yksi yhtenäinen viiva, lähempänä 2–4 lyhyttä välkettä.
-          float pieces = floor(mix(1.0, 4.0, smoothstep(0.06, 0.25, refl.y)) + 0.5);
+          float pieces = floor(mix(1.0, 4.0 + 2.0 * uLookSharp, smoothstep(0.06, 0.25, refl.y)) + 0.5);
           float t = ((ax / halfWidth - (h2 - 0.5) * 0.4) * 0.5 + 0.5) * pieces;
           float piece = floor(t);
           float on = pieces > 1.5 ? step(0.4, waterHash(vec2(row * 5.0 + piece, tick + 9.0))) : 1.0;

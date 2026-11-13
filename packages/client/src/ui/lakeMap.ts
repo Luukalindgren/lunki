@@ -12,10 +12,13 @@ import {
   type LakeSurroundings,
   type Vec2,
 } from '@lunki/shared';
+import { activeLook, onLookChange, type Look } from '../engine/look';
+import { pixelBytes, smoothPixels } from '../engine/smoothPixels';
 import type { RaceEventKind, RaceMapData } from '../game/raceLog';
 import { bottomFor } from '../world/lakeData';
 import { AREA_COLORS, DEFAULT_GROUND, LINE_COLORS } from '../world/surroundingsMesh';
 import { DEPTH_BANDS, MapViewport, depthBand, scaleBarMeters, type Bounds } from './mapViewport';
+import { uiFont } from './lookArt';
 import { navCode } from './menuNav';
 import { decimal, hasKey, t } from '../i18n';
 
@@ -80,16 +83,27 @@ export function describeSpot(p: Vec2): string | null {
 interface BaseImage {
   canvas: HTMLCanvasElement;
   extent: Bounds;
+  /** Kuvapisteitä Retron pikseliä kohden. */
+  detail: number;
 }
 
-let baseCache: BaseImage | null = null;
+const baseCache: Partial<Record<Look, BaseImage>> = {};
+/** Terävän pohjakuvan kuvapisteitä Retron pikseliä kohden. */
+const FINE = 2;
 
 /**
  * Kartan pohjakuva kerran: maankäyttö, tiet, järven syvyysvyöhykkeet
- * käyrineen, saaret, kaislikot, rakennukset ja laiturit. Pikselit ovat isoja kuten pelissä.
+ * käyrineen, saaret, kaislikot, rakennukset ja laiturit. Retrossa pikselit ovat
+ * isoja kuten pelissä. Terävällä (#674) sama kuva piirretään kaksinkertaisella
+ * tarkkuudella: alueiden reunat ovat sileitä, syvyysvyöhykkeistä tehdään sileä
+ * versio (`smoothPixels`) ja kartta suurennetaan pehmeästi.
  */
 function buildBase(d: LakeData, s: LakeSurroundings): BaseImage {
-  if (baseCache) return baseCache;
+  const look = activeLook();
+  const cached = baseCache[look];
+  if (cached) return cached;
+  const fine = look === 'sharp';
+  const detail = fine ? FINE : 1;
   const b = d.map.bounds;
   const extent = {
     minX: b.minX - MARGIN,
@@ -100,9 +114,11 @@ function buildBase(d: LakeData, s: LakeSurroundings): BaseImage {
   const w = Math.ceil((extent.maxX - extent.minX) / RES);
   const h = Math.ceil((extent.maxY - extent.minY) / RES);
   const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
+  canvas.width = w * detail;
+  canvas.height = h * detail;
   const ctx = canvas.getContext('2d')!;
+  // Piirto on aina Retron pikseleinä; Terävällä yksi pikseli on `FINE` kuvapistettä.
+  ctx.scale(detail, detail);
   const px = (p: Vec2): [number, number] => [(p.x - extent.minX) / RES, (extent.maxY - p.y) / RES];
   const ringPath = (rings: Vec2[][]) => {
     ctx.beginPath();
@@ -146,11 +162,8 @@ function buildBase(d: LakeData, s: LakeSurroundings): BaseImage {
     }
   }
   // Oma kuva vedelle: maan lukeminen takaisin näytönohjaimelta olisi hidasta.
-  const img = new ImageData(lw, lh);
-  const rgb = DEPTH_BANDS.map((band) => {
-    const v = parseInt(band.color.slice(1), 16);
-    return [(v >> 16) & 255, (v >> 8) & 255, v & 255] as const;
-  });
+  const colors = new Int32Array(lw * lh).fill(-1);
+  const rgb = DEPTH_BANDS.map((band) => parseInt(band.color.slice(1), 16));
   for (let j = 0; j < lh; j++) {
     for (let i = 0; i < lw; i++) {
       const k = j * lw + i;
@@ -160,15 +173,18 @@ function buildBase(d: LakeData, s: LakeSurroundings): BaseImage {
       const up = j > 0 ? bands[k - lw]! : band;
       // Käyrä: syvemmän puolen pikseli tummuu vyöhykkeen rajalla.
       const edge = (left >= 0 && left < band) || (up >= 0 && up < band);
-      const c = rgb[Math.min(rgb.length - 1, band + (edge ? 1 : 0))]!;
-      img.data.set([c[0], c[1], c[2], 255], k * 4);
+      colors[k] = rgb[Math.min(rgb.length - 1, band + (edge ? 1 : 0))]!;
     }
   }
+  const water = { width: lw, height: lh, data: colors };
+  const shown = fine ? smoothPixels(water, FINE) : water;
+  const img = new ImageData(shown.width, shown.height);
+  img.data.set(pixelBytes(shown));
   const lake = document.createElement('canvas');
-  lake.width = lw;
-  lake.height = lh;
+  lake.width = shown.width;
+  lake.height = shown.height;
   lake.getContext('2d')!.putImageData(img, 0, 0);
-  ctx.drawImage(lake, x0, y0);
+  ctx.drawImage(lake, x0, y0, lw, lh);
 
   // Saaret ovat metsää.
   ctx.fillStyle = css(AREA_COLORS.forest);
@@ -190,7 +206,12 @@ function buildBase(d: LakeData, s: LakeSurroundings): BaseImage {
         x += 2
       ) {
         ctx.fillStyle = css((x + y) % 3 === 0 ? AREA_COLORS.field : AREA_COLORS.reeds);
-        ctx.fillRect(x, y, 1, 1);
+        if (fine) {
+          // Terävällä pisteet ovat pyöreitä korsia.
+          ctx.beginPath();
+          ctx.arc(x + 0.5, y + 0.5, 0.5, 0, Math.PI * 2);
+          ctx.fill();
+        } else ctx.fillRect(x, y, 1, 1);
       }
     }
     ctx.restore();
@@ -217,8 +238,7 @@ function buildBase(d: LakeData, s: LakeSurroundings): BaseImage {
     );
     ctx.stroke();
   }
-  baseCache = { canvas, extent };
-  return baseCache;
+  return (baseCache[look] = { canvas, extent, detail });
 }
 
 export interface LakeMapOptions {
@@ -259,7 +279,8 @@ export class LakeMapView {
   private readonly canvas: HTMLCanvasElement;
   private readonly info: HTMLParagraphElement;
   private readonly data = lunkiData();
-  private readonly base: BaseImage;
+  private base: BaseImage;
+  private readonly unwatchLook: () => void;
   private readonly view: MapViewport;
   private readonly resize: ResizeObserver;
   private readonly pointers = new Map<number, Vec2>();
@@ -317,10 +338,16 @@ export class LakeMapView {
     this.resize = new ResizeObserver(() => this.layout());
     this.resize.observe(this.canvas);
     this.bindInput();
+    // Ilmeen vaihtuessa pohjakuva piirretään uudelleen.
+    this.unwatchLook = onLookChange(() => {
+      this.base = buildBase(this.data, LUNKINJARVI_SURROUNDINGS);
+      this.draw();
+    });
   }
 
   dispose(): void {
     this.resize.disconnect();
+    this.unwatchLook();
   }
 
   setMarker(p: Vec2 | null): void {
@@ -531,13 +558,19 @@ export class LakeMapView {
     ctx.fillStyle = css(DEFAULT_GROUND);
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.imageSmoothingEnabled = false;
+    const sharp = activeLook() === 'sharp';
+    ctx.imageSmoothingEnabled = sharp;
     const e = this.base.extent;
     const tl = v.toScreen({ x: e.minX, y: e.maxY });
-    const span = (e.maxX - e.minX) * v.scale;
-    ctx.drawImage(this.base.canvas, tl.x, tl.y, span, this.base.canvas.height * RES * v.scale);
+    ctx.drawImage(
+      this.base.canvas,
+      tl.x,
+      tl.y,
+      (e.maxX - e.minX) * v.scale,
+      (this.base.canvas.height / this.base.detail) * RES * v.scale,
+    );
 
-    ctx.font = '16px VT323, monospace';
+    ctx.font = uiFont(16);
     ctx.textBaseline = 'middle';
     const labels = v.scale >= 0.45;
     for (const f of this.data.features) {
@@ -549,8 +582,13 @@ export class LakeMapView {
           [-2, 0],
           [2, -1],
           [0, 2],
-        ])
-          ctx.fillRect(Math.round(s.x + dx! - 1), Math.round(s.y + dy! - 1), 3, 3);
+        ]) {
+          if (sharp) {
+            ctx.beginPath();
+            ctx.arc(s.x + dx!, s.y + dy!, 1.6, 0, Math.PI * 2);
+            ctx.fill();
+          } else ctx.fillRect(Math.round(s.x + dx! - 1), Math.round(s.y + dy! - 1), 3, 3);
+        }
       }
       if (labels) this.label(ctx, f.name, s.x + 6, s.y, '#eef2f3');
     }

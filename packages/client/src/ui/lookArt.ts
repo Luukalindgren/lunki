@@ -7,6 +7,10 @@ import { pixelBytes, smoothPixels, type PixelImage } from '../engine/smoothPixel
  * mitat sivulla tulevat aina lähdekuvan pikseleistä, joten asettelu ei muutu.
  */
 
+/** Kankaalle piirrettävän tekstin fontti: Terävällä sileä versio samasta fontista. */
+export const uiFont = (px: number): string =>
+  `${px}px ${activeLook() === 'sharp' ? "'Lunki Silea', " : ''}VT323, monospace`;
+
 /** Piirtää pikselikuvan kankaalle käytössä olevan ilmeen mukaan. */
 export function paintPixels(canvas: HTMLCanvasElement, px: PixelImage): void {
   const image = activeLook() === 'sharp' ? smoothPixels(px) : px;
