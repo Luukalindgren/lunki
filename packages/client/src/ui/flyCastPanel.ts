@@ -2,6 +2,7 @@ import type { FlyCastState } from '@lunki/shared';
 import { flyLinePose, flyLineProfile, type FlyLinePose, type SidePoint } from '../game/flyLine';
 import { flyRodAngle, flyRodTip } from '../game/povRod';
 import { t } from '../i18n';
+import { panelContext } from './sonarArt';
 
 /** Näytön koko sisäisinä pikseleinä (yksi pikseli = HUD:n --u), sama kuin vieheluotaimessa. */
 const WIDTH = 96;
@@ -17,11 +18,16 @@ const LIFT_PX = 5;
 
 const COLORS = {
   sky: '#20425c',
+  skyLow: '#2b5674',
   water: '#12324a',
+  waterDeep: '#0d263a',
   surface: '#83c2db',
   tube: '#d23a2a',
+  tubeDark: '#8c1c1c',
   body: '#39424d',
+  bodyLight: '#4d5966',
   head: '#e0b48a',
+  cap: '#8c1c1c',
   rod: '#f6d04d',
   line: '#c3cbd2',
   fly: '#f08a2c',
@@ -41,13 +47,16 @@ export function panelPoint(
   pose: FlyLinePose,
   tip: { x: number; y: number },
   scale: number,
+  /** Tarkassa kuvassa pisteitä ei pyöristetä pikseleihin. */
+  snap = true,
 ): { x: number; y: number } {
   const x = tip.x + (p.s - pose.tipS) * scale;
   const y =
     p.h <= pose.tipH
       ? WATER_ROW - (p.h / Math.max(0.1, pose.tipH)) * (WATER_ROW - tip.y)
       : tip.y - (p.h - pose.tipH) * LIFT_PX;
-  return { x: Math.round(x), y: Math.round(Math.max(0, Math.min(HEIGHT - 1, y))) };
+  const clamped = Math.max(0, Math.min(HEIGHT - 1, y));
+  return snap ? { x: Math.round(x), y: Math.round(clamped) } : { x, y: clamped };
 }
 
 /**
@@ -59,7 +68,6 @@ export function panelPoint(
 export class FlyCastPanel {
   readonly root: HTMLDivElement;
   private readonly canvas: HTMLCanvasElement;
-  private readonly ctx: CanvasRenderingContext2D | null;
   private readonly label: HTMLDivElement;
   /** Pelaaja on piilottanut paneelin (P). */
   private off = false;
@@ -71,9 +79,6 @@ export class FlyCastPanel {
     this.root.className = 'hud-fly-panel hud-panel';
     this.root.hidden = true;
     this.canvas = document.createElement('canvas');
-    this.canvas.width = WIDTH;
-    this.canvas.height = HEIGHT;
-    this.ctx = this.canvas.getContext('2d');
     this.label = document.createElement('div');
     this.label.className = 'hud-sonar-label';
     this.root.append(this.canvas, this.label);
@@ -101,8 +106,13 @@ export class FlyCastPanel {
   }
 
   private draw(cast: FlyCastState, now: boolean): void {
-    const g = this.ctx;
-    if (!g) return;
+    const panel = panelContext(this.canvas, WIDTH, HEIGHT);
+    if (!panel) return;
+    const { g } = panel;
+    if (panel.sharp) {
+      this.drawSharp(g, cast, now);
+      return;
+    }
     g.fillStyle = COLORS.sky;
     g.fillRect(0, 0, WIDTH, WATER_ROW);
     g.fillStyle = COLORS.water;
@@ -136,6 +146,99 @@ export class FlyCastPanel {
     const flash = now && Math.floor(this.blink / 0.12) % 2 === 0;
     g.fillStyle = flash ? COLORS.now : COLORS.fly;
     g.fillRect(fly.x - 1, fly.y - 1, 2, 2);
+  }
+
+  /**
+   * Terävä kuva: sama sivukuva tarkempana. Kalastaja istuu renkaassa, vapa
+   * ohenee kärkeä kohti ja siima on yhtenäinen kaari.
+   */
+  private drawSharp(g: CanvasRenderingContext2D, cast: FlyCastState, now: boolean): void {
+    const sky = g.createLinearGradient(0, 0, 0, WATER_ROW);
+    sky.addColorStop(0, COLORS.sky);
+    sky.addColorStop(1, COLORS.skyLow);
+    g.fillStyle = sky;
+    g.fillRect(0, 0, WIDTH, WATER_ROW);
+    const water = g.createLinearGradient(0, WATER_ROW, 0, HEIGHT);
+    water.addColorStop(0, COLORS.water);
+    water.addColorStop(1, COLORS.waterDeep);
+    g.fillStyle = water;
+    g.fillRect(0, WATER_ROW, WIDTH, HEIGHT - WATER_ROW);
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
+
+    // Rengas sivulta: ponttoni ja sen takana selkänoja, alaosa veden alla.
+    g.fillStyle = COLORS.tubeDark;
+    g.beginPath();
+    g.roundRect(ANGLER_X - 5.5, WATER_ROW - 3.4, 2.6, 4.4, 1);
+    g.fill();
+    g.fillStyle = COLORS.tube;
+    g.beginPath();
+    g.roundRect(ANGLER_X - 4.5, WATER_ROW - 1.6, 10.5, 3, 1.5);
+    g.fill();
+    g.fillStyle = COLORS.tubeDark;
+    g.beginPath();
+    g.roundRect(ANGLER_X - 4.5, WATER_ROW + 0.3, 10.5, 1.1, 0.55);
+    g.fill();
+    // Kalastaja: vartalo, pää ja lippis, katse oikealle.
+    g.fillStyle = COLORS.body;
+    g.beginPath();
+    g.roundRect(ANGLER_X - 1.6, WATER_ROW - 6.4, 3.4, 5.4, 1);
+    g.fill();
+    g.fillStyle = COLORS.head;
+    g.beginPath();
+    g.arc(ANGLER_X + 0.2, WATER_ROW - 7.9, 1.55, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = COLORS.cap;
+    g.beginPath();
+    g.arc(ANGLER_X + 0.2, WATER_ROW - 8.2, 1.6, Math.PI, Math.PI * 2);
+    g.fill();
+    g.fillRect(ANGLER_X + 0.4, WATER_ROW - 8.5, 2.5, 0.5);
+
+    const hand = { x: ANGLER_X + 2, y: WATER_ROW - 5 };
+    const angle = flyRodAngle(cast.rod);
+    const tip = {
+      x: hand.x + Math.cos(angle) * ROD_PX,
+      y: hand.y - Math.sin(angle) * ROD_PX,
+    };
+    // Käsivarsi olkapäältä kahvalle.
+    g.strokeStyle = COLORS.bodyLight;
+    g.lineWidth = 1;
+    g.beginPath();
+    g.moveTo(ANGLER_X + 0.6, WATER_ROW - 5.6);
+    g.lineTo(hand.x, hand.y);
+    g.stroke();
+    // Vapa ohenee kärkeä kohti: paksu tyvi ja ohut kärkiosa.
+    g.strokeStyle = COLORS.rod;
+    const mid = { x: (hand.x + tip.x) / 2, y: (hand.y + tip.y) / 2 };
+    g.lineWidth = 0.7;
+    g.beginPath();
+    g.moveTo(hand.x, hand.y);
+    g.lineTo(mid.x, mid.y);
+    g.stroke();
+    g.lineWidth = 0.4;
+    g.beginPath();
+    g.moveTo(mid.x, mid.y);
+    g.lineTo(tip.x, tip.y);
+    g.stroke();
+
+    const pose = flyLinePose(cast, flyRodTip(cast.rod));
+    const scale = panelScale(cast.aerial);
+    const pts = flyLineProfile(pose).map((p) => panelPoint(p, pose, tip, scale, false));
+    g.strokeStyle = COLORS.line;
+    g.lineWidth = 0.45;
+    g.beginPath();
+    pts.forEach((p, i) => (i === 0 ? g.moveTo(p.x, p.y) : g.lineTo(p.x, p.y)));
+    g.stroke();
+    // Vedenpinta siiman päälle: veteen laskeutunut siima jää sen alle.
+    g.fillStyle = COLORS.surface;
+    g.fillRect(0, WATER_ROW - 0.3, WIDTH, 0.6);
+    const fly = pts[pts.length - 1]!;
+    // Suorassa siimassa perho välkkyy vihreänä: nyt vaihdetaan suuntaa.
+    const flash = now && Math.floor(this.blink / 0.12) % 2 === 0;
+    g.fillStyle = flash ? COLORS.now : COLORS.fly;
+    g.beginPath();
+    g.arc(fly.x, fly.y, flash ? 1.3 : 1, 0, Math.PI * 2);
+    g.fill();
   }
 }
 

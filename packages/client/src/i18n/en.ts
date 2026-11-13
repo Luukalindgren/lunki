@@ -254,7 +254,7 @@ export const en: Record<keyof typeof fi, string> = {
   'settings.lookRetro': 'Retro',
   'settings.lookSharp': 'Sharp',
   'settings.lookHint':
-    'Sharp draws the same graphics at the full resolution of your screen. It is heavier: if the game starts to stutter, the look returns to Retro.',
+    'Sharp draws the graphics at the full resolution of your screen. If the game starts to stutter, the look returns to Retro. Retro is the lighter pixel look.',
   'look.fellBack': 'The Sharp look was too heavy for this device. The look changed to Retro.',
   'settings.lookModern': 'Modern (experimental)',
   'settings.lookModernHint':
@@ -506,7 +506,7 @@ export const en: Record<keyof typeof fi, string> = {
     'There is no public depth survey of Lunkinjärvi, so the lake bed is computed from the shoreline and the holes and reefs are made up.',
   'credits.libraries': 'Libraries',
   'credits.osmCopyright': 'OpenStreetMap copyright',
-  'credits.font': 'VT323 font (Peter Hull), Fontsource',
+  'credits.font': 'VT323 font (Peter Hull), Fontsource, and a smoothed version of it',
   'credits.fontAlegreya': 'Alegreya Sans font (Huerta Tipográfica), modern look',
   'credits.fontFraunces': 'Fraunces font (Undercase Type), modern look',
   'credits.osm': '© OpenStreetMap contributors, ODbL 1.0',

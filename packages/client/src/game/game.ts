@@ -1272,6 +1272,8 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
             pose: rodPose,
           },
         );
+      // Perhon löysä siima riippuu kelalta ja siimakädeltä renkaan tasolle.
+      if (!eyes) this.povTube.hangSlack(standing || this.spectating ? null : this.povRod.slackEnds);
       this.weather.follow(this.pov.camera.position);
     }
     const hooked = this.fish.fish.find((x) => x.id === this.fishing.hookedId) ?? null;

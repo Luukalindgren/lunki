@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 import type { Difficulty, Vec2 } from '@lunki/shared';
 import { toWorld } from '../world/lakeMesh';
-import { pixelArt, pixelTexture } from './pixelSprite';
+import { pixelTexture, type Pixels } from './pixelSprite';
 
 /**
  * Vieheen merkki järvellä (#391): pieni tilan värinen pikselitimantti
  * kiinteässä kuvapistekoossa kaikilla vaikeustasoilla ja molemmissa
- * näkymissä.
+ * näkymissä. Terävällä ilmeellä sama timantti on tarkempi (`diamondPixels`).
  */
 export const LURE_MARKER = {
   /** Koko kuvapisteinä. */
@@ -41,8 +41,45 @@ export interface MarkerInput {
   tug?: { px: number; dir: Vec2 };
 }
 
-/** Timantti valkoisena (sävytetään materiaalin värillä) tummalla reunalla. */
-const MARK = ['...o...', '..o#o..', '.o###o.', 'o#####o', '.o###o.', '..o#o..', '...o...'];
+/** Timantin reunan väri; täyttö on valkoinen ja sävytetään materiaalin värillä. */
+const EDGE = 0x1c232b;
+/** Terävän timantin kuvapisteitä merkin pikseliä kohden. */
+const FINE = 6;
+
+/**
+ * Timantti `size` × `size` kuvapisteenä: tumma reuna ja valkoinen täyttö.
+ * Retrossa koko on merkin pikselit ja reuna yhden pikselin levyinen. Terävällä
+ * sama timantti piirretään tarkempana: reuna on ohut, ja oikea alapuoli on
+ * varjossa, jolloin merkki näyttää hiotulta eikä litteältä.
+ */
+export function diamondPixels(size: number, edge: number, facets: boolean): Pixels {
+  const data: number[] = [];
+  const c = (size - 1) / 2;
+  const reach = size / 2;
+  for (let y = 0; y < size; y++)
+    for (let x = 0; x < size; x++) {
+      const d = Math.abs(x - c) + Math.abs(y - c);
+      if (d > reach) data.push(-1);
+      else if (d > reach - edge) data.push(EDGE);
+      else if (!facets) data.push(0xffffff);
+      else {
+        const lit = x - c + (y - c);
+        // Kolme pintaa: valo ylävasemmalta, varjo alaoikealla ja kiilto yläkulmassa.
+        const glint = y - c < -reach * 0.25 && Math.abs(x - c + reach * 0.12) < reach * 0.1;
+        data.push(
+          glint
+            ? 0xffffff
+            : lit > reach * 0.15
+              ? 0xb4b4b4
+              : lit > -reach * 0.3
+                ? 0xdcdcdc
+                : 0xf4f4f4,
+        );
+      }
+    }
+  return { width: size, height: size, data };
+}
+
 let markTexture: THREE.Texture | null = null;
 
 /** Yhden vieheen merkki. */
@@ -51,7 +88,10 @@ export class LureMarker {
   private readonly mark: THREE.Sprite;
 
   constructor() {
-    markTexture ??= pixelTexture(pixelArt(MARK, 0xffffff, 0x1c232b));
+    markTexture ??= pixelTexture(
+      diamondPixels(LURE_MARKER.markPx, 1, false),
+      diamondPixels(LURE_MARKER.markPx * FINE, FINE * 0.5, true),
+    );
     this.mark = new THREE.Sprite(new THREE.SpriteMaterial({ map: markTexture, alphaTest: 0.5 }));
     this.group.add(this.mark);
     this.group.visible = false;

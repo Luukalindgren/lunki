@@ -10,12 +10,12 @@ export interface Pixels {
 }
 
 /** Elossa olevat tekstuurit lähdekuvineen: ilmeen vaihtuessa ne piirretään uudelleen. */
-const live = new Set<{ ref: WeakRef<THREE.DataTexture>; px: Pixels }>();
+const live = new Set<{ ref: WeakRef<THREE.DataTexture>; px: Pixels; fine?: Pixels }>();
 
 /** Kirjoittaa kuvan tekstuuriin käytössä olevan ilmeen mukaan. Ylin rivi ylös. */
-function fill(tex: THREE.DataTexture, px: Pixels): void {
+function fill(tex: THREE.DataTexture, px: Pixels, fine?: Pixels): void {
   const sharp = smoothLook(activeLook());
-  const image = sharp ? smoothPixels(px) : px;
+  const image = sharp ? (fine ?? smoothPixels(px)) : px;
   const { width, height } = image;
   const bytes = pixelBytes(image);
   // Tekstuurin rivi 0 on alhaalla.
@@ -34,7 +34,7 @@ function fill(tex: THREE.DataTexture, px: Pixels): void {
 onLookChange(() => {
   for (const entry of live) {
     const tex = entry.ref.deref();
-    if (tex) fill(tex, entry.px);
+    if (tex) fill(tex, entry.px, entry.fine);
     else live.delete(entry);
   }
 });
@@ -43,21 +43,13 @@ onLookChange(() => {
  * Pikselikuva tekstuuriksi: Retrossa terävät pikselit ja vain täysin peittävät
  * tai läpinäkyvät kohdat, jotta paletti ei vaihda sävyä. Terävällä (#674)
  * samasta kuvasta tehdään sileä versio (`smoothPixels`), ja tekstuuri vaihtuu
- * ilmeen mukana itsestään.
+ * ilmeen mukana itsestään. Kuva, joka piirretään laskemalla (timantti), voi
+ * antaa Terävälle saman kuvan suoraan tarkempana (`fine`).
  */
-export function pixelTexture(px: Pixels): THREE.DataTexture {
+export function pixelTexture(px: Pixels, fine?: Pixels): THREE.DataTexture {
   const tex = new THREE.DataTexture(new Uint8Array(4), 1, 1);
   tex.colorSpace = THREE.SRGBColorSpace;
-  fill(tex, px);
-  live.add({ ref: new WeakRef(tex), px });
+  fill(tex, px, fine);
+  live.add({ ref: new WeakRef(tex), px, fine });
   return tex;
-}
-
-/** Pikselikuva merkkijonoista: `#` = väri, `o` = toinen väri, muu = läpinäkyvä. */
-export function pixelArt(rows: string[], color: number, other = -1): Pixels {
-  const width = rows[0]!.length;
-  const data: number[] = [];
-  for (const row of rows)
-    for (let i = 0; i < width; i++) data.push(row[i] === '#' ? color : row[i] === 'o' ? other : -1);
-  return { width, height: rows.length, data };
 }

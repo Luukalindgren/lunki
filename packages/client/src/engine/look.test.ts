@@ -4,6 +4,7 @@ import {
   QUALITIES,
   QUALITY,
   SUPERSAMPLE_MAX_PIXELS,
+  defaultLook,
   lookDetail,
   lowerQuality,
   smoothLook,
@@ -44,6 +45,16 @@ describe('LookGuard', () => {
     let fell = false;
     for (let i = 0; i < 12; i++) fell = guard.frame(0.8) || fell;
     expect(fell).toBe(true);
+  });
+});
+
+describe('defaultLook', () => {
+  it('on Terävä, kun ilmettä ei ole valittu', () => {
+    expect(defaultLook(false)).toBe('sharp');
+  });
+
+  it('on Retro automaation ohjaamassa selaimessa', () => {
+    expect(defaultLook(true)).toBe('retro');
   });
 });
 
