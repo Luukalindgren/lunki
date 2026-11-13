@@ -55,7 +55,11 @@ export class ModernHost {
     quality: LookQuality,
   ): void {
     if (!active || !this.layer) {
-      this.detach();
+      if (this.attachment) {
+        this.detach();
+        // Ilme vaihtui pois: jaettu maisema ei jää viemään muistia.
+        this.layer?.release?.();
+      }
       return;
     }
     if (this.scene !== scene) {

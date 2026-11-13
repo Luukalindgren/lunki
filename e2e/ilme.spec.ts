@@ -5,6 +5,9 @@ import { canvasColors, raceRunning, soloUrl, watchErrors } from './apu';
 const canvasWidth = (page: Page) =>
   page.locator('canvas.game-canvas').evaluate((c: HTMLCanvasElement) => c.width);
 
+/** Aloituspaikka keskellä selkää, yli 300 m lähimmästä rannasta. */
+const OPEN_WATER = '-246,155';
+
 test.describe('ilme (#674, #650)', () => {
   test('Asetusten valinta vaihtaa Terävään ja kisa käynnistyy', async ({ page, isMobile }) => {
     // Puhelimen täysi tarkkuus (kolminkertainen pikselitiheys) on CI:n
@@ -48,30 +51,34 @@ test.describe('ilme (#674, #650)', () => {
     errors.check();
   });
 
-  test('Moderni ladataan vasta valittaessa ja kisa käynnistyy (#650)', async ({
-    page,
-    isMobile,
-  }) => {
+  test('Moderni ladataan vasta valittaessa ja kisa jatkuu (#650)', async ({ page, isMobile }) => {
     const errors = watchErrors(page);
     const loaded: string[] = [];
     page.on('request', (r) => {
       const path = new URL(r.url()).pathname;
       if (path.includes('/modern/')) loaded.push(path);
     });
-    await page.goto(soloUrl());
-    await expect(page.getByRole('button', { name: 'Pelaa' })).toBeVisible();
-    const retro = await canvasWidth(page);
-    await page.getByRole('button', { name: 'Asetukset' }).click();
     const look = page.locator('.choice', {
       has: page.locator('.choice-label', { hasText: /^Ilme$/ }),
     });
-    await expect(look.getByRole('button', { name: 'Terävä' })).toBeVisible();
     const modern = look.getByRole('button', { name: /^Moderni/ });
     if (isMobile) {
       // Moderni on tietokoneen ilme: kosketuslaitteella sitä ei tarjota.
+      await page.goto(soloUrl());
+      await page.getByRole('button', { name: 'Asetukset' }).click();
+      await expect(look.getByRole('button', { name: 'Terävä' })).toBeVisible();
       await expect(modern).toHaveCount(0);
       return;
     }
+    // Moderni valitaan kisan taukovalikosta keskellä selkää. Päävalikon taustalla
+    // näkyy koko järven maisema, ja sitä ohjelmistorenderöinti piirtää yli puoli
+    // sekuntia ruutua kohden: selain jäisi purkamaan piirtojonoa kymmeniksi sekunneiksi.
+    await page.goto(`${soloUrl()}&difficulty=normal&start=${OPEN_WATER}`);
+    await raceRunning(page);
+    const retro = await canvasWidth(page);
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Asetukset' }).click();
+    await expect(look.getByRole('button', { name: 'Terävä' })).toBeVisible();
     // Retron ja Terävän pelaaja ei hae modernin ilmeen tiedostoja.
     expect(loaded).toEqual([]);
     const quality = page.locator('.choice.look-quality');
@@ -94,9 +101,7 @@ test.describe('ilme (#674, #650)', () => {
       .toContain('Fraunces');
 
     await page.getByRole('button', { name: 'Takaisin' }).click();
-    await page.getByRole('button', { name: 'Pelaa' }).click();
-    await page.getByRole('button', { name: 'Yksinpeli' }).click();
-    await page.getByRole('button', { name: 'Aloita kisa' }).click();
+    await page.getByRole('button', { name: 'Jatka' }).click();
     await raceRunning(page);
     await expect.poll(() => canvasColors(page), { timeout: 30_000 }).toBeGreaterThan(3);
 

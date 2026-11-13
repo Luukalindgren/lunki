@@ -36,12 +36,17 @@ export interface QualityLevel {
   shadowMap: number;
   /** Pehmeät varjon reunat. */
   softShadows: boolean;
+  /**
+   * Maiseman tarkat mallit (puut, kaislat, rantaheinä) piirretään tämän matkan
+   * (m) päähän kamerasta, kauempana kevyemmät.
+   */
+  detailRange: number;
 }
 
 export const QUALITY: Record<LookQuality, QualityLevel> = {
-  low: { supersample: 1, shadowMap: 1024, softShadows: false },
-  medium: { supersample: 1, shadowMap: 2048, softShadows: true },
-  high: { supersample: 2, shadowMap: 4096, softShadows: true },
+  low: { supersample: 1, shadowMap: 1024, softShadows: false, detailRange: 60 },
+  medium: { supersample: 1, shadowMap: 2048, softShadows: true, detailRange: 110 },
+  high: { supersample: 2, shadowMap: 4096, softShadows: true, detailRange: 170 },
 };
 
 /** Ylinäytteistetyn kuvan suurin koko (kuvapistettä): noin 4K-näytön verran. */

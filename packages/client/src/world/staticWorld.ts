@@ -1,5 +1,11 @@
 import * as THREE from 'three';
-import { LUNKINJARVI, LUNKINJARVI_SURROUNDINGS, type LakeMap, type Season } from '@lunki/shared';
+import {
+  LUNKINJARVI,
+  LUNKINJARVI_SURROUNDINGS,
+  type LakeMap,
+  type LakeSurroundings,
+  type Season,
+} from '@lunki/shared';
 import { createBuildings, createPiers } from './buildings';
 import { Ground } from './ground';
 import { createShoreScenery } from './shoreScenery';
@@ -25,6 +31,18 @@ export interface StaticWorld {
   readonly always: THREE.Group;
   /** Maanpinnan korkeus: maalla seisova kalastaja (#457) on maaston päällä. */
   readonly ground: Ground;
+  /** Lähtötiedot: ilmeen oma kerros (#650) rakentaa samasta kartasta oman maisemansa. */
+  readonly map: LakeMap;
+  readonly season: Season;
+  readonly surroundings: LakeSurroundings | undefined;
+}
+
+const owners = new WeakMap<THREE.Object3D, StaticWorld>();
+
+/** Kohtaukseen liitetty jaettu maailma, tai null kun sitä ei ole liitetty. */
+export function staticWorldIn(scene: THREE.Object3D): StaticWorld | null {
+  const pov = scene.getObjectByName('static-pov');
+  return (pov && owners.get(pov)) ?? null;
 }
 
 const worlds = new WeakMap<LakeMap, Map<Season, StaticWorld>>();
@@ -84,5 +102,7 @@ function buildStaticWorld(map: LakeMap, season: Season): StaticWorld {
     if (piers) always.add(piers);
     top.add(createMapOverlay(surroundings, season));
   }
-  return { pov, top, always, ground };
+  const world: StaticWorld = { pov, top, always, ground, map, season, surroundings };
+  owners.set(pov, world);
+  return world;
 }

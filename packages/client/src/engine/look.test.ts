@@ -79,6 +79,11 @@ describe('piirron tarkkuus (#650)', () => {
     expect(smoothLook('modern')).toBe(true);
   });
 
+  it('parempi laatu piirtää maiseman tarkat mallit kauemmas', () => {
+    expect(QUALITY.low.detailRange).toBeLessThan(QUALITY.medium.detailRange);
+    expect(QUALITY.medium.detailRange).toBeLessThan(QUALITY.high.detailRange);
+  });
+
   it('laatu kevenee askel kerrallaan matalaan asti', () => {
     expect(lowerQuality('high')).toBe('medium');
     expect(lowerQuality('medium')).toBe('low');

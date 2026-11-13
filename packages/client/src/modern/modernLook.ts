@@ -1,4 +1,5 @@
 import type { LookLayer } from '../engine/lookLayer';
+import { releaseScenery, SceneryLook } from './scenery';
 import { ShadowRig } from './shadows';
 import './theme.css';
 
@@ -12,10 +13,18 @@ export function createModernLook(): LookLayer {
   return {
     attach(scene, renderer) {
       const shadows = new ShadowRig(scene, renderer);
+      const scenery = new SceneryLook(scene);
       return {
-        update: (camera, quality) => shadows.update(camera, quality),
-        dispose: () => shadows.dispose(),
+        update(camera, quality) {
+          scenery.update(camera, quality);
+          shadows.update(camera, quality);
+        },
+        dispose() {
+          scenery.dispose();
+          shadows.dispose();
+        },
       };
     },
+    release: releaseScenery,
   };
 }
