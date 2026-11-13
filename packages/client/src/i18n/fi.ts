@@ -543,6 +543,11 @@ export const fi = {
   // --- Tauko ja tulokset ---
   'pause.menu': 'Valikko',
   'pause.title': 'Tauko',
+  'pause.practice': 'Harjoittelu',
+  'pause.practiceNote': 'Kisa alkaa, kun isäntä aloittaa. Harjoittelun saaliit eivät jää talteen.',
+  'pause.inLobby': 'Aulassa',
+  'pause.lobbyReady': 'Valmiina',
+  'pause.practised': 'Harjoiteltu',
   'pause.clock': 'Kello järvellä {time}',
   'pause.fish': 'Kalat',
   'pause.weight': 'Paino',

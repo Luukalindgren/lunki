@@ -275,6 +275,20 @@ export interface TackleBinding {
 }
 
 /** Taukovalikon alanäkymät: paluu kohdistaa sen napin. */
+/** Aulan tilanne harjoittelun taukovalikkoon (#668). */
+export interface PracticeLobby {
+  /** Kalastajat aulassa (ei katsojia eikä botteja) ja huoneen paikat. */
+  anglers: number;
+  max: number;
+  /** Isännän odottamat kalastajat ja heistä valmiina olevat. */
+  ready: number;
+  awaited: number;
+  /** Harjoiteltu aika (s). */
+  seconds: number;
+  /** Tulevan kisan säännöt: harjoitus itse on aikarajaton. */
+  rules: CompetitionSettings;
+}
+
 export type PauseView = 'tackle' | 'settings' | 'manual' | 'feedback';
 const PAUSE_VIEW_LABELS: Record<PauseView, MsgKey> = {
   tackle: 'menu.tackle',
@@ -2079,8 +2093,11 @@ export class Screens {
     multiplayer: boolean;
     /** Aikarajaton yksinpelin sessio: lopetus punnitsee saaliin (#360). */
     untimed?: boolean;
-    /** Harjoittelu aulasta (#638): lopetus palaa aulaan. */
-    practice?: boolean;
+    /**
+     * Harjoittelu aulasta (#638): lopetus palaa aulaan, ja kisan tilanteen
+     * paikalla on aulan tilanne (#668).
+     */
+    practice?: PracticeLobby | null;
     /** Pelikellon aika järvellä, esim. 05:12. */
     clock?: string;
     /** Kisan tilanne: kalat, paino, sija tai aika ja paras kala (#469). */
@@ -2118,11 +2135,18 @@ export class Screens {
     menu.classList.add('main-menu', 'pause-menu');
     panel.classList.add('pause-panel');
     panel.append(
-      h('h2', p.multiplayer ? t('pause.menu') : t('pause.title')),
+      h(
+        'h2',
+        p.practice ? t('pause.practice') : p.multiplayer ? t('pause.menu') : t('pause.title'),
+      ),
       ...(p.clock ? [h('p', t('pause.clock', { time: p.clock }))] : []),
-      ...(p.status ? pauseStatus(p.status) : []),
-      ...(p.scoreboard?.length ? [pauseScoreboard(p.scoreboard)] : []),
-      ...(p.rules ? [pauseRules(p.rules)] : []),
+      ...(p.practice
+        ? [pausePractice(p.practice), h('p', t('pause.practiceNote'), 'hint')]
+        : [
+            ...(p.status ? pauseStatus(p.status) : []),
+            ...(p.scoreboard?.length ? [pauseScoreboard(p.scoreboard)] : []),
+            ...(p.rules ? [pauseRules(p.rules)] : []),
+          ]),
       ...(p.multiplayer ? [h('p', t('pause.continues'), 'hint')] : []),
       menu,
       ...this.homeScreenHint(),
@@ -2135,6 +2159,11 @@ export class Screens {
       const label = t(PAUSE_VIEW_LABELS[p.from]);
       [...menu.querySelectorAll('button')].find((b) => b.textContent === label)?.focus();
     }
+  }
+
+  /** Aulan tilanne muuttui harjoittelun tauolla: ruudut ja säännöt paikallaan (#668). */
+  updatePausePractice(lobby: PracticeLobby): void {
+    this.root.querySelector('.pause-practice')?.replaceWith(pausePractice(lobby));
   }
 
   /**
@@ -3363,6 +3392,30 @@ function pauseStatus(s: RaceStatus): HTMLElement[] {
       })
     : t('pause.best', { fish, weight });
   return [grid, h('p', best, 'pause-best')];
+}
+
+/**
+ * Harjoittelun tauko (#668): omien kalojen sijaan aulan tilanne (kalastajat,
+ * valmiina olevat ja harjoiteltu aika) ja tulevan kisan säännöt.
+ */
+function pausePractice(p: PracticeLobby): HTMLElement {
+  const tile = (label: string, value: string) => {
+    const e = h('div', '', 'pause-stat');
+    e.append(h('span', label, 'pause-stat-label'), h('span', value, 'pause-stat-value'));
+    return e;
+  };
+  const grid = h('div', '', 'pause-stats');
+  grid.append(
+    tile(t('pause.inLobby'), t('pause.placeOf', { rank: p.anglers, of: p.max })),
+    tile(
+      t('pause.lobbyReady'),
+      p.awaited > 0 ? t('pause.placeOf', { rank: p.ready, of: p.awaited }) : NO_VALUE,
+    ),
+    tile(t('pause.practised'), formatTime(p.seconds)),
+  );
+  const box = h('div', '', 'pause-practice');
+  box.append(grid, pauseRules(p.rules));
+  return box;
 }
 
 /** Koko tulostaulu tauolla: puhelimella se ei ole HUDissa viemässä tilaa. */
