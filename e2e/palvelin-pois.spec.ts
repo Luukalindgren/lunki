@@ -236,7 +236,8 @@ test.describe('moderni ilme ei lataudu (#650)', () => {
     await page.route(/\/modern\//, () => undefined);
     await page.addInitScript(() => localStorage.setItem('lunki.look', 'modern'));
     // Kiinteä siemen: tyyni sää, jottei säävaroitus vie ilmoituksen paikkaa.
-    await page.goto(soloUrl());
+    // Sivun load-tapahtuma odottaisi roikkuvia tiedostoja; peli ei odota.
+    await page.goto(soloUrl(), { waitUntil: 'domcontentloaded' });
     await page.getByRole('button', { name: 'Pelaa' }).click();
     await page.getByRole('button', { name: 'Yksinpeli' }).click();
     await page.getByRole('button', { name: 'Aloita kisa' }).click();

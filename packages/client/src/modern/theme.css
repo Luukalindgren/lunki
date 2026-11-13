@@ -258,7 +258,7 @@
 /* Paneelin reunaan tarttuvat rivit (alanapit, ohjeiden osiot): paperia, ohut viiva rajana. */
 .look-modern .screen-panel > .buttons:last-child,
 .look-modern .manual-sections {
-  background: rgb(239 229 200 / 96%);
+  background: var(--paper);
 }
 
 .look-modern .screen-panel > .buttons:last-child {

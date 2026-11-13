@@ -414,6 +414,7 @@ vec2 waterDash(vec2 p, float cell, float seed, float chance, vec2 dir, float t) 
       }
       // Moderni ilme (#650): tasainen sinivihreä pinta ilman viivakuviota. Pinta
       // elää hitaasti ajelehtivasta kohinasta, ja aallokon muodot näkyvät valosta.
+      float modernRipple = 0.0;
       if (uLookModern > 0.5) {
         // Väreet ovat aallonharjojen suuntaisia juovia ja kulkevat vain tuulen mukana.
         vec2 rp = waterXY - uDrift;
@@ -421,6 +422,7 @@ vec2 waterDash(vec2 p, float cell, float seed, float chance, vec2 dir, float t) 
         float ripple = waterNoise(rxy) + 0.5 * waterNoise(rxy * 2.3 + 5.7);
         float rippleFar = 1.0 - uPov * smoothstep(30.0, 180.0, eyeDist);
         sampledDiffuseColor.rgb = ${MODERN_WATER} * (1.0 + 0.36 * (ripple - 0.75) * rippleFar);
+        modernRipple = smoothstep(0.85, 1.3, ripple) * rippleFar;
         waterTrough = 0.0;
       }
       diffuseColor *= sampledDiffuseColor;`,
@@ -453,7 +455,11 @@ vec2 waterDash(vec2 p, float cell, float seed, float chance, vec2 dir, float t) 
         if (uLookModern > 0.5) {
           // Moderni: pinta heijastaa taivaanrantaa sitä enemmän, mitä loivemmin sitä katsoo.
           float fresnel = pow(1.0 - clamp(grazing, 0.0, 1.0), 7.0);
-          outgoingLight = mix(outgoingLight, uSkyTint * (0.2 + 0.4 * uSheen / 0.6), 0.4 * fresnel * (1.0 - waterFoam));
+          vec3 skyGlow = uSkyTint * (0.2 + 0.4 * uSheen / 0.6);
+          outgoingLight = mix(outgoingLight, skyGlow, 0.4 * fresnel * (1.0 - waterFoam));
+          // Väreiden harjat kääntyvät taivasta kohti ja vaalenevat hieman.
+          float lift = pow(1.0 - clamp(grazing, 0.0, 1.0), 3.0);
+          outgoingLight += skyGlow * 0.12 * modernRipple * lift * (1.0 - waterFoam);
         } else {
           float sheen = 1.0 - smoothstep(0.01, 0.06, grazing);
           outgoingLight *= 1.0 + uSheen * sheen * (1.0 - waterFoam);
