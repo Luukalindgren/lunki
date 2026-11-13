@@ -50,7 +50,8 @@ export interface BirdsInput {
 /**
  * Järven linnut (#571, #572): vesilinnut tunnelmaksi ja kalaa pyytävät
  * linnut syönnin merkkinä. Pikselikuvat (`alphaTest`) ylhäältä ja
- * kalastajan silmin; äänet äänikartasta paikan mukaan (`play`).
+ * kalastajan silmin; äänet äänikartasta paikan mukaan (`play`). Jokainen
+ * kuva kertoo lintunsa (`userData.bird`), josta Moderni ilme tekee mallin.
  */
 export class BirdsView {
   readonly group = new THREE.Group();
@@ -70,6 +71,7 @@ export class BirdsView {
   ) {
     this.waterfowl = new Waterfowl(seed, season, lake);
     this.fishBirds = new FishBirds(seed);
+    this.group.name = 'birds';
     this.group.add(this.rings.group);
   }
 
@@ -150,8 +152,15 @@ export class BirdsView {
         s.center.set(0.5, 0.5);
       }
       s.scale.set(look.w * BIRD_PX * grow, look.h * BIRD_PX * grow, 1);
+      // Moderni ilme piirtää linnun mallina samaan paikkaan ja kokoon (`modern/birds.ts`).
+      s.userData.bird = p;
+      s.userData.grow = grow;
     }
-    for (let i = poses.length; i < this.sprites.length; i++) this.sprites[i]!.visible = false;
+    for (let i = poses.length; i < this.sprites.length; i++) {
+      const s = this.sprites[i]!;
+      s.visible = false;
+      s.userData.bird = null;
+    }
   }
 
   private newSprite(): THREE.Sprite {

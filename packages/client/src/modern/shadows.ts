@@ -25,6 +25,7 @@ const NO_CAST = new Set([
   'bigWave',
   'fish-shadow',
   'knots',
+  'modern-mark',
 ]);
 
 const lit = (m: THREE.Material): boolean =>

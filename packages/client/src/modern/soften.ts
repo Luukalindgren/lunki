@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { finShape } from './gearShapes';
+import { rippleShape } from './markShapes';
 
 /** Kohtaus käydään läpi näin monen ruudun välein: uudet osat (muut pelaajat, vene) pehmenevät. */
 const SCAN_FRAMES = 20;
@@ -10,7 +11,16 @@ const CORNER_MAX = 0.12;
 /** Näin monikulmainen tai harvempi lieriö on tarkoituksella särmiö, eikä sitä pyöristetä. */
 const PRISM_SIDES = 4;
 /** Pyöreän muodon kehän jako vähintään. */
-const ROUND = { sphere: [20, 14], cylinder: 20, torusTube: 14, torusTurn: 40 } as const;
+const ROUND = {
+  sphere: [20, 14],
+  cylinder: 20,
+  torusTube: 14,
+  torusTurn: 40,
+  ring: 48,
+  circle: 32,
+} as const;
+/** Litteät merkit veden pinnalla (rengas, ympyrä): pyöristetään, vaikka pinta on tasavärinen. */
+const FLAT = /^(Ring|Circle)Geometry$/;
 
 /** Näiden alla ei ole pelin perusmuodoista tehtyjä malleja: maisema, vesi ja taivas. */
 export const SKIP = /^(static-|modern-)|^(lake|bottom|sky|water|swell|mist|weather)$/;
@@ -21,6 +31,7 @@ export const SKIP = /^(static-|modern-)|^(lake|bottom|sky|water|swell|mist|weath
  */
 const SHAPES: Record<string, (bounds: THREE.Box3) => THREE.BufferGeometry> = {
   fin: finShape,
+  ripple: rippleShape,
 };
 
 type Params = Record<string, number | boolean | undefined>;
@@ -89,6 +100,28 @@ function primitive(type: string, p: Params, detail: boolean): THREE.BufferGeomet
         arc,
       );
     }
+    case 'RingGeometry': {
+      const around = num(p.thetaSegments, 32);
+      if (detail && around >= ROUND.ring) return null;
+      return new THREE.RingGeometry(
+        num(p.innerRadius, 0.5),
+        num(p.outerRadius, 1),
+        detail ? ROUND.ring : around,
+        num(p.phiSegments, 1),
+        num(p.thetaStart, 0),
+        num(p.thetaLength, Math.PI * 2),
+      );
+    }
+    case 'CircleGeometry': {
+      const around = num(p.segments, 32);
+      if (detail && around >= ROUND.circle) return null;
+      return new THREE.CircleGeometry(
+        num(p.radius, 1),
+        detail ? ROUND.circle : around,
+        num(p.thetaStart, 0),
+        num(p.thetaLength, Math.PI * 2),
+      );
+    }
     default:
       return null;
   }
@@ -115,6 +148,13 @@ export function bakedTransform(geometry: THREE.BufferGeometry): THREE.Matrix4 | 
   const to = rest ? new THREE.BufferAttribute(rest, 3) : geometry.getAttribute('position');
   reference.dispose();
   if (!to || from.count !== to.count || from.count < 4) return null;
+  // Litteästä muodosta ei voi ratkaista muunnosta: se kelpaa vain siirtämättömänä.
+  if (FLAT.test(geometry.type)) {
+    for (let i = 0; i < from.count; i++)
+      if (a.fromBufferAttribute(from, i).distanceTo(c.fromBufferAttribute(to, i)) > 1e-4)
+        return null;
+    return new THREE.Matrix4();
+  }
 
   // Neljä kärkeä, jotka eivät ole samassa tasossa: kauimmainen ensimmäisestä,
   // kauimmainen niiden suorasta ja kauimmainen kolmen tasosta.
@@ -209,7 +249,9 @@ const lit = (m: THREE.Material | THREE.Material[]): boolean =>
 /**
  * Pehmentää pelin perusmuodoista kootut mallit (kalastaja, rengas, räpylät,
  * vene, vapa, kädet): jokainen valaistu laatikko, pallo, lieriö ja rengas
- * vaihtuu pyöristettyyn versioon samassa paikassa. Osat ovat edelleen pelin
+ * vaihtuu pyöristettyyn versioon samassa paikassa. Veden pinnan litteät merkit
+ * (tähtäimen rengas, oman paikan merkki, vieheen varjo) saavat sileän kehän, ja
+ * roiskerenkaista (`ripple`) tulee väreitä. Osat ovat edelleen pelin
  * omia, joten liike, värit ja täyttökisan lässähdys toimivat kuten ennen, ja
  * uusi samalla tavalla tehty osa pehmenee itsestään.
  */
@@ -243,7 +285,7 @@ export class Softener {
       if (known.own) known.soft.dispose();
       this.swapped.delete(mesh);
     }
-    if (!lit(mesh.material)) return;
+    if (!lit(mesh.material) && !FLAT.test(mesh.geometry.type)) return;
     const original = mesh.geometry;
     // Muoto, jonka kärkiä peli muokkaa, saa oman kopionsa; muut jaetaan.
     const own = original.userData.rest !== undefined;
@@ -306,7 +348,8 @@ function shapeKey(shape: string, geometry: THREE.BufferGeometry): string {
 /** Avain muodolle ja sen asennolle; null, jos muoto ei ole perusmuoto. */
 function cacheKey(geometry: THREE.BufferGeometry): string | null {
   const params = (geometry as { parameters?: Params }).parameters;
-  if (!params || !/^(Box|Sphere|Cylinder|Torus)Geometry$/.test(geometry.type)) return null;
+  if (!params || !/^(Box|Sphere|Cylinder|Torus|Ring|Circle)Geometry$/.test(geometry.type))
+    return null;
   const position = geometry.getAttribute('position');
   if (!position || position.count < 4) return null;
   // Asento tiivistyy ensimmäiseen, keskimmäiseen ja viimeiseen kärkeen.

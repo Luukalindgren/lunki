@@ -12,6 +12,17 @@ import { pixelTexture } from './pixelSprite';
 
 type Landed = NonNullable<FishingEvents['landed']>;
 
+/** Nostettavan kalan asento kuvassa (`userData.fish`): Moderni ilme tekee siitä mallin. */
+export interface LandedFishPose {
+  species: SpeciesId;
+  /** 1 = roikkuu siimassa pää ylöspäin, 0 = kyljellään. */
+  hang: number;
+  /** Sätkintä (rad). */
+  wiggle: number;
+  /** Kuonon suunta järvellä (rad), kun kala on kyljellään. */
+  heading: number;
+}
+
 /** Noston kesto (s): heilautus on nopea, haavilla ensin haavi kalan alle. */
 const LIFT_TIME: Record<Landed['by'], number> = { swing: 0.7, hand: 1.1, net: 1.4 };
 /** Noston kesto (s): punnituskortti odottaa, että kala on kalastajan edessä. */
@@ -69,6 +80,8 @@ export class LandingView {
       new THREE.LineBasicMaterial({ color: 0xc3cbd2 }),
     );
     this.line.visible = false;
+    this.group.name = 'landing';
+    this.net.name = 'landing-net';
     this.group.add(this.sprite, this.net, this.line);
   }
 
@@ -100,6 +113,7 @@ export class LandingView {
     this.line.visible = false;
     this.net.visible = false;
     this.sprite.visible = false;
+    this.sprite.userData.fish = null;
 
     if (this.lift) {
       const l = this.lift;
@@ -201,6 +215,7 @@ export class LandingView {
     const lying = this.pov ? 0 : heading - Math.PI;
     mat.rotation = lying + hang * (-Math.PI / 2 - lying) + wiggle;
     this.sprite.visible = true;
+    this.sprite.userData.fish = { species, hang, wiggle, heading } satisfies LandedFishPose;
   }
 
   private showLine(tip: THREE.Vector3, mouth: THREE.Vector3): void {

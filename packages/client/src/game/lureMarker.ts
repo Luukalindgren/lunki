@@ -93,6 +93,7 @@ export class LureMarker {
       diamondPixels(LURE_MARKER.markPx * FINE, FINE * 0.5, true),
     );
     this.mark = new THREE.Sprite(new THREE.SpriteMaterial({ map: markTexture, alphaTest: 0.5 }));
+    this.group.name = 'lure-marker';
     this.group.add(this.mark);
     this.group.visible = false;
   }
