@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { LandCover, valueNoise, type Vec2 } from '@lunki/shared';
+import { clearSightLine } from '../world/sightLine';
 import type { StaticWorld } from '../world/staticWorld';
 import {
   BuildingIndex,
@@ -33,6 +34,8 @@ const CHUNK = 60;
 /** Metsä jatkuu rantavyöhykkeen (TREE_BAND) takana tähän asti (m rannasta) harvempana. */
 const FOREST_DEPTH = 115;
 const FOREST_SPACING = 6.5;
+/** Leveimmän latvuksen (kuusen helma) säde puun korkeudesta: näköyhteyden väistö. */
+const SIGHT_REACH = 0.22;
 
 /** Puun korkeus (m) lajeittain, kuten Retron puilla. */
 const HEIGHT: Record<TreeKind, readonly [number, number]> = {
@@ -69,6 +72,9 @@ export class Forest {
   constructor(world: StaticWorld, plants: readonly Plant[], land: Land, colors: SceneryColors) {
     this.group.name = 'modern-trees';
     const material = paintedMaterial();
+    // Takaa-näkymässä (#691) kameran ja kalastajan väliin jäävät puut jäävät
+    // piirtämättä. Kappaleen mitta on puun korkeus: kuusen helma on siitä viidennes.
+    clearSightLine(material, SIGHT_REACH);
     const models = new Map<string, THREE.BufferGeometry[]>();
     const rand = seeded(11);
     for (const kind of KINDS)

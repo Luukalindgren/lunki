@@ -15,6 +15,7 @@ import {
 import { spriteMipmaps } from '../engine/pixelMipmaps';
 import { Ground } from './ground';
 import { SEASON_COLORS, type SeasonColors } from './seasonColors';
+import { clearSightLine } from './sightLine';
 
 /** Spritet kuvakartassa vasemmalta oikealle. */
 type SpriteKind = 'spruce' | 'pine' | 'birch' | 'reeds';
@@ -79,6 +80,9 @@ export function createVegetation(
     alphaTest: 0.5,
     side: THREE.DoubleSide,
   });
+  // Takaa-näkymässä (#691) kameran ja kalastajan väliin jäävät puut ja kaislat
+  // jätetään piirtämättä: kuvan leveys on koko kasvin leveys.
+  clearSightLine(material, 0.5);
   // Lohkoittain, jotta kameran takana olevat lohkot karsiutuvat piirrosta.
   const chunks = new Map<string, Plant[]>();
   for (const p of plants) {

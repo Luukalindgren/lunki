@@ -72,6 +72,7 @@ import type { RetroRenderer } from '../engine/retroRenderer';
 import { CHASE, ChaseOrbit, chaseArc, lakeLevel, nextView, type ViewMode } from './chaseCamera';
 import { EYE_HEIGHT, PovCamera } from './povCamera';
 import { createLakeMesh, createWaterWaves, toWorld, waterTime } from '../world/lakeMesh';
+import { setSightLine } from '../world/sightLine';
 import { bailPose, capsizeRoll, type BailPose, type NetWorld } from '../net/netWorld';
 import type { Sfx } from '../audio/sfx';
 import { Sounds } from '../audio/sounds';
@@ -1124,6 +1125,8 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
 
   /** Vapauttaa GPU-resurssit, kun kierros päättyy. */
   dispose(): void {
+    // Jaettu maisema jää valikon taustaksi: näköyhteys ei saa jäädä päälle.
+    setSightLine(null);
     this.emoteMenu?.dispose();
     this.lurePicker.dispose();
     this.ownBubble?.remove();
@@ -1326,7 +1329,10 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
         groundAt,
       );
       this.weather.follow(this.pov.camera.position);
+      // Kameran ja kalastajan väliin jäävät puut ja kaislat jätetään piirtämättä.
+      setSightLine(this.pov.camera.position, toWorld(at, 0));
     }
+    if (this.viewMode !== 'chase') setSightLine(null);
     const hooked = this.fish.fish.find((x) => x.id === this.fishing.hookedId) ?? null;
     this.fishingView.metersPerPixel = this.view.metersPerPixel;
     this.fishingView.povPixel = this.pov.pixelSize;
