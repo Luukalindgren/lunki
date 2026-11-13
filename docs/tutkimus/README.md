@@ -55,3 +55,4 @@ vaihtoehtoja eivätkä ole pelin nykyistä koodia.
 | #650  | Moderni graafinen ilme retron rinnalle: terävä tila, vesi ja valo, tyylitelty moderni (`650/prototyyppi.patch`) |
 | #668  | Harjoittelun taukovalikko: otsikko ja rivi, aulan tilanne                                                       |
 | #669  | Kisan tulostaulun nimet: leveämpi sarake, bottien etunimet                                                      |
+| #691  | Kolmas kamerakulma takaa (3rd person): nuolet, ohjaimen yhdistelmä, sormen veto                                 |
