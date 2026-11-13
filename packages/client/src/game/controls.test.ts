@@ -12,6 +12,7 @@ import {
   controlText,
   keyName,
   setControlMode,
+  setOrbitCamera,
   withKey,
   type Action,
 } from './controls';
@@ -223,5 +224,86 @@ describe('tilannenapit kosketuksella', () => {
     expect(contextActions({ ...water, struckId: 3 }, false).line).toBe('lift');
     // Kelalla kalaa väsytetään kelaamalla.
     expect(contextActions({ ...water, hookedId: 3, onReel: true }, false).main).toBe('reel');
+  });
+});
+
+describe('takaa-näkymän kamera (#691)', () => {
+  afterEach(() => {
+    setOrbitCamera(false);
+    setControlMode('keys');
+  });
+
+  /** Syöte, jossa on myös oikea tatti ja sormi järvellä. */
+  function orbitInput(down: string[], extra: Partial<Input> = {}) {
+    const held = new Set(down);
+    return new Controls({
+      isDown: (c: string) => held.has(c),
+      wasPressed: () => false,
+      padAim: { x: 0, y: 0 },
+      finger: false,
+      dragDX: 0,
+      dragDY: 0,
+      ...extra,
+    } as unknown as Input);
+  }
+
+  it('muissa näkymissä nuolet liikuttavat eikä kameraa ohjata', () => {
+    const c = orbitInput(['ArrowUp', 'ArrowLeft']);
+    expect(c.isDown('forward')).toBe(true);
+    expect(c.isDown('left')).toBe(true);
+    expect(c.isDown('camUp')).toBe(false);
+    expect(c.cameraInput()).toEqual({ turn: 0, tilt: 0, drag: null });
+    expect(bindingText('forward', 'keys')).toBe('W/↑');
+  });
+
+  it('takaa nuolet kääntävät kameraa ja WASD liikuttaa', () => {
+    setOrbitCamera(true);
+    const c = orbitInput(['ArrowUp', 'ArrowLeft', 'KeyS']);
+    expect(c.isDown('forward')).toBe(false);
+    expect(c.isDown('left')).toBe(false);
+    expect(c.isDown('back')).toBe(true);
+    expect(c.cameraInput()).toEqual({ turn: 1, tilt: 1, drag: null });
+    // Ohjeissa nuolet ovat vain kameran.
+    expect(bindingText('forward', 'keys')).toBe('W');
+    expect(bindingText('turn', 'keys')).toBe('A/D');
+    expect(bindingText('camera', 'keys')).toBe('nuolinäppäimet');
+  });
+
+  it('peliohjaimella LT + oikea tatti on kamera, ja tatti ei silloin tee muuta', () => {
+    setOrbitCamera(true);
+    const stick = { padAim: { x: 0.5, y: -1 } };
+    const free = orbitInput(['PadRsLeft', 'PadRsDown'], stick);
+    expect(free.isDown('lookLeft')).toBe(true);
+    expect(free.isDown('backCast')).toBe(true);
+    expect(free.aimStick).toEqual({ x: 0.5, y: -1 });
+    expect(free.cameraInput().turn).toBe(0);
+    const held = orbitInput(['Pad6', 'PadRsLeft', 'PadRsDown'], stick);
+    expect(held.isDown('lookLeft')).toBe(false);
+    expect(held.isDown('backCast')).toBe(false);
+    expect(held.aimStick).toEqual({ x: 0, y: 0 });
+    expect(held.cameraInput()).toEqual({ turn: -0.5, tilt: 1, drag: null });
+    expect(bindingText('camera', 'pad')).toBe('LT+oikea tatti');
+  });
+
+  it('muissa näkymissä LT ei vie oikeaa tattia', () => {
+    const c = orbitInput(['Pad6', 'PadRsLeft', 'PadRsDown'], { padAim: { x: -1, y: 1 } });
+    expect(c.isDown('lookLeft')).toBe(true);
+    expect(c.isDown('backCast')).toBe(true);
+    expect(c.aimStick).toEqual({ x: -1, y: 1 });
+  });
+
+  it('sormen veto järvellä kääntää kameraa eikä kelaa tai heitä perhoa', () => {
+    const touch = { finger: true, dragDX: 12, dragDY: -4 };
+    expect(orbitInput(['Mouse0'], touch).isDown('pointer')).toBe(true);
+    setOrbitCamera(true);
+    const c = orbitInput(['Mouse0'], touch);
+    expect(c.isDown('pointer')).toBe(false);
+    expect(c.cameraInput().drag).toEqual({ dx: 12, dy: -4 });
+    // Hiiri kelaa edelleen.
+    expect(orbitInput(['Mouse0']).isDown('pointer')).toBe(true);
+    expect(bindingText('pointer', 'touch')).toBeNull();
+    expect(bindingText('swipe', 'touch')).toBeNull();
+    expect(bindingText('camera', 'touch')).toBe('pyyhkäise järvellä');
+    expect(controlText('help.shortReel', {}, { mode: 'touch' })).toBe('KELAA pohjassa = kelaa');
   });
 });

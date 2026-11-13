@@ -41,7 +41,7 @@ export class HeldMenu {
 
   step(c: Controls): void {
     const menu = this.menu();
-    const stick = c.input.padAim;
+    const stick = c.aimStick;
     if (menu?.open && stick && Math.hypot(stick.x, stick.y) > PAD_STICK_PRESS)
       menu.point?.(stick.x, stick.y);
     if (this.since === null) return;

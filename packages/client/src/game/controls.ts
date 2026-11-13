@@ -50,13 +50,40 @@ export const CONTROLS = {
   back: { keys: ['KeyS', 'ArrowDown'], touch: 'ctl.stickDown', pad: ['PadLsDown'] },
   left: { keys: ['KeyA', 'ArrowLeft'], pad: ['PadLsLeft'] },
   right: { keys: ['KeyD', 'ArrowRight'], pad: ['PadLsRight'] },
-  turn: { keys: [], label: 'ctl.turnKeys', touch: 'ctl.stickSide', padLabel: 'pad.stickSide' },
+  /** Ohjeen rivi: kääntymisen näppäimet ovat `left` ja `right`. */
+  turn: {
+    keys: ['KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight'],
+    touch: 'ctl.stickSide',
+    padLabel: 'pad.stickSide',
+  },
   /**
    * Kalastajan silmin peliohjaimen oikea tatti kääntää kuten vasen: vasen
    * tatti jää eteen ja taakse. Ylhäältä oikea tatti on heiton suunta (`aim`).
    */
   lookLeft: { keys: [], pad: ['PadRsLeft'] },
   lookRight: { keys: [], pad: ['PadRsRight'] },
+  /**
+   * Takaa-näkymän kamera (#691): nuolet kiertävät kameraa kalastajan ympäri ja
+   * nostavat tai laskevat sitä. Ne toimivat vain takaa-näkymässä
+   * (`setOrbitCamera`), jolloin nuolet eivät liikuta kalastajaa.
+   */
+  camLeft: { keys: ['ArrowLeft'] },
+  camRight: { keys: ['ArrowRight'] },
+  camUp: { keys: ['ArrowUp'] },
+  camDown: { keys: ['ArrowDown'] },
+  /**
+   * Ohjeen rivi kameralle. Peliohjaimella vasen liipaisin pohjassa oikea tatti
+   * on kamera (muuten se kääntää kalastajaa tai on perhovapa), ja kosketuksella
+   * sormen veto järvellä.
+   */
+  camera: {
+    keys: [],
+    label: 'ctl.arrows',
+    touch: 'ctl.swipe',
+    pad: ['PadRsLeft', 'PadRsRight', 'PadRsUp', 'PadRsDown'],
+    padWith: PAD_ZOOM,
+    padLabel: 'pad.rightStick',
+  },
   /** Peliohjaimella vasen liipaisin: tatti on reunassa jo tavallisessa potkussa. */
   sprint: { keys: ['ShiftLeft', 'ShiftRight'], touch: 'ctl.stickEdge', pad: ['Pad6'] },
   /**
@@ -252,6 +279,39 @@ function padCodes(a: Action): readonly string[] {
 
 let flyInverted = false;
 
+/** Toiminnot, jotka ovat olemassa vain takaa-näkymässä (#691). */
+const ORBIT_ONLY: ReadonlySet<string> = new Set([
+  'camLeft',
+  'camRight',
+  'camUp',
+  'camDown',
+  'camera',
+]);
+/** Sormen eleet järvellä, jotka väistävät takaa-näkymässä kameran vetoa. */
+const ORBIT_TOUCH_OFF: ReadonlySet<string> = new Set([
+  'pointer',
+  'swipe',
+  'backCast',
+  'forwardCast',
+]);
+const ARROW_KEY = /^Arrow/;
+
+let orbit = false;
+
+/**
+ * Takaa-näkymä päälle tai pois (#691). Päällä nuolinäppäimet, vasen liipaisin +
+ * oikea tatti ja sormen veto järvellä ohjaavat kameraa eivätkä tee muuta:
+ * nuolet eivät liikuta kalastajaa, eikä sormi järvellä kelaa tai heitä perhoa.
+ * Ohjetekstit seuraavat samaa tilaa.
+ */
+export function setOrbitCamera(on: boolean): void {
+  orbit = on;
+}
+
+export function orbitCamera(): boolean {
+  return orbit;
+}
+
 /**
  * Perhoheiton tatti käänteisenä (asetus, #594): takaheitto ylös ja
  * eteenheitto alas. Vaihtaa toimintojen napit ja ohjetekstit kerralla.
@@ -263,14 +323,24 @@ export function setFlyStickInverted(on: boolean): void {
 }
 
 /** Yhdistelmien napit: koodi → napit, joiden kanssa se on jonkin toiminnon yhdistelmä. */
-const COMBOS = new Map<string, string[]>();
-for (const b of Object.values(CONTROLS) as Binding[]) {
+const COMBOS = new Map<string, { held: string; orbit: boolean }[]>();
+for (const [a, b] of Object.entries(CONTROLS) as [string, Binding][]) {
   if (!b.padWith) continue;
   for (const k of b.pad ?? []) {
-    const held = COMBOS.get(k) ?? [];
-    if (!held.includes(b.padWith)) held.push(b.padWith);
-    COMBOS.set(k, held);
+    const combos = COMBOS.get(k) ?? [];
+    if (!combos.some((c) => c.held === b.padWith))
+      combos.push({ held: b.padWith, orbit: ORBIT_ONLY.has(a) });
+    COMBOS.set(k, combos);
   }
+}
+
+const NO_STICK = { x: 0, y: 0 };
+
+/** Kameran ohjaus askeleelta: kierto vasemmalle (+) ja nosto (+), sormen veto pikseleinä. */
+export interface CameraInput {
+  turn: number;
+  tilt: number;
+  drag: { dx: number; dy: number } | null;
 }
 
 /** Toimintojen tila askeleen syötteestä: näppäimet, peliohjain ja kosketusnapit yhdessä. */
@@ -296,8 +366,40 @@ export class Controls {
    */
   private live(a: Action, k: string): boolean {
     const b: Binding = CONTROLS[a];
+    if (ORBIT_ONLY.has(a)) {
+      if (!orbit) return false;
+    } else if (orbit) {
+      // Takaa-näkymässä nuolet ja sormi järvellä kuuluvat kameralle (#691).
+      if (ARROW_KEY.test(k)) return false;
+      if (a === 'pointer' && this.input.finger) return false;
+    }
     if (b.padWith && b.pad?.includes(k)) return this.input.isDown(b.padWith);
-    return !COMBOS.get(k)?.some((m) => this.input.isDown(m));
+    return !COMBOS.get(k)?.some((c) => (!c.orbit || orbit) && this.input.isDown(c.held));
+  }
+
+  /** Oikea tatti kameralle: takaa-näkymässä vasen liipaisin pohjassa (#691). */
+  private get stickOrbits(): boolean {
+    return orbit && this.input.isDown(PAD_ZOOM);
+  }
+
+  /**
+   * Oikea tatti heiton suunnalle, perhovavalle ja pikavalikolle. Kun tatti
+   * kääntää kameraa, se ei tee muuta.
+   */
+  get aimStick(): { x: number; y: number } {
+    return this.stickOrbits ? NO_STICK : this.input.padAim;
+  }
+
+  /** Takaa-näkymän kameran ohjaus tältä askeleelta (#691). */
+  cameraInput(): CameraInput {
+    const stick = this.stickOrbits ? this.input.padAim : NO_STICK;
+    const key = (plus: Action, minus: Action) =>
+      (this.isDown(plus) ? 1 : 0) - (this.isDown(minus) ? 1 : 0);
+    return {
+      turn: key('camLeft', 'camRight') - stick.x,
+      tilt: key('camUp', 'camDown') - stick.y,
+      drag: orbit && this.input.finger ? { dx: this.input.dragDX, dy: this.input.dragDY } : null,
+    };
   }
 
   /** Kosketusnappi pohjaan tai irti. */
@@ -454,17 +556,20 @@ export function padButtonName(code: string, kind: PadKind = padKind): string {
 export function bindingText(a: Action, m: ControlMode = mode): string | null {
   const b: Binding = CONTROLS[a];
   if (m === 'touch') {
-    if (!b.touch) return null;
+    if (!b.touch || (orbit && ORBIT_TOUCH_OFF.has(a))) return null;
     return hasKey(b.touch) ? t(b.touch) : b.touch;
   }
   if (m === 'pad') {
-    if (b.padLabel) return t(b.padLabel);
+    const held = b.padWith ? `${keyName(b.padWith)}+` : '';
+    if (b.padLabel) return held + t(b.padLabel);
     const names = [...new Set(padCodes(a).map((c) => keyName(c)))];
     if (!names.length) return null;
-    return (b.padWith ? `${keyName(b.padWith)}+` : '') + names.join('/');
+    return held + names.join('/');
   }
   if (b.label) return t(b.label);
-  const names = [...new Set(b.keys.map((c) => keyName(c)))];
+  // Takaa-näkymässä nuolet ovat kameran, joten muiden toimintojen ohjeissa niitä ei ole.
+  const keys = orbit && !ORBIT_ONLY.has(a) ? b.keys.filter((k) => !ARROW_KEY.test(k)) : b.keys;
+  const names = [...new Set(keys.map((c) => keyName(c)))];
   return names.length ? names.join('/') : null;
 }
 

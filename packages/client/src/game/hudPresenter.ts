@@ -1,3 +1,4 @@
+import { lakeLevel, type ViewMode } from './chaseCamera';
 import { simpleControls } from './controlStyle';
 import {
   DIFFICULTIES,
@@ -53,7 +54,7 @@ export interface HudHost {
   readonly tube: TubeState;
   readonly prevTube: TubeState;
   readonly facing: number;
-  readonly viewMode: 'top' | 'pov';
+  readonly viewMode: ViewMode;
   readonly inBoat: boolean;
   readonly rower: boolean;
   /** Soutaja on airoissa (muuten vapa kädessä, #639). */
@@ -171,7 +172,8 @@ export class HudPresenter {
     );
     hud.setHelpContext({
       fly: isFly(f.tackle),
-      pov: host.viewMode === 'pov',
+      pov: lakeLevel(host.viewMode),
+      chase: host.viewMode === 'chase',
       seat: !host.inBoat ? 'tube' : !host.rower ? 'passenger' : host.rowing ? 'rower' : 'rowerRod',
       crew: host.crewSeats,
       simple,
@@ -269,7 +271,7 @@ export class HudPresenter {
     hud.setPower(null);
     hud.setAshore(false);
     hud.setSeatBadge(null);
-    hud.setHelpContext({ fly: false, pov: this.host.viewMode === 'pov', seat: 'tube' });
+    hud.setHelpContext({ fly: false, pov: lakeLevel(this.host.viewMode), seat: 'tube' });
     hud.setSituation(null);
     if (shot) {
       const who = shot.view === 'overview' || !name ? t('broadcast.lake') : name;

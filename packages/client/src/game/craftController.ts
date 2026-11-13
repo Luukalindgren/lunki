@@ -1,3 +1,4 @@
+import { lakeLevel, type ViewMode } from './chaseCamera';
 import {
   BoatSeat,
   CRAFTS,
@@ -81,7 +82,7 @@ export interface CraftHost {
   readonly fishing: FishingState;
   readonly fishingView: FishingView;
   readonly spectating: boolean;
-  readonly viewMode: 'top' | 'pov';
+  readonly viewMode: ViewMode;
   tube: TubeState;
   prevTube: TubeState;
   /** Renkaaseen vaikuttava tuuli (sää ja trombin imu). */
@@ -222,7 +223,7 @@ export class CraftController {
     const wasAshore = this.ashore;
     // Pikavalikon ollessa pohjassa oikea tatti osoittaa sen lohkoa eikä käännä.
     const look =
-      host.viewMode === 'pov' && !c.isDown('lure') && !c.isDown('method') && !c.isDown('emote');
+      lakeLevel(host.viewMode) && !c.isDown('lure') && !c.isDown('method') && !c.isDown('emote');
     const read = frozen || capsized ? still : readTubeInput(c, wasAshore, look);
     // Peliohjaimen kääntymisen herkkyys (#594).
     const raw =

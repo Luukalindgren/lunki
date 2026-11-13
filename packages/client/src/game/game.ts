@@ -54,7 +54,14 @@ import {
 } from '@lunki/shared';
 import type { Input } from '../engine/input';
 import { padSettings, ReelLatch } from '../engine/padSettings';
-import { contextActions, controlMode, Controls, controlText, type ShoreMain } from './controls';
+import {
+  contextActions,
+  controlMode,
+  Controls,
+  controlText,
+  setOrbitCamera,
+  type ShoreMain,
+} from './controls';
 import { createBottomMesh } from '../world/bottomMesh';
 import { FishShadow } from '../world/fishShadow';
 import { FishSignsView } from './fishSignsView';
@@ -62,6 +69,7 @@ import { BirdsView } from './birdsView';
 import { staticWorldFor, type StaticWorld } from '../world/staticWorld';
 import type { RetroResolution } from '../engine/resolution';
 import type { RetroRenderer } from '../engine/retroRenderer';
+import { CHASE, ChaseOrbit, chaseArc, lakeLevel, nextView, type ViewMode } from './chaseCamera';
 import { EYE_HEIGHT, PovCamera } from './povCamera';
 import { createLakeMesh, createWaterWaves, toWorld, waterTime } from '../world/lakeMesh';
 import { bailPose, capsizeRoll, type BailPose, type NetWorld } from '../net/netWorld';
@@ -136,7 +144,9 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
   readonly controls: Controls;
   /** Kalastajan silmin -näkymä (V vaihtaa). */
   readonly pov = new PovCamera();
-  viewMode: 'top' | 'pov' = 'top';
+  viewMode: ViewMode = 'top';
+  /** Takaa-näkymän kameran asento kalastajan suhteen (#691). */
+  readonly chase = new ChaseOrbit();
   /** Vain POV:ssa näkyvät (maasto, metsänreuna) ja vain ylhäältä näkyvät (karttapohja). */
   private readonly scenery = new THREE.Group();
   private readonly mapOverlay = new THREE.Group();
@@ -444,7 +454,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
 
   /** Aktiivinen kamera piirtoa varten. */
   get camera(): THREE.Camera {
-    return this.viewMode === 'pov' ? this.pov.camera : this.view.camera;
+    return lakeLevel(this.viewMode) ? this.pov.camera : this.view.camera;
   }
 
   setResolution(r: RetroResolution): void {
@@ -464,20 +474,30 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
   }
 
   /** announce = false: ei ilmoitusta (kisan alussa näkymä vain asetetaan). */
-  setViewMode(mode: 'top' | 'pov', announce = true): void {
+  setViewMode(mode: ViewMode, announce = true): void {
     this.viewMode = mode;
+    // Silmin ja takaa (#691) ovat järven tasolla: maisema, usva ja perspektiivi.
+    const lake = lakeLevel(mode);
     const pov = mode === 'pov';
-    this.scenery.visible = pov;
-    this.mapOverlay.visible = !pov;
+    this.scenery.visible = lake;
+    this.mapOverlay.visible = !lake;
     this.povRod.group.visible = pov && !this.spectating;
     this.povTube.group.visible = pov && !this.spectating;
     this.tubeMesh.visible = !pov && !this.spectating;
-    for (const o of this.topViewOnly) o.visible = !pov;
-    this.weather.setPov(pov);
-    this.fishingView.pov = pov;
-    this.waterWaves.uPov.value = pov ? 1 : 0;
+    for (const o of this.topViewOnly) o.visible = !lake;
+    this.weather.setPov(lake);
+    this.fishingView.pov = lake;
+    this.waterWaves.uPov.value = lake ? 1 : 0;
+    // Takaa-näkymässä nuolet, LT + oikea tatti ja sormen veto ohjaavat kameraa.
+    setOrbitCamera(mode === 'chase');
+    this.chase.center();
+    this.hud.refreshHelp();
     if (announce)
-      this.hud.showMessage(controlText(pov ? 'game.viewPov' : 'game.viewTop'), 1.2, 'info');
+      this.hud.showMessage(
+        controlText(pov ? 'game.viewPov' : lake ? 'game.viewChase' : 'game.viewTop'),
+        1.2,
+        'info',
+      );
   }
 
   /** Vaihtaa varusteet heti, tai kun viehe seuraavan kerran on kelalla. */
@@ -616,10 +636,17 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     // näppäimet eivät tee mitään, kuten kosketuksen piilotetut napit.
     if (!this.craft.ashore) this.togglePanels();
     if (c.wasPressed('view')) {
-      this.setViewMode(this.viewMode === 'top' ? 'pov' : 'top');
+      this.setViewMode(nextView(this.viewMode, this.spectating));
       // Katsoja vaihtoi näkymän itse: ohjaaja odottaa hetken (#564).
-      if (this.spectating) net?.manualView(this.viewMode);
+      if (this.spectating) net?.manualView(this.viewMode === 'top' ? 'top' : 'pov');
     }
+    if (this.viewMode === 'chase')
+      this.chase.step(
+        dt,
+        c.cameraInput(),
+        c.isDown('forward') || c.isDown('back') || c.isDown('left') || c.isDown('right'),
+        window.innerHeight,
+      );
     if (this.spectating && c.wasPressed('director'))
       this.hud.showMessage(
         controlText(net?.toggleDirector() ? 'broadcast.directorOn' : 'broadcast.directorOff'),
@@ -1055,13 +1082,13 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     this.ownBubble.show(content);
   }
 
-  /** Oma kupla renkaan yllä vain ylhäältä katsottuna (kalastajan silmin ei omaa kuplaa). */
+  /** Oma kupla renkaan yllä ylhäältä ja takaa katsottuna (kalastajan silmin ei omaa kuplaa). */
   private placeOwnBubble(): void {
     const bubble = this.ownBubble;
     if (!bubble) return;
     const canvas = (this.gameCanvas ??=
       document.querySelector<HTMLCanvasElement>('canvas.game-canvas'));
-    if (this.viewMode !== 'top' || !canvas || this.spectating) {
+    if (this.viewMode === 'pov' || !canvas || this.spectating) {
       bubble.place(null, false);
       return;
     }
@@ -1146,12 +1173,14 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     // Maalla (#457) kalastaja seisoo ja rengas on maassa tai vyötäröllä.
     const shore = this.spectating ? undefined : b.shore;
     const pov = this.viewMode === 'pov';
+    // Järven tasolla (silmin tai takaa, #691) maasto ja perspektiivi ovat käytössä.
+    const lake = lakeLevel(this.viewMode);
     // Seisojan jalkojen korkeus: maasto, laiturin kannella kansi (#457).
     // Ylhäältä Retron maa on litteä karttapohja; ilmeen oma maasto (#650)
     // näkyy ylhäältäkin, joten seisoja on silloin sen pinnalla.
     const ground = this.world.ground;
     const groundAt = (p: Vec2) =>
-      !pov && !ground.overlay
+      !lake && !ground.overlay
         ? 0
         : this.water.onPier(p)
           ? Math.max(PIER_DECK, ground.surfaceAt(p))
@@ -1278,6 +1307,23 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       // Perhon löysä siima riippuu kelalta ja siimakädeltä renkaan tasolle.
       if (!eyes) this.povTube.hangSlack(standing || this.spectating ? null : this.povRod.slackEnds);
       this.weather.follow(this.pov.camera.position);
+    } else if (this.viewMode === 'chase') {
+      // Takaa (#691): kamera kiertää kalastajaa, joka piirretään samoilla
+      // malleilla kuin ylhäältä. Aalto nostaa kohdetta, ei kallista kuvaa.
+      const at = bailing?.pos ?? body;
+      const height = air
+        ? air.height
+        : standing
+          ? Math.max(0, groundAt(at))
+          : this.weather.rock.lift + seated;
+      this.pov.applyOrbit(
+        at,
+        height + CHASE.lookHeight,
+        (bailing?.heading ?? heading) + this.chase.yaw,
+        { ...chaseArc(this.chase.tilt), lookAhead: CHASE.lookAhead, clearance: CHASE.clearance },
+        groundAt,
+      );
+      this.weather.follow(this.pov.camera.position);
     }
     const hooked = this.fish.fish.find((x) => x.id === this.fishing.hookedId) ?? null;
     this.fishingView.metersPerPixel = this.view.metersPerPixel;
@@ -1304,7 +1350,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       rodEnd,
     );
     this.weather.shakeCamera(this.camera);
-    this.birds.render(this.camera, pov, pov ? this.pov.pixelSize : this.view.metersPerPixel);
+    this.birds.render(this.camera, lake, lake ? this.pov.pixelSize : this.view.metersPerPixel);
     // Täyttökisan vene rannalla (#458) lepää maan pinnalla.
     this.boatsView.heightAt = groundAt;
     this.boatsView.water = this.water;
@@ -1356,7 +1402,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
           roll: o.roll + this.seatSlides.rock(o.boat, now),
         }));
       const remote = this.net.remoteView;
-      remote.pov = this.viewMode === 'pov';
+      remote.pov = lake;
       remote.heightAt = groundAt;
       remote.pixel = remote.pov ? this.pov.pixelSize : this.view.metersPerPixel;
       remote.update(shown, this.camera, this.net.link.canvas, this.tube.pos);
@@ -1364,7 +1410,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     const bots = this.soloBots;
     if (bots) {
       const remote = bots.remoteView;
-      remote.pov = this.viewMode === 'pov';
+      remote.pov = lake;
       remote.heightAt = groundAt;
       remote.pixel = remote.pov ? this.pov.pixelSize : this.view.metersPerPixel;
       remote.update(bots.others(), this.camera, this.stage!.canvas, this.tube.pos);
