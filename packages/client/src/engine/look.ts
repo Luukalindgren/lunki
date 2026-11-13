@@ -32,6 +32,25 @@ export function saveLook(look: Look): void {
   }
 }
 
+let active: Look = DEFAULT_LOOK;
+const listeners = new Set<(look: Look) => void>();
+
+/** Käytössä oleva ilme: kuvat ja tekstuurit, jotka piirretään ilmeen mukaan, kysyvät tästä. */
+export const activeLook = (): Look => active;
+
+/** Vaihtaa käytössä olevan ilmeen ja kertoo siitä kuuntelijoille (`onLookChange`). */
+export function setActiveLook(look: Look): void {
+  if (look === active) return;
+  active = look;
+  for (const l of listeners) l(look);
+}
+
+/** Kutsutaan, kun ilme vaihtuu: jo piirretyt kuvat piirretään uudelleen. */
+export function onLookChange(listener: (look: Look) => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
 /**
  * Ilmeestä riippuvat varjostimien arvot. Materiaali, jonka kuva riippuu
  * ilmeestä, liittää nämä samat oliot omiin uniformeihinsa; `RetroRenderer`

@@ -1,4 +1,6 @@
 import { FLY_IDS, LURE_IDS, type FlyId, type LureId, type Method } from '@lunki/shared';
+import { activeLook } from '../engine/look';
+import { lookArt, paintPixels } from './lookArt';
 
 /**
  * Vieheiden, perhojen ja vapojen pikselikuvat (#362) samaan tyyliin kuin
@@ -442,33 +444,33 @@ export function lurePixels(id: ArtId, frame: number): LurePixels {
   return { width: W, height: H, data };
 }
 
-const cache = new Map<ArtId, string>();
+const cache = new Map<string, string>();
 
-/** Kaikki animaatiokuvat vierekkäin yhtenä data-URL:na (välimuistissa). */
+/** Kaikki animaatiokuvat vierekkäin yhtenä data-URL:na (välimuistissa ilmeittäin). */
 function lureStrip(id: ArtId): string {
-  const hit = cache.get(id);
+  const key = `${id}:${activeLook()}`;
+  const hit = cache.get(key);
   if (hit) return hit;
   const canvas = document.createElement('canvas');
-  canvas.width = LURE_ART_W * LURE_FRAMES;
-  canvas.height = LURE_ART_H;
+  const frame = document.createElement('canvas');
   const ctx = canvas.getContext('2d')!;
-  const img = ctx.createImageData(canvas.width, canvas.height);
   for (let f = 0; f < LURE_FRAMES; f++) {
-    lurePixels(id, f).data.forEach((c, k) => {
-      if (c < 0) return;
-      const i = (k % LURE_ART_W) + f * LURE_ART_W;
-      const o = (Math.floor(k / LURE_ART_W) * canvas.width + i) * 4;
-      img.data[o] = (c >> 16) & 0xff;
-      img.data[o + 1] = (c >> 8) & 0xff;
-      img.data[o + 2] = c & 0xff;
-      img.data[o + 3] = 255;
-    });
+    // Kuvat piirretään yksitellen, jottei sileä versio vuoda naapurikuvaan.
+    paintPixels(frame, lurePixels(id, f));
+    if (f === 0) {
+      canvas.width = frame.width * LURE_FRAMES;
+      canvas.height = frame.height;
+    }
+    ctx.drawImage(frame, f * frame.width, 0);
   }
-  ctx.putImageData(img, 0, 0);
   const url = canvas.toDataURL();
-  cache.set(id, url);
+  cache.set(key, url);
   return url;
 }
+
+const redrawLure = (img: HTMLImageElement) => {
+  img.src = lureStrip(img.dataset.lure as ArtId);
+};
 
 /**
  * Vieheen animoitu kuva. `scale` on näyttöpikseleitä kuvan pikseliä kohden
@@ -483,8 +485,9 @@ export function lureImage(id: ArtId, scale = '2px'): HTMLElement {
   box.style.height = `calc(${scale} * ${LURE_ART_H})`;
   box.setAttribute('aria-hidden', 'true');
   const img = document.createElement('img');
-  img.src = lureStrip(id);
+  img.dataset.lure = id;
   img.alt = '';
+  lookArt(img, redrawLure);
   img.style.width = `calc(${scale} * ${LURE_ART_W * LURE_FRAMES})`;
   img.style.height = `calc(${scale} * ${LURE_ART_H})`;
   box.appendChild(img);

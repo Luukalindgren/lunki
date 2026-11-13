@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { DEFAULT_APPEARANCE, EMOTE_DURATION, type Appearance, type EmoteId } from '@lunki/shared';
+import { activeLook } from '../engine/look';
 import { emoteIcon } from '../ui/emoteIcons';
 import { playerColorMaterial, setPlayerColor } from './playerColor';
 
@@ -250,7 +251,7 @@ export class PovTube {
   private readonly legs: Leg[] = [];
   private readonly hand = new THREE.Group();
   private readonly palmMaterial: THREE.MeshBasicMaterial;
-  private readonly icons = new Map<EmoteId, THREE.CanvasTexture>();
+  private readonly icons = new Map<string, THREE.CanvasTexture>();
   private readonly splashes: Splash[] = [];
   private finColor: number = DEFAULT_APPEARANCE.fins;
   private lastPhase = 0;
@@ -486,13 +487,17 @@ export class PovTube {
     }
     this.hand.position.y += lift;
     this.hand.rotation.set(tilt, 0, 0);
-    let icon = this.icons.get(emote);
+    // Kuva ilmeen mukaan: Retrossa pikselit, Terävällä sileä versio.
+    const sharp = activeLook() === 'sharp';
+    const key = `${emote}:${sharp}`;
+    let icon = this.icons.get(key);
     if (!icon) {
       icon = new THREE.CanvasTexture(emoteIcon(emote));
       icon.colorSpace = THREE.SRGBColorSpace;
-      icon.magFilter = THREE.NearestFilter;
-      icon.minFilter = THREE.NearestFilter;
-      this.icons.set(emote, icon);
+      icon.magFilter = sharp ? THREE.LinearFilter : THREE.NearestFilter;
+      icon.minFilter = sharp ? THREE.LinearFilter : THREE.NearestFilter;
+      icon.generateMipmaps = false;
+      this.icons.set(key, icon);
     }
     if (this.palmMaterial.map !== icon) {
       this.palmMaterial.map = icon;
