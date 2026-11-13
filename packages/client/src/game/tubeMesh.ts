@@ -133,6 +133,7 @@ export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THR
     const fin = new THREE.Mesh(new THREE.BoxGeometry(FIN_LENGTH, 0.05, 0.22), finMat);
     fin.position.set(FIN_X, FIN_Y, z);
     fin.name = 'fin';
+    fin.userData.shape = 'fin';
     group.add(fin);
   }
 

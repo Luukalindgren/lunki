@@ -83,6 +83,8 @@ function extrude(shape: THREE.Shape, height: number): THREE.BufferGeometry {
  */
 function liftNormals(g: THREE.BufferGeometry, lift: number): THREE.BufferGeometry {
   const n = g.getAttribute('normal') as THREE.BufferAttribute;
+  // Pinnan oikeat normaalit talteen: ilme ilman palettia valaisee niillä.
+  g.userData.normals = new Float32Array(n.array as ArrayLike<number>);
   const v = new THREE.Vector3();
   for (let i = 0; i < n.count; i++) {
     v.fromBufferAttribute(n, i);

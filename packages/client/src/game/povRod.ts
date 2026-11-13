@@ -281,6 +281,7 @@ export class PovRod {
     handle.add(this.crank);
     this.reel.add(handle);
 
+    this.reel.name = 'pov-reel';
     this.group.add(this.reel);
 
     // Perhokela: kehä, siimakerros ja kampinuppi; akseli osoittaa sivulle.

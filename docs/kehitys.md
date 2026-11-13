@@ -217,6 +217,29 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
     mallit kauemmas (`DetailLevels`, matkat `QUALITY.detailRange`ista). Uusi
     maiseman osa tekee samoin eikä piirrä koko järven tarkkoja malleja
     kerralla.
+- **Kalastaja, kulkupelit ja varusteet ovat Modernissa pelin omia malleja
+  pehmennettyinä** (`modern/soften.ts`, `modern/gear.ts`), eikä niille tehdä
+  rinnakkaisia malleja: liike, värit ja säännöt ovat pelin.
+  - `Softener` vaihtaa jokaisen valaistun perusmuodon (laatikko, pallo, lieriö,
+    rengas) pyöristettyyn versioon samassa paikassa. Uusi samalla tavalla
+    tehty osa pehmenee itsestään. Neli- ja kolmikulmainen lieriö, kuvallinen
+    pinta ja kärki kerrallaan muokattu muoto jäävät ennalleen.
+  - Osa, johon pyöristys ei riitä, saa pelissä nimen `userData.shape`, ja
+    Modernin malli sille on taulukossa `SHAPES` (räpylä, `gearShapes.ts`).
+  - Jos peli muokkaa osan kärkiä itse (täyttökisan lässähtävä ponttooni,
+    `shoreView.ts`), se antaa lepomuodon `geometry.userData.rest`issä ja
+    sovittaa vaihdetun muodon `userData.reshape`-kutsussa. Jos peli kallistaa
+    normaaleja paletin takia (vene, `liftNormals`), oikeat normaalit ovat
+    `geometry.userData.normals`issa ja Moderni valaisee niillä.
+  - `Gear` lisää nimettyihin osiin sen, mitä muissa ilmeissä ei ole:
+    ponttoonien tummat päälliset (`tube`, `pov-pontoon`), selkänojan (`seat`),
+    kalastajan silmin vapaa pitävän käden ja kahvan (`pov-reel`) ja
+    verkkotason kudoksen (`pov-net`). Kalastajan silmin tasaväriset osat (veden
+    alla näkyvät sääret ja räpylät `pov-wet`, kela) se vaihtaa valaistuiksi.
+    Uusi lisäosa on uusi sovitus `Gear`iin ja muoto `gearShapes.ts`:ään, ja
+    kaikki palautetaan, kun ilme vaihtuu.
+  - Pelaajan värit (`playerColorMaterial`) varjostuvat Modernissa liukuvasti
+    (`uLookModern`), eivät kolmella palettisävyllä.
 - **Modernin teema** (`modern/theme.css`) vaihtaa käyttöliittymän värit
   `style.css`:n `--c-`-muuttujilla ja kirjasimet luokan `.look-modern` alla.
   Uusi valikon tai HUDin osa käyttää näitä muuttujia eikä kirjoita värejä

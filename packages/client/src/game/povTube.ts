@@ -234,6 +234,7 @@ function netPanel(from: number, to: number): THREE.Group {
     new THREE.PlaneGeometry(len, DIM.apronHalf * 2),
     new THREE.MeshLambertMaterial({ map: netTexture(len) }),
   );
+  net.name = 'pov-net';
   net.rotation.x = -Math.PI / 2;
   net.position.set(from + len / 2, DIM.apronY, 0);
   const frame = new THREE.MeshLambertMaterial({ color: COLOR.apron });
@@ -313,6 +314,7 @@ export class PovTube {
   private readonly slackFrom = new THREE.Vector3();
 
   constructor(appearance: Appearance = DEFAULT_APPEARANCE) {
+    this.group.name = 'pov-tube';
     this.group.add(this.body);
     this.tubeMaterial = playerColorMaterial(appearance.tube);
     this.finDry = playerColorMaterial(appearance.fins);
@@ -324,6 +326,7 @@ export class PovTube {
         new THREE.CylinderGeometry(DIM.pontoonRadius, DIM.pontoonRadius, len, 10, 1, true),
         this.tubeMaterial,
       );
+      tube.name = 'pov-pontoon';
       tube.rotation.z = Math.PI / 2;
       tube.position.set(DIM.pontoonTip - len / 2, DIM.pontoonY, side * DIM.pontoonSide);
       const tip = new THREE.Mesh(
@@ -370,10 +373,13 @@ export class PovTube {
       shinDry.position.y = -dry / 2;
       const wet = DIM.shin - dry;
       const shinWet = new THREE.Mesh(new THREE.BoxGeometry(0.09, wet, 0.09), this.wetLeg);
+      shinWet.name = 'pov-wet';
       shinWet.position.y = -dry - wet / 2;
       const ankle = new THREE.Group();
       ankle.position.y = -DIM.shin;
       const fin = new THREE.Mesh(finGeometry(), this.wetFin);
+      fin.name = 'pov-wet';
+      fin.userData.shape = 'fin';
       fin.position.x = -0.05;
       ankle.add(fin);
       pivot.add(shinDry, shinWet, ankle);
