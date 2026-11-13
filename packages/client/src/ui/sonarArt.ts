@@ -1,5 +1,5 @@
 import { ECHO_STYLE, type BottomType } from '@lunki/shared';
-import { activeLook } from '../engine/look';
+import { activeLook, smoothLook } from '../engine/look';
 
 /**
  * HUDin pienten näyttöjen (kaikuluotain, vieheluotain, perhoheiton sivukuva)
@@ -60,7 +60,7 @@ export function panelContext(
   width: number,
   height: number,
 ): { g: CanvasRenderingContext2D; sharp: boolean } | null {
-  const sharp = activeLook() === 'sharp';
+  const sharp = smoothLook(activeLook());
   const k = sharp ? PANEL_DETAIL : 1;
   if (canvas.width !== width * k || canvas.height !== height * k) {
     canvas.width = width * k;

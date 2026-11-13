@@ -604,6 +604,7 @@ export class WeatherController {
     ww.uGlitterDir.value.copy(g.dir);
     ww.uGlitterColor.value.copy(g.color);
     ww.uGlitter.value = host.viewMode === 'pov' ? g.amount : 0;
+    ww.uSkyTint.value.copy(this.sky.lighting.horizon);
     // Taivaan heijastus vaalentaa kaukaista vettä vain valoisalla: yöllä ja
     // ukkospilvien alla vaalea järvenselkä korostui liikaa.
     ww.uSheen.value =

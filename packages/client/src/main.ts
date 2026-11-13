@@ -27,7 +27,18 @@ import {
 } from '@lunki/shared';
 import { FpsMeter } from './engine/fpsMeter';
 import { Input } from './engine/input';
-import { LookGuard, loadLook, saveLook, setActiveLook, type Look } from './engine/look';
+import {
+  LookGuard,
+  loadLook,
+  loadQuality,
+  lowerQuality,
+  saveLook,
+  saveQuality,
+  setActiveLook,
+  smoothLook,
+  type Look,
+} from './engine/look';
+import { ModernHost } from './engine/modernHost';
 import { startLoop } from './engine/loop';
 import { RetroRenderer, type PaletteMode } from './engine/retroRenderer';
 import { MENU_AMBIENCE } from './audio/ambience';
@@ -116,7 +127,14 @@ canvas.className = 'game-canvas';
 app.appendChild(canvas);
 
 const retro = createRenderer(canvas, app);
-applyLook(loadLook());
+const modern = new ModernHost();
+retro.setQuality(loadQuality());
+// Moderni (#650) on tietokoneen ilme: kosketuslaitteella sitä ei tarjota.
+const modernOffered = !isTouchDevice();
+/** Pelaajan viimeksi valitsema ilme; Moderni tulee käyttöön vasta latauduttuaan. */
+let wantedLook: Look = loadLook();
+if (wantedLook === 'modern' && !modernOffered) wantedLook = 'retro';
+applyLook(wantedLook === 'modern' ? 'retro' : wantedLook);
 const input = new Input(canvas);
 const fps = new FpsMeter(app, import.meta.env.DEV);
 const hud = new Hud(app);
@@ -204,7 +222,38 @@ const povFovControl = () => ({
 function applyLook(look: Look): void {
   retro.setLook(look);
   setActiveLook(look);
-  document.documentElement.classList.toggle('look-sharp', look === 'sharp');
+  const root = document.documentElement.classList;
+  root.toggle('look-sharp', smoothLook(look));
+  root.toggle('look-modern', look === 'modern');
+}
+
+/**
+ * Ilmeen valinta. Moderni haetaan vasta nyt: lupaus kertoo, saatiinko se
+ * käyttöön. Jos lataus ei onnistu (verkko poikki eikä tiedostoja laitteella),
+ * entinen ilme jää voimaan.
+ */
+function chooseLook(look: Look): void | Promise<boolean> {
+  wantedLook = look;
+  lookGuard.reset();
+  if (look !== 'modern' || modern.loaded) {
+    saveLook(look);
+    applyLook(look);
+    return;
+  }
+  return modern.ensure().then(
+    () => {
+      // Pelaaja ehti valita toisen ilmeen latauksen aikana.
+      if (wantedLook !== 'modern') return false;
+      saveLook('modern');
+      applyLook('modern');
+      lookGuard.reset();
+      return true;
+    },
+    () => {
+      if (wantedLook === 'modern') wantedLook = retro.look;
+      return false;
+    },
+  );
 }
 
 /** Asetusnäkymän säätimet; `reopen` piirtää näkymän uudelleen kielen vaihtuessa. */
@@ -224,10 +273,15 @@ const settingsControls = (reopen: () => void): SettingsControls => ({
   povFov: povFovControl(),
   look: {
     current: retro.look,
-    onChange: (look) => {
-      saveLook(look);
-      applyLook(look);
-      lookGuard.reset();
+    onChange: chooseLook,
+    modern: modernOffered,
+    quality: {
+      current: retro.quality,
+      onChange: (quality) => {
+        saveQuality(quality);
+        retro.setQuality(quality);
+        lookGuard.reset();
+      },
     },
   },
   guide: {
@@ -1115,6 +1169,14 @@ menuScene.precompile(retro).then(menuReady, menuReady);
 setTimeout(menuReady, WARM_TIMEOUT_MS);
 
 const lookGuard = new LookGuard();
+/** Ilmoitus, joka näytetään kisan alkaessa (valikossa HUD on piilossa). */
+let raceNotice: string | null = null;
+// Tallennettu Moderni: peli aukeaa Retrona ja vaihtuu, kun ilme on latautunut.
+if (wantedLook === 'modern') {
+  void Promise.resolve(chooseLook('modern')).then((ok) => {
+    if (ok === false && wantedLook !== 'modern') raceNotice = t('look.modernFailed');
+  });
+}
 const paletteModes: PaletteMode[] = ['palette', 'dither', 'off'];
 
 // Pelin tiedostot laitteelle (#328). Uusi versio otetaan käyttöön vasta
@@ -1159,6 +1221,13 @@ startLoop({
     const active = game ?? menuScene;
     const t0 = performance.now();
     active.render(alpha);
+    modern.frame(
+      retro.look === 'modern',
+      active.scene,
+      active.camera,
+      retro.renderer,
+      retro.quality,
+    );
     retro.render(active.scene, active.camera, active.grade);
     bench?.timing(updateTime, performance.now() - t0, updateCount);
     updateTime = 0;
@@ -1166,12 +1235,27 @@ startLoop({
     const { width, height } = retro.renderSize;
     const { scale } = retro.resolution;
     fps.frame(frameTime, `${width}×${height} ×${scale} · ${active.view.metersPerPixel} m/px`);
-    // Terävä on raskas: jos kisa nykii, palataan Retroon ja kerrotaan siitä (#674).
+    if (raceNotice && game !== null && !screens.open) {
+      hud.showMessage(raceNotice, 6, 'info');
+      raceNotice = null;
+    }
+    // Terävä ja Moderni ovat raskaita: jos kisa nykii, Moderni keventää ensin
+    // laatua ja lopulta ilme palaa Retroon. Siitä kerrotaan (#674, #650).
     const racing = game !== null && !paused && !screens.open && !bench;
-    if (retro.look === 'sharp' && racing && lookGuard.frame(frameTime)) {
-      saveLook('retro');
-      applyLook('retro');
-      hud.showMessage(t('look.fellBack'), 6, 'info');
+    if (retro.look !== 'retro' && racing && lookGuard.frame(frameTime)) {
+      const lighter = retro.look === 'modern' ? lowerQuality(retro.quality) : null;
+      if (lighter) {
+        saveQuality(lighter);
+        retro.setQuality(lighter);
+        lookGuard.reset();
+        hud.showMessage(t('look.qualityDropped'), 6, 'info');
+      } else {
+        const fell = retro.look === 'modern' ? 'look.modernFellBack' : 'look.fellBack';
+        wantedLook = 'retro';
+        saveLook('retro');
+        applyLook('retro');
+        hud.showMessage(t(fell), 6, 'info');
+      }
     }
     bench?.frame(frameTime);
     dismissBootLoader();

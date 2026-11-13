@@ -20,6 +20,19 @@ export function precacheList(files: readonly string[]): string[] {
     .sort();
 }
 
+/**
+ * Valinnaiset tiedostot (#650): modernin ilmeen koodi, tyylit ja fontit
+ * (`modern/`). Niitä ei tallenneta asennuksessa. Service worker tallentaa ne
+ * omaan välimuistiinsa, kun pelaaja valitsee ilmeen, ja pitää ne ajan tasalla
+ * vain niillä laitteilla, joilla ilme on kerran haettu.
+ */
+export function optionalList(files: readonly string[]): string[] {
+  return files
+    .map((f) => f.replaceAll('\\', '/'))
+    .filter((f) => f.startsWith('modern/') && !f.endsWith('.map'))
+    .sort();
+}
+
 /** Versiotunniste tiedostojen nimistä ja sisällöstä: mikä tahansa muutos vaihtaa sen. */
 export function precacheVersion(files: readonly { name: string; content: Uint8Array }[]): string {
   const hash = createHash('sha256');
@@ -31,10 +44,16 @@ export function precacheVersion(files: readonly { name: string; content: Uint8Ar
 }
 
 /** Täyttää service workerin pohjaan version ja tiedostolistan. */
-export function serviceWorkerSource(template: string, version: string, files: string[]): string {
+export function serviceWorkerSource(
+  template: string,
+  version: string,
+  files: string[],
+  optional: string[] = [],
+): string {
   const source = template
     .replace("'__LUNKI_VERSION__'", JSON.stringify(version))
-    .replace("['__LUNKI_PRECACHE__']", JSON.stringify(files.map((f) => `./${f}`)));
+    .replace("['__LUNKI_PRECACHE__']", JSON.stringify(files.map((f) => `./${f}`)))
+    .replace("['__LUNKI_OPTIONAL__']", JSON.stringify(optional.map((f) => `./${f}`)));
   if (source.includes('__LUNKI_')) throw new Error('service workerin pohja ei täyttynyt');
   return source;
 }

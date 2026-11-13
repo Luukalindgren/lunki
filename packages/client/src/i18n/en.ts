@@ -256,6 +256,19 @@ export const en: Record<keyof typeof fi, string> = {
   'settings.lookHint':
     'Sharp draws the graphics at the full resolution of your screen. If the game starts to stutter, the look returns to Retro. Retro is the lighter pixel look.',
   'look.fellBack': 'The Sharp look was too heavy for this device. The look changed to Retro.',
+  'settings.lookModern': 'Modern (experimental)',
+  'settings.lookModernHint':
+    'Modern is a look made for computers: soft shapes, shadows and its own interface style. It is still being built, and parts of the game still look like Sharp. If the game starts to stutter, the quality drops and finally the look returns to Retro.',
+  'settings.lookLoading': 'Loading the modern look…',
+  'settings.lookFailed': 'The modern look did not load. Check your connection and select it again.',
+  'settings.quality': 'Quality',
+  'settings.quality.low': 'Low',
+  'settings.quality.medium': 'Medium',
+  'settings.quality.high': 'High',
+  'look.qualityDropped': 'The game stuttered, so the quality of the modern look was lowered.',
+  'look.modernFellBack':
+    'The Modern look was too heavy for this device. The look changed to Retro.',
+  'look.modernFailed': 'The modern look did not load, so the look is Retro.',
   'settings.guide': 'Guide',
   'settings.guideOn': 'Show from start',
   'settings.guideOff': 'Off',
@@ -494,6 +507,8 @@ export const en: Record<keyof typeof fi, string> = {
   'credits.libraries': 'Libraries',
   'credits.osmCopyright': 'OpenStreetMap copyright',
   'credits.font': 'VT323 font (Peter Hull), Fontsource, and a smoothed version of it',
+  'credits.fontAlegreya': 'Alegreya Sans font (Huerta Tipográfica), modern look',
+  'credits.fontFraunces': 'Fraunces font (Undercase Type), modern look',
   'credits.osm': '© OpenStreetMap contributors, ODbL 1.0',
   'credits.dem':
     'Copernicus DEM GLO-30: © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018, Copernicus (EU, ESA)',

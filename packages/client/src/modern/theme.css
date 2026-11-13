@@ -1,0 +1,285 @@
+/*
+ * Modernin ilmeen (#650) teema "eräkartta": paperia, mustetta ja korkeuskäyriä.
+ * Sama HUD ja samat valikot kuin muissa ilmeissä; tämä tiedosto vaihtaa vain
+ * kirjasimet, värit ja pinnat. Kaikki säännöt alkavat luokalla .look-modern,
+ * joten tiedoston lataaminen ei muuta Retroa eikä Terävää. Mitat pysyvät
+ * HUD-yksiköissä (--u, --m), joten HUD-koon liukusäädin toimii kuten ennenkin.
+ */
+
+@font-face {
+  font-family: 'Alegreya Sans';
+  font-weight: 500;
+  font-display: swap;
+  src: url('./fonts/alegreya-sans-500.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Alegreya Sans';
+  font-weight: 700;
+  font-display: swap;
+  src: url('./fonts/alegreya-sans-700.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Fraunces';
+  font-weight: 700;
+  font-display: swap;
+  src: url('./fonts/fraunces-700.woff2') format('woff2');
+}
+
+.look-modern {
+  --ink: #24362a;
+  --ink-soft: #4a4a36;
+  --paper: #efe5c8;
+  --paper-light: #fbf6e6;
+  --paper-edge: #8b7a52;
+  --paper-line: #b9a878;
+  --forest: #1f4a30;
+  --rust: #8a2a22;
+  --ochre: #8a5a2a;
+  --night: rgb(24 38 30 / 84%);
+  --cream: #f1ead6;
+  --text-font: 'Alegreya Sans', 'Segoe UI', sans-serif;
+  --title-font: 'Fraunces', Georgia, serif;
+}
+
+/* Valikot: käyttöliittymän värit (style.css:n --c-muuttujat) paperin ja musteen sävyiksi. */
+
+.look-modern .screen,
+.look-modern .screen-modal {
+  --c-void: #2a2416;
+  --c-panel: var(--paper);
+  --c-well: rgb(120 96 52 / 14%);
+  --c-well-deep: rgb(120 96 52 / 20%);
+  --c-surface: var(--paper-line);
+  --c-line: var(--paper-edge);
+  --c-text: var(--ink);
+  --c-text-soft: var(--ink-soft);
+  --c-text-dim: #6f6444;
+  --c-accent: var(--ochre);
+  --c-accent-soft: #6b4a1c;
+  --c-info: #1d5c70;
+  --c-select: var(--forest);
+  --c-danger: var(--rust);
+  --c-alert: #a32a1e;
+  --c-good: #2f6b2a;
+  font-family: var(--text-font);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.look-modern .screen {
+  background: rgb(16 26 20 / 50%);
+}
+
+/* Paperinen karttalehti, jonka kulmissa kulkee korkeuskäyriä. */
+.look-modern .screen-panel {
+  color: var(--ink);
+  border: none;
+  border-radius: 4px;
+  background:
+    repeating-radial-gradient(
+      ellipse at 18% 115%,
+      transparent 0 21px,
+      rgb(120 96 52 / 16%) 21px 22px
+    ),
+    repeating-radial-gradient(
+      ellipse at 92% -10%,
+      transparent 0 27px,
+      rgb(120 96 52 / 13%) 27px 28px
+    ),
+    radial-gradient(ellipse at 50% 40%, #f4ecd6 0%, #eadfc0 70%, #d9caa2 100%);
+  /* Vierittyvä sisältö ei vedä kuviota mukanaan. */
+  background-attachment: local, local, scroll;
+  box-shadow:
+    0 0 0 1px var(--paper-edge),
+    0 0 0 7px var(--paper),
+    0 0 0 8px var(--paper-edge),
+    0 26px 60px rgb(0 0 0 / 55%);
+}
+
+.look-modern .screen-panel h1 {
+  font-family: var(--title-font);
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--forest);
+  text-shadow: none;
+}
+
+.look-modern .screen-panel h2 {
+  font-family: var(--title-font);
+  font-weight: 700;
+  color: var(--forest);
+  text-shadow: none;
+}
+
+.look-modern .screen-panel h3 {
+  font-family: var(--title-font);
+  font-weight: 700;
+}
+
+.look-modern .screen-panel h3.settings-section {
+  border-bottom: 1px solid var(--paper-line);
+}
+
+.look-modern .screen-panel .subtitle {
+  font-style: italic;
+}
+
+.look-modern .screen button {
+  font-family: inherit;
+  font-weight: 700;
+  color: var(--ink);
+  background: rgb(255 252 240 / 55%);
+  border: 1.5px solid #5a6a4a;
+  border-radius: 3px;
+  box-shadow: none;
+  letter-spacing: 0.3px;
+}
+
+.look-modern .screen button:hover:not(:disabled),
+.look-modern .screen button:focus-visible {
+  background: rgb(255 252 240 / 90%);
+  border-color: var(--forest);
+}
+
+.look-modern .screen.kb button:focus {
+  outline: 3px solid var(--ochre);
+  outline-offset: 2px;
+}
+
+.look-modern .screen button.primary {
+  background: var(--rust);
+  border-color: #5c1a14;
+  color: #f6eed8;
+}
+
+.look-modern .screen button.selected {
+  background: var(--forest);
+  border-color: #12301e;
+  color: #f6eed8;
+}
+
+.look-modern .screen button.quiet {
+  background: transparent;
+}
+
+.look-modern .screen button:disabled {
+  opacity: 0.5;
+}
+
+.look-modern .screen textarea,
+.look-modern .screen input[type='text'],
+.look-modern .screen-panel .room-link-field,
+.look-modern .screen-panel .results-copy,
+.look-modern .chat-panel .chat-log {
+  font-family: inherit;
+  color: var(--ink);
+  background: var(--paper-light);
+  border: 1.5px solid var(--paper-edge);
+  border-radius: 3px;
+}
+
+/* Liukusäätimet: ohut mustekynän viiva ja pyöreä nuppi. */
+.look-modern .screen input[type='range']::-webkit-slider-runnable-track {
+  height: 6px;
+  border: 1px solid var(--paper-edge);
+  border-radius: 3px;
+  background: var(--paper-line);
+}
+
+.look-modern .screen input[type='range']::-moz-range-track {
+  height: 6px;
+  border: 1px solid var(--paper-edge);
+  border-radius: 3px;
+  background: var(--paper-line);
+}
+
+.look-modern .screen input[type='range']::-webkit-slider-thumb {
+  width: 20px;
+  height: 20px;
+  margin-top: -10px;
+  border: 2px solid var(--paper-light);
+  border-radius: 50%;
+  background: var(--forest);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 35%);
+}
+
+.look-modern .screen input[type='range']::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--paper-light);
+  border-radius: 50%;
+  background: var(--forest);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 35%);
+}
+
+/* HUD: tummanvihreät paneelit ja vaalea teksti järven päällä. */
+
+.look-modern .hud {
+  --c-void: #0e1712;
+  --c-panel: #1a2a21;
+  --c-surface: rgb(226 214 180 / 45%);
+  --c-line: rgb(226 214 180 / 60%);
+  --c-text: var(--cream);
+  --c-text-soft: #d8cfb6;
+  --c-text-dim: #a9a288;
+  --c-accent: #f3d98a;
+  --c-accent-soft: #f6e9bd;
+  font-family: var(--text-font);
+  font-weight: 500;
+  color: var(--cream);
+  text-shadow: none;
+}
+
+.look-modern .hud-panel,
+.look-modern .hud-message > span,
+.look-modern .hud-notices-stack > .hud-situation {
+  background: var(--night);
+  border: 1px solid rgb(226 214 180 / 55%);
+  border-radius: calc(var(--u) * 1.5);
+  box-shadow:
+    0 0 0 calc(var(--u) * 0.8) var(--night),
+    0 4px 14px rgb(0 0 0 / 30%);
+  color: var(--cream);
+}
+
+.look-modern .hud-message,
+.look-modern .hud-timer {
+  font-family: var(--title-font);
+  font-weight: 700;
+}
+
+.look-modern .hud-notices-stack > .hud-situation {
+  color: #f3d98a;
+  font-weight: 700;
+}
+
+/* Paneelin reunaan tarttuvat rivit (alanapit, ohjeiden osiot): paperia, ohut viiva rajana. */
+.look-modern .screen-panel > .buttons:last-child,
+.look-modern .manual-sections {
+  background: var(--paper);
+}
+
+.look-modern .screen-panel > .buttons:last-child {
+  border-top: 1px solid var(--paper-line);
+}
+
+.look-modern .manual-sections {
+  border-bottom: 1px solid var(--paper-line);
+}
+
+/* Vaaleat huomiovärit olisivat paperilla liian haaleita. */
+.look-modern .screen-panel .error,
+.look-modern .screen-panel .player-old,
+.look-modern .screen-panel .lobby-old,
+.look-modern .player-state.seat-wait {
+  color: #a3481a;
+}
+
+.look-modern .pause-stat,
+.look-modern .pause-scoreboard,
+.look-modern .player-list li.boat-crew {
+  border: 1px solid var(--paper-line);
+  border-radius: 3px;
+}

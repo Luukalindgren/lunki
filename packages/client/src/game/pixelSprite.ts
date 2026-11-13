@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { activeLook, onLookChange } from '../engine/look';
+import { activeLook, onLookChange, smoothLook } from '../engine/look';
 import { pixelBytes, smoothPixels } from '../engine/smoothPixels';
 
 /** Pikselikuva: värit riveittäin (0xRRGGBB), -1 = läpinäkyvä (vieheet, kalat, merkit). */
@@ -14,7 +14,7 @@ const live = new Set<{ ref: WeakRef<THREE.DataTexture>; px: Pixels; fine?: Pixel
 
 /** Kirjoittaa kuvan tekstuuriin käytössä olevan ilmeen mukaan. Ylin rivi ylös. */
 function fill(tex: THREE.DataTexture, px: Pixels, fine?: Pixels): void {
-  const sharp = activeLook() === 'sharp';
+  const sharp = smoothLook(activeLook());
   const image = sharp ? (fine ?? smoothPixels(px)) : px;
   const { width, height } = image;
   const bytes = pixelBytes(image);

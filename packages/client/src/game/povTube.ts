@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { DEFAULT_APPEARANCE, EMOTE_DURATION, type Appearance, type EmoteId } from '@lunki/shared';
-import { activeLook } from '../engine/look';
+import { activeLook, smoothLook } from '../engine/look';
 import { emoteIcon } from '../ui/emoteIcons';
 import { playerColorMaterial, setPlayerColor } from './playerColor';
 
@@ -563,7 +563,7 @@ export class PovTube {
     this.hand.position.y += lift;
     this.hand.rotation.set(tilt, 0, 0);
     // Kuva ilmeen mukaan: Retrossa pikselit, Terävällä sileä versio.
-    const sharp = activeLook() === 'sharp';
+    const sharp = smoothLook(activeLook());
     const key = `${emote}:${sharp}`;
     let icon = this.icons.get(key);
     if (!icon) {

@@ -12,7 +12,7 @@ import {
   type LakeSurroundings,
   type Vec2,
 } from '@lunki/shared';
-import { activeLook, onLookChange, type Look } from '../engine/look';
+import { activeLook, onLookChange, smoothLook, type Look } from '../engine/look';
 import { pixelBytes, smoothPixels } from '../engine/smoothPixels';
 import type { RaceEventKind, RaceMapData } from '../game/raceLog';
 import { bottomFor } from '../world/lakeData';
@@ -102,7 +102,7 @@ function buildBase(d: LakeData, s: LakeSurroundings): BaseImage {
   const look = activeLook();
   const cached = baseCache[look];
   if (cached) return cached;
-  const fine = look === 'sharp';
+  const fine = smoothLook(look);
   const detail = fine ? FINE : 1;
   const b = d.map.bounds;
   const extent = {
@@ -558,7 +558,7 @@ export class LakeMapView {
     ctx.fillStyle = css(DEFAULT_GROUND);
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const sharp = activeLook() === 'sharp';
+    const sharp = smoothLook(activeLook());
     ctx.imageSmoothingEnabled = sharp;
     const e = this.base.extent;
     const tl = v.toScreen({ x: e.minX, y: e.maxY });

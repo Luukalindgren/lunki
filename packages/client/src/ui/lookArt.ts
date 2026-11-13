@@ -1,4 +1,4 @@
-import { activeLook, onLookChange } from '../engine/look';
+import { activeLook, onLookChange, smoothLook } from '../engine/look';
 import { pixelBytes, smoothPixels, type PixelImage } from '../engine/smoothPixels';
 
 /**
@@ -9,11 +9,11 @@ import { pixelBytes, smoothPixels, type PixelImage } from '../engine/smoothPixel
 
 /** Kankaalle piirrettävän tekstin fontti: Terävällä sileä versio samasta fontista. */
 export const uiFont = (px: number): string =>
-  `${px}px ${activeLook() === 'sharp' ? "'Lunki Silea', " : ''}VT323, monospace`;
+  `${px}px ${smoothLook(activeLook()) ? "'Lunki Silea', " : ''}VT323, monospace`;
 
 /** Piirtää pikselikuvan kankaalle käytössä olevan ilmeen mukaan. */
 export function paintPixels(canvas: HTMLCanvasElement, px: PixelImage): void {
-  const image = activeLook() === 'sharp' ? smoothPixels(px) : px;
+  const image = smoothLook(activeLook()) ? smoothPixels(px) : px;
   canvas.width = image.width;
   canvas.height = image.height;
   const g = canvas.getContext('2d');

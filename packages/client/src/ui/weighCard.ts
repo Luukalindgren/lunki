@@ -9,7 +9,7 @@ import {
   type SpeciesId,
   type TimeOfDay,
 } from '@lunki/shared';
-import { activeLook } from '../engine/look';
+import { activeLook, smoothLook } from '../engine/look';
 import { pixelBytes, smoothPixels } from '../engine/smoothPixels';
 import { fishPixels, type FishPixels } from './fishArt';
 import { uiFont } from './lookArt';
@@ -348,7 +348,7 @@ function paintCard(canvas: HTMLCanvasElement, info: WeighCardInfo): void {
   ctx.fillStyle = css(0x39424d);
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const sharp = activeLook() === 'sharp';
+  const sharp = smoothLook(activeLook());
   const scene = anglerScene(f.species, f.weight, info.appearance, info.timeOfDay, sharp);
   if (sharp) {
     // Terävä: taivas liukuvärinä ja sama kuva sileänä versiona sen päälle.

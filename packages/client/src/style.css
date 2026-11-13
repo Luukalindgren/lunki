@@ -17,12 +17,36 @@ html.look-sharp {
   --font: 'Lunki Silea', 'VT323', monospace;
 }
 
+/*
+ * Käyttöliittymän värit. Valikot ja HUD käyttävät näitä, ja ilmeen teema
+ * (modernin ilmeen `modern/theme.css`, #650) vaihtaa ne omikseen. Uusi osa
+ * käyttää näitä muuttujia eikä kirjoita samoja värejä uudelleen.
+ */
+:root {
+  --c-void: #0b0f14;
+  --c-panel: #1c232b;
+  --c-well: #141a21;
+  --c-well-deep: #12171c;
+  --c-surface: #39424d;
+  --c-line: #5f6b78;
+  --c-text: #eef2f3;
+  --c-text-soft: #c3cbd2;
+  --c-text-dim: #8e99a4;
+  --c-accent: #f6d04d;
+  --c-accent-soft: #fff3b0;
+  --c-info: #83c2db;
+  --c-select: #1b5a84;
+  --c-danger: #8c1c1c;
+  --c-alert: #d23a2a;
+  --c-good: #8fd16a;
+}
+
 html,
 body {
   margin: 0;
   height: 100%;
-  background: #0b0f14;
-  color: #eef2f3;
+  background: var(--c-void);
+  color: var(--c-text);
   font-family: monospace;
   overflow: hidden;
   /* clip: kohdistettu valikkonappi ei voi vierittää sivua sivuttain, jolloin
@@ -47,7 +71,7 @@ body {
    scrollbar-color-arvon, vanhempi WebKit (Safari, Orion) ::-webkit-scrollbar-säännöt. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #39424d transparent;
+  scrollbar-color: var(--c-surface) transparent;
 }
 
 ::-webkit-scrollbar {
@@ -61,7 +85,7 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #39424d;
+  background: var(--c-surface);
 }
 
 /* Syöttökentät ja huonekoodi saa yhä valita ja kopioida. */
@@ -132,14 +156,14 @@ textarea,
   font-family: var(--font);
   font-size: calc(var(--u) * 10);
   line-height: 1;
-  color: #eef2f3;
-  text-shadow: var(--u) var(--u) 0 #0b0f14;
+  color: var(--c-text);
+  text-shadow: var(--u) var(--u) 0 var(--c-void);
 }
 
 .hud-panel {
   position: absolute;
   background: rgb(11 15 20 / 65%);
-  border: var(--u) solid #39424d;
+  border: var(--u) solid var(--c-surface);
   padding: calc(var(--u) * 2) calc(var(--u) * 3);
 }
 
@@ -157,7 +181,7 @@ textarea,
   bottom: calc(100% + var(--u) * 3);
   padding: calc(var(--u) * 1) calc(var(--u) * 3);
   background: rgb(11 15 20 / 65%);
-  border: var(--u) solid #39424d;
+  border: var(--u) solid var(--c-surface);
   color: #cfd8e3;
   white-space: nowrap;
 }
@@ -183,7 +207,7 @@ textarea,
   left: 0;
   right: 0;
   bottom: 0;
-  background: #f6d04d;
+  background: var(--c-accent);
 }
 
 /* Perhoheitto: siima suorassa, nyt vaihdetaan suuntaa (#235). */
@@ -279,7 +303,7 @@ textarea,
 .hud-message {
   text-align: center;
   font-size: calc(var(--u) * 12);
-  color: #fff3b0;
+  color: var(--c-accent-soft);
   white-space: pre-line;
 }
 
@@ -353,7 +377,7 @@ textarea,
     calc(var(--u) * 8),
     calc((100vh - var(--m) * 16 - var(--u) * 135) * 8 / (var(--help-h) - 6))
   );
-  color: #c3cbd2;
+  color: var(--c-text-soft);
 }
 
 .hud-tension {
@@ -373,7 +397,7 @@ textarea,
 }
 
 .hud-tension-fill.slip {
-  background: #d23a2a;
+  background: var(--c-alert);
 }
 
 .hud-tension-drag {
@@ -381,7 +405,7 @@ textarea,
   left: calc(var(--u) * -2);
   right: calc(var(--u) * -2);
   height: var(--u);
-  background: #f6d04d;
+  background: var(--c-accent);
 }
 
 /* Työpöydällä yläreunan pinossa sään alla (Hud.setTouch siirtää). */
@@ -412,7 +436,7 @@ textarea,
 }
 
 .hud-stamina-fill.spent {
-  background: #d23a2a;
+  background: var(--c-alert);
 }
 
 /* Luotaimet vierekkäin, vieheluotain vasemmalla. */
@@ -466,7 +490,7 @@ textarea,
 }
 
 .hud-sonar-label.alert {
-  color: #d23a2a;
+  color: var(--c-alert);
 }
 
 .hud-sonar canvas {
@@ -509,7 +533,7 @@ textarea,
   place-items: center;
   background: rgb(11 15 20 / 55%);
   font-family: var(--font);
-  color: #eef2f3;
+  color: var(--c-text);
   padding: 16px;
 }
 
@@ -523,9 +547,9 @@ textarea,
   /* iPhonen Safarissa 100vh ulottuu työkalupalkin alle: alimmat napit jäisivät piiloon. */
   max-height: calc(100dvh - 32px);
   overflow: auto;
-  background: #1c232b;
-  border: 4px solid #5f6b78;
-  box-shadow: 8px 8px 0 #0b0f14;
+  background: var(--c-panel);
+  border: 4px solid var(--c-line);
+  box-shadow: 8px 8px 0 var(--c-void);
   /* Täyte muuttujina: reunaan ulottuvat tarttuvat osat (osiot, napit) seuraavat sitä. */
   --panel-py: 20px;
   --panel-px: 24px;
@@ -539,8 +563,8 @@ textarea,
   font-size: min(72px, 15vw);
   white-space: nowrap;
   font-weight: normal;
-  color: #f6d04d;
-  text-shadow: 4px 4px 0 #8c1c1c;
+  color: var(--c-accent);
+  text-shadow: 4px 4px 0 var(--c-danger);
   letter-spacing: 4px;
 }
 
@@ -548,7 +572,7 @@ textarea,
   margin: 0 0 12px;
   font-size: 44px;
   font-weight: normal;
-  color: #f6d04d;
+  color: var(--c-accent);
 }
 
 .screen-panel p {
@@ -556,7 +580,7 @@ textarea,
 }
 
 .screen-panel .subtitle {
-  color: #83c2db;
+  color: var(--c-info);
   margin-bottom: 20px;
 }
 
@@ -565,25 +589,25 @@ textarea,
   display: block;
   margin: -12px auto 14px;
   font-size: 19px;
-  color: #fff3b0;
+  color: var(--c-accent-soft);
   background: #2a3138;
-  border: 2px dashed #f6d04d;
+  border: 2px dashed var(--c-accent);
 }
 
 .screen-panel .start-note {
   margin: -8px 0 14px;
   text-align: center;
   font-size: 19px;
-  color: #f6d04d;
+  color: var(--c-accent);
 }
 
 .screen-panel .hint {
   font-size: 19px;
-  color: #8e99a4;
+  color: var(--c-text-dim);
 }
 
 .screen-panel .total {
-  color: #fff3b0;
+  color: var(--c-accent-soft);
 }
 
 /* Haasteen tulos (#413) ja haastelinkki, joka saa katketa mistä vain. */
@@ -593,7 +617,7 @@ textarea,
 
 .screen-panel .challenge-status {
   overflow-wrap: anywhere;
-  color: #fff3b0;
+  color: var(--c-accent-soft);
 }
 
 .challenge-status a {
@@ -607,7 +631,7 @@ textarea,
 .choice-label {
   display: block;
   margin-bottom: 6px;
-  color: #c3cbd2;
+  color: var(--c-text-soft);
 }
 
 .choice-options,
@@ -627,7 +651,7 @@ textarea,
   bottom: calc(-1 * var(--panel-py));
   margin-bottom: calc(-1 * var(--panel-py));
   padding: 10px 0 var(--panel-py);
-  background: #1c232b;
+  background: var(--c-panel);
   /* Vierivän sisällön (esim. värinappien) päälle. */
   z-index: 2;
 }
@@ -635,26 +659,26 @@ textarea,
 .screen button {
   font: inherit;
   font-size: 24px;
-  color: #eef2f3;
-  background: #39424d;
-  border: 3px solid #5f6b78;
+  color: var(--c-text);
+  background: var(--c-surface);
+  border: 3px solid var(--c-line);
   padding: 4px 14px;
   cursor: pointer;
 }
 
 .screen button:hover,
 .screen.kb button:focus {
-  border-color: #f6d04d;
+  border-color: var(--c-accent);
   outline: none;
 }
 
 /* Harvoin tarvittava toiminto (Iso näyttö #564): pieni ja himmeä nappi. */
 .screen button.quiet {
   font-size: 17px;
-  color: #8e99a4;
+  color: var(--c-text-dim);
   background: none;
   border-width: 2px;
-  border-color: #39424d;
+  border-color: var(--c-surface);
   padding: 1px 10px;
 }
 
@@ -702,7 +726,7 @@ textarea,
 .screen.kb textarea:focus,
 .screen.kb a:focus,
 .screen.kb canvas:focus {
-  outline: 3px solid #eef2f3;
+  outline: 3px solid var(--c-text);
   outline-offset: 3px;
 }
 
@@ -710,7 +734,7 @@ textarea,
   content: '▶ ';
   /* Koriste: ei osaksi napin tai otsikon saavutettavaa nimeä. */
   content: '▶ ' / '';
-  color: #f6d04d;
+  color: var(--c-accent);
   animation: cursor-blink 0.8s steps(1) infinite;
 }
 
@@ -720,13 +744,13 @@ textarea,
 }
 
 .screen button.selected {
-  background: #1b5a84;
-  border-color: #83c2db;
+  background: var(--c-select);
+  border-color: var(--c-info);
 }
 
 .screen button.primary {
-  background: #8c1c1c;
-  border-color: #d23a2a;
+  background: var(--c-danger);
+  border-color: var(--c-alert);
 }
 
 .catch-list {
@@ -767,12 +791,12 @@ textarea,
   bottom: 0;
   width: var(--u);
   height: calc(var(--u) * 2);
-  background: #5f6b78;
+  background: var(--c-line);
 }
 
 .hud-compass-tick.major {
   height: calc(var(--u) * 3);
-  background: #c3cbd2;
+  background: var(--c-text-soft);
 }
 
 .hud-compass-label {
@@ -780,11 +804,11 @@ textarea,
   top: 0;
   transform: translateX(-50%);
   font-size: calc(var(--u) * 8);
-  color: #c3cbd2;
+  color: var(--c-text-soft);
 }
 
 .hud-compass-label.main {
-  color: #f6d04d;
+  color: var(--c-accent);
 }
 
 /* Katsesuunnan merkki alareunassa, jotta kirjaimet jäävät näkyviin. */
@@ -794,7 +818,7 @@ textarea,
   bottom: 0;
   width: var(--u);
   height: calc(var(--u) * 5);
-  background: #d23a2a;
+  background: var(--c-alert);
 }
 
 .hud-timer.low {
@@ -817,7 +841,7 @@ textarea,
 .hud-catches .hud-score-row.fresh {
   margin: 0 calc(var(--u) * -3);
   padding: 0 calc(var(--u) * 3);
-  background: #f6d04d;
+  background: var(--c-accent);
   color: #1e2530;
   text-shadow: none;
 }
@@ -828,7 +852,7 @@ textarea,
   top: 0;
   padding: 0 calc(var(--u) * 3);
   background: rgb(11 15 20 / 65%);
-  color: #f6d04d;
+  color: var(--c-accent);
   text-shadow: none;
 }
 
@@ -840,17 +864,17 @@ textarea,
   flex-direction: column;
   align-items: center;
   background: rgb(11 15 20 / 65%);
-  border: var(--u) solid #39424d;
+  border: var(--u) solid var(--c-surface);
   text-align: center;
   font-size: calc(var(--u) * 12);
-  color: #fff3b0;
+  color: var(--c-accent-soft);
   padding: calc(var(--u) * 4) calc(var(--u) * 8);
 }
 
 .hud-weigh small {
   display: block;
   font-size: calc(var(--u) * 8);
-  color: #c3cbd2;
+  color: var(--c-text-soft);
 }
 
 .bench-result {
@@ -872,9 +896,9 @@ textarea,
   font-size: 26px;
   width: 100%;
   box-sizing: border-box;
-  color: #eef2f3;
-  background: #0b0f14;
-  border: 3px solid #5f6b78;
+  color: var(--c-text);
+  background: var(--c-void);
+  border: 3px solid var(--c-line);
   padding: 4px 10px;
 }
 
@@ -886,7 +910,7 @@ textarea,
 
 .screen input[type='text']:focus,
 .screen textarea:focus {
-  border-color: #f6d04d;
+  border-color: var(--c-accent);
   outline: none;
 }
 
@@ -898,7 +922,7 @@ textarea,
 }
 
 .hud-size-end {
-  color: #c3cbd2;
+  color: var(--c-text-soft);
   font-size: 30px;
   line-height: 1;
 }
@@ -920,14 +944,14 @@ textarea,
 
 .screen input[type='range']::-webkit-slider-runnable-track {
   height: 8px;
-  background: #39424d;
-  border: 3px solid #5f6b78;
+  background: var(--c-surface);
+  border: 3px solid var(--c-line);
 }
 
 .screen input[type='range']::-moz-range-track {
   height: 8px;
-  background: #39424d;
-  border: 3px solid #5f6b78;
+  background: var(--c-surface);
+  border: 3px solid var(--c-line);
 }
 
 .screen input[type='range']::-webkit-slider-thumb {
@@ -937,16 +961,16 @@ textarea,
   height: 28px;
   margin-top: -13px;
   border-radius: 0;
-  background: #1b5a84;
-  border: 3px solid #83c2db;
+  background: var(--c-select);
+  border: 3px solid var(--c-info);
 }
 
 .screen input[type='range']::-moz-range-thumb {
   width: 12px;
   height: 22px;
   border-radius: 0;
-  background: #1b5a84;
-  border: 3px solid #83c2db;
+  background: var(--c-select);
+  border: 3px solid var(--c-info);
 }
 
 .screen input[type='range']:focus {
@@ -954,11 +978,11 @@ textarea,
 }
 
 .screen.kb input[type='range']:focus::-webkit-slider-thumb {
-  border-color: #f6d04d;
+  border-color: var(--c-accent);
 }
 
 .screen.kb input[type='range']:focus::-moz-range-thumb {
-  border-color: #f6d04d;
+  border-color: var(--c-accent);
 }
 
 .screen-panel .error {
@@ -973,7 +997,7 @@ textarea,
 
 .room-code {
   font-size: 56px;
-  color: #fff3b0;
+  color: var(--c-accent-soft);
   letter-spacing: 4px;
   margin: 0 0 8px !important;
 }
@@ -988,7 +1012,7 @@ textarea,
 
 .screen-panel .room-link-status {
   margin: 4px 0 0;
-  color: #f6d04d;
+  color: var(--c-accent);
 }
 
 .screen-panel .room-link-field {
@@ -996,7 +1020,7 @@ textarea,
   width: 100%;
   font: inherit;
   color: #e8e8e8;
-  background: #12171c;
+  background: var(--c-well-deep);
   border: 2px solid #4d5866;
 }
 
@@ -1010,12 +1034,12 @@ textarea,
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  border-bottom: 2px solid #39424d;
+  border-bottom: 2px solid var(--c-surface);
   padding: 2px 0;
 }
 
 .player-state {
-  color: #8e99a4;
+  color: var(--c-text-dim);
 }
 
 /* Venekunta on yksi joukkue: miehistö yhtenä laatikkona aulan listassa (#263). */
@@ -1049,13 +1073,13 @@ textarea,
 /* Renkaalla kalastavien ryhmän otsikko veneiden alla (#540). */
 .player-list li.tube-group-head {
   margin-top: 6px;
-  color: #8e99a4;
+  color: var(--c-text-dim);
 }
 
 .player-seat {
   margin-right: auto;
   padding: 0 8px;
-  color: #8e99a4;
+  color: var(--c-text-dim);
 }
 
 .seat-swap-row {
@@ -1072,7 +1096,7 @@ textarea,
 }
 
 .player-state.ok {
-  color: #8fd16a;
+  color: var(--c-good);
 }
 
 /* Yhteyden laatu aulan rivillä (#575): pieni ja hillitty, ei kilpaile valmiuden kanssa. */
@@ -1083,7 +1107,7 @@ textarea,
   margin-right: 10px;
   font-size: 16px;
   line-height: 1;
-  color: #5f6b78;
+  color: var(--c-line);
 }
 
 .ping-bars {
@@ -1094,7 +1118,7 @@ textarea,
 
 .ping-bars i {
   width: 3px;
-  background: #39424d;
+  background: var(--c-surface);
 }
 
 .ping-bars i:nth-child(1) {
@@ -1128,7 +1152,7 @@ textarea,
 
 /* Aula (#516): isännän vihje täydestä huoneesta ja juuri liittynyt tai valmis. */
 .screen-panel .lobby-full {
-  color: #f6d04d;
+  color: var(--c-accent);
 }
 
 /* Vanhan version pelaaja (#554): merkki nimen perässä ja selitys listan alla. */
@@ -1157,13 +1181,13 @@ textarea,
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #8fd16a;
+  color: var(--c-good);
 }
 
 /* Botit (#624) himmeämpinä kuin pelaajat; pitkä lista tiivistyy yhdeksi riviksi. */
 .player-list li.lobby-bot,
 .player-list li.lobby-bot .player-state {
-  color: #8e99a4;
+  color: var(--c-text-dim);
 }
 
 .player-list li.lobby-new {
@@ -1216,7 +1240,7 @@ textarea,
 
 .fish-length {
   font-size: 16px;
-  color: #8e99a4;
+  color: var(--c-text-dim);
 }
 
 .catch-list.results.compact .fish-length {
@@ -1246,7 +1270,7 @@ textarea,
   font-size: 18px;
   white-space: pre;
   color: #e8e8e8;
-  background: #12171c;
+  background: var(--c-well-deep);
   border: 2px solid #4d5866;
 }
 
@@ -1300,7 +1324,7 @@ textarea,
 }
 
 .box-slot.selected {
-  border-color: #f6d04d;
+  border-color: var(--c-accent);
 }
 
 .box-slot-name {
@@ -1312,11 +1336,11 @@ textarea,
 /* Omat saaliit vieheellä (#415). */
 .box-slot-catch {
   font-size: 15px;
-  color: #f6d04d;
+  color: var(--c-accent);
 }
 
 .screen-panel .box-catches {
-  color: #f6d04d;
+  color: var(--c-accent);
 }
 
 .summary-button .lure-art {
@@ -1453,7 +1477,7 @@ textarea,
     align-items: center;
     gap: 2px 8px;
     font-size: 16px;
-    color: #8e99a4;
+    color: var(--c-text-dim);
   }
 
   .screen .catch-list button.record-info {
@@ -1500,14 +1524,14 @@ textarea,
   width: 100%;
   height: auto;
   margin: 4px 0 8px;
-  border: 2px solid #0b0f14;
+  border: 2px solid var(--c-void);
 }
 
 .player-gear {
   display: block;
   flex-basis: 100%;
   font-size: 0.8em;
-  color: #8e99a4;
+  color: var(--c-text-dim);
 }
 
 .name-tags {
@@ -1527,7 +1551,7 @@ textarea,
   transition: transform 0.12s linear;
   font-family: var(--font);
   font-size: 18px;
-  color: #eef2f3;
+  color: var(--c-text);
   background: rgb(11 15 20 / 70%);
   border-bottom: 3px solid;
   padding: 0 6px;
@@ -1560,9 +1584,9 @@ textarea,
   font-family: var(--font);
   font-size: 18px;
   line-height: 1;
-  color: #1c232b;
-  background: #eef2f3;
-  border: 2px solid #1c232b;
+  color: var(--c-panel);
+  background: var(--c-text);
+  border: 2px solid var(--c-panel);
   pointer-events: none;
   white-space: normal;
   overflow-wrap: anywhere;
@@ -1575,7 +1599,7 @@ textarea,
   left: 50%;
   bottom: -8px;
   border: 4px solid transparent;
-  border-top-color: #1c232b;
+  border-top-color: var(--c-panel);
   transform: translateX(-50%);
 }
 
@@ -1615,9 +1639,9 @@ textarea,
   height: var(--ring-size);
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  background: #5f6b78;
+  background: var(--c-line);
   /* Selvä ulkoreuna keskiympyrän tummalla harmaalla, ei varjoa (Luuka 2026-10-29). */
-  border: 6px solid #1c232b;
+  border: 6px solid var(--c-panel);
   pointer-events: auto;
   z-index: 3;
 }
@@ -1627,7 +1651,7 @@ textarea,
   inset: 0;
   padding: 0;
   border: 0;
-  background: #39424d;
+  background: var(--c-surface);
   cursor: pointer;
   transition:
     transform 0.12s,
@@ -1636,7 +1660,7 @@ textarea,
 
 .ring-option.selected {
   z-index: 1;
-  background: #1b5a84;
+  background: var(--c-select);
   transform: translate(var(--lx), var(--ly));
 }
 
@@ -1661,7 +1685,7 @@ textarea,
   pointer-events: none;
   font-family: var(--font);
   font-size: 16px;
-  color: #f6d04d;
+  color: var(--c-accent);
 }
 
 .ring-hole {
@@ -1673,8 +1697,8 @@ textarea,
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: #1c232b;
-  border: 4px solid #5f6b78;
+  background: var(--c-panel);
+  border: 4px solid var(--c-line);
   z-index: 2;
   pointer-events: none;
 }
@@ -1685,7 +1709,7 @@ textarea,
   font-size: 20px;
   line-height: 1;
   text-align: center;
-  color: #eef2f3;
+  color: var(--c-text);
 }
 
 .emote-icon {
@@ -1695,7 +1719,7 @@ textarea,
 .screen button:disabled {
   opacity: 0.4;
   cursor: default;
-  border-color: #39424d;
+  border-color: var(--c-surface);
 }
 
 .screen-panel .settings .choice {
@@ -1731,8 +1755,8 @@ textarea,
   /* "Kalastamaan!" mahtuu kapeallekin ilmoitusalueelle. */
   font-size: min(calc(var(--u) * 40), 15cqi);
   white-space: nowrap;
-  color: #f6d04d;
-  text-shadow: calc(var(--u) * 2) calc(var(--u) * 2) 0 #8c1c1c;
+  color: var(--c-accent);
+  text-shadow: calc(var(--u) * 2) calc(var(--u) * 2) 0 var(--c-danger);
 }
 
 /* Rangaistus (jäähy, kumossa, trombin kyydissä): keltainen kehys ja iso
@@ -1743,9 +1767,9 @@ textarea,
   align-items: center;
   gap: calc(var(--u) * 2);
   background: rgb(11 15 20 / 75%);
-  border: var(--u) solid #f6d04d;
+  border: var(--u) solid var(--c-accent);
   padding: calc(var(--u) * 2) calc(var(--u) * 6);
-  color: #f6d04d;
+  color: var(--c-accent);
   font-size: calc(var(--u) * 10);
 }
 
@@ -1766,7 +1790,7 @@ textarea,
 /* Miksi rangaistus tuli ja mitä tehdä, samassa kortissa ajastimen alla. */
 .hud-penalty small {
   font-size: calc(var(--u) * 8);
-  color: #c3cbd2;
+  color: var(--c-text-soft);
   text-align: center;
 }
 
@@ -1775,9 +1799,9 @@ textarea,
   text-align: center;
   white-space: pre-line;
   font-size: calc(var(--u) * 10);
-  color: #fff3b0;
+  color: var(--c-accent-soft);
   background: rgb(11 15 20 / 65%);
-  border: var(--u) solid #39424d;
+  border: var(--u) solid var(--c-surface);
   padding: var(--u) calc(var(--u) * 3);
 }
 
@@ -1796,14 +1820,14 @@ textarea,
 .hud-bar {
   width: calc(var(--u) * 34);
   font-size: calc(var(--u) * 7);
-  color: #c3cbd2;
+  color: var(--c-text-soft);
 }
 
 .hud-bar-meter {
   height: calc(var(--u) * 3);
   margin-top: calc(var(--u) * 0.5);
-  background: #0b0f14;
-  border: calc(var(--u) * 0.5) solid #39424d;
+  background: var(--c-void);
+  border: calc(var(--u) * 0.5) solid var(--c-surface);
 }
 
 .hud-bar-fill {
@@ -1811,7 +1835,7 @@ textarea,
 }
 
 .hud-bar.full .hud-bar-fill {
-  background: #8fd16a;
+  background: var(--c-good);
 }
 
 .hud-bar.active .hud-bar-fill {
@@ -1820,15 +1844,15 @@ textarea,
 
 .hud-bar.ready,
 .hud-bar.active {
-  color: #fff3b0;
+  color: var(--c-accent-soft);
 }
 
 .hud-bar.ready .hud-bar-fill {
-  background: #f6d04d;
+  background: var(--c-accent);
 }
 
 .catch-list.results li.me {
-  color: #f6d04d;
+  color: var(--c-accent);
 }
 
 /*
@@ -1862,17 +1886,17 @@ textarea,
 }
 
 .award-list .award-title {
-  color: #fff3b0;
+  color: var(--c-accent-soft);
 }
 
 .award-list .award-detail {
   grid-column: 2;
   font-size: 20px;
-  color: #c3cbd2;
+  color: var(--c-text-soft);
 }
 
 .award-list li.me .award-detail {
-  color: #f6d04d;
+  color: var(--c-accent);
 }
 
 /* Tilastot: nimi ja luvut sarakkeissa, luvut oikeaan reunaan. */
@@ -1890,13 +1914,13 @@ textarea,
 }
 
 .stats-table .stat-head {
-  color: #c3cbd2;
+  color: var(--c-text-soft);
   text-align: right;
 }
 
 .stats-table .stat-value {
   text-align: right;
-  color: #fff3b0;
+  color: var(--c-accent-soft);
   white-space: nowrap;
 }
 
@@ -1938,7 +1962,7 @@ textarea,
     display: block;
     font-size: 0.8em;
     line-height: 1.1;
-    color: #8e99a4;
+    color: var(--c-text-dim);
     white-space: normal;
   }
 
@@ -1948,7 +1972,7 @@ textarea,
 }
 
 .screen-panel .server-status.ok {
-  color: #8fd16a;
+  color: var(--c-good);
 }
 
 .credits {
@@ -1957,7 +1981,7 @@ textarea,
 }
 
 .credits a {
-  color: #83c2db;
+  color: var(--c-info);
 }
 
 .credit-line {
@@ -1977,14 +2001,14 @@ textarea,
   z-index: 1;
   margin: 0 calc(-1 * var(--panel-px));
   padding: 8px var(--panel-px);
-  background: #1c232b;
+  background: var(--c-panel);
 }
 
 .manual h3 {
   margin: 16px 0 4px;
   font-size: 1.1em;
   font-weight: normal;
-  color: #83c2db;
+  color: var(--c-info);
 }
 
 .manual ul {
@@ -2031,17 +2055,17 @@ textarea,
   align-items: center;
   padding: 4px 6px 6px;
   border: 2px solid #4a5563;
-  background: #141a21;
+  background: var(--c-well);
 }
 
 .pause-stat-label {
   font-size: 16px;
-  color: #c3cbd2;
+  color: var(--c-text-soft);
 }
 
 .pause-stat-value {
   font-size: 22px;
-  color: #f6d04d;
+  color: var(--c-accent);
   white-space: nowrap;
 }
 
@@ -2053,7 +2077,7 @@ textarea,
   margin: 8px 0 0;
   padding: 4px 6px 6px;
   border: 2px solid #4a5563;
-  background: #141a21;
+  background: var(--c-well);
 }
 
 .pause-scoreboard pre {
@@ -2085,7 +2109,7 @@ textarea,
 }
 
 .pause-rule-label {
-  color: #c3cbd2;
+  color: var(--c-text-soft);
 }
 
 /* Lyhyt lista ei tarvitse alareunaan kiinnitystä, joka peittäisi kellon. */
@@ -2139,7 +2163,7 @@ textarea,
   margin: 22px 0 0;
   font-size: 26px;
   font-weight: normal;
-  color: #f6d04d;
+  color: var(--c-accent);
 }
 
 .screen-panel h3.settings-section + * {
@@ -2166,7 +2190,7 @@ textarea,
 }
 
 .summary-arrow {
-  color: #f6d04d;
+  color: var(--c-accent);
 }
 
 .tube-preview.small {
@@ -2199,7 +2223,7 @@ textarea,
   top: 50%;
   transform: translateY(-50%);
   font-size: 0.7em;
-  color: #f6d04d;
+  color: var(--c-accent);
   animation: cursor-blink 0.8s steps(1) infinite;
 }
 
@@ -2226,7 +2250,7 @@ textarea,
   width: 48px;
   height: 4px;
   margin-top: 2px;
-  background: #8c1c1c;
+  background: var(--c-danger);
 }
 
 .screen-panel.enter h2::after {
@@ -2236,13 +2260,13 @@ textarea,
 
 /* Painikkeet nousevat osoittimen alla ja painuvat alas painettaessa. */
 .screen .buttons button {
-  box-shadow: 3px 3px 0 #0b0f14;
+  box-shadow: 3px 3px 0 var(--c-void);
 }
 
 @media (hover: hover) {
   .screen .buttons button:hover:not(:disabled) {
     transform: translate(-1px, -1px);
-    box-shadow: 4px 4px 0 #0b0f14;
+    box-shadow: 4px 4px 0 var(--c-void);
   }
 }
 
@@ -2335,9 +2359,9 @@ textarea,
   pointer-events: auto;
   touch-action: none;
   font: inherit;
-  color: #eef2f3;
+  color: var(--c-text);
   background: rgb(57 66 77 / 75%);
-  border: 3px solid #5f6b78;
+  border: 3px solid var(--c-line);
   padding: 0;
   min-width: 48px;
   height: 44px;
@@ -2346,8 +2370,8 @@ textarea,
 
 .touch-controls button:active,
 .touch-controls button.down {
-  background: #1b5a84;
-  border-color: #83c2db;
+  background: var(--c-select);
+  border-color: var(--c-info);
 }
 
 .touch-stick {
@@ -2357,7 +2381,7 @@ textarea,
   width: 124px;
   height: 124px;
   border-radius: 50%;
-  border: 3px solid #5f6b78;
+  border: 3px solid var(--c-line);
   background: rgb(11 15 20 / 45%);
   pointer-events: auto;
   touch-action: none;
@@ -2369,8 +2393,8 @@ textarea,
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background: #5f6b78;
-  border: 3px solid #c3cbd2;
+  background: var(--c-line);
+  border: 3px solid var(--c-text-soft);
   pointer-events: none;
 }
 
@@ -2460,7 +2484,7 @@ textarea,
   height: 88px;
   border-radius: 50%;
   background: rgb(140 28 28 / 80%);
-  border-color: #d23a2a;
+  border-color: var(--c-alert);
 }
 
 /* Yksinkertainen ohjaus (#653): vain tatti, iso nappi, tauko ja KAM.
@@ -2854,7 +2878,7 @@ textarea,
   aspect-ratio: 16 / 10;
   max-height: 58vh;
   min-height: 200px;
-  border: 3px solid #39424d;
+  border: 3px solid var(--c-surface);
   box-sizing: border-box;
   touch-action: none;
   cursor: grab;
@@ -2885,7 +2909,7 @@ textarea,
 .screen-panel .lake-map-info {
   min-height: 1.2em;
   margin: 6px 0;
-  color: #fff3b0;
+  color: var(--c-accent-soft);
 }
 
 .lake-map-legend {
@@ -2893,7 +2917,7 @@ textarea,
   flex-wrap: wrap;
   gap: 4px 12px;
   font-size: 18px;
-  color: #c3cbd2;
+  color: var(--c-text-soft);
 }
 
 .lake-map-legend i {
@@ -2902,7 +2926,7 @@ textarea,
   height: 14px;
   margin-right: 4px;
   vertical-align: -1px;
-  border: 1px solid #0b0f14;
+  border: 1px solid var(--c-void);
 }
 
 /* Tulossivun saaliskartta: pelaajien värit ja tapahtumamerkit. */
@@ -2912,7 +2936,7 @@ textarea,
 
 .race-legend b {
   font-weight: normal;
-  text-shadow: 1px 1px #0b0f14;
+  text-shadow: 1px 1px var(--c-void);
 }
 
 /* Puhelimella vaakasuunnassa kartalle enemmän tilaa. */
@@ -2947,15 +2971,15 @@ textarea,
 }
 
 .chat-name {
-  color: #83c2db;
+  color: var(--c-info);
 }
 
 .chat-line.me .chat-name {
-  color: #f6d04d;
+  color: var(--c-accent);
 }
 
 .chat-notice {
-  color: #8e99a4;
+  color: var(--c-text-dim);
   font-style: italic;
 }
 
@@ -2968,8 +2992,8 @@ textarea,
   max-height: 150px;
   overflow-y: auto;
   font-size: 20px;
-  background: #0b0f14;
-  border: 3px solid #39424d;
+  background: var(--c-void);
+  border: 3px solid var(--c-surface);
   padding: 4px 10px;
   margin-bottom: 6px;
 }
@@ -3010,9 +3034,9 @@ textarea,
   font: inherit;
   /* Alle 16 px kenttä saa iPhonen zoomaamaan. */
   font-size: max(16px, calc(var(--u) * 8));
-  color: #eef2f3;
-  background: #0b0f14;
-  border: var(--u) solid #f6d04d;
+  color: var(--c-text);
+  background: var(--c-void);
+  border: var(--u) solid var(--c-accent);
   padding: 0 calc(var(--u) * 2);
   outline: none;
 }
@@ -3020,9 +3044,9 @@ textarea,
 .chat-hud button {
   font: inherit;
   font-size: max(16px, calc(var(--u) * 8));
-  color: #eef2f3;
-  background: #39424d;
-  border: var(--u) solid #5f6b78;
+  color: var(--c-text);
+  background: var(--c-surface);
+  border: var(--u) solid var(--c-line);
   padding: 0 calc(var(--u) * 3);
 }
 
@@ -3071,7 +3095,7 @@ textarea,
   height: 80px;
   margin-top: 8px;
   image-rendering: pixelated;
-  border: 2px solid #39424d;
+  border: 2px solid var(--c-surface);
 }
 
 .appearance-rows {
@@ -3088,15 +3112,15 @@ textarea,
   width: 32px;
   height: 32px;
   padding: 0;
-  border: 2px solid #39424d;
+  border: 2px solid var(--c-surface);
 }
 
 /* Valittu: tumma ja keltainen kaksoisreunus sekä ruksi, jotta erottuu kaikilla väreillä.
    Ei skaalausta eikä reunusta yli puolen välistä, ettei valinta peitä viereisiä värejä
    tai paneelin alareunan painikkeita. */
 .screen-panel .settings button.swatch.selected {
-  border: 3px solid #0b0f14;
-  box-shadow: 0 0 0 3px #f6d04d;
+  border: 3px solid var(--c-void);
+  box-shadow: 0 0 0 3px var(--c-accent);
 }
 
 .screen-panel .settings button.swatch.selected::after {
@@ -3106,15 +3130,15 @@ textarea,
   top: 45%;
   width: 28%;
   height: 52%;
-  border: solid #eef2f3;
+  border: solid var(--c-text);
   border-width: 0 4px 4px 0;
   transform: translate(-50%, -50%) rotate(45deg);
-  filter: drop-shadow(0 0 1px #0b0f14);
+  filter: drop-shadow(0 0 1px var(--c-void));
 }
 
 .screen-panel .settings button.swatch.light.selected::after {
-  border-color: #0b0f14;
-  filter: drop-shadow(0 0 1px #eef2f3);
+  border-color: var(--c-void);
+  filter: drop-shadow(0 0 1px var(--c-text));
 }
 
 .player-color {
@@ -3122,7 +3146,7 @@ textarea,
   width: 0.7em;
   height: 0.7em;
   margin-right: 6px;
-  border: 1px solid #0b0f14;
+  border: 1px solid var(--c-void);
 }
 
 @media (max-width: 600px) {
@@ -3175,7 +3199,7 @@ textarea,
   align-items: center;
   gap: calc(var(--px) * 3);
   font-family: var(--font);
-  color: #eef2f3;
+  color: var(--c-text);
 }
 
 .loader-art {
@@ -3183,8 +3207,8 @@ textarea,
   overflow: hidden;
   width: calc(var(--w) * var(--px));
   height: calc(var(--h) * var(--px));
-  border: var(--px) solid #39424d;
-  box-shadow: var(--px) var(--px) 0 #0b0f14;
+  border: var(--px) solid var(--c-surface);
+  box-shadow: var(--px) var(--px) 0 var(--c-void);
 }
 
 .loader-layer {
@@ -3304,9 +3328,8 @@ textarea,
   justify-content: center;
   gap: 16px;
   padding: 16px;
-  background: #0b0f14;
   font-family: var(--font);
-  color: #eef2f3;
+  color: var(--c-text);
   transition: opacity 0.25s;
 }
 
@@ -3314,8 +3337,8 @@ textarea,
   margin: 0;
   font-size: min(64px, 14vw);
   white-space: nowrap;
-  color: #f6d04d;
-  text-shadow: 4px 4px 0 #8c1c1c;
+  color: var(--c-accent);
+  text-shadow: 4px 4px 0 var(--c-danger);
   letter-spacing: 4px;
 }
 
@@ -3329,7 +3352,7 @@ textarea,
   max-width: 24em;
   text-align: center;
   font-size: 22px;
-  color: #83c2db;
+  color: var(--c-info);
   /* Näkyy vasta, jos lataus kestää. */
   opacity: 0;
   animation: boot-slow 0.3s 12s forwards;
@@ -3368,25 +3391,25 @@ textarea,
 
 .pad-diagram .pad-body {
   fill: #2b3440;
-  stroke: #8e99a4;
+  stroke: var(--c-text-dim);
   stroke-width: 2;
 }
 
 .pad-diagram .pad-button,
 .pad-diagram .pad-stick {
-  fill: #39424d;
-  stroke: #c3cbd2;
+  fill: var(--c-surface);
+  stroke: var(--c-text-soft);
   stroke-width: 1.5;
 }
 
 .pad-diagram .pad-stick {
-  fill: #1c232b;
+  fill: var(--c-panel);
 }
 
 .pad-diagram .pad-text {
   font-family: var(--font);
   font-size: 11px;
-  fill: #fff3b0;
+  fill: var(--c-accent-soft);
 }
 
 .pad-map-list {
@@ -3398,7 +3421,7 @@ textarea,
 }
 
 .pad-map-list dt {
-  color: #fff3b0;
+  color: var(--c-accent-soft);
   white-space: nowrap;
 }
 

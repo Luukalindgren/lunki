@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { precacheList, precacheVersion, serviceWorkerSource } from './precache';
+import { optionalList, precacheList, precacheVersion, serviceWorkerSource } from './precache';
 
 describe('service workerin tiedostolista (#328)', () => {
   it('ottaa sivun, koodin, woff2-fontit, manifestin ja kuvakkeet', () => {
@@ -31,6 +31,23 @@ describe('service workerin tiedostolista (#328)', () => {
     ]);
   });
 
+  it('jättää modernin ilmeen pois asennuksesta ja listaa sen valinnaisena (#650)', () => {
+    const files = [
+      'index.html',
+      'assets/index-abc.js',
+      'modern/modernLook-abc.js',
+      'modern/modernLook-abc.js.map',
+      'modern/modernLook-def.css',
+      'modern/fraunces-700-x.woff2',
+    ];
+    expect(precacheList(files)).toEqual(['assets/index-abc.js', 'index.html']);
+    expect(optionalList(files)).toEqual([
+      'modern/fraunces-700-x.woff2',
+      'modern/modernLook-abc.js',
+      'modern/modernLook-def.css',
+    ]);
+  });
+
   it('muuntaa Windowsin polut', () => {
     expect(precacheList(['icons\\icon-192.png'])).toEqual(['icons/icon-192.png']);
   });
@@ -47,9 +64,15 @@ describe('service workerin tiedostolista (#328)', () => {
 
   it('täyttää pohjan versiolla ja tiedostoilla', () => {
     const template = readFileSync(new URL('./sw.js', import.meta.url), 'utf8');
-    const source = serviceWorkerSource(template, 'abc123', ['index.html', 'assets/a.js']);
+    const source = serviceWorkerSource(
+      template,
+      'abc123',
+      ['index.html', 'assets/a.js'],
+      ['modern/m.js'],
+    );
     expect(source).toContain('const VERSION = "abc123";');
     expect(source).toContain('const PRECACHE = ["./index.html","./assets/a.js"];');
+    expect(source).toContain('const OPTIONAL = ["./modern/m.js"];');
     expect(source).not.toContain('__LUNKI_');
   });
 });

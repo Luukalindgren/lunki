@@ -261,6 +261,19 @@ export const fi = {
   'settings.lookHint':
     'Terävä piirtää grafiikan näytön täydellä tarkkuudella. Jos peli alkaa nykiä, ilme palaa Retroon. Retro on kevyempi pikseli-ilme.',
   'look.fellBack': 'Terävä ilme oli tälle laitteelle liian raskas. Ilme vaihtui Retroon.',
+  'settings.lookModern': 'Moderni (kokeellinen)',
+  'settings.lookModernHint':
+    'Moderni on tietokoneille tehty ilme: pehmeät muodot, varjot ja oma käyttöliittymän tyyli. Se on vasta rakenteilla, ja osa pelistä näyttää vielä Terävältä. Jos peli alkaa nykiä, laatu kevenee ja lopulta ilme palaa Retroon.',
+  'settings.lookLoading': 'Ladataan modernia ilmettä…',
+  'settings.lookFailed':
+    'Moderni ilme ei latautunut. Tarkista verkkoyhteys ja valitse se uudelleen.',
+  'settings.quality': 'Laatu',
+  'settings.quality.low': 'Matala',
+  'settings.quality.medium': 'Keskitaso',
+  'settings.quality.high': 'Korkea',
+  'look.qualityDropped': 'Peli nyki, joten modernin ilmeen laatu keveni.',
+  'look.modernFellBack': 'Moderni ilme oli tälle laitteelle liian raskas. Ilme vaihtui Retroon.',
+  'look.modernFailed': 'Moderni ilme ei latautunut, joten ilme on Retro.',
   'settings.guide': 'Opastus',
   'settings.guideOn': 'Näytä alusta',
   'settings.guideOff': 'Pois',
@@ -497,6 +510,8 @@ export const fi = {
   'credits.libraries': 'Kirjastot',
   'credits.osmCopyright': 'OpenStreetMapin tekijänoikeudet',
   'credits.font': 'VT323-fontti (Peter Hull), Fontsource, ja siitä tehty sileä versio',
+  'credits.fontAlegreya': 'Alegreya Sans -fontti (Huerta Tipográfica), moderni ilme',
+  'credits.fontFraunces': 'Fraunces-fontti (Undercase Type), moderni ilme',
   'credits.osm': '© OpenStreetMapin tekijät, ODbL 1.0',
   'credits.dem':
     'Copernicus DEM GLO-30: © DLR e.V. 2010–2014 ja © Airbus Defence and Space GmbH 2014–2018, Copernicus (EU, ESA)',
