@@ -9,7 +9,7 @@ import {
   type ShoreWater,
 } from '@lunki/shared';
 import type { BoatPose } from '../net/netWorld';
-import { toWorld } from '../world/lakeMesh';
+import { swellMask, toWorld } from '../world/lakeMesh';
 import { groundRest } from './groundRest';
 import { playerColorMaterial } from './playerColor';
 
@@ -155,6 +155,11 @@ export function createBoatMesh(color: number): THREE.Group {
   const floor = new THREE.Mesh(extrude(outline(WALL), 0.02), playerColorMaterial(COLOR.floor));
   floor.position.y = FLOOR;
   group.add(floor);
+  // Aallokossa vesi nousee keulassa ja perässä pohjan yläpuolelle: kansi
+  // laitojen tasalla pitää veneen sisäpuolen kuivana (ks. swellMask).
+  const dry = swellMask(new THREE.ShapeGeometry(outline(WALL * 0.4), 4).rotateX(-Math.PI / 2));
+  dry.position.y = GUNWALE;
+  group.add(dry);
 
   // Reunalista soutajan värillä työntyy kyljen ulkopuolelle kuten oikeissa
   // veneissä; väri näkyy myös ylhäältä ja veneen sisältä.

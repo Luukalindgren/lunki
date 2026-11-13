@@ -227,6 +227,9 @@ Koodi: `packages/client/src/world/lakeMesh.ts`.
   (`uDrift`). Pintakuvio, mainingit, vaahtopäät, iso aalto ja trombin
   vaahtojuovat käyttävät samaa viivatyyliä ja samoja vaaleaa ja tummaa
   sävyä.
+- Kuiva tila veden keskellä (veneen sisäpuoli) saa näkymättömän kannen
+  `swellMask`-kutsulla: aaltoileva lähivesi piirretään sen jälkeen eikä näy
+  pohjan läpi (#682). Älä nosta pohjaa tai litistä aaltoja aluksen kohdalta.
 - Uusi vesiefekti tehdään samalla viivatyylillä ja vain, jos se ei lisää
   levotonta liikettä. Hyväksytä ennen/jälkeen-kuvat tai GIFit ennen
   yhdistämistä.
