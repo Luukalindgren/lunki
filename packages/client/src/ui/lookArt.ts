@@ -1,19 +1,46 @@
 import { activeLook, onLookChange, smoothLook } from '../engine/look';
-import { pixelBytes, smoothPixels, type PixelImage } from '../engine/smoothPixels';
+import { pixelBytes, SMOOTH_FACTOR, smoothPixels, type PixelImage } from '../engine/smoothPixels';
 
 /**
  * Käyttöliittymän pikselikuvat ilmeen mukaan (#674): Retrossa kuva piirretään
- * pikseleinä, Terävällä samasta kuvasta sileä versio (`smoothPixels`). Kuvan
+ * pikseleinä, Terävällä samasta kuvasta sileä versio (`smoothPixels`) ja
+ * Modernissa (#650) laskemalla piirretty kuva suoraan tarkempana. Kuvan
  * mitat sivulla tulevat aina lähdekuvan pikseleistä, joten asettelu ei muutu.
  */
 
-/** Kankaalle piirrettävän tekstin fontti: Terävällä sileä versio samasta fontista. */
-export const uiFont = (px: number): string =>
-  `${px}px ${smoothLook(activeLook()) ? "'Lunki Silea', " : ''}VT323, monospace`;
+/** Modernin teeman tekstifontti kankaalle (`modern/theme.css`, `--text-font`) ja sen koko pelin fontista. */
+const MODERN_FONT = { family: "'Alegreya Sans', 'Segoe UI', sans-serif", weight: 700, size: 0.82 };
 
-/** Piirtää pikselikuvan kankaalle käytössä olevan ilmeen mukaan. */
-export function paintPixels(canvas: HTMLCanvasElement, px: PixelImage): void {
-  const image = smoothLook(activeLook()) ? smoothPixels(px) : px;
+/**
+ * Kankaalle piirrettävän tekstin fontti: Terävällä sileä versio samasta
+ * fontista, Modernissa teeman tekstifontti hieman pienempänä, koska se on
+ * pikselifonttia leveämpi.
+ */
+export const uiFont = (px: number): string => {
+  const look = activeLook();
+  if (look === 'modern')
+    return `${MODERN_FONT.weight} ${Math.round(px * MODERN_FONT.size)}px ${MODERN_FONT.family}`;
+  return `${px}px ${smoothLook(look) ? "'Lunki Silea', " : ''}VT323, monospace`;
+};
+
+/** Ääriviivan paksuus kuvapisteinä, kun kuva lasketaan `detail` kertaa tarkempana. */
+export const fineOutline = (detail: number): number => Math.max(1, detail >> 1);
+
+/**
+ * Piirtää pikselikuvan kankaalle käytössä olevan ilmeen mukaan. Laskemalla
+ * piirretty kuva voi antaa saman piirroksen suoraan tarkempana (`fine`,
+ * kerroin = kuvapisteitä lähdepikselin sivulla): Moderni käyttää sitä, jolloin
+ * muodot ovat sileitä eivätkä pyöristettyjä pikseleitä. Kuvan mitat sivulla
+ * pysyvät samoina, koska tarkka kuva on tasan kertoimen verran suurempi.
+ */
+export function paintPixels(
+  canvas: HTMLCanvasElement,
+  px: PixelImage,
+  fine?: (detail: number) => PixelImage,
+): void {
+  const look = activeLook();
+  const image =
+    look === 'modern' && fine ? fine(SMOOTH_FACTOR) : smoothLook(look) ? smoothPixels(px) : px;
   canvas.width = image.width;
   canvas.height = image.height;
   const g = canvas.getContext('2d');
