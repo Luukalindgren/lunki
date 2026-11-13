@@ -9,6 +9,11 @@ import type { LookQuality } from './look';
 export interface LookLayer {
   /** Liittää kerroksen kohtaukseen (kisa tai valikon tausta). */
   attach(scene: THREE.Scene, renderer: THREE.WebGLRenderer): LookAttachment;
+  /**
+   * Vapauttaa sen, minkä kerros on rakentanut kohtausten kesken jaettavaksi
+   * (maisema). Kutsutaan, kun ilme vaihtuu pois eikä kerros ole liitettynä.
+   */
+  release?(): void;
 }
 
 export interface LookAttachment {

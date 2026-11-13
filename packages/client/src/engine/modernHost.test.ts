@@ -17,6 +17,7 @@ function fakeLayer() {
         dispose: () => log.push(`dispose ${s.name}`),
       };
     },
+    release: () => log.push('release'),
   };
   return { layer, log };
 }
@@ -79,6 +80,19 @@ describe('ModernHost (#650)', () => {
       'update kisa',
       'update kisa',
       'dispose kisa',
+      'release',
     ]);
+  });
+
+  it('jaettu maisema vapautetaan vain, kun ilme vaihtuu pois, ei kohtauksen vaihtuessa', async () => {
+    const { layer, log } = fakeLayer();
+    const host = new ModernHost(() => Promise.resolve(layer));
+    await host.ensure();
+    host.frame(true, scene('valikko'), camera, renderer, 'high');
+    host.frame(true, scene('kisa'), camera, renderer, 'high');
+    expect(log).not.toContain('release');
+    host.frame(false, scene('kisa'), camera, renderer, 'high');
+    host.frame(false, scene('kisa'), camera, renderer, 'high');
+    expect(log.filter((l) => l === 'release')).toHaveLength(1);
   });
 });

@@ -12,6 +12,7 @@ import { clipToSwellPatch, type WaterWaves } from './lakeMesh';
 export function createBottomMesh(bottom: LakeBottom, waves: WaterWaves): THREE.Group {
   const group = new THREE.Group();
   group.name = 'bottom';
+  sources.set(group, { group, bottom, waves });
   const depth = depthTextureFor(bottom);
   waves.uDepthTex.value = depth.texture;
   waves.uDepthBounds.value.copy(depth.bounds);
@@ -27,6 +28,21 @@ export function createBottomMesh(bottom: LakeBottom, waves: WaterWaves): THREE.G
     group.add(shallow);
   }
   return group;
+}
+
+/** Pohjan näkyvien osien ryhmä ja tiedot, joista se on tehty. */
+export interface BottomSource {
+  group: THREE.Group;
+  bottom: LakeBottom;
+  waves: WaterWaves;
+}
+
+const sources = new WeakMap<THREE.Object3D, BottomSource>();
+
+/** Kohtauksen pohjan osat: ilmeen oma kerros (#650) piirtää samat rakenteet omalla tyylillään. */
+export function bottomIn(scene: THREE.Object3D): BottomSource | null {
+  const group = scene.getObjectByName('bottom');
+  return (group && sources.get(group)) ?? null;
 }
 
 /** Näin matalalla (m pinnasta) olevat kivet ja kasvustot kuultavat veden läpi. */

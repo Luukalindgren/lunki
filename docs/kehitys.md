@@ -187,7 +187,8 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
 - **Laatu: Matala / Keskitaso / Korkea** (`lunki.look.quality`, taulukko
   `QUALITY`) näkyy vain Modernissa ja päättää piirron tarkkuuden
   (`lookDetail`: Korkea piirtää näyttöä tarkemmin ja selain pienentää kuvan)
-  sekä varjokartan koon ja pehmeyden. Uusi laadusta riippuva asia on uusi
+  sekä varjokartan koon ja pehmeyden ja sen, kuinka kauas maiseman tarkat
+  mallit piirretään (`detailRange`). Uusi laadusta riippuva asia on uusi
   kenttä taulukkoon, ei oma asetus. Monen näytteen puskuria (MSAA) ei käytetä:
   kohtauksen alfakanava on usvan tiheys, ja se sekoittuisi reunoilla.
 - **Varjot** (`modern/shadows.ts`) tulevat pelin omasta auringon tai kuun
@@ -195,6 +196,27 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
   valaistu osa saa varjot itsestään; veden päälle piirretty merkki tai
   tehoste lisätään `NO_CAST`-listaan nimellään. Kirkkaus tulee edelleen
   yhdestä sävytyksestä (`SkyView.grade`).
+- **Modernin maisema** (`modern/scenery.ts`) rakennetaan samasta aineistosta
+  kuin Retron (`StaticWorld`: kartta, ympäristö, `Ground`, `planVegetation`),
+  joten puut, mökit, kaislat ja laiturit ovat samoilla paikoilla, eikä
+  Modernille tehdä omaa karttaa. Se piirtää maan ja rantapenkan
+  (`modern/land.ts`), puut (`trees.ts`), kaislat, rantaheinän ja kivet
+  (`shoreDetail.ts`), mökit ja laiturit (`cottages.ts`) sekä pohjan kivet ja
+  kasvit (`lakeBed.ts`), ja piilottaa Retron vastaavat osat. Maisema näkyy
+  myös ylhäältä. Se rakennetaan kerran karttaa ja kautta kohden
+  `StaticWorld.always`-ryhmään ja vapautetaan, kun ilme vaihtuu pois
+  (`LookLayer.release`).
+  - Muodot tehdään `modern/shapes.ts`:n osista (`blob`, `box`, `paint`,
+    `mergeParts`, `scatter`) kärkiväreillä ja yhdellä pinnalla
+    (`paintedMaterial`), ei tekstuureilla. Värit ovat kausittain taulukossa
+    `SCENERY_COLORS` (`modern/sceneryColors.ts`).
+  - Maan korkeus on `Land.heightAt`, ja peli lukee sen `Ground.surfaceAt`illa
+    (`Ground.overlay`), jotta rannalla seisova kalastaja ja puiden tyvet ovat
+    maan pinnalla. Rannan etäisyys kysytään `ShoreField`iltä.
+  - Paljon toistuva osa piirretään lohkoittain (`scatter`) ja saa kevyemmät
+    mallit kauemmas (`DetailLevels`, matkat `QUALITY.detailRange`ista). Uusi
+    maiseman osa tekee samoin eikä piirrä koko järven tarkkoja malleja
+    kerralla.
 - **Modernin teema** (`modern/theme.css`) vaihtaa käyttöliittymän värit
   `style.css`:n `--c-`-muuttujilla ja kirjasimet luokan `.look-modern` alla.
   Uusi valikon tai HUDin osa käyttää näitä muuttujia eikä kirjoita värejä
@@ -529,6 +551,11 @@ mennyt testi (`flaky` CI:n lokissa) on vika, joka korjataan.
 - **Palvelin on yhteinen.** Kaikki projektit, toistot ja uusinnat käyttävät
   samaa pelipalvelinta. Testin oma ennätys tehdään painavammaksi kuin listan
   kärki (`topWeight`), ettei se putoa viiden kalan listalta.
+- **Modernin maisema on ohjelmistorenderöinnille liian raskas.** Koko järven
+  maisema (päävalikon tausta) tai rannan puut vievät yli puoli sekuntia
+  ruutua kohden, ja selain jää purkamaan piirtojonoa kymmeniksi sekunneiksi.
+  Modernia käyttävä testi valitsee ilmeen kisan taukovalikosta keskeltä selkää
+  (`OPEN_WATER`, `e2e/ilme.spec.ts`) eikä jää päävalikkoon Moderni päällä.
 - **Raskaat testit erikseen.** Moninpelitestit avaavat useita selaimia, joten
   ne ovat oma Playwright-projektinsa `moninpeli` ja oma CI-ajonsa
   (`MULTIPLAYER` tiedostossa `playwright.config.ts`).

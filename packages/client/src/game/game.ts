@@ -1147,12 +1147,15 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     const shore = this.spectating ? undefined : b.shore;
     const pov = this.viewMode === 'pov';
     // Seisojan jalkojen korkeus: maasto, laiturin kannella kansi (#457).
+    // Ylhäältä Retron maa on litteä karttapohja; ilmeen oma maasto (#650)
+    // näkyy ylhäältäkin, joten seisoja on silloin sen pinnalla.
+    const ground = this.world.ground;
     const groundAt = (p: Vec2) =>
-      !pov
+      !pov && !ground.overlay
         ? 0
         : this.water.onPier(p)
-          ? Math.max(PIER_DECK, this.world.ground.heightAt(p))
-          : this.world.ground.heightAt(p);
+          ? Math.max(PIER_DECK, ground.surfaceAt(p))
+          : ground.surfaceAt(p);
     // Täyttökisan vene rannalla (#458): oma kalastaja äyskäröi laidan vieressä.
     const bailing = this.spectating ? null : this.ownBailPose(pos, hull);
     if (bailing) {

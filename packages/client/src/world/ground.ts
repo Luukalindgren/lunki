@@ -76,10 +76,30 @@ export class Ground {
   }
 
   /**
+   * Ilmeen oma maanpinta (#650): Modernin rantapenkka on korkeusmallia
+   * korkeammalla, ja kerros asettaa sen tähän siksi aikaa, kun se on liitettynä.
+   */
+  overlay: ((p: Vec2) => number) | null = null;
+
+  /** Näkyvän maanpinnan korkeus (m): ilmeen oma pinta, muuten korkeusmalli. */
+  surfaceAt(p: Vec2): number {
+    return this.overlay ? this.overlay(p) : this.heightAt(p);
+  }
+
+  /**
    * Maanpinnan korkeus (m) pisteessä täsmälleen maastoverkon kolmioilta
    * (sama jako kuin createTerrainMesh). Ilman korkeusmallia 0.
    */
   heightAt(p: Vec2): number {
+    return this.sample(this.heights, p);
+  }
+
+  /**
+   * Ruudukon pisteisiin tallennetun suureen arvo pisteessä samoilta
+   * kolmioilta kuin korkeus. `stride` ja `offset` lukevat lomitetusta
+   * taulukosta (esim. värin kanavat). Ilman korkeusmallia 0.
+   */
+  sample(values: ArrayLike<number>, p: Vec2, stride = 1, offset = 0): number {
     if (!this.terrain) return 0;
     const fx = (p.x - this.minX) / GROUND_CELL;
     const fy = (p.y - this.minY) / GROUND_CELL;
@@ -87,7 +107,7 @@ export class Ground {
     const j = Math.max(0, Math.min(this.rows - 2, Math.floor(fy)));
     const tx = Math.max(0, Math.min(1, fx - i));
     const ty = Math.max(0, Math.min(1, fy - j));
-    const h = (a: number, b: number) => this.heights[b * this.cols + a]!;
+    const h = (a: number, b: number) => values[(b * this.cols + a) * stride + offset]!;
     // Ruutu jaetaan lävistäjällä (i+1, j)–(i, j+1).
     if (tx + ty <= 1) return h(i, j) + (h(i + 1, j) - h(i, j)) * tx + (h(i, j + 1) - h(i, j)) * ty;
     const d = h(i + 1, j + 1);
