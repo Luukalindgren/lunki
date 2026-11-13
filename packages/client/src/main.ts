@@ -59,6 +59,7 @@ import {
   type LobbyEvent,
   type ResultsSummary,
   type PauseView,
+  type PracticeLobby,
   type SettingsControls,
   type SoloReplay,
 } from './ui/screens';
@@ -829,7 +830,12 @@ function enterLobby(s: NetSession) {
       showResults();
     if (v.phase !== 'lobby') return;
     // Harjoitellessa aulaa ei piirretä: se piirtyy, kun pelaaja palaa.
-    if (practice) return;
+    // Tauolla aulan tilanne päivittyy paikallaan (#668).
+    if (practice) {
+      const lobby = paused ? practiceLobby() : null;
+      if (lobby) screens.updatePausePractice(lobby);
+      return;
+    }
     const key = lobbyKey(v);
     if (!game && key === drawnLobby) {
       screens.updateLobbyPings(v.players);
@@ -912,6 +918,23 @@ function startPractice(s: CompetitionSettings) {
   startGame({ ...s, durationMinutes: UNTIMED, inflate: false, start: null, soloBots: 0 });
 }
 
+/** Aulan tilanne harjoittelun taukovalikkoon (#668). */
+function practiceLobby(): PracticeLobby | null {
+  if (!practice || !session || !game) return null;
+  const v = session.view();
+  const anglers = v.players.filter((p) => !p.spectator && !p.bot);
+  // Sama joukko kuin isännän odottamat: katkennutta ei odoteta.
+  const awaited = anglers.filter((p) => !p.host && p.connected);
+  return {
+    anglers: anglers.length,
+    max: v.maxPlayers,
+    ready: awaited.filter((p) => p.ready).length,
+    awaited: awaited.length,
+    seconds: Math.floor(game.competition.elapsed),
+    rules: v.settings,
+  };
+}
+
 /** Harjoittelusta takaisin aulaan (taukovalikosta). */
 function endPractice() {
   if (!practice) return;
@@ -956,7 +979,7 @@ function showPauseMenu(from?: PauseView) {
             showResults();
           },
     multiplayer: session !== null,
-    practice,
+    practice: practiceLobby(),
     untimed: !session && isUntimed(g.settings),
     clock: formatClock(g.clock),
     status: g.raceStatus(),

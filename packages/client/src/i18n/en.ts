@@ -545,6 +545,12 @@ export const en: Record<keyof typeof fi, string> = {
   // --- Pause and results ---
   'pause.menu': 'Menu',
   'pause.title': 'Paused',
+  'pause.practice': 'Practice',
+  'pause.practiceNote':
+    'The competition starts when the host starts it. Practice catches are not saved.',
+  'pause.inLobby': 'In the lobby',
+  'pause.lobbyReady': 'Ready',
+  'pause.practised': 'Practised',
   'pause.clock': 'Time at the lake {time}',
   'pause.fish': 'Fish',
   'pause.weight': 'Weight',

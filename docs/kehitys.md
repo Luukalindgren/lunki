@@ -259,6 +259,10 @@ Koodi: `packages/client/src/ui/screens.ts` (`showSettings`, `showPause`).
   harjoitus on yksinpeli huoneen säännöillä ilman kelloa ja ennätyksiä, ja
   se vaihtuu kisaan, kun isäntä aloittaa. Huonetta käyttävä koodi kysyy
   kisan huoneen `raceSession()`-kutsulla, joka on harjoitellessa null.
+  Harjoittelun taukovalikko (#668) on otsikolla Harjoittelu, ja kisan
+  tilanteen paikalla on aulan tilanne (`pausePractice`: aulassa, valmiina,
+  harjoiteltu) ja tulevan kisan säännöt; ne päivittyvät paikallaan
+  (`updatePausePractice`).
 - Kisan säännöt (kesto, sää, rangaistukset, lajit) kuuluvat yksinpelin
   asetuksiin ja moninpelin aulaan, eivät Asetukset-näkymään.
 

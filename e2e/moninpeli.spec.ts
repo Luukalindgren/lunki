@@ -227,9 +227,28 @@ test('täysi aula: katsoja odottaa paikkaa ja pääsee kalastamaan rajan noustes
   await expect(nextRace.locator('button.selected')).toHaveText('Kalastan');
   await expect(host.locator('.choice-label', { hasText: 'Pelaajat 3/4' })).toBeVisible();
 
+  // Harjoittelun tauko kertoo aulan tilanteen ja tulevan kisan säännöt (#668).
+  await third!.getByRole('button', { name: 'Harjoittele odottaessa' }).click();
+  await expect(third!.locator('.hud-timer')).toBeVisible();
+  await third!.keyboard.press('Escape');
+  const pause = third!.locator('[data-screen="pause"]');
+  await expect(pause.getByRole('heading', { name: 'Harjoittelu' })).toBeVisible();
+  await expect(pause.getByText('Harjoittelun saaliit eivät jää talteen')).toBeVisible();
+  const tile = (label: string) =>
+    pause.locator('.pause-stat', { hasText: label }).locator('.pause-stat-value');
+  await expect(tile('Aulassa')).toHaveText('3 / 4');
+  // Harjoittelija kuittautui valmiiksi, Toinen ei vielä.
+  await expect(tile('Valmiina')).toHaveText('1 / 2');
+  await expect(pause.locator('.pause-rules')).toContainText('Kilpailuaika 15 min');
+  // Aulan muutos päivittyy tauolle paikallaan.
+  await row(host, 'Pelaajia enintään').getByRole('button', { name: '8', exact: true }).click();
+  await expect(tile('Aulassa')).toHaveText('3 / 8');
+  await third!.getByRole('button', { name: 'Takaisin aulaan' }).click();
+  await expect(third!.locator('.room-code')).toHaveText(code);
+
   // Aloita ennen kuin muut ovat valmiita: kysymys näkyy nappien yläpuolella
   // eikä jää pitkän aulan loppuun vierityksen taakse (#539).
-  await host.getByRole('button', { name: 'Aloita (2 ei valmiina)' }).click();
+  await host.getByRole('button', { name: 'Aloita (1 ei valmiina)' }).click();
   const notice = host.locator('.lobby-notice');
   await expect(notice).toContainText(/Ei valmiina: .*Toinen/);
   await expect(notice).toBeInViewport();
@@ -237,7 +256,7 @@ test('täysi aula: katsoja odottaa paikkaa ja pääsee kalastamaan rajan noustes
   await host.getByRole('button', { name: 'Odota', exact: true }).click();
   await expect(notice).toBeHidden();
   // Aloita silti: valmiiksi kuittaamattomatkin kalastavat mukana.
-  await host.getByRole('button', { name: 'Aloita (2 ei valmiina)' }).click();
+  await host.getByRole('button', { name: 'Aloita (1 ei valmiina)' }).click();
   await host.getByRole('button', { name: 'Aloita silti' }).click();
   for (const p of [host, second!, third!]) await expect(p.locator('.hud-timer')).toBeVisible();
   for (const e of errors) e.check();
