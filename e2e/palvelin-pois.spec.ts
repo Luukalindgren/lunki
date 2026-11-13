@@ -216,11 +216,9 @@ test.describe('moderni ilme ei lataudu (#650)', () => {
     await page.route(/\/modern\//, (route) => route.abort('connectionrefused'));
     await page.goto('/?view=top');
     await page.getByRole('button', { name: 'Asetukset' }).click();
-    await look(page)
-      .getByRole('button', { name: /^Moderni/ })
-      .click();
-    await expect(page.getByText(/Moderni ilme ei latautunut/)).toBeVisible({ timeout: 10_000 });
-    await expect(look(page).getByRole('button', { name: 'Retro' })).toHaveClass(/selected/);
+    await look(page).getByRole('button', { name: 'Kotiteatteri' }).click();
+    await expect(page.getByText(/Kotiteatteri ei latautunut/)).toBeVisible({ timeout: 10_000 });
+    await expect(look(page).getByRole('button', { name: 'Putkitelkkari' })).toHaveClass(/selected/);
     await expect(page.locator('html')).not.toHaveClass(/look-modern/);
     expect(await page.evaluate(() => localStorage.getItem('lunki.look'))).not.toBe('modern');
     errors.check();
@@ -244,7 +242,7 @@ test.describe('moderni ilme ei lataudu (#650)', () => {
     await expect(page.locator('.hud-timer')).toHaveText(/\d+:\d\d/);
     await expect(page.locator('html')).not.toHaveClass(/look-modern/);
     // Aikarajan jälkeen peli kertoo, että ilme jäi Retroksi.
-    await expect(page.locator('.hud-message')).toHaveText(/Moderni ilme ei latautunut/, {
+    await expect(page.locator('.hud-message')).toHaveText(/Kotiteatteri ei latautunut/, {
       timeout: 25_000,
     });
     errors.check();

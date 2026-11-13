@@ -251,24 +251,26 @@ export const en: Record<keyof typeof fi, string> = {
   'settings.controlStyleHint':
     'Simple: one button casts and reels, and reeling brings the fish in. The lure is a spinner and the reel speed is 3. No drag, lure change or fly fishing. Full: all mechanics. The choice is your own and does not affect the competition rules or the record lists.',
   'settings.look': 'Look',
-  'settings.lookRetro': 'Retro',
-  'settings.lookSharp': 'Sharp',
+  'settings.lookRetro': 'Tube TV',
+  'settings.lookSharp': 'Flat screen',
   'settings.lookHint':
-    'Sharp draws the graphics at the full resolution of your screen. If the game starts to stutter, the look returns to Retro. Retro is the lighter pixel look.',
-  'look.fellBack': 'The Sharp look was too heavy for this device. The look changed to Retro.',
-  'settings.lookModern': 'Modern',
+    'Flat screen draws the graphics at the full resolution of your screen. If the game starts to stutter, the look returns to Tube TV. Tube TV is the lighter pixel look.',
+  'look.fellBack':
+    'The Flat screen look was too heavy for this device. The look changed to Tube TV.',
+  'settings.lookModern': 'Home cinema',
   'settings.lookModernHint':
-    'Modern is a look made for computers: soft shapes, shadows and its own interface style. If the game starts to stutter, the quality drops and finally the look returns to Retro.',
-  'settings.lookLoading': 'Loading the modern look…',
-  'settings.lookFailed': 'The modern look did not load. Check your connection and select it again.',
+    'Home cinema is a look made for computers: soft shapes, shadows and its own interface style. If the game starts to stutter, the quality drops and finally the look returns to Tube TV.',
+  'settings.lookLoading': 'Loading the Home cinema look…',
+  'settings.lookFailed':
+    'The Home cinema look did not load. Check your connection and select it again.',
   'settings.quality': 'Quality',
   'settings.quality.low': 'Low',
   'settings.quality.medium': 'Medium',
   'settings.quality.high': 'High',
-  'look.qualityDropped': 'The game stuttered, so the quality of the modern look was lowered.',
+  'look.qualityDropped': 'The game stuttered, so the quality of the Home cinema look was lowered.',
   'look.modernFellBack':
-    'The Modern look was too heavy for this device. The look changed to Retro.',
-  'look.modernFailed': 'The modern look did not load, so the look is Retro.',
+    'The Home cinema look was too heavy for this device. The look changed to Tube TV.',
+  'look.modernFailed': 'The Home cinema look did not load, so the look is Tube TV.',
   'settings.guide': 'Guide',
   'settings.guideOn': 'Show from start',
   'settings.guideOff': 'Off',
