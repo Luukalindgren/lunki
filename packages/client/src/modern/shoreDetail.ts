@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { PIER_WIDTH, type LakeMap, type Pier, type Vec2 } from '@lunki/shared';
+import { clearSightLine } from '../world/sightLine';
 import type { Plant } from '../world/vegetation';
 import type { Land } from './land';
 import type { SceneryColors } from './sceneryColors';
@@ -151,6 +152,9 @@ export function createReeds(
     }));
   if (items.length) {
     const material = leafMaterial();
+    // Takaa-näkymässä (#691) kameran ja kalastajan väliin jäävät tuppaat jäävät
+    // piirtämättä: tupas on 0,84 leveä kappaleen mitasta.
+    clearSightLine(material, 0.42);
     const near = scatter(tuft(rand, 24, 0.02, colors.reed, 0.3), material, items, TUFT_CHUNK);
     const far = scatter(tuft(rand, 9, 0.045, colors.reed, 0, 2), material, items, TUFT_CHUNK);
     near.forEach((mesh, i) => {

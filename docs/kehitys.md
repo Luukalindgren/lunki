@@ -131,6 +131,12 @@ Koodi: `packages/client/src/game/controls.ts`.
     ei tee mitään ennen irrotusta, ettei kameran kääntö irrota letkua.
   - Oikean tatin lukijat (heiton suunta, perhovapa, pikavalikko, nykäisy)
     käyttävät `Controls.aimStick`ia, joka on nolla, kun tatti kääntää kameraa.
+  - Rannan lähellä kamera on puiden seassa. Puu tai kaislatupas, joka ulottuu
+    kameran ja kalastajan väliselle janalle, jätetään piirtämättä
+    (`world/sightLine.ts`, #703): peli asettaa janan joka ruudulla
+    (`setSightLine`), ja kasvien pinta saa väistön `clearSightLine`-kutsulla.
+    Uusi kuvan peittävä maiseman osa (`InstancedMesh`) tekee samoin eikä siirrä
+    kameraa.
 - Peliohjaimen asetukset (#594, `engine/padSettings.ts`): kääntymisen
   herkkyys (`TurnPulse` jättää osan askelista väliin, koska käännös kulkee
   palvelimelle arvoina -1, 0 ja 1), perhoheiton tatti käänteisenä
