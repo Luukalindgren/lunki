@@ -10,7 +10,8 @@ export const toWorld = (p: Vec2, height = 0): THREE.Vector3 => new THREE.Vector3
 const toShapePoints = (ring: readonly Vec2[]) => ring.map((p) => new THREE.Vector2(p.x, p.y));
 
 /**
- * Prototyypin järvi: tasainen maa, vesialue saarineen ja rantaviiva.
+ * Prototyypin järvi: tasainen maa, vesialue saarineen ja kaislikot. Rantaa ei
+ * rajata viivalla: sen näkee maan ja veden väristä.
  * Muodot piirretään XY-tasoon ja käännetään vaakatasoon (y → -z).
  */
 export function createLakeMesh(
@@ -71,15 +72,6 @@ export function createLakeMesh(
     group.add(patch);
   }
 
-  const shoreMaterial = new THREE.LineBasicMaterial({ color: 0xb99a68 });
-  for (const ring of [map.shore, ...map.islands]) {
-    const points = ring.map((p) => toWorld(p, 0.02));
-    const line = new THREE.LineLoop(
-      new THREE.BufferGeometry().setFromPoints(points),
-      shoreMaterial,
-    );
-    group.add(line);
-  }
   return group;
 }
 
