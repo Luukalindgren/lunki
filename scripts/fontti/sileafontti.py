@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Tekee VT323-fontista sileän version Terävälle ilmeelle.
+"""Tekee VT323-fontista terävän version Terävälle ilmeelle.
 
 VT323 on piirretty juovina: jokainen merkki on 80 yksikön korkuisia vaakarivejä,
-ja vinot viivat ovat portaita. Tämä piirtää jokaisen merkin kuvaksi, pehmentää
-kuvan (pystysuunnassa rivin verran, vaakasuunnassa vähän) ja jäljittää
-puolivälin tasa-arvokäyrän uudeksi ääriviivaksi. Suorat reunat pysyvät
-paikallaan, portaat suoristuvat vinoviivoiksi ja kulmat pyöristyvät vähän.
+ja vinot viivat ovat portaita. Tämä lukee jokaisen merkin juovat, piirtää niiden
+yhteisen ääriviivan ja suoristaa portaat vinoviivoiksi katkaisemalla askeleet
+puolivälistä. Mitään ei pyöristetä: suorat reunat pysyvät paikallaan, viivojen
+päät ja risteykset jäävät teräviksi kulmiksi ja kaaret ovat monikulmioita.
 Merkkien leveydet ja rivikorkeus ovat samat kuin VT323:ssa, joten asettelu ei
 muutu, kun fontti vaihtuu ilmeen mukana.
 
-Käyttö (riippuvuudet: fonttools, brotli, numpy, pillow):
+Käyttö (riippuvuudet: fonttools, brotli):
     python3 scripts/fontti/sileafontti.py
 
 Lähde: @fontsource/vt323 (SIL Open Font License 1.1). Tulos on saman lisenssin
@@ -17,25 +17,27 @@ alainen johdannainen eri nimellä (Lunki Sileä).
 """
 from pathlib import Path
 
-import numpy as np
 from fontTools.pens.recordingPen import DecomposingRecordingPen
 from fontTools.pens.ttGlyphPen import TTGlyphPen
 from fontTools.ttLib import TTFont
-from PIL import Image, ImageChops, ImageDraw
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "packages/client/node_modules/@fontsource/vt323/files/vt323-latin-400-normal.woff2"
 TARGET = ROOT / "packages/client/src/assets/lunki-silea.woff2"
 NAME = "Lunki Silea"
 
-# Kuvan tarkkuus: yksi kuvapiste on näin monta fonttiyksikköä.
-UNIT = 5
-# Pehmennyksen leveys fonttiyksikköinä: pysty rivin (80) mukaan, vaaka kapea.
-SIGMA_Y = 36
-SIGMA_X = 16
-# Ääriviivan yksinkertaistus (fonttiyksikköä).
-TOLERANCE = 1.6
-MARGIN = 100
+# VT323:n juovan korkeus fonttiyksikköinä.
+ROW = 80
+# Portaan askel on enintään näin pitkä; pidempi reuna on suora sivu.
+STEP = 170
+# Jyrkän viivan askeleen leveys on enintään tämä.
+STEEP = 50
+# Tätä kapeampi yhden juovan korkuinen rako täytetään.
+SLIT = 50
+# Raon vieressä on oltava vähintään näin leveä kaari.
+BOWL = 110
+# Suoran sivun päästä leikataan portaan vierestä enintään näin paljon.
+CUT = 40
 
 
 def flatten(pen_value):
@@ -64,100 +66,153 @@ def flatten(pen_value):
     return contours
 
 
-def blur(a, sigma, axis):
-    r = int(sigma * 3) + 1
-    x = np.arange(-r, r + 1)
-    k = np.exp(-(x**2) / (2 * sigma**2))
-    k /= k.sum()
-    return np.apply_along_axis(lambda v: np.convolve(v, k, mode="same"), axis, a)
+def spans(contours, y):
+    """Merkin täytetyt välit korkeudella y (parillinen-pariton-sääntö)."""
+    xs = []
+    for c in contours:
+        for (x0, y0), (x1, y1) in zip(c, c[1:] + c[:1]):
+            if (y0 <= y) != (y1 <= y):
+                xs.append(round(x0 + (x1 - x0) * (y - y0) / (y1 - y0)))
+    xs.sort()
+    return [(a, b) for a, b in zip(xs[::2], xs[1::2]) if b > a]
 
 
-def trace(field):
-    """Marssivat neliöt: tason 0,5 käyrät suljettuina lenkkeinä, täyttö vasemmalla."""
-    h, w = field.shape
-    inside = field >= 0.5
-    segs = {}
+def close_slits(rows):
+    """Täyttää yhden juovan korkuiset kapeat raot.
 
-    def cross(x0, y0, x1, y1):
-        a, b = field[y0, x0], field[y1, x1]
-        t = (0.5 - a) / (b - a)
-        return (x0 + (x1 - x0) * t, y0 + (y1 - y0) * t)
+    VT323:ssa kaari on paikoin irti varresta kapean raon verran (b, n, u), ja
+    juovien pullistuma peittää sen pienessä koossa. Terävillä reunoilla rako
+    näkyisi viiltona. Usean juovan korkuinen rako (m:n sakarat) on tarkoitettu.
+    """
 
-    for y in range(h - 1):
-        for x in range(w - 1):
-            tl, tr, br, bl = inside[y, x], inside[y, x + 1], inside[y + 1, x + 1], inside[y + 1, x]
-            code = tl * 8 + tr * 4 + br * 2 + bl
-            if code in (0, 15):
-                continue
-            top = lambda: cross(x, y, x + 1, y)
-            right = lambda: cross(x + 1, y, x + 1, y + 1)
-            bottom = lambda: cross(x, y + 1, x + 1, y + 1)
-            left = lambda: cross(x, y, x, y + 1)
-            # Jana kulkee niin, että täytetty puoli on kulkusuunnasta katsoen aina samalla puolella.
-            table = {
-                1: [(left, bottom)], 2: [(bottom, right)], 3: [(left, right)], 4: [(right, top)],
-                5: [(left, top), (right, bottom)], 6: [(bottom, top)], 7: [(left, top)],
-                8: [(top, left)], 9: [(top, bottom)], 10: [(top, right), (bottom, left)],
-                11: [(top, right)], 12: [(right, left)], 13: [(right, bottom)], 14: [(bottom, left)],
-            }
-            for a, b in table[code]:
-                p, q = a(), b()
-                segs[(round(p[0], 4), round(p[1], 4))] = q
+    def slits(r):
+        sp = rows.get(r, [])
+        return [(a[1], b[0]) for a, b in zip(sp, sp[1:]) if b[0] - a[1] <= SLIT]
+
+    out = {}
+    for r, sp in rows.items():
+        near = slits(r - 1) + slits(r + 1)
+        merged = [sp[0]]
+        for a, b in sp[1:]:
+            gap = (merged[-1][1], a)
+            lone = gap[1] - gap[0] <= SLIT and not any(g[0] < gap[1] and gap[0] < g[1] for g in near)
+            # Vinoviivan pala (N, W) on kapea; kaari on leveä.
+            wide = max(merged[-1][1] - merged[-1][0], b - a) >= BOWL
+            lone = lone and wide
+            if lone:
+                merged[-1] = (merged[-1][0], b)
+            else:
+                merged.append((a, b))
+        out[r] = merged
+    return out
+
+
+def outline(rows):
+    """Juovien yhdisteen suorakulmaiset ääriviivat lenkkeinä, täyttö vasemmalla."""
+    xs = sorted({x for sp in rows.values() for ab in sp for x in ab})
+    col = {x: i for i, x in enumerate(xs)}
+    ys = sorted(rows)
+    filled = set()
+    for r in ys:
+        for a, b in rows[r]:
+            for i in range(col[a], col[b]):
+                filled.add((i, r))
+    # Suunnatut reunat ruudukon kulmasta kulmaan.
+    edges = {}
+    for i, r in filled:
+        for a, b, out in (
+            ((i, r), (i + 1, r), (i, r - 1)),
+            ((i + 1, r), (i + 1, r + 1), (i + 1, r)),
+            ((i + 1, r + 1), (i, r + 1), (i, r + 1)),
+            ((i, r + 1), (i, r), (i - 1, r)),
+        ):
+            if out not in filled:
+                edges.setdefault(a, []).append(b)
     loops = []
-    while segs:
-        start, nxt = segs.popitem()
-        loop = [start]
+    while edges:
+        start = next(iter(edges))
+        loop, cur, prev = [], start, None
         while True:
-            key = (round(nxt[0], 4), round(nxt[1], 4))
-            if key == start or key not in segs:
+            outs = edges[cur]
+            nxt = outs[0]
+            if len(outs) > 1 and prev is not None:
+                # Kulmittain koskevat juovat ovat samaa viivaa: käänny oikeaan, jolloin ne yhdistyvät.
+                d = (cur[0] - prev[0], cur[1] - prev[1])
+                right = (cur[0] + d[1], cur[1] - d[0])
+                nxt = right if right in outs else nxt
+            outs.remove(nxt)
+            if not outs:
+                del edges[cur]
+            loop.append(cur)
+            prev, cur = cur, nxt
+            if cur == start:
                 break
-            loop.append(key)
-            nxt = segs.pop(key)
-        if len(loop) > 3:
-            loops.append(loop)
+        pts = [(xs[i], r * ROW) for i, r in loop]
+        # Samansuuntaiset peräkkäiset reunat yhdeksi.
+        keep = []
+        for k, p in enumerate(pts):
+            a, b = pts[k - 1], pts[(k + 1) % len(pts)]
+            if (p[0] - a[0]) * (b[1] - p[1]) != (p[1] - a[1]) * (b[0] - p[0]):
+                keep.append(p)
+        loops.append(keep)
     return loops
 
 
-def simplify(pts, tol):
-    """Douglas–Peucker suljetulle lenkille."""
+def bevel(pts):
+    """Portaat vinoviivoiksi: portaan askeleet katkaistaan puolivälistä.
 
-    def dp(p):
-        if len(p) < 3:
-            return p
-        a, b = np.array(p[0]), np.array(p[-1])
-        d = b - a
-        n = np.hypot(*d) or 1
-        dist = [abs(d[0] * (q[1] - a[1]) - d[1] * (q[0] - a[0])) / n for q in p[1:-1]]
-        i = int(np.argmax(dist))
-        if dist[i] <= tol:
-            return [p[0], p[-1]]
-        return dp(p[: i + 2])[:-1] + dp(p[i + 1 :])
+    Askel on lyhyt reuna, jonka päissä käännytään eri suuntiin. Sen päät
+    korvataan leikkauksella reunojen puolivälistä, jolloin peräkkäiset askeleet
+    asettuvat yhdelle suoralle. Muut kulmat (viivan päät, risteykset) jäävät
+    teräviksi.
+    """
+    n = len(pts)
 
-    # Lenkki katkaistaan kahdesta kaukaisesta pisteestä.
-    far = max(range(len(pts)), key=lambda i: (pts[i][0] - pts[0][0]) ** 2 + (pts[i][1] - pts[0][1]) ** 2)
-    return dp(pts[: far + 1])[:-1] + dp(pts[far:] + [pts[0]])[:-1]
+    def turn(k):
+        a, p, b = pts[k - 1], pts[k], pts[(k + 1) % n]
+        return (p[0] - a[0]) * (b[1] - p[1]) - (p[1] - a[1]) * (b[0] - p[0]) > 0
+
+    def length(k):
+        a, b = pts[k], pts[(k + 1) % n]
+        return abs(b[0] - a[0]) + abs(b[1] - a[1])
+
+    # step[k]: reuna pisteestä k seuraavaan on portaan askel.
+    def short(k):
+        # Vaakasuora askel saa olla kahden juovan levyinen. Pystysuora on juovan
+        # korkuinen, tai kahden, jos viereinen vaaka on kapea (jyrkkä viiva).
+        if pts[k][1] == pts[(k + 1) % n][1] or length(k) <= ROW:
+            return length(k) <= STEP
+        return length(k) <= STEP and min(length(k - 1), length((k + 1) % n)) <= STEEP
+
+    jog = [turn(k) != turn((k + 1) % n) and short(k) for k in range(n)]
+    # Yksittäinen pykälä (viivan ylitys, väkänen) ei ole porras: askelia on oltava kaksi peräkkäin.
+    step = [jog[k] and (jog[k - 1] or jog[(k + 1) % n]) for k in range(n)]
+    out = []
+    for k in range(n):
+        before, after = (k - 1) % n, k
+        if not (step[before] or step[after]):
+            out.append(pts[k])
+            continue
+        a, p, b = pts[k - 1], pts[k], pts[(k + 1) % n]
+        for other, edge in ((a, before), (b, after)):
+            size = length(edge)
+            cut = size / 2 if step[edge] else min(size / 2, CUT)
+            q = (p[0] + (other[0] - p[0]) * cut / size, p[1] + (other[1] - p[1]) * cut / size)
+            if not out or out[-1] != q:
+                out.append(q)
+    if len(out) > 1 and out[0] == out[-1]:
+        out.pop()
+    return out
 
 
 def smooth_glyph(contours):
-    xs = [p[0] for c in contours for p in c]
     ys = [p[1] for c in contours for p in c]
-    x0, y0 = min(xs) - MARGIN, min(ys) - MARGIN
-    w = int((max(xs) - min(xs) + 2 * MARGIN) / UNIT)
-    h = int((max(ys) - min(ys) + 2 * MARGIN) / UNIT)
-    mask = Image.new("1", (w, h), 0)
-    for c in contours:
-        layer = Image.new("1", (w, h), 0)
-        ImageDraw.Draw(layer).polygon([((x - x0) / UNIT, (y - y0) / UNIT) for x, y in c], fill=1)
-        mask = ImageChops.logical_xor(mask, layer)
-    field = np.asarray(mask, dtype=float)
-    field = blur(blur(field, SIGMA_Y / UNIT, 0), SIGMA_X / UNIT, 1)
-    out = []
-    for loop in trace(field):
-        pts = [(x0 + (x + 0.5) * UNIT, y0 + (y + 0.5) * UNIT) for x, y in loop]
-        pts = simplify(pts, TOLERANCE)
-        if len(pts) >= 3:
-            out.append(pts)
-    return out
+    rows = {}
+    for r in range(int(min(ys) // ROW), int(max(ys) // ROW) + 1):
+        sp = spans(contours, r * ROW + 2)
+        if sp:
+            rows[r] = sp
+    return [loop for loop in (bevel(l) for l in outline(close_slits(rows))) if len(loop) >= 3]
 
 
 def area(pts):

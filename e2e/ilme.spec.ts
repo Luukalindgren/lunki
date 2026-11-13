@@ -22,7 +22,7 @@ test.describe('ilme (#674, #650)', () => {
     const look = page.locator('.choice', {
       has: page.locator('.choice-label', { hasText: /^Ilme$/ }),
     });
-    await look.getByRole('button', { name: 'Terävä' }).click();
+    await look.getByRole('button', { name: 'Taulutelkkari' }).click();
     // Terävä piirtää näytön tarkkuudella: kuva on vähintään kaksi kertaa leveämpi.
     await expect.poll(() => canvasWidth(page)).toBeGreaterThanOrEqual(retro * 2);
     expect(await page.evaluate(() => localStorage.getItem('lunki.look'))).toBe('sharp');
@@ -45,7 +45,7 @@ test.describe('ilme (#674, #650)', () => {
     // Valinta vaihtuu takaisin kesken kisan taukovalikosta.
     await page.keyboard.press('Escape');
     await page.getByRole('button', { name: 'Asetukset' }).click();
-    await look.getByRole('button', { name: 'Retro' }).click();
+    await look.getByRole('button', { name: 'Putkitelkkari' }).click();
     await expect.poll(() => canvasWidth(page)).toBe(retro);
     await expect(page.locator('html')).not.toHaveClass(/look-sharp/);
     errors.check();
@@ -61,12 +61,12 @@ test.describe('ilme (#674, #650)', () => {
     const look = page.locator('.choice', {
       has: page.locator('.choice-label', { hasText: /^Ilme$/ }),
     });
-    const modern = look.getByRole('button', { name: /^Moderni/ });
+    const modern = look.getByRole('button', { name: 'Kotiteatteri' });
     if (isMobile) {
       // Moderni on tietokoneen ilme: kosketuslaitteella sitä ei tarjota.
       await page.goto(soloUrl());
       await page.getByRole('button', { name: 'Asetukset' }).click();
-      await expect(look.getByRole('button', { name: 'Terävä' })).toBeVisible();
+      await expect(look.getByRole('button', { name: 'Taulutelkkari' })).toBeVisible();
       await expect(modern).toHaveCount(0);
       return;
     }
@@ -78,7 +78,7 @@ test.describe('ilme (#674, #650)', () => {
     const retro = await canvasWidth(page);
     await page.keyboard.press('Escape');
     await page.getByRole('button', { name: 'Asetukset' }).click();
-    await expect(look.getByRole('button', { name: 'Terävä' })).toBeVisible();
+    await expect(look.getByRole('button', { name: 'Taulutelkkari' })).toBeVisible();
     // Retron ja Terävän pelaaja ei hae modernin ilmeen tiedostoja.
     expect(loaded).toEqual([]);
     const quality = page.locator('.choice.look-quality');
@@ -108,7 +108,7 @@ test.describe('ilme (#674, #650)', () => {
     // Takaisin Retroon kesken kisan: teema ja tarkkuus palaavat.
     await page.keyboard.press('Escape');
     await page.getByRole('button', { name: 'Asetukset' }).click();
-    await look.getByRole('button', { name: 'Retro' }).click();
+    await look.getByRole('button', { name: 'Putkitelkkari' }).click();
     await expect.poll(() => canvasWidth(page)).toBe(retro);
     await expect(page.locator('html')).not.toHaveClass(/look-modern|look-sharp/);
     await expect(quality).toBeHidden();

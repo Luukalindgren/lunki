@@ -190,6 +190,12 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
   ei ole valittu (`defaultLook`); Retro jää valittavaksi. Terävä piirtää saman
   kohtauksen näytön tarkkuudella ilman palettia ja reunat pehmennettyinä;
   sisältö, säännöt ja HUD ovat samat. Uusi ilme on uusi arvo samaan valintaan.
+- **Pelaajalle ilmeet näkyvät nimillä Putkitelkkari (Retro), Taulutelkkari
+  (Terävä) ja Kotiteatteri (Moderni)**; englanniksi Tube TV, Flat screen ja
+  Home cinema. Koodi ja tämä ohje käyttävät nimiä Retro, Terävä ja Moderni
+  (`retro`, `sharp`, `modern`). Pelaajan näkemä teksti käyttää aina
+  sanakirjan nimiä (`settings.lookRetro`, `settings.lookSharp`,
+  `settings.lookModern`).
 - **Moderni (#650) on tietokoneen ilme:** maailma on tyyliä "Maalattu"
   (pehmeät muotoillut pinnat, varjot, sinivihreä vesi) ja käyttöliittymä
   "eräkartta" (paperi, muste ja korkeuskäyrät). Kosketuslaitteella sitä ei tarjota, eikä laatua karsita
@@ -362,8 +368,10 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
   (käsimerkit, palkinnot) jäävät sileiksi versioiksi kuten Terävällä. Uusi
   laskettu kuva antaa tarkan version samasta funktiosta, ei toista piirrosta.
 - **Fontti vaihtuu ilmeen mukana** CSS-muuttujalla `--font`: Retrossa VT323,
-  Terävällä Lunki Silea, joka on sama fontti portaat sileiksi pehmennettynä
-  (`scripts/fontti/sileafontti.py`, `src/assets/lunki-silea.woff2`). Merkkien
+  Terävällä Lunki Silea, joka on sama fontti portaat vinoviivoiksi suoristettuna
+  (`scripts/fontti/sileafontti.py`, `src/assets/lunki-silea.woff2`). Fontti on
+  kulmikas: mitään ei pyöristetä, viivojen päät ja risteykset ovat teräviä
+  kulmia ja kaaret monikulmioita, kuten Terävän pikselikuvissa. Merkkien
   leveydet ovat samat, joten asettelu ei muutu. Uusi tyyli käyttää
   `font-family: var(--font)` ja kankaalle piirrettävä teksti `uiFont(px)`
   (`ui/lookArt.ts`), ei fontin nimeä. Modernissa kumpikin on teeman
