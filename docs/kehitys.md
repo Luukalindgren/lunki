@@ -75,6 +75,16 @@ Koodi: `packages/client/src/ui/hud.ts`, tyylit `style.css`.
   HUD-yksiköistä `--m`/`--u` ja mitatuista korkeuksista (`--top-h`,
   `--timer-h`); **ei uusia kovakoodattuja pikselisiirtymiä**. HUD-koon
   liukusäädin skaalaa kaiken, ks. `ui/hudScale.ts`.
+- **Puhelimella HUD ei saa viedä järveä** (#671). Pystypuhelimella
+  yläreunan rivi on kello, kompassi, luotain ja täydellä ohjauksella
+  kireysmittari; sää rivittyy niiden alle. Tulostaulu ja saalislista ovat
+  kosketuksella taukovalikossa (`pauseScoreboard`), ja vieheluotain on
+  alareunassa tatin ja ison napin välissä (`Hud.placeLureSonar`). Ilmoitusten
+  paikka ei saa riippua sään rivimäärästä. Kun lisäät tai siirrät HUDin osan,
+  mittaa peitto ennen ja jälkeen 320–430 px leveillä ruuduilla: paneelien ja
+  nappien peittämä osuus ruudusta ja suurin vapaa suorakulmio (lähtötaso
+  marraskuussa 2026: yksinkertainen noin 30 % peitossa ja 50 % vapaana, täysi
+  noin 45–55 % ja 13–30 %).
 
 ### Ohjaus (PR #343)
 
@@ -202,6 +212,8 @@ Koodi: `packages/client/src/ui/screens.ts` (`showSettings`, `showPause`).
   sarakkeessa. Palaute on sama lomake ja jono kuin päävalikossa.
   Kisan tilanteen alla näkyvät kisan säännöt vain luettavina (`pauseRules`:
   vaikeus, sää, kausi, voittaja ja kesto); niitä ei vaihdeta kesken kisan.
+  Kosketuksella tilanteen alla on koko tulostaulu (`pauseScoreboard`), koska
+  se ei ole puhelimen HUDissa.
 - Koko näyttö on pieni kuvake paneelin oikeassa yläkulmassa
   (`fullscreenButton`, `ui/fullscreen.ts`) päävalikossa ja tauolla, ei oma
   rivinsä valikossa.
@@ -336,7 +348,7 @@ Koodi: `packages/client/src/audio/sounds.ts`.
   kelaus nostaa kalan (täydellä nosto on oma painalluksensa, #395) ja
   tartuttaa myös ison kalan, kelausnopeus on 3, vieheenä on aina lippa,
   jarrua ei säädetä, perhoa ei ole ja ohje on aina lyhyt. HUD on riisuttu
-  (#653, #657): tilapaneelia ja kireysmittaria ei ole (`Hud.setSimple`), ja kosketuksella näkyvät vain tatti, iso
+  (#653, #657): tilapaneelia ja kireysmittaria ei ole (`Hud.setSimple`), luotain on kosketuksella oikeassa yläkulmassa (pystyssä sää rivittyy sen vasemmalle puolelle, #671), ilmoitukset nousevat POV:ssa heti sen alle, ja kosketuksella näkyvät vain tatti, iso
   nappi, tauko ja sen alla KAM (`TouchControls.setSimple`; zoom vain ylhäältä, KATKO
   vain kun viehe on jumissa tai siima sotkussa). Opastuksen rivit jättävät
   piilotetut napit pois (`HudPresenter.guideText`).

@@ -104,6 +104,7 @@ import { bottomFor } from '../world/lakeData';
 import { t } from '../i18n';
 import { CraftController, type CraftHost } from './craftController';
 import { FishingController, SOLO_ID, type FishingHost } from './fishingController';
+import { scoreboardLines } from './raceScoreboard';
 import { SoloBots, isSoloBotCount } from './soloBots';
 import { raceStatus, type RaceStatus } from './raceStatus';
 import { HudPresenter, type HudHost } from './hudPresenter';
@@ -844,6 +845,18 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       w ? w.myId : SOLO_ID,
       this.angler.baits,
     );
+  }
+
+  /**
+   * Koko tulostaulu taukovalikkoon: kosketuksella sitä ei ole HUDissa. Null,
+   * kun kilpailijoita ei ole (yksinpeli ilman botteja) tai pelaaja on katsoja.
+   */
+  scoreboard(): string[] | null {
+    if (this.spectating) return null;
+    const w = this.netWorld;
+    const standings = w ? w.standings() : (this.soloBots?.standings() ?? null);
+    if (!standings) return null;
+    return scoreboardLines(standings, w ? w.myId : SOLO_ID, standings.length);
   }
 
   /**

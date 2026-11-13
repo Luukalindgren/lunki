@@ -287,8 +287,10 @@ export class Hud {
    * säädetä, ja kosketuksella luotain sen paikalle oikeaan yläkulmaan.
    */
   setSimple(simple: boolean): void {
-    if (this.root.classList.contains('simple') !== simple)
-      this.root.classList.toggle('simple', simple);
+    if (this.root.classList.contains('simple') === simple) return;
+    this.root.classList.toggle('simple', simple);
+    this.placeLureSonar();
+    this.measureEdges();
   }
 
   setPower(power: number | null): void {
@@ -436,13 +438,17 @@ export class Hud {
   }
 
   /**
-   * Pystypuhelimella vieheluotain tilapaneelin alle: oikean reunan sarakkeessa
-   * luotainten alle ei jäisi korkeutta ilmoituksille.
+   * Vieheluotaimen paikka kosketuksella: alareunassa tatin ja ison napin
+   * välissä, missä se ei peitä järveä. Yksinkertaisella väli on aina vapaa,
+   * täydellä vain pystyssä (vaakana siinä ovat ankkuri ja napit, joten luotain
+   * on oikeassa reunassa luotaimen alla kuten työpöydällä).
    */
   private placeLureSonar(): void {
-    if (this.touch && this.portrait.matches) this.topLeft.appendChild(this.lureSonar.root);
-    else if (this.lureSonar.root.parentElement !== this.gauges)
-      this.sonar.root.after(this.lureSonar.root);
+    const root = this.lureSonar.root;
+    const simple = this.root.classList.contains('simple');
+    if (this.touch && (simple || this.portrait.matches)) {
+      if (root.parentElement !== this.root) this.root.insertBefore(root, this.notices);
+    } else if (root.parentElement !== this.gauges) this.sonar.root.after(root);
   }
 
   /** Kosketusohjaimet näkyvissä: HUD väistää ne ja ohje on aluksi piilossa. */

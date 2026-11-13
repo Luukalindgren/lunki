@@ -2085,6 +2085,8 @@ export class Screens {
     clock?: string;
     /** Kisan tilanne: kalat, paino, sija tai aika ja paras kala (#469). */
     status?: RaceStatus | null;
+    /** Koko tulostaulu riveinä, kun se ei ole HUDissa (kosketus). */
+    scoreboard?: string[] | null;
     /** Kisan säännöt luettavaksi: vaikeus, sää, kausi, voittaja ja kesto. */
     rules?: CompetitionSettings;
     /** Perukkeen vaihto kesken kisan; katsojalla ei ole varusteita. */
@@ -2119,6 +2121,7 @@ export class Screens {
       h('h2', p.multiplayer ? t('pause.menu') : t('pause.title')),
       ...(p.clock ? [h('p', t('pause.clock', { time: p.clock }))] : []),
       ...(p.status ? pauseStatus(p.status) : []),
+      ...(p.scoreboard?.length ? [pauseScoreboard(p.scoreboard)] : []),
       ...(p.rules ? [pauseRules(p.rules)] : []),
       ...(p.multiplayer ? [h('p', t('pause.continues'), 'hint')] : []),
       menu,
@@ -3360,6 +3363,13 @@ function pauseStatus(s: RaceStatus): HTMLElement[] {
       })
     : t('pause.best', { fish, weight });
   return [grid, h('p', best, 'pause-best')];
+}
+
+/** Koko tulostaulu tauolla: puhelimella se ei ole HUDissa viemässä tilaa. */
+function pauseScoreboard(lines: string[]): HTMLElement {
+  const box = h('div', '', 'pause-scoreboard');
+  box.append(h('span', t('game.scoreboard'), 'pause-stat-label'), h('pre', lines.join('\n')));
+  return box;
 }
 
 /**
