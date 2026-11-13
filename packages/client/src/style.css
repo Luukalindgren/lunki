@@ -3371,7 +3371,7 @@ textarea,
   margin: 0;
 }
 
-/* Yksinkertainen ohjaus (#657): jarrua ei säädetä, joten kireysmittaria ei
+/* Yksinkertainen ohjaus (#657, #671): jarrua ei säädetä, joten kireysmittaria ei
    ole. Kosketuksella luotain on sen paikalla oikeassa yläkulmassa. */
 .hud.simple .hud-tension {
   display: none;
@@ -3382,9 +3382,32 @@ textarea,
   top: calc(var(--m) * 4);
 }
 
-/* Pystyssä kompassin ja sään alle: leveä säärivi ulottuu oikeaan reunaan asti. */
+/* Pystyssä luotain on aivan kulmassa, ja yläreunan rivi on kello, kompassi ja
+   luotain. Kompassi on heti kellon oikealla puolella ja kapenee tarvittaessa
+   luotaimen tieltä. Sää alkaa kellon vasemmasta reunasta kompassin alta ja
+   rivittyy, jos se ei mahdu luotaimen vasemmalle puolelle. */
 @media (orientation: portrait) {
-  .hud.touch.simple .hud-gauges {
-    top: calc(var(--m) * 8 + var(--top-h, 0px));
+  .hud.touch.simple {
+    --top-gap: calc(var(--timer-w, 0px) + var(--m) * 4);
+    --top-room: calc(100vw - var(--col2) - var(--edge-r) - var(--right-w, 0px) - var(--m) * 4);
+  }
+
+  .hud.touch.simple .hud-top-center {
+    left: calc(var(--col2) + var(--top-gap));
+    transform: none;
+    align-items: flex-start;
+  }
+
+  .hud.touch.simple .hud-compass {
+    max-width: calc(var(--top-room) - var(--top-gap));
+  }
+
+  .hud.touch.simple .hud-weather {
+    margin-left: calc(var(--top-gap) * -1);
+    max-width: var(--top-room);
+    box-sizing: border-box;
+    white-space: pre-wrap;
+    text-align: left;
+    text-wrap: balance;
   }
 }

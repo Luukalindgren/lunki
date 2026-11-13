@@ -336,7 +336,7 @@ Koodi: `packages/client/src/audio/sounds.ts`.
   kelaus nostaa kalan (täydellä nosto on oma painalluksensa, #395) ja
   tartuttaa myös ison kalan, kelausnopeus on 3, vieheenä on aina lippa,
   jarrua ei säädetä, perhoa ei ole ja ohje on aina lyhyt. HUD on riisuttu
-  (#653, #657): tilapaneelia ja kireysmittaria ei ole (`Hud.setSimple`), ja kosketuksella näkyvät vain tatti, iso
+  (#653, #657): tilapaneelia ja kireysmittaria ei ole (`Hud.setSimple`), luotain on kosketuksella oikeassa yläkulmassa (pystyssä sää rivittyy sen vasemmalle puolelle, #671), ja kosketuksella näkyvät vain tatti, iso
   nappi, tauko ja sen alla KAM (`TouchControls.setSimple`; zoom vain ylhäältä, KATKO
   vain kun viehe on jumissa tai siima sotkussa). Opastuksen rivit jättävät
   piilotetut napit pois (`HudPresenter.guideText`).
