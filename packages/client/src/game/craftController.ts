@@ -181,6 +181,16 @@ export class CraftController {
     return launch && b && !this.host.spectating ? launchBars(launch, b) : null;
   }
 
+  /**
+   * Tilanneohjeessa on nuolisarja: letkun siirto, veneen osan vaihto, työntö
+   * tai airot (#458). Nuolinäppäimet kuuluvat silloin sarjalle myös
+   * takaa-näkymässä, jossa ne muuten kääntävät kameraa (#691).
+   */
+  get arrowSequence(): boolean {
+    const tube = this.host.tube;
+    return (tube.shore?.inflate?.moving ?? null) !== null || (tube.bailer?.moving ?? null) !== null;
+  }
+
   /** Kalastaja on maalla (#457), myös kyytiin hypätessä ja veneen vesillelaskussa (#458). */
   get ashore(): boolean {
     return isAshore(this.host.tube);

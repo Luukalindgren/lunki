@@ -640,6 +640,8 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       // Katsoja vaihtoi näkymän itse: ohjaaja odottaa hetken (#564).
       if (this.spectating) net?.manualView(this.viewMode === 'top' ? 'top' : 'pov');
     }
+    // Täyttökisan nuolisarjan ajan nuolet kuuluvat sarjalle, eivät kameralle.
+    c.setArrowSequence(this.craft.arrowSequence);
     if (this.viewMode === 'chase')
       this.chase.step(
         dt,

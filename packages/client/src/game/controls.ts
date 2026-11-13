@@ -295,6 +295,7 @@ const ORBIT_TOUCH_OFF: ReadonlySet<string> = new Set([
   'forwardCast',
 ]);
 const ARROW_KEY = /^Arrow/;
+const ARROW_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'] as const;
 
 let orbit = false;
 
@@ -345,7 +346,26 @@ export interface CameraInput {
 
 /** Toimintojen tila askeleen syötteestä: näppäimet, peliohjain ja kosketusnapit yhdessä. */
 export class Controls {
+  /** Tilanneohjeen nuolisarja on kesken (täyttökisan letku, veneen vesillelasku). */
+  private sequence = false;
+  /** Nuolet, jotka olivat pohjassa sarjan alkaessa tai päättyessä: ne eivät tee mitään ennen irrotusta. */
+  private readonly carried = new Set<string>();
+
   constructor(readonly input: Input) {}
+
+  /**
+   * Nuolisarja alkoi tai päättyi. Takaa-näkymässä (#691) nuolet kuuluvat
+   * sarjan ajan sarjalle eivätkä kameralle. Vaihdon hetkellä pohjassa ollut
+   * nuoli ei siirry toiselle: kameraa kääntänyt nuoli olisi sarjassa väärä
+   * nuoli, joka irrottaa letkun.
+   */
+  setArrowSequence(on: boolean): void {
+    for (const k of ARROW_KEYS) {
+      if (!this.input.isDown(k)) this.carried.delete(k);
+      else if (on !== this.sequence) this.carried.add(k);
+    }
+    this.sequence = on;
+  }
 
   isDown(a: Action): boolean {
     return (
@@ -366,11 +386,14 @@ export class Controls {
    */
   private live(a: Action, k: string): boolean {
     const b: Binding = CONTROLS[a];
+    // Takaa-näkymässä nuolet ja sormi järvellä kuuluvat kameralle (#691),
+    // nuolisarjan ajan nuolet kuitenkin sarjalle.
+    const arrow = orbit && ARROW_KEY.test(k);
+    if (arrow && this.carried.has(k)) return false;
     if (ORBIT_ONLY.has(a)) {
-      if (!orbit) return false;
+      if (!orbit || (arrow && this.sequence)) return false;
     } else if (orbit) {
-      // Takaa-näkymässä nuolet ja sormi järvellä kuuluvat kameralle (#691).
-      if (ARROW_KEY.test(k)) return false;
+      if (arrow && !this.sequence) return false;
       if (a === 'pointer' && this.input.finger) return false;
     }
     if (b.padWith && b.pad?.includes(k)) return this.input.isDown(b.padWith);
