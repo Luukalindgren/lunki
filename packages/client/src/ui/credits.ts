@@ -12,6 +12,18 @@ export const LIBRARIES: { name: string; nameKey?: MsgKey; license: string; url: 
     license: 'SIL Open Font License 1.1',
     url: 'https://fontsource.org/fonts/vt323',
   },
+  {
+    name: 'Alegreya Sans -fontti (Huerta Tipográfica), moderni ilme',
+    nameKey: 'credits.fontAlegreya',
+    license: 'SIL Open Font License 1.1',
+    url: 'https://github.com/huertatipografica/Alegreya-Sans',
+  },
+  {
+    name: 'Fraunces-fontti (Undercase Type), moderni ilme',
+    nameKey: 'credits.fontFraunces',
+    license: 'SIL Open Font License 1.1',
+    url: 'https://github.com/undercasetype/Fraunces',
+  },
 ];
 
 /**

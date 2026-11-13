@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { LOOK_UNIFORMS, type Look } from './look';
+import { LOOK_UNIFORMS, lookDetail, smoothLook, type Look, type LookQuality } from './look';
 import { PALETTE } from './palette';
 import { computeResolution, type RetroResolution } from './resolution';
 
@@ -177,6 +177,11 @@ function makeTarget(width: number, height: number) {
  * paletti jää pois ja reunat pehmennetään. `resolution` on kummassakin
  * ilmeessä sama sisäinen tarkkuus, joten kamerat, merkit ja HUD eivät tiedä
  * ilmeestä.
+ *
+ * Moderni (#650) piirtää kuten Terävä, ja laadun mukaan näytön tarkkuutta
+ * tarkemmin (`lookDetail`): selain pienentää kuvan näytölle, jolloin reunat
+ * pehmenevät. Monen näytteen puskuria ei käytetä, koska kohtauksen
+ * alfakanava on usvan tiheys ja sekoittuisi reunoilla.
  */
 export class RetroRenderer {
   readonly renderer: THREE.WebGLRenderer;
@@ -185,6 +190,7 @@ export class RetroRenderer {
   paletteMode: PaletteMode = 'palette';
 
   private currentLook: Look = 'retro';
+  private currentQuality: LookQuality = 'high';
   private readonly sceneTarget = makeTarget(1, 1);
   /** Terävän valmis kuva ennen reunanpehmennystä. */
   private readonly imageTarget = new THREE.WebGLRenderTarget(1, 1, {
@@ -257,11 +263,22 @@ export class RetroRenderer {
   setLook(look: Look): void {
     if (look === this.currentLook) return;
     this.currentLook = look;
-    this.paletteMode = look === 'sharp' ? 'off' : 'palette';
+    this.paletteMode = smoothLook(look) ? 'off' : 'palette';
     this.resize();
   }
 
-  /** Piirretyn kuvan koko kuvapisteinä (Terävällä näytön tarkkuus). */
+  get quality(): LookQuality {
+    return this.currentQuality;
+  }
+
+  /** Modernin laatutaso: piirron tarkkuus muuttuu heti. */
+  setQuality(quality: LookQuality): void {
+    if (quality === this.currentQuality) return;
+    this.currentQuality = quality;
+    this.resize();
+  }
+
+  /** Piirretyn kuvan koko kuvapisteinä (Terävällä näytön tarkkuus, Modernilla laadun mukaan). */
   get renderSize(): { width: number; height: number } {
     const detail = LOOK_UNIFORMS.uLookDetail.value;
     return { width: this.resolution.width * detail, height: this.resolution.height * detail };
@@ -303,8 +320,8 @@ export class RetroRenderer {
 
     this.paletteMaterial.uniforms.uMode!.value =
       this.paletteMode === 'dither' ? 0 : this.paletteMode === 'palette' ? 1 : 2;
-    // Terävä: valmis kuva välikohteeseen ja siitä reunat pehmennettyinä ruudulle.
-    const smooth = this.currentLook === 'sharp';
+    // Terävä ja Moderni: valmis kuva välikohteeseen ja siitä reunat pehmennettyinä ruudulle.
+    const smooth = smoothLook(this.currentLook);
     this.quad.material = this.paletteMaterial;
     r.setRenderTarget(smooth ? this.imageTarget : null);
     r.render(this.quadScene, this.quadCamera);
@@ -391,12 +408,15 @@ export class RetroRenderer {
     const dpr = window.devicePixelRatio || 1;
     const res = computeResolution(window.innerWidth * dpr, window.innerHeight * dpr);
     this.resolution = res;
-    const sharp = this.currentLook === 'sharp';
+    const sharp = smoothLook(this.currentLook);
     // Terävä piirtää jokaisen sisäisen pikselin `scale` × `scale` kuvapisteenä,
     // jolloin kuva on näytön tarkkuudella ja rajaus täsmälleen sama kuin Retrossa.
-    const detail = sharp ? res.scale : 1;
+    const detail = lookDetail(this.currentLook, this.currentQuality, res);
     LOOK_UNIFORMS.uLookSharp.value = sharp ? 1 : 0;
+    LOOK_UNIFORMS.uLookModern.value = this.currentLook === 'modern' ? 1 : 0;
     LOOK_UNIFORMS.uLookDetail.value = detail;
+    // Näyttöä tarkempi kuva pienennetään sileästi, muuten pikselit pysyvät terävinä.
+    this.canvas.style.imageRendering = detail > res.scale ? 'auto' : '';
     const width = res.width * detail;
     const height = res.height * detail;
     this.renderer.setSize(width, height, false);

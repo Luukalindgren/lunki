@@ -159,24 +159,60 @@ Koodi: `packages/client/src/game/skyView.ts`, `engine/retroRenderer.ts`.
   salamat rintaman alla ovat vain kuvaa ja ääntä (`strike(pos, true)`).
   Realistisella tekstivaroituksia ei näytetä.
 
-### Ilme (#674)
+### Ilme (#674, #650)
 
-Koodi: `packages/client/src/engine/look.ts`, `engine/retroRenderer.ts`.
+Koodi: `packages/client/src/engine/look.ts`, `engine/retroRenderer.ts`,
+modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
 
-- Asetusten Näyttö-osion valinta **Ilme: Retro / Terävä** on laitteen asetus
-  (`lunki.look`, oletus Retro). Terävä piirtää saman kohtauksen näytön
+- Asetusten Näyttö-osion valinta **Ilme: Retro / Terävä / Moderni** on laitteen
+  asetus (`lunki.look`, oletus Retro). Terävä piirtää saman kohtauksen näytön
   tarkkuudella ilman palettia ja reunat pehmennettyinä; sisältö, säännöt ja
-  HUD ovat samat. Uusi ilme (Moderni, #650) on uusi arvo samaan valintaan.
+  HUD ovat samat. Uusi ilme on uusi arvo samaan valintaan.
+- **Moderni (#650) on tietokoneen ilme** ja vielä rakenteilla (vaiheet
+  issuessa #650): maailma on tyyliä "Maalattu" (pehmeät muotoillut pinnat,
+  varjot, sinivihreä vesi) ja käyttöliittymä "eräkartta" (paperi, muste ja
+  korkeuskäyrät). Kosketuslaitteella sitä ei tarjota, eikä laatua karsita
+  puhelimen takia. Säännöt, HUDin rakenne ja ohjaus ovat samat kuin muissa
+  ilmeissä.
+- **Modernin koodi, tyylit ja fontit ladataan vasta valittaessa**
+  (`ModernHost`, `import('../modern/modernLook')`): kaikki, mitä vain Moderni
+  tarvitsee (mallien rakentajat, varjot, teema), kuuluu kansioon `src/modern/`
+  eikä pääkoodiin. Kerros liittyy pelin kohtaukseen `LookLayer`-rajapinnalla
+  (`engine/lookLayer.ts`) eikä tiedä säännöistä. Lataus epäonnistuu
+  aikarajaan, jolloin entinen ilme jää voimaan ja siitä kerrotaan; tallennettu
+  Moderni aukeaa Retrona ja vaihtuu, kun lataus on valmis. Build vie tiedostot
+  kansioon `modern/`, jota service worker ei tallenna asennuksessa
+  (`optionalList`, [julkaisu.md](julkaisu.md)).
+- **Laatu: Matala / Keskitaso / Korkea** (`lunki.look.quality`, taulukko
+  `QUALITY`) näkyy vain Modernissa ja päättää piirron tarkkuuden
+  (`lookDetail`: Korkea piirtää näyttöä tarkemmin ja selain pienentää kuvan)
+  sekä varjokartan koon ja pehmeyden. Uusi laadusta riippuva asia on uusi
+  kenttä taulukkoon, ei oma asetus. Monen näytteen puskuria (MSAA) ei käytetä:
+  kohtauksen alfakanava on usvan tiheys, ja se sekoittuisi reunoilla.
+- **Varjot** (`modern/shadows.ts`) tulevat pelin omasta auringon tai kuun
+  valosta (`WeatherController`), ja varjokartta kulkee kameran mukana. Uusi
+  valaistu osa saa varjot itsestään; veden päälle piirretty merkki tai
+  tehoste lisätään `NO_CAST`-listaan nimellään. Kirkkaus tulee edelleen
+  yhdestä sävytyksestä (`SkyView.grade`).
+- **Modernin teema** (`modern/theme.css`) vaihtaa käyttöliittymän värit
+  `style.css`:n `--c-`-muuttujilla ja kirjasimet luokan `.look-modern` alla.
+  Uusi valikon tai HUDin osa käyttää näitä muuttujia eikä kirjoita värejä
+  itse, jolloin se saa teeman ilman omaa sääntöä.
 - **Sisäinen tarkkuus on kummassakin ilmeessä sama** (`RetroRenderer.resolution`):
   kamerat, zoomitasot, merkkien koot ja HUDin mitta lasketaan siitä, joten
   näkyvä alue ei riipu ilmeestä. Terävä piirtää jokaisen sisäisen pikselin
   `scale` × `scale` kuvapisteenä (`renderSize`). Älä laske mitään näkymän
   osaa piirron tarkkuudesta.
 - Ilmeestä riippuva varjostin lukee `LOOK_UNIFORMS`-arvot (`uLookSharp`,
-  `uLookDetail`) eikä tee omaa kopiota materiaalista: esimerkkeinä pohjan
-  syvyyssävyt (`world/depthShade.ts`, Terävällä omat sävyt, koska paletti ei
-  pyöristä vihertävää siniseksi) ja kimalluksen rivit (`gl_FragCoord`
-  jaetaan `uLookDetail`illa).
+  `uLookDetail`, `uLookModern`) eikä tee omaa kopiota materiaalista:
+  esimerkkeinä pohjan syvyyssävyt (`world/depthShade.ts`, Terävällä omat
+  sävyt, koska paletti ei pyöristä vihertävää siniseksi) ja kimalluksen rivit
+  (`gl_FragCoord` jaetaan `uLookDetail`illa). `uLookSharp` on 1 myös
+  Modernissa; `smoothLook(look)` kertoo saman koodille. Modernin vesi on
+  saman vesivarjostimen haara (`world/lakeMesh.ts`): tasainen sinivihreä pinta
+  ilman viivakuviota, väreet kulkevat vain tuulen mukana (`uDrift`), syvyyden
+  sävy liukuu portaitta ja ylhäältä näkyvät syvyyskäyrät (`MODERN_DEPTH`).
+  Sama väri on ylhäältä ja kalastajan silmin.
 - Sävytys, usva ja kaukosumu tulevat Terävälläkin samasta sävytyksestä
   (`SkyView.grade`); reunanpehmennys tehdään valmiille kuvalle sen jälkeen.
   Viivat (siima, vapa, tähtäin, sade) piirretään Terävällä sisäisen pikselin
@@ -192,6 +228,8 @@ Koodi: `packages/client/src/engine/look.ts`, `engine/retroRenderer.ts`.
   omaa kangasta tai tekstuuria, eikä Terävälle tehdä rinnakkaista taidetta.
   Maiseman tekstuurit (puiden lehvästö) ja HUDin fontti ovat kummassakin
   ilmeessä samat.
+- Modernissa `LookGuard` keventää ensin laatua taso kerrallaan
+  (`lowerQuality`) ja palaa Retroon vasta matalalta.
 - Terävä on raskas: jos kisan ruutunopeus jää alle 30 (`LookGuard`), ilme
   palaa Retroon ja siitä kerrotaan `info`-ilmoituksella. Selaintestit ajetaan
   Retrolla; `e2e/ilme.spec.ts` vaihtaa ilmeen ja aloittaa kisan.
@@ -236,7 +274,7 @@ Koodi: `packages/client/src/world/lakeMesh.ts`.
 Koodi: `packages/client/src/ui/screens.ts` (`showSettings`, `showPause`).
 
 - **Pelaajan asetukset vain jaetussa Asetukset-näkymässä**
-  (`Screens.showSettings`): Näyttö (HUD-koko, näkökenttä, ilme, opastus), Ohjaus
+  (`Screens.showSettings`): Näyttö (HUD-koko, näkökenttä, ilme ja Modernin laatu, opastus), Ohjaus
   (ohjaustapa, #638), Äänet,
   Peliohjain (näkyy, kun ohjain on kytketty; myös värinä, #594) ja Kieli.
   Sama näkymä aukeaa päävalikosta ja taukovalikosta.

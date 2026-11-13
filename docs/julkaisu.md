@@ -150,6 +150,11 @@ haetaan aina ensin verkosta, joten uusi julkaisu näkyy heti seuraavalla
 avauksella. Jos peli on auki julkaisun aikana, päävalikkoon tulee nappi
 _Uusi versio saatavilla – päivitä_. Kesken kisan versio ei vaihdu.
 
+Modernin ilmeen tiedostot (buildin `modern/`-kansio, #650) eivät kuulu
+asennukseen: ne tallennetaan omaan välimuistiinsa (`lunki-ilme`) vasta, kun
+pelaaja valitsee ilmeen. Sellaisella laitteella uusi versio hakee ne jo
+asennuksessa, joten ilme toimii päivityksen jälkeenkin ilman nettiä.
+
 Jos vanha versio jää jostain syystä jumiin: selaimen kehitystyökalut →
 _Application → Service workers → Unregister_ ja sivun uudelleenlataus.
 
