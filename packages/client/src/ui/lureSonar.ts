@@ -11,7 +11,7 @@ import {
 import { lureColor } from '../game/lureColor';
 import { decimal, t } from '../i18n';
 import {
-  SONAR_COLORS,
+  sonarColors,
   drawBed,
   drawCover,
   drawFishShape,
@@ -31,8 +31,6 @@ const SAMPLE_TIME = 0.1;
 const TRAIL_MAX = 300;
 /** Lähempänä pohjaa (m) viehe voi tarttua rakenteisiin. */
 const NEAR_BOTTOM = 0.35;
-
-const COLORS = SONAR_COLORS;
 
 export interface LureSonarFish {
   pos: Vec2;
@@ -213,59 +211,59 @@ export class LureSonarDisplay {
     const x = (dist: number) => Math.round((dist / this.span) * (WIDTH - 1));
     const y = (depth: number) =>
       SURFACE_ROW + 1 + Math.round((depth / this.range) * (HEIGHT - SURFACE_ROW - 2));
-    g.fillStyle = COLORS.water;
+    g.fillStyle = sonarColors().water;
     g.fillRect(0, 0, WIDTH, HEIGHT);
     // Metrin välein himmeä apuviiva.
-    g.fillStyle = COLORS.grid;
+    g.fillStyle = sonarColors().grid;
     for (let d = 1; d < this.range; d++) {
       for (let px = (d % 2) * 2; px < WIDTH; px += 4) g.fillRect(px, y(d), 1, 1);
     }
-    g.fillStyle = COLORS.surface;
+    g.fillStyle = sonarColors().surface;
     g.fillRect(0, SURFACE_ROW, WIDTH, 1);
 
     this.profile.forEach((c, i) => {
       if (c.bottom === null) {
-        g.fillStyle = COLORS.land;
+        g.fillStyle = sonarColors().land;
         g.fillRect(i, SURFACE_ROW, 1, HEIGHT - SURFACE_ROW);
         return;
       }
       const by = y(c.bottom);
-      g.fillStyle = COLORS.bottom;
+      g.fillStyle = sonarColors().bottom;
       g.fillRect(i, by, 1, HEIGHT - by);
       // Kova pohja kaikuu paksumpana ja kirkkaampana viivana.
       g.fillStyle =
         c.floor === 'rock'
-          ? COLORS.rockLine
+          ? sonarColors().rockLine
           : c.floor === 'mud'
-            ? COLORS.mudLine
-            : COLORS.bottomLine;
+            ? sonarColors().mudLine
+            : sonarColors().bottomLine;
       g.fillRect(i, by, 1, c.floor === 'rock' ? 2 : 1);
       // Kivi, kasvusto ja risukko kohoavat pohjasta korkeutensa verran.
       const top = Math.min(by - 1, y(c.bottom - c.height));
       if (c.structure === 'boulder') {
-        g.fillStyle = COLORS.rocks;
+        g.fillStyle = sonarColors().rocks;
         g.fillRect(i, top, 1, by - top);
       } else if (c.structure === 'weed') {
-        g.fillStyle = COLORS.weed;
+        g.fillStyle = sonarColors().weed;
         for (let py = top + (i % 2); py < by; py += 2) g.fillRect(i, py, 1, 1);
       } else if (c.structure === 'brush') {
-        g.fillStyle = COLORS.brush;
+        g.fillStyle = sonarColors().brush;
         for (let py = top + (i % 3); py < by; py += 2) g.fillRect(i, py, 1, 1);
       } else if (c.structure === 'reeds') {
         // Kaislat kasvavat pohjasta pintaan asti.
-        g.fillStyle = COLORS.reeds;
+        g.fillStyle = sonarColors().reeds;
         for (let py = SURFACE_ROW + 1; py < by; py += 2) g.fillRect(i, py, 1, 1);
       } else if (c.structure === 'rocks') {
-        g.fillStyle = COLORS.rocks;
+        g.fillStyle = sonarColors().rocks;
         g.fillRect(i, by - 2 + (i % 2), 1, 2 - (i % 2));
       } else if (c.structure === 'tree') {
-        g.fillStyle = COLORS.tree;
+        g.fillStyle = sonarColors().tree;
         g.fillRect(i, by - 1 - (i % 3), 1, 1 + (i % 3));
       }
     });
 
     // Vieheen jälki himmeänä: uppoaminen ja nousu kaarena.
-    g.fillStyle = COLORS.trail;
+    g.fillStyle = sonarColors().trail;
     for (const t of this.trail) {
       const tx = x(alongLine(frame.tip, this.dir, t.pos));
       if (tx >= 0 && tx < WIDTH) g.fillRect(tx, y(t.depth), 1, 1);
@@ -289,15 +287,15 @@ export class LureSonarDisplay {
     const flash = Math.floor(this.blink / 0.15) % 2 === 0;
     if (frame.bite && flash) {
       // Tärppi: punainen rengas vieheen ympärillä.
-      g.fillStyle = COLORS.bite;
+      g.fillStyle = sonarColors().bite;
       g.fillRect(lx - 2, ly - 2, 6, 1);
       g.fillRect(lx - 2, ly + 3, 6, 1);
       g.fillRect(lx - 2, ly - 1, 1, 4);
       g.fillRect(lx + 3, ly - 1, 1, 4);
     }
-    g.fillStyle = frame.snag ? COLORS.bite : hex(lureColor(frame.depth));
+    g.fillStyle = frame.snag ? sonarColors().bite : hex(lureColor(frame.depth));
     g.fillRect(lx, ly, 2, 2);
-    g.fillStyle = COLORS.glint;
+    g.fillStyle = sonarColors().glint;
     g.fillRect(lx, ly, 1, 1);
   }
 
@@ -325,9 +323,9 @@ export class LureSonarDisplay {
     this.profile.forEach((c, i) => {
       if (c.bottom === null) {
         flush();
-        g.fillStyle = COLORS.land;
+        g.fillStyle = sonarColors().land;
         g.fillRect(i, SURFACE_ROW, 1.02, HEIGHT - SURFACE_ROW);
-        g.fillStyle = COLORS.landDark;
+        g.fillStyle = sonarColors().landDark;
         g.fillRect(i, SURFACE_ROW + 3, 1.02, HEIGHT - SURFACE_ROW - 3);
         return;
       }
@@ -344,13 +342,13 @@ export class LureSonarDisplay {
       });
     });
     flush();
-    g.fillStyle = COLORS.surface;
+    g.fillStyle = sonarColors().surface;
     g.fillRect(0, SURFACE_ROW, WIDTH, 0.6);
 
     // Vieheen jälki: uppoaminen ja nousu yhtenä kaarena.
     g.lineCap = 'round';
     g.lineJoin = 'round';
-    g.strokeStyle = COLORS.trail;
+    g.strokeStyle = sonarColors().trail;
     g.lineWidth = 0.5;
     g.beginPath();
     this.trail.forEach((t, i) => {
@@ -371,18 +369,18 @@ export class LureSonarDisplay {
     const flash = Math.floor(this.blink / 0.15) % 2 === 0;
     if (frame.bite && flash) {
       // Tärppi: punainen rengas vieheen ympärillä.
-      g.strokeStyle = COLORS.bite;
+      g.strokeStyle = sonarColors().bite;
       g.lineWidth = 0.7;
       g.beginPath();
       g.arc(lx, ly, 3, 0, Math.PI * 2);
       g.stroke();
     }
     // Viehe: pieni pisara, kärki kalastajaa kohti, ja kiilto.
-    g.fillStyle = frame.snag ? COLORS.bite : hex(lureColor(frame.depth));
+    g.fillStyle = frame.snag ? sonarColors().bite : hex(lureColor(frame.depth));
     g.beginPath();
     g.ellipse(lx, ly, 1.5, 0.8, 0, 0, Math.PI * 2);
     g.fill();
-    g.fillStyle = COLORS.glint;
+    g.fillStyle = sonarColors().glint;
     g.beginPath();
     g.ellipse(lx - 0.4, ly - 0.25, 0.5, 0.22, 0, 0, Math.PI * 2);
     g.fill();

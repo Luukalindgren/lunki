@@ -56,4 +56,28 @@ describe('vieheiden ja vapojen kuvat', () => {
       seen.add(key);
     }
   });
+
+  it('Modernin tarkka kuva on sama piirros nelinkertaisena ja ääriviiva on suhteessa ohuempi', () => {
+    const palette = new Set<number>(PALETTE_HEX);
+    for (const id of ART_IDS) {
+      const base = lurePixels(id, 0);
+      const fine = lurePixels(id, 0, 4);
+      expect(fine.width).toBe(LURE_ART_W * 4);
+      expect(fine.height).toBe(LURE_ART_H * 4);
+      expect(fine.data.length).toBe(fine.width * fine.height);
+      for (const c of fine.data) if (c >= 0) expect(palette.has(c)).toBe(true);
+      // Sama muoto: täytetty osuus on lähellä pikselikuvan osuutta.
+      const share = (px: { data: ArrayLike<number> }) =>
+        Array.from(px.data).filter((c) => c >= 0).length / px.data.length;
+      expect(Math.abs(share(fine) - share(base))).toBeLessThan(0.12);
+      // Ääriviivaa on kuvasta pienempi osa kuin pikselikuvassa.
+      const ink = (px: { data: ArrayLike<number> }) =>
+        Array.from(px.data).filter((c) => c === OUTLINE).length / px.data.length;
+      expect(ink(fine)).toBeLessThan(ink(base));
+      // Reunoilla vain läpinäkyvää tai ääriviivaa.
+      for (let i = 0; i < fine.width; i++)
+        for (const j of [0, fine.height - 1])
+          expect([-1, OUTLINE]).toContain(fine.data[j * fine.width + i]);
+    }
+  });
 });

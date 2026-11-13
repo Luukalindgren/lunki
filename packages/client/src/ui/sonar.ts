@@ -1,7 +1,7 @@
 import { ECHO_STYLE, sonarRange, type SonarPing } from '@lunki/shared';
 import { decimal, t } from '../i18n';
 import {
-  SONAR_COLORS,
+  sonarColors,
   drawBed,
   drawCover,
   drawEchoArch,
@@ -15,8 +15,6 @@ const WIDTH = 64;
 const HEIGHT = 44;
 /** Uusi sarake näin usein (s): koko näyttö kattaa noin viisi sekuntia. */
 const COLUMN_TIME = 0.08;
-
-const COLORS = SONAR_COLORS;
 
 /**
  * Kaikuluotain HUD:ssa: rullaava kuva renkaan alta. Pohja ja kalat piirretään
@@ -73,12 +71,12 @@ export class SonarDisplay {
       this.drawSharp(g);
       return;
     }
-    g.fillStyle = COLORS.water;
+    g.fillStyle = sonarColors().water;
     g.fillRect(0, 0, WIDTH, HEIGHT);
     const range = sonarRange(Math.max(...this.columns.map((c) => c.bottom)));
     const y = (depth: number) => Math.round((depth / range) * (HEIGHT - 1));
     // Metrin välein himmeä apuviiva.
-    g.fillStyle = COLORS.grid;
+    g.fillStyle = sonarColors().grid;
     for (let d = 1; d < range; d++) {
       for (let x = (d % 2) * 2; x < WIDTH; x += 4) g.fillRect(x, y(d), 1, 1);
     }
@@ -86,20 +84,20 @@ export class SonarDisplay {
     this.columns.forEach((c, i) => {
       const x = offset + i;
       const by = y(c.bottom);
-      g.fillStyle = COLORS.bottom;
+      g.fillStyle = sonarColors().bottom;
       g.fillRect(x, by, 1, HEIGHT - by);
       // Kova pohja kaikuu paksumpana ja kirkkaampana viivana.
       g.fillStyle =
         c.floor === 'rock'
-          ? COLORS.rockLine
+          ? sonarColors().rockLine
           : c.floor === 'mud'
-            ? COLORS.mudLine
-            : COLORS.bottomLine;
+            ? sonarColors().mudLine
+            : sonarColors().bottomLine;
       g.fillRect(x, by, 1, c.floor === 'rock' ? 2 : 1);
       if (c.cover) {
         // Kivi kohoumana, kasvusto vihreänä ja risukko ruskeana kerroksena pohjan päällä.
         const top = Math.min(by - 1, y(c.bottom - c.cover.height));
-        g.fillStyle = COLORS[c.cover.kind];
+        g.fillStyle = sonarColors()[c.cover.kind];
         if (c.cover.kind === 'boulder') g.fillRect(x, top, 1, by - top);
         else for (let py = top + (x % 2); py < by; py += 2) g.fillRect(x, py, 1, 1);
       }

@@ -261,9 +261,9 @@ export const fi = {
   'settings.lookHint':
     'Terävä piirtää grafiikan näytön täydellä tarkkuudella. Jos peli alkaa nykiä, ilme palaa Retroon. Retro on kevyempi pikseli-ilme.',
   'look.fellBack': 'Terävä ilme oli tälle laitteelle liian raskas. Ilme vaihtui Retroon.',
-  'settings.lookModern': 'Moderni (kokeellinen)',
+  'settings.lookModern': 'Moderni',
   'settings.lookModernHint':
-    'Moderni on tietokoneille tehty ilme: pehmeät muodot, varjot ja oma käyttöliittymän tyyli. Se on vasta rakenteilla, ja osa pelistä näyttää vielä Terävältä. Jos peli alkaa nykiä, laatu kevenee ja lopulta ilme palaa Retroon.',
+    'Moderni on tietokoneille tehty ilme: pehmeät muodot, varjot ja oma käyttöliittymän tyyli. Jos peli alkaa nykiä, laatu kevenee ja lopulta ilme palaa Retroon.',
   'settings.lookLoading': 'Ladataan modernia ilmettä…',
   'settings.lookFailed':
     'Moderni ilme ei latautunut. Tarkista verkkoyhteys ja valitse se uudelleen.',

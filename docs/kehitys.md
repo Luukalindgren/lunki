@@ -169,10 +169,9 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
   ei ole valittu (`defaultLook`); Retro jää valittavaksi. Terävä piirtää saman
   kohtauksen näytön tarkkuudella ilman palettia ja reunat pehmennettyinä;
   sisältö, säännöt ja HUD ovat samat. Uusi ilme on uusi arvo samaan valintaan.
-- **Moderni (#650) on tietokoneen ilme** ja vielä rakenteilla (vaiheet
-  issuessa #650): maailma on tyyliä "Maalattu" (pehmeät muotoillut pinnat,
-  varjot, sinivihreä vesi) ja käyttöliittymä "eräkartta" (paperi, muste ja
-  korkeuskäyrät). Kosketuslaitteella sitä ei tarjota, eikä laatua karsita
+- **Moderni (#650) on tietokoneen ilme:** maailma on tyyliä "Maalattu"
+  (pehmeät muotoillut pinnat, varjot, sinivihreä vesi) ja käyttöliittymä
+  "eräkartta" (paperi, muste ja korkeuskäyrät). Kosketuslaitteella sitä ei tarjota, eikä laatua karsita
   puhelimen takia. Säännöt, HUDin rakenne ja ohjaus ovat samat kuin muissa
   ilmeissä.
 - **Modernin koodi, tyylit ja fontit ladataan vasta valittaessa**
@@ -299,7 +298,9 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
 - **Modernin teema** (`modern/theme.css`) vaihtaa käyttöliittymän värit
   `style.css`:n `--c-`-muuttujilla ja kirjasimet luokan `.look-modern` alla.
   Uusi valikon tai HUDin osa käyttää näitä muuttujia eikä kirjoita värejä
-  itse, jolloin se saa teeman ilman omaa sääntöä.
+  itse, jolloin se saa teeman ilman omaa sääntöä. Teema asettaa myös pelin
+  fontin (`--font`) tekstifontikseen, ja ympyrävalikot ovat paperilohkoja
+  musteen värisessä kehässä.
 - **Sisäinen tarkkuus on kummassakin ilmeessä sama** (`RetroRenderer.resolution`):
   kamerat, zoomitasot, merkkien koot ja HUDin mitta lasketaan siitä, joten
   näkyvä alue ei riipu ilmeestä. Terävä piirtää jokaisen sisäisen pikselin
@@ -331,18 +332,31 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
   Laskemalla piirretty kuva (vieheen timantti, `diamondPixels`) voi antaa
   `pixelTexture`lle saman muodon suoraan tarkempana. Maiseman tekstuurit
   (puiden lehvästö) ovat kummassakin ilmeessä samat.
+- **Modernissa laskemalla piirretty käyttöliittymän kuva piirretään suoraan
+  tarkkana.** Vieheiden ja kalojen kuvat (`lurePixels`, `fishPixels`) ovat
+  muotofunktioita, joten ne antavat `paintPixels(canvas, px, fine)`-kutsulle
+  saman kuvan nelinkertaisella tarkkuudella (`detail`): muoto, kuviot ja
+  värit ovat samat, mutta reunat ovat sileitä ja ääriviiva ohuempi
+  (`fineOutline`, `outlinePixels`). Käsin pikseleinä piirretyt kuvat
+  (käsimerkit, palkinnot) jäävät sileiksi versioiksi kuten Terävällä. Uusi
+  laskettu kuva antaa tarkan version samasta funktiosta, ei toista piirrosta.
 - **Fontti vaihtuu ilmeen mukana** CSS-muuttujalla `--font`: Retrossa VT323,
   Terävällä Lunki Silea, joka on sama fontti portaat sileiksi pehmennettynä
   (`scripts/fontti/sileafontti.py`, `src/assets/lunki-silea.woff2`). Merkkien
   leveydet ovat samat, joten asettelu ei muutu. Uusi tyyli käyttää
   `font-family: var(--font)` ja kankaalle piirrettävä teksti `uiFont(px)`
-  (`ui/lookArt.ts`), ei fontin nimeä.
+  (`ui/lookArt.ts`), ei fontin nimeä. Modernissa kumpikin on teeman
+  tekstifontti (`MODERN_FONT`), joka on leveämpi: kankaan teksti piirretään
+  siksi hieman pienempänä, ja uusi tekstirivi mitoitetaan niin, että se
+  mahtuu myös sillä.
 - **HUDin pienet näytöt** (kaikuluotain, vieheluotain, perhoheiton sivukuva)
   ottavat piirtopintansa `panelContext`illa (`ui/sonarArt.ts`): mitat ovat
   aina sisäisiä pikseleitä, ja Terävällä kankaassa on neljä kuvapistettä
   pikseliä kohden. Terävän kuva piirretään muotoina samoista tiedoista
   (pohja kaarena, kasvit varsina, kivet kumpuina, kalat kaarina); uusi
-  rakenne tai näyttö käyttää näitä eikä omaa kangaskokoa. Punnituskortti ja
+  rakenne tai näyttö käyttää näitä eikä omaa kangaskokoa. Värit kysytään
+  `sonarColors()`-kutsulla: Modernissa vesi on järven sinivihreää, kaiut ja
+  pohjan lajit ovat samat. Punnituskortti ja
   järvikartta tekevät Terävälle sileän version samasta piirroksesta
   (`smoothPixels`).
 - Modernissa `LookGuard` keventää ensin laatua taso kerrallaan

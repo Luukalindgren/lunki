@@ -256,9 +256,9 @@ export const en: Record<keyof typeof fi, string> = {
   'settings.lookHint':
     'Sharp draws the graphics at the full resolution of your screen. If the game starts to stutter, the look returns to Retro. Retro is the lighter pixel look.',
   'look.fellBack': 'The Sharp look was too heavy for this device. The look changed to Retro.',
-  'settings.lookModern': 'Modern (experimental)',
+  'settings.lookModern': 'Modern',
   'settings.lookModernHint':
-    'Modern is a look made for computers: soft shapes, shadows and its own interface style. It is still being built, and parts of the game still look like Sharp. If the game starts to stutter, the quality drops and finally the look returns to Retro.',
+    'Modern is a look made for computers: soft shapes, shadows and its own interface style. If the game starts to stutter, the quality drops and finally the look returns to Retro.',
   'settings.lookLoading': 'Loading the modern look…',
   'settings.lookFailed': 'The modern look did not load. Check your connection and select it again.',
   'settings.quality': 'Quality',

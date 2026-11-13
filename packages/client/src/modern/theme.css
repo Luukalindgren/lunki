@@ -43,6 +43,15 @@
   --title-font: 'Fraunces', Georgia, serif;
 }
 
+/*
+ * Tyylit, jotka pyytävät pelin fonttia nimeltä (var(--font)), saavat teeman
+ * tekstifontin. Valitsin on yhtä tarkka kuin style.css:n Terävän sääntö
+ * (html.look-sharp), joka on Modernissakin voimassa.
+ */
+html.look-modern {
+  --font: var(--text-font);
+}
+
 /* Valikot: käyttöliittymän värit (style.css:n --c-muuttujat) paperin ja musteen sävyiksi. */
 
 .look-modern .screen,
@@ -282,4 +291,37 @@
 .look-modern .player-list li.boat-crew {
   border: 1px solid var(--paper-line);
   border-radius: 3px;
+}
+
+/* Ympyrävalikot (käsimerkit, viehepakki, kalastustapa): paperilohkot musteen
+   värisessä kehässä, valittu lohko vaaleana ja nimi keskellä kartan tekstinä. */
+.look-modern .ring-menu {
+  --c-panel: var(--paper-light);
+  --c-surface: var(--paper);
+  --c-line: var(--paper-edge);
+  --c-select: #f3d98a;
+  --c-text: var(--ink);
+  --c-accent: var(--ink-soft);
+  border: 3px solid var(--ink);
+  box-shadow:
+    0 0 0 5px var(--paper-light),
+    0 0 0 6px var(--paper-edge),
+    0 8px 26px rgb(0 0 0 / 40%);
+  text-shadow: none;
+}
+
+.look-modern .ring-hole {
+  border: 2px solid var(--paper-edge);
+  box-shadow: inset 0 0 0 4px var(--paper-light);
+}
+
+.look-modern .ring-caption {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.look-modern .ring-key {
+  font-size: 14px;
+  font-weight: 700;
 }

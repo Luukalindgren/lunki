@@ -1,6 +1,7 @@
 import { fishLengthCm, type SpeciesId } from '@lunki/shared';
 import { activeLook } from '../engine/look';
-import { lookArt, paintPixels } from './lookArt';
+import { outlinePixels } from '../engine/smoothPixels';
+import { fineOutline, lookArt, paintPixels } from './lookArt';
 
 /**
  * Kalalajien pikselikuvat saaliille ja ennätyksille. Kuva lasketaan lajin
@@ -454,10 +455,17 @@ export interface FishPixels {
   data: Int32Array;
 }
 
-/** Kalan pikselikuva annetun levyisenä; kuono vasemmalla. */
-export function fishPixels(species: SpeciesId, width: number): FishPixels {
+/**
+ * Kalan pikselikuva annetun levyisenä; kuono vasemmalla. `detail` laskee saman
+ * kalan tarkempana: kuva on tasan sen verran suurempi (kuvapisteitä pikselin
+ * sivulla), ja yhden pikselin yksityiskohdat (ääriviiva, suu, kiduskansi,
+ * evän piikit) saavat pikselin osan paksuuden.
+ */
+export function fishPixels(species: SpeciesId, width: number, detail = 1): FishPixels {
   const look = LOOKS[species];
-  const W = Math.max(8, Math.round(width));
+  const W = Math.max(8, Math.round(width)) * detail;
+  /** Yhden lähdepikselin viivan paksuus tarkassa kuvassa. */
+  const thin = fineOutline(detail);
   const depthPx = look.depth * W;
   const finTop = Math.max(0, ...look.fins.filter((f) => f.side === 'top').map((f) => f.height));
   const finBottom = Math.max(
@@ -467,8 +475,9 @@ export function fishPixels(species: SpeciesId, width: number): FishPixels {
   const tailHalf = (look.tail * depthPx) / 2;
   const up = Math.max(depthPx * (1 - look.belly) + finTop * depthPx, tailHalf);
   const down = Math.max(depthPx * look.belly + finBottom * depthPx, tailHalf);
-  const cy = Math.ceil(up) + 1;
-  const H = cy + Math.ceil(down) + 1;
+  // Reunan vara lasketaan lähdepikseleinä, jotta tarkka kuva on tasan kertoimen kokoinen.
+  const cy = (Math.ceil(up / detail) + 1) * detail;
+  const H = cy + (Math.ceil(down / detail) + 1) * detail;
   const data = new Int32Array(W * H).fill(-1);
   const set = (i: number, j: number, c: number) => {
     if (i >= 0 && i < W && j >= 0 && j < H) data[j * W + i] = c;
@@ -487,14 +496,14 @@ export function fishPixels(species: SpeciesId, width: number): FishPixels {
         const up = top(t);
         const down = bottom(t);
         if (y >= -up && y <= down) {
-          set(i, j, bodyColor(look, t, y < 0 ? y / up : y / down, i, j, W));
+          set(i, j, bodyColor(look, t, y < 0 ? y / up : y / down, i, j, W, detail));
           continue;
         }
         for (const f of look.fins) {
           if (t < f.from || t > f.to) continue;
           const local = (t - f.from) / (f.to - f.from);
           let h = f.height * depthPx * Math.sqrt(1 - local) * Math.min(1, local / 0.15 + 0.3);
-          if (f.spiny && i % 2 === 1) h *= 0.7;
+          if (f.spiny && Math.floor(i / detail) % 2 === 1) h *= 0.7;
           const inFin = f.side === 'top' ? y < -up && y >= -up - h : y > down && y <= down + h;
           if (inFin) set(i, j, f.spot !== undefined && local > 0.65 ? f.spot : f.color);
         }
@@ -518,13 +527,13 @@ export function fishPixels(species: SpeciesId, width: number): FishPixels {
     const r = y < 0 ? y / top(t) : y / bottom(t);
     if (Math.abs(r) > 0.75) continue;
     const i = gill - Math.round(r * r * W * 0.03);
-    if (data[j * W + i]! >= 0) set(i, j, look.back);
+    for (let d = 0; d < thin; d++) if (data[j * W + i + d]! >= 0) set(i + d, j, look.back);
   }
 
   // Rintaevä kyljessä kiduskannen takana.
   const pecLen = Math.max(2, Math.round(W * 0.07));
   for (let k = 0; k < pecLen; k++) {
-    const i = gill + 1 + k;
+    const i = gill + thin + k;
     const t = (i + 0.5) / bodyEnd;
     const base = cy + Math.round(bottom(t) * 0.2);
     const len = Math.max(1, Math.round((1 - k / pecLen) * depthPx * 0.18));
@@ -534,7 +543,9 @@ export function fishPixels(species: SpeciesId, width: number): FishPixels {
   // Suu kuonon kärjestä silmää kohti.
   const mouthLen = Math.max(1, Math.round(W * look.mouth));
   const mouthY = cy + Math.max(0, Math.round(bottom(look.snout) * 0.15));
-  for (let i = 0; i < mouthLen; i++) if (data[mouthY * W + i]! >= 0) set(i, mouthY, OUTLINE);
+  for (let i = 0; i < mouthLen; i++)
+    for (let d = 0; d < thin; d++)
+      if (data[(mouthY + d) * W + i]! >= 0) set(i, mouthY + d, OUTLINE);
 
   // Silmä: iiris ja pupilli.
   const ex = Math.round(bodyEnd * look.eyeAt);
@@ -552,33 +563,43 @@ export function fishPixels(species: SpeciesId, width: number): FishPixels {
       if (dx * dx + dy * dy <= pr * pr + pr) set(ex + dx, ey + dy, PUPIL);
     }
   }
-  if (er >= 2) set(ex - 1, ey - 1, WHITE);
+  if (er >= 2)
+    for (let dx = 0; dx < thin; dx++)
+      for (let dy = 0; dy < thin; dy++) set(ex - thin + dx, ey - thin + dy, WHITE);
 
   // Tumma reunaviiva erottaa kalan taustasta.
-  const filled = data.slice();
-  for (let j = 0; j < H; j++) {
-    for (let i = 0; i < W; i++) {
-      if (filled[j * W + i]! >= 0) continue;
-      const near =
-        (i > 0 && filled[j * W + i - 1]! >= 0) ||
-        (i < W - 1 && filled[j * W + i + 1]! >= 0) ||
-        (j > 0 && filled[(j - 1) * W + i]! >= 0) ||
-        (j < H - 1 && filled[(j + 1) * W + i]! >= 0);
-      if (near) data[j * W + i] = OUTLINE;
-    }
-  }
+  outlinePixels(data, W, H, OUTLINE, thin);
   return { width: W, height: H, data };
 }
 
-/** Kyljen väri: selkä tumma, vatsa vaalea, väliin raidat ja täplät. */
-function bodyColor(look: FishLook, t: number, r: number, i: number, j: number, W: number): number {
+/**
+ * Kyljen väri: selkä tumma, vatsa vaalea, väliin raidat ja täplät. Tarkassa
+ * kuvassa (`detail` > 1) täplät ovat samoissa ruuduissa soikioina.
+ */
+function bodyColor(
+  look: FishLook,
+  t: number,
+  r: number,
+  i: number,
+  j: number,
+  W: number,
+  detail: number,
+): number {
   if (look.bars && fishBar(look, t, r)) return look.bars.color;
   for (const s of look.spots ?? []) {
     if (r < s.minR || r > s.maxR || t < 0.2 || t > 0.97) continue;
-    const size = Math.max(2, Math.round(s.cell * W));
+    const size = Math.max(2, Math.round((s.cell * W) / detail)) * detail;
     const cy = Math.floor(j / size);
-    const cx = Math.floor((i + (cy % 2) * (size >> 1)) / size);
-    if (hash(cx, cy, s.color) < s.density && (i + j) % size !== size - 1) return s.color;
+    const shift = (cy % 2) * (size >> 1);
+    const cx = Math.floor((i + shift) / size);
+    if (hash(cx, cy, s.color) >= s.density) continue;
+    if (detail === 1) {
+      if ((i + j) % size !== size - 1) return s.color;
+      continue;
+    }
+    const dx = (i + 0.5 + shift - (cx + 0.5) * size) / (size * 0.52);
+    const dy = (j + 0.5 - (cy + 0.5) * size) / (size * 0.4);
+    if (dx * dx + dy * dy <= 1) return s.color;
   }
   if (r < -0.4) return look.back;
   if (r > 0.45) return look.bellyColor;
@@ -612,7 +633,7 @@ function fishSprite(species: SpeciesId, width: number): FishSprite {
   if (hit) return hit;
   const px = fishPixels(species, width);
   const canvas = document.createElement('canvas');
-  paintPixels(canvas, px);
+  paintPixels(canvas, px, (detail) => fishPixels(species, width, detail));
   const sprite = { url: canvas.toDataURL(), width: px.width, height: px.height };
   cache.set(key, sprite);
   return sprite;

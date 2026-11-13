@@ -1,6 +1,7 @@
 import { FLY_IDS, LURE_IDS, type FlyId, type LureId, type Method } from '@lunki/shared';
 import { activeLook } from '../engine/look';
-import { lookArt, paintPixels } from './lookArt';
+import { outlinePixels } from '../engine/smoothPixels';
+import { fineOutline, lookArt, paintPixels } from './lookArt';
 
 /**
  * Vieheiden, perhojen ja vapojen pikselikuvat (#362) samaan tyyliin kuin
@@ -416,31 +417,23 @@ export interface LurePixels {
   data: number[];
 }
 
-/** Vieheen tai vavan yksi animaatiokuva pikseleinä, reunassa tumma ääriviiva. */
-export function lurePixels(id: ArtId, frame: number): LurePixels {
-  const W = LURE_ART_W;
-  const H = LURE_ART_H;
+/**
+ * Vieheen tai vavan yksi animaatiokuva pikseleinä, reunassa tumma ääriviiva.
+ * `detail` laskee saman piirroksen tarkempana (kuvapisteitä pikselin sivulla).
+ */
+export function lurePixels(id: ArtId, frame: number, detail = 1): LurePixels {
+  const W = LURE_ART_W * detail;
+  const H = LURE_ART_H * detail;
   const shape = SHAPES[id](((frame % LURE_FRAMES) + LURE_FRAMES) % LURE_FRAMES);
   const data: number[] = [];
   for (let j = 0; j < H; j++) {
     for (let i = 0; i < W; i++) {
       // Reunarivit jäävät ääriviivalle.
-      const inside = i > 0 && j > 0 && i < W - 1 && j < H - 1;
-      data.push(inside ? shape(i + 0.5, j + 0.5) : -1);
+      const inside = i >= detail && j >= detail && i < W - detail && j < H - detail;
+      data.push(inside ? shape((i + 0.5) / detail, (j + 0.5) / detail) : -1);
     }
   }
-  const filled = data.slice();
-  for (let j = 0; j < H; j++) {
-    for (let i = 0; i < W; i++) {
-      if (filled[j * W + i]! >= 0) continue;
-      const near =
-        (i > 0 && filled[j * W + i - 1]! >= 0) ||
-        (i < W - 1 && filled[j * W + i + 1]! >= 0) ||
-        (j > 0 && filled[(j - 1) * W + i]! >= 0) ||
-        (j < H - 1 && filled[(j + 1) * W + i]! >= 0);
-      if (near) data[j * W + i] = OUTLINE;
-    }
-  }
+  outlinePixels(data, W, H, OUTLINE, fineOutline(detail));
   return { width: W, height: H, data };
 }
 
@@ -456,7 +449,7 @@ function lureStrip(id: ArtId): string {
   const ctx = canvas.getContext('2d')!;
   for (let f = 0; f < LURE_FRAMES; f++) {
     // Kuvat piirretään yksitellen, jottei sileä versio vuoda naapurikuvaan.
-    paintPixels(frame, lurePixels(id, f));
+    paintPixels(frame, lurePixels(id, f), (detail) => lurePixels(id, f, detail));
     if (f === 0) {
       canvas.width = frame.width * LURE_FRAMES;
       canvas.height = frame.height;

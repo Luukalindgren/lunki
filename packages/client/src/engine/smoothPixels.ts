@@ -12,6 +12,34 @@ export interface PixelImage {
   data: ArrayLike<number>;
 }
 
+/**
+ * Tumma ääriviiva kuvan ympärille: läpinäkyvä kuvapiste saa värin `color`, jos
+ * enintään `radius` kuvapisteen päässä on väriä. Säde 1 on neljä naapuria.
+ */
+export function outlinePixels(
+  data: number[] | Int32Array,
+  width: number,
+  height: number,
+  color: number,
+  radius = 1,
+): void {
+  const filled = data.slice();
+  const reach: [number, number][] = [];
+  for (let dy = -radius; dy <= radius; dy++)
+    for (let dx = -radius; dx <= radius; dx++)
+      if ((dx !== 0 || dy !== 0) && dx * dx + dy * dy <= radius * radius) reach.push([dx, dy]);
+  for (let j = 0; j < height; j++)
+    for (let i = 0; i < width; i++) {
+      if (filled[j * width + i]! >= 0) continue;
+      const near = reach.some(([dx, dy]) => {
+        const x = i + dx;
+        const y = j + dy;
+        return x >= 0 && x < width && y >= 0 && y < height && filled[y * width + x]! >= 0;
+      });
+      if (near) data[j * width + i] = color;
+    }
+}
+
 /** Montako kuvapistetta terävässä kuvassa on lähdepikselin sivulla. */
 export const SMOOTH_FACTOR = 4;
 

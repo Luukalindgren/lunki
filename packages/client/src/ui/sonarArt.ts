@@ -13,7 +13,7 @@ import { activeLook, smoothLook } from '../engine/look';
 /** Terävän näytön kuvapisteitä sisäistä pikseliä kohden. */
 export const PANEL_DETAIL = 4;
 
-export const SONAR_COLORS = {
+const RETRO_SONAR = {
   water: '#12324a',
   waterDeep: '#0d263a',
   surface: '#83c2db',
@@ -41,15 +41,32 @@ export const SONAR_COLORS = {
   trail: '#4f6f86',
   glint: '#eef2f3',
   bite: '#d23a2a',
-} as const;
+};
+
+/**
+ * Modernin ilmeen (#650) luotain: vesi on järven sinivihreää ja viivat kartan
+ * vaaleaa mustetta. Pohjan, kasvien ja kalojen värit ovat samat.
+ */
+const MODERN_SONAR: typeof RETRO_SONAR = {
+  ...RETRO_SONAR,
+  water: '#1f4f55',
+  waterDeep: '#0f2c33',
+  surface: '#b4e0d6',
+  grid: '#3f726d',
+  trail: '#6f9c98',
+};
+
+/** Luotainten värit käytössä olevan ilmeen mukaan. */
+export const sonarColors = (): typeof RETRO_SONAR =>
+  activeLook() === 'modern' ? MODERN_SONAR : RETRO_SONAR;
 
 /** Pohjan pintaviivan väri pohjan laadun mukaan. */
 export const floorLine = (floor: BottomType | null | undefined): string =>
   floor === 'rock'
-    ? SONAR_COLORS.rockLine
+    ? sonarColors().rockLine
     : floor === 'mud'
-      ? SONAR_COLORS.mudLine
-      : SONAR_COLORS.bottomLine;
+      ? sonarColors().mudLine
+      : sonarColors().bottomLine;
 
 /**
  * Asettaa kankaan koon ilmeen mukaan ja palauttaa piirtopinnan, jonka
@@ -102,11 +119,11 @@ export function drawWater(
   lines: readonly number[],
 ): void {
   const fill = g.createLinearGradient(0, 0, 0, height);
-  fill.addColorStop(0, SONAR_COLORS.water);
-  fill.addColorStop(1, SONAR_COLORS.waterDeep);
+  fill.addColorStop(0, sonarColors().water);
+  fill.addColorStop(1, sonarColors().waterDeep);
   g.fillStyle = fill;
   g.fillRect(0, 0, width, height);
-  g.strokeStyle = SONAR_COLORS.grid;
+  g.strokeStyle = sonarColors().grid;
   g.lineWidth = 0.3;
   g.setLineDash([1, 3]);
   g.beginPath();
@@ -154,16 +171,16 @@ export function drawBed(g: CanvasRenderingContext2D, cols: readonly BedColumn[],
     g.fillStyle = color;
     g.fill();
   };
-  body(0, SONAR_COLORS.bottom);
-  body(4, SONAR_COLORS.bottomMid);
-  body(11, SONAR_COLORS.bottomDeep);
+  body(0, sonarColors().bottom);
+  body(4, sonarColors().bottomMid);
+  body(11, sonarColors().bottomDeep);
   // Rakeet: kivikossa vaaleita kiviä, muualla tummia jyviä.
   for (const c of cols) {
     for (let k = 0; k < 2; k++) {
       const dy = 0.9 + panelHash(c.key, 20 + k) * 5;
       if (c.y + dy > height) continue;
       const rock = c.floor === 'rock';
-      g.fillStyle = rock ? SONAR_COLORS.rocksDark : SONAR_COLORS.bottomDeep;
+      g.fillStyle = rock ? sonarColors().rocksDark : sonarColors().bottomDeep;
       const r = rock ? 0.3 + panelHash(c.key, 30 + k) * 0.35 : 0.2;
       g.beginPath();
       g.arc(c.x + panelHash(c.key, 40 + k) - 0.5, c.y + dy, r, 0, Math.PI * 2);
@@ -267,17 +284,17 @@ const boulder: CoverPainter = (g, run) => {
     g.closePath();
   };
   dome(0);
-  g.fillStyle = SONAR_COLORS.rocksDark;
+  g.fillStyle = sonarColors().rocksDark;
   g.fill();
   g.save();
   g.clip();
   // Valo tulee ylävasemmalta: sama kumpu siirrettynä jättää varjon oikeaan alareunaan.
   g.translate(-0.5, -0.4);
   dome(0);
-  g.fillStyle = SONAR_COLORS.rocks;
+  g.fillStyle = sonarColors().rocks;
   g.fill();
   g.restore();
-  line(g, SONAR_COLORS.rocksLight, 0.3, (p) => {
+  line(g, sonarColors().rocksLight, 0.3, (p) => {
     const tops = run.map((c) => ({ x: c.x, y: c.cover!.top + 0.25 }));
     p.moveTo(tops[0]!.x, tops[0]!.y);
     curveThrough(p, [tops[0]!, ...tops]);
@@ -290,9 +307,9 @@ const rocks: CoverPainter = (g, run) => {
     const r = 0.45 + panelHash(c.key, 1) * 0.5;
     g.beginPath();
     g.ellipse(c.x, c.y - r * 0.5, r * 1.1, r, 0, 0, Math.PI * 2);
-    g.fillStyle = panelHash(c.key, 2) < 0.5 ? SONAR_COLORS.rocks : SONAR_COLORS.rocksDark;
+    g.fillStyle = panelHash(c.key, 2) < 0.5 ? sonarColors().rocks : sonarColors().rocksDark;
     g.fill();
-    line(g, SONAR_COLORS.rocksLight, 0.2, (p) =>
+    line(g, sonarColors().rocksLight, 0.2, (p) =>
       p.ellipse(c.x, c.y - r * 0.5, r * 1.1, r, 0, Math.PI * 1.1, Math.PI * 1.6),
     );
   }
@@ -306,7 +323,7 @@ const brush: CoverPainter = (g, run) => {
     const lean = (panelHash(c.key, 1) - 0.5) * 2.4;
     const len = 0.6 + panelHash(c.key, 2) * 0.4;
     const tip = { x: c.x + lean, y: c.y - h * len };
-    const color = panelHash(c.key, 3) < 0.5 ? SONAR_COLORS.brush : SONAR_COLORS.brushLight;
+    const color = panelHash(c.key, 3) < 0.5 ? sonarColors().brush : sonarColors().brushLight;
     line(g, color, 0.3, (p) => {
       p.moveTo(c.x, c.y);
       p.lineTo(tip.x, tip.y);
@@ -323,7 +340,7 @@ const brush: CoverPainter = (g, run) => {
 const tree: CoverPainter = (g, run) => {
   const a = run[0]!;
   const b = run[run.length - 1]!;
-  line(g, SONAR_COLORS.tree, 0.8, (p) => {
+  line(g, sonarColors().tree, 0.8, (p) => {
     p.moveTo(a.x - 0.4, a.y - 0.5);
     curveThrough(
       p,
@@ -334,7 +351,7 @@ const tree: CoverPainter = (g, run) => {
   for (const c of run) {
     if (panelHash(c.key, 1) < 0.45) continue;
     const h = 1 + panelHash(c.key, 2) * 2;
-    line(g, SONAR_COLORS.brush, 0.3, (p) => {
+    line(g, sonarColors().brush, 0.3, (p) => {
       p.moveTo(c.x, c.y - 0.8);
       p.lineTo(c.x + (panelHash(c.key, 3) - 0.5) * 1.6, c.y - 0.8 - h);
     });
@@ -346,8 +363,8 @@ const COVER: Record<CoverKind, CoverPainter> = {
   rocks,
   brush,
   tree,
-  weed: stems(SONAR_COLORS.weed, SONAR_COLORS.weedLight, true),
-  reeds: stems(SONAR_COLORS.reeds, SONAR_COLORS.reedsLight, false),
+  weed: stems(sonarColors().weed, sonarColors().weedLight, true),
+  reeds: stems(sonarColors().reeds, sonarColors().reedsLight, false),
 };
 
 /**

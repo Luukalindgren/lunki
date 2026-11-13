@@ -40,4 +40,29 @@ describe('kalojen kuvat', () => {
       seen.add(colors);
     }
   });
+
+  it('Modernin tarkka kuva on täsmälleen nelinkertainen ja samaa kalaa', () => {
+    for (const id of SPECIES_IDS) {
+      for (const width of [MIN_SPRITE_WIDTH, 48, MAX_SPRITE_WIDTH]) {
+        const base = fishPixels(id, width);
+        const fine = fishPixels(id, width, 4);
+        // Kuvan paikka sivulla tulee pikselikuvan mitoista: tarkan pitää olla tasan 4×.
+        expect(fine.width).toBe(base.width * 4);
+        expect(fine.height).toBe(base.height * 4);
+        expect(fine.data.length).toBe(fine.width * fine.height);
+        const share = (px: { data: ArrayLike<number> }) =>
+          Array.from(px.data).filter((c) => c >= 0).length / px.data.length;
+        // Sama muoto; ohuempi ääriviiva vie pienestä kuvasta vähemmän tilaa.
+        expect(share(fine)).toBeLessThan(share(base) + 0.03);
+        expect(share(fine)).toBeGreaterThan(share(base) - 0.2);
+        // Samat värit: tarkka kuva ei tuo uusia sävyjä (pienin kuva jättää silmän kiillon pois).
+        const colors = new Set([...base.data, ...fishPixels(id, MAX_SPRITE_WIDTH).data]);
+        const extra = [...new Set(fine.data)].filter((c) => !colors.has(c));
+        expect(extra).toEqual([]);
+        for (let i = 0; i < fine.width; i++)
+          for (const j of [0, fine.height - 1])
+            expect([-1, 0x0b0f14]).toContain(fine.data[j * fine.width + i]);
+      }
+    }
+  });
 });
