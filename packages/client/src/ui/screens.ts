@@ -1,3 +1,4 @@
+import type { Look } from '../engine/look';
 import type { ControlStyle } from '../game/controlStyle';
 import {
   APPEARANCE_PARTS,
@@ -233,6 +234,8 @@ export interface SettingsControls {
     /** Toteutunut pysty-FOV tällä ruudulla valinnalla `fov`. */
     effective: (fov: number) => number;
   };
+  /** Ilme (#674): Retro tai Terävä. */
+  look: { current: Look; onChange: (look: Look) => void };
   /** Opastus ensimmäiseen kalaan (#370): päälle alusta tai pois. */
   guide: { current: boolean; onChange: (on: boolean) => void };
   /** Ohjaustapa (#638): yksinkertainen tai täysi. */
@@ -1250,6 +1253,16 @@ export class Screens {
       h('h3', t('settings.display'), 'settings-section'),
       this.hudSizeSlider(c.hudSize),
       this.povFovSlider(c.povFov),
+      this.choice(
+        t('settings.look'),
+        [
+          ['retro', t('settings.lookRetro')],
+          ['sharp', t('settings.lookSharp')],
+        ],
+        c.look.current,
+        (v) => c.look.onChange(v as Look),
+      ),
+      h('p', t('settings.lookHint'), 'hint'),
       this.choice(
         t('settings.guide'),
         [

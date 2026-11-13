@@ -250,6 +250,12 @@ export const en: Record<keyof typeof fi, string> = {
   'settings.controlFull': 'Full',
   'settings.controlStyleHint':
     'Simple: one button casts and reels, and reeling brings the fish in. The lure is a spinner and the reel speed is 3. No drag, lure change or fly fishing. Full: all mechanics. The choice is your own and does not affect the competition rules or the record lists.',
+  'settings.look': 'Look',
+  'settings.lookRetro': 'Retro',
+  'settings.lookSharp': 'Sharp',
+  'settings.lookHint':
+    'Sharp draws the same graphics at the full resolution of your screen. It is heavier: if the game starts to stutter, the look returns to Retro.',
+  'look.fellBack': 'The Sharp look was too heavy for this device. The look changed to Retro.',
   'settings.guide': 'Guide',
   'settings.guideOn': 'Show from start',
   'settings.guideOff': 'Off',

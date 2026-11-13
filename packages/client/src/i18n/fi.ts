@@ -255,6 +255,12 @@ export const fi = {
   'settings.controlFull': 'Täysi',
   'settings.controlStyleHint':
     'Yksinkertainen: yksi nappi heittää ja kelaa, ja kelaus tuo kalan kyytiin. Vieheenä on lippa ja kelausnopeus on 3. Ei jarrua, vieheen vaihtoa eikä perhoa. Täysi: kaikki mekaniikat. Valinta on oma, eikä se vaikuta kisan sääntöihin tai ennätyslistoihin.',
+  'settings.look': 'Ilme',
+  'settings.lookRetro': 'Retro',
+  'settings.lookSharp': 'Terävä',
+  'settings.lookHint':
+    'Terävä piirtää saman grafiikan näytön täydellä tarkkuudella. Se on raskaampi: jos peli alkaa nykiä, ilme palaa Retroon.',
+  'look.fellBack': 'Terävä ilme oli tälle laitteelle liian raskas. Ilme vaihtui Retroon.',
   'settings.guide': 'Opastus',
   'settings.guideOn': 'Näytä alusta',
   'settings.guideOff': 'Pois',
