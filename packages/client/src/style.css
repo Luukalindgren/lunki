@@ -2026,6 +2026,24 @@ textarea,
   white-space: nowrap;
 }
 
+/* Koko tulostaulu tauolla: kosketuksella se ei ole HUDissa. */
+.pause-scoreboard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 8px 0 0;
+  padding: 4px 6px 6px;
+  border: 2px solid #4a5563;
+  background: #141a21;
+}
+
+.pause-scoreboard pre {
+  margin: 0;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.15;
+}
+
 .screen-panel p.pause-best {
   margin: 8px 0 0;
   overflow: hidden;
@@ -2662,18 +2680,9 @@ textarea,
     );
   }
 
-  /* Kompassi ja sää ruudun keskilinjalla kuten ilmoitukset. Kompassi on
-     kapeampi (160°), jotta se mahtuu kellon viereen; suurella HUD-koolla se
-     siirtyy kellon oikealle puolelle (Hud mittaa --timer-w ja --compass-w). */
+  /* Kompassi on kapeampi (160°), jotta se mahtuu kellon ja luotaimen väliin. */
   .hud.touch {
     --compass-u: 64;
-  }
-
-  .hud.touch .hud-top-center {
-    left: max(
-      50%,
-      calc(var(--col2) + var(--timer-w, 0px) + var(--m) * 4 + var(--compass-w, 0px) / 2)
-    );
   }
 
   /* Kompassi on kellon korkuinen (#657): sää on heti sen alla ilman tyhjää
@@ -2690,6 +2699,11 @@ textarea,
   /* ...ja kellon alla oleva pino (saaliit tai tila) sään alapuolelle. */
   .hud.touch .hud-timer {
     margin-bottom: max(0px, calc(var(--top-h, 0px) - var(--timer-h, 0px)));
+  }
+
+  /* Pienempi kello madaltaa koko ylärivin: kompassi on kellon korkuinen. */
+  .hud.touch .hud-timer {
+    font-size: calc(var(--u) * 10);
   }
 
   .hud.touch .hud-catches {
@@ -2730,40 +2744,23 @@ textarea,
     font-size: calc(var(--u) * 7);
   }
 
-  /* Kireysmittarin (60 + kehys 2) ja sen tekstin (2 + 8) alle. */
   .hud.touch .hud-gauges {
-    right: var(--edge-r);
-    top: calc(var(--m) * 10 + var(--u) * 72);
     flex-direction: column;
     align-items: flex-end;
-  }
-
-  /* Vasemman pinon vieheluotain on samalla korkeudella kuin oikean reunan
-     luotain: kapealla ruudulla se kapenee luotaimen vasemmalle puolelle. */
-  .hud.touch .hud-top-left > .hud-lure-sonar canvas {
-    width: min(
-      calc(var(--u) * 96),
-      calc(100vw - var(--col2) - var(--edge-r) - var(--right-w, 0px) - var(--m) * 4 - var(--u) * 4)
-    );
-  }
-
-  /* Teksti ei levennä paneelia kuvan ohi: isolla HUDilla se rivittyy. */
-  .hud.touch .hud-top-left > .hud-lure-sonar .hud-sonar-label {
-    width: 0;
-    min-width: 100%;
   }
 
   /* Ilmoitukset kellon, saaliiden, chatin ja oikean reunan luotaimen alle,
      koko leveydelle ruudun keskelle oikean alakulman nappien (16 + KELAA 88 + 8
      + 3 × 44 + 2 × 6 = 256 px) yläpuolelle. Ylhäällä vasemmalla nappirivi:
-     4 nappia, moninpelissä 5 (8 + n × 50). Vieheluotain on pystyssä vasemmassa
-     pinossa (Hud.placeLureSonar), joten alueelle jää korkeutta. */
+     4 nappia, moninpelissä 5 (8 + n × 50). Oikealla kireysmittari teksteineen
+     (60 + kehys 2 + 2 + 8 u) ja sen vieressä luotain; vieheluotain on
+     alareunassa (Hud.placeLureSonar). */
   .hud.touch .hud-notices {
     --nl: var(--edge-l);
     --nr: var(--edge-r);
     top: max(
       calc(var(--m) * 8 + var(--left-h, calc(var(--u) * 126))),
-      calc(var(--m) * 14 + var(--u) * 72 + var(--right-h, 0px)),
+      calc(var(--m) * 8 + max(var(--u) * 72, var(--right-h, 0px))),
       calc(208px + env(safe-area-inset-top, 0px))
     );
     /* Perhoheiton sivukuva (alareuna 190 px) on vasemmalla nappien yläpuolella. */
@@ -2778,8 +2775,27 @@ textarea,
       calc(var(--m) * 8 + var(--left-h, calc(var(--u) * 126))),
       calc(var(--m) * 8 + var(--left-h, calc(var(--u) * 118)) + var(--chat-h, 0px)),
       calc(258px + var(--chat-h, 0px) + env(safe-area-inset-top, 0px)),
-      calc(var(--m) * 14 + var(--u) * 72 + var(--right-h, 0px)),
+      calc(var(--m) * 8 + max(var(--u) * 72, var(--right-h, 0px))),
       calc(258px + env(safe-area-inset-top, 0px))
+    );
+  }
+
+  /* Yksinkertaisella nappirivissä on POV:ssa vain tauko ja KAM (8 + 2 × 50 px,
+     moninpelissä lisäksi chat) eikä vasemmassa pinossa muuta kuin kello, joten
+     ilmoitukset nousevat heti sään ja luotaimen alle pois järven päältä. */
+  .hud.touch.simple:has(.touch-controls.simple.pov) .hud-notices {
+    top: max(
+      calc(var(--m) * 8 + var(--left-h, 0px)),
+      calc(var(--m) * 8 + var(--right-h, 0px)),
+      calc(116px + env(safe-area-inset-top, 0px))
+    );
+  }
+
+  .hud.touch.simple.mp:has(.touch-controls.simple.pov) .hud-notices {
+    top: max(
+      calc(var(--m) * 8 + var(--left-h, 0px)),
+      calc(var(--m) * 8 + var(--right-h, 0px)),
+      calc(166px + var(--chat-h, 0px) + env(safe-area-inset-top, 0px))
     );
   }
 
@@ -3382,27 +3398,77 @@ textarea,
   top: calc(var(--m) * 4);
 }
 
-/* Pystyssä luotain on aivan kulmassa, ja yläreunan rivi on kello, kompassi ja
-   luotain. Kompassi on heti kellon oikealla puolella ja kapenee tarvittaessa
-   luotaimen tieltä. Sää alkaa kellon vasemmasta reunasta kompassin alta ja
-   rivittyy, jos se ei mahdu luotaimen vasemmalle puolelle. */
+/* Kosketuksella tulostaulu ja saalislista ovat taukovalikossa: HUDissa ne
+   veivät pienen ruudun yläosan. Katsojalle tulostaulu on koko näkymän asia. */
+.hud.touch:not(.spectator) .hud-catches {
+  display: none;
+}
+
+/* Vieheluotain alareunassa tatin (124 px) ja ison napin (88 px) välissä
+   (Hud.placeLureSonar: yksinkertaisella aina, täydellä pystyssä, kun napit
+   ovat ison napin yläpuolella): siinä se ei peitä järveä eikä liiku sään mukana. */
+.hud.touch > .hud-lure-sonar {
+  --lure-room: calc(100vw - var(--edge-l) - var(--edge-r) - 212px);
+  left: calc(var(--edge-l) + 124px + var(--lure-room) / 2);
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+}
+
+.hud.touch > .hud-lure-sonar canvas {
+  width: min(calc(var(--u) * 96), calc(var(--lure-room) - 16px - var(--u) * 4));
+  height: auto;
+}
+
+/* Täydellä ohjauksella napit ovat heti ison napin yläpuolella: luotain
+   kaksirivisine teksteineen pysyy ison napin korkuisena (88 px). */
+.hud.touch:not(.simple) > .hud-lure-sonar canvas {
+  width: min(
+    calc(var(--u) * 96),
+    calc(var(--lure-room) - 16px - var(--u) * 4),
+    calc((88px - var(--u) * 26) * 96 / 44)
+  );
+}
+
+.hud.touch > .hud-lure-sonar .hud-sonar-label {
+  width: 0;
+  min-width: 100%;
+}
+
+/* Pystyssä yläreunan rivi on kello, kompassi ja luotain (#671). Luotain on
+   aivan kulmassa, täydellä ohjauksella kireysmittarin vasemmalla puolella.
+   Kompassi on heti kellon oikealla puolella ja kapenee tarvittaessa luotaimen
+   tieltä. Sää alkaa kellon vasemmasta reunasta kompassin alta ja rivittyy,
+   jos se ei mahdu luotaimen vasemmalle puolelle. */
 @media (orientation: portrait) {
-  .hud.touch.simple {
+  .hud.touch {
+    /* Kireysmittari (8 u + kehys) ja väli sen ja luotaimen välissä. */
+    --tension-w: calc(var(--u) * 10 + var(--m) * 4);
     --top-gap: calc(var(--timer-w, 0px) + var(--m) * 4);
-    --top-room: calc(100vw - var(--col2) - var(--edge-r) - var(--right-w, 0px) - var(--m) * 4);
+    --top-room: calc(
+      100vw - var(--col2) - var(--edge-r) - var(--tension-w) - var(--right-w, 0px) - var(--m) * 4
+    );
   }
 
-  .hud.touch.simple .hud-top-center {
+  .hud.touch.simple {
+    --tension-w: 0px;
+  }
+
+  .hud.touch .hud-gauges {
+    right: calc(var(--edge-r) + var(--tension-w));
+    top: calc(var(--m) * 4);
+  }
+
+  .hud.touch .hud-top-center {
     left: calc(var(--col2) + var(--top-gap));
     transform: none;
     align-items: flex-start;
   }
 
-  .hud.touch.simple .hud-compass {
+  .hud.touch .hud-compass {
     max-width: calc(var(--top-room) - var(--top-gap));
   }
 
-  .hud.touch.simple .hud-weather {
+  .hud.touch .hud-weather {
     margin-left: calc(var(--top-gap) * -1);
     max-width: var(--top-room);
     box-sizing: border-box;

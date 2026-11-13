@@ -951,6 +951,8 @@ function showPauseMenu(from?: PauseView) {
     untimed: !session && isUntimed(g.settings),
     clock: formatClock(g.clock),
     status: g.raceStatus(),
+    // Kosketuksella tulostaulu on täällä eikä HUDissa.
+    scoreboard: touch ? g.scoreboard() : null,
     rules: g.settings,
     // Peruke vaihtuu kesken kisan; muut varusteet päävalikon Varusteissa.
     onTackle: g.spectating

@@ -208,6 +208,10 @@ test('yksinkertaisella ohjauksella puhelimella vain tatti, iso nappi, tauko ja K
   await page.goto(soloUrl('pov'));
   await page.getByRole('button', { name: 'Pelaa' }).tap();
   await page.getByRole('button', { name: 'Yksinpeli' }).tap();
+  await page
+    .locator('.choice', { has: page.locator('.choice-label', { hasText: 'Botit' }) })
+    .getByRole('button', { name: '3', exact: true })
+    .tap();
   await page.getByRole('button', { name: 'Aloita kisa' }).tap();
   await raceRunning(page);
   await expect(page.locator('.touch-stick')).toBeVisible();
@@ -231,6 +235,13 @@ test('yksinkertaisella ohjauksella puhelimella vain tatti, iso nappi, tauko ja K
     const b = await box(selector);
     expect(b.x + b.width).toBeLessThanOrEqual(sonar.x);
   }
+  // Vieheluotaimen paikka on alareunassa tatin ja ison napin välissä, ei pinossa.
+  await expect(page.locator('.hud > .hud-lure-sonar')).toHaveCount(1);
+  // Tulostaulu ei ole HUDissa vaan taukovalikossa.
+  await expect(page.locator('.hud-catches')).toBeHidden();
+  await page.getByRole('button', { name: 'II' }).tap();
+  await expect(page.locator('.pause-scoreboard')).toContainText('Sinä');
+  await page.getByRole('button', { name: 'Jatka' }).tap();
   // Ylhäältä katsottaessa zoom on käytössä.
   await page.getByRole('button', { name: 'KAM' }).tap();
   await expect(page.locator('.touch-tools > button:visible')).toHaveText(['II', 'KAM', '+', '−']);
