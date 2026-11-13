@@ -2744,6 +2744,16 @@ textarea,
     margin-bottom: max(0px, calc(var(--top-h, 0px) - var(--timer-h, 0px)));
   }
 
+  /* Jos tilapaneeli ei mahdu luotaimen vasemmalle puolelle (Hud.measureEdges),
+     se alkaa luotaimen alta eikä jää sen kulman alle (#705). */
+  .hud.touch.under-gauges .hud-timer {
+    margin-bottom: max(
+      0px,
+      calc(var(--top-h, 0px) - var(--timer-h, 0px)),
+      calc(var(--right-h, 0px) - var(--timer-h, 0px))
+    );
+  }
+
   /* Pienempi kello madaltaa koko ylärivin: kompassi on kellon korkuinen. */
   .hud.touch .hud-timer {
     font-size: calc(var(--u) * 10);

@@ -252,6 +252,30 @@ test('yksinkertaisella ohjauksella puhelimella vain tatti, iso nappi, tauko ja K
   errors.check();
 });
 
+test('tilapaneeli ei jää luotaimen alle korkealla pystyruudulla (#705)', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, 'vain puhelinemuloinnit');
+  const errors = watchErrors(page);
+  // Korkealla ruudulla HUD on täysikokoinen, eikä tilapaneeli mahdu luotaimen viereen.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(soloUrl('pov'));
+  await page.getByRole('button', { name: 'Pelaa' }).tap();
+  await page.getByRole('button', { name: 'Yksinpeli' }).tap();
+  await page.getByRole('button', { name: 'Aloita kisa' }).tap();
+  await raceRunning(page);
+  await expect(page.locator('.hud-status')).toBeVisible();
+  const box = async (selector: string) => (await page.locator(selector).boundingBox())!;
+  const apart = async () => {
+    const status = await box('.hud-status');
+    const sonar = await box('.hud-sonar');
+    return status.x + status.width <= sonar.x || status.y >= sonar.y + sonar.height;
+  };
+  await expect.poll(apart).toBe(true);
+  errors.check();
+});
+
 test('?-nappi avaa ja sulkee ohjeen puhelimella', async ({ page, isMobile }) => {
   test.skip(!isMobile, 'vain puhelinemuloinnit');
   const errors = watchErrors(page);
