@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { LakeMap, Season, Vec2 } from '@lunki/shared';
+import { LOOK_UNIFORMS } from '../engine/look';
 import { DEPTH_PIXEL, DEPTH_SHADE_GLSL, DEPTH_TEX_RANGE } from './depthShade';
 import { SEASON_COLORS } from './seasonColors';
 
@@ -176,6 +177,8 @@ export function createWaterWaves() {
     uDepthBounds: { value: new THREE.Vector4(0, 0, 1, 1) },
     /** 1 = pohjan sävy piirretään vesishaderissa (ks. createBottomMesh). */
     uBottomShadeOn: { value: 0 },
+    /** Ilme (#674): syvyyssävyt ja kimalluksen rivit sisäisen pikselin mukaan. */
+    ...LOOK_UNIFORMS,
   };
 }
 export type WaterWaves = ReturnType<typeof createWaterWaves>;
@@ -211,6 +214,7 @@ varying vec3 vGlitterPos;
 uniform sampler2D uDepthTex;
 uniform vec4 uDepthBounds;
 uniform float uBottomShadeOn;
+uniform float uLookDetail;
 uniform vec2 uDrift;
 uniform float uPov;
 uniform float uSheen;
@@ -437,7 +441,8 @@ vec2 waterDash(vec2 p, float cell, float seed, float chance, vec2 dir, float t) 
         // Horisontin puolella silta jatkuu rantaan asti kapeampana.
         float far = below < 0.0 ? clamp(-below / max(uGlitterDir.y, 0.02), 0.0, 1.0) : 0.0;
         float halfWidth = mix(0.004, 0.026, reach) * (1.0 - 0.45 * far);
-        float row = floor(gl_FragCoord.y);
+        // Rivit ovat sisäisiä pikseleitä, joten silta on sama kummassakin ilmeessä.
+        float row = floor(gl_FragCoord.y / uLookDetail);
         // Lähellä aallot näkyvät harvemmassa: rivien väli kasvaa.
         float stride = refl.y < 0.12 ? 2.0 : 3.0;
         if (reach > 0.0 && abs(ax) < halfWidth && mod(row, stride) < 1.0) {

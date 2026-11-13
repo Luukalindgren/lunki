@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { LOOK_UNIFORMS, type Look } from './look';
 import { PALETTE } from './palette';
 import { computeResolution, type RetroResolution } from './resolution';
 
@@ -102,6 +103,51 @@ const PALETTE_FRAG = /* glsl */ `
   }
 `;
 
+/**
+ * Reunanpehmennys Terävälle (FXAA): valmiista kuvasta etsitään jyrkät
+ * kirkkauserot ja sekoitetaan reunan suuntaan. Tehdään vasta sävytyksen ja
+ * usvan jälkeen, koska kohtauksen alfakanava on usvan tiheys eikä sitä voi
+ * sekoittaa reunoilla (taivaan ja puun raja näkyisi usvana).
+ */
+const SMOOTH_FRAG = /* glsl */ `
+  uniform sampler2D tImage;
+  uniform vec2 uTexel;
+  varying vec2 vUv;
+
+  float luma(vec3 c) {
+    return dot(c, vec3(0.299, 0.587, 0.114));
+  }
+
+  void main() {
+    vec3 m = texture2D(tImage, vUv).rgb;
+    float lNW = luma(texture2D(tImage, vUv + vec2(-1.0, -1.0) * uTexel).rgb);
+    float lNE = luma(texture2D(tImage, vUv + vec2(1.0, -1.0) * uTexel).rgb);
+    float lSW = luma(texture2D(tImage, vUv + vec2(-1.0, 1.0) * uTexel).rgb);
+    float lSE = luma(texture2D(tImage, vUv + vec2(1.0, 1.0) * uTexel).rgb);
+    float lM = luma(m);
+    float lMin = min(lM, min(min(lNW, lNE), min(lSW, lSE)));
+    float lMax = max(lM, max(max(lNW, lNE), max(lSW, lSE)));
+    if (lMax - lMin < max(0.03, lMax * 0.1)) {
+      gl_FragColor = vec4(m, 1.0);
+      return;
+    }
+    vec2 dir = vec2(-((lNW + lNE) - (lSW + lSE)), (lNW + lSW) - (lNE + lSE));
+    float reduce = max((lNW + lNE + lSW + lSE) * 0.03125, 0.0078125);
+    dir = clamp(dir / (min(abs(dir.x), abs(dir.y)) + reduce), -8.0, 8.0) * uTexel;
+    vec3 a = 0.5 * (
+      texture2D(tImage, vUv + dir * (1.0 / 3.0 - 0.5)).rgb +
+      texture2D(tImage, vUv + dir * (2.0 / 3.0 - 0.5)).rgb);
+    vec3 b = a * 0.5 + 0.25 * (
+      texture2D(tImage, vUv - dir * 0.5).rgb +
+      texture2D(tImage, vUv + dir * 0.5).rgb);
+    float lB = luma(b);
+    gl_FragColor = vec4(lB < lMin || lB > lMax ? a : b, 1.0);
+  }
+`;
+
+/** Kerros, jolla Terävä piirtää viivat uudelleen (ks. `thickenLines`). */
+const LINE_LAYER = 1;
+
 const NO_GRADE: PaletteGrade = {
   mul: new THREE.Vector3(1, 1, 1),
   add: new THREE.Vector3(0, 0, 0),
@@ -125,13 +171,29 @@ function makeTarget(width: number, height: number) {
  * Selain skaalaa canvasin CSS:llä (image-rendering: pixelated)
  * kokonaislukukertoimella koko ruudulle, joten GPU:n työ ei riipu näytön
  * koosta lainkaan: 4K-näytölläkin piirretään vain n. 480×270 pikseliä.
+ *
+ * Terävä ilme (#674) piirtää saman kohtauksen näytön omalla tarkkuudella:
+ * jokainen sisäinen pikseli on `scale` × `scale` piirrettyä kuvapistettä,
+ * paletti jää pois ja reunat pehmennetään. `resolution` on kummassakin
+ * ilmeessä sama sisäinen tarkkuus, joten kamerat, merkit ja HUD eivät tiedä
+ * ilmeestä.
  */
 export class RetroRenderer {
   readonly renderer: THREE.WebGLRenderer;
+  /** Sisäinen (retron) tarkkuus: näkymän rajaus ja merkkien koko lasketaan tästä. */
   resolution: RetroResolution = { width: 1, height: 1, scale: 1 };
   paletteMode: PaletteMode = 'palette';
 
+  private currentLook: Look = 'retro';
   private readonly sceneTarget = makeTarget(1, 1);
+  /** Terävän valmis kuva ennen reunanpehmennystä. */
+  private readonly imageTarget = new THREE.WebGLRenderTarget(1, 1, {
+    minFilter: THREE.LinearFilter,
+    magFilter: THREE.LinearFilter,
+    depthBuffer: false,
+    generateMipmaps: false,
+  });
+  private readonly smoothMaterial: THREE.ShaderMaterial;
   private readonly quadCamera = new THREE.Camera();
   private readonly quad: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
   private readonly paletteMaterial: THREE.ShaderMaterial;
@@ -169,12 +231,40 @@ export class RetroRenderer {
       depthTest: false,
       depthWrite: false,
     });
+    this.smoothMaterial = new THREE.ShaderMaterial({
+      vertexShader: FULLSCREEN_VERT,
+      fragmentShader: SMOOTH_FRAG,
+      uniforms: {
+        tImage: { value: this.imageTarget.texture },
+        uTexel: { value: new THREE.Vector2(1, 1) },
+      },
+      depthTest: false,
+      depthWrite: false,
+    });
     this.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.paletteMaterial);
     this.quad.frustumCulled = false;
     this.quadScene.add(this.quad);
 
     window.addEventListener('resize', this.resize);
     this.resize();
+  }
+
+  get look(): Look {
+    return this.currentLook;
+  }
+
+  /** Vaihtaa ilmeen; sisäinen tarkkuus ei muutu, vain piirron tarkkuus ja paletti. */
+  setLook(look: Look): void {
+    if (look === this.currentLook) return;
+    this.currentLook = look;
+    this.paletteMode = look === 'sharp' ? 'off' : 'palette';
+    this.resize();
+  }
+
+  /** Piirretyn kuvan koko kuvapisteinä (Terävällä näytön tarkkuus). */
+  get renderSize(): { width: number; height: number } {
+    const detail = LOOK_UNIFORMS.uLookDetail.value;
+    return { width: this.resolution.width * detail, height: this.resolution.height * detail };
   }
 
   /** Kuuntelee sisäisen resoluution muutoksia (esim. kameran kuvasuhde). */
@@ -209,11 +299,60 @@ export class RetroRenderer {
     r.info.reset();
     r.setRenderTarget(this.sceneTarget);
     r.render(scene, camera);
+    this.thickenLines(scene, camera);
 
     this.paletteMaterial.uniforms.uMode!.value =
       this.paletteMode === 'dither' ? 0 : this.paletteMode === 'palette' ? 1 : 2;
-    r.setRenderTarget(null);
+    // Terävä: valmis kuva välikohteeseen ja siitä reunat pehmennettyinä ruudulle.
+    const smooth = this.currentLook === 'sharp';
+    this.quad.material = this.paletteMaterial;
+    r.setRenderTarget(smooth ? this.imageTarget : null);
     r.render(this.quadScene, this.quadCamera);
+    if (smooth) {
+      this.quad.material = this.smoothMaterial;
+      r.setRenderTarget(null);
+      r.render(this.quadScene, this.quadCamera);
+    }
+  }
+
+  /**
+   * Viivat (siima, vapa, tähtäin, sade) ovat WebGL:ssä aina yhden kuvapisteen
+   * levyisiä. Terävällä ne piirretään uudelleen kuvapisteen verran siirrettyinä,
+   * kunnes viiva on sisäisen pikselin levyinen kuten Retrossa: muuten vierekkäin
+   * piirretyt viivat (vapa) jäävät raidallisiksi ja siima katoaa isolla näytöllä.
+   */
+  private thickenLines(scene: THREE.Scene, camera: THREE.Camera): void {
+    const detail = LOOK_UNIFORMS.uLookDetail.value;
+    if (detail <= 1) return;
+    if (!(camera instanceof THREE.PerspectiveCamera || camera instanceof THREE.OrthographicCamera))
+      return;
+    let lines = false;
+    scene.traverseVisible((o) => {
+      if (!(o as THREE.Line).isLine) return;
+      o.layers.enable(LINE_LAYER);
+      lines = true;
+    });
+    if (!lines) return;
+    const r = this.renderer;
+    const { width, height } = this.renderSize;
+    const mask = camera.layers.mask;
+    camera.layers.set(LINE_LAYER);
+    // Taustaväri tyhjentäisi kuvan joka piirrolla.
+    const background = scene.background;
+    scene.background = null;
+    r.autoClear = false;
+    const first = -Math.floor((detail - 1) / 2);
+    for (let k = first; k < first + detail; k++) {
+      if (k === 0) continue;
+      camera.setViewOffset(width, height, k, 0, width, height);
+      r.render(scene, camera);
+      camera.setViewOffset(width, height, 0, k, width, height);
+      r.render(scene, camera);
+    }
+    camera.clearViewOffset();
+    scene.background = background;
+    camera.layers.mask = mask;
+    r.autoClear = true;
   }
 
   /**
@@ -231,6 +370,7 @@ export class RetroRenderer {
     r.setRenderTarget(this.sceneTarget);
     const done = scenes.map((scene) => compile(scene, camera));
     r.setRenderTarget(null);
+    this.quad.material = this.paletteMaterial;
     done.push(compile(this.quadScene, this.quadCamera));
     r.setRenderTarget(target);
     return Promise.all(done);
@@ -240,6 +380,8 @@ export class RetroRenderer {
     window.removeEventListener('resize', this.resize);
     this.sceneTarget.depthTexture?.dispose();
     this.sceneTarget.dispose();
+    this.imageTarget.dispose();
+    this.smoothMaterial.dispose();
     this.paletteMaterial.dispose();
     this.quad.geometry.dispose();
     this.renderer.dispose();
@@ -249,12 +391,23 @@ export class RetroRenderer {
     const dpr = window.devicePixelRatio || 1;
     const res = computeResolution(window.innerWidth * dpr, window.innerHeight * dpr);
     this.resolution = res;
-    this.renderer.setSize(res.width, res.height, false);
+    const sharp = this.currentLook === 'sharp';
+    // Terävä piirtää jokaisen sisäisen pikselin `scale` × `scale` kuvapisteenä,
+    // jolloin kuva on näytön tarkkuudella ja rajaus täsmälleen sama kuin Retrossa.
+    const detail = sharp ? res.scale : 1;
+    LOOK_UNIFORMS.uLookSharp.value = sharp ? 1 : 0;
+    LOOK_UNIFORMS.uLookDetail.value = detail;
+    const width = res.width * detail;
+    const height = res.height * detail;
+    this.renderer.setSize(width, height, false);
     // Yksi sisäinen pikseli = scale näytön fyysistä pikseliä. Canvas voi olla
     // hieman ikkunaa suurempi; ylijäämä leikkautuu oikealta ja alhaalta.
     this.canvas.style.width = `${(res.width * res.scale) / dpr}px`;
     this.canvas.style.height = `${(res.height * res.scale) / dpr}px`;
-    this.sceneTarget.setSize(res.width, res.height);
+    this.sceneTarget.setSize(width, height);
+    // Välikohde vie muistia vain Terävällä.
+    this.imageTarget.setSize(sharp ? width : 1, sharp ? height : 1);
+    (this.smoothMaterial.uniforms.uTexel!.value as THREE.Vector2).set(1 / width, 1 / height);
     for (const l of this.listeners) l(res);
   };
 }

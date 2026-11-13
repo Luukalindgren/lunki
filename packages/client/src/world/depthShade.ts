@@ -1,14 +1,28 @@
 import * as THREE from 'three';
 import type { LakeBottom } from '@lunki/shared';
 
+type DepthBand = [number, [number, number, number, number]];
+
 /** Syvyysvyöhykkeet pinnan sävyyn (sRGB 0–255, peitto): matala ranta vaalea, syvänne tumma. */
-const DEPTH_BANDS: [number, [number, number, number, number]][] = [
+const DEPTH_BANDS: DepthBand[] = [
   [1, [120, 180, 165, 0.5]],
   [2, [95, 170, 160, 0.32]],
   [3.5, [60, 140, 170, 0.18]],
   [6, [0, 0, 0, 0]],
   [8, [10, 30, 70, 0.22]],
   [Infinity, [5, 15, 45, 0.4]],
+];
+
+/**
+ * Terävän ilmeen (#674) matalikot: Retrossa vihertävä sävy pyöristyy paletissa
+ * siniseksi, mutta ilman palettia se näkyisi vihreänä. Sävyt on valittu niin,
+ * että matalikko on kummassakin ilmeessä samaa vaaleaa sinistä.
+ */
+const SHARP_DEPTH_BANDS: DepthBand[] = [
+  [1, [80, 160, 200, 0.45]],
+  [2, [60, 140, 190, 0.3]],
+  [3.5, [45, 120, 180, 0.18]],
+  ...DEPTH_BANDS.slice(3),
 ];
 
 /** Syvyystekstuurin lukualue (m): punainen 1 = tämä syvyys tai syvempi. */
@@ -28,14 +42,25 @@ const f = (x: number) => x.toFixed(4);
  * vaihtuvat terävästi kuten ennenkin, ja raja seuraa interpoloitua
  * syvyyttä pienin portain (ks. DEPTH_PIXEL).
  */
-export const DEPTH_SHADE_GLSL = `vec4 depthShade(float d) {
-${DEPTH_BANDS.map(([max, [r, g, b, a]]) => {
-  const c = new THREE.Color().setRGB(r / 255, g / 255, b / 255, THREE.SRGBColorSpace);
-  const value = `vec4(${f(c.r)}, ${f(c.g)}, ${f(c.b)}, ${f(a)})`;
-  return Number.isFinite(max)
-    ? `  if (d < ${max.toFixed(2)}) return ${value};`
-    : `  return ${value};`;
-}).join('\n')}
+const bandsGlsl = (name: string, bands: DepthBand[]) => `vec4 ${name}(float d) {
+${bands
+  .map(([max, [r, g, b, a]]) => {
+    const c = new THREE.Color().setRGB(r / 255, g / 255, b / 255, THREE.SRGBColorSpace);
+    const value = `vec4(${f(c.r)}, ${f(c.g)}, ${f(c.b)}, ${f(a)})`;
+    return Number.isFinite(max)
+      ? `  if (d < ${max.toFixed(2)}) return ${value};`
+      : `  return ${value};`;
+  })
+  .join('\n')}
+}
+`;
+
+/** Tarvitsee uniformin `uLookSharp` (`LOOK_UNIFORMS`, `engine/look.ts`). */
+export const DEPTH_SHADE_GLSL = `uniform float uLookSharp;
+${bandsGlsl('depthShadeRetro', DEPTH_BANDS)}
+${bandsGlsl('depthShadeSharp', SHARP_DEPTH_BANDS)}
+vec4 depthShade(float d) {
+  return uLookSharp > 0.5 ? depthShadeSharp(d) : depthShadeRetro(d);
 }
 `;
 

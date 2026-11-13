@@ -27,6 +27,7 @@ import {
 } from '@lunki/shared';
 import { FpsMeter } from './engine/fpsMeter';
 import { Input } from './engine/input';
+import { LookGuard, loadLook, saveLook } from './engine/look';
 import { startLoop } from './engine/loop';
 import { RetroRenderer, type PaletteMode } from './engine/retroRenderer';
 import { MENU_AMBIENCE } from './audio/ambience';
@@ -212,6 +213,14 @@ const settingsControls = (reopen: () => void): SettingsControls => ({
     effective: () => hud.effectiveScale(),
   },
   povFov: povFovControl(),
+  look: {
+    current: retro.look,
+    onChange: (look) => {
+      saveLook(look);
+      retro.setLook(look);
+      lookGuard.reset();
+    },
+  },
   guide: {
     current: loadGuide().off === false,
     // Pelin aikana muutos koskee heti käynnissä olevaa kisaa.
@@ -1036,7 +1045,9 @@ if (params.has('bench')) {
  */
 function createRenderer(c: HTMLCanvasElement, parent: HTMLElement): RetroRenderer {
   try {
-    return new RetroRenderer(c);
+    const renderer = new RetroRenderer(c);
+    renderer.setLook(loadLook());
+    return renderer;
   } catch (err) {
     const screen = document.createElement('div');
     screen.className = 'screen';
@@ -1074,6 +1085,7 @@ const menuReady = () => (menuWarm = true);
 menuScene.precompile(retro).then(menuReady, menuReady);
 setTimeout(menuReady, WARM_TIMEOUT_MS);
 
+const lookGuard = new LookGuard();
 const paletteModes: PaletteMode[] = ['palette', 'dither', 'off'];
 
 // Pelin tiedostot laitteelle (#328). Uusi versio otetaan käyttöön vasta
@@ -1122,8 +1134,16 @@ startLoop({
     bench?.timing(updateTime, performance.now() - t0, updateCount);
     updateTime = 0;
     updateCount = 0;
-    const { width, height, scale } = retro.resolution;
+    const { width, height } = retro.renderSize;
+    const { scale } = retro.resolution;
     fps.frame(frameTime, `${width}×${height} ×${scale} · ${active.view.metersPerPixel} m/px`);
+    // Terävä on raskas: jos kisa nykii, palataan Retroon ja kerrotaan siitä (#674).
+    const racing = game !== null && !paused && !screens.open && !bench;
+    if (retro.look === 'sharp' && racing && lookGuard.frame(frameTime)) {
+      saveLook('retro');
+      retro.setLook('retro');
+      hud.showMessage(t('look.fellBack'), 6, 'info');
+    }
     bench?.frame(frameTime);
     dismissBootLoader();
   },

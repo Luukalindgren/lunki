@@ -159,6 +159,32 @@ Koodi: `packages/client/src/game/skyView.ts`, `engine/retroRenderer.ts`.
   salamat rintaman alla ovat vain kuvaa ja ääntä (`strike(pos, true)`).
   Realistisella tekstivaroituksia ei näytetä.
 
+### Ilme (#674)
+
+Koodi: `packages/client/src/engine/look.ts`, `engine/retroRenderer.ts`.
+
+- Asetusten Näyttö-osion valinta **Ilme: Retro / Terävä** on laitteen asetus
+  (`lunki.look`, oletus Retro). Terävä piirtää saman kohtauksen näytön
+  tarkkuudella ilman palettia ja reunat pehmennettyinä; sisältö, säännöt ja
+  HUD ovat samat. Uusi ilme (Moderni, #650) on uusi arvo samaan valintaan.
+- **Sisäinen tarkkuus on kummassakin ilmeessä sama** (`RetroRenderer.resolution`):
+  kamerat, zoomitasot, merkkien koot ja HUDin mitta lasketaan siitä, joten
+  näkyvä alue ei riipu ilmeestä. Terävä piirtää jokaisen sisäisen pikselin
+  `scale` × `scale` kuvapisteenä (`renderSize`). Älä laske mitään näkymän
+  osaa piirron tarkkuudesta.
+- Ilmeestä riippuva varjostin lukee `LOOK_UNIFORMS`-arvot (`uLookSharp`,
+  `uLookDetail`) eikä tee omaa kopiota materiaalista: esimerkkeinä pohjan
+  syvyyssävyt (`world/depthShade.ts`, Terävällä omat sävyt, koska paletti ei
+  pyöristä vihertävää siniseksi) ja kimalluksen rivit (`gl_FragCoord`
+  jaetaan `uLookDetail`illa).
+- Sävytys, usva ja kaukosumu tulevat Terävälläkin samasta sävytyksestä
+  (`SkyView.grade`); reunanpehmennys tehdään valmiille kuvalle sen jälkeen.
+  Viivat (siima, vapa, tähtäin, sade) piirretään Terävällä sisäisen pikselin
+  levyisiksi (`thickenLines`), joten uusi viiva ei tarvitse omaa paksunnosta.
+- Terävä on raskas: jos kisan ruutunopeus jää alle 30 (`LookGuard`), ilme
+  palaa Retroon ja siitä kerrotaan `info`-ilmoituksella. Selaintestit ajetaan
+  Retrolla; `e2e/ilme.spec.ts` vaihtaa ilmeen ja aloittaa kisan.
+
 ### Vuodenaika (#427)
 
 Koodi: `packages/shared/src/weather/season.ts`, asiakkaalla
@@ -199,7 +225,7 @@ Koodi: `packages/client/src/world/lakeMesh.ts`.
 Koodi: `packages/client/src/ui/screens.ts` (`showSettings`, `showPause`).
 
 - **Pelaajan asetukset vain jaetussa Asetukset-näkymässä**
-  (`Screens.showSettings`): Näyttö (HUD-koko, näkökenttä, opastus), Ohjaus
+  (`Screens.showSettings`): Näyttö (HUD-koko, näkökenttä, ilme, opastus), Ohjaus
   (ohjaustapa, #638), Äänet,
   Peliohjain (näkyy, kun ohjain on kytketty; myös värinä, #594) ja Kieli.
   Sama näkymä aukeaa päävalikosta ja taukovalikosta.
