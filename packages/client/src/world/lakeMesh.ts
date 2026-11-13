@@ -362,6 +362,13 @@ vec2 waterDash(vec2 p, float cell, float seed, float chance, vec2 dir, float t) 
         float crestLine = step(abs(vSwell - 0.4), lineAt) * step(dashHash, swellDensity);
         float frontLine = step(abs(vSwell + 0.2), lineAt) * step(fract(dashHash * 7.0), 0.7 * swellDensity);
         float crestFoam = crestLine * step(fract(dashHash * 3.7), vFoamK * 0.6);
+        if (uLookModern > 0.5) {
+          // Moderni: vaahto on pehmeä, katkonainen nauha harjan laella eikä viiva.
+          float crestTop = smoothstep(0.5, 0.95, vSwell);
+          float crestPatch = waterNoise(vec2(along * 0.35, crestId * 7.3) + 2.1);
+          float crestGrain = 0.6 + 0.4 * waterNoise(swRel * 2.7);
+          crestFoam = crestTop * smoothstep(0.62 - 0.22 * vFoamK, 0.9, crestPatch) * crestGrain * vFoamK;
+        }
         sampledDiffuseColor.rgb = mix(sampledDiffuseColor.rgb, vec3(0.024, 0.195, 0.381), crestLine);
         sampledDiffuseColor.rgb = mix(sampledDiffuseColor.rgb, vec3(0.006, 0.042, 0.107), frontLine);
         waterTrough = frontLine;
@@ -399,6 +406,15 @@ vec2 waterDash(vec2 p, float cell, float seed, float chance, vec2 dir, float t) 
         // Aivan kameran edessä vaahtopää olisi iso valkoinen laatta.
         float cap = step(h1, density) * step(abs(local.y), len) * step(4.0, eyeDist);
         float foam = cap * step(abs(du), t);
+        if (uLookModern > 0.5) {
+          // Moderni: vaahtopää on pehmeäreunainen, rakeinen kaari, joka levenee aallon mukana.
+          float wide = max(t, 0.22 + 0.7 * hs);
+          float bend = local.x + 0.12 * local.y * local.y + 0.4 * wide;
+          float shape = (bend * bend) / (wide * wide) + (local.y * local.y) / max(len * len, 1e-3);
+          float grain = waterNoise(q * 3.3 + n * 3.7) - 0.5;
+          foam = step(h1, density) * smoothstep(3.0, 8.0, eyeDist) *
+            (1.0 - smoothstep(0.3, 1.0, shape + 0.7 * grain)) * 0.85;
+        }
         float trough = cap * step(abs(du + 2.5 * t), t) * step(abs(local.y), len * 0.8);
         sampledDiffuseColor.rgb = mix(sampledDiffuseColor.rgb, vec3(0.006, 0.042, 0.107), trough);
         waterFoam = max(waterFoam, foam);

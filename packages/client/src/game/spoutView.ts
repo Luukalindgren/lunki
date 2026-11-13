@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { SPOUT, flightPosition, type SpoutFlight, type Vec2 } from '@lunki/shared';
 
-const HEIGHT = 140;
+/** Suppilon korkeus (m) ja säde ylhäällä ja veden pinnassa. */
+export const SPOUT_FUNNEL = { height: 140, top: 22, foot: 2.5 } as const;
+const HEIGHT = SPOUT_FUNNEL.height;
 /** Yhtä aikaa näkyvien trombien enimmäismäärä. */
 const MAX = 3;
 /** Imuvirran vaahtojuovia trombia kohden, niiden leveys (m) ja korkeus vedestä (m). */
@@ -28,7 +30,14 @@ export class SpoutView {
   private spin = 0;
 
   constructor() {
-    const funnel = new THREE.CylinderGeometry(22, 2.5, HEIGHT, 12, 6, true);
+    const funnel = new THREE.CylinderGeometry(
+      SPOUT_FUNNEL.top,
+      SPOUT_FUNNEL.foot,
+      HEIGHT,
+      12,
+      6,
+      true,
+    );
     funnel.translate(0, HEIGHT / 2, 0);
     // Pystyraidat kärkien väreinä: pyöriessä raidat näyttävät pyörteen.
     const colors: number[] = [];
@@ -54,7 +63,9 @@ export class SpoutView {
       const g = new THREE.Group();
       const f = new THREE.Mesh(funnel, funnelMat);
       f.frustumCulled = false;
+      f.name = 'spout-funnel';
       const s = new THREE.Mesh(spray, sprayMat);
+      s.name = 'spout-spray';
       s.position.y = 0.1;
       const r = new Float32Array(STREAKS);
       const a = new Float32Array(STREAKS);
@@ -68,6 +79,7 @@ export class SpoutView {
       geom.setIndex(quads);
       const mesh = new THREE.Mesh(geom, streakMat);
       mesh.frustumCulled = false;
+      mesh.name = 'spout-streaks';
       this.streaks.push({ r, a, mesh });
       this.funnels.push(f);
       g.add(f, s, mesh);

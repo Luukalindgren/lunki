@@ -3,7 +3,7 @@ import { QUALITY, type LookQuality } from '../engine/look';
 import { bottomIn, type BottomSource } from '../world/bottomMesh';
 import { staticWorldIn, type StaticWorld } from '../world/staticWorld';
 import { planVegetation } from '../world/vegetation';
-import { createCottages, createModernPiers } from './cottages';
+import { createCottages, createModernPiers, WindowLights } from './cottages';
 import { createLakeBed } from './lakeBed';
 import { Land } from './land';
 import { SCENERY_COLORS } from './sceneryColors';
@@ -21,6 +21,8 @@ interface Scenery {
   detailed: { update(camera: THREE.Camera, range: number): void }[];
   /** Kaislikon kuvio näkyy vain ylhäältä, kuten Retrossa. */
   reedBed: THREE.Group;
+  /** Mökkien ikkunoiden valot hämärällä. */
+  windows: WindowLights | null;
 }
 
 const built = new Map<StaticWorld, Scenery>();
@@ -44,10 +46,17 @@ function sceneryFor(world: StaticWorld): Scenery {
   const reeds = createReeds(plants, world.map, colors);
   const shore = createShoreDetail(world.map, land, colors);
   group.add(land.build(), forest.group, reeds.group, reeds.bed, shore.group);
-  if (world.surroundings) group.add(createCottages(world.surroundings, land));
+  const cottages = world.surroundings ? createCottages(world.surroundings, land) : null;
+  if (cottages) group.add(cottages);
   const piers = createModernPiers(world.map.piers ?? []);
   if (piers) group.add(piers);
-  scenery = { group, land, detailed: [forest, reeds, shore], reedBed: reeds.bed };
+  scenery = {
+    group,
+    land,
+    detailed: [forest, reeds, shore],
+    reedBed: reeds.bed,
+    windows: cottages ? new WindowLights(cottages) : null,
+  };
   built.set(world, scenery);
   return scenery;
 }
@@ -70,6 +79,7 @@ function disposeMeshes(root: THREE.Object3D): void {
 }
 
 function disposeScenery(scenery: Scenery): void {
+  scenery.windows?.dispose();
   scenery.group.removeFromParent();
   disposeMeshes(scenery.group);
 }
@@ -115,6 +125,7 @@ export class SceneryLook {
     const scenery = this.scenery;
     if (!scenery) return;
     scenery.reedBed.visible = this.ortho;
+    scenery.windows?.update(this.scene.userData.daylight as number | undefined);
     const range = QUALITY[quality].detailRange;
     for (const part of scenery.detailed) part.update(camera, range);
   }

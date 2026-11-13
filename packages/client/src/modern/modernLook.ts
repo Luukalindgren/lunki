@@ -6,6 +6,7 @@ import { Marks } from './marks';
 import { releaseScenery, SceneryLook } from './scenery';
 import { ShadowRig } from './shadows';
 import { Softener } from './soften';
+import { WeatherLook } from './weatherLook';
 import './theme.css';
 
 /**
@@ -24,6 +25,7 @@ export function createModernLook(): LookLayer {
       const landing = new Landing(scene);
       const birds = new Birds(scene);
       const marks = new Marks(scene);
+      const weather = new WeatherLook(scene, renderer);
       return {
         update(camera, quality) {
           scenery.update(camera, quality);
@@ -33,9 +35,11 @@ export function createModernLook(): LookLayer {
           landing.update(camera);
           birds.update();
           marks.update(camera);
+          weather.update(camera);
           shadows.update(camera, quality);
         },
         dispose() {
+          weather.dispose();
           marks.dispose();
           birds.dispose();
           landing.dispose();

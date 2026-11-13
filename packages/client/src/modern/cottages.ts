@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { footprint, PIER_WIDTH, type LakeSurroundings, type Pier } from '@lunki/shared';
 import type { Land } from './land';
 import { box, mergeParts, mixColor, paint, paintedMaterial, seeded, solid } from './shapes';
+import { LIGHT } from './veil';
 
 /** Piirtolohkon sivu (m). */
 const CHUNK = 300;
@@ -13,6 +14,13 @@ const TRIM_ON_LIGHT = 0x6a7a6a;
 const PLINTH = 0x7a7872;
 const GLASS = 0x2a3a4c;
 const CHIMNEY = 0x8a4a3a;
+/**
+ * Valot ikkunoissa hämärällä: osuus rakennuksista, joissa on joku kotona, niiden
+ * ikkunoista valaistut, valon väri ja päivänvalon määrä (0–1), jonka alla valot palavat.
+ */
+export const WINDOW_LIGHTS = { homes: 0.6, windows: 0.55, color: 0xffcf7d, below: 0.3 } as const;
+/** Valaistavien ikkunoiden verkon nimi. */
+const WINDOWS = 'modern-windows';
 /** Laiturin lankut, palkit ja paalut. */
 const PLANKS = [0x9a8468, 0x8c7a60, 0xa58f72];
 const BEAM = 0x6f5c46;
@@ -30,6 +38,9 @@ export function createCottages(s: LakeSurroundings, land: Land): THREE.Group {
   const group = new THREE.Group();
   group.name = 'modern-buildings';
   const chunks = new Map<string, THREE.BufferGeometry[]>();
+  /** Lasit, joiden takana palaa valo hämärällä; muut lasit ovat rakennuksen verkossa. */
+  const lit: THREE.BufferGeometry[] = [];
+  const rand = seeded(41);
   s.areas
     .filter((a) => a.kind === 'building')
     .forEach((a, i) => {
@@ -48,6 +59,8 @@ export function createCottages(s: LakeSurroundings, land: Land): THREE.Group {
       const roof = ROOFS[(i * 7) % ROOFS.length]!;
       const trim = wall === WALLS[4] ? TRIM_ON_LIGHT : TRIM;
       const body = eaves - 0.5;
+      const home = rand() < WINDOW_LIGHTS.homes;
+      const glow: THREE.BufferGeometry[] = [];
       const parts: THREE.BufferGeometry[] = [
         box(W + 0.16, 0.5, L + 0.16, 0, 0.25, 0, PLINTH),
         box(W, body, L, 0, 0.5 + body / 2, 0, wall),
@@ -97,9 +110,10 @@ export function createCottages(s: LakeSurroundings, land: Land): THREE.Group {
         for (let k = 0; k < windows; k++) {
           const z = -L / 2 + (k + 0.5) * (L / windows);
           const x = sx * (W / 2 + 0.02);
+          const glass = box(0.12, 0.9, 0.8, x + sx * 0.01, sill, z, GLASS);
+          (home && rand() < WINDOW_LIGHTS.windows ? glow : parts).push(glass);
           parts.push(
             box(0.1, 1.15, 1.05, x, sill, z, trim),
-            box(0.12, 0.9, 0.8, x + sx * 0.01, sill, z, GLASS),
             box(0.14, 0.9, 0.06, x + sx * 0.01, sill, z, trim),
             box(0.14, 0.06, 0.8, x + sx * 0.01, sill, z, trim),
           );
@@ -118,10 +132,56 @@ export function createCottages(s: LakeSurroundings, land: Land): THREE.Group {
         g.translate(f.center.x, base, -f.center.y);
         list.push(g);
       }
+      for (const g of glow) {
+        g.rotateY(turn);
+        g.translate(f.center.x, base, -f.center.y);
+        lit.push(g);
+      }
     });
   const material = paintedMaterial();
   for (const parts of chunks.values()) group.add(new THREE.Mesh(mergeParts(parts), material));
+  if (lit.length > 0) {
+    const windows = new THREE.Mesh(mergeParts(lit), material);
+    windows.name = WINDOWS;
+    group.add(windows);
+  }
   return group;
+}
+
+/**
+ * Mökkien ikkunoiden valot: päivällä lasi on tummaa kuten muutkin ikkunat,
+ * hämärällä osassa ikkunoista palaa lämmin valo. Valo on valonlähde kuten
+ * taivas ja salama (alfa 0): se näkyy omana värinään yön sävytyksen ja
+ * kaukosumun läpi, eikä valaise ympäristöään.
+ */
+export class WindowLights {
+  private readonly mesh: THREE.Mesh | null;
+  private readonly day: THREE.Material | null;
+  private readonly night = new THREE.MeshBasicMaterial({ color: WINDOW_LIGHTS.color, ...LIGHT });
+  private on = false;
+
+  constructor(buildings: THREE.Object3D) {
+    this.mesh = (buildings.getObjectByName(WINDOWS) as THREE.Mesh | undefined) ?? null;
+    this.day = (this.mesh?.material as THREE.Material | undefined) ?? null;
+  }
+
+  /** `daylight` = päivänvalon määrä 0–1 (`scene.userData.daylight`); puuttuva on päivä. */
+  update(daylight: number | undefined): void {
+    const on = daylight !== undefined && daylight < WINDOW_LIGHTS.below;
+    if (on === this.on || !this.mesh || !this.day) return;
+    this.on = on;
+    this.mesh.material = on ? this.night : this.day;
+  }
+
+  get lit(): boolean {
+    return this.on;
+  }
+
+  dispose(): void {
+    if (this.mesh && this.day) this.mesh.material = this.day;
+    this.on = false;
+    this.night.dispose();
+  }
 }
 
 /** Laiturit: kansi lankku kerrallaan, kannatinpalkit ja pyöreät paalut. */

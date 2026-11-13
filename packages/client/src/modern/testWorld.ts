@@ -18,3 +18,16 @@ export function testWorld(season: Season = 'summer'): StaticWorld {
     surroundings: LUNKINJARVI_SURROUNDINGS,
   };
 }
+
+/**
+ * `document` testeihin, joissa pelin näkymä piirtää pienen kuvan kankaalle
+ * (salaman hehku): kangas ottaa piirron vastaan eikä tee mitään.
+ */
+export function fakeDocument(): Pick<Document, 'createElement'> {
+  const canvas = () => ({
+    width: 0,
+    height: 0,
+    getContext: () => ({ fillStyle: '', fillRect() {} }),
+  });
+  return { createElement: canvas as unknown as Document['createElement'] };
+}

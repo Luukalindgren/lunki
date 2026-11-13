@@ -6,6 +6,8 @@ import type { Vec2 } from '@lunki/shared';
 const SPEED = 10;
 const LENGTH = 90;
 const WIDTH = 2.5;
+/** Harjan mitat ilmeen kerrokselle (Moderni piirtää harjan tilalle maininkin, #650). */
+export const BIG_WAVE_CREST = { length: LENGTH, width: WIDTH } as const;
 
 /**
  * Iso aalto lähestyy: vaahtoava harja kulkee vastatuulesta kohti kalastajaa
@@ -41,6 +43,7 @@ export class BigWaveView {
     );
     foam.concat(trough).forEach((g) => g.dispose());
     this.crest.visible = false;
+    this.crest.name = 'bigWave-crest';
     this.group.add(this.crest);
     this.group.name = 'bigWave';
   }

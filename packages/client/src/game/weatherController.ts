@@ -622,6 +622,8 @@ export class WeatherController {
     this.hemi.intensity = 1.5 * sky.ambient;
     this.sun.intensity = 1.5 * sky.direct;
     this.sun.position.copy(sky.lightDir).multiplyScalar(120);
+    // Päivänvalon määrä ilmeen kerrokselle (Modernin mökkien ikkunat syttyvät hämärässä).
+    scene.userData.daylight = this.host.daylight.light;
     const pov = this.host.viewMode === 'pov';
     // Kaukosumu lasketaan jälkikäsittelyssä usvan kanssa (ks. RetroRenderer).
     this.sky.grade.fog = pov ? sky.fog : null;

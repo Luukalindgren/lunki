@@ -258,6 +258,44 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
     (`lure-marker`) on hiottu timantti tilan värissä (`modern/marks.ts`).
     Läpikuultava merkki ei kirjoita alfakanavaan (usvan tiheys). Tasaväriset
     renkaat ja ympyrät (tähtäin, oman paikan merkki) pyöristää `Softener`.
+- **Sääilmiöt ovat Modernissa pelin omia osia pehmeinä**
+  (`modern/weatherLook.ts`). Peli piirtää sateen, salaman, trombin ja ison
+  aallon edelleen itse ja nimeää osansa; Moderni piilottaa pelin pinnan
+  (`material.visible`, jolloin pelin oma näkyvyys kertoo yhä välkkeen ja
+  sateen määrän) ja piirtää tilalle omansa samaan paikkaan. Paikka, ajoitus,
+  välke ja säännöt ovat pelin. Uusi sääilmiö nimeää osansa ja saa oman
+  luokkansa `WeatherLook`iin.
+  - Sade (`rain`, `modern/rain.ts`): pisarat ovat alaspäin kirkastuvia juovia,
+    ja pintaan pudonnut pisara jättää veteen pienen renkaan.
+  - Salama (`lightning`: `bolt`, `bolt-halo`, `bolt-glow`, `bolt-ring`,
+    `modern/bolts.ts`): ohut valkoinen ydin, sen ympärillä sinertävä hehku,
+    iskukohdassa pehmeä valopallo ja shokkiaaltona kaksi ohutta rengasta, jotka
+    haalistuvat renkaan iän (`userData.life`) mukana. Kaukainen salama
+    (`userData.far`) hehkuu heikommin. Koko kuvan välähdys tulee edelleen
+    sävytyksestä.
+  - Trombi (`spouts`: `spout-funnel`, `spout-spray`, `spout-streaks`,
+    `modern/spouts.ts`): sileä, kiertyvä pilvipatsas ja juurella roiskekumpu;
+    ylhäältä himmeä pyörre, joka ei peitä järveä. Mitat ovat pelin
+    (`SPOUT_FUNNEL`).
+  - Iso aalto (`bigWave-crest`, `modern/swells.ts`): vaahtopätkien tilalla
+    vyöryy maininki, jonka laella on katkonainen vaahto (`BIG_WAVE_CREST`).
+    Pinta on valaisematon kuten järvi. Vaahtopäät ja lähiveden harjan vaahto
+    ovat vesivarjostimen Modernin haara (`world/lakeMesh.ts`): pehmeitä
+    laikkuja viivojen tilalla.
+  - **Läpikuultava pinta käyttää `modern/veil.ts`:n sekoituksia**, koska
+    kohtauksen alfakanava on viesti jälkikäsittelylle (0 = valonlähde, muuten
+    usvan tiheys) ja kaukosumu lasketaan syvyydestä: `VEIL` (läpikuultava) ja
+    `GLOW` (hehku) eivät kirjoita alfaan eivätkä syvyyteen, `LIGHT` on
+    valonlähde kuten taivas (alfa 0). Taivasta vasten näkyvän läpikuultavan
+    muodon tiheä osa leimataan `STAMP`illa (alfa täyteen ja syvyys), muuten se
+    jää sävyttämättä ja saa taivaan etäisyyden sumun. Älä käytä three.js:n
+    tavallista läpinäkyvyyttä (`transparent: true` yksinään) Modernin osissa.
+  - Usva, kaukosumu, vuodenajat, yö, kuu ja revontulet tulevat Moderniin
+    pelin omista järjestelmistä (`MistView`, `SkyView.grade`, `SEASON_LOOKS`,
+    `SCENERY_COLORS`) ilman omaa versiota. Hämärällä osassa mökkien ikkunoista
+    palaa valo (`WindowLights` `modern/cottages.ts`:ssä, raja ja osuus
+    `WINDOW_LIGHTS`): peli kertoo päivänvalon määrän `scene.userData.daylight`issa,
+    ja valaistu lasi on valonlähde (alfa 0), joka ei valaise ympäristöään.
 - **Modernin teema** (`modern/theme.css`) vaihtaa käyttöliittymän värit
   `style.css`:n `--c-`-muuttujilla ja kirjasimet luokan `.look-modern` alla.
   Uusi valikon tai HUDin osa käyttää näitä muuttujia eikä kirjoita värejä
