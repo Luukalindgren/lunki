@@ -1,0 +1,1541 @@
+diff --git a/packages/client/src/dev/modernLook.js b/packages/client/src/dev/modernLook.js
+new file mode 100644
+index 0000000..2b293b5
+--- /dev/null
++++ b/packages/client/src/dev/modernLook.js
+@@ -0,0 +1,109 @@
++window.applyLook = (level, opts = {}) => {
++  const g = window.lunki, T = window.THREE, retro = window.retro, r = retro.renderer;
++  const scene = g.scene;
++  const byName = (name) => { const out = []; scene.traverse((o) => { if (o.name === name) out.push(o); }); return out; };
++  let sun, hemi;
++  scene.traverse((o) => { if (o.isDirectionalLight) sun = o; if (o.isHemisphereLight) hemi = o; });
++  const log = [];
++  // Reunanpehmennys
++  try {
++    const t = retro.sceneTarget; t.samples = 4; t.texture.minFilter = T.LinearFilter; t.texture.magFilter = T.LinearFilter; t.dispose();
++  } catch (e) { log.push('msaa ' + e.message); }
++  if (level < 2) return log;
++
++  const colored = (geo, hex) => {
++    geo = geo.index ? geo.toNonIndexed() : geo;
++    const c = new T.Color(hex); const n = geo.attributes.position.count; const arr = new Float32Array(n * 3);
++    for (let i = 0; i < n; i++) { arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b; }
++    geo.setAttribute('color', new T.BufferAttribute(arr, 3)); geo.deleteAttribute('uv'); geo.computeVertexNormals();
++    return geo;
++  };
++  const merge = (list) => window.BGU.mergeGeometries(list, false);
++  const blob = (rad, x, y, z, sy, hex, detail = 1) => colored(new T.IcosahedronGeometry(rad, detail).scale(1, sy, 1).translate(x, y, z), hex);
++  const trees = {
++    spruce: () => {
++      const parts = [colored(new T.CylinderGeometry(0.035, 0.05, 0.2, 6).translate(0, 0.1, 0), 0x4a3526)];
++      for (let i = 0; i < 5; i++) {
++        const h = 0.3 - i * 0.02, rad = 0.46 - i * 0.085, y0 = 0.1 + i * 0.165;
++        parts.push(colored(new T.ConeGeometry(rad, h, 8).rotateY(i * 0.7).translate(0, y0 + h / 2, 0), i % 2 ? 0x1f4d2c : 0x245a31));
++      }
++      return merge(parts);
++    },
++    pine: () => merge([
++      colored(new T.CylinderGeometry(0.028, 0.05, 0.74, 6).translate(0, 0.37, 0), 0x9a5a36),
++      blob(0.34, 0, 0.82, 0, 0.5, 0x2f6b34), blob(0.24, 0.14, 0.7, -0.08, 0.5, 0x3a7a3c), blob(0.2, -0.16, 0.74, 0.1, 0.5, 0x2a6030),
++    ]),
++    birch: () => merge([
++      colored(new T.CylinderGeometry(0.02, 0.035, 0.62, 6).translate(0, 0.31, 0), 0xe6e4d8),
++      blob(0.3, 0, 0.7, 0, 1.0, 0x7fb04a), blob(0.22, 0.16, 0.54, 0.1, 1.0, 0x6a9a3e), blob(0.22, -0.14, 0.56, -0.1, 1.0, 0x8cbc52),
++      blob(0.16, 0.02, 0.92, 0.02, 1.0, 0x8cbc52),
++    ]),
++  };
++  const treeMat = new T.MeshLambertMaterial({ vertexColors: true, flatShading: true });
++  if (opts.trees !== false) for (const kind of Object.keys(trees)) {
++    const geo = trees[kind]();
++    for (const mesh of byName(kind)) {
++      if (!mesh.isInstancedMesh) continue;
++      mesh.geometry = geo; mesh.material = treeMat; mesh.castShadow = true; mesh.receiveShadow = true;
++    }
++  }
++  // Kaukainen metsänreuna ja kaislat pehmeiksi
++  if (opts.trees !== false) for (const name of ['shore-scenery', 'vegetation']) for (const grp of byName(name)) grp.traverse((o) => {
++    if (o.material && o.material.map && o.material.alphaTest) { o.material.map.magFilter = T.LinearFilter; o.material.map.needsUpdate = true; }
++  });
++  // Pelaajan värit sileällä varjostuksella
++  scene.traverse((o) => {
++    if (opts.trees !== false && o.isMesh && o.material && o.material.userData && o.material.userData.ramp) {
++      o.material = new T.MeshStandardMaterial({ color: o.material.color.clone(), roughness: 0.6 });
++      o.castShadow = true; o.receiveShadow = true;
++    } else if (o.isMesh && o.material && (o.material.isMeshLambertMaterial) && o.name !== 'water' && o.name !== 'swell') {
++      o.receiveShadow = true; if (!o.isInstancedMesh && o.geometry.boundingSphere && o.geometry.boundingSphere.radius < 30) o.castShadow = true;
++      o.material.needsUpdate = true;
++    }
++  });
++  // Varjot
++  r.shadowMap.enabled = true; r.shadowMap.type = T.PCFSoftShadowMap;
++  sun.castShadow = true; sun.shadow.mapSize.set(4096, 4096);
++  const sc = sun.shadow.camera; sc.left = -260; sc.right = 260; sc.top = 260; sc.bottom = -260; sc.near = 1; sc.far = 600; sc.updateProjectionMatrix();
++  sun.shadow.bias = -0.0015; sun.shadow.normalBias = 0.05;
++  // Vesi: heijastus ja väreily
++  const size = 256, cv = document.createElement('canvas'); cv.width = cv.height = size;
++  const ctx = cv.getContext('2d'), img = ctx.createImageData(size, size);
++  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
++  const wavesN = []; for (let i = 0; i < 26; i++) { const kx = Math.round((rnd() - 0.5) * 28), ky = Math.round((rnd() - 0.5) * 28); const k = Math.hypot(kx, ky) || 1; wavesN.push([kx, ky, rnd() * 6.28, 1 / k]); }
++  const H = (x, y) => { let h = 0; for (const [kx, ky, p, a] of wavesN) h += a * Math.sin((kx * x + ky * y) * 2 * Math.PI / size + p); return h; };
++  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
++    const dx = (H(x + 1, y) - H(x - 1, y)) * 2.2, dy = (H(x, y + 1) - H(x, y - 1)) * 2.2; const l = Math.hypot(dx, dy, 1); const k = (y * size + x) * 4;
++    img.data[k] = (-dx / l * 0.5 + 0.5) * 255; img.data[k + 1] = (-dy / l * 0.5 + 0.5) * 255; img.data[k + 2] = (1 / l * 0.5 + 0.5) * 255; img.data[k + 3] = 255;
++  }
++  ctx.putImageData(img, 0, 0);
++  const normals = new T.CanvasTexture(cv); normals.wrapS = normals.wrapT = T.RepeatWrapping;
++  const old = byName('water')[0];
++  const water = new window.Water(old.geometry, {
++    textureWidth: 1024, textureHeight: 1024, waterNormals: normals,
++    sunDirection: sun.position.clone().normalize(), sunColor: 0xfff3d0, waterColor: opts.waterColor ?? 0x0b3350,
++    distortionScale: opts.distortion ?? 1.6, fog: false, alpha: 1,
++  });
++  water.material.fragmentShader = water.material.fragmentShader
++    .replace('( sunColor * diffuseLight * 0.3 + scatter )', '( scatter + vec3( 0.004, 0.02, 0.035 ) )')
++    .replace('float rf0 = 0.02;', 'float rf0 = 0.05;');
++  water.rotation.copy(old.rotation); water.position.copy(old.position); water.name = 'modern-water';
++  water.material.uniforms.size.value = opts.size ?? 5;
++  old.parent.add(water); old.visible = false;
++  for (const s of byName('swell')) s.visible = false;
++  const orig = retro.render.bind(retro);
++  retro.render = (s, c, gr) => { water.material.uniforms.time.value += 1 / 60; old.visible = false; orig(s, c, gr); };
++  window.modernWater = water;
++  if (level >= 3) {
++    const sky = new window.Sky(); sky.scale.setScalar(3000); sky.name = 'modern-sky';
++    const u = sky.material.uniforms; u.turbidity.value = 4; u.rayleigh.value = 1.6; u.mieCoefficient.value = 0.004; u.mieDirectionalG.value = 0.85;
++    u.sunPosition.value.copy(sun.position).normalize();
++    sky.material.fragmentShader = sky.material.fragmentShader.replace(/gl_FragColor = vec4\( retColor, 1\.0 \);/, 'gl_FragColor = vec4( retColor * 0.45, 0.0 );');
++    for (const d of byName('sky')) d.visible = false;
++    scene.add(sky);
++    const o2 = retro.render; retro.render = (s, c, gr) => { sky.position.copy(c.position); for (const d of byName('sky')) d.visible = false; o2(s, c, gr); };
++    // Tiheämmät, sileät puut
++    treeMat.flatShading = false; treeMat.needsUpdate = true;
++  }
++  return log;
++};
+diff --git a/packages/client/src/dev/modernLook2.js b/packages/client/src/dev/modernLook2.js
+new file mode 100644
+index 0000000..af66ca4
+--- /dev/null
++++ b/packages/client/src/dev/modernLook2.js
+@@ -0,0 +1,339 @@
++// Prototyyppi (#650, jatkotutkimus): sileä moderni ilme pelin kehitysversion päälle.
++// Ajetaan selaimessa kisan alettua: applyModern({ view: 'pov' | 'top' | 'third', look: true }).
++window.applyModern = (opts = {}) => {
++  const g = window.lunki, T = window.THREE, retro = window.retro, r = retro.renderer;
++  const scene = g.scene;
++  const log = [];
++  const byName = (name) => { const out = []; scene.traverse((o) => { if (o.name === name) out.push(o); }); return out; };
++  let sun;
++  scene.traverse((o) => { if (o.isDirectionalLight) sun = o; });
++  let seed = 11;
++  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
++
++  // --- Kolmannen persoonan kamera lähikuvaan ---
++  if (opts.view === 'third') {
++    const cam = new T.PerspectiveCamera(50, 1280 / 720, 0.1, 6000);
++    const p = g.tube.pos, h = g.tube.heading ?? 0;
++    const f = new T.Vector3(Math.cos(h), 0, -Math.sin(h)), rt = new T.Vector3(-f.z, 0, f.x);
++    const at = new T.Vector3(p.x, 0, -p.y);
++    cam.position.copy(at).addScaledVector(f, 3.6).addScaledVector(rt, 2.6).add(new T.Vector3(0, 1.3, 0));
++    cam.lookAt(at.clone().add(new T.Vector3(0, 1.5, 0)).addScaledVector(f, -1.5));
++    const orig = retro.render.bind(retro);
++    retro.render = (s, c, gr) => {
++      for (const d of byName('sky')) { d.visible = true; d.position.copy(cam.position); }
++      if (g.youMarker) g.youMarker.group.visible = false;
++      if (g.mapOverlay) g.mapOverlay.visible = false;
++      if (g.scenery) g.scenery.visible = true;
++      orig(s, cam, gr);
++    };
++    log.push('third h=' + h);
++  }
++  if (!opts.look) return log;
++
++  // --- Reunanpehmennys ---
++  try {
++    const t = retro.sceneTarget; t.samples = 4; t.texture.minFilter = T.LinearFilter; t.texture.magFilter = T.LinearFilter; t.dispose();
++  } catch (e) { log.push('msaa ' + e.message); }
++
++  // --- Lehvästö kortteina ---
++  const canvasTex = (draw, size = 256) => {
++    const cv = document.createElement('canvas'); cv.width = cv.height = size;
++    draw(cv.getContext('2d'), size);
++    const tex = new T.CanvasTexture(cv); tex.colorSpace = T.SRGBColorSpace; tex.anisotropy = 8;
++    return tex;
++  };
++  const pick = (list) => list[Math.floor(rnd() * list.length)];
++  const leafTex = (cols) => canvasTex((ctx, s) => {
++    for (let i = 0; i < 150; i++) {
++      const a = rnd() * 6.28, d = Math.sqrt(rnd()) * s * 0.4;
++      ctx.save(); ctx.translate(s / 2 + Math.cos(a) * d, s / 2 + Math.sin(a) * d); ctx.rotate(rnd() * 6.28);
++      ctx.fillStyle = pick(cols); ctx.beginPath(); ctx.ellipse(0, 0, s * 0.045, s * 0.026, 0, 0, 6.28); ctx.fill(); ctx.restore();
++    }
++  });
++  const needleTex = (cols) => canvasTex((ctx, s) => {
++    ctx.lineCap = 'round';
++    for (let k = 0; k < 26; k++) {
++      const a0 = rnd() * 6.28, d = Math.sqrt(rnd()) * s * 0.3, cx = s / 2 + Math.cos(a0) * d, cy = s / 2 + Math.sin(a0) * d;
++      for (let i = 0; i < 30; i++) {
++        const a = rnd() * 6.28, l = s * (0.06 + rnd() * 0.07);
++        ctx.strokeStyle = pick(cols); ctx.lineWidth = s * 0.008; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * l, cy + Math.sin(a) * l); ctx.stroke();
++      }
++    }
++  });
++  // Kuusen oksa: tyvi vasemmalla, kärki oikealla, havut sivuoksissa.
++  const branchTex = (cols) => canvasTex((ctx, s) => {
++    ctx.lineCap = 'round';
++    for (let i = 0; i < 46; i++) {
++      const t = i / 45, x = s * (0.04 + t * 0.9), w = s * 0.44 * Math.sin(Math.min(1, t * 1.25) * Math.PI * 0.62 + 0.25) * (1 - t * 0.55);
++      for (const side of [-1, 1]) {
++        const ex = x + s * 0.09, ey = s / 2 + side * w * (0.75 + rnd() * 0.3);
++        ctx.strokeStyle = pick(cols); ctx.lineWidth = s * 0.014; ctx.beginPath(); ctx.moveTo(x, s / 2); ctx.lineTo(ex, ey); ctx.stroke();
++        for (let n = 0; n < 16; n++) {
++          const u = rnd(), px = x + (ex - x) * u, py = s / 2 + (ey - s / 2) * u, a = rnd() * 6.28, l = s * 0.05;
++          ctx.strokeStyle = pick(cols); ctx.lineWidth = s * 0.007; ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + Math.cos(a) * l, py + Math.sin(a) * l); ctx.stroke();
++        }
++      }
++    }
++  });
++  const quads = { pos: [], nor: [], uv: [], col: [] };
++  const resetQuads = () => { quads.pos = []; quads.nor = []; quads.uv = []; quads.col = []; };
++  // Kortti: keskipiste c, akselit u ja v (puolikkaat), valon normaali n ja kirkkaus.
++  const card = (c, u, v, n, shade) => {
++    const corner = (su, sv) => [c[0] + u[0] * su + v[0] * sv, c[1] + u[1] * su + v[1] * sv, c[2] + u[2] * su + v[2] * sv];
++    const P = [corner(-1, -1), corner(1, -1), corner(1, 1), corner(-1, 1)], UV = [[0, 0], [1, 0], [1, 1], [0, 1]];
++    for (const i of [0, 1, 2, 0, 2, 3]) { quads.pos.push(...P[i]); quads.nor.push(...n); quads.uv.push(...UV[i]); quads.col.push(shade, shade, shade); }
++  };
++  const norm = (v) => { const l = Math.hypot(...v) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
++  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
++  // Lehvästön pallomainen ryhmä kortteja.
++  const clump = (cx, cy, cz, rad, sy, n, size) => {
++    for (let i = 0; i < n; i++) {
++      const z = rnd() * 2 - 1, a = rnd() * 6.28, q = Math.sqrt(1 - z * z);
++      const d = [q * Math.cos(a), z, q * Math.sin(a)], k = 0.55 + rnd() * 0.45;
++      const c = [cx + d[0] * rad * k, cy + d[1] * rad * sy * k, cz + d[2] * rad * k];
++      const face = norm([d[0] + (rnd() - 0.5) * 0.9, d[1] + (rnd() - 0.5) * 0.9, d[2] + (rnd() - 0.5) * 0.9]);
++      const u = norm(cross(face, [0.3, 1, 0.2])), v = cross(face, u), s = size * (0.75 + rnd() * 0.5);
++      const light = norm([d[0], d[1] + 0.45, d[2]]);
++      card(c, u.map((x) => x * s), v.map((x) => x * s), light, 0.62 + 0.38 * (d[1] * 0.5 + 0.5) * k + (rnd() - 0.5) * 0.08);
++    }
++  };
++  const cardGeo = (aspect) => {
++    const geo = new T.BufferGeometry();
++    const pos = Float32Array.from(quads.pos);
++    for (let i = 0; i < pos.length; i += 3) { pos[i] /= aspect; pos[i + 2] /= aspect; }
++    geo.setAttribute('position', new T.BufferAttribute(pos, 3));
++    geo.setAttribute('normal', new T.BufferAttribute(Float32Array.from(quads.nor), 3));
++    geo.setAttribute('uv', new T.BufferAttribute(Float32Array.from(quads.uv), 2));
++    geo.setAttribute('color', new T.BufferAttribute(Float32Array.from(quads.col), 3));
++    return geo;
++  };
++  // Runko ja lehvästön tumma sisus: sileä, väri verteksissä.
++  const solid = (geo, colorAt, aspect) => {
++    geo = geo.index ? geo.toNonIndexed() : geo;
++    geo.computeVertexNormals();
++    const p = geo.attributes.position, col = new Float32Array(p.count * 3), c = new T.Color();
++    for (let i = 0; i < p.count; i++) { c.set(colorAt(p.getY(i), i)); col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b; p.setX(i, p.getX(i) / aspect); p.setZ(i, p.getZ(i) / aspect); }
++    geo.setAttribute('color', new T.BufferAttribute(col, 3));
++    const uv = new Float32Array(p.count * 2); geo.setAttribute('uv', new T.BufferAttribute(uv, 2));
++    return geo;
++  };
++  const smooth = (geo) => { const m = window.BGU.mergeVertices(geo.index ? geo : geo); m.computeVertexNormals(); return m; };
++  const mix = (a, b, t) => new T.Color(a).lerp(new T.Color(b), Math.max(0, Math.min(1, t)));
++  const foliageMat = (map) => {
++    const m = new T.MeshLambertMaterial({ map, alphaTest: 0.45, side: T.DoubleSide, vertexColors: true, alphaToCoverage: true });
++    // Kortin takapuoli valaistaan kuten etupuoli: lehvästön valo tulee ryhmän muodosta.
++    m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\n normal = normalize( vNormal );'); };
++    return m;
++  };
++  const solidMat = new T.MeshLambertMaterial({ vertexColors: true });
++  const depthMat = (map) => new T.MeshDepthMaterial({ depthPacking: T.RGBADepthPacking, map, alphaTest: 0.45 });
++
++  const kinds = {
++    spruce: () => {
++      const aspect = 0.45;
++      resetQuads();
++      for (let i = 0; i < 15; i++) {
++        const y = 0.13 + i * 0.057, rad = 0.2 * Math.pow(1 - (y - 0.1) / 0.92, 0.85) + 0.014, n = 8, off = rnd() * 6.28;
++        for (let k = 0; k < n; k++) {
++          const a = off + (k / n) * 6.28 + (rnd() - 0.5) * 0.3, dir = [Math.cos(a), 0, Math.sin(a)], droop = 0.42 + rnd() * 0.25;
++          const u = [dir[0] * Math.cos(droop), -Math.sin(droop), dir[2] * Math.cos(droop)], v = [-dir[2], 0, dir[0]];
++          const len = rad * 0.62, wid = rad * 0.5;
++          const c = [dir[0] * rad * 0.5, y - rad * 0.12, dir[2] * rad * 0.5];
++          card(c, u.map((x) => x * len), v.map((x) => x * wid), norm([dir[0], 0.7, dir[2]]), 0.7 + 0.3 * (i / 14) + (rnd() - 0.5) * 0.1);
++        }
++      }
++      const tex = branchTex(['#2a6a3a', '#327a44', '#3c8a4e', '#245c33']);
++      const core = solid(smooth(new T.ConeGeometry(0.1, 0.86, 12, 6).translate(0, 0.56, 0)), () => 0x1c4628, aspect);
++      const trunk = solid(smooth(new T.CylinderGeometry(0.008, 0.016, 0.3, 8).translate(0, 0.15, 0)), () => 0x4a3a2c, aspect);
++      return { foliage: cardGeo(aspect), tex, solid: window.BGU.mergeGeometries([core, trunk]) };
++    },
++    pine: () => {
++      const aspect = 0.5;
++      resetQuads();
++      const cl = [[0, 0.87, 0, 0.15], [0.1, 0.77, -0.05, 0.12], [-0.11, 0.79, 0.07, 0.12], [0.03, 0.7, 0.1, 0.09], [-0.05, 0.94, -0.03, 0.1], [0.06, 0.66, -0.1, 0.07]];
++      const cores = [];
++      for (const [x, y, z, rad] of cl) {
++        clump(x, y, z, rad, 0.6, 30, rad * 0.62);
++        cores.push(solid(smooth(new T.IcosahedronGeometry(rad * 0.62, 2).scale(1, 0.6, 1).translate(x, y, z)), () => 0x2a5a32, aspect));
++        // Oksa rungosta ryhmään
++        const len = Math.hypot(x, z);
++        if (len > 0.02) cores.push(solid(new T.CylinderGeometry(0.004, 0.006, len, 5).rotateZ(Math.PI / 2).rotateY(-Math.atan2(z, x)).translate(x / 2, y - rad * 0.2, z / 2), () => 0x9a5a36, aspect));
++      }
++      const tex = needleTex(['#3d8244', '#4a964c', '#57a556', '#35733c']);
++      const trunk = solid(smooth(new T.CylinderGeometry(0.008, 0.017, 0.86, 10, 8).translate(0, 0.43, 0)), (y) => mix(0x5e4a3e, 0xb86a3c, (y - 0.2) / 0.35), aspect);
++      return { foliage: cardGeo(aspect), tex, solid: window.BGU.mergeGeometries([trunk, ...cores]) };
++    },
++    birch: () => {
++      const aspect = 0.55;
++      resetQuads();
++      const cl = [[0, 0.68, 0, 0.17, 1.25], [0.09, 0.5, 0.05, 0.12, 1.2], [-0.1, 0.54, -0.06, 0.12, 1.2], [0.02, 0.87, 0.01, 0.1, 1.2], [-0.03, 0.4, 0.09, 0.085, 1.1], [0.05, 0.4, -0.09, 0.08, 1.1]];
++      const cores = [];
++      for (const [x, y, z, rad, sy] of cl) {
++        clump(x, y, z, rad, sy, 34, rad * 0.55);
++        cores.push(solid(smooth(new T.IcosahedronGeometry(rad * 0.55, 2).scale(1, sy, 1).translate(x, y, z)), () => 0x5c9040, aspect));
++      }
++      const tex = leafTex(['#8fc652', '#a2d560', '#7ab044', '#b4e06e', '#86bd4c']);
++      const trunk = solid(smooth(new T.CylinderGeometry(0.006, 0.014, 0.8, 9, 22).translate(0, 0.4, 0)), (y) => (Math.sin(y * 173) * Math.sin(y * 61) > 0.55 ? 0x2c2a28 : 0xe9e7dc), aspect);
++      return { foliage: cardGeo(aspect), tex, solid: window.BGU.mergeGeometries([trunk, ...cores]) };
++    },
++  };
++  for (const kind of Object.keys(kinds)) {
++    const meshes = byName(kind).filter((m) => m.isInstancedMesh);
++    if (!meshes.length) continue;
++    const k = kinds[kind](), mat = foliageMat(k.tex), dm = depthMat(k.tex);
++    for (const mesh of meshes) {
++      mesh.geometry = k.foliage; mesh.material = mat; mesh.customDepthMaterial = dm; mesh.castShadow = true; mesh.receiveShadow = true;
++      const body = new T.InstancedMesh(k.solid, solidMat, mesh.count);
++      body.instanceMatrix = mesh.instanceMatrix; body.instanceColor = mesh.instanceColor; body.castShadow = true; body.receiveShadow = true;
++      body.boundingSphere = mesh.boundingSphere; body.name = kind + '-body';
++      mesh.parent.add(body);
++    }
++    log.push(kind + ' ' + meshes.length + ' tris ' + (k.foliage.attributes.position.count / 3 + k.solid.attributes.position.count / 3));
++  }
++  // Kaislat: ohuet lehdet ja ruskeat tähkät
++  {
++    const pos = [], nor = [], col = [];
++    const blade = (bx, bz, hgt, lean, la, w, head) => {
++      const steps = 4, pts = [];
++      for (let i = 0; i <= steps; i++) { const t = i / steps; pts.push([bx + Math.cos(la) * lean * t * t, hgt * t, bz + Math.sin(la) * lean * t * t, w * (1 - t * 0.85)]); }
++      const side = [-Math.sin(la), 0, Math.cos(la)];
++      for (let i = 0; i < steps; i++) {
++        const a = pts[i], b = pts[i + 1];
++        const A = [[a[0] - side[0] * a[3], a[1], a[2] - side[2] * a[3]], [a[0] + side[0] * a[3], a[1], a[2] + side[2] * a[3]], [b[0] + side[0] * b[3], b[1], b[2] + side[2] * b[3]], [b[0] - side[0] * b[3], b[1], b[2] - side[2] * b[3]]];
++        const cA = head ? new T.Color(0x6b4a2a) : mix(0x3f6b2c, 0xa9b85a, a[1] / hgt), cB = head ? cA : mix(0x3f6b2c, 0xa9b85a, b[1] / hgt), C = [cA, cA, cB, cB];
++        for (const j of [0, 1, 2, 0, 2, 3]) { pos.push(...A[j]); nor.push(Math.cos(la) * 0.4, 0.9, Math.sin(la) * 0.4); col.push(C[j].r, C[j].g, C[j].b); }
++      }
++    };
++    for (let i = 0; i < 26; i++) {
++      const a = rnd() * 6.28, d = Math.sqrt(rnd()) * 0.42, hgt = 0.55 + rnd() * 0.45, la = rnd() * 6.28, lean = 0.05 + rnd() * 0.25;
++      blade(Math.cos(a) * d, Math.sin(a) * d, hgt, lean, la, 0.012 + rnd() * 0.008, false);
++    }
++    const geo = new T.BufferGeometry();
++    geo.setAttribute('position', new T.BufferAttribute(Float32Array.from(pos), 3));
++    geo.setAttribute('normal', new T.BufferAttribute(Float32Array.from(nor), 3));
++    geo.setAttribute('color', new T.BufferAttribute(Float32Array.from(col), 3));
++    const mat = new T.MeshLambertMaterial({ vertexColors: true, side: T.DoubleSide });
++    for (const mesh of byName('reeds')) if (mesh.isInstancedMesh) { mesh.geometry = geo; mesh.material = mat; mesh.castShadow = true; }
++  }
++  // Kaukainen metsänreuna pehmeäksi
++  for (const grp of byName('shore-scenery')) grp.traverse((o) => {
++    if (o.material && o.material.map && o.material.alphaTest) { o.material.map.magFilter = T.LinearFilter; o.material.map.needsUpdate = true; }
++  });
++
++  // --- Kalastaja, rengas ja vapa: pyöristetyt muodot ja sileä varjostus ---
++  const std = new Map();
++  scene.traverse((o) => {
++    if (!o.isMesh || o.isInstancedMesh || !o.material || !o.geometry) return;
++    const small = (o.geometry.boundingSphere ?? (o.geometry.computeBoundingSphere(), o.geometry.boundingSphere)).radius < 3;
++    if (o.geometry.type === 'BoxGeometry' && small) {
++      o.geometry.computeBoundingBox();
++      const bb = o.geometry.boundingBox, sz = bb.getSize(new T.Vector3()), ct = bb.getCenter(new T.Vector3());
++      const min = Math.min(sz.x, sz.y, sz.z), flat = min < 0.04;
++      const rg = new window.RoundedBoxGeometry(sz.x, sz.y, sz.z, 5, flat ? min * 0.45 : Math.min(min * 0.48, 0.09));
++      rg.translate(ct.x, ct.y, ct.z); o.geometry = rg;
++    }
++    const m = o.material;
++    if (small && (m.isMeshLambertMaterial) && !m.map && !m.vertexColors && o.name !== 'water' && o.name !== 'swell') {
++      if (!std.has(m)) {
++        const pvc = !!(m.userData && m.userData.ramp);
++        std.set(m, new T.MeshStandardMaterial({ color: m.color.clone(), roughness: pvc ? 0.38 : 0.8, metalness: 0, transparent: m.transparent, opacity: m.opacity, side: m.side }));
++      }
++      o.material = std.get(m); o.castShadow = true; o.receiveShadow = true;
++    } else if (m.isMeshLambertMaterial && o.name !== 'water' && o.name !== 'swell') {
++      o.receiveShadow = true; if (small) o.castShadow = true; m.needsUpdate = true;
++    }
++  });
++  // Ympäristön heijastus sileisiin pintoihin: taivas ylhäällä, metsä ja vesi alhaalla.
++  {
++    const envScene = new T.Scene();
++    const geo = new T.SphereGeometry(10, 32, 16), p = geo.attributes.position, col = new Float32Array(p.count * 3);
++    for (let i = 0; i < p.count; i++) {
++      const y = p.getY(i) / 10, c = y > 0.05 ? mix(0xcfe4f2, 0x5f9fd8, y) : y > -0.05 ? new T.Color(0x3d5a3a) : mix(0x2a4a5c, 0x18303f, -y);
++      col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
++    }
++    geo.setAttribute('color', new T.BufferAttribute(col, 3));
++    envScene.add(new T.Mesh(geo, new T.MeshBasicMaterial({ vertexColors: true, side: T.BackSide })));
++    const pm = new T.PMREMGenerator(r);
++    scene.environment = pm.fromScene(envScene, 0.02).texture; scene.environmentIntensity = 0.18;
++  }
++
++  // --- Varjot ---
++  r.shadowMap.enabled = true; r.shadowMap.type = T.PCFSoftShadowMap;
++  sun.castShadow = true; sun.shadow.mapSize.set(4096, 4096);
++  const span = opts.view === 'top' ? 90 : 220;
++  const sc = sun.shadow.camera; sc.left = -span; sc.right = span; sc.top = span; sc.bottom = -span; sc.near = 1; sc.far = 900; sc.updateProjectionMatrix();
++  sun.shadow.bias = -0.0008; sun.shadow.normalBias = 0.04; sun.shadow.radius = 3;
++
++  // --- Vesi ---
++  const size = 256, cv = document.createElement('canvas'); cv.width = cv.height = size;
++  const ctx = cv.getContext('2d'), img = ctx.createImageData(size, size);
++  let ws = 7; const wr = () => (ws = (ws * 16807) % 2147483647) / 2147483647;
++  const wavesN = []; for (let i = 0; i < 26; i++) { const kx = Math.round((wr() - 0.5) * 28), ky = Math.round((wr() - 0.5) * 28); const k = Math.hypot(kx, ky) || 1; wavesN.push([kx, ky, wr() * 6.28, 1 / k]); }
++  const H = (x, y) => { let h = 0; for (const [kx, ky, p, a] of wavesN) h += a * Math.sin((kx * x + ky * y) * 2 * Math.PI / size + p); return h; };
++  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
++    const dx = (H(x + 1, y) - H(x - 1, y)) * 2.2, dy = (H(x, y + 1) - H(x, y - 1)) * 2.2; const l = Math.hypot(dx, dy, 1); const k = (y * size + x) * 4;
++    img.data[k] = (-dx / l * 0.5 + 0.5) * 255; img.data[k + 1] = (-dy / l * 0.5 + 0.5) * 255; img.data[k + 2] = (1 / l * 0.5 + 0.5) * 255; img.data[k + 3] = 255;
++  }
++  ctx.putImageData(img, 0, 0);
++  const normals = new T.CanvasTexture(cv); normals.wrapS = normals.wrapT = T.RepeatWrapping;
++  const old = byName('water')[0];
++  for (const s of byName('swell')) s.visible = false;
++  const prev = retro.render.bind(retro);
++  if (opts.view === 'top') {
++    // Ylhäältä: sileä syvyysväri ja syvyyskäyrät, ei heijastusta (syvyys on pelitietoa).
++    const b = g.map.bounds, step = 1.5, W = Math.ceil((b.maxX - b.minX) / step), Hh = Math.ceil((b.maxY - b.minY) / step);
++    const dc = document.createElement('canvas'); dc.width = W; dc.height = Hh;
++    const dctx = dc.getContext('2d'), di = dctx.createImageData(W, Hh), depth = new Float32Array(W * Hh);
++    for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) {
++      let d = 0; try { d = g.bottom.depthAt({ x: b.minX + x * step, y: b.maxY - y * step }); } catch { d = 0; }
++      depth[y * W + x] = d;
++    }
++    const tex = new T.DataTexture(depth, W, Hh, T.RedFormat, T.FloatType); tex.minFilter = tex.magFilter = T.LinearFilter; tex.needsUpdate = true;
++    const mat = new T.ShaderMaterial({
++      uniforms: { uDepth: { value: tex }, uBounds: { value: new T.Vector4(b.minX, b.maxY, W * step, Hh * step) }, uNormals: { value: normals }, uSun: { value: sun.position.clone().normalize() } },
++      vertexShader: 'varying vec3 vW; void main() { vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
++      fragmentShader: `uniform sampler2D uDepth; uniform sampler2D uNormals; uniform vec4 uBounds; uniform vec3 uSun; varying vec3 vW;
++        vec3 ramp(float d) {
++          vec3 c = mix(vec3(0.50, 0.80, 0.76), vec3(0.30, 0.66, 0.74), smoothstep(0.0, 1.2, d));
++          c = mix(c, vec3(0.16, 0.50, 0.68), smoothstep(1.0, 3.0, d));
++          c = mix(c, vec3(0.09, 0.36, 0.58), smoothstep(2.5, 6.0, d));
++          return mix(c, vec3(0.04, 0.20, 0.40), smoothstep(5.0, 11.0, d));
++        }
++        void main() {
++          vec2 uv = vec2((vW.x - uBounds.x) / uBounds.z, (uBounds.y + vW.z) / uBounds.w);
++          float d = texture2D(uDepth, uv).r;
++          vec3 c = ramp(d);
++          float line = 0.0;
++          float w = fwidth(d) * 1.2 + 1e-4;
++          line = max(line, 1.0 - smoothstep(0.0, w, abs(d - 1.0)));
++          line = max(line, 1.0 - smoothstep(0.0, w, abs(d - 2.0)));
++          line = max(line, 1.0 - smoothstep(0.0, w, abs(d - 3.5)));
++          line = max(line, 1.0 - smoothstep(0.0, w, abs(d - 6.0)));
++          line = max(line, 1.0 - smoothstep(0.0, w, abs(d - 8.0)));
++          c = mix(c, vec3(1.0), line * 0.28);
++          vec3 n = texture2D(uNormals, vW.xz / 7.0).xyz * 2.0 - 1.0;
++          c += vec3(0.9, 0.95, 1.0) * 0.6 * pow(max(0.0, dot(normalize(vec3(n.x * 0.5, 1.0, n.y * 0.5)), normalize(uSun + vec3(0.0, 1.0, 0.0)))), 90.0) * 0.10;
++          c += n.x * 0.012;
++          gl_FragColor = vec4(pow(c, vec3(2.2)), 1.0);
++        }`,
++    });
++    const water = new T.Mesh(old.geometry, mat); water.rotation.copy(old.rotation); water.position.copy(old.position); water.name = 'modern-water';
++    old.parent.add(water);
++    const cam = g.view.camera, zoom = retro.resolution.height / 270;
++    retro.render = (s, c, gr) => { old.visible = false; if (g.scenery) g.scenery.visible = true; for (const o of byName('shore-scenery')) o.visible = false; if (c === cam && cam.zoom !== zoom) { cam.zoom = zoom; cam.updateProjectionMatrix(); } prev(s, c, gr); };
++    log.push('top ' + W + 'x' + Hh);
++  } else {
++    const water = new window.Water(old.geometry, {
++      textureWidth: 1024, textureHeight: 1024, waterNormals: normals,
++      sunDirection: sun.position.clone().normalize(), sunColor: 0xfff3d0, waterColor: 0x0b3350, distortionScale: opts.view === 'third' ? 0.9 : 1.6, fog: false, alpha: 1,
++    });
++    water.material.fragmentShader = water.material.fragmentShader
++      .replace('( sunColor * diffuseLight * 0.3 + scatter )', '( scatter + vec3( 0.004, 0.02, 0.035 ) )')
++      .replace('float rf0 = 0.02;', 'float rf0 = 0.05;');
++    water.rotation.copy(old.rotation); water.position.copy(old.position); water.name = 'modern-water';
++    water.material.uniforms.size.value = 5;
++    old.parent.add(water);
++    retro.render = (s, c, gr) => { water.material.uniforms.time.value += 1 / 60; old.visible = false; prev(s, c, gr); };
++  }
++  return log;
++};
+diff --git a/packages/client/src/dev/modernLook3.js b/packages/client/src/dev/modernLook3.js
+new file mode 100644
+index 0000000..5cc72ef
+--- /dev/null
++++ b/packages/client/src/dev/modernLook3.js
+@@ -0,0 +1,714 @@
++// Prototyyppi (#650, kolme versiota): A luonnollinen, B maalattu, C piirretty.
++// Ajetaan selaimessa kisan alettua: applyModern({ view: 'pov' | 'top' | 'third', look: true, style: 'A' | 'B' | 'C' }).
++window.applyModern = (opts = {}) => {
++  const g = window.lunki, T = window.THREE, retro = window.retro, r = retro.renderer, BGU = window.BGU;
++  const scene = g.scene;
++  const log = [];
++  const byName = (name) => { const out = []; scene.traverse((o) => { if (o.name === name) out.push(o); }); return out; };
++  let sun;
++  scene.traverse((o) => { if (o.isDirectionalLight) sun = o; });
++  let seed = 11;
++  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
++  const pick = (list) => list[Math.floor(rnd() * list.length)];
++  const mix = (a, b, t) => new T.Color(a).lerp(new T.Color(b), Math.max(0, Math.min(1, t)));
++  const sstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
++  const hash = (x, y, z) => { const s = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453; return s - Math.floor(s); };
++  const noise = (x, y, z) => {
++    const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z), xf = x - xi, yf = y - yi, zf = z - zi;
++    const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf), w = zf * zf * (3 - 2 * zf);
++    const l = (a, b, t) => a + (b - a) * t;
++    return l(l(l(hash(xi, yi, zi), hash(xi + 1, yi, zi), u), l(hash(xi, yi + 1, zi), hash(xi + 1, yi + 1, zi), u), v),
++      l(l(hash(xi, yi, zi + 1), hash(xi + 1, yi, zi + 1), u), l(hash(xi, yi + 1, zi + 1), hash(xi + 1, yi + 1, zi + 1), u), v), w) * 2 - 1;
++  };
++
++  const p0 = g.tube.pos, h0 = g.tube.heading ?? 0;
++  const fwd = new T.Vector3(Math.cos(h0), 0, -Math.sin(h0)), rgt = new T.Vector3(-fwd.z, 0, fwd.x);
++  const at0 = new T.Vector3(p0.x, 0, -p0.y);
++  let cam3 = null;
++  if (opts.view === 'third') {
++    cam3 = new T.PerspectiveCamera(50, 1280 / 720, 0.1, 6000);
++    cam3.position.copy(at0).addScaledVector(fwd, 3.6).addScaledVector(rgt, 2.6).add(new T.Vector3(0, 1.3, 0));
++    cam3.lookAt(at0.clone().add(new T.Vector3(0, 1.5, 0)).addScaledVector(fwd, -1.5));
++    const orig = retro.render.bind(retro);
++    retro.render = (s, c, gr) => {
++      for (const d of byName('sky')) { d.visible = true; d.position.copy(cam3.position); }
++      if (g.youMarker) g.youMarker.group.visible = false;
++      if (g.mapOverlay) g.mapOverlay.visible = false;
++      if (g.scenery) g.scenery.visible = true;
++      orig(s, cam3, gr);
++    };
++  }
++  if (!opts.look) return log;
++  const style = opts.style || 'A';
++  const top = opts.view === 'top';
++
++  // --- Tyylit ---
++  const ST = {
++    A: {
++      spruce: ['#234f2d', '#2b5d35', '#33693c', '#1d4426'], pine: ['#365f33', '#41703a', '#4c7d42', '#2e5330'], birch: ['#6f9a45', '#7fab4e', '#5f8a3c', '#8ab656'],
++      trunk: { spruce: 0x4b3b2f, pine: [0x5c4a40, 0xa8643c], birch: 0xdedbd0 },
++      ground: [0x8a8474, 0x6f8a45, 0x3f5a2e, 0x34492a], rock: [0x77756e, 0x8a877e, 0x65635d],
++      water: { color: 0x14221f, refl: 0.3, dist: 0.4, size: 3.4 }, wall: [0x8a2a22, 0x8a2a22, 0xc7a552, 0xd9d4c2], roof: [0x34322f, 0x2b2622, 0x5a2420],
++    },
++    B: {
++      spruce: [0x2f6b4a, 0x3d7f55, 0x57976a, 0x24553c], pine: [0x4f8a52, 0x67a05c, 0x86b56a, 0x3c7046], birch: [0x9cc75a, 0xb7d86c, 0x86b34c, 0xd0e58a],
++      trunk: { spruce: 0x5a4636, pine: [0x6e5546, 0xc77c4c], birch: 0xf0ece0 },
++      ground: [0xb9ad8e, 0x9dbb62, 0x5f8a4a, 0x4a7446], rock: [0x8d8a92, 0xa29ea3, 0x77768a],
++      water: { color: 0x1f4a55, refl: 0.16, dist: 0.45, size: 3.0 }, wall: [0xa33a2c, 0xa33a2c, 0xdcb85c, 0xe8e2cc], roof: [0x4a4650, 0x3c3a48, 0x6e3028],
++    },
++    C: {
++      spruce: [0x1f6a43, 0x2a8452, 0x39a060, 0x175235], pine: [0x3c8f4a, 0x4fae57, 0x6cc866, 0x2f7340], birch: [0x8fd14a, 0xa8e25a, 0x76b83e, 0xc4ee70],
++      trunk: { spruce: 0x5b3d28, pine: [0x7a4a30, 0xd9783a], birch: 0xfaf6ea },
++      ground: [0xd9c48c, 0x8fcf52, 0x55a544, 0x3f8a3c], rock: [0x8e929c, 0xa6aab4, 0x767a86],
++      water: { color: 0x2f86b8 }, wall: [0xc23a2a, 0xc23a2a, 0xf0c044, 0xf2ecd8], roof: [0x3a3a48, 0x2e2e3a, 0x8a2a22],
++    },
++  }[style];
++  const toonSteps = (() => { const d = new Uint8Array([90, 90, 90, 255, 170, 170, 170, 255, 255, 255, 255, 255]); const t = new T.DataTexture(d, 3, 1, T.RGBAFormat); t.minFilter = t.magFilter = T.NearestFilter; t.needsUpdate = true; return t; })();
++  // Perusmateriaali: väri vertekseissä, varjostus tyylin mukaan.
++  const baseMat = (extra = {}) => style === 'A' ? new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0, ...extra })
++    : style === 'B' ? new T.MeshLambertMaterial({ vertexColors: true, ...extra })
++      : new T.MeshToonMaterial({ vertexColors: true, gradientMap: toonSteps, ...extra });
++  // Piirretyn tyylin ääriviiva: sama muoto nurinpäin ja hieman paisutettuna.
++  const outlineMat = (w) => {
++    const m = new T.MeshBasicMaterial({ color: 0x16202a, side: T.BackSide });
++    m.onBeforeCompile = (sh) => { sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>\n transformed += normalize( normal ) * ${w.toFixed(4)};`); };
++    m.customProgramCacheKey = () => 'outline' + w;
++    return m;
++  };
++  const outline = (mesh, w) => {
++    if (style !== 'C') return;
++    const o = mesh.isInstancedMesh ? new T.InstancedMesh(mesh.geometry, outlineMat(w), mesh.count) : new T.Mesh(mesh.geometry, outlineMat(w));
++    if (mesh.isInstancedMesh) { o.instanceMatrix = mesh.instanceMatrix; o.frustumCulled = false; }
++    else { o.position.copy(mesh.position); o.rotation.copy(mesh.rotation); o.scale.copy(mesh.scale); }
++    o.name = 'outline'; mesh.parent.add(o);
++  };
++
++  // --- Reunanpehmennys ---
++  try { const t = retro.sceneTarget; t.samples = 4; t.texture.minFilter = T.LinearFilter; t.texture.magFilter = T.LinearFilter; t.dispose(); } catch (e) { log.push('msaa ' + e.message); }
++
++  // --- Muotoapurit ---
++  const paint = (geo, colorAt) => {
++    const p = geo.attributes.position, n = geo.attributes.normal, col = new Float32Array(p.count * 3), c = new T.Color();
++    for (let i = 0; i < p.count; i++) { c.set(colorAt(p.getX(i), p.getY(i), p.getZ(i), n ? n.getY(i) : 1)); col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b; }
++    geo.setAttribute('color', new T.BufferAttribute(col, 3));
++    return geo;
++  };
++  const smooth = (geo) => { geo.deleteAttribute('uv'); geo.deleteAttribute('normal'); const m = BGU.mergeVertices(geo, 1e-4); m.computeVertexNormals(); return m; };
++  const finish = (geo) => { const out = geo.index ? geo.toNonIndexed() : geo; if (!out.attributes.uv) out.setAttribute('uv', new T.BufferAttribute(new Float32Array(out.attributes.position.count * 2), 2)); return out; };
++  // Sileä kumpare: pallo, jonka pintaa on muotoiltu kohinalla.
++  const blob = (rad, sy, amp, freq, cx, cy, cz, detail = 3) => {
++    const geo = smooth(new T.IcosahedronGeometry(1, detail)), p = geo.attributes.position, o = rnd() * 50;
++    for (let i = 0; i < p.count; i++) {
++      const x = p.getX(i), y = p.getY(i), z = p.getZ(i), k = 1 + amp * noise(x * freq + o, y * freq + o, z * freq);
++      p.setXYZ(i, cx + x * rad * k, cy + y * rad * sy * k, cz + z * rad * k);
++    }
++    geo.computeVertexNormals();
++    return geo;
++  };
++  const squash = (geo, aspect) => { const p = geo.attributes.position; for (let i = 0; i < p.count; i++) { p.setX(i, p.getX(i) / aspect); p.setZ(i, p.getZ(i) / aspect); } return geo; };
++
++  // --- Puut ---
++  const canvasTex = (draw, size = 512) => {
++    const cv = document.createElement('canvas'); cv.width = cv.height = size; draw(cv.getContext('2d'), size);
++    const tex = new T.CanvasTexture(cv); tex.colorSpace = T.SRGBColorSpace; tex.anisotropy = 8; return tex;
++  };
++  const cards = { pos: [], nor: [], uv: [], col: [] };
++  const card = (c, u, v, n, shade) => {
++    const corner = (su, sv) => [c[0] + u[0] * su + v[0] * sv, c[1] + u[1] * su + v[1] * sv, c[2] + u[2] * su + v[2] * sv];
++    const P = [corner(-1, -1), corner(1, -1), corner(1, 1), corner(-1, 1)], UV = [[0, 0], [1, 0], [1, 1], [0, 1]];
++    for (const i of [0, 1, 2, 0, 2, 3]) { cards.pos.push(...P[i]); cards.nor.push(...n); cards.uv.push(...UV[i]); cards.col.push(shade, shade, shade); }
++  };
++  const norm = (v) => { const l = Math.hypot(...v) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
++  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
++  const clump = (cx, cy, cz, rad, sy, n, size) => {
++    for (let i = 0; i < n; i++) {
++      const z = rnd() * 2 - 1, a = rnd() * 6.28, q = Math.sqrt(1 - z * z), d = [q * Math.cos(a), z, q * Math.sin(a)], k = Math.pow(rnd(), 0.45);
++      const c = [cx + d[0] * rad * k, cy + d[1] * rad * sy * k, cz + d[2] * rad * k];
++      const face = norm([d[0] + (rnd() - 0.5) * 1.2, d[1] + (rnd() - 0.5) * 1.2, d[2] + (rnd() - 0.5) * 1.2]);
++      const u = norm(cross(face, [0.3, 1, 0.2])), v = cross(face, u), s = size * (0.75 + rnd() * 0.5);
++      // Sisällä olevat kortit ovat tummempia: lehvästön syvyys tulee samoista korteista.
++      card(c, u.map((x) => x * s), v.map((x) => x * s), norm([d[0], d[1] + 0.5, d[2]]), 0.38 + 0.62 * k * (0.75 + 0.25 * d[1]) + (rnd() - 0.5) * 0.08);
++    }
++  };
++  const cardGeo = (aspect) => {
++    const geo = new T.BufferGeometry(), pos = Float32Array.from(cards.pos);
++    for (let i = 0; i < pos.length; i += 3) { pos[i] /= aspect; pos[i + 2] /= aspect; }
++    geo.setAttribute('position', new T.BufferAttribute(pos, 3));
++    geo.setAttribute('normal', new T.BufferAttribute(Float32Array.from(cards.nor), 3));
++    geo.setAttribute('uv', new T.BufferAttribute(Float32Array.from(cards.uv), 2));
++    geo.setAttribute('color', new T.BufferAttribute(Float32Array.from(cards.col), 3));
++    cards.pos = []; cards.nor = []; cards.uv = []; cards.col = [];
++    return geo;
++  };
++  const foliageMat = (map) => {
++    const m = new T.MeshLambertMaterial({ map, alphaTest: 0.4, side: T.DoubleSide, vertexColors: true, alphaToCoverage: true });
++    m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\n normal = normalize( vNormal );'); };
++    return m;
++  };
++  const leafTex = (cols) => canvasTex((ctx, s) => {
++    for (let i = 0; i < 420; i++) {
++      const a = rnd() * 6.28, d = Math.sqrt(rnd()) * s * 0.42;
++      ctx.save(); ctx.translate(s / 2 + Math.cos(a) * d, s / 2 + Math.sin(a) * d); ctx.rotate(rnd() * 6.28);
++      ctx.fillStyle = pick(cols); ctx.beginPath(); ctx.ellipse(0, 0, s * 0.03, s * 0.016, 0, 0, 6.28); ctx.fill(); ctx.restore();
++    }
++  });
++  const needleTex = (cols, fan) => canvasTex((ctx, s) => {
++    ctx.lineCap = 'round';
++    const twig = (x, y, a, len, depth) => {
++      const ex = x + Math.cos(a) * len, ey = y + Math.sin(a) * len;
++      ctx.strokeStyle = '#3a2c22'; ctx.lineWidth = s * 0.006 * depth; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ex, ey); ctx.stroke();
++      const n = Math.round(len / (s * 0.012));
++      for (let i = 0; i < n; i++) for (const side of [-1, 1]) {
++        const t = (i + rnd()) / n, px = x + (ex - x) * t, py = y + (ey - y) * t, na = a + side * (0.9 + rnd() * 0.5), l = s * (0.022 + rnd() * 0.016);
++        ctx.strokeStyle = pick(cols); ctx.lineWidth = s * 0.0045; ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + Math.cos(na) * l, py + Math.sin(na) * l); ctx.stroke();
++      }
++      if (depth > 1) for (let i = 1; i < 7; i++) for (const side of [-1, 1]) {
++        const t = i / 7; twig(x + (ex - x) * t, y + (ey - y) * t, a + side * (0.55 + rnd() * 0.3), len * (1 - t) * 0.6 + s * 0.03, depth - 1);
++      }
++    };
++    if (fan) twig(s * 0.03, s / 2, 0, s * 0.9, 3);
++    else for (let k = 0; k < 9; k++) { const a = rnd() * 6.28; twig(s / 2, s / 2, a, s * (0.3 + rnd() * 0.14), 2); }
++  });
++  const barkTex = (base, dark, birch) => canvasTex((ctx, s) => {
++    ctx.fillStyle = base; ctx.fillRect(0, 0, s, s);
++    for (let i = 0; i < (birch ? 60 : 500); i++) {
++      ctx.fillStyle = dark; ctx.globalAlpha = birch ? 0.9 : 0.25 + rnd() * 0.3;
++      if (birch) ctx.fillRect(rnd() * s, rnd() * s, s * (0.05 + rnd() * 0.16), s * (0.004 + rnd() * 0.012));
++      else ctx.fillRect(rnd() * s, rnd() * s, s * (0.004 + rnd() * 0.01), s * (0.03 + rnd() * 0.12));
++    }
++    ctx.globalAlpha = 1;
++  }, 256);
++  const trunkGeo = (r0, r1, hgt, bend, aspect) => {
++    const geo = new T.CylinderGeometry(r1, r0, hgt, 10, 10).translate(0, hgt / 2, 0), p = geo.attributes.position;
++    for (let i = 0; i < p.count; i++) { const y = p.getY(i) / hgt; p.setX(i, p.getX(i) + bend * Math.sin(y * 2.4) * hgt * 0.02); }
++    geo.computeVertexNormals();
++    return squash(geo, aspect);
++  };
++  const instanced = (src, geo, mat, name, cast = true) => {
++    const m = new T.InstancedMesh(geo, mat, src.count);
++    m.instanceMatrix = src.instanceMatrix;
++    m.castShadow = cast; m.receiveShadow = true; m.name = name; src.parent.add(m);
++    return m;
++  };
++  const treeKinds = {
++    spruce: () => {
++      const aspect = 0.45;
++      if (style === 'A') {
++        for (let i = 0; i < 22; i++) {
++          const y = 0.1 + i * 0.041, rad = 0.2 * Math.pow(1 - (y - 0.08) / 0.94, 0.8) + 0.012, n = 9, off = rnd() * 6.28;
++          for (let k = 0; k < n; k++) {
++            const a = off + (k / n) * 6.28 + (rnd() - 0.5) * 0.3, dir = [Math.cos(a), 0, Math.sin(a)], droop = 0.3 + rnd() * 0.3;
++            const u = [dir[0] * Math.cos(droop), -Math.sin(droop), dir[2] * Math.cos(droop)], v = [-dir[2], 0, dir[0]], len = rad * 0.56, wid = rad * 0.42;
++            card([dir[0] * rad * 0.52, y - rad * 0.1, dir[2] * rad * 0.52], u.map((x) => x * len), v.map((x) => x * wid), norm([dir[0], 0.8, dir[2]]), 0.62 + 0.38 * (i / 21) + (rnd() - 0.5) * 0.1);
++          }
++          // Rungon vieressä tummat oksat täyttävät sisuksen samalla tarkkuudella.
++          for (let k = 0; k < 3; k++) {
++            const a = off + k * 2.1, dir = [Math.cos(a), 0, Math.sin(a)], u = [dir[0], -0.35, dir[2]], v = [-dir[2], 0, dir[0]];
++            card([dir[0] * rad * 0.18, y, dir[2] * rad * 0.18], u.map((x) => x * rad * 0.34), v.map((x) => x * rad * 0.34), norm([dir[0], 0.6, dir[2]]), 0.34);
++          }
++        }
++        return { cards: cardGeo(aspect), tex: needleTex(ST.spruce, true), trunk: trunkGeo(0.014, 0.004, 0.96, 0, aspect), bark: barkTex('#5a4638', '#2e241c') };
++      }
++      // Maalattu ja piirretty: kerrokset sileinä helmoina, joiden reuna aaltoilee.
++      const parts = [], layers = style === 'C' ? 6 : 9;
++      for (let i = 0; i < layers; i++) {
++        const t = i / (layers - 1), yTop = 0.3 + t * 0.7 + 0.04, R = 0.2 * (1 - t * 0.86), hgt = (style === 'C' ? 0.3 : 0.22) * (1 - t * 0.45);
++        const geo = smooth(new T.ConeGeometry(R, hgt, 28, 5).translate(0, yTop - hgt / 2, 0)), p = geo.attributes.position, ph = rnd() * 6.28, K = style === 'C' ? 7 : 9;
++        for (let j = 0; j < p.count; j++) {
++          const x = p.getX(j), y = p.getY(j), z = p.getZ(j), rr = Math.hypot(x, z), a = Math.atan2(z, x), e = Math.min(1, rr / R);
++          const k = 1 + e * e * 0.2 * Math.sin(a * K + ph), dy = -e * e * hgt * (0.3 + 0.2 * Math.sin(a * K + ph));
++          p.setXYZ(j, x * k, y + dy, z * k);
++        }
++        geo.computeVertexNormals();
++        paint(geo, (x, y, z, ny) => { const e = Math.min(1, Math.hypot(x, z) / R); return ny < -0.3 ? ST.spruce[3] : mix(ST.spruce[0], ST.spruce[2], e * 0.55 + t * 0.45); });
++        parts.push(finish(geo));
++      }
++      parts.push(finish(paint(trunkGeo(0.015, 0.008, 0.4, 0, 1), () => ST.trunk.spruce)));
++      return { solid: squash(BGU.mergeGeometries(parts), aspect) };
++    },
++    pine: () => {
++      const aspect = 0.5, cl = [[0, 0.87, 0, 0.15], [0.1, 0.77, -0.05, 0.12], [-0.11, 0.79, 0.07, 0.12], [0.03, 0.7, 0.1, 0.09], [-0.05, 0.94, -0.03, 0.1], [0.07, 0.67, -0.1, 0.075]];
++      if (style === 'A') {
++        for (const [x, y, z, rad] of cl) clump(x, y, z, rad, 0.62, 46, rad * 0.5);
++        return { cards: cardGeo(aspect), tex: needleTex(ST.pine, false), trunk: trunkGeo(0.011, 0.005, 0.9, 1, aspect), bark: barkTex('#8a5a44', '#4a352a') };
++      }
++      const parts = [];
++      for (const [x, y, z, rad] of cl) {
++        const n = style === 'C' ? 1 : 3;
++        for (let k = 0; k < n; k++) {
++          const ox = k ? (rnd() - 0.5) * rad : 0, oy = k ? (rnd() - 0.3) * rad * 0.5 : 0, oz = k ? (rnd() - 0.5) * rad : 0, rr = k ? rad * 0.62 : rad;
++          const geo = blob(rr, 0.58, style === 'C' ? 0.12 : 0.2, 2.2, x + ox, y + oy, z + oz, 2), c = pick(ST.pine.slice(0, 3));
++          paint(geo, (px, py, pz, ny) => mix(ST.pine[3], c, 0.5 + ny * 0.5));
++          parts.push(finish(geo));
++        }
++        const len = Math.hypot(x, z);
++        if (len > 0.02) parts.push(finish(paint(new T.CylinderGeometry(0.004, 0.007, len, 6).rotateZ(Math.PI / 2).rotateY(-Math.atan2(z, x)).translate(x / 2, y - rad * 0.25, z / 2), () => ST.trunk.pine[1])));
++      }
++      parts.push(finish(paint(trunkGeo(0.011, 0.005, 0.9, 1, 1), (x, y) => mix(ST.trunk.pine[0], ST.trunk.pine[1], (y - 0.2) / 0.35))));
++      return { solid: squash(BGU.mergeGeometries(parts), aspect) };
++    },
++    birch: () => {
++      const aspect = 0.55, cl = [[0, 0.68, 0, 0.17, 1.25], [0.09, 0.5, 0.05, 0.12, 1.2], [-0.1, 0.54, -0.06, 0.12, 1.2], [0.02, 0.87, 0.01, 0.1, 1.2], [-0.03, 0.4, 0.09, 0.085, 1.1], [0.05, 0.4, -0.09, 0.08, 1.1]];
++      if (style === 'A') {
++        for (const [x, y, z, rad, sy] of cl) clump(x, y, z, rad, sy, 52, rad * 0.42);
++        return { cards: cardGeo(aspect), tex: leafTex(ST.birch), trunk: trunkGeo(0.014, 0.005, 0.82, 0.6, aspect), bark: barkTex('#dedbd0', '#2a2826', true) };
++      }
++      const parts = [];
++      for (const [x, y, z, rad, sy] of cl) {
++        const n = style === 'C' ? 1 : 4;
++        for (let k = 0; k < n; k++) {
++          const ox = k ? (rnd() - 0.5) * rad * 1.2 : 0, oy = k ? (rnd() - 0.5) * rad * sy : 0, oz = k ? (rnd() - 0.5) * rad * 1.2 : 0, rr = k ? rad * 0.6 : rad;
++          const geo = blob(rr, sy, style === 'C' ? 0.12 : 0.22, 2.4, x + ox, y + oy, z + oz, 2), c = pick(ST.birch);
++          paint(geo, (px, py, pz, ny) => mix(ST.birch[2], c, 0.45 + ny * 0.55));
++          parts.push(finish(geo));
++        }
++      }
++      parts.push(finish(paint(trunkGeo(0.014, 0.005, 0.82, 0.6, 1), (x, y) => (Math.sin(y * 173) * Math.sin(y * 61) > 0.6 ? 0x2c2a28 : ST.trunk.birch))));
++      return { solid: squash(BGU.mergeGeometries(parts), aspect) };
++    },
++  };
++  const treeMeshes = [], NEAR = top ? 170 : 260;
++  for (const kind of Object.keys(treeKinds)) {
++    const meshes = byName(kind).filter((m) => m.isInstancedMesh);
++    if (!meshes.length) continue;
++    const k = treeKinds[kind]();
++    const solidMat = k.solid ? baseMat() : null, fm = k.cards ? foliageMat(k.tex) : null;
++    const dm = k.cards ? new T.MeshDepthMaterial({ depthPacking: T.RGBADepthPacking, map: k.tex, alphaTest: 0.4 }) : null;
++    const barkMat = k.bark ? new T.MeshStandardMaterial({ map: k.bark, roughness: 0.95 }) : null;
++    if (barkMat) { k.bark.wrapS = k.bark.wrapT = T.RepeatWrapping; k.bark.repeat.set(2, 6); }
++    let nearCount = 0;
++    for (const mesh of meshes) {
++      const m4 = new T.Matrix4(), P = new T.Vector3(), zero = new T.Matrix4().makeScale(0, 0, 0), keep = [];
++      for (let i = 0; i < mesh.count; i++) { mesh.getMatrixAt(i, m4); P.setFromMatrixPosition(m4); if (Math.hypot(P.x - p0.x, -P.z - p0.y) < NEAR) keep.push(i); }
++      if (!keep.length) continue;
++      const near = new T.InstancedMesh(k.solid ?? k.cards, k.solid ? solidMat : fm, keep.length);
++      keep.forEach((i, j) => { mesh.getMatrixAt(i, m4); near.setMatrixAt(j, m4); mesh.setMatrixAt(i, zero); });
++      mesh.instanceMatrix.needsUpdate = true; near.instanceMatrix.needsUpdate = true;
++      near.castShadow = near.receiveShadow = true; near.name = kind + '-near'; near.frustumCulled = false; mesh.parent.add(near);
++      treeMeshes.push(near); nearCount += keep.length;
++      if (k.solid) outline(near, 0.006);
++      else { near.customDepthMaterial = dm; instanced(near, k.trunk, barkMat, kind + '-trunk').frustumCulled = false; }
++    }
++    log.push(kind + ' ' + meshes.length + ' near ' + nearCount + ' tris ' + Math.round((k.solid ?? k.cards).attributes.position.count / 3));
++  }
++
++  // --- Kaislat ja rantaheinä: yksittäiset lehdet ---
++  const bladeGeo = (() => {
++    const pos = [], nor = [], col = [], lo = style === 'A' ? 0x44682e : style === 'B' ? 0x5c8a44 : 0x4aa03c, hi = style === 'A' ? 0xa6b05a : style === 'B' ? 0xc8d27a : 0xb4e04e;
++    for (let b = 0; b < 26; b++) {
++      const a = rnd() * 6.28, d = Math.sqrt(rnd()) * 0.42, hgt = 0.55 + rnd() * 0.45, la = rnd() * 6.28, lean = 0.05 + rnd() * 0.25, w = (style === 'A' ? 0.012 : 0.022) + rnd() * 0.008, bx = Math.cos(a) * d, bz = Math.sin(a) * d;
++      const steps = 4, pts = [], side = [-Math.sin(la), 0, Math.cos(la)];
++      for (let i = 0; i <= steps; i++) { const t = i / steps; pts.push([bx + Math.cos(la) * lean * t * t, hgt * t, bz + Math.sin(la) * lean * t * t, w * (1 - t * 0.85)]); }
++      for (let i = 0; i < steps; i++) {
++        const A = pts[i], B = pts[i + 1], Q = [[A[0] - side[0] * A[3], A[1], A[2] - side[2] * A[3]], [A[0] + side[0] * A[3], A[1], A[2] + side[2] * A[3]], [B[0] + side[0] * B[3], B[1], B[2] + side[2] * B[3]], [B[0] - side[0] * B[3], B[1], B[2] - side[2] * B[3]]];
++        const cA = mix(lo, hi, A[1] / hgt), cB = mix(lo, hi, B[1] / hgt), C = [cA, cA, cB, cB];
++        for (const j of [0, 1, 2, 0, 2, 3]) { pos.push(...Q[j]); nor.push(Math.cos(la) * 0.4, 0.9, Math.sin(la) * 0.4); col.push(C[j].r, C[j].g, C[j].b); }
++      }
++    }
++    const geo = new T.BufferGeometry();
++    geo.setAttribute('position', new T.BufferAttribute(Float32Array.from(pos), 3));
++    geo.setAttribute('normal', new T.BufferAttribute(Float32Array.from(nor), 3));
++    geo.setAttribute('color', new T.BufferAttribute(Float32Array.from(col), 3));
++    return geo;
++  })();
++  const bladeMat = new T.MeshLambertMaterial({ vertexColors: true, side: T.DoubleSide });
++  for (const mesh of byName('reeds')) if (mesh.isInstancedMesh) { mesh.geometry = bladeGeo; mesh.material = bladeMat; mesh.castShadow = true; }
++  for (const grp of byName('shore-scenery')) grp.traverse((o) => { if (o.material && o.material.map && o.material.alphaTest) { o.material.map.magFilter = T.LinearFilter; o.material.map.needsUpdate = true; } });
++
++  // --- Ranta: maa nousee vedestä, kivet ja heinä rantaviivalla ---
++  const REGION = top ? 150 : 300, segs = [];
++  for (const ring of [g.map.shore, ...g.map.islands]) for (let i = 0; i < ring.length; i++) {
++    const a = ring[i], b = ring[(i + 1) % ring.length];
++    if (Math.min(a.x, b.x) > p0.x + REGION + 30 || Math.max(a.x, b.x) < p0.x - REGION - 30 || Math.min(a.y, b.y) > p0.y + REGION + 30 || Math.max(a.y, b.y) < p0.y - REGION - 30) continue;
++    segs.push([a.x, a.y, b.x - a.x, b.y - a.y, (b.x - a.x) ** 2 + (b.y - a.y) ** 2 || 1]);
++  }
++  const shoreDist = (x, y) => {
++    let best = 1e9;
++    for (const s of segs) { const t = Math.max(0, Math.min(1, ((x - s[0]) * s[2] + (y - s[1]) * s[3]) / s[4])), dx = x - s[0] - s[2] * t, dy = y - s[1] - s[3] * t, d = dx * dx + dy * dy; if (d < best) best = d; }
++    return Math.sqrt(best);
++  };
++  const isWater = (x, y) => g.water.isWater({ x, y });
++  const groundAt = (x, y) => { try { return g.world.ground.heightAt({ x, y }); } catch { return 0; } };
++  const bankAt = (x, y) => {
++    const d = shoreDist(x, y);
++    if (isWater(x, y)) return -0.45 * Math.min(1, d / 1.2);
++    return Math.max(0.12 + 1.25 * sstep(0, 6, d) + 0.18 * noise(x * 0.25, y * 0.25, 3) * sstep(1, 4, d), groundAt(x, y) + 0.08);
++  };
++  {
++    const step = top ? 1 : 1.5, N = Math.round((REGION * 2) / step), x0 = p0.x - REGION, y0 = p0.y - REGION;
++    const pos = new Float32Array((N + 1) * (N + 1) * 3), col = new Float32Array((N + 1) * (N + 1) * 3), keep = new Uint8Array((N + 1) * (N + 1)), c = new T.Color();
++    for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) {
++      const x = x0 + i * step, y = y0 + j * step, k = j * (N + 1) + i, d = shoreDist(x, y), w = isWater(x, y);
++      const hgt = w ? -0.45 * Math.min(1, d / 1.2) : Math.max(0.12 + 1.25 * sstep(0, 6, d) + 0.18 * noise(x * 0.25, y * 0.25, 3) * sstep(1, 4, d), groundAt(x, y) + 0.08);
++      pos[k * 3] = x; pos[k * 3 + 1] = hgt; pos[k * 3 + 2] = -y; keep[k] = !w || d < 3 ? 1 : 0;
++      const n = noise(x * 0.4, y * 0.4, 7) * 0.5 + 0.5, G = ST.ground;
++      if (w || d < 0.5) c.set(G[0]); else if (d < 2.2) c.copy(mix(G[0], G[1], sstep(0.5, 1.6, d))); else c.copy(mix(mix(G[1], G[2], sstep(2, 6, d)), G[3], n * sstep(4, 12, d)));
++      if (style !== 'C') c.offsetHSL(0, 0, (noise(x * 1.3, y * 1.3, 1) * 0.03));
++      col[k * 3] = c.r; col[k * 3 + 1] = c.g; col[k * 3 + 2] = c.b;
++    }
++    const idx = [];
++    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
++      const a = j * (N + 1) + i, b = a + 1, d = a + N + 1, e = d + 1;
++      if (keep[a] || keep[b] || keep[d] || keep[e]) idx.push(a, d, b, b, d, e);
++    }
++    const geo = new T.BufferGeometry();
++    geo.setAttribute('position', new T.BufferAttribute(pos, 3)); geo.setAttribute('color', new T.BufferAttribute(col, 3)); geo.setIndex(idx); geo.computeVertexNormals();
++    const bank = new T.Mesh(geo, baseMat()); bank.receiveShadow = true; bank.name = 'bank'; scene.add(bank);
++    for (const o of byName('island')) o.visible = false;
++    // Puut nousevat maan mukana.
++    const m4 = new T.Matrix4(), P = new T.Vector3(), Q = new T.Quaternion(), S = new T.Vector3();
++    for (const mesh of treeMeshes) {
++      for (let i = 0; i < mesh.count; i++) {
++        mesh.getMatrixAt(i, m4); m4.decompose(P, Q, S);
++        P.y = Math.max(P.y, bankAt(P.x, -P.z) - 0.25); m4.compose(P, Q, S); mesh.setMatrixAt(i, m4);
++      }
++      mesh.instanceMatrix.needsUpdate = true;
++    }
++    // Rantakivet ja heinätuppaat rantaviivalla.
++    const rocks = [], tufts = [];
++    for (const s of segs) {
++      const len = Math.sqrt(s[4]), nx = -s[3] / len, ny = s[2] / len;
++      for (let t = rnd() * 2; t < len; t += 1.2 + rnd() * 2.5) {
++        const o = (rnd() - 0.5) * 2.4, x = s[0] + s[2] * (t / len) + nx * o, y = s[1] + s[3] * (t / len) + ny * o;
++        if (Math.hypot(x - p0.x, y - p0.y) > (top ? 150 : 220)) continue;
++        if (rnd() < 0.55) {
++          const rad = 0.18 + Math.pow(rnd(), 2) * 0.75, geo = blob(rad, 0.55 + rnd() * 0.25, 0.22, 1.6, x, bankAt(x, y) + rad * 0.12, -y, 1), base = pick(ST.rock);
++          rocks.push(finish(paint(geo, (px, py, pz, nyy) => mix(mix(base, 0x202020, 0.35), base, 0.5 + nyy * 0.5))));
++        }
++        for (let k = 0; k < 2; k++) { const tx = x + (rnd() - 0.5) * 3, ty = y + (rnd() - 0.5) * 3; if (!isWater(tx, ty)) tufts.push([tx, ty, 0.35 + rnd() * 0.5]); }
++      }
++    }
++    if (rocks.length) { const rm = new T.Mesh(BGU.mergeGeometries(rocks), baseMat()); rm.castShadow = rm.receiveShadow = true; rm.name = 'rocks'; scene.add(rm); outline(rm, 0.035); }
++    if (tufts.length) {
++      const tm = new T.InstancedMesh(bladeGeo, bladeMat, tufts.length);
++      tufts.forEach(([x, y, sc], i) => { m4.compose(new T.Vector3(x, bankAt(x, y) - 0.03, -y), Q.setFromAxisAngle(new T.Vector3(0, 1, 0), rnd() * 6.28), new T.Vector3(sc * 1.2, sc, sc * 1.2)); tm.setMatrixAt(i, m4); });
++      tm.name = 'tufts'; scene.add(tm);
++    }
++    log.push('bank ' + idx.length / 3 + ' rocks ' + rocks.length + ' tufts ' + tufts.length + ' segs ' + segs.length);
++  }
++
++  // --- Rakennukset: mökit ikkunoineen, nurkkalautoineen ja räystäineen ---
++  if (window.SUR && window.FOOT && !top) {
++    const parts = [];
++    const box = (w, hh, d, x, y, z, color) => { const b = new T.BoxGeometry(w, hh, d).translate(x, y, z).toNonIndexed(); b.computeVertexNormals(); return paint(b, () => color); };
++    window.SUR.areas.filter((a) => a.kind === 'building').forEach((a, i) => {
++      const f = window.FOOT(a.rings[0]);
++      if (Math.hypot(f.center.x - p0.x, f.center.y - p0.y) > 700) return;
++      const wallH = f.area < 25 ? 2.4 : f.area < 150 ? 3 : 4.5, rise = Math.min(4, f.width * 0.42);
++      const hs = [f.center, ...a.rings[0]].map((p) => Math.max(0, groundAt(p.x, p.y))), base = Math.min(...hs) - 0.3, eaves = Math.max(...hs) - base + wallH;
++      const wall = ST.wall[i % ST.wall.length], roofC = ST.roof[(i * 7) % ST.roof.length], trim = wall === ST.wall[3] ? 0x6a7a6a : 0xf2efe6, W = f.width, L = f.length, loc = [];
++      loc.push(box(W + 0.16, 0.5, L + 0.16, 0, 0.25, 0, 0x7a7872));
++      loc.push(box(W, eaves - 0.5, L, 0, 0.5 + (eaves - 0.5) / 2, 0, wall));
++      for (const sx of [-1, 1]) for (const sz of [-1, 1]) loc.push(box(0.14, eaves - 0.5, 0.14, sx * W / 2, 0.5 + (eaves - 0.5) / 2, sz * L / 2, trim));
++      // Päätykolmiot ja katto räystäineen
++      const gable = new T.Shape([new T.Vector2(-W / 2, 0), new T.Vector2(W / 2, 0), new T.Vector2(0, rise)]);
++      loc.push(paint(new T.ExtrudeGeometry(gable, { depth: L, bevelEnabled: false }).translate(0, eaves, -L / 2).toNonIndexed(), () => wall));
++      const slope = Math.atan2(rise, W / 2), sl = Math.hypot(rise, W / 2) + 0.45;
++      for (const sx of [-1, 1]) { const rf = new T.BoxGeometry(sl, 0.14, L + 0.8).translate(-sl / 2 + 0.02, 0.07, 0).rotateZ(sx > 0 ? -slope : Math.PI + slope).translate(0, eaves + rise, 0).toNonIndexed(); rf.computeVertexNormals(); loc.push(paint(rf, () => roofC)); }
++      if (f.area > 30) loc.push(box(0.6, 1.3, 0.6, W * 0.18, eaves + rise * 0.7 + 0.3, L * 0.2, 0x8a4a3a));
++      // Ikkunat pitkillä sivuilla ja ovi päädyssä
++      const nWin = Math.max(1, Math.round(L / 3.2));
++      for (const sx of [-1, 1]) for (let k = 0; k < nWin; k++) {
++        const z = -L / 2 + (k + 0.5) * (L / nWin), y = 0.5 + (eaves - 0.5) * 0.55;
++        loc.push(box(0.1, 1.15, 1.05, sx * (W / 2 + 0.02), y, z, trim)); loc.push(box(0.12, 0.9, 0.8, sx * (W / 2 + 0.03), y, z, 0x2a3a4c));
++        loc.push(box(0.14, 0.9, 0.06, sx * (W / 2 + 0.03), y, z, trim)); loc.push(box(0.14, 0.06, 0.8, sx * (W / 2 + 0.03), y, z, trim));
++      }
++      loc.push(box(1.0, 2.0, 0.1, 0, 1.5, L / 2 + 0.03, trim)); loc.push(box(0.8, 1.85, 0.12, 0, 1.45, L / 2 + 0.04, mix(wall, 0x000000, 0.45)));
++      const rot = Math.atan2(Math.cos(f.angle), -Math.sin(f.angle));
++      for (const gq of loc) { gq.deleteAttribute('uv'); gq.rotateY(rot); gq.translate(f.center.x, base, -f.center.y); parts.push(gq); }
++    });
++    if (parts.length) {
++      const b = new T.Mesh(BGU.mergeGeometries(parts), baseMat()); b.castShadow = b.receiveShadow = true; b.name = 'modern-buildings'; (g.scenery ?? scene).add(b);
++      for (const o of byName('buildings')) o.visible = false;
++      log.push('buildings ' + parts.length);
++    }
++  }
++
++  // --- Pohjan kivet ja uppopuut ylhäältä: pyöreät muodot ---
++  if (top) {
++    const parts = []; let rs = 11; const rr = () => (rs = (rs * 16807) % 2147483647) / 2147483647;
++    for (const s of g.bottom.structures ?? []) {
++      if (Math.hypot(s.pos.x - p0.x, s.pos.y - p0.y) > 200) continue;
++      if (s.kind === 'rocks') {
++        const n = Math.round(s.radius * 1.4);
++        for (let i = 0; i < n; i++) {
++          const rad = s.radius * Math.sqrt(rr()), a = rr() * 6.28, size = 0.35 + rr() * 0.6, base = rr() < 0.5 ? 0x4f6f78 : 0x6a8a8e;
++          const geo = blob(size, 0.3, 0.2, 1.5, s.pos.x + Math.cos(a) * rad, 0.03, -(s.pos.y + Math.sin(a) * rad), 1);
++          parts.push(finish(paint(geo, (px, py, pz, ny) => mix(mix(base, 0x10303c, 0.5), base, ny))));
++        }
++      } else if (s.kind === 'boulder' || s.kind === 'weed' || s.kind === 'brush') {
++        let dep = 9; try { dep = g.bottom.depthAt(s.pos) - (s.height ?? 0); } catch { dep = 9; }
++        if (dep > 2.6) continue;
++        const fade = Math.max(0, Math.min(1, dep / 2.6));
++        if (s.kind === 'boulder') {
++          const base = mix(0x7d8f8c, 0x2f6f84, fade), geo = blob(s.radius * 0.9, 0.3, 0.22, 1.4, s.pos.x, 0.03, -s.pos.y, 2);
++          parts.push(finish(paint(geo, (px, py, pz, ny) => mix(mix(base, 0x143848, 0.55), base, ny))));
++        } else if (s.kind === 'weed') {
++          const n = Math.round(s.radius * s.radius * 0.2 * (s.density ?? 1));
++          for (let i = 0; i < n; i++) {
++            const rad = s.radius * Math.sqrt(rr()), a = rr() * 6.28, base = mix(rr() < 0.5 ? 0x3f7a3a : 0x559048, 0x2f7f88, fade * 0.8);
++            parts.push(finish(paint(blob(0.3 + rr() * 0.4, 0.15, 0.3, 2, s.pos.x + Math.cos(a) * rad, 0.03, -(s.pos.y + Math.sin(a) * rad), 1), () => base)));
++          }
++        }
++      } else if (s.trunk) {
++        const [b0, t0] = s.trunk, len = Math.hypot(t0.x - b0.x, t0.y - b0.y), ang = Math.atan2(t0.y - b0.y, t0.x - b0.x);
++        const geo = new T.CylinderGeometry(0.12, 0.3, len, 8).rotateZ(Math.PI / 2).rotateY(ang).translate((b0.x + t0.x) / 2, 0.03, -(b0.y + t0.y) / 2).toNonIndexed(); geo.computeVertexNormals(); geo.deleteAttribute('uv');
++        parts.push(finish(paint(geo, () => 0x4a5a52)));
++      }
++    }
++    for (const o of [...byName('structures'), ...byName('shallow-cover')]) o.visible = false;
++    if (parts.length) { const m = new T.Mesh(BGU.mergeGeometries(parts), new T.MeshLambertMaterial({ vertexColors: true })); m.name = 'modern-structures'; scene.add(m); }
++    log.push('structures ' + parts.length);
++  }
++
++  // --- Kalastaja ja kelluntarengas yhtenä muotona (etäisyyskenttä ja pinta siitä) ---
++  const app = g.appearance ?? { tube: 0xd23a2a, fins: 0x1c232b, shirt: 0x24502c };
++  const tubeGroup = g.tubeMesh;
++  if (tubeGroup && window.MarchingCubes && opts.view !== 'pov') {
++    const torus = tubeGroup.children.find((c) => c.geometry && c.geometry.type === 'TorusGeometry');
++    const C = torus ? torus.geometry.parameters.radius : 0.54, Th = torus ? torus.geometry.parameters.tube : 0.21, lift = torus ? torus.position.y : 0.15;
++    const rod = tubeGroup.getObjectByName('rod'), rp = rod ? rod.position : new T.Vector3(0.5, 0.45, 0.3);
++    const col = { tube: app.tube, hull: 0x2e3338, pocket: 0x3a4046, seat: 0x353b42, apron: 0x22272c, wader: 0x5d6048, vest: 0x7d7a5c, vestDark: 0x5a5842, shirt: app.shirt, skin: 0xd6a07a, hair: 0x4a3626, hat: 0x39424c, dark: 0x15171b, fin: app.fins, boot: 0x2a2c2e };
++    const cap = (a, b, ra, rb) => {
++      const bx = b[0] - a[0], by = b[1] - a[1], bz = b[2] - a[2], bb = bx * bx + by * by + bz * bz;
++      return (p) => { const px = p[0] - a[0], py = p[1] - a[1], pz = p[2] - a[2], t = Math.max(0, Math.min(1, (px * bx + py * by + pz * bz) / bb)); return Math.hypot(px - bx * t, py - by * t, pz - bz * t) - (ra + (rb - ra) * t); };
++    };
++    const ell = (c, rad) => { const m = Math.min(...rad); return (p) => (Math.hypot((p[0] - c[0]) / rad[0], (p[1] - c[1]) / rad[1], (p[2] - c[2]) / rad[2]) - 1) * m; };
++    const rbox = (c, hf, rad) => (p) => { const x = Math.abs(p[0] - c[0]) - hf[0], y = Math.abs(p[1] - c[1]) - hf[1], z = Math.abs(p[2] - c[2]) - hf[2]; return Math.hypot(Math.max(x, 0), Math.max(y, 0), Math.max(z, 0)) + Math.min(Math.max(x, y, z), 0) - rad; };
++    const wideZ = (f, k) => { const q = [0, 0, 0]; return (p) => { q[0] = p[0]; q[1] = p[1]; q[2] = p[2] * k; return f(q); }; };
++    const parts = [];
++    const add = (grp, k, color, f) => parts.push({ grp, k, color, f });
++    // Rengas: suipot, kärjestä nousevat ponttoonit ja takakaari sulautuvat yhdeksi rungoksi.
++    for (const s of [-1, 1]) {
++      add('tube', 0.12, 'tube', cap([-0.5, lift, s * C * 0.92], [0.42, lift + 0.01, s * C], Th * 0.98, Th * 0.92));
++      add('tube', 0.1, 'tube', cap([0.42, lift + 0.01, s * C], [1.02, lift + 0.15, s * (C - 0.07)], Th * 0.92, Th * 0.3));
++      add('tube', 0.05, 'pocket', rbox([0.02, lift + Th * 0.78, s * (C + 0.01)], [0.25, 0.045, 0.085], 0.055));
++    }
++    add('tube', 0.14, 'tube', cap([-0.56, lift + 0.01, -C * 0.7], [-0.56, lift + 0.01, C * 0.7], Th * 0.98, Th * 0.98));
++    add('tube', 0.03, 'seat', rbox([-0.08, lift - 0.07, 0], [0.34, 0.03, C - Th * 0.6], 0.04));
++    add('tube', 0.07, 'seat', rbox([-0.4, 0.43, 0], [0.035, 0.2, 0.22], 0.07));
++    add('tube', 0.02, 'apron', rbox([0.5, lift + Th * 0.8, 0], [0.07, 0.006, C - Th * 0.25], 0.012));
++    // Kalastaja: jäsenet sulautuvat toisiinsa kuin vaatteen alla.
++    add('body', 0.07, 'vest', wideZ(cap([-0.2, 0.28, 0], [-0.17, 0.6, 0], 0.125, 0.14), 0.74));
++    add('body', 0.07, 'vest', cap([-0.17, 0.66, -0.15], [-0.17, 0.66, 0.15], 0.075, 0.075));
++    add('body', 0.05, 'skin', cap([-0.16, 0.72, 0], [-0.135, 0.83, 0], 0.052, 0.048));
++    add('body', 0.03, 'skin', ell([-0.115, 0.905, 0], [0.097, 0.116, 0.09]));
++    add('body', 0.02, 'skin', ell([-0.022, 0.888, 0], [0.02, 0.03, 0.018]));
++    add('body', 0.015, 'hat', ell([-0.125, 0.972, 0], [0.108, 0.07, 0.101]));
++    add('body', 0.02, 'hat', ell([-0.01, 0.95, 0], [0.085, 0.013, 0.08]));
++    for (const s of [-1, 1]) {
++      add('body', 0.02, 'vestDark', rbox([-0.055, 0.52, s * 0.085], [0.012, 0.045, 0.045], 0.022));
++      add('body', 0.08, 'wader', cap([-0.16, 0.27, s * 0.1], [0.36, 0.3, s * 0.16], 0.097, 0.078));
++      add('body', 0.06, 'wader', cap([0.36, 0.3, s * 0.16], [0.63, -0.12, s * 0.17], 0.072, 0.052));
++      add('body', 0.03, 'boot', cap([0.63, -0.12, s * 0.17], [0.72, -0.2, s * 0.175], 0.056, 0.05));
++      add('body', 0.03, 'fin', ell([0.92, -0.26, s * 0.18], [0.25, 0.028, 0.11]));
++    }
++    const hands = { '-1': [0.27, 0.43, -0.13], '1': [rp.x - 0.02, rp.y + 0.03, rp.z] };
++    for (const s of [-1, 1]) {
++      const hd = hands[s], sh = [-0.17, 0.665, s * 0.2], el = [(sh[0] + hd[0]) / 2 - 0.03, Math.min(sh[1], hd[1]) - 0.08, s * Math.max(0.28, Math.abs(hd[2]) + 0.05)];
++      add('body', 0.06, 'shirt', cap(sh, el, 0.064, 0.052));
++      add('body', 0.05, 'shirt', cap(el, hd, 0.052, 0.04));
++      add('body', 0.025, 'skin', ell([hd[0] + 0.035, hd[1], hd[2]], [0.052, 0.038, 0.045]));
++    }
++    const N = 150, half = 1.0, ctr = [0.17, 0.36, 0];
++    const mat = baseMat(style === 'A' ? { roughness: 0.7 } : {});
++    const mc = new window.MarchingCubes(N, mat, false, true, 600000);
++    const cc = new T.Color(), pt = [0, 0, 0], tubeParts = parts.filter((q) => q.grp === 'tube'), bodyParts = parts.filter((q) => q.grp === 'body');
++    const dark = new T.Color(0x0c0e10);
++    for (let z = 0; z < N; z++) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
++      pt[0] = ctr[0] + ((x - N / 2) / (N / 2)) * half; pt[1] = ctr[1] + ((y - N / 2) / (N / 2)) * half; pt[2] = ctr[2] + ((z - N / 2) / (N / 2)) * half;
++      const i = N * N * z + N * y + x;
++      // Kaukana kaikesta: ei lasketa.
++      if (Math.abs(pt[2]) > 0.9 || pt[1] > 1.1 || pt[1] < -0.36) { mc.field[i] = 0; continue; }
++      let best = 1e9, second = 1e9, bestPart = null, d = 1e9;
++      for (const list of [tubeParts, bodyParts]) {
++        let gd = 1e9;
++        for (const q of list) {
++          const v = q.f(pt);
++          if (v < best) { second = best; best = v; bestPart = q; } else if (v < second) second = v;
++          const hh = Math.max(q.k - Math.abs(gd - v), 0) / q.k; gd = Math.min(gd, v) - hh * hh * q.k * 0.25;
++        }
++        d = Math.min(d, gd);
++      }
++      mc.field[i] = Math.max(0, Math.min(160, 80 - d * 2600));
++      if (d > 0.06) continue;
++      let color = col[bestPart.color];
++      const k = bestPart.color;
++      if (k === 'tube' && pt[1] < lift - 0.045) color = col.hull;
++      if (k === 'vest' && pt[1] < 0.44) color = pt[1] > 0.415 ? col.dark : col.wader;
++      if (k === 'vest' && pt[1] > 0.68 && Math.abs(pt[2]) < 0.07) color = col.shirt;
++      if (k === 'skin' && pt[1] > 0.84) {
++        if (pt[0] < -0.15 || (pt[0] < -0.1 && pt[1] > 0.93)) color = col.hair;
++        else if (pt[1] > 0.905 && pt[1] < 0.938 && pt[0] > -0.085) color = col.dark;
++      }
++      cc.set(color);
++      // Poimut ja saumat tummenevat hieman: muodot liittyvät toisiinsa.
++      const crease = style === 'C' ? 1 : 0.6 + 0.4 * sstep(0, 0.05, second - best);
++      cc.lerp(dark, 1 - crease);
++      mc.palette[i * 3] = cc.r; mc.palette[i * 3 + 1] = cc.g; mc.palette[i * 3 + 2] = cc.b;
++    }
++    mc.isolation = 80; mc.update();
++    mc.scale.setScalar(half); mc.position.set(ctr[0], ctr[1], ctr[2]); mc.castShadow = mc.receiveShadow = true; mc.name = 'angler'; mc.frustumCulled = false;
++    tubeGroup.add(mc);
++    const keepers = new Set([rod, mc]);
++    const hideOld = () => { for (const c of tubeGroup.children) if (!keepers.has(c) && c.name !== 'line') c.visible = false; };
++    const before = retro.render.bind(retro);
++    retro.render = (s2, c2, gr2) => { hideOld(); before(s2, c2, gr2); };
++    if (style === 'C') { const o = new T.Mesh(mc.geometry, outlineMat(0.013)); o.scale.copy(mc.scale); o.position.copy(mc.position); o.frustumCulled = false; tubeGroup.add(o); keepers.add(o); }
++    if (rod) rod.traverse((o) => { if (o.isMesh) { o.castShadow = true; if (o.name === 'rod-blank') { o.material = o.material.clone(); o.material.color.set(0x2b2d33); } } });
++    log.push('angler tris ' + mc.count / 3 + ' C ' + C + ' Th ' + Th);
++  }
++  // Kalastajan silmin: omat ponttoonit suippoina ja sileinä.
++  if (g.povTube && opts.view === 'pov') {
++    const body = g.povTube.body ?? g.povTube.group, cyl = [];
++    body.traverse((o) => { if (o.isMesh && (o.geometry.type === 'CylinderGeometry' || o.geometry.type === 'SphereGeometry') && o.material.userData && o.material.userData.ramp) cyl.push(o); });
++    const tubes = cyl.filter((o) => o.geometry.type === 'CylinderGeometry');
++    for (const tb of tubes) {
++      const R = tb.geometry.parameters.radiusTop, len = tb.geometry.parameters.height, pts = [];
++      for (let i = 0; i <= 24; i++) { const t = i / 24, x = -len / 2 + t * (len + 0.32), e = Math.max(0, (t - 0.55) / 0.45); pts.push(new T.Vector2(Math.max(0.001, R * (1 - 0.6 * e * e) * (t > 0.985 ? 0.5 : 1)), x)); }
++      const geo = smooth(new T.LatheGeometry(pts, 32).rotateZ(-Math.PI / 2));
++      paint(geo, (x, y, z) => (Math.abs(y) < 0.008 && style !== 'C' ? mix(app.tube, 0x000000, 0.35) : app.tube));
++      const m = new T.Mesh(geo, baseMat(style === 'A' ? { roughness: 0.6 } : {})); m.position.copy(tb.position); m.castShadow = m.receiveShadow = true; tb.parent.add(m); outline(m, 0.006);
++      const pk = new window.RoundedBoxGeometry(0.34, 0.1, 0.13, 4, 0.04); paint(pk, () => 0x2b3238);
++      const pm = new T.Mesh(pk, baseMat()); pm.position.set(tb.position.x + 0.1, tb.position.y + R * 0.8, tb.position.z + Math.sign(tb.position.z) * R * 0.45); tb.parent.add(pm);
++    }
++    for (const o of cyl) o.visible = false;
++    body.traverse((o) => { if (o.isMesh && o.geometry.type === 'BoxGeometry' && o.geometry.parameters.height < 0.02 && o.geometry.parameters.width > 0.5) o.visible = false; if (o.material && o.material.map) { o.material.map.magFilter = T.LinearFilter; o.material.map.needsUpdate = true; } });
++    log.push('pov pontoons ' + tubes.length);
++  }
++
++  // --- Linnut: lokit ja sorsat tarkkoina piirroksina tyylin mukaan ---
++  if (g.birds) g.birds.group.visible = false;
++  if (!top) {
++    const ink = style === 'C' ? '#16202a' : null;
++    const shape = (c2, fill, pts, close = true) => { c2.beginPath(); c2.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 6) c2.bezierCurveTo(pts[i], pts[i + 1], pts[i + 2], pts[i + 3], pts[i + 4], pts[i + 5]); if (close) c2.closePath(); c2.fillStyle = fill; c2.fill(); if (ink) { c2.strokeStyle = ink; c2.lineWidth = 7; c2.lineJoin = 'round'; c2.stroke(); } };
++    const gullTex = canvasTex((c2, s) => {
++      const grad = c2.createLinearGradient(0, s * 0.3, 0, s * 0.6); grad.addColorStop(0, style === 'C' ? '#e8edf2' : '#c9d2da'); grad.addColorStop(1, style === 'C' ? '#e8edf2' : '#9aa6b2');
++      // Siivet M-kirjaimena, kärjet tummat
++      shape(c2, grad, [s * 0.5, s * 0.5, s * 0.4, s * 0.3, s * 0.22, s * 0.26, s * 0.04, s * 0.42, s * 0.2, s * 0.38, s * 0.36, s * 0.42, s * 0.47, s * 0.58]);
++      shape(c2, grad, [s * 0.5, s * 0.5, s * 0.6, s * 0.3, s * 0.78, s * 0.26, s * 0.96, s * 0.42, s * 0.8, s * 0.38, s * 0.64, s * 0.42, s * 0.53, s * 0.58]);
++      shape(c2, '#23272d', [s * 0.04, s * 0.42, s * 0.08, s * 0.37, s * 0.13, s * 0.34, s * 0.17, s * 0.33, s * 0.14, s * 0.37, s * 0.1, s * 0.39, s * 0.04, s * 0.42]);
++      shape(c2, '#23272d', [s * 0.96, s * 0.42, s * 0.92, s * 0.37, s * 0.87, s * 0.34, s * 0.83, s * 0.33, s * 0.86, s * 0.37, s * 0.9, s * 0.39, s * 0.96, s * 0.42]);
++      shape(c2, '#ffffff', [s * 0.5, s * 0.44, s * 0.56, s * 0.45, s * 0.57, s * 0.58, s * 0.5, s * 0.66, s * 0.43, s * 0.58, s * 0.44, s * 0.45, s * 0.5, s * 0.44]);
++      shape(c2, '#e8a92c', [s * 0.48, s * 0.47, s * 0.5, s * 0.46, s * 0.52, s * 0.47, s * 0.5, s * 0.5, s * 0.5, s * 0.5, s * 0.49, s * 0.49, s * 0.48, s * 0.47]);
++    });
++    const duckTex = canvasTex((c2, s) => {
++      shape(c2, style === 'C' ? '#b08a62' : '#8f7a60', [s * 0.12, s * 0.62, s * 0.1, s * 0.44, s * 0.4, s * 0.4, s * 0.62, s * 0.5, s * 0.72, s * 0.56, s * 0.7, s * 0.72, s * 0.5, s * 0.74, s * 0.3, s * 0.76, s * 0.16, s * 0.74, s * 0.12, s * 0.62]);
++      shape(c2, '#e9e4d8', [s * 0.3, s * 0.58, s * 0.4, s * 0.5, s * 0.56, s * 0.52, s * 0.62, s * 0.62, s * 0.5, s * 0.68, s * 0.36, s * 0.68, s * 0.3, s * 0.58]);
++      shape(c2, '#1f6a46', [s * 0.62, s * 0.5, s * 0.6, s * 0.3, s * 0.82, s * 0.28, s * 0.8, s * 0.44, s * 0.78, s * 0.52, s * 0.7, s * 0.56, s * 0.62, s * 0.5]);
++      shape(c2, '#e3b02e', [s * 0.8, s * 0.36, s * 0.86, s * 0.36, s * 0.92, s * 0.39, s * 0.92, s * 0.41, s * 0.88, s * 0.43, s * 0.82, s * 0.43, s * 0.8, s * 0.42]);
++      c2.fillStyle = '#101418'; c2.beginPath(); c2.arc(s * 0.735, s * 0.365, s * 0.012, 0, 6.28); c2.fill();
++    });
++    const base = cam3 ? cam3.position : at0.clone().add(new T.Vector3(0, 1, 0));
++    const dir = cam3 ? cam3.getWorldDirection(new T.Vector3()) : fwd.clone(), right = new T.Vector3().crossVectors(dir, new T.Vector3(0, 1, 0)).normalize();
++    const place = (tex, d, sd, up, scale, water, flip) => {
++      const sp = new T.Sprite(new T.SpriteMaterial({ map: tex, alphaTest: 0.5, fog: false })); sp.position.copy(base).addScaledVector(dir, d).addScaledVector(right, sd); sp.position.y = water ? scale * 0.12 : base.y + up;
++      sp.scale.set(flip ? -scale : scale, scale, 1); sp.name = 'bird'; scene.add(sp);
++    };
++    if (cam3) { place(gullTex, 12, 3.2, 2.8, 1.5); place(gullTex, 19, 6, 4.2, 1.5, false, true); place(duckTex, 11, -2.6, 0, 0.6, true); place(duckTex, 11.9, -1.9, 0, 0.55, true, true); }
++    else { place(gullTex, 16, -5, 3.6, 1.5); place(gullTex, 22, -1.5, 5, 1.5, false, true); place(gullTex, 30, 7, 6.5, 1.5); place(duckTex, 10, -3, 0, 0.6, true); place(duckTex, 10.8, -2.3, 0, 0.55, true, true); }
++  }
++
++  // --- Vapa ja muut pienet osat sileiksi ---
++  scene.traverse((o) => {
++    if (!o.isMesh || o.isInstancedMesh || !o.material || !o.geometry || o.name === 'angler') return;
++    const m = o.material;
++    if (m.isMeshLambertMaterial && o.name !== 'water' && o.name !== 'swell') { o.receiveShadow = true; m.needsUpdate = true; }
++  });
++  if (style === 'A') {
++    const envScene = new T.Scene(), geo = new T.SphereGeometry(10, 32, 16), p = geo.attributes.position, colr = new Float32Array(p.count * 3);
++    for (let i = 0; i < p.count; i++) { const y = p.getY(i) / 10, c = y > 0.05 ? mix(0xcfe4f2, 0x5f9fd8, y) : y > -0.05 ? new T.Color(0x3d5a3a) : mix(0x2a4a5c, 0x18303f, -y); colr[i * 3] = c.r; colr[i * 3 + 1] = c.g; colr[i * 3 + 2] = c.b; }
++    geo.setAttribute('color', new T.BufferAttribute(colr, 3));
++    envScene.add(new T.Mesh(geo, new T.MeshBasicMaterial({ vertexColors: true, side: T.BackSide })));
++    scene.environment = new T.PMREMGenerator(r).fromScene(envScene, 0.02).texture; scene.environmentIntensity = 0.16;
++  }
++
++  // --- Varjot ---
++  r.shadowMap.enabled = true; r.shadowMap.type = T.PCFSoftShadowMap;
++  sun.castShadow = true; sun.shadow.mapSize.set(style === 'A' ? 2048 : 4096, style === 'A' ? 2048 : 4096);
++  const span = top ? 90 : opts.view === 'third' ? 70 : 220;
++  const sc = sun.shadow.camera; sc.left = -span; sc.right = span; sc.top = span; sc.bottom = -span; sc.near = 1; sc.far = 900; sc.updateProjectionMatrix();
++  sun.shadow.bias = -0.0008; sun.shadow.normalBias = 0.04; sun.shadow.radius = style === 'C' ? 1 : 3;
++
++  // --- Vesi ---
++  const size = 256, cv = document.createElement('canvas'); cv.width = cv.height = size;
++  const ctx = cv.getContext('2d'), img = ctx.createImageData(size, size);
++  let ws = 7; const wr = () => (ws = (ws * 16807) % 2147483647) / 2147483647;
++  const wavesN = []; for (let i = 0; i < 26; i++) { const kx = Math.round((wr() - 0.5) * 28), ky = Math.round((wr() - 0.5) * 28), k = Math.hypot(kx, ky) || 1; wavesN.push([kx, ky, wr() * 6.28, 1 / k]); }
++  const H = (x, y) => { let hh = 0; for (const [kx, ky, p, a] of wavesN) hh += a * Math.sin((kx * x + ky * y) * 2 * Math.PI / size + p); return hh; };
++  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
++    const dx = (H(x + 1, y) - H(x - 1, y)) * 2.2, dy = (H(x, y + 1) - H(x, y - 1)) * 2.2, l = Math.hypot(dx, dy, 1), k = (y * size + x) * 4;
++    img.data[k] = (-dx / l * 0.5 + 0.5) * 255; img.data[k + 1] = (-dy / l * 0.5 + 0.5) * 255; img.data[k + 2] = (1 / l * 0.5 + 0.5) * 255; img.data[k + 3] = 255;
++  }
++  ctx.putImageData(img, 0, 0);
++  const normals = new T.CanvasTexture(cv); normals.wrapS = normals.wrapT = T.RepeatWrapping;
++  const old = byName('water')[0];
++  for (const s of byName('swell')) s.visible = false;
++  const prev = retro.render.bind(retro);
++  if (top) {
++    const b = g.map.bounds, step = 1.5, W = Math.ceil((b.maxX - b.minX) / step), Hh = Math.ceil((b.maxY - b.minY) / step), depth = new Float32Array(W * Hh);
++    for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) { let d = 0; try { d = g.bottom.depthAt({ x: b.minX + x * step, y: b.maxY - y * step }); } catch { d = 0; } depth[y * W + x] = d; }
++    const tex = new T.DataTexture(depth, W, Hh, T.RedFormat, T.FloatType); tex.minFilter = tex.magFilter = T.LinearFilter; tex.needsUpdate = true;
++    const ramp = { A: ['0.42,0.66,0.62', '0.24,0.50,0.56', '0.13,0.36,0.47', '0.07,0.25,0.38', '0.03,0.13,0.24'], B: ['0.50,0.80,0.76', '0.30,0.66,0.74', '0.16,0.50,0.68', '0.09,0.36,0.58', '0.04,0.20,0.40'], C: ['0.55,0.88,0.86', '0.33,0.74,0.86', '0.18,0.58,0.82', '0.10,0.42,0.72', '0.05,0.26,0.55'] }[style];
++    const mat = new T.ShaderMaterial({
++      uniforms: { uDepth: { value: tex }, uBounds: { value: new T.Vector4(b.minX, b.maxY, W * step, Hh * step) }, uNormals: { value: normals }, uSun: { value: sun.position.clone().normalize() } },
++      vertexShader: 'varying vec3 vW; void main() { vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
++      fragmentShader: `uniform sampler2D uDepth; uniform sampler2D uNormals; uniform vec4 uBounds; uniform vec3 uSun; varying vec3 vW;
++        vec3 ramp(float d) {
++          ${style === 'C' ? 'd = d < 1.0 ? 0.3 : d < 2.0 ? 1.5 : d < 3.5 ? 2.8 : d < 6.0 ? 5.0 : d < 8.0 ? 7.0 : 11.0;' : ''}
++          vec3 c = mix(vec3(${ramp[0]}), vec3(${ramp[1]}), smoothstep(0.0, 1.2, d));
++          c = mix(c, vec3(${ramp[2]}), smoothstep(1.0, 3.0, d));
++          c = mix(c, vec3(${ramp[3]}), smoothstep(2.5, 6.0, d));
++          return mix(c, vec3(${ramp[4]}), smoothstep(5.0, 11.0, d));
++        }
++        void main() {
++          vec2 uv = vec2((vW.x - uBounds.x) / uBounds.z, (uBounds.y + vW.z) / uBounds.w);
++          float d = texture2D(uDepth, uv).r;
++          vec3 c = ramp(d);
++          float line = 0.0, w = fwidth(d) * ${style === 'C' ? '1.8' : '1.2'} + 1e-4;
++          line = max(line, 1.0 - smoothstep(0.0, w, abs(d - 1.0)));
++          line = max(line, 1.0 - smoothstep(0.0, w, abs(d - 2.0)));
++          line = max(line, 1.0 - smoothstep(0.0, w, abs(d - 3.5)));
++          line = max(line, 1.0 - smoothstep(0.0, w, abs(d - 6.0)));
++          line = max(line, 1.0 - smoothstep(0.0, w, abs(d - 8.0)));
++          c = mix(c, ${style === 'C' ? 'vec3(0.06, 0.16, 0.3), line * 0.55' : 'vec3(1.0), line * 0.28'});
++          vec3 n = texture2D(uNormals, vW.xz / 7.0).xyz * 2.0 - 1.0;
++          c += vec3(0.9, 0.95, 1.0) * ${style === 'C' ? '0.0' : '0.6'} * pow(max(0.0, dot(normalize(vec3(n.x * 0.5, 1.0, n.y * 0.5)), normalize(uSun + vec3(0.0, 1.0, 0.0)))), 90.0) * 0.10;
++          c += n.x * ${style === 'C' ? '0.0' : '0.012'};
++          gl_FragColor = vec4(pow(c, vec3(2.2)), 1.0);
++        }`,
++    });
++    const water = new T.Mesh(old.geometry, mat); water.rotation.copy(old.rotation); water.position.copy(old.position); water.name = 'modern-water';
++    old.parent.add(water);
++    const cam = g.view.camera, zoom = retro.resolution.height / 270;
++    retro.render = (s, c, gr) => { old.visible = false; if (g.scenery) g.scenery.visible = true; for (const o of byName('shore-scenery')) o.visible = false; for (const o of byName('modern-buildings')) o.visible = false; if (c === cam && cam.zoom !== zoom) { cam.zoom = zoom; cam.updateProjectionMatrix(); } prev(s, c, gr); };
++  } else if (style === 'C') {
++    // Piirretty vesi: tasainen väri, käsin vedetyt väreviivat ja varjot, ei peiliä.
++    const tex = canvasTex((c2, s) => {
++      c2.fillStyle = '#2f86b8'; c2.fillRect(0, 0, s, s); c2.lineCap = 'round';
++      for (let i = 0; i < 46; i++) {
++        const x = rnd() * s, y = rnd() * s, len = s * (0.05 + rnd() * 0.1);
++        c2.strokeStyle = rnd() < 0.5 ? 'rgba(255,255,255,0.55)' : 'rgba(20,70,120,0.5)'; c2.lineWidth = s * 0.006; c2.beginPath(); c2.moveTo(x, y); c2.quadraticCurveTo(x + len / 2, y - s * 0.012, x + len, y); c2.stroke();
++      }
++    }, 512);
++    tex.wrapS = tex.wrapT = T.RepeatWrapping; tex.repeat.set(1 / 9, 1 / 9);
++    const mat = new T.MeshToonMaterial({ map: tex, gradientMap: toonSteps });
++    const water = new T.Mesh(old.geometry, mat); water.rotation.copy(old.rotation); water.position.copy(old.position); water.receiveShadow = true; water.name = 'modern-water';
++    old.parent.add(water);
++    retro.render = (s, c, gr) => { old.visible = false; prev(s, c, gr); };
++  } else {
++    const wopt = ST.water;
++    const water = new window.Water(old.geometry, { textureWidth: 512, textureHeight: 512, waterNormals: normals, sunDirection: sun.position.clone().normalize(), sunColor: 0xfff3d0, waterColor: wopt.color, distortionScale: wopt.dist, fog: false, alpha: 1 });
++    water.material.fragmentShader = water.material.fragmentShader
++      .replace('( sunColor * diffuseLight * 0.3 + scatter )', `( scatter * 1.6 + vec3( ${style === 'A' ? '0.012, 0.03, 0.03' : '0.02, 0.07, 0.085'} ) )`)
++      .replace('float rf0 = 0.02;', 'float rf0 = 0.03;')
++      .replace('vec3 albedo = mix(', `reflectance *= ${wopt.refl.toFixed(2)};\n vec3 albedo = mix(`)
++      .replace('reflectionSample * specularLight', `reflectionSample * specularLight * ${style === 'A' ? '0.25' : '0.1'}`);
++    water.rotation.copy(old.rotation); water.position.copy(old.position); water.name = 'modern-water';
++    water.material.uniforms.size.value = wopt.size;
++    old.parent.add(water);
++    retro.render = (s, c, gr) => { water.material.uniforms.time.value += 1 / 60; old.visible = false; prev(s, c, gr); };
++    log.push('water refl ' + water.material.fragmentShader.includes('reflectance *='));
++  }
++  return log;
++};
+diff --git a/packages/client/src/dev/modernTheme.css b/packages/client/src/dev/modernTheme.css
+new file mode 100644
+index 0000000..88c5b92
+--- /dev/null
++++ b/packages/client/src/dev/modernTheme.css
+@@ -0,0 +1,80 @@
++/* Prototyyppi (#650): moderni teema HUDiin ja valikoihin. */
++.fps-meter { display: none !important; }
++.hud {
++  --u0: 3px !important;
++  font-family: 'Inter', system-ui, sans-serif;
++  font-size: calc(var(--u) * 6.4);
++  font-weight: 500;
++  line-height: 1.25;
++  text-shadow: 0 1px 2px rgb(0 0 0 / 55%);
++}
++.hud-panel {
++  background: rgb(16 24 32 / 52%);
++  border: 1px solid rgb(255 255 255 / 16%);
++  border-radius: calc(var(--u) * 3.5);
++  -webkit-backdrop-filter: blur(12px);
++  backdrop-filter: blur(12px);
++  box-shadow: 0 6px 20px rgb(0 0 0 / 22%);
++}
++.hud-timer { font-weight: 700; font-variant-numeric: tabular-nums; }
++.screen {
++  font-family: 'Inter', system-ui, sans-serif;
++  background: rgb(8 14 20 / 30%);
++  -webkit-backdrop-filter: blur(5px);
++  backdrop-filter: blur(5px);
++}
++.screen-panel {
++  background: rgb(20 28 38 / 84%);
++  border: 1px solid rgb(255 255 255 / 12%);
++  border-radius: 22px;
++  box-shadow: 0 24px 70px rgb(0 0 0 / 50%);
++  font-size: 16px;
++  --panel-py: 28px;
++  --panel-px: 32px;
++}
++.screen-panel h1 {
++  font-family: 'Inter Display', 'Inter', sans-serif;
++  font-size: min(52px, 11vw);
++  font-weight: 800;
++  letter-spacing: 0.5px;
++  color: #fff;
++  text-shadow: none;
++}
++.screen-panel h2 { font-size: 28px; font-weight: 700; color: #fff; }
++.screen-panel .subtitle { color: #9fd3e6; font-size: 16px; }
++.screen button {
++  font-family: inherit;
++  font-size: 16px;
++  font-weight: 500;
++  color: #eef2f3;
++  background: rgb(255 255 255 / 7%);
++  border: 1px solid rgb(255 255 255 / 14%);
++  border-radius: 12px;
++  box-shadow: none;
++  padding: 11px 18px;
++}
++.screen button.primary { background: #2f8fd0; border-color: transparent; color: #fff; font-weight: 600; }
++.screen button.selected { background: rgb(47 143 208 / 28%); border-color: #58b4ee; }
++.screen button.quiet { background: transparent; }
++.hud-message { font-size: calc(var(--u) * 7.6); font-weight: 600; color: #fff; }
++.hud-message > span {
++  background: rgb(16 24 32 / 58%);
++  border: 1px solid rgb(255 255 255 / 16%);
++  border-radius: calc(var(--u) * 3.5);
++  padding: calc(var(--u) * 2) calc(var(--u) * 5);
++  -webkit-backdrop-filter: blur(12px);
++  backdrop-filter: blur(12px);
++}
++.hud-notices-stack > .hud-situation {
++  background: rgb(16 24 32 / 58%);
++  border: 1px solid rgb(255 255 255 / 16%);
++  border-radius: calc(var(--u) * 3.5);
++  color: #ffe9a8;
++  font-size: calc(var(--u) * 7);
++  padding: calc(var(--u) * 2.5) calc(var(--u) * 5);
++  -webkit-backdrop-filter: blur(12px);
++  backdrop-filter: blur(12px);
++}
++.screen button { box-shadow: none !important; }
++.screen-panel h3.settings-section { color: #9fd3e6; font-size: 13px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; }
++.screen-panel p { font-size: 14px; }
+diff --git a/packages/client/src/dev/modernThemeA.css b/packages/client/src/dev/modernThemeA.css
+new file mode 100644
+index 0000000..ea4b875
+--- /dev/null
++++ b/packages/client/src/dev/modernThemeA.css
+@@ -0,0 +1,29 @@
++/* A Luonnollinen: eräkartta. Paperi, muste ja korkeuskäyrät. */
++.hud { --u0: 3px !important; font-family: 'Alegreya Sans', sans-serif; font-size: calc(var(--u) * 7); font-weight: 500; line-height: 1.2; color: #f1ead6; text-shadow: none; }
++.hud-panel, .hud-message > span, .hud-notices-stack > .hud-situation {
++  background: rgb(24 38 30 / 82%); border: 1px solid rgb(226 214 180 / 55%); border-radius: calc(var(--u) * 1.5);
++  box-shadow: 0 0 0 calc(var(--u) * 0.8) rgb(24 38 30 / 82%), 0 4px 14px rgb(0 0 0 / 30%); color: #f1ead6;
++}
++.hud-message { font-family: 'Fraunces', serif; font-weight: 700; font-size: calc(var(--u) * 8); }
++.hud-message > span, .hud-notices-stack > .hud-situation { padding: calc(var(--u) * 2.5) calc(var(--u) * 6); }
++.hud-notices-stack > .hud-situation { color: #f3d98a; font-size: calc(var(--u) * 7.4); font-weight: 700; }
++.hud-timer { font-family: 'Fraunces', serif; font-weight: 700; font-size: calc(var(--u) * 9); }
++.screen { font-family: 'Alegreya Sans', sans-serif; background-color: #1c2a22; }
++.screen-panel {
++  color: #24362a; font-size: 18px; --panel-py: 30px; --panel-px: 38px; border: none; border-radius: 4px;
++  background:
++    repeating-radial-gradient(ellipse at 18% 115%, transparent 0 21px, rgb(120 96 52 / 16%) 21px 22px),
++    repeating-radial-gradient(ellipse at 92% -10%, transparent 0 27px, rgb(120 96 52 / 13%) 27px 28px),
++    radial-gradient(ellipse at 50% 40%, #f4ecd6 0%, #eadfc0 70%, #d9caa2 100%);
++  box-shadow: 0 0 0 1px #8b7a52, 0 0 0 7px #efe5c8, 0 0 0 8px #8b7a52, 0 26px 60px rgb(0 0 0 / 55%);
++}
++.screen-panel h1 { font-family: 'Fraunces', serif; font-weight: 700; font-size: min(62px, 12vw); letter-spacing: 1px; color: #1f4a30; text-shadow: none; }
++.screen-panel h1::after { content: '60°47′ P · 23°44′ I · TAMMELA'; display: block; font-family: 'Alegreya Sans', sans-serif; font-size: 13px; letter-spacing: 4px; color: #8a5a2a; margin-top: 4px; }
++.screen-panel h2 { font-family: 'Fraunces', serif; font-size: 32px; color: #1f4a30; }
++.screen-panel .subtitle { color: #6a5a34; font-size: 19px; font-style: italic; }
++.screen-panel p, .screen-panel .choice-label { color: #4a4a36; }
++.screen button { font-family: inherit; font-size: 19px; font-weight: 700; color: #24362a; background: rgb(255 252 240 / 55%); border: 1.5px solid #5a6a4a; border-radius: 3px; box-shadow: none !important; padding: 10px 18px; letter-spacing: 0.3px; }
++.screen button.primary { background: #8a2a22; border-color: #5c1a14; color: #f6eed8; }
++.screen button.selected { background: #1f4a30; border-color: #12301e; color: #f6eed8; }
++.screen button.quiet { background: transparent; }
++.screen-panel h3.settings-section { font-family: 'Fraunces', serif; color: #8a5a2a; font-size: 18px; border-bottom: 1px solid #b9a878; }
+diff --git a/packages/client/src/dev/modernThemeB.css b/packages/client/src/dev/modernThemeB.css
+new file mode 100644
+index 0000000..d49ae64
+--- /dev/null
++++ b/packages/client/src/dev/modernThemeB.css
+@@ -0,0 +1,27 @@
++/* B Maalattu: mökkiranta. Lämmin puu, maalatut laudat ja käsin kirjoitettu otsikko. */
++.hud { --u0: 3px !important; font-family: 'Nunito', sans-serif; font-size: calc(var(--u) * 6.6); font-weight: 800; line-height: 1.25; color: #fff6e2; text-shadow: 0 1px 0 rgb(60 30 10 / 60%); }
++.hud-panel, .hud-message > span, .hud-notices-stack > .hud-situation {
++  background: linear-gradient(#6b4630, #54341f); border: calc(var(--u) * 0.8) solid #e9cf9a; border-radius: calc(var(--u) * 5);
++  box-shadow: 0 calc(var(--u) * 1.2) 0 #3a2314, 0 6px 16px rgb(0 0 0 / 28%); color: #fff6e2;
++}
++.hud-message { font-family: 'Berkshire Swash', serif; font-weight: 400; font-size: calc(var(--u) * 9); }
++.hud-message > span, .hud-notices-stack > .hud-situation { padding: calc(var(--u) * 2.5) calc(var(--u) * 7); }
++.hud-notices-stack > .hud-situation { color: #ffe08a; font-size: calc(var(--u) * 7); }
++.hud-timer { font-family: 'Berkshire Swash', serif; font-weight: 400; font-size: calc(var(--u) * 10); }
++.screen { font-family: 'Nunito', sans-serif; background-color: #23404a; }
++.screen-panel {
++  color: #fff6e2; font-size: 17px; --panel-py: 30px; --panel-px: 36px; border: 5px solid #e9cf9a; border-radius: 28px;
++  background:
++    repeating-linear-gradient(92deg, rgb(0 0 0 / 0%) 0 46px, rgb(40 20 8 / 22%) 46px 48px),
++    repeating-linear-gradient(88deg, rgb(255 220 170 / 5%) 0 7px, rgb(0 0 0 / 5%) 7px 15px),
++    linear-gradient(#7a5236, #5a3a24);
++  box-shadow: 0 10px 0 #33200f, 0 30px 60px rgb(0 0 0 / 50%);
++}
++.screen-panel h1 { font-family: 'Berkshire Swash', serif; font-weight: 400; font-size: min(70px, 13vw); letter-spacing: 0; color: #ffe9b0; text-shadow: 0 3px 0 #33200f, 0 0 26px rgb(255 190 90 / 35%); }
++.screen-panel h2 { font-family: 'Berkshire Swash', serif; font-weight: 400; font-size: 36px; color: #ffe9b0; }
++.screen-panel .subtitle { color: #bfe3d8; font-size: 18px; font-weight: 600; }
++.screen button { font-family: inherit; font-size: 18px; font-weight: 800; color: #4a2c16; background: linear-gradient(#f6e3b8, #e6c98e); border: none; border-radius: 16px; box-shadow: 0 4px 0 #a9824c, 0 6px 10px rgb(0 0 0 / 25%) !important; padding: 10px 18px; }
++.screen button.primary { background: linear-gradient(#4fb3a6, #2f8f88); color: #fff; box-shadow: 0 4px 0 #1c5f5c, 0 6px 10px rgb(0 0 0 / 25%) !important; text-shadow: 0 1px 0 rgb(0 0 0 / 30%); }
++.screen button.selected { background: linear-gradient(#f2a65a, #e0823a); color: #fff; box-shadow: 0 4px 0 #9a4f1c !important; }
++.screen button.quiet { background: transparent; color: #fff6e2; box-shadow: none !important; }
++.screen-panel h3.settings-section { font-family: 'Berkshire Swash', serif; font-weight: 400; color: #ffe08a; font-size: 22px; }
+diff --git a/packages/client/src/dev/modernThemeC.css b/packages/client/src/dev/modernThemeC.css
+new file mode 100644
+index 0000000..0afc8b0
+--- /dev/null
++++ b/packages/client/src/dev/modernThemeC.css
+@@ -0,0 +1,25 @@
++/* C Piirretty: sarjakuva. Paksut ääriviivat, kovat varjot ja retro-logon värit. */
++.hud { --u0: 3px !important; font-family: 'Baloo 2', sans-serif; font-size: calc(var(--u) * 6.6); font-weight: 800; line-height: 1.15; color: #16202a; text-shadow: none; }
++.hud-panel, .hud-message > span, .hud-notices-stack > .hud-situation {
++  background: #fffbea; border: calc(var(--u) * 1) solid #16202a; border-radius: calc(var(--u) * 3);
++  box-shadow: calc(var(--u) * 1.4) calc(var(--u) * 1.4) 0 #16202a; color: #16202a;
++}
++.hud-message { font-family: 'Bangers', sans-serif; font-weight: 400; font-size: calc(var(--u) * 10); letter-spacing: 1px; }
++.hud-message > span { background: #ffd23c; padding: calc(var(--u) * 2) calc(var(--u) * 7); transform: rotate(-1.2deg); display: inline-block; }
++.hud-notices-stack > .hud-situation { padding: calc(var(--u) * 2.5) calc(var(--u) * 6); font-size: calc(var(--u) * 7); }
++.hud-timer { font-family: 'Bangers', sans-serif; font-weight: 400; font-size: calc(var(--u) * 11); letter-spacing: 1px; }
++.screen { font-family: 'Baloo 2', sans-serif; background-color: #2f86b8; }
++.screen-panel {
++  color: #16202a; font-size: 18px; --panel-py: 30px; --panel-px: 36px; border: 5px solid #16202a; border-radius: 18px;
++  background: radial-gradient(rgb(22 32 42 / 9%) 1.6px, transparent 2px) 0 0 / 12px 12px, #fffbea;
++  box-shadow: 12px 12px 0 #16202a;
++}
++.screen-panel h1 { font-family: 'Bangers', sans-serif; font-weight: 400; font-size: min(86px, 15vw); letter-spacing: 3px; color: #ffd23c; -webkit-text-stroke: 3px #16202a; paint-order: stroke fill; text-shadow: 5px 5px 0 #c23a2a, 7px 7px 0 #16202a; transform: rotate(-2deg); }
++.screen-panel h2 { font-family: 'Bangers', sans-serif; font-weight: 400; font-size: 44px; letter-spacing: 2px; color: #c23a2a; }
++.screen-panel .subtitle { color: #1c6a94; font-size: 19px; font-weight: 800; }
++.screen-panel p, .screen-panel .choice-label { color: #16202a; }
++.screen button { font-family: inherit; font-size: 20px; font-weight: 800; color: #16202a; background: #fff; border: 3px solid #16202a; border-radius: 12px; box-shadow: 4px 4px 0 #16202a !important; padding: 7px 18px; }
++.screen button.primary { background: #e0442e; color: #fff; }
++.screen button.selected { background: #ffd23c; }
++.screen button.quiet { background: transparent; box-shadow: none !important; }
++.screen-panel h3.settings-section { font-family: 'Bangers', sans-serif; font-weight: 400; color: #c23a2a; font-size: 26px; letter-spacing: 1.5px; }
+diff --git a/packages/client/src/engine/resolution.ts b/packages/client/src/engine/resolution.ts
+index a75944c..18c7270 100644
+--- a/packages/client/src/engine/resolution.ts
++++ b/packages/client/src/engine/resolution.ts
+@@ -1,5 +1,6 @@
+ /** Tavoitekorkeus sisäiselle renderöinnille (pikseliä). */
+-export const TARGET_HEIGHT = 270;
++const Q = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams();
++export const TARGET_HEIGHT = Number(Q.get('h')) || 270;
+ export const MIN_HEIGHT = 180;
+ 
+ export interface RetroResolution {
+@@ -26,3 +27,5 @@ export function computeResolution(
+   while (scale > 1 && h / scale < MIN_HEIGHT) scale--;
+   return { width: Math.ceil(w / scale), height: Math.ceil(h / scale), scale };
+ }
++/** Prototyyppi (#650): sileät pinnat täydellä tarkkuudella. */
++export const SEG = TARGET_HEIGHT > 270 ? 4 : 1;
+diff --git a/packages/client/src/engine/retroRenderer.ts b/packages/client/src/engine/retroRenderer.ts
+index 0411e2e..31b2c62 100644
+--- a/packages/client/src/engine/retroRenderer.ts
++++ b/packages/client/src/engine/retroRenderer.ts
+@@ -129,7 +129,7 @@ function makeTarget(width: number, height: number) {
+ export class RetroRenderer {
+   readonly renderer: THREE.WebGLRenderer;
+   resolution: RetroResolution = { width: 1, height: 1, scale: 1 };
+-  paletteMode: PaletteMode = 'palette';
++  paletteMode: PaletteMode = (new URLSearchParams(location.search).get('pal') as PaletteMode) || 'palette';
+ 
+   private readonly sceneTarget = makeTarget(1, 1);
+   private readonly quadCamera = new THREE.Camera();
+@@ -141,7 +141,7 @@ export class RetroRenderer {
+   constructor(readonly canvas: HTMLCanvasElement) {
+     this.renderer = new THREE.WebGLRenderer({
+       canvas,
+-      antialias: false,
++      antialias: false, preserveDrawingBuffer: true,
+       powerPreference: 'high-performance',
+     });
+     this.renderer.setPixelRatio(1);
+diff --git a/packages/client/src/game/povTube.ts b/packages/client/src/game/povTube.ts
+index 211cb1b..19536ea 100644
+--- a/packages/client/src/game/povTube.ts
++++ b/packages/client/src/game/povTube.ts
+@@ -2,6 +2,7 @@ import * as THREE from 'three';
+ import { DEFAULT_APPEARANCE, EMOTE_DURATION, type Appearance, type EmoteId } from '@lunki/shared';
+ import { emoteIcon } from '../ui/emoteIcons';
+ import { playerColorMaterial, setPlayerColor } from './playerColor';
++import { SEG } from '../engine/resolution';
+ 
+ /**
+  * Kalastajan silmin näkyvä kelluntarengas (#230): U-muotoisen renkaan
+@@ -269,13 +270,13 @@ export class PovTube {
+     for (const side of [-1, 1]) {
+       const len = DIM.pontoonTip + 0.5;
+       const tube = new THREE.Mesh(
+-        new THREE.CylinderGeometry(DIM.pontoonRadius, DIM.pontoonRadius, len, 10, 1, true),
++        new THREE.CylinderGeometry(DIM.pontoonRadius, DIM.pontoonRadius, len, 10 * SEG, 1, true),
+         this.tubeMaterial,
+       );
+       tube.rotation.z = Math.PI / 2;
+       tube.position.set(DIM.pontoonTip - len / 2, DIM.pontoonY, side * DIM.pontoonSide);
+       const tip = new THREE.Mesh(
+-        new THREE.SphereGeometry(DIM.pontoonRadius, 10, 6, 0, Math.PI * 2, 0, Math.PI),
++        new THREE.SphereGeometry(DIM.pontoonRadius, 10 * SEG, 6 * SEG, 0, Math.PI * 2, 0, Math.PI),
+         this.tubeMaterial,
+       );
+       tip.position.set(DIM.pontoonTip, DIM.pontoonY, side * DIM.pontoonSide);
+diff --git a/packages/client/src/game/tubeMesh.ts b/packages/client/src/game/tubeMesh.ts
+index db627cb..be0f570 100644
+--- a/packages/client/src/game/tubeMesh.ts
++++ b/packages/client/src/game/tubeMesh.ts
+@@ -9,6 +9,7 @@ import {
+ import { toWorld } from '../world/lakeMesh';
+ import { playerColorMaterial, setPlayerColor } from './playerColor';
+ import { ROD_COLOR } from './rodModel';
++import { SEG } from '../engine/resolution';
+ import { REST_POSE, bendRod, type RodPose } from './rodMotion';
+ 
+ /** Räpylöiden lepokohta renkaan etureunan edessä (paikallinen x), korkeus ja pituus. */
+@@ -52,13 +53,13 @@ export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THR
+     [1, TUBE_CENTER],
+   ] as const) {
+     // Neljännes takakaaresta: kaari alkaa kyljestä (k 0) tai takaa (k 1).
+-    const arc = new THREE.TorusGeometry(TUBE_CENTER, TUBE_THICK, 6, 4, Math.PI / 2);
++    const arc = new THREE.TorusGeometry(TUBE_CENTER, TUBE_THICK, 6 * SEG, 4 * SEG, Math.PI / 2);
+     arc.rotateZ(Math.PI / 2 + (k * Math.PI) / 2);
+     arc.rotateX(-Math.PI / 2);
+-    const side = new THREE.CylinderGeometry(TUBE_THICK, TUBE_THICK, PONTOON_TIP, 6);
++    const side = new THREE.CylinderGeometry(TUBE_THICK, TUBE_THICK, PONTOON_TIP, 6 * SEG);
+     side.rotateZ(Math.PI / 2);
+     side.translate(PONTOON_TIP / 2, 0, z);
+-    const tip = new THREE.SphereGeometry(TUBE_THICK, 6, 4);
++    const tip = new THREE.SphereGeometry(TUBE_THICK, 6 * SEG, 4 * SEG);
+     tip.translate(PONTOON_TIP, 0, z);
+     for (const geometry of [arc, side, tip]) {
+       const part = new THREE.Mesh(geometry, tubeMat);
+@@ -98,7 +99,7 @@ export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THR
+   group.add(shoulders);
+ 
+   const head = new THREE.Mesh(
+-    new THREE.SphereGeometry(0.16, 8, 6),
++    new THREE.SphereGeometry(0.16, 8 * SEG, 6 * SEG),
+     new THREE.MeshLambertMaterial({ color: SKIN }),
+   );
+   head.position.set(0.04, 0.9, 0);
+@@ -234,7 +235,7 @@ function createRod(): THREE.Group {
+   flyReel.name = 'rod-fly-reel';
+   flyReel.position.set(HANDLE.rear + 0.08, -0.1, 0);
+   const disc = (r: number, w: number, material: THREE.Material) => {
+-    const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, w, 8), material);
++    const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, w, 8 * SEG), material);
+     m.rotation.x = Math.PI / 2;
+     return m;
+   };
+@@ -389,9 +390,9 @@ function createArm(side: -1 | 1, shirt: THREE.Material, skin: THREE.Material): T
+  * musta kaulanauha lieriltä leuan alle.
+  */
+ function createHat(shirt: THREE.Material): THREE.Mesh[] {
+-  const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.26, 0.06, 10), shirt);
++  const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.26, 0.06, 10 * SEG), shirt);
+   brim.position.set(0.04, 0.975, 0);
+-  const dome = new THREE.SphereGeometry(0.16, 10, 4, 0, Math.PI * 2, 0, Math.PI / 2);
++  const dome = new THREE.SphereGeometry(0.16, 10 * SEG, 4 * SEG, 0, Math.PI * 2, 0, Math.PI / 2);
+   dome.scale(1, 0.65, 1);
+   const crown = new THREE.Mesh(dome, shirt);
+   crown.position.set(0.04, 0.995, 0);
+diff --git a/packages/client/src/main.ts b/packages/client/src/main.ts
+index 4bedcda..b178a02 100644
+--- a/packages/client/src/main.ts
++++ b/packages/client/src/main.ts
+@@ -1,3 +1,10 @@
++import * as THREE from 'three';
++import * as BGU from 'three/examples/jsm/utils/BufferGeometryUtils.js';
++import { Water } from 'three/examples/jsm/objects/Water.js';
++import { Sky } from 'three/examples/jsm/objects/Sky.js';
++import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
++import { MarchingCubes } from 'three/examples/jsm/objects/MarchingCubes.js';
++import { LUNKINJARVI_SURROUNDINGS as SUR, footprint as FOOT } from '@lunki/shared';
+ import { controlStyle, setControlStyle, simpleControls } from './game/controlStyle';
+ import {
+   DEFAULT_SETTINGS,
+@@ -364,7 +371,7 @@ function startGame(s: CompetitionSettings, seed = devSeed, challenge: Challenge
+   hud.setStandingMessage(practice ? controlText('mp.practiceNote') : null);
+   touch?.setMultiplayer(session !== null);
+   touch?.setSpectator(game.spectating);
+-  if (import.meta.env.DEV) Object.assign(window, { lunki: game });
++  if (import.meta.env.DEV) Object.assign(window, { lunki: game, retro, THREE, Water, Sky, BGU, RoundedBoxGeometry, MarchingCubes, SUR, FOOT });
+   paused = false;
+   screens.hide();
+   hud.setVisible(true);
+diff --git a/packages/client/src/world/depthShade.ts b/packages/client/src/world/depthShade.ts
+index 33451d8..86cf413 100644
+--- a/packages/client/src/world/depthShade.ts
++++ b/packages/client/src/world/depthShade.ts
+@@ -3,9 +3,17 @@ import type { LakeBottom } from '@lunki/shared';
+ 
+ /** Syvyysvyöhykkeet pinnan sävyyn (sRGB 0–255, peitto): matala ranta vaalea, syvänne tumma. */
+ const DEPTH_BANDS: [number, [number, number, number, number]][] = [
+-  [1, [120, 180, 165, 0.5]],
+-  [2, [95, 170, 160, 0.32]],
+-  [3.5, [60, 140, 170, 0.18]],
++  ...((typeof location !== 'undefined' && location.search.includes('pal=off')
++    ? [
++        [1, [80, 160, 200, 0.45]],
++        [2, [60, 140, 190, 0.3]],
++        [3.5, [45, 120, 180, 0.18]],
++      ]
++    : [
++        [1, [120, 180, 165, 0.5]],
++        [2, [95, 170, 160, 0.32]],
++        [3.5, [60, 140, 170, 0.18]],
++      ]) as [number, [number, number, number, number]][]),
+   [6, [0, 0, 0, 0]],
+   [8, [10, 30, 70, 0.22]],
+   [Infinity, [5, 15, 45, 0.4]],
