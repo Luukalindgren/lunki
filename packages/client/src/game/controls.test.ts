@@ -285,6 +285,50 @@ describe('takaa-näkymän kamera (#691)', () => {
     expect(bindingText('camera', 'pad')).toBe('LT+oikea tatti');
   });
 
+  it('nuolisarjan ajan nuolet kuuluvat sarjalle eivätkä kameralle', () => {
+    setOrbitCamera(true);
+    const held = new Set<string>();
+    const c = new Controls({
+      isDown: (k: string) => held.has(k),
+      wasPressed: () => false,
+      padAim: { x: 0, y: 0 },
+      finger: false,
+      dragDX: 0,
+      dragDY: 0,
+    } as unknown as Input);
+    // Kameraa käännetään, kun sarja alkaa: pohjassa oleva nuoli ei ole sarjan nuoli.
+    held.add('ArrowLeft');
+    c.setArrowSequence(false);
+    expect(c.cameraInput().turn).toBe(1);
+    c.setArrowSequence(true);
+    expect(c.isDown('left')).toBe(false);
+    expect(c.cameraInput().turn).toBe(0);
+    // Irrotuksen jälkeen nuolet ovat sarjan.
+    held.clear();
+    c.setArrowSequence(true);
+    held.add('ArrowLeft').add('ArrowUp');
+    expect(c.isDown('left')).toBe(true);
+    expect(c.isDown('forward')).toBe(true);
+    expect(c.cameraInput()).toEqual({ turn: 0, tilt: 0, drag: null });
+    // Sarjan viimeinen nuoli ei jää kääntämään kameraa.
+    c.setArrowSequence(false);
+    expect(c.isDown('left')).toBe(false);
+    expect(c.cameraInput()).toEqual({ turn: 0, tilt: 0, drag: null });
+    held.clear();
+    c.setArrowSequence(false);
+    held.add('ArrowLeft');
+    expect(c.cameraInput().turn).toBe(1);
+    expect(c.isDown('left')).toBe(false);
+  });
+
+  it('muissa näkymissä nuolisarja ei muuta nuolia', () => {
+    const c = orbitInput(['ArrowLeft']);
+    c.setArrowSequence(true);
+    expect(c.isDown('left')).toBe(true);
+    c.setArrowSequence(false);
+    expect(c.isDown('left')).toBe(true);
+  });
+
   it('muissa näkymissä LT ei vie oikeaa tattia', () => {
     const c = orbitInput(['Pad6', 'PadRsLeft', 'PadRsDown'], { padAim: { x: -1, y: 1 } });
     expect(c.isDown('lookLeft')).toBe(true);

@@ -126,6 +126,9 @@ Koodi: `packages/client/src/game/controls.ts`.
     järvellä ei kelaa eikä heitä perhoa (napit toimivat), ja ohjetekstit
     jättävät nämä pois. Uusi sormen ele järvellä tai nuolinäppäimen käyttö
     tarkistaa saman tilan toimintokartasta eikä näkymästä.
+  - Täyttökisan nuolisarjan ajan nuolet kuuluvat sarjalle eivätkä kameralle
+    (`Controls.setArrowSequence`, #701). Vaihdon hetkellä pohjassa ollut nuoli
+    ei tee mitään ennen irrotusta, ettei kameran kääntö irrota letkua.
   - Oikean tatin lukijat (heiton suunta, perhovapa, pikavalikko, nykäisy)
     käyttävät `Controls.aimStick`ia, joka on nolla, kun tatti kääntää kameraa.
 - Peliohjaimen asetukset (#594, `engine/padSettings.ts`): kääntymisen
