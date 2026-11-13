@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { activeLook, onLookChange } from '../engine/look';
+import { pixelBytes, smoothPixels } from '../engine/smoothPixels';
 
 /** Pikselikuva: värit riveittäin (0xRRGGBB), -1 = läpinäkyvä (vieheet, kalat, merkit). */
 export interface Pixels {
@@ -7,28 +9,47 @@ export interface Pixels {
   data: ArrayLike<number>;
 }
 
+/** Elossa olevat tekstuurit lähdekuvineen: ilmeen vaihtuessa ne piirretään uudelleen. */
+const live = new Set<{ ref: WeakRef<THREE.DataTexture>; px: Pixels }>();
+
+/** Kirjoittaa kuvan tekstuuriin käytössä olevan ilmeen mukaan. Ylin rivi ylös. */
+function fill(tex: THREE.DataTexture, px: Pixels): void {
+  const sharp = activeLook() === 'sharp';
+  const image = sharp ? smoothPixels(px) : px;
+  const { width, height } = image;
+  const bytes = pixelBytes(image);
+  // Tekstuurin rivi 0 on alhaalla.
+  const rgba = new Uint8Array(bytes.length);
+  for (let y = 0; y < height; y++)
+    rgba.set(bytes.subarray(y * width * 4, (y + 1) * width * 4), (height - 1 - y) * width * 4);
+  // Koko vaihtuu ilmeen mukana: vanha näytönohjaimen tekstuuri vapautetaan.
+  tex.dispose();
+  tex.image = { data: rgba, width, height };
+  // Terävällä kuva on sileä ja reunat pehmeät; Retrossa pikselit pysyvät terävinä.
+  tex.magFilter = sharp ? THREE.LinearFilter : THREE.NearestFilter;
+  tex.minFilter = sharp ? THREE.LinearFilter : THREE.NearestFilter;
+  tex.needsUpdate = true;
+}
+
+onLookChange(() => {
+  for (const entry of live) {
+    const tex = entry.ref.deref();
+    if (tex) fill(tex, entry.px);
+    else live.delete(entry);
+  }
+});
+
 /**
- * Pikselikuva tekstuuriksi: terävät pikselit ja vain täysin peittävät tai
- * läpinäkyvät kohdat, jotta paletti ei vaihda sävyä. Ylin rivi ylös.
+ * Pikselikuva tekstuuriksi: Retrossa terävät pikselit ja vain täysin peittävät
+ * tai läpinäkyvät kohdat, jotta paletti ei vaihda sävyä. Terävällä (#674)
+ * samasta kuvasta tehdään sileä versio (`smoothPixels`), ja tekstuuri vaihtuu
+ * ilmeen mukana itsestään.
  */
 export function pixelTexture(px: Pixels): THREE.DataTexture {
-  const { width, height } = px;
-  const rgba = new Uint8Array(width * height * 4);
-  for (let i = 0; i < px.data.length; i++) {
-    const c = px.data[i]!;
-    if (c < 0) continue;
-    // Tekstuurin rivi 0 on alhaalla.
-    const o = ((height - 1 - Math.floor(i / width)) * width + (i % width)) * 4;
-    rgba[o] = (c >> 16) & 0xff;
-    rgba[o + 1] = (c >> 8) & 0xff;
-    rgba[o + 2] = c & 0xff;
-    rgba[o + 3] = 255;
-  }
-  const tex = new THREE.DataTexture(rgba, width, height);
-  tex.magFilter = THREE.NearestFilter;
-  tex.minFilter = THREE.NearestFilter;
+  const tex = new THREE.DataTexture(new Uint8Array(4), 1, 1);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.needsUpdate = true;
+  fill(tex, px);
+  live.add({ ref: new WeakRef(tex), px });
   return tex;
 }
 

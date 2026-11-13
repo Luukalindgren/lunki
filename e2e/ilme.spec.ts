@@ -23,6 +23,8 @@ test.describe('ilme (#674)', () => {
     // Terävä piirtää näytön tarkkuudella: kuva on vähintään kaksi kertaa leveämpi.
     await expect.poll(() => canvasWidth(page)).toBeGreaterThanOrEqual(retro * 2);
     expect(await page.evaluate(() => localStorage.getItem('lunki.look'))).toBe('sharp');
+    // Pikselikuvista käytetään sileitä versioita (`.look-sharp`, `ui/lookArt.ts`).
+    await expect(page.locator('html')).toHaveClass(/look-sharp/);
     // HUDin mitta ja ruudulla näkyvä kuva eivät riipu piirron tarkkuudesta.
     const shown = await page
       .locator('canvas.game-canvas')
@@ -42,6 +44,7 @@ test.describe('ilme (#674)', () => {
     await page.getByRole('button', { name: 'Asetukset' }).click();
     await look.getByRole('button', { name: 'Retro' }).click();
     await expect.poll(() => canvasWidth(page)).toBe(retro);
+    await expect(page.locator('html')).not.toHaveClass(/look-sharp/);
     errors.check();
   });
 });

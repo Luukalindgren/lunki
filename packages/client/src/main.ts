@@ -27,7 +27,7 @@ import {
 } from '@lunki/shared';
 import { FpsMeter } from './engine/fpsMeter';
 import { Input } from './engine/input';
-import { LookGuard, loadLook, saveLook } from './engine/look';
+import { LookGuard, loadLook, saveLook, setActiveLook, type Look } from './engine/look';
 import { startLoop } from './engine/loop';
 import { RetroRenderer, type PaletteMode } from './engine/retroRenderer';
 import { MENU_AMBIENCE } from './audio/ambience';
@@ -116,6 +116,7 @@ canvas.className = 'game-canvas';
 app.appendChild(canvas);
 
 const retro = createRenderer(canvas, app);
+applyLook(loadLook());
 const input = new Input(canvas);
 const fps = new FpsMeter(app, import.meta.env.DEV);
 const hud = new Hud(app);
@@ -199,6 +200,13 @@ const povFovControl = () => ({
     effectivePovFov(fov, retro.resolution.width / Math.max(1, retro.resolution.height)),
 });
 
+/** Ilme käyttöön: piirron tarkkuus, pikselikuvien versiot ja kuvien suurennus sivulla. */
+function applyLook(look: Look): void {
+  retro.setLook(look);
+  setActiveLook(look);
+  document.documentElement.classList.toggle('look-sharp', look === 'sharp');
+}
+
 /** Asetusnäkymän säätimet; `reopen` piirtää näkymän uudelleen kielen vaihtuessa. */
 const settingsControls = (reopen: () => void): SettingsControls => ({
   audio: { current: sfx.audioSettings, onChange: (a) => sfx.setAudioSettings(a) },
@@ -218,7 +226,7 @@ const settingsControls = (reopen: () => void): SettingsControls => ({
     current: retro.look,
     onChange: (look) => {
       saveLook(look);
-      retro.setLook(look);
+      applyLook(look);
       lookGuard.reset();
     },
   },
@@ -1068,9 +1076,7 @@ if (params.has('bench')) {
  */
 function createRenderer(c: HTMLCanvasElement, parent: HTMLElement): RetroRenderer {
   try {
-    const renderer = new RetroRenderer(c);
-    renderer.setLook(loadLook());
-    return renderer;
+    return new RetroRenderer(c);
   } catch (err) {
     const screen = document.createElement('div');
     screen.className = 'screen';
@@ -1164,7 +1170,7 @@ startLoop({
     const racing = game !== null && !paused && !screens.open && !bench;
     if (retro.look === 'sharp' && racing && lookGuard.frame(frameTime)) {
       saveLook('retro');
-      retro.setLook('retro');
+      applyLook('retro');
       hud.showMessage(t('look.fellBack'), 6, 'info');
     }
     bench?.frame(frameTime);

@@ -1,4 +1,6 @@
 import { fishLengthCm, type SpeciesId } from '@lunki/shared';
+import { activeLook } from '../engine/look';
+import { lookArt, paintPixels } from './lookArt';
 
 /**
  * Kalalajien pikselikuvat saaliille ja ennätyksille. Kuva lasketaan lajin
@@ -574,25 +576,18 @@ interface FishSprite {
 
 const cache = new Map<string, FishSprite>();
 
+const redrawFish = (img: HTMLImageElement) => {
+  img.src = fishSprite(img.dataset.species as SpeciesId, Number(img.dataset.sprite)).url;
+};
+
 /** Kalan kuva data-URL:na (välimuistissa lajin ja leveyden mukaan). */
 function fishSprite(species: SpeciesId, width: number): FishSprite {
-  const key = `${species}:${width}`;
+  const key = `${species}:${width}:${activeLook()}`;
   const hit = cache.get(key);
   if (hit) return hit;
   const px = fishPixels(species, width);
   const canvas = document.createElement('canvas');
-  canvas.width = px.width;
-  canvas.height = px.height;
-  const ctx = canvas.getContext('2d')!;
-  const img = ctx.createImageData(px.width, px.height);
-  px.data.forEach((c, k) => {
-    if (c < 0) return;
-    img.data[k * 4] = (c >> 16) & 0xff;
-    img.data[k * 4 + 1] = (c >> 8) & 0xff;
-    img.data[k * 4 + 2] = c & 0xff;
-    img.data[k * 4 + 3] = 255;
-  });
-  ctx.putImageData(img, 0, 0);
+  paintPixels(canvas, px);
   const sprite = { url: canvas.toDataURL(), width: px.width, height: px.height };
   cache.set(key, sprite);
   return sprite;
@@ -603,12 +598,16 @@ function fishSprite(species: SpeciesId, width: number): FishSprite {
  * pikseliä kohden CSS-lausekkeena, esim. 'calc(var(--u) * 2)' tai '1px'.
  */
 export function fishImage(species: SpeciesId, weightKg: number, scale = '1px'): HTMLImageElement {
-  const sprite = fishSprite(species, fishSpriteWidth(species, weightKg));
+  const width = fishSpriteWidth(species, weightKg);
+  const sprite = fishSprite(species, width);
   const img = document.createElement('img');
   img.className = 'fish-art';
-  img.src = sprite.url;
+  img.dataset.species = species;
+  img.dataset.sprite = String(width);
   img.alt = '';
   img.style.width = `calc(${scale} * ${sprite.width})`;
   img.style.height = `calc(${scale} * ${sprite.height})`;
+  // Kuva vaihtuu ilmeen mukana (pikselit tai sileä versio); mitat pysyvät.
+  lookArt(img, redrawFish);
   return img;
 }

@@ -181,6 +181,17 @@ Koodi: `packages/client/src/engine/look.ts`, `engine/retroRenderer.ts`.
   (`SkyView.grade`); reunanpehmennys tehdään valmiille kuvalle sen jälkeen.
   Viivat (siima, vapa, tähtäin, sade) piirretään Terävällä sisäisen pikselin
   levyisiksi (`thickenLines`), joten uusi viiva ei tarvitse omaa paksunnosta.
+- **Pikselikuvista on Terävälle sileät versiot samasta piirroksesta**
+  (`engine/smoothPixels.ts`): kuva piirretään kerran pikseleinä, ja Terävä
+  tekee siitä nelinkertaisen tarkkuuden version, jossa portaat ovat sileitä
+  eikä värejä sekoiteta. Järven kuvat (`pixelTexture`: linnut, vieheen
+  merkki, nostettava kala) ja käyttöliittymän kuvat (`ui/lookArt.ts`:
+  `paintPixels`, `lookArt`; kalat, vieheet, käsimerkit, palkinnot ja
+  kulkupelin esikatselu) vaihtuvat ilmeen mukana itsestään
+  (`activeLook`, `onLookChange`). Uusi pikselikuva käyttää näitä eikä piirrä
+  omaa kangasta tai tekstuuria, eikä Terävälle tehdä rinnakkaista taidetta.
+  Maiseman tekstuurit (puiden lehvästö) ja HUDin fontti ovat kummassakin
+  ilmeessä samat.
 - Terävä on raskas: jos kisan ruutunopeus jää alle 30 (`LookGuard`), ilme
   palaa Retroon ja siitä kerrotaan `info`-ilmoituksella. Selaintestit ajetaan
   Retrolla; `e2e/ilme.spec.ts` vaihtaa ilmeen ja aloittaa kisan.

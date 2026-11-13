@@ -3477,3 +3477,12 @@ textarea,
     text-wrap: balance;
   }
 }
+
+/* Terävä ilme (#674): kuvista on sileät versiot, joten niitä ei suurenneta pikseleinä. */
+.look-sharp .fish-art,
+.look-sharp .lure-art img,
+.look-sharp .emote-icon,
+.look-sharp .award-icon,
+.look-sharp .tube-preview {
+  image-rendering: auto;
+}
