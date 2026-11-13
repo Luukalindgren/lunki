@@ -222,6 +222,15 @@ export class Hud {
     const gauges = this.gauges.offsetWidth;
     s.setProperty('--right-w', px(gauges));
     s.setProperty('--right-h', px(this.gauges.offsetHeight));
+    // Kapealla pystyruudulla tilapaneeli ei mahdu luotaimen vasemmalle
+    // puolelle: silloin se alkaa vasta luotaimen alta (#705).
+    const m4 = (this.probeM.offsetWidth / 100) * 4;
+    const reach = this.status.getBoundingClientRect().right;
+    const room = this.gauges.getBoundingClientRect().left;
+    this.root.classList.toggle(
+      'under-gauges',
+      this.touch && this.status.offsetWidth > 0 && gauges > 0 && reach + m4 > room,
+    );
     // Työpöydällä vieheluotain ja perhoheiton sivukuva luotaimen rinnalla vievät
     // leveyden: kapean sarakkeen sijaan ilmoitukset luotainten yläpuolelle.
     // Ilmoitusalue on keskilinjan ympärillä, joten leveämpi reuna rajaa molemmat.
