@@ -617,6 +617,28 @@ export function createSwellPatch(map: LakeMap, waves: WaterWaves): THREE.Mesh {
   mesh.frustumCulled = false;
   mesh.visible = false;
   mesh.name = 'swell';
+  mesh.renderOrder = SWELL_ORDER;
+  return mesh;
+}
+
+/**
+ * Lähivesi piirretään muiden läpinäkymättömien kappaleiden jälkeen, ja
+ * `swellMask` sitä ennen: maskin takana oleva vesi jää piirtämättä.
+ */
+const SWELL_ORDER = 0.75;
+
+/**
+ * Näkymätön kansi kuivan tilan suulle (veneen laitojen väli): kirjoittaa vain
+ * syvyyden, joten aallonharja ei piirry sen takana olevan pohjan läpi.
+ * Aallokko on pidempi kuin vene, eikä runko voi myötäillä pintaa joka kohdasta.
+ */
+export function swellMask(geometry: THREE.BufferGeometry): THREE.Mesh {
+  const mesh = new THREE.Mesh(
+    geometry,
+    new THREE.MeshBasicMaterial({ colorWrite: false, side: THREE.DoubleSide }),
+  );
+  mesh.name = 'swellMask';
+  mesh.renderOrder = SWELL_ORDER - 0.25;
   return mesh;
 }
 
