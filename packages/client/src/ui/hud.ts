@@ -6,6 +6,7 @@ import { LureSonarDisplay } from './lureSonar';
 import { FlyCastPanel } from './flyCastPanel';
 import { hudBase } from './hudScale';
 import { SonarDisplay } from './sonar';
+import { lineNodes, lineText, type Line } from './columns';
 import { onLangChange, t, type MsgKey } from '../i18n';
 import { controlText } from '../game/controls';
 
@@ -347,22 +348,23 @@ export class Hud {
   }
 
   /** Viimeisimmät saaliit vasemmassa yläkulmassa. */
-  setCatches(lines: string[], notes?: ReadonlyMap<number, string>): void {
+  setCatches(lines: readonly Line[], notes?: ReadonlyMap<number, string>): void {
     this.catches.hidden = lines.length === 0;
-    const text = lines.join('\n');
+    const text = lines.map(lineText).join('\n');
     // Tulostaulun korostetut rivit (#635): rivin numero ja sen perään tuleva saalis.
     const key = notes?.size ? `${text}\n${[...notes].join('|')}` : text;
     if (this.catchesKey === key) return;
     this.catchesKey = key;
-    if (!notes?.size) {
+    // Pelkkä teksti riittää, kun rivejä ei korosteta eikä tasata sarakkeisiin.
+    if (!notes?.size && lines.every((line) => typeof line === 'string')) {
       this.catches.textContent = text;
       return;
     }
     this.catches.replaceChildren(
       ...lines.map((line, i) => {
-        const note = notes.get(i);
+        const note = notes?.get(i);
         const row = el('div', note ? 'hud-score-row fresh' : 'hud-score-row');
-        row.textContent = line;
+        row.append(...lineNodes(line));
         if (note) {
           const tag = document.createElement('span');
           tag.className = 'hud-score-note';

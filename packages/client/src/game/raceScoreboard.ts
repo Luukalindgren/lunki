@@ -1,5 +1,6 @@
 import type { CatchRecord, PlayerResult } from '@lunki/shared';
 import { formatWeight } from '../i18n';
+import type { AlignedLine } from '../ui/columns';
 
 /** Kisan aikaisen tulostaulun rivejä kärjestä. */
 export const SCOREBOARD_TOP = 5;
@@ -16,10 +17,13 @@ export function scoreboardLines(
   return scoreboardRows(results, myId, rows).map((r) => r.text);
 }
 
-/** Tulostaulun rivi ja kenen tulos sillä on (väliviivalla `null`). */
-export interface ScoreRow {
+/**
+ * Tulostaulun rivi ja kenen tulos sillä on (väliviivalla `null`). Nimi ja
+ * paino ovat sarakkeita (`ui/columns.ts`), jotta ne ovat kohdakkain myös
+ * fontilla, jonka merkit ovat eri levyisiä.
+ */
+export interface ScoreRow extends AlignedLine {
   id: string | null;
-  text: string;
 }
 
 /** Tulostaulun rivit tunnisteineen, jotta saaliin saaneen rivi voidaan korostaa (#635). */
@@ -29,10 +33,10 @@ export function scoreboardRows(
   rows = SCOREBOARD_TOP,
 ): ScoreRow[] {
   const top = results.slice(0, rows);
-  const row = (r: PlayerResult, me: boolean): ScoreRow => ({ id: r.id, text: scoreLine(r, me) });
+  const row = (r: PlayerResult, me: boolean): ScoreRow => ({ id: r.id, ...scoreLine(r, me) });
   const lines = top.map((r) => row(r, isMine(r, myId)));
   const me = results.find((r) => isMine(r, myId));
-  if (me && !top.includes(me)) lines.push({ id: null, text: '…' }, row(me, true));
+  if (me && !top.includes(me)) lines.push({ id: null, text: '…', columns: [] }, row(me, true));
   return lines;
 }
 
@@ -88,8 +92,11 @@ const NAME_WIDTH = 10;
  * (#488, #517): nollien tasapeli ei ole johto. Lähteneen nimen perään tulee
  * lyhyt merkki ×, joka jää näkyviin, vaikka nimi katkeaa.
  */
-function scoreLine(r: PlayerResult, me: boolean): string {
-  return `${me ? '>' : ' '}${rankLabel(r).padEnd(2)} ${nameField(r)} ${formatWeight(r.summary.score).padStart(7)}`;
+function scoreLine(r: PlayerResult, me: boolean): AlignedLine {
+  const rank = { text: `${me ? '>' : ' '}${rankLabel(r).padEnd(2)}` };
+  const name = { text: nameField(r) };
+  const score = { text: formatWeight(r.summary.score).padStart(7), right: true };
+  return { text: `${rank.text} ${name.text} ${score.text}`, columns: [rank, name, score] };
 }
 
 /**

@@ -339,6 +339,8 @@ test('yksinpelin botit: tulostaulu kisassa ja tulossivulla (#624)', async ({ pag
   // Kolme bottia ja pelaaja tulostaulussa.
   await expect(page.locator('.hud-catches')).toContainText('Tulostaulu');
   await expect(page.locator('.hud-catches')).toContainText('Sinä');
+  // Nimi ja paino ovat sarakkeita: kohdakkain myös fontilla, jonka merkit ovat eri levyisiä (#730).
+  await expect(page.locator('.hud-catches .hud-score-row .col.right')).toHaveCount(4);
   await expect(page.locator('.name-tag')).not.toHaveCount(0);
   // Kylttien keskinäinen järjestys (z-index) pysyy kylttien kerroksessa: kyltit
   // eivät nouse HUDin paneelien eivätkä valikoiden päälle (#662).
