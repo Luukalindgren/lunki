@@ -343,6 +343,10 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
   itse, jolloin se saa teeman ilman omaa sääntöä. Teema asettaa myös pelin
   fontin (`--font`) tekstifontikseen, ja ympyrävalikot ovat paperilohkoja
   musteen värisessä kehässä.
+  Valikon paneeli on tasaista paperia puukehyksessä, ja sen kuviot pysyvät
+  paikallaan sisällön vieriessä: paneelin reunaan tarttuva rivi (alanapit,
+  ohjeiden osiot) on samaa paperia ja rajautuu häivytyksellä, ei laatikkona.
+  Värillinen nappi (`primary`, `selected`) pysyy värillisenä osoittimen alla.
 - **Sisäinen tarkkuus on kummassakin ilmeessä sama** (`RetroRenderer.resolution`):
   kamerat, zoomitasot, merkkien koot ja HUDin mitta lasketaan siitä, joten
   näkyvä alue ei riipu ilmeestä. Terävä piirtää jokaisen sisäisen pikselin
