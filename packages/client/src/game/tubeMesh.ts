@@ -262,6 +262,9 @@ function createRod(): THREE.Group {
   );
   line.name = 'rod-line';
   line.frustumCulled = false;
+  // Järven tasolta vapa on malli, ja viiva vain pitää sen näkyvissä kaukaa:
+  // sisäisen pikselin levyisenä kaukainen vapa olisi käsivarren paksuinen.
+  line.userData.hairline = true;
   rod.add(line);
   return rod;
 }

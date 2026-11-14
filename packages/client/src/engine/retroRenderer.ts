@@ -337,15 +337,24 @@ export class RetroRenderer {
    * levyisiä. Terävällä ne piirretään uudelleen kuvapisteen verran siirrettyinä,
    * kunnes viiva on sisäisen pikselin levyinen kuten Retrossa: muuten vierekkäin
    * piirretyt viivat (vapa) jäävät raidallisiksi ja siima katoaa isolla näytöllä.
+   *
+   * Viiva, joka on mallin keskilinja (`userData.hairline`, muiden pelaajien
+   * vapa), jää perspektiivissä kuvapisteen levyiseksi: malli näkyy läheltä, ja
+   * kaukaa paksunnettu viiva olisi moninkertaisesti mallia paksumpi.
    */
   private thickenLines(scene: THREE.Scene, camera: THREE.Camera): void {
     const detail = LOOK_UNIFORMS.uLookDetail.value;
     if (detail <= 1) return;
     if (!(camera instanceof THREE.PerspectiveCamera || camera instanceof THREE.OrthographicCamera))
       return;
+    const perspective = camera instanceof THREE.PerspectiveCamera;
     let lines = false;
     scene.traverseVisible((o) => {
       if (!(o as THREE.Line).isLine) return;
+      if (perspective && o.userData.hairline) {
+        o.layers.disable(LINE_LAYER);
+        return;
+      }
       o.layers.enable(LINE_LAYER);
       lines = true;
     });

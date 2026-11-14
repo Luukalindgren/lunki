@@ -4,6 +4,7 @@ import { bottomIn, type BottomSource } from '../world/bottomMesh';
 import { staticWorldIn, type StaticWorld } from '../world/staticWorld';
 import { planVegetation } from '../world/vegetation';
 import { createCottages, createModernPiers, WindowLights } from './cottages';
+import { createForestBack } from './forestBack';
 import { createLakeBed } from './lakeBed';
 import { Land } from './land';
 import { SCENERY_COLORS } from './sceneryColors';
@@ -46,6 +47,7 @@ function sceneryFor(world: StaticWorld): Scenery {
   const reeds = createReeds(plants, world.map, colors);
   const shore = createShoreDetail(world.map, land, colors);
   group.add(land.build(), forest.group, reeds.group, reeds.bed, shore.group);
+  if (world.surroundings) group.add(createForestBack(world, land, colors));
   const cottages = world.surroundings ? createCottages(world.surroundings, land) : null;
   if (cottages) group.add(cottages);
   const piers = createModernPiers(world.map.piers ?? []);
