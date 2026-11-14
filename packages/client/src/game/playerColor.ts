@@ -19,6 +19,9 @@ type Ramp = [THREE.Color, THREE.Color, THREE.Color];
  * pysyy samaa väriä eikä pyöristy paletissa ruskeaksi. Kirkkaus tulee silti
  * yhdestä sävytyksestä (SkyView.grade) paletin jälkeen. Modernissa ilmeessä
  * (`uLookModern`) portaita ei ole: väri varjostuu liukuvasti pehmeillä pinnoilla.
+ *
+ * Veden alla näkyvä osa (`submerge`, esim. räpylät) on Retrossa rampin astetta
+ * tummempi: paletti ei sekoita vettä väriin, joten syvyys näkyy sävystä (#728).
  */
 export function playerColorMaterial(hex: number): THREE.MeshLambertMaterial {
   const material = new THREE.MeshLambertMaterial({ color: hex });
@@ -40,6 +43,10 @@ export function playerColorMaterial(hex: number): THREE.MeshLambertMaterial {
         // Valo pinnan väristä riippumatta: vihreä maavalo ei saa tummentaa punaista.
         vec3 rampIrradiance = outgoingLight / max(diffuseColor.rgb, vec3(1e-3));
         float rampLight = dot(rampIrradiance, vec3(0.299, 0.587, 0.114));
+        #ifdef SUBMERGED
+        if (uLookSharp < 0.5 && vSubmerged > 0.0)
+          rampLight = rampLight > uShadeSteps.x ? uShadeSteps.x : 0.0;
+        #endif
         if (uLookModern < 0.5) outgoingLight = rampLight > uShadeSteps.x ? uRamp[0]
           : rampLight > uShadeSteps.y ? uRamp[1] : uRamp[2];
         #include <opaque_fragment>`,

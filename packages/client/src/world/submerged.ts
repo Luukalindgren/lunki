@@ -1,4 +1,5 @@
 import type * as THREE from 'three';
+import { LOOK_UNIFORMS } from '../engine/look';
 import { VEIL } from '../engine/veil';
 
 /** Näin matalalla (m pinnasta) olevat osat kuultavat veden läpi. */
@@ -18,6 +19,11 @@ export const SUBMERGED = {
   dim: 0.3,
   /** Järven tasolta katsottuna osat hiipuvat pois tällä matkalla (m), kuten pohjan sävy. */
   far: [18, 32],
+  /**
+   * Retron paletti ei sekoita värejä: osa piirretään peittävänä, kun siitä
+   * näkyisi veden läpi vähintään näin paljon (0–1), ja muuten ei lainkaan.
+   */
+  solid: 0.15,
 } as const;
 
 /**
@@ -45,6 +51,11 @@ const f = (n: number) => n.toFixed(3);
  * (rengas, vene, kalastaja) peittävät osan oikein. Pinnan yläpuolelle jäävä
  * osa samasta kappaleesta piirtyy tavallisesti.
  *
+ * Retrossa paletti pyöristäisi osan ja veden sekoituksen vieraaseen sävyyn
+ * (punainen räpylä violetiksi, musta veden väriin, #728), joten osa piirretään
+ * peittävänä omassa värissään. Pelaajan värit ovat silloin veden alla rampin
+ * astetta tummempia (`playerColorMaterial` lukee `SUBMERGED`-määrittelyn).
+ *
  * Säilyttää materiaalin oman varjostinmuokkauksen (esim. pelaajan värit).
  */
 export function submerge<T extends THREE.Material>(material: T): T {
@@ -53,6 +64,7 @@ export function submerge<T extends THREE.Material>(material: T): T {
   material.onBeforeCompile = (shader, renderer) => {
     before.call(material, shader, renderer);
     shader.uniforms.uSubmergedLift = SUBMERGED_LIFT;
+    shader.uniforms.uLookSharp = LOOK_UNIFORMS.uLookSharp;
     shader.vertexShader = (
       'uniform float uSubmergedLift;\nvarying float vSubmerged;\nvarying float vSubmergedFar;\n' +
       shader.vertexShader
@@ -76,7 +88,8 @@ export function submerge<T extends THREE.Material>(material: T): T {
       }`,
     );
     shader.fragmentShader = (
-      'varying float vSubmerged;\nvarying float vSubmergedFar;\n' + shader.fragmentShader
+      '#define SUBMERGED\nuniform float uLookSharp;\nvarying float vSubmerged;\nvarying float vSubmergedFar;\n' +
+      shader.fragmentShader
     ).replace(
       '#include <opaque_fragment>',
       /* glsl */ `if (vSubmerged > 0.0) {
@@ -84,8 +97,13 @@ export function submerge<T extends THREE.Material>(material: T): T {
         subSeen *= 1.0 - smoothstep(${f(SUBMERGED.far[0])}, ${f(SUBMERGED.far[1])}, vSubmergedFar);
         // Vesirajassa peitto alkaa liukuen, ettei pintaan jää terävää rajaa.
         float subWet = smoothstep(0.0, 0.04, vSubmerged);
-        diffuseColor.a *= mix(1.0, subSeen, subWet);
-        outgoingLight *= 1.0 - ${f(SUBMERGED.dim)} * subWet;
+        if (uLookSharp < 0.5) {
+          // Paletti: osa näkyy omassa värissään tai ei lainkaan.
+          if (subSeen < ${f((1 - SUBMERGED.veil) * SUBMERGED.solid)}) discard;
+        } else {
+          diffuseColor.a *= mix(1.0, subSeen, subWet);
+          outgoingLight *= 1.0 - ${f(SUBMERGED.dim)} * subWet;
+        }
       }
       #include <opaque_fragment>`,
     );
