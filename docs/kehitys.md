@@ -408,6 +408,13 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
   tekstifontti (`MODERN_FONT`), joka on leveämpi: kankaan teksti piirretään
   siksi hieman pienempänä, ja uusi tekstirivi mitoitetaan niin, että se
   mahtuu myös sillä.
+- **Sarakkeisiin tasattu rivi käyttää `ui/columns.ts`:ää** (#730). Välilyönneillä
+  tasattu teksti (`padEnd`, `padStart`) on kohdakkain vain tasalevyisellä
+  fontilla, eikä Modernin tekstifontti ole sellainen. Rivi annetaan tasattuine
+  osineen (`AlignedLine`), ja `lineNodes` käärii osat `.col`-sarakkeiksi, joiden
+  leveys on osan pituus merkkeinä. Näin tehdään HUDin tulostaulu
+  (`scoreboardRows`) ja tulossivun rivit; uusi tasattu lista tekee samoin eikä
+  luota fontin leveyteen.
 - **HUDin pienet näytöt** (kaikuluotain, vieheluotain, perhoheiton sivukuva)
   ottavat piirtopintansa `panelContext`illa (`ui/sonarArt.ts`): mitat ovat
   aina sisäisiä pikseleitä, ja Terävällä kankaassa on neljä kuvapistettä

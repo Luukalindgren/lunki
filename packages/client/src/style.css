@@ -1203,6 +1203,22 @@ textarea,
   margin-left: 12px;
 }
 
+/*
+ * Sarakkeisiin tasattu rivi (ui/columns.ts, #730): sarake on vähintään niin
+ * leveä kuin sen teksti on merkkeinä. Tasalevyisellä fontilla se on tekstin
+ * oma leveys; fontilla, jonka merkit ovat eri levyisiä (Moderni), sarakkeet
+ * pysyvät silti kohdakkain riviltä toiselle.
+ */
+.col {
+  display: inline-block;
+  min-width: calc(var(--col) * 1ch);
+  white-space: pre;
+}
+
+.col.right {
+  text-align: right;
+}
+
 /* Tulosrivi: kalan kuva oikeassa reunassa, teksti lyhenee tarvittaessa. */
 .catch-list .result-row {
   display: inline-grid;

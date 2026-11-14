@@ -366,7 +366,7 @@ export class HudPresenter {
           }),
         );
     });
-    this.host.hud.setCatches([t('game.scoreboard'), ...rows.map((r) => r.text)], notes);
+    this.host.hud.setCatches([t('game.scoreboard'), ...rows], notes);
   }
 
   /** Yksinpelin tulostaulu, kun järvellä on botteja (#624). */

@@ -144,6 +144,7 @@ import {
   type TackleBox,
 } from '../game/tackleBox';
 import { baitSummary, loadJournal, type BaitSummary } from '../game/journal';
+import { lineNodes, type Line } from './columns';
 import { SOLO_BOT_COUNTS, isSoloBotCount } from '../game/soloBots';
 import { COMPACT_RESULTS_OVER, resultRowName, resultsText, rulesLine } from './resultsText';
 import {
@@ -2268,16 +2269,23 @@ export class Screens {
       li.classList.toggle('unranked', rankLabel(r) === '–');
       const biggest = r.summary.biggest ? formatWeight(r.summary.biggest.weight) : '–';
       const { name, tags } = resultRowName(r);
+      // Nimi, määrä ja paino ovat sarakkeita: kohdakkain myös Modernin fontilla (#730).
+      const columns = [
+        { text: shortName(name).padEnd(nameWidth) },
+        { text: String(r.summary.count).padStart(2), right: true },
+        { text: formatWeight(r.summary.total).padStart(8), right: true },
+      ];
       const text =
         t('results.row', {
-          name: shortName(name).padEnd(nameWidth),
-          count: String(r.summary.count).padStart(2),
-          total: formatWeight(r.summary.total).padStart(8),
+          name: columns[0]!.text,
+          count: columns[1]!.text,
+          total: columns[2]!.text,
           biggest,
         }) + tags.map((tag) => ` · ${tag}`).join('');
       const gear = tackles?.get(r.id);
       const big = r.summary.biggest;
-      const row = resultRow(text, big ? sizedFish(big.species, big.weight) : null, {
+      const line = { text, columns };
+      const row = resultRow(line, big ? sizedFish(big.species, big.weight) : null, {
         name,
         total: formatWeight(r.summary.total),
       });
@@ -2375,9 +2383,14 @@ export class Screens {
       list.className = 'catch-list';
       for (const ct of [...c.catches].sort((a, b) => b.weight - a.weight)) {
         const li = document.createElement('li');
+        const species = { text: speciesName(ct.species).padEnd(8) };
+        const weight = { text: formatWeight(ct.weight).padStart(8), right: true };
         li.append(
           resultRow(
-            `${speciesName(ct.species).padEnd(8)} ${formatWeight(ct.weight).padStart(8)}   ${formatTime(ct.time)}`,
+            {
+              text: `${species.text} ${weight.text}   ${formatTime(ct.time)}`,
+              columns: [species, weight],
+            },
             sizedFish(ct.species, ct.weight),
           ),
         );
@@ -3260,15 +3273,18 @@ const LOBBY_BOT_ROWS = 3;
 
 /**
  * Tulosrivi: teksti vasemmalla ja kalan kuva oikeassa reunassa, joten kuva
- * näkyy aina kokonaan; liian pitkä teksti lyhenee "…"-merkkiin.
+ * näkyy aina kokonaan; liian pitkä teksti lyhenee "…"-merkkiin. Rivin tasatut
+ * osat ovat sarakkeita (`ui/columns.ts`).
  */
 function resultRow(
-  text: string,
+  line: Line,
   fish: HTMLElement | null,
   narrow?: { name: string; total: string },
 ): HTMLElement {
   const row = h('div', '', 'result-row');
-  row.append(h('span', text, 'result-text'));
+  const text = h('span', '', 'result-text');
+  text.append(...lineNodes(line));
+  row.append(text);
   // Puhelin pystyssä (#634): nimi ja paino ylärivillä, loput rivin alla (`.result-detail`).
   if (narrow) {
     const top = h('span', '', 'result-narrow');
