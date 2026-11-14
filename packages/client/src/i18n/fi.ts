@@ -990,7 +990,7 @@ export const fi = {
   'game.castRejected': 'Palvelin hylkäsi heiton',
   'game.viewPov': 'Kalastajan silmin ({view})',
   'game.viewTop': 'Ylhäältä ({view})',
-  'game.viewChase': 'Takaa ({view})',
+  'game.viewChase': 'Takaa ({view}) · kamera: {camera}',
   'game.lureLater': '{lure} vaihtuu, kun viehe on kelalla',
   'game.penaltyTimeOut': 'Jäähy {s} s',
   'game.penaltyLoseCatch': 'Menetit saaliisi',

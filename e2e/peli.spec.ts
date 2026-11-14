@@ -38,7 +38,7 @@ test.describe('yksinpeli', () => {
 
     // Kisa alkaa kalastajan silmin; V kiertää takaa (#691), ylhäältä ja takaisin.
     await page.keyboard.press('KeyV');
-    await expect(page.locator('.hud-message')).toHaveText('Takaa (V)');
+    await expect(page.locator('.hud-message')).toHaveText('Takaa (V) · kamera: nuolinäppäimet');
     await expect.poll(() => canvasColors(page)).toBeGreaterThan(8);
     await page.keyboard.press('KeyV');
     await expect(page.locator('.hud-message')).toHaveText('Ylhäältä (V)');

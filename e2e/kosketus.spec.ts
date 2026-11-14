@@ -74,7 +74,9 @@ test.describe('puhelin', () => {
     // Zoomnapit näkyvät vain ylhäältä, missä ne tekevät jotain (#709).
     await expect(page.locator('.touch-zoom').first()).toBeHidden();
     await page.getByRole('button', { name: 'KAM' }).tap();
-    await expect(page.locator('.hud-message')).toHaveText('Takaa (KAM)');
+    await expect(page.locator('.hud-message')).toHaveText(
+      'Takaa (KAM) · kamera: pyyhkäise järvellä',
+    );
     await expect(page.locator('.touch-zoom').first()).toBeHidden();
     await page.getByRole('button', { name: 'KAM' }).tap();
     await expect(page.locator('.hud-message')).toHaveText('Ylhäältä (KAM)');
