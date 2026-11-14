@@ -325,3 +325,33 @@ html.look-modern {
   font-size: 14px;
   font-weight: 700;
 }
+
+/* Järvikartta: eräkartan lehti kaksoiskehyksessä (värit `ui/mapColors.ts`). */
+.look-modern .lake-map-canvas {
+  border: 1px solid var(--ink);
+  border-radius: 2px;
+  box-shadow:
+    0 0 0 3px var(--paper-light),
+    0 0 0 4px var(--paper-edge);
+}
+
+/* Zoomnapit ovat kartan päällä: peittävää paperia, ettei kartta kuulla läpi. */
+.look-modern .screen .lake-map-zoom button {
+  background: var(--paper-light);
+  border-color: var(--ink);
+  box-shadow: 0 1px 4px rgb(40 28 10 / 35%);
+}
+
+.look-modern .screen .lake-map-zoom button:hover:not(:disabled),
+.look-modern .screen .lake-map-zoom button:focus-visible {
+  background: #fff;
+}
+
+.look-modern .lake-map-legend i {
+  border: 1px solid var(--ink-soft);
+  border-radius: 2px;
+}
+
+.look-modern .race-legend b {
+  text-shadow: none;
+}

@@ -16,9 +16,9 @@ import { activeLook, onLookChange, smoothLook, type Look } from '../engine/look'
 import { pixelBytes, smoothPixels } from '../engine/smoothPixels';
 import type { RaceEventKind, RaceMapData } from '../game/raceLog';
 import { bottomFor } from '../world/lakeData';
-import { AREA_COLORS, DEFAULT_GROUND, LINE_COLORS } from '../world/surroundingsMesh';
 import { DEPTH_BANDS, MapViewport, depthBand, scaleBarMeters, type Bounds } from './mapViewport';
 import { uiFont } from './lookArt';
+import { mapColors } from './mapColors';
 import { navCode } from './menuNav';
 import { decimal, hasKey, t } from '../i18n';
 
@@ -33,8 +33,6 @@ const PIN_REACH = 14;
 /** Kartalla nimetyt pohjan muodot (jyrkkää rantaa ei nimetä); nimet sanakirjassa. */
 type NamedFeature = Exclude<BottomFeature['type'], 'steep'>;
 const isNamed = (type: BottomFeature['type']): type is NamedFeature => type !== 'steep';
-
-const css = (hex: number) => `#${hex.toString(16).padStart(6, '0')}`;
 
 interface LakeData {
   map: LakeMap;
@@ -96,13 +94,16 @@ const FINE = 2;
  * käyrineen, saaret, kaislikot, rakennukset ja laiturit. Retrossa pikselit ovat
  * isoja kuten pelissä. Terävällä (#674) sama kuva piirretään kaksinkertaisella
  * tarkkuudella: alueiden reunat ovat sileitä, syvyysvyöhykkeistä tehdään sileä
- * versio (`smoothPixels`) ja kartta suurennetaan pehmeästi.
+ * versio (`smoothPixels`) ja kartta suurennetaan pehmeästi. Värit tulevat
+ * ilmeen mukaan (`mapColors`): Modernissa kartta on eräkartta, jossa
+ * syvyyskäyrät ja rantaviiva ovat musteviivoja.
  */
 function buildBase(d: LakeData, s: LakeSurroundings): BaseImage {
   const look = activeLook();
   const cached = baseCache[look];
   if (cached) return cached;
   const fine = smoothLook(look);
+  const c = mapColors();
   const detail = fine ? FINE : 1;
   const b = d.map.bounds;
   const extent = {
@@ -128,19 +129,19 @@ function buildBase(d: LakeData, s: LakeSurroundings): BaseImage {
     }
   };
 
-  ctx.fillStyle = css(DEFAULT_GROUND);
+  ctx.fillStyle = c.ground;
   ctx.fillRect(0, 0, w, h);
   for (const a of s.areas) {
     if (a.kind === 'building') continue;
     ringPath(a.rings);
-    ctx.fillStyle = css(AREA_COLORS[a.kind]);
+    ctx.fillStyle = c.areas[a.kind];
     ctx.fill('evenodd');
   }
   ctx.lineWidth = 1;
   for (const l of s.lines) {
     ctx.beginPath();
     l.points.forEach((p, i) => (i === 0 ? ctx.moveTo(...px(p)) : ctx.lineTo(...px(p))));
-    ctx.strokeStyle = css(LINE_COLORS[l.kind]);
+    ctx.strokeStyle = c.lines[l.kind];
     ctx.stroke();
   }
 
@@ -163,7 +164,12 @@ function buildBase(d: LakeData, s: LakeSurroundings): BaseImage {
   }
   // Oma kuva vedelle: maan lukeminen takaisin näytönohjaimelta olisi hidasta.
   const colors = new Int32Array(lw * lh).fill(-1);
-  const rgb = DEPTH_BANDS.map((band) => parseInt(band.color.slice(1), 16));
+  const int = (color: string) => parseInt(color.slice(1), 16);
+  const rgb = c.bands.map(int);
+  const contours = c.contours?.map(int);
+  const shore = c.shore ? int(c.shore) : null;
+  const land = (i: number, j: number) =>
+    i >= 0 && j >= 0 && i < lw && j < lh && bands[j * lw + i]! < 0;
   for (let j = 0; j < lh; j++) {
     for (let i = 0; i < lw; i++) {
       const k = j * lw + i;
@@ -173,7 +179,11 @@ function buildBase(d: LakeData, s: LakeSurroundings): BaseImage {
       const up = j > 0 ? bands[k - lw]! : band;
       // Käyrä: syvemmän puolen pikseli tummuu vyöhykkeen rajalla.
       const edge = (left >= 0 && left < band) || (up >= 0 && up < band);
-      colors[k] = rgb[Math.min(rgb.length - 1, band + (edge ? 1 : 0))]!;
+      // Rantaviiva: veden pikseli, jonka vieressä on maata.
+      if (shore !== null && (land(i - 1, j) || land(i + 1, j) || land(i, j - 1) || land(i, j + 1)))
+        colors[k] = shore;
+      else if (edge && contours) colors[k] = contours[band]!;
+      else colors[k] = rgb[Math.min(rgb.length - 1, band + (edge ? 1 : 0))]!;
     }
   }
   const water = { width: lw, height: lh, data: colors };
@@ -187,7 +197,7 @@ function buildBase(d: LakeData, s: LakeSurroundings): BaseImage {
   ctx.drawImage(lake, x0, y0, lw, lh);
 
   // Saaret ovat metsää.
-  ctx.fillStyle = css(AREA_COLORS.forest);
+  ctx.fillStyle = c.areas.forest;
   for (const island of d.map.islands) {
     ringPath([island]);
     ctx.fill();
@@ -205,7 +215,7 @@ function buildBase(d: LakeData, s: LakeSurroundings): BaseImage {
         x <= Math.max(...xs);
         x += 2
       ) {
-        ctx.fillStyle = css((x + y) % 3 === 0 ? AREA_COLORS.field : AREA_COLORS.reeds);
+        ctx.fillStyle = c.reeds[(x + y) % 3 === 0 ? 0 : 1];
         if (fine) {
           // Terävällä pisteet ovat pyöreitä korsia.
           ctx.beginPath();
@@ -217,18 +227,18 @@ function buildBase(d: LakeData, s: LakeSurroundings): BaseImage {
     ctx.restore();
   }
 
-  ctx.fillStyle = css(AREA_COLORS.building);
+  ctx.fillStyle = c.areas.building;
   for (const a of s.areas) {
     if (a.kind !== 'building') continue;
     ringPath(a.rings);
     ctx.fill('evenodd');
   }
-  ctx.fillStyle = css(AREA_COLORS.pier);
+  ctx.fillStyle = c.areas.pier;
   for (const p of d.map.piers ?? []) {
     ringPath([pierRing(p)]);
     ctx.fill();
   }
-  ctx.strokeStyle = '#5e432b';
+  ctx.strokeStyle = c.log;
   for (const f of d.features) {
     if (f.type !== 'tree') continue;
     ctx.beginPath();
@@ -278,6 +288,7 @@ export class LakeMapView {
   readonly element: HTMLDivElement;
   private readonly canvas: HTMLCanvasElement;
   private readonly info: HTMLParagraphElement;
+  private legendBox: HTMLElement;
   private readonly data = lunkiData();
   private base: BaseImage;
   private readonly unwatchLook: () => void;
@@ -333,7 +344,8 @@ export class LakeMapView {
     this.info.textContent = t(
       options.onPick ? 'map.tapWater' : options.onPin ? 'map.tapPin' : 'map.tapDepth',
     );
-    this.element.append(frame, this.info, this.legend());
+    this.legendBox = this.legend();
+    this.element.append(frame, this.info, this.legendBox);
 
     this.resize = new ResizeObserver(() => this.layout());
     this.resize.observe(this.canvas);
@@ -341,6 +353,10 @@ export class LakeMapView {
     // Ilmeen vaihtuessa pohjakuva piirretään uudelleen.
     this.unwatchLook = onLookChange(() => {
       this.base = buildBase(this.data, LUNKINJARVI_SURROUNDINGS);
+      // Selitteen värit ovat ilmeen syvyysvärit.
+      const legend = this.legend();
+      this.legendBox.replaceWith(legend);
+      this.legendBox = legend;
       this.draw();
     });
   }
@@ -374,13 +390,13 @@ export class LakeMapView {
   private legend(): HTMLElement {
     const box = document.createElement('div');
     box.className = 'lake-map-legend';
-    for (const b of DEPTH_BANDS) {
+    DEPTH_BANDS.forEach((b, i) => {
       const item = document.createElement('span');
       const swatch = document.createElement('i');
-      swatch.style.background = b.color;
+      swatch.style.background = mapColors().bands[i]!;
       item.append(swatch, hasKey(b.label) ? t(b.label) : b.label);
       box.append(item);
-    }
+    });
     return box;
   }
 
@@ -553,9 +569,10 @@ export class LakeMapView {
     const ctx = this.canvas.getContext('2d');
     if (!ctx || this.view.width <= 1) return;
     const v = this.view;
+    const c = mapColors();
     const dpr = this.canvas.width / v.width;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = css(DEFAULT_GROUND);
+    ctx.fillStyle = c.ground;
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const sharp = smoothLook(activeLook());
@@ -577,7 +594,7 @@ export class LakeMapView {
       if (!f.name || !isNamed(f.type) || f.type === 'tree') continue;
       const s = v.toScreen(f);
       if (f.type === 'rocks') {
-        ctx.fillStyle = '#c3cbd2';
+        ctx.fillStyle = c.rocks;
         for (const [dx, dy] of [
           [-2, 0],
           [2, -1],
@@ -590,34 +607,34 @@ export class LakeMapView {
           } else ctx.fillRect(Math.round(s.x + dx! - 1), Math.round(s.y + dy! - 1), 3, 3);
         }
       }
-      if (labels) this.label(ctx, f.name, s.x + 6, s.y, '#eef2f3');
+      if (labels) this.label(ctx, f.name, s.x + 6, s.y, c.text);
     }
-    if (v.scale < 0.45) this.label(ctx, this.data.map.name, v.width / 2, 14, '#fff3b0', 'center');
+    if (v.scale < 0.45) this.label(ctx, this.data.map.name, v.width / 2, 14, c.highlight, 'center');
 
     this.drawRace(ctx);
-    if (this.probe && !this.options.onPick) this.cross(ctx, v.toScreen(this.probe), '#fff3b0', 4);
+    if (this.probe && !this.options.onPick) this.probeMark(ctx, v.toScreen(this.probe));
     if (this.marker) {
       const s = v.toScreen(this.marker);
-      ctx.strokeStyle = '#0b0f14';
+      ctx.strokeStyle = c.backing;
       ctx.lineWidth = 4;
       ctx.beginPath();
       ctx.arc(s.x, s.y, 8, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.strokeStyle = '#f6d04d';
+      ctx.strokeStyle = c.marker;
       ctx.lineWidth = 2;
       ctx.stroke();
-      this.cross(ctx, s, '#f6d04d', 3);
+      this.cross(ctx, s, c.marker, 3);
       if (this.options.markerLabel)
-        this.label(ctx, this.options.markerLabel, s.x + 12, s.y, '#f6d04d');
+        this.label(ctx, this.options.markerLabel, s.x + 12, s.y, c.marker);
     }
     this.drawPins(ctx);
     if (document.activeElement === this.canvas && this.canvas.matches('.kb *')) {
       const mid = { x: v.width / 2, y: v.height / 2 };
-      this.cross(ctx, mid, '#0b0f14', 9);
-      this.cross(ctx, mid, '#eef2f3', 7);
+      this.cross(ctx, mid, c.backing, 9);
+      this.cross(ctx, mid, c.text, 7);
     }
     this.scaleBar(ctx);
-    this.label(ctx, t('map.north'), v.width - 8, 14, '#eef2f3', 'right');
+    this.label(ctx, t('map.north'), v.width - 8, 14, c.text, 'right');
   }
 
   /** Reitit viivoina pelaajan värillä ja tapahtumat pieninä merkkeinä. */
@@ -688,15 +705,33 @@ export class LakeMapView {
       const s = this.view.toScreen(pin.pos);
       const selected = i === this.selectedPin;
       const r = selected ? 7 : 5;
-      ctx.fillStyle = '#0b0f14';
-      ctx.fillRect(Math.round(s.x) - r - 1, Math.round(s.y) - r - 1, r * 2 + 2, r * 2 + 2);
-      ctx.fillStyle = pin.color;
-      ctx.fillRect(Math.round(s.x) - r, Math.round(s.y) - r, r * 2, r * 2);
+      const c = mapColors();
+      if (c.roundPins) {
+        // Eräkartalla merkit ovat nuppineuloja.
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, r + 1, 0, Math.PI * 2);
+        ctx.fillStyle = c.edge;
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, r - 0.5, 0, Math.PI * 2);
+        ctx.fillStyle = pin.color;
+        ctx.fill();
+      } else {
+        ctx.fillStyle = c.edge;
+        ctx.fillRect(Math.round(s.x) - r - 1, Math.round(s.y) - r - 1, r * 2 + 2, r * 2 + 2);
+        ctx.fillStyle = pin.color;
+        ctx.fillRect(Math.round(s.x) - r, Math.round(s.y) - r, r * 2, r * 2);
+      }
       if (selected) {
-        ctx.strokeStyle = '#fff3b0';
+        ctx.strokeStyle = c.highlight;
         ctx.lineWidth = 2;
-        ctx.strokeRect(Math.round(s.x) - r - 4, Math.round(s.y) - r - 4, r * 2 + 8, r * 2 + 8);
-        this.label(ctx, pin.label, s.x + r + 8, s.y, '#fff3b0');
+        if (c.roundPins) {
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, r + 4.5, 0, Math.PI * 2);
+          ctx.stroke();
+        } else
+          ctx.strokeRect(Math.round(s.x) - r - 4, Math.round(s.y) - r - 4, r * 2 + 8, r * 2 + 8);
+        this.label(ctx, pin.label, s.x + r + 8, s.y, c.highlight);
       }
     }
   }
@@ -709,11 +744,32 @@ export class LakeMapView {
     color: string,
     align: CanvasTextAlign = 'left',
   ): void {
+    const c = mapColors();
     ctx.textAlign = align;
-    ctx.fillStyle = '#0b0f14';
-    ctx.fillText(text, x + 1, y + 1);
+    if (c.halo) {
+      // Paperin värinen reunus pitää musteen luettavana veden ja metsän päällä.
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = c.backing;
+      ctx.strokeText(text, x, y);
+      ctx.lineJoin = 'miter';
+    } else {
+      ctx.fillStyle = c.backing;
+      ctx.fillText(text, x + 1, y + 1);
+    }
     ctx.fillStyle = color;
     ctx.fillText(text, x, y);
+  }
+
+  /** Luotauskohdan merkki: risti, jolla on eräkartalla paperin värinen reunus. */
+  private probeMark(ctx: CanvasRenderingContext2D, s: Vec2): void {
+    const c = mapColors();
+    if (c.halo) {
+      ctx.fillStyle = c.backing;
+      ctx.fillRect(Math.round(s.x) - 6, Math.round(s.y) - 2, 12, 4);
+      ctx.fillRect(Math.round(s.x) - 2, Math.round(s.y) - 6, 4, 12);
+      this.cross(ctx, s, c.highlight, 5);
+    } else this.cross(ctx, s, c.highlight, 4);
   }
 
   private cross(ctx: CanvasRenderingContext2D, s: Vec2, color: string, r: number): void {
@@ -727,12 +783,13 @@ export class LakeMapView {
     const len = m * this.view.scale;
     const x = 10;
     const y = this.view.height - 12;
-    ctx.fillStyle = '#0b0f14';
+    const c = mapColors();
+    ctx.fillStyle = c.backing;
     ctx.fillRect(x - 1, y - 4, len + 2, 7);
-    ctx.fillStyle = '#eef2f3';
+    ctx.fillStyle = c.text;
     ctx.fillRect(x, y - 3, len, 5);
-    ctx.fillStyle = '#0b0f14';
+    ctx.fillStyle = c.backing;
     ctx.fillRect(x + len / 2, y - 2, len / 2 - 1, 3);
-    this.label(ctx, m >= 1000 ? `${m / 1000} km` : `${m} m`, x + len + 6, y, '#eef2f3');
+    this.label(ctx, m >= 1000 ? `${m / 1000} km` : `${m} m`, x + len + 6, y, c.text);
   }
 }

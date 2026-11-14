@@ -402,7 +402,10 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
   `sonarColors()`-kutsulla: Modernissa vesi on järven sinivihreää, kaiut ja
   pohjan lajit ovat samat. Punnituskortti ja
   järvikartta tekevät Terävälle sileän version samasta piirroksesta
-  (`smoothPixels`).
+  (`smoothPixels`). Järvikartan värit kysytään `mapColors()`-kutsulla
+  (`ui/mapColors.ts`): Modernissa kartta on eräkartta (paperin värinen maa,
+  sinivihreät syvyysvyöhykkeet, käyrät ja tekstit musteella), ja uusi kartan
+  merkki tai teksti ottaa värinsä sieltä eikä kirjoita sitä itse.
 - **Ilme ja laatu vaihtuvat vain pelaajan valinnasta.** Peli ei mittaa
   ruutunopeutta eikä kevennä laatua tai vaihda ilmettä itse (automaatti
   poistettiin: se vaihtoi ilmeen myös välilehteä vaihdettaessa). Hitaalla
