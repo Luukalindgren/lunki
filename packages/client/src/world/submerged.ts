@@ -13,7 +13,9 @@ export const SUBMERGED = {
    */
   surface: 0.05,
   /** Veden peitto heti pinnan alla, 0–1. */
-  veil: 0.4,
+  veil: 0.45,
+  /** Pinnan alla osa on näin paljon tummempi: vesi vie valoa. */
+  dim: 0.3,
   /** Järven tasolta katsottuna osat hiipuvat pois tällä matkalla (m), kuten pohjan sävy. */
   far: [18, 32],
 } as const;
@@ -81,7 +83,9 @@ export function submerge<T extends THREE.Material>(material: T): T {
         float subSeen = ${f(1 - SUBMERGED.veil)} * clamp(1.0 - vSubmerged / ${f(SEE_THROUGH_DEPTH)}, 0.0, 1.0);
         subSeen *= 1.0 - smoothstep(${f(SUBMERGED.far[0])}, ${f(SUBMERGED.far[1])}, vSubmergedFar);
         // Vesirajassa peitto alkaa liukuen, ettei pintaan jää terävää rajaa.
-        diffuseColor.a *= mix(1.0, subSeen, smoothstep(0.0, 0.04, vSubmerged));
+        float subWet = smoothstep(0.0, 0.04, vSubmerged);
+        diffuseColor.a *= mix(1.0, subSeen, subWet);
+        outgoingLight *= 1.0 - ${f(SUBMERGED.dim)} * subWet;
       }
       #include <opaque_fragment>`,
     );

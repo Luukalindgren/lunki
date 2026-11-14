@@ -451,7 +451,7 @@ Koodi: `packages/client/src/world/lakeMesh.ts`.
   pohjan läpi (#682). Älä nosta pohjaa tai litistä aaltoja aluksen kohdalta.
 - **Veden alla näkyvä osa käyttää `submerge`-pintaa** (`world/submerged.ts`):
   vesi on läpinäkymätön, joten pinnan (y = 0) alla oleva osa piirretään veden
-  jälkeen sen päälle sitä läpikuultavampana, mitä syvemmällä se on
+  jälkeen sen päälle hieman tummempana ja sitä läpikuultavampana, mitä syvemmällä se on
   (`SUBMERGED`, `SEE_THROUGH_DEPTH`), ja järven tasolta katsottuna se hiipuu
   pois kauempana. Syvyystesti tehdään vedenpinnan kohdalta, joten rengas ja
   muut pinnan päällä olevat kappaleet peittävät osan oikein. Näin piirretään
