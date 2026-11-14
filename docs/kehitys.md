@@ -80,7 +80,8 @@ Koodi: `packages/client/src/ui/hud.ts`, tyylit `style.css`.
   kireysmittari; sää rivittyy niiden alle. Tulostaulu ja saalislista ovat
   kosketuksella taukovalikossa (`pauseScoreboard`), ja vieheluotain on
   alareunassa tatin ja ison napin välissä (`Hud.placeLureSonar`). Ilmoitusten
-  paikka ei saa riippua sään rivimäärästä. Kun lisäät tai siirrät HUDin osan,
+  paikka ei saa riippua sään rivimäärästä. Nappi, joka ei näkymässä tee mitään,
+  on piilossa: zoomnapit näkyvät vain ylhäältä (#709). Kun lisäät tai siirrät HUDin osan,
   mittaa peitto ennen ja jälkeen 320–430 px leveillä ruuduilla: paneelien ja
   nappien peittämä osuus ruudusta ja suurin vapaa suorakulmio (lähtötaso
   marraskuussa 2026: yksinkertainen noin 30 % peitossa ja 50 % vapaana, täysi
