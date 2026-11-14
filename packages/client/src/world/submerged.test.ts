@@ -1,6 +1,18 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
+import { playerColorMaterial } from '../game/playerColor';
 import { SEE_THROUGH_DEPTH, coverVisibility, submerge } from './submerged';
+
+/** Kääntää materiaalin varjostinmuokkaukset three.js:n lohkoja muistuttavaan runkoon. */
+function compile(material: THREE.Material) {
+  const shader = {
+    vertexShader: 'void main() {\n#include <project_vertex>\n}',
+    fragmentShader: 'void main() {\n#include <opaque_fragment>\n}',
+    uniforms: {} as Record<string, unknown>,
+  };
+  material.onBeforeCompile(shader as never, null as never);
+  return shader;
+}
 
 describe('veden alla näkyvät osat', () => {
   it('rakenne näkyy pintaan asti ja katoaa näkyvyyden rajalla', () => {
@@ -24,16 +36,24 @@ describe('veden alla näkyvät osat', () => {
     };
     material.customProgramCacheKey = () => 'oma';
     submerge(material);
-    const shader = {
-      vertexShader: 'void main() {\n#include <project_vertex>\n}',
-      fragmentShader: 'void main() {\n#include <opaque_fragment>\n}',
-      uniforms: {},
-    };
-    material.onBeforeCompile(shader as never, null as never);
+    const shader = compile(material);
     expect(shader.fragmentShader).toContain('// oma');
     expect(shader.fragmentShader).toContain('vSubmerged');
     expect(shader.vertexShader).toContain('gl_Position.z');
     expect(shader.uniforms).toHaveProperty('uSubmergedLift');
     expect(material.customProgramCacheKey()).toBe('oma|submerged');
+  });
+
+  it('Retrossa osa on peittävä ja pelaajan väri rampin astetta tummempi (#728)', () => {
+    const shader = compile(submerge(playerColorMaterial(0xd23a2a)));
+    // Paletti ei sekoita värejä: Retrossa ei läpikuultavuutta, vaan osa näkyy tai ei.
+    expect(shader.uniforms).toHaveProperty('uLookSharp');
+    expect(shader.fragmentShader).toMatch(/uLookSharp < 0\.5\) \{[^}]*discard;/);
+    // Määrittely on ennen pelaajan värin koodia, joka lukee sen.
+    const define = shader.fragmentShader.indexOf('#define SUBMERGED');
+    const ramp = shader.fragmentShader.indexOf('#ifdef SUBMERGED');
+    expect(define).toBe(0);
+    expect(ramp).toBeGreaterThan(define);
+    expect(shader.fragmentShader.indexOf('uRamp[0]')).toBeGreaterThan(ramp);
   });
 });

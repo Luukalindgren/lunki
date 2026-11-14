@@ -471,7 +471,9 @@ Koodi: `packages/client/src/world/lakeMesh.ts`.
   muut pinnan päällä olevat kappaleet peittävät osan oikein. Näin piirretään
   kalastajan räpylät ja sääret (rengas kaikissa näkymissä, `pov-wet`) sekä
   Modernin matalan veden kivet, kasvit ja risukot (`modern/lakeBed.ts`), jotka
-  ovat pohjassa oikealla syvyydellään. Uusi vedenalainen osa sijoitetaan
+  ovat pohjassa oikealla syvyydellään. Retrossa paletti ei sekoita värejä, joten
+  osa piirretään peittävänä omassa värissään, ja pelaajan väri on veden alla
+  rampin astetta tummempi (#728). Uusi vedenalainen osa sijoitetaan
   oikeaan syvyyteen ja saa saman pinnan; älä sävytä sitä itse veden väriin,
   nosta sitä pintaan tai piirrä sitä ilman syvyystestiä.
 - Paikallaan kääntyessä räpylät meloo vuorotellen (`game/turnScull.ts`): liike
