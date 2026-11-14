@@ -3,6 +3,8 @@ import { DEFAULT_APPEARANCE, EMOTE_DURATION, type Appearance, type EmoteId } fro
 import { activeLook, smoothLook } from '../engine/look';
 import { emoteIcon } from '../ui/emoteIcons';
 import { playerColorMaterial, setPlayerColor } from './playerColor';
+import { SCULL, turnScull } from './turnScull';
+import { submerge } from '../world/submerged';
 
 /**
  * Kalastajan silmin näkyvä kelluntarengas (#230): U-muotoisen renkaan
@@ -46,7 +48,6 @@ const COLOR = {
   net: 0x5f6b78,
   legs: 0x3b4630,
   skin: 0xe0cf9c,
-  water: 0x123a5c,
   foam: 0xeef2f3,
 } as const;
 
@@ -70,8 +71,6 @@ export interface PovTubeInput {
   capsize: number;
   /** Väsytys: siiman veto sivulle (-1 vasen … 1 oikea) kertaa kireys 0–1. */
   pull: number;
-  /** Veden kirkkaus 0–1: päivällä räpylät erottuvat, yöllä tuskin. */
-  clarity: number;
   /** Oma käsimerkki ja sen ikä (s). */
   emote: EmoteId | null;
   emoteAge: number;
@@ -84,6 +83,7 @@ export function finPose(
   angVel: number,
   side: -1 | 1,
   time: number,
+  heading = 0,
 ): { swing: number; ankle: number; yaw: number } {
   const kicking = kickPhase > 0;
   // Vasen ja oikea vuorotellen; levossa räpylät huojuvat hiljaa.
@@ -91,9 +91,13 @@ export function finPose(
   // Sääret heilahtavat vähän, räpylät läpsyvät nilkasta enemmän.
   const amp = kicking ? (sprint ? 0.22 : 0.12) : 0.03;
   const wave = kicking ? Math.sin(phase) : Math.sin(time * 1.3 + (side < 0 ? 0 : 1.7));
+  // Paikallaan kääntyessä räpylät meloo vuorotellen käännöksen tahdissa.
+  const scull = turnScull(heading, angVel);
+  const paddle = -side * scull.wave * scull.strength * SCULL.swing * (kicking ? SCULL.kicking : 1);
+  const swing = wave * amp + paddle;
   // Käännöksessä räpylät kääntyvät eri suuntiin kuin peräsimet.
   const yaw = Math.max(-0.45, Math.min(0.45, angVel * 0.6)) * side;
-  return { swing: wave * amp, ankle: -wave * amp * 3, yaw };
+  return { swing, ankle: -swing * 3, yaw };
 }
 
 /** Oman käden nosto ruudun reunasta 0–1 eleen aikana. */
@@ -199,10 +203,6 @@ function slackLine(material: THREE.LineBasicMaterial): THREE.Line {
   return line;
 }
 
-/** Kahden värin sekoitus. */
-const mix = (a: number, b: number, k: number) =>
-  new THREE.Color(a).lerp(new THREE.Color(b), k).getHex();
-
 /** Verkon kuvio; `length` = verkon pituus eteen (m), jotta silmät ovat samankokoisia. */
 function netTexture(length: number): THREE.CanvasTexture {
   const size = 16;
@@ -287,21 +287,16 @@ export class PovTube {
   private readonly flap = new THREE.Group();
   private readonly body = new THREE.Group();
   private readonly tubeMaterial: THREE.MeshLambertMaterial;
-  private readonly finDry: THREE.MeshLambertMaterial;
-  private readonly wetLeg = new THREE.MeshBasicMaterial({ color: COLOR.water });
-  private readonly wetFin = new THREE.MeshBasicMaterial({
-    color: COLOR.water,
-    side: THREE.DoubleSide,
-  });
+  /** Veden alla olevat sääret ja räpylät näkyvät veden läpi (`submerge`). */
+  private readonly wetLeg = submerge(new THREE.MeshLambertMaterial({ color: COLOR.legs }));
+  private readonly wetFin: THREE.MeshLambertMaterial;
   private readonly legs: Leg[] = [];
   private readonly hand = new THREE.Group();
   private readonly palmMaterial: THREE.MeshBasicMaterial;
   private readonly icons = new Map<string, THREE.CanvasTexture>();
   private readonly splashes: Splash[] = [];
-  private finColor: number = DEFAULT_APPEARANCE.fins;
   private lastPhase = 0;
   private time = 0;
-  private lastClarity = -1;
   /**
    * Perhon löysä siima (#234): yksi viiva kelalta verkkotasolle, tasolla
    * kiekuroina ja kasasta ylös siimakädelle.
@@ -317,7 +312,8 @@ export class PovTube {
     this.group.name = 'pov-tube';
     this.group.add(this.body);
     this.tubeMaterial = playerColorMaterial(appearance.tube);
-    this.finDry = playerColorMaterial(appearance.fins);
+    this.wetFin = submerge(playerColorMaterial(appearance.fins));
+    this.wetFin.side = THREE.DoubleSide;
 
     // Sivuponttoonit: pyöreä kärki edessä, U:n aukko kalastajan edessä.
     for (const side of [-1, 1]) {
@@ -363,7 +359,7 @@ export class PovTube {
       if (o instanceof THREE.Mesh) o.renderOrder = UNDERWATER_ORDER + 1;
     });
 
-    // Sääret polvista viistosti eteen veteen; veden alla tummina.
+    // Sääret polvista viistosti eteen veteen; pinnan alla ne näkyvät veden läpi.
     const legMat = new THREE.MeshLambertMaterial({ color: COLOR.legs });
     for (const side of [-1, 1] as const) {
       const pivot = new THREE.Group();
@@ -384,11 +380,6 @@ export class PovTube {
       ankle.add(fin);
       pivot.add(shinDry, shinWet, ankle);
       pivot.rotation.z = DIM.shinAngle;
-      // Veden alla olevat osat piirretään vedenpinnan läpi (vesi on läpinäkymätön).
-      for (const m of [shinWet, fin]) {
-        m.renderOrder = UNDERWATER_ORDER;
-        (m.material as THREE.Material).depthTest = false;
-      }
       this.body.add(pivot);
       this.legs.push({ pivot, shinWet, ankle, fin });
     }
@@ -422,9 +413,7 @@ export class PovTube {
 
   setAppearance(a: Appearance): void {
     setPlayerColor(this.tubeMaterial, a.tube);
-    setPlayerColor(this.finDry, a.fins);
-    this.finColor = a.fins;
-    this.lastClarity = -1;
+    setPlayerColor(this.wetFin, a.fins);
     this.hand.traverse((o) => {
       if (o.name === 'shirt' && o instanceof THREE.Mesh)
         setPlayerColor(o.material as THREE.MeshLambertMaterial, a.shirt);
@@ -479,10 +468,9 @@ export class PovTube {
     this.body.position.y = input.lift - 0.5 * (capsize / Math.PI);
     this.body.rotation.set(input.roll + input.pull * 0.12 + capsize * 0.35, 0, input.pitch, 'XYZ');
 
-    this.updateWater(input.clarity);
     for (const [i, leg] of this.legs.entries()) {
       const side = i === 0 ? -1 : 1;
-      const p = finPose(input.kickPhase, input.sprint, input.angVel, side, this.time);
+      const p = finPose(input.kickPhase, input.sprint, input.angVel, side, this.time, heading);
       leg.pivot.rotation.set(0, p.yaw, DIM.shinAngle + p.swing);
       // Räpylä lähes vaakasuorassa, kärki hieman alaspäin.
       leg.ankle.rotation.z = -DIM.shinAngle - 0.1 + p.ankle;
@@ -503,15 +491,6 @@ export class PovTube {
     }
     this.updateSplashes(dt);
     this.updateHand(input.emote, input.emoteAge);
-  }
-
-  /** Veden alla olevien osien sävy: kirkkaalla vedellä räpylän väri erottuu. */
-  private updateWater(clarity: number): void {
-    const k = Math.round(Math.max(0, Math.min(1, clarity)) * 8) / 8;
-    if (k === this.lastClarity) return;
-    this.lastClarity = k;
-    this.wetFin.color.setHex(mix(COLOR.water, mix(this.finColor, COLOR.water, 0.35), k));
-    this.wetLeg.color.setHex(mix(COLOR.water, mix(COLOR.legs, COLOR.water, 0.4), k));
   }
 
   private splash(x: number, y: number, z: number, n: number): void {

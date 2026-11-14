@@ -3,6 +3,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import type { LakeBottom } from '@lunki/shared';
 import { depthTextureFor } from './depthShade';
 import { clipToSwellPatch, type WaterWaves } from './lakeMesh';
+import { coverVisibility } from './submerged';
 
 /**
  * Pohjan näkyvät osat ylhäältä: kivikot ja kaatuneet puut sekä matalassa
@@ -43,17 +44,6 @@ const sources = new WeakMap<THREE.Object3D, BottomSource>();
 export function bottomIn(scene: THREE.Object3D): BottomSource | null {
   const group = scene.getObjectByName('bottom');
   return (group && sources.get(group)) ?? null;
-}
-
-/** Näin matalalla (m pinnasta) olevat kivet ja kasvustot kuultavat veden läpi. */
-export const SEE_THROUGH_DEPTH = 1.5;
-
-/**
- * Kuinka selvästi pohjan rakenne näkyy pinnalle: 1 pintaan asti ulottuvalla,
- * hiipuu nollaan SEE_THROUGH_DEPTH-syvyydessä.
- */
-export function coverVisibility(topDepth: number): number {
-  return Math.max(0, Math.min(1, 1 - topDepth / SEE_THROUGH_DEPTH));
 }
 
 /**

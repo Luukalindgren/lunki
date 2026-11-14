@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { VEIL } from '../engine/veil';
 
 /**
  * Läpikuultavien pintojen sekoitukset Modernissa ilmeessä (#650). Kohtauksen
@@ -8,16 +9,7 @@ import * as THREE from 'three';
  */
 
 /** Tavallinen läpikuultava pinta: väri sekoittuu peiton mukaan, alfa jää ennalleen. */
-export const VEIL = {
-  transparent: true,
-  depthWrite: false,
-  blending: THREE.CustomBlending,
-  blendEquation: THREE.AddEquation,
-  blendSrc: THREE.SrcAlphaFactor,
-  blendDst: THREE.OneMinusSrcAlphaFactor,
-  blendSrcAlpha: THREE.ZeroFactor,
-  blendDstAlpha: THREE.OneFactor,
-} as const;
+export { VEIL };
 
 /** Hehku: väri lisätään peiton mukaan alla olevaan, alfa jää ennalleen. */
 export const GLOW = {

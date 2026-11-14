@@ -275,8 +275,8 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
   - `Gear` lisää nimettyihin osiin sen, mitä muissa ilmeissä ei ole:
     ponttoonien tummat päälliset (`tube`, `pov-pontoon`), selkänojan (`seat`),
     kalastajan silmin vapaa pitävän käden ja kahvan (`pov-reel`) ja
-    verkkotason kudoksen (`pov-net`). Kalastajan silmin tasaväriset osat (veden
-    alla näkyvät sääret ja räpylät `pov-wet`, kela) se vaihtaa valaistuiksi.
+    verkkotason kudoksen (`pov-net`). Kalastajan silmin tasavärisen kelan se
+    vaihtaa valaistuksi.
     Uusi lisäosa on uusi sovitus `Gear`iin ja muoto `gearShapes.ts`:ään, ja
     kaikki palautetaan, kun ilme vaihtuu.
   - Pelaajan värit (`playerColorMaterial`) varjostuvat Modernissa liukuvasti
@@ -449,6 +449,20 @@ Koodi: `packages/client/src/world/lakeMesh.ts`.
 - Kuiva tila veden keskellä (veneen sisäpuoli) saa näkymättömän kannen
   `swellMask`-kutsulla: aaltoileva lähivesi piirretään sen jälkeen eikä näy
   pohjan läpi (#682). Älä nosta pohjaa tai litistä aaltoja aluksen kohdalta.
+- **Veden alla näkyvä osa käyttää `submerge`-pintaa** (`world/submerged.ts`):
+  vesi on läpinäkymätön, joten pinnan (y = 0) alla oleva osa piirretään veden
+  jälkeen sen päälle sitä läpikuultavampana, mitä syvemmällä se on
+  (`SUBMERGED`, `SEE_THROUGH_DEPTH`), ja järven tasolta katsottuna se hiipuu
+  pois kauempana. Syvyystesti tehdään vedenpinnan kohdalta, joten rengas ja
+  muut pinnan päällä olevat kappaleet peittävät osan oikein. Näin piirretään
+  kalastajan räpylät ja sääret (rengas kaikissa näkymissä, `pov-wet`) sekä
+  Modernin matalan veden kivet, kasvit ja risukot (`modern/lakeBed.ts`), jotka
+  ovat pohjassa oikealla syvyydellään. Uusi vedenalainen osa sijoitetaan
+  oikeaan syvyyteen ja saa saman pinnan; älä sävytä sitä itse veden väriin,
+  nosta sitä pintaan tai piirrä sitä ilman syvyystestiä.
+- Paikallaan kääntyessä räpylät meloo vuorotellen (`game/turnScull.ts`): liike
+  lasketaan renkaan suunnasta, joten se on sama omalla ja muiden renkaalla
+  kaikissa näkymissä (`animateFins`, kalastajan silmin `finPose`).
 - Uusi vesiefekti tehdään samalla viivatyylillä ja vain, jos se ei lisää
   levotonta liikettä. Hyväksytä ennen/jälkeen-kuvat tai GIFit ennen
   yhdistämistä.
