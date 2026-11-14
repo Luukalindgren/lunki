@@ -258,6 +258,11 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
     mallit kauemmas (`DetailLevels`, matkat `QUALITY.detailRange`ista). Uusi
     maiseman osa tekee samoin eikä piirrä koko järven tarkkoja malleja
     kerralla.
+  - Metsän takareunassa kulkee tumma tausta (`modern/forestBack.ts`), joka
+    näkyy runkojen välistä metsän hämäränä: ilman sitä taivas paistoi
+    puiden välistä. Se yltää latvusten alaosaan ja nousee edessä olevan mäen
+    laelle (`backBase`). Metsää ei tihennetä taivaan peittämiseksi, eikä
+    kapealle niemelle tai saarelle tule taustaa.
 - **Kalastaja, kulkupelit ja varusteet ovat Modernissa pelin omia malleja
   pehmennettyinä** (`modern/soften.ts`, `modern/gear.ts`), eikä niille tehdä
   rinnakkaisia malleja: liike, värit ja säännöt ovat pelin.
@@ -362,6 +367,9 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
   (`SkyView.grade`); reunanpehmennys tehdään valmiille kuvalle sen jälkeen.
   Viivat (siima, vapa, tähtäin, sade) piirretään Terävällä sisäisen pikselin
   levyisiksi (`thickenLines`), joten uusi viiva ei tarvitse omaa paksunnosta.
+  Viiva, joka on mallin keskilinja ja pitää sen näkyvissä kaukaa (muiden
+  pelaajien vapa, `userData.hairline`), jää järven tasolta katsottaessa
+  kuvapisteen levyiseksi: paksunnettuna kaukainen vapa oli käsivarren paksuinen.
 - **Pikselikuvista on Terävälle sileät versiot samasta piirroksesta**
   (`engine/smoothPixels.ts`): kuva piirretään kerran pikseleinä, ja Terävä
   tekee siitä nelinkertaisen tarkkuuden version, jossa portaat ovat sileitä

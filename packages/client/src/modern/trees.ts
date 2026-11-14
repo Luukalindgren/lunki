@@ -32,7 +32,7 @@ const VARIANTS = 2;
 /** Piirtolohkon sivu (m): lohko vaihtaa tarkan ja kevyen mallin välillä etäisyyden mukaan. */
 const CHUNK = 60;
 /** Metsä jatkuu rantavyöhykkeen (TREE_BAND) takana tähän asti (m rannasta) harvempana. */
-const FOREST_DEPTH = 115;
+export const FOREST_DEPTH = 115;
 const FOREST_SPACING = 6.5;
 /** Leveimmän latvuksen (kuusen helma) säde puun korkeudesta: näköyhteyden väistö. */
 const SIGHT_REACH = 0.22;

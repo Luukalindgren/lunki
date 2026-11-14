@@ -12,7 +12,7 @@ const MIN_ELEVATION = 0.04;
 /** Kohtaus käydään läpi näin monen ruudun välein: uudet osat (muut pelaajat) saavat varjon. */
 const SCAN_FRAMES = 45;
 
-/** Nämä eivät heitä varjoa: vesi, taivas, sää ja veden päälle piirretyt merkit. */
+/** Nämä eivät heitä varjoa: vesi, taivas, sää, veden päälle piirretyt merkit ja metsän tausta. */
 const NO_CAST = new Set([
   'water',
   'swell',
@@ -26,6 +26,7 @@ const NO_CAST = new Set([
   'fish-shadow',
   'knots',
   'modern-mark',
+  'modern-forest-back',
 ]);
 
 const lit = (m: THREE.Material): boolean =>
