@@ -493,10 +493,12 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     setOrbitCamera(mode === 'chase');
     this.chase.center();
     this.hud.refreshHelp();
+    // Takaa-näkymän ilmoitus kertoo myös, millä kamera kääntyy (#708), joten se
+    // näkyy pidempään.
     if (announce)
       this.hud.showMessage(
         controlText(pov ? 'game.viewPov' : lake ? 'game.viewChase' : 'game.viewTop'),
-        1.2,
+        mode === 'chase' ? 3 : 1.2,
         'info',
       );
   }

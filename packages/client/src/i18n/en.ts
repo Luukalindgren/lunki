@@ -987,7 +987,7 @@ export const en: Record<keyof typeof fi, string> = {
   'game.castRejected': 'The server rejected the cast',
   'game.viewPov': 'Angler’s view ({view})',
   'game.viewTop': 'From above ({view})',
-  'game.viewChase': 'From behind ({view})',
+  'game.viewChase': 'From behind ({view}) · camera: {camera}',
   'game.lureLater': '{lure} goes on once the lure is reeled in',
   'game.penaltyTimeOut': 'Time-out {s} s',
   'game.penaltyLoseCatch': 'You lost your catch',
