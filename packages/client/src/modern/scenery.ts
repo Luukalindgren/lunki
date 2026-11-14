@@ -106,8 +106,6 @@ export class SceneryLook {
   private scenery: Scenery | null = null;
   private bedSource: BottomSource | null = null;
   private bed: THREE.Mesh[] = [];
-  /** Matalan veden kivet ja kasvit näkyvät vain ylhäältä. */
-  private shallow: THREE.Mesh | null = null;
   /** Retron osat, jotka moderni maisema korvaa. */
   private replaced: THREE.Object3D[] = [];
   /** Näistä peli näyttää Retrossa vain ylhäältä (saarten kannet ja kaislikon kuvio). */
@@ -123,7 +121,6 @@ export class SceneryLook {
     // Peli vaihtaa osan näkyvyyttä näkymän mukana, joten ne piilotetaan joka ruudulla.
     for (const o of this.replaced) o.visible = false;
     for (const o of this.topOnly) o.visible = false;
-    if (this.shallow) this.shallow.visible = this.ortho;
     const scenery = this.scenery;
     if (!scenery) return;
     scenery.reedBed.visible = this.ortho;
@@ -156,7 +153,6 @@ export class SceneryLook {
     }
     if (source) {
       const { rocks, shallow } = createLakeBed(source);
-      this.shallow = shallow;
       this.bed = [rocks, shallow].filter((m) => m !== null);
       // Pohjan ryhmässä kappaleet eivät heitä varjoa, ja peli vapauttaa ne kisan päättyessä.
       if (this.bed.length) source.group.add(...this.bed);
@@ -175,7 +171,6 @@ export class SceneryLook {
       disposeMeshes(m);
     }
     this.bed = [];
-    this.shallow = null;
     for (const o of this.replaced) o.visible = true;
     for (const o of this.topOnly) o.visible = this.ortho;
     this.replaced = [];

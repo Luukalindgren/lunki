@@ -7,6 +7,7 @@ import {
   type Appearance,
   type EmoteId,
   type Vec2,
+  wrapAngle,
 } from '@lunki/shared';
 import type { RemotePlayer } from '../net/netWorld';
 import { toWorld } from '../world/lakeMesh';
@@ -28,6 +29,7 @@ import { stackTags, type TagBox } from './nameTagStack';
 import { screenAnchor } from './screenAnchor';
 import { REMOTE_FIGHT, RemoteFight } from './remoteFight';
 import { SplashRings } from './splashRings';
+import { turnScull } from './turnScull';
 import { REST_POSE, ROD_MOTION, RodMotion, type RodPose } from './rodMotion';
 import { LureMarker, markerPosition } from './lureMarker';
 import { lureColor } from './lureColor';
@@ -38,6 +40,9 @@ const cssColor = (hex: number) => `#${hex.toString(16).padStart(6, '0')}`;
 const REMOTE_TAUT = 0.5;
 /** Siiman kärkivälit: ilmassa roikkuva osuus ja suora pätkä vieheelle. */
 const LINE_VERTS = AIR_SAMPLES + 2;
+
+/** Suurin uskottava kääntymisen nopeus (rad/s): suunnan hyppäys ei heilauta räpylöitä. */
+const TURN_MAX = 1.5;
 
 interface Entry {
   tube: THREE.Group;
@@ -62,6 +67,9 @@ interface Entry {
   rod: RodMotion;
   /** Vieheen edellinen vaihe (LureStage): vaihdoksista heitto ja vastaisku. */
   stage: number;
+  /** Edellinen suunta ja siitä tasoitettu kääntymisen nopeus (rad/s): räpylöiden melonta. */
+  heading: number | null;
+  turn: number;
   /** Viimeksi piirretty vavan asento: katsojan silmin -kuvan vapa (#564). */
   pose: RodPose;
   /** Maalla seisova kalastaja ja rengas (#457); luodaan, kun pelaaja nousee maihin. */
@@ -159,7 +167,11 @@ export class RemotePlayersView {
       e.tube.rotation.y = p.heading + p.look;
       e.tube.rotation.x = p.tumble ?? p.roll;
       setFlyRod(e.tube, p.fly === true);
-      animateFins(e.tube, p.kickPhase);
+      // Kääntymisen nopeus piirretyistä suunnista: verkon yli tulee vain suunta.
+      const turned = e.heading === null || dt <= 0 ? 0 : wrapAngle(p.heading - e.heading) / dt;
+      e.turn += (Math.max(-TURN_MAX, Math.min(TURN_MAX, turned)) - e.turn) * Math.min(1, dt * 8);
+      e.heading = p.heading;
+      animateFins(e.tube, p.kickPhase, turnScull(p.heading, e.turn));
       const standing = !!p.shore || !!p.bailing;
       const eyes = this.firstPerson?.id === p.id ? this.firstPerson : null;
       e.tube.visible = !standing && !eyes;
@@ -368,6 +380,8 @@ export class RemotePlayersView {
       fight: new RemoteFight(),
       rod: new RodMotion(),
       stage: LureStage.none,
+      heading: null,
+      turn: 0,
       pose: REST_POSE,
       ashore: null,
     };

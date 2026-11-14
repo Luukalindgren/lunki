@@ -31,9 +31,8 @@ const m3 = new THREE.Matrix3();
  * Kalastajan varusteiden modernit osat (#650). Peli nimeää osansa, ja tämä
  * lisää tai vaihtaa niihin sen, mihin pelkkä pyöristys (`Softener`) ei riitä:
  *
- * - kalastajan silmin veden alla näkyvät sääret ja räpylät (`pov-wet`) sekä
- *   kela (`pov-reel`) valaistaan kuten muukin kohtaus; pelissä ne ovat
- *   tasavärisiä, koska paletti pyöristäisi varjostuksen,
+ * - kalastajan silmin kela (`pov-reel`) valaistaan kuten muukin kohtaus;
+ *   pelissä se on tasavärinen, koska paletti pyöristäisi varjostuksen,
  * - verkkotaso (`pov-net`) saa hienon kudoksen,
  * - ponttoonit (`tube`, `pov-pontoon`) saavat tumman päällisen ja istuin
  *   (`seat`) selkänojan, jotta rengas näyttää samalta omin ja muiden silmin,
@@ -134,7 +133,7 @@ export class Gear {
     const mesh = o as THREE.Mesh;
     if (mesh.isMesh) {
       this.seen.add(mesh);
-      if (inReel || o.name === 'pov-wet') this.relight(mesh);
+      if (inReel) this.relight(mesh);
       // Hiha oman paidan väriseksi: sama väriolio seuraa värin vaihtoa.
       if (inOwn && o.name === 'shirt' && !Array.isArray(mesh.material))
         this.cloth.color = (mesh.material as THREE.MeshLambertMaterial).color;

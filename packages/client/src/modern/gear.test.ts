@@ -14,17 +14,12 @@ const settle = (gear: Gear) => {
 };
 
 describe('kalastajan varusteiden modernit osat (#650)', () => {
-  it('valaisee veden alla näkyvät osat ja kelan samalla värillä ja palauttaa ne', () => {
+  it('valaisee kelan samalla värillä ja palauttaa sen', () => {
     const scene = new THREE.Scene();
-    const wet = new THREE.MeshBasicMaterial({ color: 0x123a5c, depthTest: false });
-    const fin: THREE.Mesh = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.02, 0.2), wet);
-    fin.name = 'pov-wet';
     const reel = new THREE.Group();
     reel.name = 'pov-reel';
-    const body = new THREE.Mesh(
-      new THREE.BoxGeometry(0.04, 0.03, 0.02),
-      new THREE.MeshBasicMaterial(),
-    );
+    const flat = new THREE.MeshBasicMaterial({ color: 0x123a5c });
+    const body: THREE.Mesh = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.03, 0.02), flat);
     reel.add(body);
     const foam = new THREE.Mesh(
       new THREE.BoxGeometry(0.02, 0.02, 0.02),
@@ -32,28 +27,25 @@ describe('kalastajan varusteiden modernit osat (#650)', () => {
     );
     const rod = new THREE.Group();
     rod.add(reel);
-    scene.add(fin, rod, foam);
+    scene.add(rod, foam);
     const plain = body.geometry;
 
     const gear = new Gear(scene, renderer);
     const softener = new Softener(scene);
     gear.update(camera);
     softener.update();
-    const twin = fin.material as THREE.MeshLambertMaterial;
+    const twin = body.material as THREE.MeshLambertMaterial;
     expect(twin).toBeInstanceOf(THREE.MeshLambertMaterial);
-    expect(twin.depthTest).toBe(false);
-    // Peli vaihtaa väriä veden kirkkauden mukaan: sama väri näkyy valaistussa osassa.
-    wet.color.setHex(0x335577);
+    // Peli vaihtaa väriä (siiman väri): sama väri näkyy valaistussa osassa.
+    flat.color.setHex(0x335577);
     expect(twin.color.getHex()).toBe(0x335577);
-    expect(body.material).toBeInstanceOf(THREE.MeshLambertMaterial);
     // Valaistuksi vaihdettu osa pyöristyy; muu tasavärinen osa jää ennalleen.
     expect(body.geometry).not.toBe(plain);
     expect(foam.material).toBeInstanceOf(THREE.MeshBasicMaterial);
 
     softener.dispose();
     gear.dispose();
-    expect(fin.material).toBe(wet);
-    expect(body.material).toBeInstanceOf(THREE.MeshBasicMaterial);
+    expect(body.material).toBe(flat);
     expect(body.geometry).toBe(plain);
   });
 

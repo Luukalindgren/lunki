@@ -7,13 +7,19 @@ import {
   type EmoteId,
 } from '@lunki/shared';
 import { toWorld } from '../world/lakeMesh';
+import { submerge } from '../world/submerged';
 import { playerColorMaterial, setPlayerColor } from './playerColor';
 import { ROD_COLOR } from './rodModel';
 import { REST_POSE, bendRod, type RodPose } from './rodMotion';
+import { NO_SCULL, SCULL, type Scull } from './turnScull';
 
-/** Räpylöiden lepokohta renkaan etureunan edessä (paikallinen x), korkeus ja pituus. */
+/**
+ * Räpylöiden lepokohta renkaan etureunan edessä (paikallinen x), korkeus ja
+ * pituus. Räpylät ja säärten alaosa ovat veden alla ja näkyvät sen läpi
+ * (`submerge`).
+ */
 const FIN_X = TUBE_RADIUS + 0.15;
-const FIN_Y = 0.05;
+const FIN_Y = -0.3;
 const FIN_LENGTH = 0.5;
 /** Vartalon yläreuna istuimesta (hartioiden alareuna on 0,45 m). */
 const TORSO_TOP = 0.46;
@@ -30,6 +36,7 @@ export const TUBE_LIFT = 0.15;
 /** Istuinponttooni: keskikohta (x), alareuna (y), pituus ja paksuus (m). */
 export const SEAT = { x: -0.18, y: -0.02, length: 0.46, height: 0.14 } as const;
 const SEAT_COLOR = 0x5f6b78;
+const LEG_COLOR = 0x3b4630;
 
 /**
  * U-muotoinen kelluntarengas ja kalastaja ylhäältä katsottuna. Paikallisessa
@@ -115,8 +122,9 @@ export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THR
 
   // Renkaassa reidet istuimelta eteen siimatason alle ja sääret polvista
   // viistosti alas räpylöihin (animateFins kääntää säären räpylän perään).
-  const legMat = new THREE.MeshLambertMaterial({ color: 0x3b4630 });
-  const finMat = playerColorMaterial(appearance.fins);
+  const legMat = new THREE.MeshLambertMaterial({ color: LEG_COLOR });
+  const shinMat = submerge(new THREE.MeshLambertMaterial({ color: LEG_COLOR }));
+  const finMat = submerge(playerColorMaterial(appearance.fins));
   for (const z of [-LEG_Z, LEG_Z]) {
     const thigh = new THREE.Mesh(new THREE.BoxGeometry(KNEE.x + 0.04, 0.14, 0.16), legMat);
     thigh.position.set((KNEE.x - 0.04) / 2, KNEE.y, z);
@@ -128,7 +136,7 @@ export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THR
     shin.name = 'leg';
     shin.userData.shin = true;
     shin.position.set(KNEE.x, KNEE.y, z);
-    shin.add(new THREE.Mesh(shinGeometry, legMat));
+    shin.add(new THREE.Mesh(shinGeometry, shinMat));
     group.add(shin);
     const fin = new THREE.Mesh(new THREE.BoxGeometry(FIN_LENGTH, 0.05, 0.22), finMat);
     fin.position.set(FIN_X, FIN_Y, z);
@@ -514,15 +522,20 @@ export function setSeated(group: THREE.Group, seated: boolean): void {
 
 const TUBE_PARTS = new Set(['tube', 'seat', 'fin', 'apron', 'leg']);
 
-/** Heiluttaa räpylöitä potkurytmin mukaan; sääret seuraavat räpylän perää. */
-export function animateFins(group: THREE.Group, kickPhase: number): void {
+/**
+ * Heiluttaa räpylöitä potkurytmin mukaan; sääret seuraavat räpylän perää.
+ * Paikallaan kääntyessä (`scull`) räpylät meloo vuorotellen ja kääntyvät
+ * käännöksen suuntaan.
+ */
+export function animateFins(group: THREE.Group, kickPhase: number, scull: Scull = NO_SCULL): void {
   let fins = 0;
   let shins = 0;
   for (const child of group.children) {
     if (child.name === 'fin') {
-      child.position.x = finX(kickPhase, fins++);
+      child.position.x = finX(kickPhase, fins++, scull);
+      child.rotation.y = scull.turn * SCULL.yaw;
     } else if (child.userData.shin) {
-      const dx = finX(kickPhase, shins++) - FIN_LENGTH * 0.4 - KNEE.x;
+      const dx = finX(kickPhase, shins++, scull) - FIN_LENGTH * 0.4 - KNEE.x;
       const dy = FIN_Y + 0.02 - KNEE.y;
       child.rotation.z = Math.atan2(dy, dx);
       child.scale.x = Math.hypot(dx, dy);
@@ -530,8 +543,10 @@ export function animateFins(group: THREE.Group, kickPhase: number): void {
   }
 }
 
-function finX(kickPhase: number, i: number): number {
-  return FIN_X + Math.sin((kickPhase + i * 0.5) * Math.PI * 2) * 0.25;
+function finX(kickPhase: number, i: number, scull: Scull): number {
+  const side = i === 0 ? 1 : -1;
+  const paddle = scull.wave * scull.strength * SCULL.reach * (kickPhase > 0 ? SCULL.kicking : 1);
+  return FIN_X + Math.sin((kickPhase + i * 0.5) * Math.PI * 2) * 0.25 + side * paddle;
 }
 
 /** Vaihtaa renkaan, räpylöiden, paidan ja hatun värit (osat jakavat materiaalit). */

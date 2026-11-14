@@ -69,6 +69,8 @@ import { BirdsView } from './birdsView';
 import { staticWorldFor, type StaticWorld } from '../world/staticWorld';
 import type { RetroResolution } from '../engine/resolution';
 import type { RetroRenderer } from '../engine/retroRenderer';
+import { turnScull } from './turnScull';
+import { SUBMERGED_LIFT } from '../world/submerged';
 import { CHASE, ChaseOrbit, chaseArc, lakeLevel, nextView, type ViewMode } from './chaseCamera';
 import { EYE_HEIGHT, PovCamera } from './povCamera';
 import { createLakeMesh, createWaterWaves, toWorld, waterTime } from '../world/lakeMesh';
@@ -941,7 +943,6 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
         lift: rock.lift,
         capsize,
         pull,
-        clarity: this.daylight.light,
         emote: this.emoting?.id ?? null,
         emoteAge: this.emoting ? (now - this.emoting.start) / 1000 : 0,
       },
@@ -988,7 +989,6 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
           lift: rock.lift,
           capsize: o.roll,
           pull: 0,
-          clarity: this.daylight.light,
           emote: null,
           emoteAge: 0,
         },
@@ -1177,6 +1177,8 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     const pov = this.viewMode === 'pov';
     // Järven tasolla (silmin tai takaa, #691) maasto ja perspektiivi ovat käytössä.
     const lake = lakeLevel(this.viewMode);
+    // Aallokossa vedenalaiset osat näkyvät aallon pinnan läpi (ks. submerge).
+    SUBMERGED_LIFT.value = lake ? this.weather.rock.lift : 0;
     // Seisojan jalkojen korkeus: maasto, laiturin kannella kansi (#457).
     // Ylhäältä Retron maa on litteä karttapohja; ilmeen oma maasto (#650)
     // näkyy ylhäältäkin, joten seisoja on silloin sen pinnalla.
@@ -1214,7 +1216,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     // Ylhäältä katsottuna korkealla lentävä rengas näkyy isompana, ja sen
     // varjo vedessä pienenee korkeuden mukana.
     this.tubeMesh.scale.setScalar(1 + (air?.height ?? 0) / 14);
-    animateFins(this.tubeMesh, b.kickPhase);
+    animateFins(this.tubeMesh, b.kickPhase, turnScull(hull, b.angVel));
     const emoteAge = this.emoting ? (performance.now() - this.emoting.start) / 1000 : Infinity;
     if (emoteAge > EMOTE_DURATION) this.emoting = null;
     animateEmote(this.tubeMesh, this.emoting?.id ?? null, emoteAge);
