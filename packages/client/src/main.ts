@@ -28,10 +28,8 @@ import {
 import { FpsMeter } from './engine/fpsMeter';
 import { Input } from './engine/input';
 import {
-  LookGuard,
   loadLook,
   loadQuality,
-  lowerQuality,
   saveLook,
   saveQuality,
   setActiveLook,
@@ -233,7 +231,6 @@ function applyLook(look: Look): void {
  */
 function chooseLook(look: Look): void | Promise<boolean> {
   wantedLook = look;
-  lookGuard.reset();
   if (look !== 'modern' || modern.loaded) {
     saveLook(look);
     applyLook(look);
@@ -245,7 +242,6 @@ function chooseLook(look: Look): void | Promise<boolean> {
       if (wantedLook !== 'modern') return false;
       saveLook('modern');
       applyLook('modern');
-      lookGuard.reset();
       return true;
     },
     () => {
@@ -279,7 +275,6 @@ const settingsControls = (reopen: () => void): SettingsControls => ({
       onChange: (quality) => {
         saveQuality(quality);
         retro.setQuality(quality);
-        lookGuard.reset();
       },
     },
   },
@@ -1167,7 +1162,6 @@ const menuReady = () => (menuWarm = true);
 menuScene.precompile(retro).then(menuReady, menuReady);
 setTimeout(menuReady, WARM_TIMEOUT_MS);
 
-const lookGuard = new LookGuard();
 /** Ilmoitus, joka näytetään kisan alkaessa (valikossa HUD on piilossa). */
 let raceNotice: string | null = null;
 // Tallennettu Moderni: peli aukeaa Retrona ja vaihtuu, kun ilme on latautunut.
@@ -1240,24 +1234,6 @@ startLoop({
     if (raceNotice && game !== null && !screens.open) {
       hud.showMessage(raceNotice, 6, 'info');
       raceNotice = null;
-    }
-    // Terävä ja Moderni ovat raskaita: jos kisa nykii, Moderni keventää ensin
-    // laatua ja lopulta ilme palaa Retroon. Siitä kerrotaan (#674, #650).
-    const racing = game !== null && !paused && !screens.open && !bench;
-    if (retro.look !== 'retro' && racing && lookGuard.frame(frameTime)) {
-      const lighter = retro.look === 'modern' ? lowerQuality(retro.quality) : null;
-      if (lighter) {
-        saveQuality(lighter);
-        retro.setQuality(lighter);
-        lookGuard.reset();
-        hud.showMessage(t('look.qualityDropped'), 6, 'info');
-      } else {
-        const fell = retro.look === 'modern' ? 'look.modernFellBack' : 'look.fellBack';
-        wantedLook = 'retro';
-        saveLook('retro');
-        applyLook('retro');
-        hud.showMessage(t(fell), 6, 'info');
-      }
     }
     bench?.frame(frameTime);
     dismissBootLoader();

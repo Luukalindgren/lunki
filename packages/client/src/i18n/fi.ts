@@ -259,11 +259,10 @@ export const fi = {
   'settings.lookRetro': 'Putkitelkkari',
   'settings.lookSharp': 'Taulutelkkari',
   'settings.lookHint':
-    'Taulutelkkari piirtää grafiikan näytön täydellä tarkkuudella. Jos peli alkaa nykiä, ilme palaa Putkitelkkariin. Putkitelkkari on kevyempi pikseli-ilme.',
-  'look.fellBack': 'Taulutelkkari oli tälle laitteelle liian raskas. Ilme vaihtui Putkitelkkariin.',
+    'Taulutelkkari piirtää grafiikan näytön täydellä tarkkuudella. Putkitelkkari on kevyempi pikseli-ilme.',
   'settings.lookModern': 'Kotiteatteri',
   'settings.lookModernHint':
-    'Kotiteatteri on tietokoneille tehty ilme: pehmeät muodot, varjot ja oma käyttöliittymän tyyli. Jos peli alkaa nykiä, laatu kevenee ja lopulta ilme palaa Putkitelkkariin.',
+    'Kotiteatteri on tietokoneille tehty ilme: pehmeät muodot, varjot ja oma käyttöliittymän tyyli.',
   'settings.lookLoading': 'Ladataan Kotiteatteria…',
   'settings.lookFailed':
     'Kotiteatteri ei latautunut. Tarkista verkkoyhteys ja valitse se uudelleen.',
@@ -271,9 +270,6 @@ export const fi = {
   'settings.quality.low': 'Matala',
   'settings.quality.medium': 'Keskitaso',
   'settings.quality.high': 'Korkea',
-  'look.qualityDropped': 'Peli nyki, joten Kotiteatterin laatu keveni.',
-  'look.modernFellBack':
-    'Kotiteatteri oli tälle laitteelle liian raskas. Ilme vaihtui Putkitelkkariin.',
   'look.modernFailed': 'Kotiteatteri ei latautunut, joten ilme on Putkitelkkari.',
   'settings.guide': 'Opastus',
   'settings.guideOn': 'Näytä alusta',
@@ -1226,7 +1222,7 @@ export const fi = {
     '{sonar} = kaikuluotain näyttää kalat.\nVaihda paikkaa: kalat ovat parvissa ja syövät jaksoittain.\n{lure} = vaihda viehe. Eri kalat syövät eri vieheitä.\nHelpolla vaikeustasolla kala tarttuu aina, eikä siima katkea.\nAsetusten Ohjaustapa-valinnalla Yksinkertainen yksi nappi heittää ja kelaa, kelaus tuo kalan kyytiin, vieheenä on lippa ja kelausnopeus on 3, eikä jarrua, vieheen vaihtoa tai perhoa ole. Se toimii kaikilla vaikeustasoilla.',
   'manual.start.screen': 'Ruudulla',
   'manual.start.screenText':
-    'Ylhäällä keskellä oleva ohje kertoo, mitä tehdä seuraavaksi.\nKisa alkaa lyhyellä ohjeella: liike, heitto ja kelaus. {help} vaihtaa ohjetta: kaikki napit, piilossa ja takaisin lyhyt.\n{view} = vaihda näkymää: kalastajan silmin, takaa tai ylhäältä.\nTakaa-näkymässä kamera on kalastajan takana, ja {camera} kääntää sitä: sivulle kamera kiertää kalastajan ympäri, ylös se nousee ja loittonee, alas se laskee ja tulee lähemmäs. Liike ja heitto kulkevat silti kalastajan suuntaan, ja potkiessa kamera palaa selän taakse. Kun kala on nostettavana, kamera kiertää hetkeksi sivulle, jotta haavi ja kala näkyvät; oma kääntösi voittaa sen. Nuolinäppäimet eivät takaa-näkymässä liikuta kalastajaa, eikä sormi järvellä kelaa tai heitä perhoa: ne tehdään napeista.\n{pause} = tauko: asetukset, ohjeet ja varusteet.',
+    'Ylhäällä keskellä oleva ohje kertoo, mitä tehdä seuraavaksi.\nKisa alkaa lyhyellä ohjeella: liike, heitto ja kelaus. {help} vaihtaa ohjetta: kaikki napit, piilossa ja takaisin lyhyt.\n{view} = vaihda näkymää: kalastajan silmin, takaa tai ylhäältä.\nTakaa-näkymässä kamera on kalastajan takana, ja {camera} kääntää sitä: sivulle kamera kiertää kalastajan ympäri, ylös se nousee ja loittonee, alas se laskee ja tulee lähemmäs. Liike ja heitto kulkevat silti kalastajan suuntaan, ja kamera jää siihen, mihin sen käänsit. Kun kala on nostettavana, kamera kiertää hetkeksi sivulle, jotta haavi ja kala näkyvät; oma kääntösi voittaa sen. Nuolinäppäimet eivät takaa-näkymässä liikuta kalastajaa, eikä sormi järvellä kelaa tai heitä perhoa: ne tehdään napeista.\n{pause} = tauko: asetukset, ohjeet ja varusteet.',
   'manual.section.move': 'Liikkuminen',
   'manual.section.spin': 'Virveli',
   'manual.section.fly': 'Perho',
