@@ -302,7 +302,9 @@ html.look-modern {
 
 .look-modern .hud-panel,
 .look-modern .hud-message > span,
-.look-modern .hud-notices-stack > .hud-situation {
+.look-modern .hud-notices-stack > .hud-situation,
+.look-modern .hud-notices-stack > .hud-weigh,
+.look-modern .hud-notices-stack > .hud-penalty {
   background: var(--night);
   border: 1px solid rgb(226 214 180 / 55%);
   border-radius: calc(var(--u) * 1.5);
@@ -310,6 +312,26 @@ html.look-modern {
     0 0 0 calc(var(--u) * 0.8) var(--night),
     0 4px 14px rgb(0 0 0 / 30%);
   color: var(--cream);
+}
+
+/* Rangaistuksen huomaa keltaisesta kehyksestä ja ajastimesta (#732). */
+.look-modern .hud-notices-stack > .hud-penalty {
+  border-color: var(--c-accent);
+  color: var(--c-accent);
+}
+
+/*
+ * Paneelien ulkopuolinen teksti (mittarin ja kuntopalkin nimi) saa tumman
+ * reunuksen: ilman sitä vaalea teksti katosi pilviin ja kirkkaaseen veteen (#732).
+ */
+.look-modern .hud-tension-label,
+.look-modern .hud-stamina {
+  font-weight: 700;
+  text-shadow:
+    0 0 calc(var(--u) * 1) #16241c,
+    0 0 calc(var(--u) * 1) #16241c,
+    0 0 calc(var(--u) * 2) #16241c,
+    0 calc(var(--u) * 0.5) calc(var(--u) * 1.5) rgb(0 0 0 / 70%);
 }
 
 .look-modern .hud-message,
