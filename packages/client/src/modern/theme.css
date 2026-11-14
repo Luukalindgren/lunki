@@ -1,5 +1,6 @@
 /*
- * Modernin ilmeen (#650) teema "eräkartta": paperia, mustetta ja korkeuskäyriä.
+ * Modernin ilmeen (#650) teema: valikot ovat mökin tummaa lautaseinää (#726),
+ * kartat ja pikavalikot eräkartan paperia ja mustetta.
  * Sama HUD ja samat valikot kuin muissa ilmeissä; tämä tiedosto vaihtaa vain
  * kirjasimet, värit ja pinnat. Kaikki säännöt alkavat luokalla .look-modern,
  * joten tiedoston lataaminen ei muuta Retroa eikä Terävää. Mitat pysyvät
@@ -42,6 +43,10 @@
   --wood: #6e4c2c;
   --wood-light: #8a6540;
   --wood-dark: #3a2614;
+  --wall: #4c3521;
+  --wall-text: #f3ead2;
+  --wall-line: rgb(243 234 210 / 30%);
+  --brass: #f0c36a;
   --text-font: 'Alegreya Sans', 'Segoe UI', sans-serif;
   --title-font: 'Fraunces', Georgia, serif;
 }
@@ -55,29 +60,32 @@ html.look-modern {
   --font: var(--text-font);
 }
 
-/* Valikot: käyttöliittymän värit (style.css:n --c-muuttujat) paperin ja musteen sävyiksi. */
+/*
+ * Valikot: käyttöliittymän värit (style.css:n --c-muuttujat) mökin tummalle
+ * lautaseinälle. Teksti on vaaleaa, ja napit ja kentät ovat paperilappuja.
+ */
 
 .look-modern .screen,
 .look-modern .screen-modal {
-  --c-void: #2a2416;
-  --c-panel: var(--paper);
-  --c-well: rgb(120 96 52 / 14%);
-  --c-well-deep: rgb(120 96 52 / 20%);
-  --c-surface: var(--paper-line);
-  --c-line: var(--paper-edge);
-  --c-text: var(--ink);
-  --c-text-soft: var(--ink-soft);
-  --c-text-dim: #6f6444;
-  --c-accent: var(--ochre);
-  --c-accent-soft: #6b4a1c;
-  --c-info: #1d5c70;
-  --c-select: var(--forest);
+  --c-void: #1c120a;
+  --c-panel: var(--wall);
+  --c-well: rgb(0 0 0 / 20%);
+  --c-well-deep: rgb(0 0 0 / 30%);
+  --c-surface: rgb(243 234 210 / 22%);
+  --c-line: var(--wall-line);
+  --c-text: var(--wall-text);
+  --c-text-soft: #e0d3b2;
+  --c-text-dim: #c2b08a;
+  --c-accent: var(--brass);
+  --c-accent-soft: #f6dc9c;
+  --c-info: #a8d8d2;
+  --c-select: #2f6b45;
   --c-danger: var(--rust);
-  --c-alert: #a32a1e;
-  --c-good: #2f6b2a;
+  --c-alert: #ff9d7c;
+  --c-good: #a9d68f;
   font-family: var(--text-font);
   font-weight: 500;
-  color: var(--ink);
+  color: var(--wall-text);
 }
 
 .look-modern .screen {
@@ -85,15 +93,34 @@ html.look-modern {
 }
 
 /*
- * Tasainen paperi puukehyksessä, kuin mökin seinälle ripustettu taulu.
- * Paperissa ei ole kuviota: tarttuvat rivit (alanapit, ohjeiden osiot) ovat
- * samaa paperia eivätkä erotu laatikkoina.
+ * Mökin lautaseinä puukehyksessä: pystylaudat, joiden saumat ja syyt ovat
+ * paikallaan sisällön vieriessä. Tarttuvat rivit (alanapit, ohjeiden osiot)
+ * ovat paneelin levyisiä ja samaa laudoitusta, joten ne eivät erotu laatikkoina.
  */
+.look-modern .screen-panel,
+.look-modern .screen-panel > .buttons:last-child,
+.look-modern .manual-sections {
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 117px,
+      rgb(255 255 255 / 5%) 117px 118px,
+      rgb(0 0 0 / 30%) 118px 120px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgb(255 255 255 / 3%) 0 3px,
+      transparent 3px 9px,
+      rgb(0 0 0 / 5%) 9px 11px,
+      transparent 11px 23px
+    ),
+    var(--wall);
+}
+
 .look-modern .screen-panel {
-  color: var(--ink);
+  color: var(--wall-text);
   border: none;
   border-radius: 3px;
-  background: var(--paper);
   box-shadow:
     0 0 0 1px var(--wood-dark),
     0 0 0 3px var(--wood-light),
@@ -107,7 +134,7 @@ html.look-modern {
   width: 96px;
   height: 14px;
   margin-top: 4px;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 14'%3E%3Cpath d='M0 7h62' stroke='%2324362a' stroke-width='1.5'/%3E%3Cpath d='M58 7h36' stroke='%2324362a' stroke-width='1.5'/%3E%3Cpath d='M68 7a6 6 0 0 1 6-6h4v12h-4a6 6 0 0 1-6-6z' fill='%238a2a22'/%3E%3Cpath d='M78 1h2a6 6 0 0 1 0 12h-2z' fill='%23fbf6e6'/%3E%3Cpath d='M68 7a6 6 0 0 1 6-6h6a6 6 0 0 1 0 12h-6a6 6 0 0 1-6-6z' fill='none' stroke='%2324362a'/%3E%3C/svg%3E")
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 14'%3E%3Cpath d='M0 7h62' stroke='%23f3ead2' stroke-width='1.5'/%3E%3Cpath d='M58 7h36' stroke='%23f3ead2' stroke-width='1.5'/%3E%3Cpath d='M68 7a6 6 0 0 1 6-6h4v12h-4a6 6 0 0 1-6-6z' fill='%238a2a22'/%3E%3Cpath d='M78 1h2a6 6 0 0 1 0 12h-2z' fill='%23fbf6e6'/%3E%3Cpath d='M68 7a6 6 0 0 1 6-6h6a6 6 0 0 1 0 12h-6a6 6 0 0 1-6-6z' fill='none' stroke='%231c120a'/%3E%3C/svg%3E")
     left center / 96px 14px no-repeat;
 }
 
@@ -115,14 +142,14 @@ html.look-modern {
   font-family: var(--title-font);
   font-weight: 700;
   letter-spacing: 1px;
-  color: var(--forest);
+  color: var(--wall-text);
   text-shadow: none;
 }
 
 .look-modern .screen-panel h2 {
   font-family: var(--title-font);
   font-weight: 700;
-  color: var(--forest);
+  color: var(--wall-text);
   text-shadow: none;
 }
 
@@ -132,7 +159,7 @@ html.look-modern {
 }
 
 .look-modern .screen-panel h3.settings-section {
-  border-bottom: 1px solid var(--paper-line);
+  border-bottom: 1px solid var(--wall-line);
 }
 
 .look-modern .screen-panel .subtitle {
@@ -143,8 +170,8 @@ html.look-modern {
   font-family: inherit;
   font-weight: 700;
   color: var(--ink);
-  background: rgb(255 252 240 / 55%);
-  border: 1.5px solid #5a6a4a;
+  background: var(--paper);
+  border: 1.5px solid var(--c-void);
   border-radius: 3px;
   box-shadow: none;
   letter-spacing: 0.3px;
@@ -152,12 +179,12 @@ html.look-modern {
 
 .look-modern .screen button:hover:not(:disabled),
 .look-modern .screen button:focus-visible {
-  background: rgb(255 252 240 / 90%);
-  border-color: var(--forest);
+  background: var(--paper-light);
+  border-color: var(--c-void);
 }
 
 .look-modern .screen.kb button:focus {
-  outline: 3px solid var(--ochre);
+  outline: 3px solid var(--brass);
   outline-offset: 2px;
 }
 
@@ -168,7 +195,7 @@ html.look-modern {
 }
 
 .look-modern .screen button.selected {
-  background: var(--forest);
+  background: var(--c-select);
   border-color: #12301e;
   color: #f6eed8;
 }
@@ -182,17 +209,27 @@ html.look-modern {
 
 .look-modern .screen button.selected:hover:not(:disabled),
 .look-modern .screen button.selected:focus-visible {
-  background: #2c6644;
+  background: #3a7d53;
   border-color: #12301e;
 }
 
 /* Osoittimen alla nouseva nappi saa pehmeän varjon kovan pikselivarjon tilalle. */
 .look-modern .screen .buttons button:hover:not(:disabled) {
-  box-shadow: 0 3px 8px rgb(40 28 10 / 30%);
+  box-shadow: 0 3px 8px rgb(0 0 0 / 45%);
 }
 
-.look-modern .screen button.quiet {
+/* Himmeä nappi on seinän värinen: vaalea teksti ja ohut vaalea reuna. */
+.look-modern .screen button.quiet,
+.look-modern .screen button.quiet:hover:not(:disabled),
+.look-modern .screen button.quiet:focus-visible {
+  color: var(--wall-text);
   background: transparent;
+  border-color: var(--wall-line);
+}
+
+.look-modern .screen button.quiet:hover:not(:disabled),
+.look-modern .screen button.quiet:focus-visible {
+  background: rgb(243 234 210 / 12%);
 }
 
 .look-modern .screen button:disabled {
@@ -288,14 +325,9 @@ html.look-modern {
 
 /*
  * Paneelin reunaan tarttuvat rivit (alanapit, ohjeiden osiot) ovat paneelin
- * levyisiä ja samaa paperia. Rajana on häivytys, jonka alle vierivä sisältö
- * katoaa, ei viiva.
+ * levyisiä ja samaa laudoitusta (tausta yllä). Rajana on häivytys, jonka alle
+ * vierivä sisältö katoaa, ei viiva.
  */
-.look-modern .screen-panel > .buttons:last-child,
-.look-modern .manual-sections {
-  background: var(--paper);
-}
-
 .look-modern .screen-panel > .buttons:last-child {
   margin-left: calc(-1 * var(--panel-px));
   margin-right: calc(-1 * var(--panel-px));
@@ -315,12 +347,12 @@ html.look-modern {
 
 .look-modern .screen-panel > .buttons:last-child::before {
   bottom: 100%;
-  background: linear-gradient(to top, var(--paper), rgb(239 229 200 / 0%));
+  background: linear-gradient(to top, var(--wall), rgb(76 53 33 / 0%));
 }
 
 .look-modern .manual-sections::after {
   top: 100%;
-  background: linear-gradient(to bottom, var(--paper), rgb(239 229 200 / 0%));
+  background: linear-gradient(to bottom, var(--wall), rgb(76 53 33 / 0%));
 }
 
 /* Kortin (modal) napit eivät tartu reunaan, joten ne eivät tarvitse taustaa. */
@@ -334,18 +366,18 @@ html.look-modern {
   content: none;
 }
 
-/* Vaaleat huomiovärit olisivat paperilla liian haaleita. */
+/* Huomioväri, joka erottuu tummalla seinällä. */
 .look-modern .screen-panel .error,
 .look-modern .screen-panel .player-old,
 .look-modern .screen-panel .lobby-old,
 .look-modern .player-state.seat-wait {
-  color: #a3481a;
+  color: #ffb27a;
 }
 
 .look-modern .pause-stat,
 .look-modern .pause-scoreboard,
 .look-modern .player-list li.boat-crew {
-  border: 1px solid var(--paper-line);
+  border: 1px solid var(--wall-line);
   border-radius: 3px;
 }
 

@@ -213,7 +213,7 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
   `settings.lookModern`).
 - **Moderni (#650) on tietokoneen ilme:** maailma on tyyliä "Maalattu"
   (pehmeät muotoillut pinnat, varjot, sinivihreä vesi) ja käyttöliittymä
-  "eräkartta" (paperi ja muste puukehyksessä). Kosketuslaitteella sitä ei tarjota, eikä laatua karsita
+  "mökki ja eräkartta" (valikot tummalla lautaseinällä, kartat ja pikavalikot paperia ja mustetta). Kosketuslaitteella sitä ei tarjota, eikä laatua karsita
   puhelimen takia. Säännöt, HUDin rakenne ja ohjaus ovat samat kuin muissa
   ilmeissä.
 - **Modernin koodi, tyylit ja fontit ladataan vasta valittaessa**
@@ -348,9 +348,12 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
   itse, jolloin se saa teeman ilman omaa sääntöä. Teema asettaa myös pelin
   fontin (`--font`) tekstifontikseen, ja ympyrävalikot ovat paperilohkoja
   musteen värisessä kehässä.
-  Valikon paneeli on tasaista paperia puukehyksessä ilman taustakuviota
-  (korkeuskäyrät poistettiin, #724): paneelin reunaan tarttuva rivi (alanapit,
-  ohjeiden osiot) on samaa paperia ja rajautuu häivytyksellä, ei laatikkona.
+  Valikon paneeli on mökin tumma lautaseinä puukehyksessä (Luukan valinta,
+  #726): teksti on vaaleaa (`--wall-text`), ja napit ja kentät ovat
+  paperilappuja. Laudoitus pysyy paikallaan sisällön vieriessä, ja paneelin
+  reunaan tarttuva rivi (alanapit, ohjeiden osiot) on samaa laudoitusta ja
+  rajautuu häivytyksellä, ei laatikkona. Abstraktia taustakuviota
+  (korkeuskäyrät) ei käytetä: Luuka ei ymmärtänyt sitä.
   Värillinen nappi (`primary`, `selected`) pysyy värillisenä osoittimen alla.
 - **Sisäinen tarkkuus on kummassakin ilmeessä sama** (`RetroRenderer.resolution`):
   kamerat, zoomitasot, merkkien koot ja HUDin mitta lasketaan siitä, joten
