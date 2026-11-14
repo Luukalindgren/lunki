@@ -40,6 +40,13 @@ export const CHASE = {
   lookAhead: 0.1,
   /** Kamera pysyy tämän verran veden tai maan pinnan yllä (m). */
   clearance: 0.3,
+  /**
+   * Noston ajaksi (#707) kamera kiertää sivulle, jotta haavi ja kala eivät jää
+   * kalastajan taakse: sivukierto (rad), nosto kaarella, liu'un nopeus (1/s)
+   * ja aika, jonka kamera viipyy sivulla noston jälkeen (s, kalan nosto
+   * haavilla kestää 1,4 s).
+   */
+  landing: { yaw: 0.85, tilt: 0.06, rate: 2.5, linger: 1.8 },
 } as const;
 
 /** Kameran paikka kaarella: korkeuskulma (rad) ja etäisyys (m). */
@@ -63,19 +70,62 @@ export class ChaseOrbit {
   yaw = 0;
   /** Kohta kaarella, 0–1. Jää siihen, mihin pelaaja sen asetti. */
   tilt: number = CHASE.start;
+  /** Noston sivukierron osuus, 0–1 (#707). */
+  private swing = 0;
+  /** Aika, jonka kamera vielä viipyy sivulla noston jälkeen (s). */
+  private linger = 0;
+  /** Pelaaja käänsi kameraa itse noston aikana: kamera ei liiku itsestään. */
+  private own = false;
 
   /** Kamera takaisin selän taakse (näkymän vaihtuessa). */
   center(): void {
     this.yaw = 0;
+    this.swing = 0;
+    this.linger = 0;
+    this.own = false;
+  }
+
+  /** Kameran sivukierto ja kohta kaarella noston liuku mukana. */
+  get view(): { yaw: number; tilt: number } {
+    // Pehmeä lähtö ja pysähdys.
+    const k = this.swing * this.swing * (3 - 2 * this.swing);
+    return {
+      yaw: wrap(this.yaw + CHASE.landing.yaw * k),
+      tilt: Math.min(1, this.tilt + CHASE.landing.tilt * k),
+    };
   }
 
   /**
    * `moving` = pelaaja potkii tai kääntyy: sivukierto palaa silloin selän
    * taakse, ellei pelaaja juuri käännä kameraa. `screenHeight` on ruudun
-   * korkeus CSS-pikseleinä sormen vetoa varten.
+   * korkeus CSS-pikseleinä sormen vetoa varten. `landing` = kala on haavilla
+   * tai nostettavana: kamera liukuu sivulle ja palaa noston jälkeen. Pelaajan
+   * oma kääntö voittaa: kamera jää siihen, mihin hän sen käänsi.
    */
-  step(dt: number, input: CameraInput, moving: boolean, screenHeight: number): void {
+  step(
+    dt: number,
+    input: CameraInput,
+    moving: boolean,
+    screenHeight: number,
+    landing = false,
+  ): void {
     const drag = input.drag;
+    const steering = input.turn !== 0 || input.tilt !== 0 || !!drag;
+    if (landing) this.linger = CHASE.landing.linger;
+    else this.linger = Math.max(0, this.linger - dt);
+    const aside = this.linger > 0;
+    if (!aside) this.own = false;
+    else if (steering && !this.own) {
+      // Liuku jää pelaajan omaksi kulmaksi, ettei kuva hyppää.
+      const v = this.view;
+      this.yaw = v.yaw;
+      this.tilt = v.tilt;
+      this.swing = 0;
+      this.own = true;
+    }
+    const goal = aside && !this.own ? 1 : 0;
+    const stride = CHASE.landing.rate * dt;
+    this.swing += Math.min(stride, Math.max(-stride, goal - this.swing));
     const h = Math.max(1, screenHeight);
     // Sormen veto oikealle kääntää katsetta oikealle ja veto ylös nostaa kameraa.
     const turn = input.turn * CHASE.turnRate * dt - ((drag?.dx ?? 0) / h) * CHASE.dragTurn;

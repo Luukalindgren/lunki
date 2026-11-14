@@ -120,6 +120,11 @@ Koodi: `packages/client/src/game/controls.ts`.
     loittonee. Kamera vain katsoo: liike ja heitto kulkevat kalastajan
     suuntaan, eikä palvelin tiedä kamerasta. Potkiessa sivukierto palaa selän
     taakse, korkeus jää.
+  - Kun kala on nostettavana (`fishing.landing`), kamera liukuu sivulle, jotta
+    haavi ja kala eivät jää kalastajan taakse, ja palaa noston jälkeen
+    (`CHASE.landing`, #707). Liuku on pelaajan oman kulman päällä
+    (`ChaseOrbit.view`), ja pelaajan oma kääntö voittaa sen. Uusi automaattinen
+    kameran liike tehdään samoin eikä muuta pelaajan asettamaa kulmaa.
   - Kameraa ohjataan nuolilla (`camLeft`…`camDown`), peliohjaimella LT/L2 +
     oikealla tatilla ja kosketuksella sormen vedolla järvellä
     (`Controls.cameraInput`). `setOrbitCamera` kertoo toimintokartalle, että
