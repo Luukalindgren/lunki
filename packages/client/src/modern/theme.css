@@ -39,6 +39,9 @@
   --ochre: #8a5a2a;
   --night: rgb(24 38 30 / 84%);
   --cream: #f1ead6;
+  --wood: #6e4c2c;
+  --wood-light: #8a6540;
+  --wood-dark: #3a2614;
   --text-font: 'Alegreya Sans', 'Segoe UI', sans-serif;
   --title-font: 'Fraunces', Georgia, serif;
 }
@@ -81,30 +84,34 @@ html.look-modern {
   background: rgb(16 26 20 / 50%);
 }
 
-/* Paperinen karttalehti, jonka kulmissa kulkee korkeuskäyriä. */
+/*
+ * Tasainen paperi puukehyksessä, kuin mökin seinälle ripustettu kartta.
+ * Korkeuskäyrät ovat oikean reunan keskellä ja pysyvät paikallaan, kun sisältö
+ * vierii: tarttuvat rivit (alanapit, ohjeiden osiot) ovat samaa tasaista
+ * paperia eivätkä erotu laatikkoina.
+ */
 .look-modern .screen-panel {
   color: var(--ink);
   border: none;
-  border-radius: 4px;
-  background:
-    repeating-radial-gradient(
-      ellipse at 18% 115%,
-      transparent 0 21px,
-      rgb(120 96 52 / 16%) 21px 22px
-    ),
-    repeating-radial-gradient(
-      ellipse at 92% -10%,
-      transparent 0 27px,
-      rgb(120 96 52 / 13%) 27px 28px
-    ),
-    radial-gradient(ellipse at 50% 40%, #f4ecd6 0%, #eadfc0 70%, #d9caa2 100%);
-  /* Vierittyvä sisältö ei vedä kuviota mukanaan. */
-  background-attachment: local, local, scroll;
+  border-radius: 3px;
+  background: var(--paper)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 300' fill='none' stroke='%23786034' stroke-opacity='.2'%3E%3Cellipse cx='250' cy='156' rx='30' ry='38' transform='rotate(8 240 150)'/%3E%3Cellipse cx='248' cy='148' rx='58' ry='62' transform='rotate(-6 240 150)'/%3E%3Cellipse cx='246' cy='156' rx='90' ry='84' transform='rotate(10 240 150)'/%3E%3Cellipse cx='248' cy='146' rx='122' ry='104' transform='rotate(-8 240 150)'/%3E%3Cellipse cx='250' cy='154' rx='156' ry='122' transform='rotate(6 240 150)'/%3E%3Cellipse cx='254' cy='150' rx='192' ry='138' transform='rotate(-4 240 150)'/%3E%3C/svg%3E")
+    right center / auto 62% no-repeat;
   box-shadow:
-    0 0 0 1px var(--paper-edge),
-    0 0 0 7px var(--paper),
-    0 0 0 8px var(--paper-edge),
+    0 0 0 1px var(--wood-dark),
+    0 0 0 3px var(--wood-light),
+    0 0 0 9px var(--wood),
+    0 0 0 10px var(--wood-dark),
     0 26px 60px rgb(0 0 0 / 55%);
+}
+
+/* Otsikon alla siima ja koho. */
+.look-modern .screen-panel h2::after {
+  width: 96px;
+  height: 14px;
+  margin-top: 4px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 14'%3E%3Cpath d='M0 7h62' stroke='%2324362a' stroke-width='1.5'/%3E%3Cpath d='M58 7h36' stroke='%2324362a' stroke-width='1.5'/%3E%3Cpath d='M68 7a6 6 0 0 1 6-6h4v12h-4a6 6 0 0 1-6-6z' fill='%238a2a22'/%3E%3Cpath d='M78 1h2a6 6 0 0 1 0 12h-2z' fill='%23fbf6e6'/%3E%3Cpath d='M68 7a6 6 0 0 1 6-6h6a6 6 0 0 1 0 12h-6a6 6 0 0 1-6-6z' fill='none' stroke='%2324362a'/%3E%3C/svg%3E")
+    left center / 96px 14px no-repeat;
 }
 
 .look-modern .screen-panel h1 {
@@ -167,6 +174,24 @@ html.look-modern {
   background: var(--forest);
   border-color: #12301e;
   color: #f6eed8;
+}
+
+/* Värillinen nappi pysyy värillisenä osoittimen alla: vaalea teksti ei katoa. */
+.look-modern .screen button.primary:hover:not(:disabled),
+.look-modern .screen button.primary:focus-visible {
+  background: #a8382d;
+  border-color: #5c1a14;
+}
+
+.look-modern .screen button.selected:hover:not(:disabled),
+.look-modern .screen button.selected:focus-visible {
+  background: #2c6644;
+  border-color: #12301e;
+}
+
+/* Osoittimen alla nouseva nappi saa pehmeän varjon kovan pikselivarjon tilalle. */
+.look-modern .screen .buttons button:hover:not(:disabled) {
+  box-shadow: 0 3px 8px rgb(40 28 10 / 30%);
 }
 
 .look-modern .screen button.quiet {
@@ -264,18 +289,52 @@ html.look-modern {
   font-weight: 700;
 }
 
-/* Paneelin reunaan tarttuvat rivit (alanapit, ohjeiden osiot): paperia, ohut viiva rajana. */
+/*
+ * Paneelin reunaan tarttuvat rivit (alanapit, ohjeiden osiot) ovat paneelin
+ * levyisiä ja samaa paperia. Rajana on häivytys, jonka alle vierivä sisältö
+ * katoaa, ei viiva.
+ */
 .look-modern .screen-panel > .buttons:last-child,
 .look-modern .manual-sections {
   background: var(--paper);
 }
 
 .look-modern .screen-panel > .buttons:last-child {
-  border-top: 1px solid var(--paper-line);
+  margin-left: calc(-1 * var(--panel-px));
+  margin-right: calc(-1 * var(--panel-px));
+  padding-left: var(--panel-px);
+  padding-right: var(--panel-px);
 }
 
-.look-modern .manual-sections {
-  border-bottom: 1px solid var(--paper-line);
+.look-modern .screen-panel > .buttons:last-child::before,
+.look-modern .manual-sections::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 18px;
+  pointer-events: none;
+}
+
+.look-modern .screen-panel > .buttons:last-child::before {
+  bottom: 100%;
+  background: linear-gradient(to top, var(--paper), rgb(239 229 200 / 0%));
+}
+
+.look-modern .manual-sections::after {
+  top: 100%;
+  background: linear-gradient(to bottom, var(--paper), rgb(239 229 200 / 0%));
+}
+
+/* Kortin (modal) napit eivät tartu reunaan, joten ne eivät tarvitse taustaa. */
+.look-modern .screen-modal .modal-panel > .buttons:last-child {
+  margin: 18px 0 0;
+  padding: 0;
+  background: none;
+}
+
+.look-modern .screen-modal .modal-panel > .buttons:last-child::before {
+  content: none;
 }
 
 /* Vaaleat huomiovärit olisivat paperilla liian haaleita. */
