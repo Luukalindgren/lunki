@@ -85,18 +85,15 @@ html.look-modern {
 }
 
 /*
- * Tasainen paperi puukehyksessä, kuin mökin seinälle ripustettu kartta.
- * Korkeuskäyrät ovat oikean reunan keskellä ja pysyvät paikallaan, kun sisältö
- * vierii: tarttuvat rivit (alanapit, ohjeiden osiot) ovat samaa tasaista
- * paperia eivätkä erotu laatikkoina.
+ * Tasainen paperi puukehyksessä, kuin mökin seinälle ripustettu taulu.
+ * Paperissa ei ole kuviota: tarttuvat rivit (alanapit, ohjeiden osiot) ovat
+ * samaa paperia eivätkä erotu laatikkoina.
  */
 .look-modern .screen-panel {
   color: var(--ink);
   border: none;
   border-radius: 3px;
-  background: var(--paper)
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 300' fill='none' stroke='%23786034' stroke-opacity='.2'%3E%3Cellipse cx='250' cy='156' rx='30' ry='38' transform='rotate(8 240 150)'/%3E%3Cellipse cx='248' cy='148' rx='58' ry='62' transform='rotate(-6 240 150)'/%3E%3Cellipse cx='246' cy='156' rx='90' ry='84' transform='rotate(10 240 150)'/%3E%3Cellipse cx='248' cy='146' rx='122' ry='104' transform='rotate(-8 240 150)'/%3E%3Cellipse cx='250' cy='154' rx='156' ry='122' transform='rotate(6 240 150)'/%3E%3Cellipse cx='254' cy='150' rx='192' ry='138' transform='rotate(-4 240 150)'/%3E%3C/svg%3E")
-    right center / auto 62% no-repeat;
+  background: var(--paper);
   box-shadow:
     0 0 0 1px var(--wood-dark),
     0 0 0 3px var(--wood-light),

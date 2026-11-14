@@ -213,7 +213,7 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
   `settings.lookModern`).
 - **Moderni (#650) on tietokoneen ilme:** maailma on tyyliä "Maalattu"
   (pehmeät muotoillut pinnat, varjot, sinivihreä vesi) ja käyttöliittymä
-  "eräkartta" (paperi, muste ja korkeuskäyrät). Kosketuslaitteella sitä ei tarjota, eikä laatua karsita
+  "eräkartta" (paperi ja muste puukehyksessä). Kosketuslaitteella sitä ei tarjota, eikä laatua karsita
   puhelimen takia. Säännöt, HUDin rakenne ja ohjaus ovat samat kuin muissa
   ilmeissä.
 - **Modernin koodi, tyylit ja fontit ladataan vasta valittaessa**
@@ -348,8 +348,8 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
   itse, jolloin se saa teeman ilman omaa sääntöä. Teema asettaa myös pelin
   fontin (`--font`) tekstifontikseen, ja ympyrävalikot ovat paperilohkoja
   musteen värisessä kehässä.
-  Valikon paneeli on tasaista paperia puukehyksessä, ja sen kuviot pysyvät
-  paikallaan sisällön vieriessä: paneelin reunaan tarttuva rivi (alanapit,
+  Valikon paneeli on tasaista paperia puukehyksessä ilman taustakuviota
+  (korkeuskäyrät poistettiin, #724): paneelin reunaan tarttuva rivi (alanapit,
   ohjeiden osiot) on samaa paperia ja rajautuu häivytyksellä, ei laatikkona.
   Värillinen nappi (`primary`, `selected`) pysyy värillisenä osoittimen alla.
 - **Sisäinen tarkkuus on kummassakin ilmeessä sama** (`RetroRenderer.resolution`):
