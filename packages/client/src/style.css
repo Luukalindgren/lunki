@@ -2493,8 +2493,13 @@ textarea,
 .touch-controls.simple:not(.spectator, .need-cut) .touch-tool,
 .touch-controls.simple:not(.spectator) .touch-anchor,
 .touch-controls.simple:not(.spectator) .touch-method,
-.touch-controls.simple .touch-help,
-.touch-controls.simple.pov .touch-zoom {
+.touch-controls.simple .touch-help {
+  display: none;
+}
+
+/* Zoom vaikuttaa vain ylhäältä katsottaessa: silmin ja takaa napit ovat
+   piilossa kaikilla ohjaustavoilla (#709). */
+.touch-controls.pov .touch-zoom {
   display: none;
 }
 

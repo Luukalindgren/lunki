@@ -71,10 +71,14 @@ test.describe('puhelin', () => {
     await expect.poll(() => compassOffset(page)).not.toBe(before);
 
     // Kisa alkoi kalastajan silmin; KAM-nappi vaihtaa takaa (#691) ja ylhäältä katsottuun.
+    // Zoomnapit näkyvät vain ylhäältä, missä ne tekevät jotain (#709).
+    await expect(page.locator('.touch-zoom').first()).toBeHidden();
     await page.getByRole('button', { name: 'KAM' }).tap();
     await expect(page.locator('.hud-message')).toHaveText('Takaa (KAM)');
+    await expect(page.locator('.touch-zoom').first()).toBeHidden();
     await page.getByRole('button', { name: 'KAM' }).tap();
     await expect(page.locator('.hud-message')).toHaveText('Ylhäältä (KAM)');
+    await expect(page.locator('.touch-tools > button:visible')).toHaveText(['II', '?', '+', '−']);
     await expect.poll(() => canvasColors(page)).toBeGreaterThan(8);
     await info.attach('pysty-ylhaalta', {
       body: await page.screenshot(),
