@@ -118,8 +118,8 @@ Koodi: `packages/client/src/game/controls.ts`.
   - Takaa-näkymässä kamera kiertää kalastajaa yhtä kaarta (`ChaseOrbit`,
     `CHASE`): sivulle se kiertää pystyakselin ympäri, ylös se nousee ja
     loittonee. Kamera vain katsoo: liike ja heitto kulkevat kalastajan
-    suuntaan, eikä palvelin tiedä kamerasta. Potkiessa sivukierto palaa selän
-    taakse, korkeus jää.
+    suuntaan, eikä palvelin tiedä kamerasta. Kamera jää siihen, mihin
+    pelaaja sen käänsi: potkiminen ei palauta sitä selän taakse.
   - Kun kala on nostettavana (`fishing.landing`), kamera liukuu sivulle, jotta
     haavi ja kala eivät jää kalastajan taakse, ja palaa noston jälkeen
     (`CHASE.landing`, #707). Liuku on pelaajan oman kulman päällä
@@ -403,11 +403,11 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
   pohjan lajit ovat samat. Punnituskortti ja
   järvikartta tekevät Terävälle sileän version samasta piirroksesta
   (`smoothPixels`).
-- Modernissa `LookGuard` keventää ensin laatua taso kerrallaan
-  (`lowerQuality`) ja palaa Retroon vasta matalalta.
-- Terävä on raskas: jos kisan ruutunopeus jää alle 30 (`LookGuard`), ilme
-  palaa Retroon, valinta tallennetaan ja siitä kerrotaan `info`-ilmoituksella.
-  Selaintestit ajetaan Retrolla: automaation ohjaama selain
+- **Ilme ja laatu vaihtuvat vain pelaajan valinnasta.** Peli ei mittaa
+  ruutunopeutta eikä kevennä laatua tai vaihda ilmettä itse (automaatti
+  poistettiin: se vaihtoi ilmeen myös välilehteä vaihdettaessa). Hitaalla
+  laitteella pelaaja valitsee kevyemmän ilmeen Asetuksista.
+- Selaintestit ajetaan Retrolla: automaation ohjaama selain
   (`navigator.webdriver`) saa oletukseksi Retron, ja `e2e/ilme.spec.ts`
   vaihtaa ilmeen ja aloittaa kisan.
 

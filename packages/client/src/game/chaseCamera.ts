@@ -32,8 +32,6 @@ export const CHASE = {
   /** Sormella: kierto (rad) ja nosto (kaarta) vedettyä ruudun korkeutta kohden. */
   dragTurn: 3.2,
   dragTilt: 1.4,
-  /** Potkiessa sivukierto palaa selän taakse tällä nopeudella (1/s). */
-  returnRate: 2.2,
   /** Kohta, jota kamera katsoo: kalastajan hartiat (m vedenpinnasta). */
   lookHeight: 0.7,
   /** Katse nousee kohteesta tämän verran (rad), jotta järveä näkyy kalastajan edessä. */
@@ -96,19 +94,12 @@ export class ChaseOrbit {
   }
 
   /**
-   * `moving` = pelaaja potkii tai kääntyy: sivukierto palaa silloin selän
-   * taakse, ellei pelaaja juuri käännä kameraa. `screenHeight` on ruudun
-   * korkeus CSS-pikseleinä sormen vetoa varten. `landing` = kala on haavilla
+   * Kamera jää siihen, mihin pelaaja sen käänsi, myös potkiessa.
+   * `screenHeight` on ruudun korkeus CSS-pikseleinä sormen vetoa varten. `landing` = kala on haavilla
    * tai nostettavana: kamera liukuu sivulle ja palaa noston jälkeen. Pelaajan
    * oma kääntö voittaa: kamera jää siihen, mihin hän sen käänsi.
    */
-  step(
-    dt: number,
-    input: CameraInput,
-    moving: boolean,
-    screenHeight: number,
-    landing = false,
-  ): void {
+  step(dt: number, input: CameraInput, screenHeight: number, landing = false): void {
     const drag = input.drag;
     const steering = input.turn !== 0 || input.tilt !== 0 || !!drag;
     if (landing) this.linger = CHASE.landing.linger;
@@ -132,6 +123,5 @@ export class ChaseOrbit {
     const tilt = input.tilt * CHASE.tiltRate * dt - ((drag?.dy ?? 0) / h) * CHASE.dragTilt;
     this.yaw = wrap(this.yaw + turn);
     this.tilt = Math.min(1, Math.max(0, this.tilt + tilt));
-    if (moving && input.turn === 0 && !drag) this.yaw *= Math.exp(-CHASE.returnRate * dt);
   }
 }

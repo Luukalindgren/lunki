@@ -646,13 +646,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     // Täyttökisan nuolisarjan ajan nuolet kuuluvat sarjalle, eivät kameralle.
     c.setArrowSequence(this.craft.arrowSequence);
     if (this.viewMode === 'chase')
-      this.chase.step(
-        dt,
-        c.cameraInput(),
-        c.isDown('forward') || c.isDown('back') || c.isDown('left') || c.isDown('right'),
-        window.innerHeight,
-        this.fishing.landing !== null,
-      );
+      this.chase.step(dt, c.cameraInput(), window.innerHeight, this.fishing.landing !== null);
     if (this.spectating && c.wasPressed('director'))
       this.hud.showMessage(
         controlText(net?.toggleDirector() ? 'broadcast.directorOn' : 'broadcast.directorOff'),

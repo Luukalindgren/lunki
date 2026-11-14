@@ -254,12 +254,10 @@ export const en: Record<keyof typeof fi, string> = {
   'settings.lookRetro': 'Tube TV',
   'settings.lookSharp': 'Flat screen',
   'settings.lookHint':
-    'Flat screen draws the graphics at the full resolution of your screen. If the game starts to stutter, the look returns to Tube TV. Tube TV is the lighter pixel look.',
-  'look.fellBack':
-    'The Flat screen look was too heavy for this device. The look changed to Tube TV.',
+    'Flat screen draws the graphics at the full resolution of your screen. Tube TV is the lighter pixel look.',
   'settings.lookModern': 'Home cinema',
   'settings.lookModernHint':
-    'Home cinema is a look made for computers: soft shapes, shadows and its own interface style. If the game starts to stutter, the quality drops and finally the look returns to Tube TV.',
+    'Home cinema is a look made for computers: soft shapes, shadows and its own interface style.',
   'settings.lookLoading': 'Loading the Home cinema look…',
   'settings.lookFailed':
     'The Home cinema look did not load. Check your connection and select it again.',
@@ -267,9 +265,6 @@ export const en: Record<keyof typeof fi, string> = {
   'settings.quality.low': 'Low',
   'settings.quality.medium': 'Medium',
   'settings.quality.high': 'High',
-  'look.qualityDropped': 'The game stuttered, so the quality of the Home cinema look was lowered.',
-  'look.modernFellBack':
-    'The Home cinema look was too heavy for this device. The look changed to Tube TV.',
   'look.modernFailed': 'The Home cinema look did not load, so the look is Tube TV.',
   'settings.guide': 'Guide',
   'settings.guideOn': 'Show from start',
@@ -1224,7 +1219,7 @@ export const en: Record<keyof typeof fi, string> = {
     '{sonar} = sonar shows the fish.\nMove to a new spot: fish swim in schools and feed in spells.\n{lure} = change lure. Different fish like different lures.\nOn Easy the fish always hooks and the line never snaps.\nWith the Simple control style in Settings, one button casts and reels, reeling brings the fish in, the lure is a spinner and the reel speed is 3, and there is no drag, lure change or fly fishing. It works on every difficulty level.',
   'manual.start.screen': 'On screen',
   'manual.start.screenText':
-    'The hint at the top centre tells you what to do next.\nA competition starts with a short help: moving, casting and reeling. {help} switches the help: all controls, hidden and back to short.\n{view} = switch view: through the angler’s eyes, from behind or from above.\nIn the view from behind the camera is behind the angler, and {camera} turns it: sideways the camera orbits the angler, up it rises and moves away, down it drops and comes closer. Moving and casting still follow the angler’s heading, and when you kick the camera returns behind your back. While a fish is being landed the camera swings to the side for a moment so the net and the fish show; turning the camera yourself overrides it. In this view the arrow keys do not move the angler, and a finger on the lake does not reel or cast a fly: use the buttons.\n{pause} = pause: settings, how to play and tackle.',
+    'The hint at the top centre tells you what to do next.\nA competition starts with a short help: moving, casting and reeling. {help} switches the help: all controls, hidden and back to short.\n{view} = switch view: through the angler’s eyes, from behind or from above.\nIn the view from behind the camera is behind the angler, and {camera} turns it: sideways the camera orbits the angler, up it rises and moves away, down it drops and comes closer. Moving and casting still follow the angler’s heading, and the camera stays where you turned it. While a fish is being landed the camera swings to the side for a moment so the net and the fish show; turning the camera yourself overrides it. In this view the arrow keys do not move the angler, and a finger on the lake does not reel or cast a fly: use the buttons.\n{pause} = pause: settings, how to play and tackle.',
   'manual.section.move': 'Moving',
   'manual.section.spin': 'Spinning',
   'manual.section.fly': 'Fly',

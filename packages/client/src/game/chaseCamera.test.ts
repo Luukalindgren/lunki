@@ -34,48 +34,39 @@ describe('takaa-näkymän kamera', () => {
 
   it('nuoli vasemmalle kiertää katsetta vasemmalle ja ylös nostaa kameraa', () => {
     const o = new ChaseOrbit();
-    o.step(0.5, { turn: 1, tilt: 1, drag: null }, false, 720);
+    o.step(0.5, { turn: 1, tilt: 1, drag: null }, 720);
     expect(o.yaw).toBeCloseTo(CHASE.turnRate * 0.5);
     expect(o.tilt).toBeCloseTo(CHASE.start + CHASE.tiltRate * 0.5);
   });
 
   it('kaari pysähtyy päihinsä ja kierto kulkee ympäri', () => {
     const o = new ChaseOrbit();
-    for (let i = 0; i < 600; i++) o.step(1 / 60, { turn: 1, tilt: -1, drag: null }, false, 720);
+    for (let i = 0; i < 600; i++) o.step(1 / 60, { turn: 1, tilt: -1, drag: null }, 720);
     expect(o.tilt).toBe(0);
     expect(Math.abs(o.yaw)).toBeLessThanOrEqual(Math.PI);
   });
 
   it('sormen veto oikealle kääntää katsetta oikealle ja veto ylös nostaa', () => {
     const o = new ChaseOrbit();
-    o.step(1 / 60, { turn: 0, tilt: 0, drag: { dx: 72, dy: -72 } }, false, 720);
+    o.step(1 / 60, { turn: 0, tilt: 0, drag: { dx: 72, dy: -72 } }, 720);
     expect(o.yaw).toBeCloseTo(-0.1 * CHASE.dragTurn);
     expect(o.tilt).toBeCloseTo(CHASE.start + 0.1 * CHASE.dragTilt);
   });
 
-  it('potkiessa sivukierto palaa selän taakse, korkeus jää', () => {
+  it('kierto ja korkeus jäävät siihen, mihin pelaaja ne käänsi', () => {
     const o = new ChaseOrbit();
     o.yaw = 1.2;
     o.tilt = 0.8;
-    for (let i = 0; i < 240; i++) o.step(1 / 60, still, true, 720);
-    expect(Math.abs(o.yaw)).toBeLessThan(0.01);
+    for (let i = 0; i < 240; i++) o.step(1 / 60, still, 720);
+    expect(o.yaw).toBe(1.2);
     expect(o.tilt).toBe(0.8);
-  });
-
-  it('paikallaan tai kameraa kääntäessä kierto ei palaa', () => {
-    const o = new ChaseOrbit();
-    o.yaw = 1.2;
-    o.step(1, still, false, 720);
-    expect(o.yaw).toBe(1.2);
-    o.step(1 / 60, { turn: 0, tilt: 0, drag: { dx: 0, dy: 0 } }, true, 720);
-    expect(o.yaw).toBe(1.2);
   });
 
   it('noston ajaksi kamera liukuu sivulle ja palaa sen jälkeen (#707)', () => {
     const o = new ChaseOrbit();
     const tilt = o.tilt;
     const run = (seconds: number, landing: boolean) => {
-      for (let i = 0; i < seconds * 60; i++) o.step(1 / 60, still, false, 720, landing);
+      for (let i = 0; i < seconds * 60; i++) o.step(1 / 60, still, 720, landing);
     };
     run(1, true);
     expect(o.view.yaw).toBeCloseTo(CHASE.landing.yaw);
@@ -92,17 +83,17 @@ describe('takaa-näkymän kamera', () => {
 
   it("pelaajan oma kääntö voittaa noston liu'un (#707)", () => {
     const o = new ChaseOrbit();
-    for (let i = 0; i < 60; i++) o.step(1 / 60, still, false, 720, true);
+    for (let i = 0; i < 60; i++) o.step(1 / 60, still, 720, true);
     const before = o.view;
     // Kääntö ei hyppäytä kuvaa: liuku jää pelaajan kulmaksi.
-    o.step(1 / 60, { turn: -1, tilt: 0, drag: null }, false, 720, true);
+    o.step(1 / 60, { turn: -1, tilt: 0, drag: null }, 720, true);
     expect(o.view.yaw).toBeCloseTo(before.yaw - CHASE.turnRate / 60);
     const own = o.view.yaw;
     // Kamera ei enää liiku itsestään tämän noston aikana eikä sen jälkeen.
-    for (let i = 0; i < 300; i++) o.step(1 / 60, still, false, 720, i < 60);
+    for (let i = 0; i < 300; i++) o.step(1 / 60, still, 720, i < 60);
     expect(o.view.yaw).toBeCloseTo(own);
     // Seuraava nosto liukuu taas.
-    for (let i = 0; i < 60; i++) o.step(1 / 60, still, false, 720, true);
+    for (let i = 0; i < 60; i++) o.step(1 / 60, still, 720, true);
     expect(o.view.yaw).toBeCloseTo(own + CHASE.landing.yaw);
   });
 });
