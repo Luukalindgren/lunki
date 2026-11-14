@@ -651,6 +651,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
         c.cameraInput(),
         c.isDown('forward') || c.isDown('back') || c.isDown('left') || c.isDown('right'),
         window.innerHeight,
+        this.fishing.landing !== null,
       );
     if (this.spectating && c.wasPressed('director'))
       this.hud.showMessage(
@@ -1318,6 +1319,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       // Takaa (#691): kamera kiertää kalastajaa, joka piirretään samoilla
       // malleilla kuin ylhäältä. Aalto nostaa kohdetta, ei kallista kuvaa.
       const at = bailing?.pos ?? body;
+      const orbit = this.chase.view;
       const height = air
         ? air.height
         : standing
@@ -1326,8 +1328,8 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       this.pov.applyOrbit(
         at,
         height + CHASE.lookHeight,
-        (bailing?.heading ?? heading) + this.chase.yaw,
-        { ...chaseArc(this.chase.tilt), lookAhead: CHASE.lookAhead, clearance: CHASE.clearance },
+        (bailing?.heading ?? heading) + orbit.yaw,
+        { ...chaseArc(orbit.tilt), lookAhead: CHASE.lookAhead, clearance: CHASE.clearance },
         groundAt,
       );
       this.weather.follow(this.pov.camera.position);

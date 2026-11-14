@@ -70,4 +70,39 @@ describe('takaa-näkymän kamera', () => {
     o.step(1 / 60, { turn: 0, tilt: 0, drag: { dx: 0, dy: 0 } }, true, 720);
     expect(o.yaw).toBe(1.2);
   });
+
+  it('noston ajaksi kamera liukuu sivulle ja palaa sen jälkeen (#707)', () => {
+    const o = new ChaseOrbit();
+    const tilt = o.tilt;
+    const run = (seconds: number, landing: boolean) => {
+      for (let i = 0; i < seconds * 60; i++) o.step(1 / 60, still, false, 720, landing);
+    };
+    run(1, true);
+    expect(o.view.yaw).toBeCloseTo(CHASE.landing.yaw);
+    expect(o.view.tilt).toBeCloseTo(tilt + CHASE.landing.tilt);
+    // Pelaajan oma kulma ei muutu: liuku on sen päällä.
+    expect(o.yaw).toBe(0);
+    // Noston ajan kamera viipyy sivulla.
+    run(CHASE.landing.linger - 0.5, false);
+    expect(o.view.yaw).toBeCloseTo(CHASE.landing.yaw);
+    run(1.5, false);
+    expect(o.view.yaw).toBeCloseTo(0);
+    expect(o.view.tilt).toBeCloseTo(tilt);
+  });
+
+  it("pelaajan oma kääntö voittaa noston liu'un (#707)", () => {
+    const o = new ChaseOrbit();
+    for (let i = 0; i < 60; i++) o.step(1 / 60, still, false, 720, true);
+    const before = o.view;
+    // Kääntö ei hyppäytä kuvaa: liuku jää pelaajan kulmaksi.
+    o.step(1 / 60, { turn: -1, tilt: 0, drag: null }, false, 720, true);
+    expect(o.view.yaw).toBeCloseTo(before.yaw - CHASE.turnRate / 60);
+    const own = o.view.yaw;
+    // Kamera ei enää liiku itsestään tämän noston aikana eikä sen jälkeen.
+    for (let i = 0; i < 300; i++) o.step(1 / 60, still, false, 720, i < 60);
+    expect(o.view.yaw).toBeCloseTo(own);
+    // Seuraava nosto liukuu taas.
+    for (let i = 0; i < 60; i++) o.step(1 / 60, still, false, 720, true);
+    expect(o.view.yaw).toBeCloseTo(own + CHASE.landing.yaw);
+  });
 });
