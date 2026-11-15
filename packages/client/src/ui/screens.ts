@@ -144,7 +144,7 @@ import {
   type TackleBox,
 } from '../game/tackleBox';
 import { baitSummary, loadJournal, type BaitSummary } from '../game/journal';
-import { lineNodes, type Line } from './columns';
+import { lineNodes, type AlignedLine, type Line } from './columns';
 import { SOLO_BOT_COUNTS, isSoloBotCount } from '../game/soloBots';
 import { COMPACT_RESULTS_OVER, resultRowName, resultsText, rulesLine } from './resultsText';
 import {
@@ -2261,6 +2261,33 @@ export class Screens {
     // Botin (#624) ja lähteneen merkintä on rivin lopussa, ettei se katkea nimen lyhennykseen.
     const nameWidth = Math.max(...results.map((r) => shortName(resultRowName(r).name).length));
     table.classList.toggle('compact', compact);
+    // Otsikkorivi (#734): rivit ovat pelkkiä nimiä ja lukuja, ja sarakkeiden
+    // leveydet ovat samat otsikossa ja riveillä.
+    const heads = [
+      t('results.colName'),
+      t('results.colCount'),
+      t('results.colTotal'),
+      t('results.colBiggest'),
+    ] as const;
+    const widths = [
+      Math.max(nameWidth, heads[0].length),
+      Math.max(2, heads[1].length),
+      Math.max(8, heads[2].length),
+      Math.max(8, heads[3].length),
+    ] as const;
+    const cells = (name: string, count: string, total: string, biggest: string): Line => {
+      const columns = [
+        { text: name.padEnd(widths[0]) },
+        { text: count.padStart(widths[1]), right: true },
+        { text: total.padStart(widths[2]), right: true },
+        { text: biggest.padStart(widths[3]), right: true },
+      ];
+      return { text: columns.map((c) => c.text).join('  '), columns };
+    };
+    const head = h('li', '', 'results-head');
+    head.setAttribute('aria-hidden', 'true');
+    head.append(resultRow(cells(...heads), null));
+    table.appendChild(head);
     for (const r of results) {
       const li = document.createElement('li');
       li.value = r.rank;
@@ -2269,22 +2296,19 @@ export class Screens {
       li.classList.toggle('unranked', rankLabel(r) === '–');
       const biggest = r.summary.biggest ? formatWeight(r.summary.biggest.weight) : '–';
       const { name, tags } = resultRowName(r);
-      // Nimi, määrä ja paino ovat sarakkeita: kohdakkain myös Modernin fontilla (#730).
-      const columns = [
-        { text: shortName(name).padEnd(nameWidth) },
-        { text: String(r.summary.count).padStart(2), right: true },
-        { text: formatWeight(r.summary.total).padStart(8), right: true },
-      ];
-      const text =
-        t('results.row', {
-          name: columns[0]!.text,
-          count: columns[1]!.text,
-          total: columns[2]!.text,
-          biggest,
-        }) + tags.map((tag) => ` · ${tag}`).join('');
+      // Nimi ja luvut ovat sarakkeita: kohdakkain myös Modernin fontilla (#730).
+      const cols = cells(
+        shortName(name),
+        String(r.summary.count),
+        formatWeight(r.summary.total),
+        biggest,
+      ) as AlignedLine;
+      const line = {
+        text: cols.text + tags.map((tag) => ` · ${tag}`).join(''),
+        columns: cols.columns,
+      };
       const gear = tackles?.get(r.id);
       const big = r.summary.biggest;
-      const line = { text, columns };
       const row = resultRow(line, big ? sizedFish(big.species, big.weight) : null, {
         name,
         total: formatWeight(r.summary.total),

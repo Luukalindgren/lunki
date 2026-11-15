@@ -1271,8 +1271,31 @@ textarea,
 /* Iso porukka (#507): ilman varusteita ja pienin kalakuvin koko lista näkyy. */
 .catch-list.results.compact {
   --fish-px: 1px;
+  --list-pad: 44px;
   max-height: 60vh;
-  padding-left: 44px;
+}
+
+/*
+ * Tulokset taulukkona (#734): otsikkorivi sarakkeiden päällä ja joka toinen
+ * rivi tummempi, jotta silmä pysyy rivillä nimestä kalan kuvaan asti. Raita
+ * yltää myös sijanumeron alle (varjo listan sisennyksen levyisenä).
+ */
+.catch-list.results {
+  --list-pad: 32px;
+  padding-left: var(--list-pad);
+}
+
+.catch-list.results li.results-head {
+  list-style: none;
+  color: var(--c-text-dim);
+  border-bottom: 2px solid var(--c-line);
+  margin: 0 0 2px calc(var(--list-pad) * -1);
+  padding-left: var(--list-pad);
+}
+
+.catch-list.results li:nth-child(odd):not(.results-head) {
+  background: var(--c-well);
+  box-shadow: calc(var(--list-pad) * -1) 0 0 var(--c-well);
 }
 
 .results-copy-row {
@@ -1957,6 +1980,11 @@ textarea,
   }
 
   .result-row.has-narrow .result-text {
+    display: none;
+  }
+
+  /* Kahden rivin asettelussa ei ole sarakkeita, joten otsikkoa ei näytetä. */
+  .catch-list.results li.results-head {
     display: none;
   }
 

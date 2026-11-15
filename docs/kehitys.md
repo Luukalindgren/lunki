@@ -417,7 +417,9 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
   osineen (`AlignedLine`), ja `lineNodes` käärii osat `.col`-sarakkeiksi, joiden
   leveys on osan pituus merkkeinä. Näin tehdään HUDin tulostaulu
   (`scoreboardRows`) ja tulossivun rivit; uusi tasattu lista tekee samoin eikä
-  luota fontin leveyteen.
+  luota fontin leveyteen. Tulossivun lista on taulukko (#734): otsikkorivi
+  (`results-head`) tehdään samoista sarakkeista kuin rivit, ja joka toinen
+  rivi on tummempi (`--c-well`).
 - **HUDin pienet näytöt** (kaikuluotain, vieheluotain, perhoheiton sivukuva)
   ottavat piirtopintansa `panelContext`illa (`ui/sonarArt.ts`): mitat ovat
   aina sisäisiä pikseleitä, ja Terävällä kankaassa on neljä kuvapistettä
