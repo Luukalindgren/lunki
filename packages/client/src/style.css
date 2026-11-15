@@ -1226,7 +1226,8 @@ textarea,
   align-items: center;
   column-gap: 12px;
   width: 100%;
-  vertical-align: middle;
+  /* Rivin teksti samalle viivalle listan sijanumeron kanssa (#741). */
+  vertical-align: baseline;
 }
 
 .result-row .result-text {
