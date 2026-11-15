@@ -33,10 +33,19 @@ export function scoreboardRows(
   rows = SCOREBOARD_TOP,
 ): ScoreRow[] {
   const top = results.slice(0, rows);
-  const row = (r: PlayerResult, me: boolean): ScoreRow => ({ id: r.id, ...scoreLine(r, me) });
-  const lines = top.map((r) => row(r, isMine(r, myId)));
   const me = results.find((r) => isMine(r, myId));
-  if (me && !top.includes(me)) lines.push({ id: null, text: '…', columns: [] }, row(me, true));
+  const below = me && !top.includes(me) ? me : null;
+  // Sijasarake on levein näkyvän sijan levyinen: "10." on merkin pidempi kuin "9." (#739).
+  const shown = below ? [...top, below] : top;
+  const rankWidth = Math.max(RANK_WIDTH, ...shown.map((r) => rankLabel(r).length));
+  // Samoin paino: "12,50 kg" on merkin pidempi kuin "9,50 kg".
+  const scoreWidth = Math.max(SCORE_WIDTH, ...shown.map((r) => scoreText(r).length));
+  const row = (r: PlayerResult, mine: boolean): ScoreRow => ({
+    id: r.id,
+    ...scoreLine(r, mine, rankWidth, scoreWidth),
+  });
+  const lines = top.map((r) => row(r, isMine(r, myId)));
+  if (below) lines.push({ id: null, text: '…', columns: [] }, row(below, true));
   return lines;
 }
 
@@ -86,17 +95,35 @@ export const isMine = (r: PlayerResult, myId: string) =>
 
 /** Nimen leveys tulostaulussa (merkkiä). */
 const NAME_WIDTH = 10;
+/** Sijan leveys vähintään (merkkiä): "1." tai viiva. */
+const RANK_WIDTH = 2;
+/** Painon leveys vähintään (merkkiä): "9,50 kg". */
+const SCORE_WIDTH = 7;
+
+const scoreText = (r: PlayerResult): string => formatWeight(r.summary.score);
 
 /**
  * Tulostaulun rivi. Ennen ensimmäistä kalaa sija on viiva kuten taukovalikossa
  * (#488, #517): nollien tasapeli ei ole johto. Lähteneen nimen perään tulee
- * lyhyt merkki ×, joka jää näkyviin, vaikka nimi katkeaa.
+ * lyhyt merkki ×, joka jää näkyviin, vaikka nimi katkeaa. Oman rivin merkki ja
+ * sija ovat omat sarakkeensa, ja sija tasataan oikealle: kymmenennestä sijasta
+ * alkaen numerot ovat pisteen kohdalta allekkain eikä rivi siirry (#739).
+ * Leveydet ovat taulun leveimmän sijan ja painon mukaan.
  */
-function scoreLine(r: PlayerResult, me: boolean): AlignedLine {
-  const rank = { text: `${me ? '>' : ' '}${rankLabel(r).padEnd(2)}` };
+function scoreLine(
+  r: PlayerResult,
+  me: boolean,
+  rankWidth: number,
+  scoreWidth: number,
+): AlignedLine {
+  const mark = { text: me ? '>' : ' ' };
+  const rank = { text: rankLabel(r).padEnd(RANK_WIDTH).padStart(rankWidth), right: true };
   const name = { text: nameField(r) };
-  const score = { text: formatWeight(r.summary.score).padStart(7), right: true };
-  return { text: `${rank.text} ${name.text} ${score.text}`, columns: [rank, name, score] };
+  const score = { text: scoreText(r).padStart(scoreWidth), right: true };
+  return {
+    text: `${mark.text}${rank.text} ${name.text} ${score.text}`,
+    columns: [mark, rank, name, score],
+  };
 }
 
 /**
