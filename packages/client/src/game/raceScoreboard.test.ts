@@ -84,4 +84,10 @@ describe('saaliin saaneen rivin korostus (#635)', () => {
     const rows = scoreboardRows(rankPlayers(nobody(7), 'total'), 'p6');
     expect(rows.map((r) => r.id)).toEqual(['p0', 'p1', 'p2', 'p3', 'p4', null, 'p6']);
   });
+
+  it('koko taulussa ovat kaikki ilman väliviivaa (#735)', () => {
+    const rows = scoreboardRows(rankPlayers(nobody(12), 'total'), 'p6', Infinity);
+    expect(rows).toHaveLength(12);
+    expect(rows.every((r) => r.id !== null)).toBe(true);
+  });
 });

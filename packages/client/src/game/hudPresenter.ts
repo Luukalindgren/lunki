@@ -29,12 +29,12 @@ import type { NetWorld } from '../net/netWorld';
 import type { Hud, SituationBar } from '../ui/hud';
 import { decimal, formatWeight, t, type MsgKey } from '../i18n';
 import { describeTackle, speciesName } from '../i18n/names';
-import { controlText, type Action } from './controls';
+import { bindingText, controlText, type Action } from './controls';
 import type { Guide } from './guide';
 import type { Penalties } from './penalties';
 import type { Shot } from './director';
 import { raceEndCue } from './raceEnd';
-import { CatchFlashes, scoreboardRows, type ScoreRow } from './raceScoreboard';
+import { CatchFlashes, SCOREBOARD_TOP, scoreboardRows, type ScoreRow } from './raceScoreboard';
 
 /** Katsojan tulostaulussa rivejä: LAN-kisan kaikki kalastajat (#564). */
 const SPECTATOR_ROWS = 12;
@@ -92,6 +92,7 @@ const FLY_WATER_HINT = 12;
 
 export class HudPresenter {
   private raceHudTimer = 0;
+  private fullScoreboard = false;
   private readonly catchFlashes = new CatchFlashes();
   /** Edellisen askeleen jäljellä oleva aika kisan lopun merkkeihin (#566). */
   private prevLeft: number | null = null;
@@ -341,10 +342,24 @@ export class HudPresenter {
     this.setScoreboard(
       standings,
       followed === undefined
-        ? scoreboardRows(standings, w.myId)
-        : scoreboardRows(standings, followed ?? '', SPECTATOR_ROWS),
+        ? scoreboardRows(standings, w.myId, this.scoreRows())
+        : scoreboardRows(standings, followed ?? '', this.scoreRows(SPECTATOR_ROWS)),
       w.myId,
     );
+  }
+
+  /**
+   * Koko tulostaulu näkyy niin kauan kuin toiminto `scoreboard` on pohjassa
+   * (#735). Taulu päivittyy heti, kun nappi painetaan tai päästetään.
+   */
+  setFullScoreboard(held: boolean): void {
+    if (this.fullScoreboard === held) return;
+    this.fullScoreboard = held;
+    this.raceHudTimer = 0;
+  }
+
+  private scoreRows(rows = SCOREBOARD_TOP): number {
+    return this.fullScoreboard ? Infinity : rows;
   }
 
   /** Tulostaulu HUDiin; juuri kalan saaneen rivi korostuu ja näyttää saaliin (#635). */
@@ -366,13 +381,17 @@ export class HudPresenter {
           }),
         );
     });
-    this.host.hud.setCatches([t('game.scoreboard'), ...rows], notes);
+    // Kun kaikki eivät mahdu tauluun, otsikko kertoo napin, jolla loput näkee.
+    const shown = rows.filter((row) => row.id !== null).length;
+    const key = shown < standings.length ? bindingText('scoreboard') : null;
+    const title = key ? t('game.scoreboardMore', { key }) : t('game.scoreboard');
+    this.host.hud.setCatches([title, ...rows], notes);
   }
 
   /** Yksinpelin tulostaulu, kun järvellä on botteja (#624). */
   showScoreboard(standings: readonly PlayerResult[], myId: string): void {
     if ((this.raceHudTimer = (this.raceHudTimer + 1) % 15) !== 1) return;
-    this.setScoreboard(standings, scoreboardRows(standings, myId), myId);
+    this.setScoreboard(standings, scoreboardRows(standings, myId, this.scoreRows()), myId);
   }
 
   /** Yksinpelin saalislista: määrä ja paino sekä viisi viimeisintä. */
