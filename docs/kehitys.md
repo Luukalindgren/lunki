@@ -143,6 +143,11 @@ Koodi: `packages/client/src/game/controls.ts`.
     (`setSightLine`), ja kasvien pinta saa väistön `clearSightLine`-kutsulla.
     Uusi kuvan peittävä maiseman osa (`InstancedMesh`) tekee samoin eikä siirrä
     kameraa.
+- Koko tulostaulu (#735): HUDin taulussa on kärki ja oma rivi, ja toiminto
+  `scoreboard` (Tab, peliohjaimella LT/L2 + View/Share) näyttää kaikki rivit
+  niin kauan kuin se on pohjassa (`HudPresenter.setFullScoreboard`). Taulun
+  otsikko kertoo napin, kun kaikki eivät mahdu. Kosketuksella koko taulu on
+  taukovalikossa.
 - Peliohjaimen asetukset (#594, `engine/padSettings.ts`): kääntymisen
   herkkyys (`TurnPulse` jättää osan askelista väliin, koska käännös kulkee
   palvelimelle arvoina -1, 0 ja 1), perhoheiton tatti käänteisenä

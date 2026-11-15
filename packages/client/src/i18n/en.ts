@@ -817,8 +817,9 @@ export const en: Record<keyof typeof fi, string> = {
   'help.camera': '{camera} = turn the camera: sideways orbits, up and down raise and lower it',
   'help.bar':
     '{view} = view · {emote} = hand signs · {zoom} = zoom · {help} = help · {pause} = pause',
-  'help.chat': '{chat} = message the others',
-  'help.chatCrew': '{chat} = message the others · {seat} = swap seats',
+  'help.chat': '{chat} = message the others · {scoreboard} = full scoreboard',
+  'help.chatCrew':
+    '{chat} = message the others · {seat} = swap seats · {scoreboard} = full scoreboard',
   'help.spectate': '{spectate} = next angler · {director} = director on/off',
   'help.spectateBar': '{view} = switch view · {zoom} = zoom · {help} = help · {pause} = pause',
   'help.tangle': 'When tangled, reel together · {cut} = cut the line',
@@ -1181,6 +1182,7 @@ export const en: Record<keyof typeof fi, string> = {
   'game.lastMinute': 'Last minute!',
   'game.go': 'Start fishing!',
   'game.scoreboard': 'Scoreboard',
+  'game.scoreboardMore': 'Scoreboard · {key} = all',
   'game.scoreCatch': '+{weight} {species}',
   'weather.change': 'The weather turns: {sky}',
   'wind.0': 'east wind',
@@ -1317,7 +1319,7 @@ export const en: Record<keyof typeof fi, string> = {
     'Multiplayer needs no account: create a room and share its code or link with friends.\nThe host chooses the competition rules in the lobby, and everyone picks their craft. The host starts the competition. If someone is not ready yet, the host can start anyway and they fish along too.\nYou can join a competition already running if the host allows it, and spectators can follow others.',
   'manual.mp.race': 'Competition',
   'manual.mp.raceText':
-    "Everyone fishes the same lake in the same weather. The winner is decided by the rule the host chose, for example the biggest total catch. On equal scores, whoever reached the score first ranks higher. An angler with no fish yet has a dash for a place, on the results page too. Anglers who leave before the end stay on the scoreboard marked (left), × during the competition, and come last on equal scores. The Copy results button on the results page gives the placings as text, for example for keeping score over several competitions.\nOther anglers' takes and fights can be seen and heard on the lake.",
+    "Everyone fishes the same lake in the same weather. The winner is decided by the rule the host chose, for example the biggest total catch. On equal scores, whoever reached the score first ranks higher. An angler with no fish yet has a dash for a place, on the results page too. During the competition the board shows the leaders and your own row; hold {scoreboard} to see everyone (on touch the full board is in the pause menu). Anglers who leave before the end stay on the scoreboard marked (left), × during the competition, and come last on equal scores. The Copy results button on the results page gives the placings as text, for example for keeping score over several competitions.\nOther anglers' takes and fights can be seen and heard on the lake.",
   'manual.mp.tangle': 'Tangled lines',
   'manual.mp.tangleText':
     'Crossed lines tangle when either angler reels. While tangled, nobody can land a fish.\nReel together to untangle faster, or {cut} = cut your own line.',

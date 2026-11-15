@@ -234,6 +234,12 @@ export const CONTROLS = {
     pad: ['Pad11'],
     padWith: PAD_ZOOM,
   },
+  /**
+   * Koko tulostaulu HUDiin niin kauan kuin nappi on pohjassa (#735);
+   * peliohjaimella vasen liipaisin pohjassa ja View/Share. Kosketuksella koko
+   * taulu on taukovalikossa.
+   */
+  scoreboard: { keys: ['Tab'], pad: ['Pad8'], padWith: PAD_ZOOM },
   pause: { keys: ['Escape'], touch: 'II', title: 'touch.pauseTitle', pad: ['Pad9'] },
   /** Taukovalikossa Backspace tai B/○ jatkaa peliä (muissa valikoissa se palaa takaisin). */
   resume: { keys: ['Backspace'], pad: ['Pad1'] },

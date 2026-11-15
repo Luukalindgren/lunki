@@ -820,8 +820,9 @@ export const fi = {
   'help.camera': '{camera} = käännä kameraa: sivulle kiertää, ylös ja alas nostaa ja laskee',
   'help.bar':
     '{view} = näkymä · {emote} = käsimerkit · {zoom} = zoom · {help} = ohje · {pause} = tauko',
-  'help.chat': '{chat} = viesti muille',
-  'help.chatCrew': '{chat} = viesti muille · {seat} = vaihda paikkaa',
+  'help.chat': '{chat} = viesti muille · {scoreboard} = koko tulostaulu',
+  'help.chatCrew':
+    '{chat} = viesti muille · {seat} = vaihda paikkaa · {scoreboard} = koko tulostaulu',
   'help.spectate': '{spectate} = seuraava kalastaja · {director} = ohjaaja päälle/pois',
   'help.spectateBar': '{view} = vaihda näkymä · {zoom} = zoom · {help} = ohje · {pause} = tauko',
   'help.tangle': 'Sotkussa kelatkaa yhdessä · {cut} = katkaise siima',
@@ -1184,6 +1185,7 @@ export const fi = {
   'game.lastMinute': 'Viimeinen minuutti!',
   'game.go': 'Kalastamaan!',
   'game.scoreboard': 'Tulostaulu',
+  'game.scoreboardMore': 'Tulostaulu · {key} = kaikki',
   'game.scoreCatch': '+{weight} {species}',
   'weather.change': 'Sää muuttuu: {sky}',
   'wind.0': 'itätuuli',
@@ -1320,7 +1322,7 @@ export const fi = {
     'Moninpeli ei vaadi kirjautumista: luo huone ja jaa sen koodi tai linkki kavereille.\nIsäntä valitsee aulassa kisan säännöt, ja jokainen valitsee kulkupelinsä. Kisa alkaa isännän Aloita-napista. Jos joku ei ole vielä valmis, isäntä voi aloittaa silti, ja hänkin kalastaa mukana.\nKesken kisan voi liittyä, jos isäntä sallii, ja katsojana voi seurata muita.',
   'manual.mp.race': 'Kisa',
   'manual.mp.raceText':
-    'Kaikki kalastavat samalla järvellä samassa säässä. Voittaja ratkeaa isännän valitseman säännön mukaan, esimerkiksi suurin kokonaissaalis. Tasapisteissä edellä on se, joka saavutti tuloksensa ensin. Kalastajalla, jolla ei ole vielä kalaa, on sijan paikalla viiva, myös tulossivulla. Kesken kisan lähteneet jäävät tulostauluun merkinnällä (lähti), kisan aikana ×, ja tasapisteissä viimeisiksi. Tulossivun Kopioi tulokset -nappi antaa sijoitukset tekstinä esimerkiksi usean kisan kirjanpitoon.\nMuiden kalastajien tärpit ja väsytykset näkyvät ja kuuluvat järvellä.',
+    'Kaikki kalastavat samalla järvellä samassa säässä. Voittaja ratkeaa isännän valitseman säännön mukaan, esimerkiksi suurin kokonaissaalis. Tasapisteissä edellä on se, joka saavutti tuloksensa ensin. Kalastajalla, jolla ei ole vielä kalaa, on sijan paikalla viiva, myös tulossivulla. Kisan aikana taulussa näkyy kärki ja oma rivi; {scoreboard} pohjassa näyttää kaikki (kosketuksella koko taulu on taukovalikossa). Kesken kisan lähteneet jäävät tulostauluun merkinnällä (lähti), kisan aikana ×, ja tasapisteissä viimeisiksi. Tulossivun Kopioi tulokset -nappi antaa sijoitukset tekstinä esimerkiksi usean kisan kirjanpitoon.\nMuiden kalastajien tärpit ja väsytykset näkyvät ja kuuluvat järvellä.',
   'manual.mp.tangle': 'Siimojen sotku',
   'manual.mp.tangleText':
     'Ristiin menneet siimat sotkeutuvat, kun jompikumpi kelaa. Sotkussa kalaa ei voi nostaa.\nKelatkaa yhdessä, niin sotku selviää nopeammin, tai {cut} = katkaise oma siimasi.',

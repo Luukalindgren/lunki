@@ -249,7 +249,13 @@ export class Input {
     if (this.menuOpen() && !e.code.startsWith('F')) {
       if (!MENU_PASS.has(e.code) || this.menuBack()) return;
     }
-    if (e.code.startsWith('Arrow') || e.code === 'Space' || e.code.startsWith('F')) {
+    // Sarkain on pelissä toiminto (koko tulostaulu), ei kohdistuksen siirto.
+    if (
+      e.code.startsWith('Arrow') ||
+      e.code === 'Space' ||
+      e.code === 'Tab' ||
+      e.code.startsWith('F')
+    ) {
       if (e.code !== 'F5' && e.code !== 'F11' && e.code !== 'F12') e.preventDefault();
     }
     this.press(e.code);
