@@ -1,5 +1,6 @@
 import { rankPlayers } from '@lunki/shared';
 import { describe, expect, it } from 'vitest';
+import { lineParts } from '../ui/columns';
 import {
   CATCH_FLASH_SECONDS,
   CatchFlashes,
@@ -45,6 +46,57 @@ describe('kisan tulostaulu', () => {
     ];
     const lines = scoreboardLines(rankPlayers(players, 'total'), 'b');
     expect(lines.map((l) => l.slice(4, 14))).toEqual(['Bertta    ', 'Cecilia   ', 'Aapo-Vi… ×']);
+  });
+});
+
+describe('tulostaulun sijasarake (#739)', () => {
+  const fish = (weight: number) => ({ species: 'perch' as const, name: 'Ahven', weight, time: 30 });
+  const anglers = (n: number) =>
+    rankPlayers(
+      nobody(n).map((p, i) => ({ ...p, catches: i < n - 1 ? [fish(n - i)] : [] })),
+      'total',
+    );
+
+  it('sijasta 10 alkaen rivit ovat yhtä pitkiä ja nimet samassa sarakkeessa', () => {
+    const lines = scoreboardLines(anglers(12), 'p10', Infinity);
+    expect(lines).toHaveLength(12);
+    expect(new Set(lines.map((l) => l.length)).size).toBe(1);
+    expect(lines[0]).toMatch(/^ {2}1\. P0 /);
+    expect(lines[8]).toMatch(/^ {2}9\. P8 /);
+    expect(lines[9]).toMatch(/^ 10\. P9 /);
+    expect(lines[10]).toMatch(/^>11\. P10 /);
+    // Saaliittoman viiva on ykkösten kohdalla.
+    expect(lines[11]).toMatch(/^ {2}– {2}P11 /);
+  });
+
+  it('sarake levenee vain, kun kaksinumeroinen sija on näkyvissä', () => {
+    // Kärki ja oma rivi sijalla 11: leveä sarake.
+    const mine = scoreboardLines(anglers(12), 'p10');
+    expect(mine[0]).toMatch(/^ {2}1\. P0 /);
+    expect(mine[6]).toMatch(/^>11\. P10 /);
+    // Pelkkä kärki: kaksi merkkiä kuten ennenkin.
+    const top = scoreboardLines(anglers(12), 'p0');
+    expect(top[0]).toMatch(/^>1\. P0 /);
+  });
+
+  it('oman rivin merkki ja sija ovat omat sarakkeensa, sija oikealle tasattuna', () => {
+    const row = scoreboardRows(anglers(12), 'p9', Infinity)[9]!;
+    expect(row.columns.slice(0, 2)).toEqual([{ text: '>' }, { text: '10.', right: true }]);
+    expect(
+      lineParts(row)
+        .map((p) => p.text)
+        .join(''),
+    ).toBe(row.text);
+  });
+
+  it('yli kymmenen kilon paino ei työnnä riviä muita pidemmäksi', () => {
+    const lines = scoreboardLines(anglers(12), 'p0', Infinity);
+    expect(lines[0]).toMatch(/ 12,00 kg$/);
+    expect(lines[3]).toMatch(/ {2}9,00 kg$/);
+    expect(lines[11]).toMatch(/ {5}0 g$/);
+    // Alle kymmenen kilon taulu on entisen levyinen.
+    const small = scoreboardLines(anglers(5), 'p0');
+    expect(small[0]).toBe('>1. P0         5,00 kg');
   });
 });
 
