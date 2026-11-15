@@ -350,8 +350,9 @@ test('yksinpelin botit: tulostaulu kisassa ja tulossivulla (#624)', async ({ pag
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: /^Lopeta/ }).click();
   await expect(page.getByRole('heading', { name: 'Kisa päättyi!' })).toBeVisible();
-  await expect(page.locator('.catch-list.results li')).toHaveCount(4);
+  await expect(page.locator('.catch-list.results li:not(.results-head)')).toHaveCount(4);
   await expect(page.locator('.catch-list.results')).toContainText('botti');
+  await expect(page.locator('.catch-list.results .results-head')).toContainText('Kalastaja');
   errors.check();
 });
 
