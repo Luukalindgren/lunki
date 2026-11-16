@@ -418,7 +418,7 @@ html.look-modern {
   font-weight: 700;
 }
 
-/* Järvikartta: eräkartan lehti kaksoiskehyksessä (värit `ui/mapColors.ts`). */
+/* Järvikartta: kartta kaksoiskehyksessä (värit `ui/mapColors.ts`). */
 .look-modern .lake-map-canvas {
   border: 1px solid var(--ink);
   border-radius: 2px;

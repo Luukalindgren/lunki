@@ -18,6 +18,7 @@ import type { RaceEventKind, RaceMapData } from '../game/raceLog';
 import { bottomFor } from '../world/lakeData';
 import { DEPTH_BANDS, MapViewport, depthBand, scaleBarMeters, type Bounds } from './mapViewport';
 import { uiFont } from './lookArt';
+import { planVegetation } from '../world/vegetation';
 import { mapColors } from './mapColors';
 import { navCode } from './menuNav';
 import { decimal, hasKey, t } from '../i18n';
@@ -25,6 +26,8 @@ import { decimal, hasKey, t } from '../i18n';
 /** Pohjakuvan tarkkuus (m pikselille) ja maareunus järven ympärillä (m). */
 const RES = 2;
 const MARGIN = 250;
+/** Puun latvuksen säde kartalla suhteessa puun korkeuteen. */
+const CROWN = 0.2;
 /** Näin pieni liike (px) lasketaan napautukseksi eikä vedoksi. */
 const TAP_SLOP = 8;
 /** Napautus osuu merkkiin näin läheltä (px). */
@@ -95,8 +98,8 @@ const FINE = 2;
  * isoja kuten pelissä. Terävällä (#674) sama kuva piirretään kaksinkertaisella
  * tarkkuudella: alueiden reunat ovat sileitä, syvyysvyöhykkeistä tehdään sileä
  * versio (`smoothPixels`) ja kartta suurennetaan pehmeästi. Värit tulevat
- * ilmeen mukaan (`mapColors`): Modernissa kartta on eräkartta, jossa
- * syvyyskäyrät ja rantaviiva ovat musteviivoja.
+ * ilmeen mukaan (`mapColors`): Modernissa kartta on järvi kuten kisassa
+ * ylhäältä, ja rannan puut piirretään latvuksina.
  */
 function buildBase(d: LakeData, s: LakeSurroundings): BaseImage {
   const look = activeLook();
@@ -201,6 +204,19 @@ function buildBase(d: LakeData, s: LakeSurroundings): BaseImage {
   for (const island of d.map.islands) {
     ringPath([island]);
     ctx.fill();
+  }
+  // Rannan puut latvuksina samoilla paikoilla kuin järvellä.
+  if (c.trees) {
+    for (const plant of planVegetation(d.map, s)) {
+      if (plant.kind === 'reeds') continue;
+      const [x, y] = px(plant.pos);
+      ctx.fillStyle = c.trees[plant.kind];
+      ctx.globalAlpha = Math.min(1, plant.shade);
+      ctx.beginPath();
+      ctx.arc(x, y, (plant.height * CROWN) / RES, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
   }
   // Kaislikko pisteityksenä: syvyysväri näkyy pisteiden välistä.
   for (const bed of d.map.reeds ?? []) {
@@ -707,7 +723,7 @@ export class LakeMapView {
       const r = selected ? 7 : 5;
       const c = mapColors();
       if (c.roundPins) {
-        // Eräkartalla merkit ovat nuppineuloja.
+        // Modernissa merkit ovat pyöreitä.
         ctx.beginPath();
         ctx.arc(s.x, s.y, r + 1, 0, Math.PI * 2);
         ctx.fillStyle = c.edge;
@@ -747,7 +763,7 @@ export class LakeMapView {
     const c = mapColors();
     ctx.textAlign = align;
     if (c.halo) {
-      // Paperin värinen reunus pitää musteen luettavana veden ja metsän päällä.
+      // Reunus pitää tekstin luettavana veden ja metsän päällä.
       ctx.lineJoin = 'round';
       ctx.lineWidth = 3;
       ctx.strokeStyle = c.backing;
@@ -761,7 +777,7 @@ export class LakeMapView {
     ctx.fillText(text, x, y);
   }
 
-  /** Luotauskohdan merkki: risti, jolla on eräkartalla paperin värinen reunus. */
+  /** Luotauskohdan merkki: risti, jolla on Modernissa reunus. */
   private probeMark(ctx: CanvasRenderingContext2D, s: Vec2): void {
     const c = mapColors();
     if (c.halo) {
