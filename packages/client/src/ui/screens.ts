@@ -2509,6 +2509,7 @@ export class Screens {
       this.resultsView,
       (v) => setView(v as ResultsView),
     );
+    toggle.classList.add('results-view');
     return [toggle, content];
   }
 
