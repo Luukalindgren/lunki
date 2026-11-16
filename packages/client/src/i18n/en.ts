@@ -1183,6 +1183,8 @@ export const en: Record<keyof typeof fi, string> = {
   'game.go': 'Start fishing!',
   'game.scoreboard': 'Scoreboard',
   'game.scoreboardMore': 'Scoreboard · {key} = all',
+  'game.scoreboardCount': 'fish',
+  'game.scoreboardWeight': 'weight',
   'game.scoreCatch': '+{weight} {species}',
   'weather.change': 'The weather turns: {sky}',
   'wind.0': 'east wind',

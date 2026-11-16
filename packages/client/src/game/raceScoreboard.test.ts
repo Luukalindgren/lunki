@@ -4,6 +4,7 @@ import { lineParts } from '../ui/columns';
 import {
   CATCH_FLASH_SECONDS,
   CatchFlashes,
+  scoreboardHead,
   scoreboardLines,
   scoreboardRows,
 } from './raceScoreboard';
@@ -97,6 +98,41 @@ describe('tulostaulun sijasarake (#739)', () => {
     // Alle kymmenen kilon taulu on entisen levyinen.
     const small = scoreboardLines(anglers(5), 'p0');
     expect(small[0]).toBe('>1. P0         5,00 kg');
+  });
+});
+
+describe('koko tulostaulu (#743)', () => {
+  const fish = (weight: number) => ({ species: 'perch' as const, name: 'Ahven', weight, time: 30 });
+  const players = rankPlayers(
+    [
+      { id: 'a', name: 'Muikku-Mauri', catches: [fish(2), fish(1)] },
+      { id: 'b', name: 'Bo', catches: [fish(1.5)] },
+      { id: 'c', name: 'Aapo-Ville Virtanen', catches: [] },
+    ],
+    'total',
+  );
+  const labels = { count: 'kalat', score: 'paino' };
+
+  it('nimet ovat kokonaan (enintään 14 merkkiä) ja rivillä on kalojen määrä', () => {
+    const lines = scoreboardLines(players, 'b', Infinity, true);
+    expect(lines[0]).toBe(' 1. Muikku-Mauri       2  3,00 kg');
+    expect(lines[1]).toBe('>2. Bo                 1  1,50 kg');
+    expect(lines[2]).toBe(' –  Aapo-Ville Vi…     0      0 g');
+  });
+
+  it('otsikko on samoissa sarakkeissa kuin rivit', () => {
+    const rows = scoreboardRows(players, 'b', Infinity, true);
+    const head = scoreboardHead('Tulostaulu', rows, labels);
+    expect(typeof head).toBe('object');
+    const text = typeof head === 'string' ? head : head.text;
+    expect(text).toBe('Tulostaulu         kalat    paino');
+    expect(text.length).toBe(rows[0]!.text.length);
+  });
+
+  it('pieni taulu on ennallaan ja sen otsikko on pelkkä teksti', () => {
+    const rows = scoreboardRows(players, 'b');
+    expect(rows[0]!.text).toBe(' 1. Muikku-Ma… 3,00 kg');
+    expect(scoreboardHead('Tulostaulu', rows, labels)).toBe('Tulostaulu');
   });
 });
 
