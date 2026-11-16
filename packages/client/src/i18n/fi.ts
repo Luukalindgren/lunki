@@ -263,6 +263,8 @@ export const fi = {
   'settings.lookModern': 'Kotiteatteri',
   'settings.lookModernHint':
     'Kotiteatteri on tietokoneille tehty ilme: pehmeät muodot, varjot ja oma käyttöliittymän tyyli.',
+  'settings.lookModernTouchHint':
+    'Kokeellinen: Kotiteatteri on tehty tietokoneille, ja puhelimella tai tabletilla se voi olla raskas. Jos peli nykii, valitse Laatu: Matala tai toinen ilme.',
   'settings.lookLoading': 'Ladataan Kotiteatteria…',
   'settings.lookFailed':
     'Kotiteatteri ei latautunut. Tarkista verkkoyhteys ja valitse se uudelleen.',

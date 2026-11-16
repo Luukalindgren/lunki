@@ -218,10 +218,14 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
   (`retro`, `sharp`, `modern`). Pelaajan näkemä teksti käyttää aina
   sanakirjan nimiä (`settings.lookRetro`, `settings.lookSharp`,
   `settings.lookModern`).
-- **Moderni (#650) on tietokoneen ilme:** maailma on tyyliä "Maalattu"
+- **Moderni (#650) on tietokoneelle tehty ilme:** maailma on tyyliä "Maalattu"
   (pehmeät muotoillut pinnat, varjot, sinivihreä vesi) ja käyttöliittymä
-  "mökki ja eräkartta" (valikot tummalla lautaseinällä, kartat ja pikavalikot paperia ja mustetta). Kosketuslaitteella sitä ei tarjota, eikä laatua karsita
-  puhelimen takia. Säännöt, HUDin rakenne ja ohjaus ovat samat kuin muissa
+  "mökki ja eräkartta" (valikot tummalla lautaseinällä, kartat ja pikavalikot paperia ja mustetta). Kosketuslaitteella sen saa valita kokeiluna (Luuka
+  16.11.2026): Asetusten vihje kertoo, että se voi olla raskas
+  (`settings.lookModernTouchHint`), ja laadun oletus on siellä Matala
+  (`TOUCH_QUALITY`). Oletukseksi se ei tule millään laitteella, eikä maisemaa
+  karsita puhelimen takia. Leveämmän fontin takia Modernin valikot ja
+  kosketusnapit tarkistetaan myös puhelimen pysty- ja vaakaruudulla. Säännöt, HUDin rakenne ja ohjaus ovat samat kuin muissa
   ilmeissä.
 - **Modernin koodi, tyylit ja fontit ladataan vasta valittaessa**
   (`ModernHost`, `import('../modern/modernLook')`): kaikki, mitä vain Moderni
@@ -365,8 +369,7 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
   piirretty, joten Retro ei välähdä välissä. Koska näkymä näkyy ennen
   teemaa, `vite.config.ts` upottaa `boot.css`:n index.html:ään: seinän värit,
   laudoitus ja kehys (`--wall-planks`, `--wall-frame`) ovat siinä yhdessä
-  paikassa, ja teema käyttää samoja muuttujia. Muilla ilmeillä ja
-  kosketuslaitteella latausnäkymä on ennallaan.
+  paikassa, ja teema käyttää samoja muuttujia. Muilla ilmeillä latausnäkymä on ennallaan.
 - **Modernin teema** (`modern/theme.css`) vaihtaa käyttöliittymän värit
   `style.css`:n `--c-`-muuttujilla ja kirjasimet luokan `.look-modern` alla.
   Uusi valikon tai HUDin osa käyttää näitä muuttujia eikä kirjoita värejä

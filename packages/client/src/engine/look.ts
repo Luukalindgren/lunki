@@ -4,7 +4,7 @@
  * pehmennettyinä. Laitteen asetus kuten HUDin koko, ei pelaajan profiilissa.
  *
  * Moderni (#650) on tietokoneille tehty oma ilmeensä: sileä maalattu maailma,
- * varjot ja eräkarttateema. Sen koodi ja tyylit ladataan vasta valittaessa
+ * varjot ja oma teema. Kosketuslaitteella se on valittavissa kokeiluna. Sen koodi ja tyylit ladataan vasta valittaessa
  * (`engine/modernHost.ts`, `src/modern/`).
  *
  * Ilme muuttaa vain piirtoa: näkymän rajaus, merkkien koko, HUDin mitta ja
@@ -24,6 +24,12 @@ export const QUALITIES: readonly LookQuality[] = ['low', 'medium', 'high'];
 
 /** Moderni on tehty tietokoneille, joten oletus on paras laatu. */
 export const DEFAULT_QUALITY: LookQuality = 'high';
+
+/**
+ * Kosketuslaitteella Moderni on kokeilu: oletus on kevyin laatu, kunnes
+ * pelaaja valitsee toisen.
+ */
+export const TOUCH_QUALITY: LookQuality = 'low';
 
 export interface QualityLevel {
   /**
@@ -70,12 +76,12 @@ export function lookDetail(
 
 const QUALITY_KEY = 'lunki.look.quality';
 
-export function loadQuality(): LookQuality {
+export function loadQuality(fallback: LookQuality = DEFAULT_QUALITY): LookQuality {
   try {
     const saved = localStorage.getItem(QUALITY_KEY);
-    return QUALITIES.includes(saved as LookQuality) ? (saved as LookQuality) : DEFAULT_QUALITY;
+    return QUALITIES.includes(saved as LookQuality) ? (saved as LookQuality) : fallback;
   } catch {
-    return DEFAULT_QUALITY;
+    return fallback;
   }
 }
 

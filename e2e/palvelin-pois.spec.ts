@@ -211,7 +211,7 @@ test.describe('moderni ilme ei lataudu (#650)', () => {
     page.locator('.choice', { has: page.locator('.choice-label', { hasText: /^Ilme$/ }) });
 
   test('valinta palaa entiseen ilmeeseen ja Asetukset kertoo syyn', async ({ page, isMobile }) => {
-    test.skip(isMobile, 'Modernia ei tarjota kosketuslaitteella');
+    test.skip(isMobile, 'Moderni on kosketuslaitteella kokeilu: sama polku testataan työpöydällä');
     const errors = watchAppErrors(page);
     await page.route(/\/modern\//, (route) => route.abort('connectionrefused'));
     await page.goto('/?view=top');
@@ -228,7 +228,7 @@ test.describe('moderni ilme ei lataudu (#650)', () => {
     page,
     isMobile,
   }) => {
-    test.skip(isMobile, 'Modernia ei tarjota kosketuslaitteella');
+    test.skip(isMobile, 'Moderni on kosketuslaitteella kokeilu: sama polku testataan työpöydällä');
     const errors = watchAppErrors(page);
     // Roikkuva verkko: tiedostot eivät tule koskaan perille.
     await page.route(/\/modern\//, () => undefined);

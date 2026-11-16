@@ -29,6 +29,8 @@ import { FpsMeter } from './engine/fpsMeter';
 import { Input } from './engine/input';
 import {
   loadLook,
+  DEFAULT_QUALITY,
+  TOUCH_QUALITY,
   loadQuality,
   saveLook,
   saveQuality,
@@ -125,12 +127,11 @@ app.appendChild(canvas);
 
 const retro = createRenderer(canvas, app);
 const modern = new ModernHost();
-retro.setQuality(loadQuality());
-// Moderni (#650) on tietokoneen ilme: kosketuslaitteella sitä ei tarjota.
-const modernOffered = !isTouchDevice();
+// Moderni (#650) on tehty tietokoneelle. Kosketuslaitteella sen saa valita
+// kokeeksi, ja laadun oletus on siellä kevyin.
+retro.setQuality(loadQuality(isTouchDevice() ? TOUCH_QUALITY : DEFAULT_QUALITY));
 /** Pelaajan viimeksi valitsema ilme; Moderni tulee käyttöön vasta latauduttuaan. */
 let wantedLook: Look = loadLook();
-if (wantedLook === 'modern' && !modernOffered) wantedLook = 'retro';
 applyLook(wantedLook === 'modern' ? 'retro' : wantedLook);
 const input = new Input(canvas);
 const fps = new FpsMeter(app, import.meta.env.DEV);
@@ -269,7 +270,7 @@ const settingsControls = (reopen: () => void): SettingsControls => ({
   look: {
     current: retro.look,
     onChange: chooseLook,
-    modern: modernOffered,
+    experimental: isTouchDevice(),
     quality: {
       current: retro.quality,
       onChange: (quality) => {

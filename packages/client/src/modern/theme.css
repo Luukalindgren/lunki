@@ -123,6 +123,9 @@ html.look-modern {
 .look-modern .screen-panel h1 {
   font-family: var(--title-font);
   font-weight: 700;
+  /* Otsikkofontti on leveämpi: sama koko kuin latausnäkymässä, jotta nimi
+     mahtuu yhdelle riville pystypuhelimella. */
+  font-size: min(64px, 11vw);
   letter-spacing: 1px;
   color: var(--wall-text);
   text-shadow: none;
@@ -446,4 +449,24 @@ html.look-modern {
 
 .look-modern .race-legend b {
   text-shadow: none;
+}
+
+/*
+ * Kosketuslaite (kokeilu): tekstifontti on pelin fonttia leveämpi, joten
+ * kosketusnappien teksti on pienempää ja mahtuu nappiin (KATKO, VIEHE).
+ */
+.look-modern .touch-controls {
+  font-size: 19px;
+}
+
+/* Puhelin vaakana: taukovalikon otsikko pienenee, jotta kaikki napit mahtuvat ruudulle. */
+@media (max-height: 480px) {
+  .look-modern .screen-panel:has(.pause-menu) h2 {
+    margin-bottom: 4px;
+    font-size: 30px;
+  }
+
+  .look-modern .screen-panel:has(.pause-menu) h2::after {
+    display: none;
+  }
 }

@@ -258,6 +258,8 @@ export const en: Record<keyof typeof fi, string> = {
   'settings.lookModern': 'Home cinema',
   'settings.lookModernHint':
     'Home cinema is a look made for computers: soft shapes, shadows and its own interface style.',
+  'settings.lookModernTouchHint':
+    'Experimental: Home cinema is made for computers and can be heavy on a phone or tablet. If the game stutters, choose Quality: Low or another look.',
   'settings.lookLoading': 'Loading the Home cinema look…',
   'settings.lookFailed':
     'The Home cinema look did not load. Check your connection and select it again.',

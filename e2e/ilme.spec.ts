@@ -63,11 +63,14 @@ test.describe('ilme (#674, #650)', () => {
     });
     const modern = look.getByRole('button', { name: 'Kotiteatteri' });
     if (isMobile) {
-      // Moderni on tietokoneen ilme: kosketuslaitteella sitä ei tarjota.
+      // Kosketuslaitteella Moderni on valittavissa kokeiluna, mutta ei oletuksena.
+      // Sitä ei valita tässä: puhelimen tarkkuudella ohjelmistorenderöinti on liian hidas.
       await page.goto(soloUrl());
       await page.getByRole('button', { name: 'Asetukset' }).click();
       await expect(look.getByRole('button', { name: 'Taulutelkkari' })).toBeVisible();
-      await expect(modern).toHaveCount(0);
+      await expect(modern).toBeVisible();
+      await expect(modern).not.toHaveClass(/selected/);
+      expect(loaded).toEqual([]);
       return;
     }
     // Moderni valitaan kisan taukovalikosta keskellä selkää. Päävalikon taustalla
