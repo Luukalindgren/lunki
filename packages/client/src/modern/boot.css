@@ -1,0 +1,242 @@
+/*
+ * Kotiteatterin (Moderni, #650) lautaseinä ja sivun ensimmäinen latausnäkymä.
+ * Muu teema (theme.css) ladataan vasta ilmeen mukana, mutta latausnäkymä näkyy
+ * ennen pelin koodia: vite.config.ts upottaa siksi tämän tiedoston index.html:ään.
+ * Seinän värit, laudoitus ja kehys ovat täällä yhdessä paikassa, ja theme.css
+ * käyttää samoja muuttujia valikoissa.
+ */
+
+:root {
+  --wood: #6e4c2c;
+  --wood-light: #8a6540;
+  --wood-dark: #3a2614;
+  --wall: #4c3521;
+  --wall-text: #f3ead2;
+  --wall-line: rgb(243 234 210 / 30%);
+  --wall-void: #1c120a;
+  --brass: #f0c36a;
+  /* Pystylaudat: saumat 120 px:n välein ja niiden välissä puun syyt. */
+  --wall-planks:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 117px,
+      rgb(255 255 255 / 5%) 117px 118px,
+      rgb(0 0 0 / 30%) 118px 120px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgb(255 255 255 / 3%) 0 3px,
+      transparent 3px 9px,
+      rgb(0 0 0 / 5%) 9px 11px,
+      transparent 11px 23px
+    ),
+    var(--wall);
+  /* Puukehys paneelin ympärillä ja varjo sen alla. */
+  --wall-frame:
+    0 0 0 1px var(--wood-dark), 0 0 0 3px var(--wood-light), 0 0 0 9px var(--wood),
+    0 0 0 10px var(--wood-dark), 0 26px 60px rgb(0 0 0 / 55%);
+}
+
+/* Fontit haetaan vain, jos latausnäkymä on Kotiteatterin (selain lataa fontin vasta käytettäessä). */
+@font-face {
+  font-family: 'Alegreya Sans';
+  font-weight: 500;
+  font-display: swap;
+  src: url('./fonts/alegreya-sans-500.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Fraunces';
+  font-weight: 700;
+  font-display: swap;
+  src: url('./fonts/fraunces-700.woff2') format('woff2');
+}
+
+/* Muissa ilmeissä kehys ei ole laatikko eikä kohoa näy. */
+.boot-panel {
+  display: contents;
+}
+
+.boot-bobber {
+  display: none;
+}
+
+/*
+ * Kotiteatteri: sama lautaseinä puukehyksessä kuin valikoissa. Tausta on
+ * peittävä, koska näkymä pysyy, kunnes ilme on latautunut ja piirretty.
+ */
+.boot-modern {
+  background: var(--wall-void);
+  font-family: 'Alegreya Sans', 'Segoe UI', sans-serif;
+  font-weight: 500;
+  color: var(--wall-text);
+}
+
+.boot-modern .boot-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 34px 56px 26px;
+  background: var(--wall-planks);
+  border-radius: 3px;
+  box-shadow: var(--wall-frame);
+}
+
+.boot-modern .boot-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 700;
+  font-size: min(64px, 11vw);
+  letter-spacing: 1px;
+  color: var(--wall-text);
+  text-shadow: none;
+}
+
+.boot-modern .loader {
+  gap: 10px;
+  font-family: inherit;
+  color: inherit;
+}
+
+.boot-modern .loader-art {
+  display: none;
+}
+
+.boot-modern .loader-label {
+  font-size: 22px;
+  letter-spacing: 0.3px;
+}
+
+.boot-modern .boot-slow {
+  font-size: 18px;
+  font-style: italic;
+  color: #a8d8d2;
+}
+
+/*
+ * Koho siiman päässä: se keinuu ja nykäisee välillä pinnan alle, ja pinnalla
+ * leviää renkaita. Jokainen liikkuva osa on oma elementtinsä, jota siirretään
+ * vain transformilla ja peittävyydellä: kompositori pyörittää ne silloinkin,
+ * kun pääsäie jäsentää pelin koodia.
+ */
+.boot-modern .boot-bobber {
+  display: block;
+  position: relative;
+  width: 240px;
+  height: 142px;
+  margin-top: -4px;
+}
+
+/* Pinnan yläpuolinen osa: pinnan alle painuva koho leikkautuu pois. */
+.bobber-air {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 128px;
+  overflow: hidden;
+}
+
+.bobber-float {
+  position: absolute;
+  left: 102px;
+  top: -16px;
+  width: 36px;
+  height: 162px;
+  animation: 4.8s ease-in-out infinite bobber-float;
+  will-change: transform;
+}
+
+.bobber-float svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.bobber-water {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 128px;
+  height: 1.5px;
+  background: linear-gradient(90deg, transparent, var(--wall-text) 30% 70%, transparent);
+  opacity: 0.55;
+}
+
+.bobber-ring {
+  position: absolute;
+  left: 93px;
+  top: 122px;
+  width: 54px;
+  height: 13px;
+  box-sizing: border-box;
+  border: 1.5px solid var(--wall-text);
+  border-radius: 50%;
+  opacity: 0;
+  animation: 2.4s linear infinite bobber-ring;
+  will-change: transform, opacity;
+}
+
+.bobber-ring + .bobber-ring {
+  animation-delay: 1.2s;
+}
+
+@keyframes bobber-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  22% {
+    transform: translateY(4px);
+  }
+  44% {
+    transform: translateY(0);
+  }
+  /* Tärppi: kaksi nopeaa nykäisyä pinnan alle. */
+  62% {
+    transform: translateY(2px);
+  }
+  67% {
+    transform: translateY(16px);
+  }
+  73% {
+    transform: translateY(1px);
+  }
+  79% {
+    transform: translateY(12px);
+  }
+  88% {
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes bobber-ring {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.75;
+  }
+  100% {
+    transform: scale(3);
+    opacity: 0;
+  }
+}
+
+@media (max-width: 480px), (max-height: 420px) {
+  .boot-modern .boot-panel {
+    padding: 22px 24px 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bobber-float,
+  .bobber-ring {
+    animation: none;
+  }
+
+  .bobber-ring {
+    opacity: 0.5;
+    transform: scale(1.6);
+  }
+}
