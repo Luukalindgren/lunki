@@ -37,6 +37,20 @@ describe('nostonäkymä', () => {
     expect(lifted.hang).toBe(1);
     view.dispose();
   });
+
+  it('haavissa kala on poikittain kalastajan edessä (#773)', () => {
+    for (const pov of [true, false]) {
+      const view = new LandingView();
+      view.pov = pov;
+      view.start({ by: 'net', at: { x: 3, y: 1 } }, 'pike', 4);
+      view.update(null, false, tip, tube, 0.4);
+      const pose = spriteOf(view).userData.fish as LandedFishPose;
+      expect(pose.hang).toBe(0);
+      // Kuono kalastajasta katsoen vasemmalle, ei menosuuntaan.
+      expect(pose.heading).toBeCloseTo(0.4 + Math.PI / 2, 6);
+      view.dispose();
+    }
+  });
 });
 
 describe('nostetun kalan koko', () => {
