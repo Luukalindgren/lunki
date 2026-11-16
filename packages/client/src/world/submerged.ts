@@ -27,8 +27,15 @@ export const SUBMERGED = {
   /**
    * Vedenalaisten osien keskinäinen järjestys mahtuu näin korkeaan kaistaan
    * (m) `surface`-korkeuden alle: syvin kirjoitetaan kaistan alareunaan.
+   * Kaista ei saa ulottua lähelle pintaa, ettei aallonharja leikkaa osia.
    */
   order: 0.03,
+  /**
+   * Syvyyskierros kirjoitetaan näin paljon (m kaistalla) värin taakse, jotta
+   * osan oma väri läpäisee testin varmasti. Pienempi kuin osien välinen ero
+   * kaistalla (sentti on kaistalla 0,2 mm).
+   */
+  depthGap: 5e-5,
 } as const;
 
 /**
@@ -54,9 +61,8 @@ const f = (n: number) => n.toFixed(3);
  */
 export const SUBMERGED_ORDER = 1;
 
-// `invariant`: väri ja syvyys lasketaan eri ohjelmissa, ja niiden pitää osua samaan syvyyteen.
 const VERTEX_HEAD =
-  'invariant gl_Position;\nuniform float uSubmergedLift;\nvarying float vSubmerged;\nvarying float vSubmergedFar;\n';
+  'uniform float uSubmergedLift;\nvarying float vSubmerged;\nvarying float vSubmergedFar;\n';
 const FRAGMENT_HEAD =
   'uniform float uLookSharp;\nvarying float vSubmerged;\nvarying float vSubmergedFar;\n';
 
@@ -71,14 +77,20 @@ const VERTEX = /* glsl */ `#include <project_vertex>
       float subSurface = uSubmergedLift + ${f(SUBMERGED.surface)};
       vSubmergedFar = isOrthographic ? 0.0 : length(subWorld.xz - cameraPosition.xz);
       if (subWorld.y < subSurface) {
-        // Katseen säde: perspektiivissä kamerasta, kartalla kameran suuntaan.
-        vec3 subRay = isOrthographic
-          ? -vec3(viewMatrix[0][2], viewMatrix[1][2], viewMatrix[2][2])
-          : subWorld.xyz - cameraPosition;
-        if (subRay.y < -1e-4) {
-          float subLevel = subSurface - ${f(SUBMERGED.order)} * clamp(vSubmerged / ${f(SEE_THROUGH_DEPTH)}, 0.0, 1.0);
-          vec3 subAt = subWorld.xyz + subRay * ((subLevel - subWorld.y) / subRay.y);
-          vec4 subClip = projectionMatrix * viewMatrix * vec4(subAt, 1.0);
+        float subDeep = max(vSubmerged, 0.0);
+        float subLevel = subSurface - ${f(SUBMERGED.order)} * min(subDeep / ${f(SEE_THROUGH_DEPTH)}, 1.0);
+        #ifdef SUBMERGED_DEPTH_PASS
+        subLevel -= ${SUBMERGED.depthGap.toExponential(1)};
+        #endif
+        // Katseen säde kameran koordinaateissa: luvut ovat pieniä, joten väri ja
+        // syvyyskierros osuvat samaan syvyyteen järven kaukaisessakin kolkassa.
+        // Perspektiivissä säde lähtee kamerasta, kartalla se kulkee kameran suuntaan.
+        float subDown = isOrthographic ? -viewMatrix[1][2] : subWorld.y - cameraPosition.y;
+        if (subDown < -1e-4) {
+          vec3 subAt = isOrthographic
+            ? mvPosition.xyz - vec3(0.0, 0.0, (subLevel - subWorld.y) / subDown)
+            : mvPosition.xyz * ((subLevel - cameraPosition.y) / subDown);
+          vec4 subClip = projectionMatrix * vec4(subAt, 1.0);
           gl_Position.z = subClip.z / subClip.w * gl_Position.w;
         }
       }`;
@@ -147,20 +159,18 @@ function depthMaterial(side: THREE.Side): THREE.Material {
   material = new THREE.MeshBasicMaterial({
     colorWrite: false,
     side,
-    // Hiuksen verran taemmas, jotta osan oma pinta läpäisee syvyystestin.
-    // Ei kaltevuuden mukaan: vedenpinnan tasoon litistetty syvyys on viistosti
-    // katsottuna jyrkkä, ja siirto ylittäisi osien keskinäisen järjestyksen.
-    polygonOffset: true,
-    polygonOffsetFactor: 0,
-    polygonOffsetUnits: 4,
+    // Ei polygonOffsetia: se oli suurempi kuin osien välinen ero, ja räpylän
+    // kantapää ja reunalistat vilkkuivat aallokossa. Väli tehdään kaistalla
+    // (`SUBMERGED.depthGap`).
   });
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uSubmergedLift = SUBMERGED_LIFT;
     shader.uniforms.uLookSharp = LOOK_UNIFORMS.uLookSharp;
-    shader.vertexShader = (VERTEX_HEAD + shader.vertexShader).replace(
-      '#include <project_vertex>',
-      VERTEX,
-    );
+    shader.vertexShader = (
+      '#define SUBMERGED_DEPTH_PASS\n' +
+      VERTEX_HEAD +
+      shader.vertexShader
+    ).replace('#include <project_vertex>', VERTEX);
     // Kohta, josta ei näy mitään, ei saa peittää muutakaan.
     shader.fragmentShader = (FRAGMENT_HEAD + shader.fragmentShader).replace(
       '#include <opaque_fragment>',

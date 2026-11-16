@@ -78,7 +78,9 @@ describe('veden alla näkyvät osat', () => {
     expect(depth.renderOrder).toBe(SUBMERGED_ORDER);
     // Sama syvyys kuin värillä, ja näkymätön kohta ei peitä.
     const shader = compile(depthMaterial);
-    expect(shader.vertexShader).toBe(compile(material).vertexShader);
+    expect(shader.vertexShader).toBe(
+      '#define SUBMERGED_DEPTH_PASS\n' + compile(material).vertexShader,
+    );
     expect(shader.fragmentShader).toContain('discard');
     // Moderni vaihtaa kappaleen muodon: syvyys seuraa mukana.
     const soft = new THREE.SphereGeometry();
