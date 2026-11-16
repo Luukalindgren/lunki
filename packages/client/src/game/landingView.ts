@@ -47,6 +47,8 @@ const TOP_SURFACE_Y = 0.3;
 /** Haavin kehän säde (m) ja pussin syvyys. */
 const HOOP = 0.4;
 const BAG = 0.35;
+/** Haavissa kala on poikittain: kuono kalastajasta katsoen vasemmalle (rad). */
+const NET_TURN = Math.PI / 2;
 /** Haavin kehän halkaisija kalan piirretystä pituudesta ja haavin koon rajat. */
 const NET_FIT = { perLength: 0.55, min: 1, max: 1.6 } as const;
 
@@ -168,7 +170,10 @@ export class LandingView {
         this.showLine(tip, mouth);
       }
       const wiggle = Math.sin(age * 22) * 0.25 * (1 - k * 0.5);
-      this.showFish(l.species, l.weight, pos, hang, wiggle, heading);
+      // Haavissa kala makaa poikittain kalastajan edessä kuono vasemmalle kuten
+      // kuvassa: kuono menosuuntaan siitä näkyisi silmin vain pyrstö (#773).
+      const lying = l.by === 'net' ? heading + NET_TURN : heading;
+      this.showFish(l.species, l.weight, pos, hang, wiggle, lying);
       return;
     }
 
