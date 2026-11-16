@@ -1,6 +1,7 @@
 import type { CatchRecord, PlayerResult } from '@lunki/shared';
 import { formatWeight } from '../i18n';
-import type { AlignedLine } from '../ui/columns';
+import type { AlignedLine, Column } from '../ui/columns';
+import { resultRowName } from '../ui/resultsText';
 
 /** Kisan aikaisen tulostaulun rivejä kärjestä. */
 export const SCOREBOARD_TOP = 5;
@@ -13,8 +14,9 @@ export function scoreboardLines(
   results: readonly PlayerResult[],
   myId: string,
   rows = SCOREBOARD_TOP,
+  full = false,
 ): string[] {
-  return scoreboardRows(results, myId, rows).map((r) => r.text);
+  return scoreboardRows(results, myId, rows, full).map((r) => r.text);
 }
 
 /**
@@ -26,11 +28,16 @@ export interface ScoreRow extends AlignedLine {
   id: string | null;
 }
 
-/** Tulostaulun rivit tunnisteineen, jotta saaliin saaneen rivi voidaan korostaa (#635). */
+/**
+ * Tulostaulun rivit tunnisteineen, jotta saaliin saaneen rivi voidaan korostaa (#635).
+ * Koko taulussa (`full`, Tab pohjassa tai lähetysnäkymä, #743) nimet ovat
+ * kokonaan ja rivillä on myös kalojen määrä; otsikkorivi on `scoreboardHead`.
+ */
 export function scoreboardRows(
   results: readonly PlayerResult[],
   myId: string,
   rows = SCOREBOARD_TOP,
+  full = false,
 ): ScoreRow[] {
   const top = results.slice(0, rows);
   const me = results.find((r) => isMine(r, myId));
@@ -40,9 +47,17 @@ export function scoreboardRows(
   const rankWidth = Math.max(RANK_WIDTH, ...shown.map((r) => rankLabel(r).length));
   // Samoin paino: "12,50 kg" on merkin pidempi kuin "9,50 kg".
   const scoreWidth = Math.max(SCORE_WIDTH, ...shown.map((r) => scoreText(r).length));
+  const layout: Layout = {
+    rank: rankWidth,
+    score: scoreWidth,
+    name: full
+      ? Math.min(FULL_NAME_WIDTH, Math.max(NAME_WIDTH, ...shown.map((r) => baseName(r).length)))
+      : NAME_WIDTH,
+    count: full ? Math.max(COUNT_WIDTH, ...shown.map((r) => String(r.summary.count).length)) : null,
+  };
   const row = (r: PlayerResult, mine: boolean): ScoreRow => ({
     id: r.id,
-    ...scoreLine(r, mine, rankWidth, scoreWidth),
+    ...scoreLine(r, mine, layout),
   });
   const lines = top.map((r) => row(r, isMine(r, myId)));
   if (below) lines.push({ id: null, text: '…', columns: [] }, row(below, true));
@@ -95,12 +110,24 @@ export const isMine = (r: PlayerResult, myId: string) =>
 
 /** Nimen leveys tulostaulussa (merkkiä). */
 const NAME_WIDTH = 10;
+/** Koko taulussa nimen enimmäisleveys, sama kuin tulossivulla (#743). */
+const FULL_NAME_WIDTH = 14;
+/** Koko taulun kalasarakkeen leveys vähintään: otsikko "kalat" (#743). */
+const COUNT_WIDTH = 5;
 /** Sijan leveys vähintään (merkkiä): "1." tai viiva. */
 const RANK_WIDTH = 2;
 /** Painon leveys vähintään (merkkiä): "9,50 kg". */
 const SCORE_WIDTH = 7;
 
 const scoreText = (r: PlayerResult): string => formatWeight(r.summary.score);
+
+/** Sarakkeiden leveydet merkkeinä; `count` vain koko taulussa. */
+interface Layout {
+  rank: number;
+  name: number;
+  score: number;
+  count: number | null;
+}
 
 /**
  * Tulostaulun rivi. Ennen ensimmäistä kalaa sija on viiva kuten taukovalikossa
@@ -110,19 +137,45 @@ const scoreText = (r: PlayerResult): string => formatWeight(r.summary.score);
  * alkaen numerot ovat pisteen kohdalta allekkain eikä rivi siirry (#739).
  * Leveydet ovat taulun leveimmän sijan ja painon mukaan.
  */
-function scoreLine(
-  r: PlayerResult,
-  me: boolean,
-  rankWidth: number,
-  scoreWidth: number,
-): AlignedLine {
+function scoreLine(r: PlayerResult, me: boolean, layout: Layout): AlignedLine {
   const mark = { text: me ? '>' : ' ' };
-  const rank = { text: rankLabel(r).padEnd(RANK_WIDTH).padStart(rankWidth), right: true };
-  const name = { text: nameField(r) };
-  const score = { text: scoreText(r).padStart(scoreWidth), right: true };
+  const rank = { text: rankLabel(r).padEnd(RANK_WIDTH).padStart(layout.rank), right: true };
+  const name = { text: nameField(r, layout.name) };
+  const score = { text: scoreText(r).padStart(layout.score), right: true };
+  const count =
+    layout.count === null
+      ? null
+      : { text: String(r.summary.count).padStart(layout.count), right: true };
+  const middle = count ? [name, count] : [name];
   return {
-    text: `${mark.text}${rank.text} ${name.text} ${score.text}`,
-    columns: [mark, rank, name, score],
+    // Kalojen määrän ja painon väliin kaksi välilyöntiä: luvut eivät liimaudu.
+    text: `${mark.text}${rank.text} ${middle.map((c) => c.text).join(' ')}${count ? '  ' : ' '}${score.text}`,
+    columns: [mark, rank, ...middle, score],
+  };
+}
+
+/**
+ * Koko taulun otsikkorivi (#743): otsikko nimien kohdalla ja sarakkeiden
+ * nimet lukujen päällä. Leveydet luetaan taulun ensimmäiseltä riviltä, joten
+ * otsikko on aina samoissa sarakkeissa kuin rivit. Pienessä taulussa (ei
+ * kalasaraketta) otsikko on pelkkä teksti.
+ */
+export function scoreboardHead(
+  title: string,
+  rows: readonly ScoreRow[],
+  labels: { count: string; score: string },
+): string | AlignedLine {
+  const first = rows.find((r) => r.columns.length === 5);
+  if (!first) return title;
+  const [mark, rank, name, count, score] = first.columns as Column[];
+  // Rivillä on välilyönti sijan ja nimen välissä; otsikossa sama välilyönti on
+  // nimen perässä, jotta sarakkeet osuvat kohdalleen myös Modernin fontilla.
+  const lead = { text: title.padEnd(mark!.text.length + rank!.text.length + name!.text.length) };
+  const countHead = { text: labels.count.padStart(count!.text.length), right: true };
+  const scoreHead = { text: labels.score.padStart(score!.text.length), right: true };
+  return {
+    text: `${lead.text}  ${countHead.text}  ${scoreHead.text}`,
+    columns: [lead, countHead, scoreHead],
   };
 }
 
@@ -132,10 +185,16 @@ function scoreLine(
  */
 export const rankLabel = (r: PlayerResult): string => (r.summary.count > 0 ? `${r.rank}.` : '–');
 
-function nameField(r: PlayerResult): string {
-  // Lähteneen nimessä on tulossivun merkintä "(lähti)": taulussa sen tilalla ×.
-  const name = r.left ? r.name.replace(/\s*\([^)]*\)$/, '') : r.name;
-  const room = r.left ? NAME_WIDTH - 2 : NAME_WIDTH;
+/**
+ * Nimi ilman tulossivun merkintöjä "(lähti)" ja "(botti)" (`resultRowName`):
+ * taulussa lähteneen merkki on ×, ja botin tunnistaa nimestä.
+ */
+const plainName = (r: PlayerResult): string => resultRowName(r).name;
+const baseName = (r: PlayerResult): string => (r.left ? `${plainName(r)} ×` : plainName(r));
+
+function nameField(r: PlayerResult, width: number): string {
+  const name = plainName(r);
+  const room = r.left ? width - 2 : width;
   const short = name.length > room ? `${name.slice(0, room - 1)}…` : name;
-  return (r.left ? `${short} ×` : short).padEnd(NAME_WIDTH);
+  return (r.left ? `${short} ×` : short).padEnd(width);
 }

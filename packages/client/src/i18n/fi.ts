@@ -1186,6 +1186,8 @@ export const fi = {
   'game.go': 'Kalastamaan!',
   'game.scoreboard': 'Tulostaulu',
   'game.scoreboardMore': 'Tulostaulu · {key} = kaikki',
+  'game.scoreboardCount': 'kalat',
+  'game.scoreboardWeight': 'paino',
   'game.scoreCatch': '+{weight} {species}',
   'weather.change': 'Sää muuttuu: {sky}',
   'wind.0': 'itätuuli',

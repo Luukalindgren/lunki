@@ -146,7 +146,9 @@ Koodi: `packages/client/src/game/controls.ts`.
 - Koko tulostaulu (#735): HUDin taulussa on kärki ja oma rivi, ja toiminto
   `scoreboard` (Tab, peliohjaimella LT/L2 + View/Share) näyttää kaikki rivit
   niin kauan kuin se on pohjassa (`HudPresenter.setFullScoreboard`). Taulun
-  otsikko kertoo napin, kun kaikki eivät mahdu. Kosketuksella koko taulu on
+  otsikko kertoo napin, kun kaikki eivät mahdu. Koko taulussa (myös
+  lähetysnäkymässä) nimet ovat kokonaan ja rivillä on kalojen määrä
+  otsikkoriveineen (`scoreboardRows(…, full)`, `scoreboardHead`, #743). Kosketuksella koko taulu on
   taukovalikossa.
 - Peliohjaimen asetukset (#594, `engine/padSettings.ts`): kääntymisen
   herkkyys (`TurnPulse` jättää osan askelista väliin, koska käännös kulkee
