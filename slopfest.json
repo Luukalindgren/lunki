@@ -1,0 +1,12 @@
+{
+  "$schema": "https://deploy.slopfest.dev/slopfest.schema.json",
+  "slug": "lunkinjarvi",
+  "name": "Lunkinjärvi",
+  "description": "Kalastuskisa kelluntarenkailla Tammelan Lunkinjärvellä. Suurin saalis voittaa, yksin tai kavereiden kanssa samalla huonekoodilla.",
+  "build": "npm install -g pnpm@10.28.0 && pnpm install --frozen-lockfile && VITE_LUNKI_SERVER=wss://peli.lunkinjarvi.com VITE_COMMIT=$GITHUB_SHA pnpm --filter @lunki/client build",
+  "output": "packages/client/dist",
+  "players": { "min": 1, "max": 32 },
+  "controls": ["keyboard", "mouse", "touch", "gamepad"],
+  "multiplayer": "online",
+  "thumbnail": "esikatselu.png"
+}
