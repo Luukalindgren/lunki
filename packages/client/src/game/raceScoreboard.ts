@@ -1,6 +1,6 @@
 import type { CatchRecord, PlayerResult } from '@lunki/shared';
 import { formatWeight } from '../i18n';
-import type { AlignedLine, Column } from '../ui/columns';
+import type { AlignedLine, Column, Line } from '../ui/columns';
 import { resultRowName } from '../ui/resultsText';
 
 /** Kisan aikaisen tulostaulun rivejä kärjestä. */
@@ -62,6 +62,20 @@ export function scoreboardRows(
   const lines = top.map((r) => row(r, isMine(r, myId)));
   if (below) lines.push({ id: null, text: '…', columns: [] }, row(below, true));
   return lines;
+}
+
+/**
+ * Koko taulu otsikkoriveineen: jokainen kalastaja, nimet kokonaan ja kalojen
+ * määrä. Kosketuksella taulu on taukovalikossa eikä HUDissa (#771), ja se on
+ * sama taulu kuin työpöydällä Tab pohjassa.
+ */
+export function fullScoreboard(
+  results: readonly PlayerResult[],
+  myId: string,
+  labels: { title: string; count: string; score: string },
+): Line[] {
+  const rows = scoreboardRows(results, myId, results.length, true);
+  return [scoreboardHead(labels.title, rows, labels), ...rows];
 }
 
 /** Saaliin saaneen rivi pysyy korostettuna tämän ajan (s, #635). */

@@ -1,9 +1,10 @@
 import { rankPlayers } from '@lunki/shared';
 import { describe, expect, it } from 'vitest';
-import { lineParts } from '../ui/columns';
+import { lineParts, lineText } from '../ui/columns';
 import {
   CATCH_FLASH_SECONDS,
   CatchFlashes,
+  fullScoreboard,
   scoreboardHead,
   scoreboardLines,
   scoreboardRows,
@@ -127,6 +128,18 @@ describe('koko tulostaulu (#743)', () => {
     const text = typeof head === 'string' ? head : head.text;
     expect(text).toBe('Tulostaulu         kalat    paino');
     expect(text.length).toBe(rows[0]!.text.length);
+  });
+
+  it('taukovalikon taulu on koko taulu otsikkoriveineen (#771)', () => {
+    const lines = fullScoreboard(players, 'b', { title: 'Tulostaulu', ...labels });
+    expect(lines.map(lineText)).toEqual([
+      'Tulostaulu         kalat    paino',
+      ' 1. Muikku-Mauri       2  3,00 kg',
+      '>2. Bo                 1  1,50 kg',
+      ' –  Aapo-Ville Vi…     0      0 g',
+    ]);
+    // Jokainen rivi on sarakkeina, jotta ne ovat kohdakkain myös Modernin fontilla.
+    expect(lines.every((line) => typeof line === 'object' && line.columns.length > 0)).toBe(true);
   });
 
   it('pieni taulu on ennallaan ja sen otsikko on pelkkä teksti', () => {

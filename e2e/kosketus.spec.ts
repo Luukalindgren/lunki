@@ -249,6 +249,9 @@ test('yksinkertaisella ohjauksella puhelimella vain tatti, iso nappi, tauko ja K
   await expect(page.locator('.hud-catches')).toBeHidden();
   await page.getByRole('button', { name: 'II' }).tap();
   await expect(page.locator('.pause-scoreboard')).toContainText('Sinä');
+  // Sama koko taulu kuin työpöydällä Tab pohjassa: otsikkorivi ja sarakkeet (#771).
+  await expect(page.locator('.pause-score-row').first()).toContainText('kalat');
+  await expect(page.locator('.pause-score-row:nth-child(2) .col')).toHaveCount(5);
   await page.getByRole('button', { name: 'Jatka' }).tap();
   // Ylhäältä katsottaessa zoom on käytössä (KAM: silmin → takaa → ylhäältä).
   await page.getByRole('button', { name: 'KAM' }).tap();
