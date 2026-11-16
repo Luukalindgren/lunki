@@ -309,6 +309,8 @@ let settings = loadSettings({ ...DEFAULT_SETTINGS, durationMinutes: UNTIMED });
 let game: Game | null = null;
 let paused = false;
 let bench: Bench | null = null;
+/** Eteneekö kisa (ei tauolla yksinpelissä): piirto liukuu askelten välillä vain silloin. */
+let stepping = false;
 /** Moninpelihuone, jos pelaaja on sellaisessa. */
 let session: NetSession | null = null;
 /**
@@ -1199,7 +1201,8 @@ startLoop({
     // ja tulossivulla soi vain musiikki ja nappien äänet.
     sfx.setRaceAudio(game !== null && !game.competition.finished);
     // Moninpelissä kisa jatkuu valikon ollessa auki.
-    if (game && ((!paused && !screens.open) || (raceSession() && paused))) game.update(dt);
+    stepping = !!game && ((!paused && !screens.open) || (raceSession() !== null && paused));
+    if (game && stepping) game.update(dt);
     if (game) {
       touch?.update(
         contextActions(game.fishing, game.flyRhythm, game.tangled, game.shoreMain),
@@ -1221,7 +1224,9 @@ startLoop({
     if (game ? !gameWarm : !menuWarm) return;
     const active = game ?? menuScene;
     const t0 = performance.now();
-    active.render(alpha);
+    // Pysäytetty kisa piirretään viimeisen askeleen tilassa: askelten välinen
+    // liuku heiluttaisi kuvaa edestakaisin, kun askelia ei tule.
+    active.render(game && !stepping ? 1 : alpha);
     modern.frame(
       retro.look === 'modern',
       active.scene,

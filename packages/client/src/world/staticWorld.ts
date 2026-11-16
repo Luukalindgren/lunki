@@ -82,6 +82,39 @@ function disposeWorld(world: StaticWorld): void {
     });
 }
 
+/**
+ * Paikallaan pysyvän maiseman matriisit lasketaan kerran. Muuten three.js
+ * laskee jokaisen osan paikan uudelleen joka ruudulla, ja maisemassa osia on
+ * tuhansia (Modernin puut lohkoittain). Osaa, jota siirretään tämän jälkeen,
+ * ei saa lisätä jäädytettyyn ryhmään. Kun ryhmä siirretään toiseen
+ * kohtaukseen, kutsu `rehome`.
+ */
+export function freezeMatrices(root: THREE.Object3D): void {
+  root.traverse((o) => {
+    o.updateMatrix();
+    o.matrixAutoUpdate = false;
+  });
+}
+
+/**
+ * Jäädyttää ryhmän ja jättää sen lisäksi osien läpikäynnin pois: three.js
+ * kävisi muuten jokaisen osan läpi joka ruudulla, vaikka mikään ei muutu.
+ * Vain ryhmälle, jonka osat tehdään kerralla (metsän tuhannet lohkot):
+ * myöhemmin lisätty osa ei saisi paikkaansa ennen `rehome`-kutsua.
+ */
+export function sealMatrices(root: THREE.Object3D): void {
+  freezeMatrices(root);
+  const walk = THREE.Object3D.prototype.updateMatrixWorld;
+  root.updateMatrixWorld = function (force?: boolean): void {
+    if (force || this.matrixWorldNeedsUpdate) walk.call(this, true);
+  };
+}
+
+/** Jäädytetty ryhmä sai uuden vanhemman: sen paikat maailmassa lasketaan kerran uudelleen. */
+export function rehome(root: THREE.Object3D): void {
+  root.matrixWorldNeedsUpdate = true;
+}
+
 function buildStaticWorld(map: LakeMap, season: Season): StaticWorld {
   const pov = new THREE.Group();
   const top = new THREE.Group();
@@ -102,6 +135,7 @@ function buildStaticWorld(map: LakeMap, season: Season): StaticWorld {
     if (piers) always.add(piers);
     top.add(createMapOverlay(surroundings, season));
   }
+  for (const g of [pov, top, always]) freezeMatrices(g);
   const world: StaticWorld = { pov, top, always, ground, map, season, surroundings };
   owners.set(pov, world);
   return world;
