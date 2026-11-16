@@ -1989,6 +1989,14 @@ textarea,
     display: none;
   }
 
+  /*
+   * Kalan kuvalle on listan leveimmän kuvan levyinen sarake (`--fish-col`,
+   * pikseleinä): painot ovat allekkain, vaikka kuvat ovat eri levyisiä (#774).
+   */
+  .catch-list.results .result-row.has-narrow {
+    grid-template-columns: minmax(0, 1fr) calc(var(--fish-px, 2px) * var(--fish-col, 0));
+  }
+
   .result-row .result-narrow {
     display: flex;
     justify-content: space-between;
