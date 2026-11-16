@@ -57,7 +57,7 @@
   display: contents;
 }
 
-.boot-bobber {
+.boot-scene {
   display: none;
 }
 
@@ -116,110 +116,267 @@
 }
 
 /*
- * Koho siiman päässä: se keinuu ja nykäisee välillä pinnan alle, ja pinnalla
- * leviää renkaita. Jokainen liikkuva osa on oma elementtinsä, jota siirretään
- * vain transformilla ja peittävyydellä: kompositori pyörittää ne silloinkin,
- * kun pääsäie jäsentää pelin koodia.
+ * Hauki iskee lusikkaan (modern/bootArt.ts): sama tarina kuin pikselikuvassa.
+ * Yksi 6,4 s:n kierros; kaikki osat liikkuvat samoilla prosenteilla, jotta
+ * siiman pää pysyy hauen kidassa. Hauen origo on kuono, joten kääntö tapahtuu
+ * sen ympäri. Liikkeet ovat transformia ja peittävyyttä.
  */
-.boot-modern .boot-bobber {
+.boot-modern .boot-scene {
   display: block;
-  position: relative;
-  width: 240px;
-  height: 142px;
-  margin-top: -4px;
-}
-
-/* Pinnan yläpuolinen osa: pinnan alle painuva koho leikkautuu pois. */
-.bobber-air {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 128px;
+  /* Matalalla ruudulla (puhelin vaakana) kuva pienenee, jotta kehys mahtuu ruutuun. */
+  width: min(400px, 78vw, 80vh);
+  aspect-ratio: 2 / 1;
+  margin: 4px 0 2px;
   overflow: hidden;
+  border-radius: 4px;
+  box-shadow:
+    0 0 0 2px var(--wood-dark),
+    0 0 0 5px var(--wood-light),
+    0 0 0 7px var(--wood-dark),
+    inset 0 2px 10px rgb(0 0 0 / 45%);
 }
 
-.bobber-float {
-  position: absolute;
-  left: 102px;
-  top: -16px;
-  width: 36px;
-  height: 162px;
-  animation: 4.8s ease-in-out infinite bobber-float;
-  will-change: transform;
-}
-
-.bobber-float svg {
+.boot-scene svg {
   display: block;
   width: 100%;
   height: 100%;
 }
 
-.bobber-water {
-  position: absolute;
-  left: 10px;
-  right: 10px;
-  top: 128px;
-  height: 1.5px;
-  background: linear-gradient(90deg, transparent, var(--wall-text) 30% 70%, transparent);
-  opacity: 0.55;
+.boot-scene * {
+  animation-duration: 6.4s;
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
 }
 
-.bobber-ring {
-  position: absolute;
-  left: 93px;
-  top: 122px;
-  width: 54px;
-  height: 13px;
-  box-sizing: border-box;
-  border: 1.5px solid var(--wall-text);
-  border-radius: 50%;
+.ps-surface {
+  animation: 4s linear infinite ps-surface;
+}
+
+.ps-weed {
+  animation: 3.2s ease-in-out infinite alternate ps-weed;
+}
+
+.ps-pike {
+  /* Paikka ilman liikettä (prefers-reduced-motion): hauki lähestyy lusikkaa. */
+  transform: translate(170px, 90px);
+  animation-name: ps-pike;
+}
+
+.ps-tail {
+  transform-origin: -106px 0;
+  animation: 0.45s ease-in-out infinite alternate ps-tail;
+}
+
+.ps-jaw,
+.ps-mouth {
+  transform-origin: -15px 3px;
+  animation-name: ps-jaw;
+}
+
+.ps-mouth {
+  animation-name: ps-mouth;
+}
+
+.ps-line {
+  transform-origin: 220px 0;
+  animation-name: ps-line;
+}
+
+.ps-spoon {
+  animation-name: ps-spoon;
+}
+
+.ps-spin {
+  animation: 0.7s ease-in-out infinite alternate ps-spin;
+}
+
+.ps-bubble {
   opacity: 0;
-  animation: 2.4s linear infinite bobber-ring;
-  will-change: transform, opacity;
+  animation-name: ps-bubble;
 }
 
-.bobber-ring + .bobber-ring {
-  animation-delay: 1.2s;
+.ps-splash {
+  opacity: 0;
+  transform-origin: 220px 20px;
+  animation-name: ps-splash;
 }
 
-@keyframes bobber-float {
+@keyframes ps-surface {
+  to {
+    transform: translateX(-40px);
+  }
+}
+
+@keyframes ps-weed {
+  from {
+    transform: skewX(-6deg);
+  }
+  to {
+    transform: skewX(6deg);
+  }
+}
+
+@keyframes ps-tail {
+  from {
+    transform: rotate(-9deg);
+  }
+  to {
+    transform: rotate(9deg);
+  }
+}
+
+@keyframes ps-pike {
   0%,
-  100% {
-    transform: translateY(0);
+  6% {
+    transform: translate(-40px, 92px);
   }
-  22% {
-    transform: translateY(4px);
+  46% {
+    transform: translate(196px, 90px);
   }
-  44% {
-    transform: translateY(0);
+  50% {
+    transform: translate(204px, 90px);
   }
-  /* Tärppi: kaksi nopeaa nykäisyä pinnan alle. */
+  /* Isku: kuono lusikan kohdalle. */
+  54%,
+  58% {
+    transform: translate(220px, 88px);
+  }
   62% {
-    transform: translateY(2px);
+    transform: translate(220px, 92px) rotate(5deg);
   }
-  67% {
-    transform: translateY(16px);
+  66% {
+    transform: translate(220px, 86px) rotate(-10deg);
   }
-  73% {
-    transform: translateY(1px);
+  /* Nosto: hauki kääntyy kuono ylös ja nousee pinnan yli. */
+  78% {
+    transform: translate(220px, 0) rotate(-50deg);
   }
-  79% {
-    transform: translateY(12px);
+  82% {
+    opacity: 1;
+    transform: translate(220px, -40px) rotate(-60deg);
   }
-  88% {
-    transform: translateY(-1px);
+  83%,
+  100% {
+    opacity: 0;
+    transform: translate(-40px, 92px);
   }
 }
 
-@keyframes bobber-ring {
-  0% {
-    transform: scale(0.5);
-    opacity: 0.75;
+@keyframes ps-jaw {
+  0%,
+  48% {
+    transform: none;
+  }
+  51%,
+  54% {
+    transform: rotate(24deg);
+  }
+  56%,
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes ps-mouth {
+  0%,
+  48% {
+    opacity: 0;
+  }
+  51%,
+  54% {
+    opacity: 1;
+  }
+  56%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Siiman pää seuraa kitaa: scaleY = kuonon korkeus / 88. */
+@keyframes ps-line {
+  0%,
+  58% {
+    transform: none;
+  }
+  62% {
+    transform: scaleY(1.045);
+  }
+  66% {
+    transform: scaleY(0.977);
+  }
+  78%,
+  86% {
+    transform: scaleY(0);
+  }
+  96%,
+  100% {
+    transform: none;
+  }
+}
+
+/* Lusikka katoaa kitaan ja laskeutuu uutena siiman mukana. */
+@keyframes ps-spoon {
+  0%,
+  54.5% {
+    opacity: 1;
+    transform: none;
+  }
+  55%,
+  85.9% {
+    opacity: 0;
+    transform: none;
+  }
+  86% {
+    opacity: 1;
+    transform: translateY(-88px);
+  }
+  96%,
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes ps-spin {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0.4);
+  }
+}
+
+@keyframes ps-bubble {
+  0%,
+  55% {
+    opacity: 0;
+    transform: none;
+  }
+  57% {
+    opacity: 0.9;
+  }
+  70% {
+    opacity: 0;
+    transform: translateY(-46px);
   }
   100% {
-    transform: scale(3);
     opacity: 0;
+  }
+}
+
+@keyframes ps-splash {
+  0%,
+  74% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  78% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  86%,
+  100% {
+    opacity: 0;
+    transform: scale(1.25) translateY(-4px);
   }
 }
 
@@ -230,13 +387,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bobber-float,
-  .bobber-ring {
+  .boot-scene * {
     animation: none;
-  }
-
-  .bobber-ring {
-    opacity: 0.5;
-    transform: scale(1.6);
   }
 }
