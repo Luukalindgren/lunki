@@ -3,6 +3,7 @@ import type { Vec2 } from '@lunki/shared';
 import type { RetroResolution } from '../engine/resolution';
 import { toWorld } from '../world/lakeMesh';
 import { DEFAULT_POV_FOV, effectivePovFov } from '../ui/povFov';
+import { activeLook, smoothLook } from '../engine/look';
 
 /** Silmien korkeus vedenpinnasta (m) ja katseen lasku horisontin alle. */
 export const EYE_HEIGHT = 0.55;
@@ -33,13 +34,34 @@ export function steadyRoll(roll: number): number {
 }
 
 /**
+ * Kameran kulmat ilmeen mukaan. Retrossa kulma porrastetaan sisäisiin
+ * pikseleihin ja pieni kallistus jätetään pois (ks. `PovCamera`). Terävä ja
+ * Moderni piirtävät näytön tarkkuudella, jolloin sisäinen pikseli on monta
+ * kuvapistettä: porrastettuna aallokon keinunta nyki horisonttia usean
+ * kuvapisteen hyppäyksin. Niissä kulmat kulkevat portaitta.
+ */
+export function cameraAngles(
+  target: { yaw: number; pitch: number; roll: number },
+  prev: { yaw: number; pitch: number; roll: number },
+  step: { angle: number; roll: number },
+  smooth: boolean,
+): { yaw: number; pitch: number; roll: number } {
+  if (smooth) return { ...target };
+  return {
+    yaw: snapAngle(target.yaw, prev.yaw, step.angle),
+    pitch: snapAngle(target.pitch, prev.pitch, step.angle),
+    roll: snapAngle(steadyRoll(target.roll), prev.roll, step.roll),
+  };
+}
+
+/**
  * Kalastajan silmin: perspektiivikamera renkaasta katsesuuntaan.
  *
  * Pieneen resoluutioon piirretty kuva välkkyy, jos kamera kääntyy pikselin
  * murto-osia: kaukaisten puiden ja rantojen pikselit hyppivät edestakaisin.
- * Siksi suunta porrastetaan kokonaisiin pikseleihin ja pienet kallistukset
- * jätetään pois. Potkut ja aallot keinuttavat vain silmien korkeutta, mikä
- * näkyy lähiveden liikkeenä mutta ei liikuta kaukaisia maisemia.
+ * Siksi Retrossa suunta porrastetaan kokonaisiin pikseleihin ja pienet
+ * kallistukset jätetään pois. Terävässä ja Modernissa kamera seuraa aaltoja
+ * portaitta (`cameraAngles`).
  */
 export class PovCamera {
   readonly camera = new THREE.PerspectiveCamera(DEFAULT_POV_FOV, 1, 0.1, 3000);
@@ -101,19 +123,29 @@ export class PovCamera {
     const bob = Math.sin(kickPhase * Math.PI * 2) * 0.03 + swell.lift;
     const eye = toWorld(pos, EYE_HEIGHT + bob);
     this.camera.position.copy(eye);
-    this.yaw = snapAngle(heading, this.yaw, this.pixelAngle);
-    // Kallistuksen porras siirtää kuvan reunaa noin pikselin.
-    this.roll = snapAngle(steadyRoll(swell.roll), this.roll, 2 / this.resolution.width);
-    // Nyökkäys siirtää horisonttia kokonaisia pikseleitä.
-    this.pitch = snapAngle(PITCH + (swell.pitch ?? 0), this.pitch, this.pixelAngle);
+    // Retrossa kallistuksen porras siirtää kuvan reunaa noin pikselin ja
+    // nyökkäys horisonttia kokonaisia pikseleitä.
+    this.turn({ yaw: heading, pitch: PITCH + (swell.pitch ?? 0), roll: swell.roll });
     this.camera.rotation.set(this.pitch, this.yaw - Math.PI / 2, this.roll, 'YXZ');
     this.camera.updateMatrixWorld();
+  }
+
+  private turn(target: { yaw: number; pitch: number; roll: number }): void {
+    const a = cameraAngles(
+      target,
+      { yaw: this.yaw, pitch: this.pitch, roll: this.roll },
+      { angle: this.pixelAngle, roll: 2 / this.resolution.width },
+      smoothLook(activeLook()),
+    );
+    this.yaw = a.yaw;
+    this.pitch = a.pitch;
+    this.roll = a.roll;
   }
 
   /**
    * Takaa-näkymä (#691): kamera kiertää kohdetta `dir`-suunnan takana kaaren
    * (`elevation`, `distance`) päässä ja katsoo kohteen yli järvelle. Suunta
-   * ja kallistus porrastetaan pikseleihin kuten silmin. `floor` on veden tai
+   * ja kallistus kulkevat ilmeen mukaan kuten silmin. `floor` on veden tai
    * maan pinnan korkeus kameran kohdalla; kamera pysyy sen yläpuolella.
    */
   applyOrbit(
@@ -123,9 +155,7 @@ export class PovCamera {
     arc: { elevation: number; distance: number; lookAhead: number; clearance: number },
     floor: (p: Vec2) => number = () => 0,
   ): void {
-    this.yaw = snapAngle(dir, this.yaw, this.pixelAngle);
-    this.pitch = snapAngle(arc.lookAhead - arc.elevation, this.pitch, this.pixelAngle);
-    this.roll = 0;
+    this.turn({ yaw: dir, pitch: arc.lookAhead - arc.elevation, roll: 0 });
     const back = Math.cos(arc.elevation) * arc.distance;
     const at = {
       x: target.x - Math.cos(this.yaw) * back,
