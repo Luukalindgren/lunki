@@ -238,12 +238,13 @@ export interface SettingsControls {
   /**
    * Ilme (#674, #650): Retro, Terävä tai Moderni. Moderni ladataan vasta
    * valittaessa: `onChange` palauttaa silloin lupauksen siitä, tuliko ilme
-   * käyttöön. `modern` kertoo, tarjotaanko Modernia tällä laitteella.
+   * käyttöön. `experimental`: kosketuslaite, jolla Moderni on kokeilu ja
+   * vihje kertoo siitä.
    */
   look: {
     current: Look;
     onChange: (look: Look) => void | Promise<boolean>;
-    modern: boolean;
+    experimental: boolean;
     quality: { current: LookQuality; onChange: (quality: LookQuality) => void };
   };
   /** Opastus ensimmäiseen kalaan (#370): päälle alusta tai pois. */
@@ -2740,7 +2741,12 @@ export class Screens {
     quality.classList.add('look-quality');
     const show = (note?: MsgKey) => {
       hint.textContent = t(
-        note ?? (current === 'modern' ? 'settings.lookModernHint' : 'settings.lookHint'),
+        note ??
+          (current !== 'modern'
+            ? 'settings.lookHint'
+            : c.experimental
+              ? 'settings.lookModernTouchHint'
+              : 'settings.lookModernHint'),
       );
       quality.hidden = current !== 'modern';
     };
@@ -2748,7 +2754,7 @@ export class Screens {
       ['retro', t('settings.lookRetro')],
       ['sharp', t('settings.lookSharp')],
     ];
-    if (c.modern) options.push(['modern', t('settings.lookModern')]);
+    options.push(['modern', t('settings.lookModern')]);
     const look = this.choice(t('settings.look'), options, current, (v) => {
       const mine = ++pick;
       const done = c.onChange(v as Look);

@@ -123,7 +123,8 @@
  */
 .boot-modern .boot-scene {
   display: block;
-  width: min(400px, 78vw);
+  /* Matalalla ruudulla (puhelin vaakana) kuva pienenee, jotta kehys mahtuu ruutuun. */
+  width: min(400px, 78vw, 80vh);
   aspect-ratio: 2 / 1;
   margin: 4px 0 2px;
   overflow: hidden;

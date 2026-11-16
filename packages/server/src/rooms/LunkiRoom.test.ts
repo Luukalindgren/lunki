@@ -788,7 +788,15 @@ describe('LunkiRoom', () => {
       'total',
     );
     const names = ['Luuka', 'Bertta', 'Cecilia'];
-    const order = [0, 1, 2].sort((a, b) => weights[b]! - weights[a]! || a - b);
+    // Tasapainot (kaksi samanpainoista kalaa) ratkeavat kuten tulostaulussa:
+    // ensin saaliin aika, sitten nimi.
+    const at = (i: number) => catches.find((c) => c.angler === names[i])!.time;
+    const order = [0, 1, 2].sort(
+      (a, b) =>
+        Math.fround(weights[b]!) - Math.fround(weights[a]!) ||
+        at(a) - at(b) ||
+        names[a]!.localeCompare(names[b]!),
+    );
     expect(results.map((r) => r.name)).toEqual(order.map((i) => names[i]));
     expect(rejected).toBe(2);
     // Punnitut saaliit päätyvät järven ennätyslistalle (oma vaikeustaso: muut testit eivät sotke).

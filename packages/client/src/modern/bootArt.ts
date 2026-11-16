@@ -120,10 +120,9 @@ export const MODERN_BOOT_ART =
 
 /**
  * Sivun alussa ajettava koodi: latausnäkymä on Kotiteatterin, kun se on
- * laitteelle tallennettu ilme. Kosketuslaitteella Modernia ei tarjota
- * (ks. main.ts), joten siellä näkymä pysyy tavallisena.
+ * laitteelle tallennettu ilme.
  */
 export const MODERN_BOOT_SCRIPT =
   `var k=null;try{k=localStorage.getItem('lunki.look')}catch(e){}` +
-  `if(k==='modern'&&!/[?&]kosketus\\b/.test(location.search)&&!(window.matchMedia&&matchMedia('(pointer: coarse)').matches))` +
+  `if(k==='modern')` +
   `document.getElementById('boot-loader').classList.add('boot-modern');`;

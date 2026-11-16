@@ -464,11 +464,8 @@ test('latausruutu näkyy pelin koodin latautuessa ja poistuu valikon tullessa', 
   errors.check();
 });
 
-test('latausruutu on Kotiteatterin lautaseinää, kun se on tallennettu ilme', async ({
-  page,
-  isMobile,
-}) => {
-  // Kosketuslaitteella Kotiteatteria ei tarjota, joten näkymä pysyy tavallisena.
+test('latausruutu on Kotiteatterin lautaseinää, kun se on tallennettu ilme', async ({ page }) => {
+  // Sama näkymä myös kosketuslaitteella, jolla Kotiteatteri on valittavissa kokeiluna (#763).
   await page.addInitScript(() => localStorage.setItem('lunki.look', 'modern'));
   // Pelin koodia ei päästetä perille: Modernin päävalikko on CI:n
   // ohjelmistorenderöinnille liian raskas, ja testi koskee vain latausruutua.
@@ -476,20 +473,14 @@ test('latausruutu on Kotiteatterin lautaseinää, kun se on tallennettu ilme', a
   await page.goto('/', { waitUntil: 'commit' });
   const boot = page.locator('#boot-loader');
   await expect(boot).toContainText('Ladataan');
-  if (isMobile) {
-    await expect(boot).not.toHaveClass(/boot-modern/);
-    await expect(boot.locator('.loader-art')).toBeVisible();
-    await expect(boot.locator('.boot-scene')).toBeHidden();
-  } else {
-    await expect(boot).toHaveClass(/boot-modern/);
-    await expect(boot.locator('.boot-scene')).toBeVisible();
-    await expect(boot.locator('.loader-art')).toBeHidden();
-    // Lautaseinä kehyksineen on piirretty (tyylit ovat sivussa, ei pelin koodissa).
-    const wall = await boot
-      .locator('.boot-panel')
-      .evaluate((el) => getComputedStyle(el).backgroundImage);
-    expect(wall).toContain('repeating-linear-gradient');
-  }
+  await expect(boot).toHaveClass(/boot-modern/);
+  await expect(boot.locator('.boot-scene')).toBeVisible();
+  await expect(boot.locator('.loader-art')).toBeHidden();
+  // Lautaseinä kehyksineen on piirretty (tyylit ovat sivussa, ei pelin koodissa).
+  const wall = await boot
+    .locator('.boot-panel')
+    .evaluate((el) => getComputedStyle(el).backgroundImage);
+  expect(wall).toContain('repeating-linear-gradient');
   await page.unrouteAll({ behavior: 'ignoreErrors' });
 });
 
