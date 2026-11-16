@@ -175,6 +175,10 @@ export class WeatherController {
   private swellOn = false;
   /** Renkaan keinunta (tasoitettu): nosto (m), kallistus ja nyökkäys (rad). */
   readonly rock = { lift: 0, roll: 0, pitch: 0 };
+  /** Keinunta edellisellä askeleella: piirto liukuu siitä nykyiseen (`rockAt`). */
+  private readonly prevRock = { lift: 0, roll: 0, pitch: 0 };
+  /** Viimeksi piirretty keinunta: samalla ruudulla piirrettävät osat lukevat tämän. */
+  readonly shownRock = { lift: 0, roll: 0, pitch: 0 };
   /** Ohi menevän ison aallon nosto (m) renkaan kohdalla. */
   private bigWaveLift = 0;
   /** Ukkonen tai myrsky päällä: vieheen ollessa ulkona tilanneohje kehottaa kelaamaan. */
@@ -577,9 +581,25 @@ export class WeatherController {
     const side = s.slope.x * Math.sin(h) - s.slope.y * Math.cos(h);
     // Rengas ei seuraa pintaa jäykästi: se kelluu hieman jäljessä ja loivemmin.
     const k = Math.min(1, dt / 0.2);
+    Object.assign(this.prevRock, this.rock);
     this.rock.lift += (s.height + this.bigWaveLift - this.rock.lift) * k;
     this.rock.pitch += (Math.atan(ahead) * 0.7 - this.rock.pitch) * k;
     this.rock.roll += (Math.atan(side) * 0.7 - this.rock.roll) * k;
+  }
+
+  /**
+   * Keinunta askelten välissä (`alpha` 0–1). Aallot lasketaan kiintein
+   * askelin, ja ilman liukua kuva keinuisi nykien näytöllä, joka piirtää
+   * askelta tiheämmin.
+   */
+  rockAt(alpha: number): { lift: number; roll: number; pitch: number } {
+    const a = this.prevRock;
+    const b = this.rock;
+    const out = this.shownRock;
+    out.lift = a.lift + (b.lift - a.lift) * alpha;
+    out.roll = a.roll + (b.roll - a.roll) * alpha;
+    out.pitch = a.pitch + (b.pitch - a.pitch) * alpha;
+    return out;
   }
 
   /** Vuorokaudenaika pelikellon ja sään mukaan; kimallus vesishaderille. */

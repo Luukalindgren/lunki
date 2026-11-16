@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { LandCover, valueNoise, type Vec2 } from '@lunki/shared';
 import { clearSightLine } from '../world/sightLine';
-import type { StaticWorld } from '../world/staticWorld';
+import { sealMatrices, type StaticWorld } from '../world/staticWorld';
 import {
   BuildingIndex,
   TREE_BAND,
@@ -31,6 +31,12 @@ const KINDS: readonly TreeKind[] = ['spruce', 'pine', 'birch'];
 const VARIANTS = 2;
 /** Piirtolohkon sivu (m): lohko vaihtaa tarkan ja kevyen mallin välillä etäisyyden mukaan. */
 const CHUNK = 60;
+/**
+ * Alueen sivu lohkoina. Kaukana koko alueen puut piirretään yhdellä kutsulla
+ * lajia ja muotoa kohden: selältä näkyy koko järven metsä, ja lohkoittain se
+ * oli satoja piirtokutsuja ruutua kohden.
+ */
+const AREA = 4;
 /** Metsä jatkuu rantavyöhykkeen (TREE_BAND) takana tähän asti (m rannasta) harvempana. */
 export const FOREST_DEPTH = 115;
 const FOREST_SPACING = 6.5;
@@ -59,6 +65,14 @@ const LEVELS: readonly Level[] = [0, 1, 2];
 /** Kevyt malli piirretään tarkan matkan tähän kerrannaiseen asti, sen takana hahmo. */
 const MID_RANGE = 2.5;
 
+/** Yhden alueen puut: lohkot tasoineen ja koko alue hahmoina. */
+interface Area {
+  chunks: THREE.Group;
+  far: THREE.Group;
+  levels: DetailLevels;
+  sphere: THREE.Sphere;
+}
+
 /**
  * Modernin ilmeen puut (#650): muotoillut, pehmeästi varjostetut mallit
  * samoilla paikoilla kuin Retron puukuvat (`planVegetation`), ja niiden takana
@@ -67,7 +81,7 @@ const MID_RANGE = 2.5;
  */
 export class Forest {
   readonly group = new THREE.Group();
-  private readonly levels = new DetailLevels();
+  private readonly areas: Area[] = [];
 
   constructor(world: StaticWorld, plants: readonly Plant[], land: Land, colors: SceneryColors) {
     this.group.name = 'modern-trees';
@@ -84,12 +98,20 @@ export class Forest {
           LEVELS.map((level) => MODELS[kind](rand, colors, level)),
         );
 
-    const lists = new Map<string, Tree[]>();
+    // Puut lohkoittain ja lohkot alueittain: `alue;laji+muoto;lohko`.
+    const areas = new Map<string, Map<string, Map<string, Tree[]>>>();
     plantTrees(world, plants, land).forEach((t, n) => {
-      const key = `${t.kind}${n % VARIANTS},${Math.floor(t.pos.x / CHUNK)},${Math.floor(t.pos.y / CHUNK)}`;
-      const list = lists.get(key);
+      const cx = Math.floor(t.pos.x / CHUNK);
+      const cy = Math.floor(t.pos.y / CHUNK);
+      const area = `${Math.floor(cx / AREA)},${Math.floor(cy / AREA)}`;
+      const model = `${t.kind}${n % VARIANTS}`;
+      let byModel = areas.get(area);
+      if (!byModel) areas.set(area, (byModel = new Map()));
+      let byChunk = byModel.get(model);
+      if (!byChunk) byModel.set(model, (byChunk = new Map()));
+      const list = byChunk.get(`${cx},${cy}`);
       if (list) list.push(t);
-      else lists.set(key, [t]);
+      else byChunk.set(`${cx},${cy}`, [t]);
     });
     const m = new THREE.Matrix4();
     const q = new THREE.Quaternion();
@@ -97,40 +119,77 @@ export class Forest {
     const at = new THREE.Vector3();
     const size = new THREE.Vector3();
     const tint = new THREE.Color();
-    for (const [key, list] of lists) {
-      const [near, ...lighter] = models
-        .get(key.slice(0, key.indexOf(',')))!
-        .map((model) => new THREE.InstancedMesh(model, material, list.length)) as [
-        THREE.InstancedMesh,
-        ...THREE.InstancedMesh[],
-      ];
+    const place = (geometry: THREE.BufferGeometry, list: readonly Tree[]) => {
+      const mesh = new THREE.InstancedMesh(geometry, material, list.length);
       list.forEach((t, i) => {
         m.compose(
           at.set(t.pos.x, t.base, -t.pos.y),
           q.setFromAxisAngle(up, t.angle),
           size.setScalar(t.height),
         );
-        near.setMatrixAt(i, m);
-        // Lämmin tai viileä vivahde puun omaan sävyyn.
+        mesh.setMatrixAt(i, m);
         const warm = (t.angle % 1) * 0.08 - 0.04;
-        near.setColorAt(i, tint.setRGB(t.shade + warm, t.shade, t.shade - warm));
+        mesh.setColorAt(i, tint.setRGB(t.shade + warm, t.shade, t.shade - warm));
       });
-      near.computeBoundingSphere();
-      // Tasot jakavat puiden paikat ja sävyt.
-      for (const mesh of lighter) {
-        mesh.instanceMatrix = near.instanceMatrix;
-        mesh.instanceColor = near.instanceColor;
-        mesh.boundingSphere = near.boundingSphere;
-        mesh.visible = false;
+      mesh.computeBoundingSphere();
+      return mesh;
+    };
+    for (const byModel of areas.values()) {
+      const area: Area = {
+        chunks: new THREE.Group(),
+        far: new THREE.Group(),
+        levels: new DetailLevels(),
+        sphere: new THREE.Sphere(),
+      };
+      const spheres: THREE.Sphere[] = [];
+      for (const [model, byChunk] of byModel) {
+        const shapes = models.get(model)!;
+        for (const list of byChunk.values()) {
+          const near = place(shapes[0]!, list);
+          const lighter = shapes.slice(1).map((shape) => {
+            const mesh = new THREE.InstancedMesh(shape, material, list.length);
+            mesh.instanceMatrix = near.instanceMatrix;
+            mesh.instanceColor = near.instanceColor;
+            mesh.boundingSphere = near.boundingSphere;
+            mesh.visible = false;
+            return mesh;
+          });
+          area.levels.add(near.boundingSphere!, [near, ...lighter]);
+          area.chunks.add(near, ...lighter);
+          spheres.push(near.boundingSphere!);
+        }
+        // Koko alueen puut hahmoina yhdellä piirrolla lajia ja muotoa kohden.
+        area.far.add(place(shapes[shapes.length - 1]!, [...byChunk.values()].flat()));
       }
-      this.levels.add(near.boundingSphere!, [near, ...lighter]);
-      this.group.add(near, ...lighter);
+      // Alueen pallo sulkee sisäänsä lohkojen pallot: kun se on hahmojen
+      // matkalla, jokainen lohko piirtäisi hahmonsa joka tapauksessa.
+      const box = new THREE.Box3();
+      for (const sphere of spheres) box.expandByPoint(sphere.center);
+      box.getCenter(area.sphere.center);
+      area.sphere.radius = Math.max(
+        ...spheres.map((sphere) => sphere.center.distanceTo(area.sphere.center) + sphere.radius),
+      );
+      area.far.visible = false;
+      this.areas.push(area);
+      this.group.add(area.chunks, area.far);
     }
+    sealMatrices(this.group);
   }
 
-  /** Tarkat mallit `range` metrin sisällä kamerasta, sitten kevyet ja kaukana hahmot. */
+  /**
+   * Tarkat mallit `range` metrin sisällä kamerasta, sitten kevyet ja kaukana
+   * hahmot. Kokonaan hahmojen matkalla oleva alue piirretään yhtenä joukkona.
+   */
   update(camera: THREE.Camera, range: number): void {
-    this.levels.update(camera, [range, range * MID_RANGE]);
+    const e = camera.matrixWorld.elements;
+    const ranges = [range, range * MID_RANGE];
+    for (const area of this.areas) {
+      const { center, radius } = area.sphere;
+      const far = Math.hypot(center.x - e[12]!, center.z - e[14]!) - radius >= ranges[1]!;
+      area.far.visible = far;
+      area.chunks.visible = !far;
+      if (!far) area.levels.update(camera, ranges);
+    }
   }
 }
 

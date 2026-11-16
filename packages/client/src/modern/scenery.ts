@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { QUALITY, type LookQuality } from '../engine/look';
 import { bottomIn, type BottomSource } from '../world/bottomMesh';
-import { staticWorldIn, type StaticWorld } from '../world/staticWorld';
+import { freezeMatrices, rehome, staticWorldIn, type StaticWorld } from '../world/staticWorld';
 import { planVegetation } from '../world/vegetation';
 import { createCottages, createModernPiers, WindowLights } from './cottages';
 import { createForestBack } from './forestBack';
@@ -52,6 +52,7 @@ function sceneryFor(world: StaticWorld): Scenery {
   if (cottages) group.add(cottages);
   const piers = createModernPiers(world.map.piers ?? []);
   if (piers) group.add(piers);
+  freezeMatrices(group);
   scenery = {
     group,
     land,
@@ -139,6 +140,7 @@ export class SceneryLook {
     if (world) {
       const scenery = (this.scenery = sceneryFor(world));
       world.always.add(scenery.group);
+      rehome(scenery.group);
       // Maalla seisova kalastaja (#457) on modernin rantapenkan päällä.
       world.ground.overlay = (p) => scenery.land.heightAt(p);
       this.replaced.push(

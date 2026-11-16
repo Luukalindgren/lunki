@@ -39,6 +39,18 @@ describe('takaa-näkymän kamera', () => {
     expect(o.tilt).toBeCloseTo(CHASE.start + CHASE.tiltRate * 0.5);
   });
 
+  it('piirto liukuu askelten välillä (viewAt)', () => {
+    const o = new ChaseOrbit();
+    o.step(0.5, { turn: 1, tilt: 1, drag: null }, 720);
+    const before = o.view;
+    o.step(0.5, { turn: 1, tilt: 1, drag: null }, 720);
+    const after = o.view;
+    expect(o.viewAt(0)).toEqual(before);
+    expect(o.viewAt(1).yaw).toBeCloseTo(after.yaw);
+    expect(o.viewAt(0.5).yaw).toBeCloseTo((before.yaw + after.yaw) / 2);
+    expect(o.viewAt(0.5).tilt).toBeCloseTo((before.tilt + after.tilt) / 2);
+  });
+
   it('kaari pysähtyy päihinsä ja kierto kulkee ympäri', () => {
     const o = new ChaseOrbit();
     for (let i = 0; i < 600; i++) o.step(1 / 60, { turn: 1, tilt: -1, drag: null }, 720);

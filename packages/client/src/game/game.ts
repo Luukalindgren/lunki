@@ -66,7 +66,7 @@ import { createBottomMesh } from '../world/bottomMesh';
 import { FishShadow } from '../world/fishShadow';
 import { FishSignsView } from './fishSignsView';
 import { BirdsView } from './birdsView';
-import { staticWorldFor, type StaticWorld } from '../world/staticWorld';
+import { rehome, staticWorldFor, type StaticWorld } from '../world/staticWorld';
 import type { RetroResolution } from '../engine/resolution';
 import type { RetroRenderer } from '../engine/retroRenderer';
 import { turnScull } from './turnScull';
@@ -331,6 +331,9 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     this.scene.add(flightShadow);
     this.world = staticWorldFor(map, seasonOf(settings));
     this.scenery.visible = false;
+    // Kohtaus ja maiseman ryhmät eivät liiku. Itse päivittyvä vanhempi
+    // laskettaisi jäädytetyn maiseman paikat joka ruudulla (`freezeMatrices`).
+    for (const still of [this.scene, this.scenery, this.mapOverlay]) still.matrixAutoUpdate = false;
     this.scene.add(this.scenery, this.mapOverlay);
     this.attachWorld();
     this.povRod.group.visible = false;
@@ -931,7 +934,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     }
     tube.setFlyLine(isFly(f.tackle), f.slack, this.appearance.line);
     const now = performance.now();
-    const rock = this.weather.rock;
+    const rock = this.weather.shownRock;
     tube.update(
       toWorld(pos, 0),
       heading,
@@ -975,7 +978,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     }
     tube.group.visible = o.boat === 0;
     const now = performance.now();
-    const rock = this.weather.rock;
+    const rock = this.weather.shownRock;
     if (tube.group.visible) {
       tube.setFlyLine(o.fly === true, 0, o.appearance.line);
       tube.update(
@@ -1110,6 +1113,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     this.scenery.add(this.world.pov);
     this.mapOverlay.add(this.world.top);
     this.scene.add(this.world.always);
+    for (const g of [this.world.pov, this.world.top, this.world.always]) rehome(g);
   }
 
   /**
@@ -1179,7 +1183,8 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     // Järven tasolla (silmin tai takaa, #691) maasto ja perspektiivi ovat käytössä.
     const lake = lakeLevel(this.viewMode);
     // Aallokossa vedenalaiset osat näkyvät aallon pinnan läpi (ks. submerge).
-    SUBMERGED_LIFT.value = lake ? this.weather.rock.lift : 0;
+    const sway = this.weather.rockAt(alpha);
+    SUBMERGED_LIFT.value = lake ? sway.lift : 0;
     // Seisojan jalkojen korkeus: maasto, laiturin kannella kansi (#457).
     // Ylhäältä Retron maa on litteä karttapohja; ilmeen oma maasto (#650)
     // näkyy ylhäältäkin, joten seisoja on silloin sen pinnalla.
@@ -1235,14 +1240,13 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
           this.rodEnd,
         ),
       );
-    this.view.apply();
+    this.view.apply(alpha);
     this.weather.render(pos, air);
     // Ohjaajan yleiskuvassa (#564) ei ole seurattavaa, joten merkkiä ei näytetä.
     const marked = this.viewMode === 'top' && this.shot?.view !== 'overview';
     this.youMarker.update(pos, heading, this.view.metersPerPixel, marked);
     this.hud.compass.update(heading);
     if (this.viewMode === 'pov') {
-      const sway = this.weather.rock;
       // Kumossa kamera kallistuu ja painuu veden rajaan.
       this.pov.apply(
         bailing?.pos ?? body,
@@ -1316,12 +1320,8 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       // Takaa (#691): kamera kiertää kalastajaa, joka piirretään samoilla
       // malleilla kuin ylhäältä. Aalto nostaa kohdetta, ei kallista kuvaa.
       const at = bailing?.pos ?? body;
-      const orbit = this.chase.view;
-      const height = air
-        ? air.height
-        : standing
-          ? Math.max(0, groundAt(at))
-          : this.weather.rock.lift + seated;
+      const orbit = this.chase.viewAt(alpha);
+      const height = air ? air.height : standing ? Math.max(0, groundAt(at)) : sway.lift + seated;
       this.pov.applyOrbit(
         at,
         height + CHASE.lookHeight,

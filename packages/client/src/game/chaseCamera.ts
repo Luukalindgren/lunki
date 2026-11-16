@@ -74,10 +74,13 @@ export class ChaseOrbit {
   private linger = 0;
   /** Pelaaja käänsi kameraa itse noston aikana: kamera ei liiku itsestään. */
   private own = false;
+  /** Näkymä edellisellä askeleella: piirto liukuu siitä nykyiseen. */
+  private prev = { yaw: 0, tilt: CHASE.start as number };
 
   /** Kamera takaisin selän taakse (näkymän vaihtuessa). */
   center(): void {
     this.yaw = 0;
+    this.prev = { yaw: 0, tilt: this.tilt };
     this.swing = 0;
     this.linger = 0;
     this.own = false;
@@ -94,12 +97,25 @@ export class ChaseOrbit {
   }
 
   /**
+   * Näkymä askelten välissä (`alpha` 0–1): kamera kääntyy kiintein askelin,
+   * ja ilman liukua kääntö nykisi näytöllä, joka piirtää askelta tiheämmin.
+   */
+  viewAt(alpha: number): { yaw: number; tilt: number } {
+    const now = this.view;
+    return {
+      yaw: wrap(this.prev.yaw + wrap(now.yaw - this.prev.yaw) * alpha),
+      tilt: this.prev.tilt + (now.tilt - this.prev.tilt) * alpha,
+    };
+  }
+
+  /**
    * Kamera jää siihen, mihin pelaaja sen käänsi, myös potkiessa.
    * `screenHeight` on ruudun korkeus CSS-pikseleinä sormen vetoa varten. `landing` = kala on haavilla
    * tai nostettavana: kamera liukuu sivulle ja palaa noston jälkeen. Pelaajan
    * oma kääntö voittaa: kamera jää siihen, mihin hän sen käänsi.
    */
   step(dt: number, input: CameraInput, screenHeight: number, landing = false): void {
+    this.prev = this.view;
     const drag = input.drag;
     const steering = input.turn !== 0 || input.tilt !== 0 || !!drag;
     if (landing) this.linger = CHASE.landing.linger;

@@ -265,6 +265,15 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
     mallit kauemmas (`DetailLevels`, matkat `QUALITY.detailRange`ista). Uusi
     maiseman osa tekee samoin eikä piirrä koko järven tarkkoja malleja
     kerralla.
+  - Piirtokutsut ja osien määrä ratkaisevat Modernin ruutunopeuden enemmän
+    kuin kolmiot. Metsän lohkot kuuluvat alueisiin (`AREA`, `modern/trees.ts`):
+    kokonaan hahmojen matkalla oleva alue piirretään yhdellä kutsulla lajia ja
+    muotoa kohden. Paikallaan pysyvän maiseman matriisit lasketaan kerran
+    (`freezeMatrices`, `sealMatrices`, `world/staticWorld.ts`), eikä kohtaus
+    tai maiseman ryhmä päivitä omaa matriisiaan joka ruudulla. Jäädytettyyn
+    ryhmään ei lisätä liikkuvaa osaa, ja toiseen kohtaukseen siirretty ryhmä
+    saa `rehome`-kutsun. Mittaa piirtokutsut ja ruudun laskenta-aika ennen ja
+    jälkeen, kun lisäät maisemaan paljon toistuvan osan.
   - Metsän takareunassa kulkee tumma tausta (`modern/forestBack.ts`), joka
     näkyy runkojen välistä metsän hämäränä: ilman sitä taivas paistoi
     puiden välistä. Se yltää latvusten alaosaan ja nousee edessä olevan mäen
@@ -386,7 +395,18 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
   porrastetaan sisäisiin pikseleihin, koska kiertyvä pikselikuva välkkyy.
   Näytön tarkkuudella sisäinen pikseli on monta kuvapistettä, ja porrastettuna
   aallokon keinunta nyki horisonttia. Uusi kameran tai kuvan liike porrastetaan
-  vain Retrossa.
+  vain Retrossa. Sama koskee ylhäältä katsovaa kameraa
+  (`TopDownCamera.apply`): Retrossa se on sisäisen pikselin rajalla, muissa
+  ilmeissä se liukuu portaatta.
+- **Piirto liukuu kiinteiden askelten välillä.** Peli etenee 60 askelta
+  sekunnissa (`FIXED_DT`), ja näyttö voi piirtää tiheämmin. `Game.render(alpha)`
+  piirtää siksi edellisen ja nykyisen askeleen väliltä: kalastajan paikka ja
+  suunta, ylhäältä katsova kamera (`TopDownCamera.apply(alpha)`), takaa-näkymän
+  kierto (`ChaseOrbit.viewAt`) ja aallokon keinunta (`WeatherController.rockAt`).
+  Uusi askeleessa laskettu arvo, joka liikuttaa kameraa tai koko kuvaa,
+  säilyttää edellisen askeleen arvon ja piirretään samoin. Ilman tätä kuva
+  nykii 120 ja 144 Hz:n näytöillä, vaikka ruutunopeus on korkea. Pysäytetty
+  kisa piirretään viimeisen askeleen tilassa (`stepping`, `main.ts`).
 - Ilmeestä riippuva varjostin lukee `LOOK_UNIFORMS`-arvot (`uLookSharp`,
   `uLookDetail`, `uLookModern`) eikä tee omaa kopiota materiaalista:
   esimerkkeinä pohjan syvyyssävyt (`world/depthShade.ts`, Terävällä omat
