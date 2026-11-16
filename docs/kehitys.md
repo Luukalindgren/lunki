@@ -744,6 +744,12 @@ Koodi: `packages/client/src/audio/sounds.ts`.
   `modern/birdShapes.ts`:ään, ei oma järjestelmä.
 - Pikselikuvat järvellä tehdään `game/pixelSprite.ts`:n tekstuureina
   (`alphaTest`, ei puoliläpinäkyvyyttä).
+- Nostettavan kalan koko järvellä tulee sen pituudesta (`landedLength`,
+  `game/landingView.ts`): pituus kertaa `LANDED_SCALE`, sama kerroin joka
+  kalalle ja joka näkymässä (silmin, takaa, ylhäältä), ja nostettu kala jää
+  samaan paikkaan kalastajan eteen. Älä suurenna kalaa näkymän, zoomin tai
+  kuvapisteiden mukaan: sama kala oli ylhäältä kolme metriä ja takaa
+  mittansa kokoinen. Ylhäältä oman paikan nuoli väistyy noston ajaksi.
 
 ### Tekstit ja nimet
 
