@@ -83,7 +83,7 @@ import {
 import type { LobbyPlayer, LobbyView, OldVersionView } from '../net/session';
 import type { SendResult } from '../net/report';
 import { LIBRARIES, creditText } from './credits';
-import { fishImage } from './fishArt';
+import { fishImage, fishSpriteWidth } from './fishArt';
 import { lureImage, type LureArtId } from './lureArt';
 import { awardList, statsTable, type StatsPlayer } from './raceSummary';
 import type { LifetimeStats } from '../game/lifetimeStats';
@@ -2289,6 +2289,9 @@ export class Screens {
     head.setAttribute('aria-hidden', 'true');
     head.append(resultRow(cells(...heads), null));
     table.appendChild(head);
+    // Listan levein kalan kuva (pikseleinä): kapealla ruudulla kuvalle varataan
+    // sen levyinen sarake, jotta painot ovat allekkain (#774).
+    let fishColumn = 0;
     for (const r of results) {
       const li = document.createElement('li');
       li.value = r.rank;
@@ -2310,6 +2313,7 @@ export class Screens {
       };
       const gear = tackles?.get(r.id);
       const big = r.summary.biggest;
+      if (big) fishColumn = Math.max(fishColumn, fishSpriteWidth(big.species, big.weight));
       const row = resultRow(line, big ? sizedFish(big.species, big.weight) : null, {
         name,
         total: formatWeight(r.summary.total),
@@ -2328,6 +2332,7 @@ export class Screens {
         li.append(h('span', r.members.map((m) => m.name).join(', '), 'player-gear'));
       table.appendChild(li);
     }
+    table.style.setProperty('--fish-col', String(fishColumn));
     const listBox = document.createElement('div');
     listBox.append(table, copyResults(results, settings));
     const map = race ? this.raceMap(race) : null;
