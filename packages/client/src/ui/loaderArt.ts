@@ -9,6 +9,8 @@
  * latausnäkymän index.html:ään jo koontivaiheessa.
  */
 
+import { MODERN_BOOT_ART, MODERN_BOOT_SCRIPT } from '../modern/bootArt';
+
 type Color = string;
 
 /** Pelin paletti (ks. scripts/ikoni/piirra.py ja sonar.ts). */
@@ -429,15 +431,20 @@ export function loaderHtml(label: string | null = null, variant = LOADER_VARIANT
  * se näkyy heti tyylitiedoston saavuttua, kun pelin koodi vasta latautuu.
  * Kieli valitaan samoin kuin i18n:ssä (tallennettu valinta, muuten suomi).
  * Jos lataus kestää, ruutu kertoo hetken päästä, että peli latautuu yhä.
+ * Kun tallennettu ilme on Kotiteatteri (Moderni), näkymä on sen lautaseinää ja
+ * pikselikuvan tilalla on koho (`modern/bootArt.ts`, tyylit `modern/boot.css`).
  */
 export function bootLoaderHtml(): string {
   const text = (fi: string, en: string) => `<span data-fi="${fi}" data-en="${en}">${fi}</span>`;
   return (
-    `<div id="boot-loader" class="boot-loader"><p class="boot-title">LUNKINJÄRVI</p>` +
+    `<div id="boot-loader" class="boot-loader"><div class="boot-panel">` +
+    `<p class="boot-title">LUNKINJÄRVI</p>` +
+    MODERN_BOOT_ART +
     loaderHtml(text('Ladataan', 'Loading')) +
     `<p class="boot-slow">${text('Hidas yhteys? Peli latautuu yhä.', 'Slow connection? The game is still loading.')}</p>` +
-    `</div>` +
+    `</div></div>` +
     `<script>(function(){var l=null;try{l=localStorage.getItem('lunki.lang')}catch(e){}` +
-    `if(l==='en')document.querySelectorAll('#boot-loader [data-en]').forEach(function(e){e.textContent=e.getAttribute('data-en')})})()</script>`
+    `if(l==='en')document.querySelectorAll('#boot-loader [data-en]').forEach(function(e){e.textContent=e.getAttribute('data-en')});` +
+    `${MODERN_BOOT_SCRIPT}})()</script>`
   );
 }

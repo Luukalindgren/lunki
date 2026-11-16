@@ -38,6 +38,14 @@ function serviceWorker(): Plugin {
   };
 }
 
+/** Kotiteatterin latausnäkymän tyylit sivuun upotettavaksi (fonttien polut sivun juuresta). */
+const modernBootCss = (): string =>
+  readFileSync(new URL('./src/modern/boot.css', import.meta.url), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replaceAll("url('./fonts/", "url('/src/modern/fonts/")
+    .replace(/\s+/g, ' ')
+    .trim();
+
 /** Buildin kansio modernin ilmeen tiedostoille (ks. `optionalList`). */
 const MODERN_DIR = 'modern';
 const inModern = (id: string): boolean => id.replaceAll('\\', '/').includes('src/modern/');
@@ -52,7 +60,15 @@ export default defineConfig({
     {
       // Latausnäkymä suoraan sivuun: näkyy, kun pelin koodi vasta latautuu.
       name: 'lunki-boot-loader',
-      transformIndexHtml: (html) => html.replace('<!-- latausnäkymä -->', bootLoaderHtml()),
+      // Kotiteatterin lautaseinän tyylit (src/modern/boot.css) tulevat samaan
+      // sivuun: `pre`, jotta Vite käsittelee tyylin fonttien osoitteet.
+      transformIndexHtml: {
+        order: 'pre',
+        handler: (html) =>
+          html
+            .replace('<!-- latausnäkymän tyylit -->', `<style>${modernBootCss()}</style>`)
+            .replace('<!-- latausnäkymä -->', bootLoaderHtml()),
+      },
     },
     serviceWorker(),
   ],

@@ -349,6 +349,15 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
     palaa valo (`WindowLights` `modern/cottages.ts`:ssä, raja ja osuus
     `WINDOW_LIGHTS`): peli kertoo päivänvalon määrän `scene.userData.daylight`issa,
     ja valaistu lasi on valonlähde (alfa 0), joka ei valaise ympäristöään.
+- **Sivun latausnäkymä on Modernissa samaa lautaseinää** (`modern/boot.css`,
+  `modern/bootArt.ts`): kun tallennettu ilme on Moderni, sivun alun koodi
+  antaa latausnäkymälle luokan `boot-modern` jo ennen pelin koodia, ja
+  pikselikuvan tilalla on koho. Näkymä pysyy, kunnes Moderni on ladattu ja
+  piirretty, joten Retro ei välähdä välissä. Koska näkymä näkyy ennen
+  teemaa, `vite.config.ts` upottaa `boot.css`:n index.html:ään: seinän värit,
+  laudoitus ja kehys (`--wall-planks`, `--wall-frame`) ovat siinä yhdessä
+  paikassa, ja teema käyttää samoja muuttujia. Muilla ilmeillä ja
+  kosketuslaitteella latausnäkymä on ennallaan.
 - **Modernin teema** (`modern/theme.css`) vaihtaa käyttöliittymän värit
   `style.css`:n `--c-`-muuttujilla ja kirjasimet luokan `.look-modern` alla.
   Uusi valikon tai HUDin osa käyttää näitä muuttujia eikä kirjoita värejä

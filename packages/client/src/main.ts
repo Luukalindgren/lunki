@@ -1165,8 +1165,13 @@ setTimeout(menuReady, WARM_TIMEOUT_MS);
 /** Ilmoitus, joka näytetään kisan alkaessa (valikossa HUD on piilossa). */
 let raceNotice: string | null = null;
 // Tallennettu Moderni: peli aukeaa Retrona ja vaihtuu, kun ilme on latautunut.
+// Sivun latausnäkymä (Kotiteatterin lautaseinä) pysyy sen ajan päällä, joten
+// Retro ei välähdä ensin: näkymä poistuu, kun Moderni on piirretty tai lataus
+// on epäonnistunut.
+let bootHeld = wantedLook === 'modern';
 if (wantedLook === 'modern') {
   void Promise.resolve(chooseLook('modern')).then((ok) => {
+    bootHeld = false;
     if (ok === false && wantedLook !== 'modern') raceNotice = t('look.modernFailed');
   });
 }
@@ -1236,6 +1241,6 @@ startLoop({
       raceNotice = null;
     }
     bench?.frame(frameTime);
-    dismissBootLoader();
+    if (!bootHeld) dismissBootLoader();
   },
 });
