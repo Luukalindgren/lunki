@@ -141,6 +141,31 @@ ohjeessa [pilvipalvelin.md](pilvipalvelin.md). Repositorion `Dockerfile`
 käy myös muille palveluntarjoajille: palvelin portissa 2567, tietokanta
 hakemistossa `/data` (liitä pysyvään levyyn, muuten ennätykset katoavat).
 
+## Slopfest-pelikirjasto
+
+Peli julkaistaan myös yhteiseen pelikirjastoon osoitteessa
+<https://lunkinjarvi.slopfest.dev> (#769). Kirjasto on kirjautumisen takana,
+ja julkaisu on lisäys: lunkinjarvi.com ja pelipalvelin toimivat kuten ennenkin.
+
+- Työnkulku _Deploy to Slopfest_ (`.github/workflows/slopfest.yml`) julkaisee
+  aina, kun main päivittyy. Tiedosto on Slopfestin ohjesivulta
+  <https://deploy.slopfest.dev/> sellaisenaan, eikä sitä muokata: se hakee
+  julkaisukomennon Slopfestista joka ajolla. Salaisuuksia ei tarvita, koska
+  GitHub allekirjoittaa ajolle tunnisteen, jonka Slopfest hyväksyy vain
+  kytketystä repositoriosta ja haarasta.
+- `slopfest.json` repositorion juuressa kertoo osoitteen (`slug`),
+  build-komennon, julkaistavan kansion (`packages/client/dist`) ja pelin
+  tiedot kirjaston sivulle. Tiedot täyttävät sivun vain kerran; sen jälkeen
+  ne vaihdetaan Slopfestin sivulla.
+- Työnkulku ei näe repositorion muuttujia, joten palvelimen osoite
+  (`wss://peli.lunkinjarvi.com`) on build-komennossa. Jos `LUNKI_SERVER_URL`
+  vaihtuu, vaihda se myös `slopfest.json`iin.
+- Kertaluonteisesti Slopfestin sivulla (vaatii kirjautumisen): _Add a game_
+  osoitteella `lunkinjarvi`, pelin sivulla repositorion `Luukalindgren/lunki`
+  ja haaran `main` kytkeminen sekä _Publish_.
+- Jos ajo epäonnistuu viestiin `cannot deploy "lunkinjarvi"`, peliä ei ole
+  lisätty tai repositoriota ei ole kytketty pelin sivulla.
+
 ## Pelin tiedostot laitteella (service worker)
 
 Build kirjoittaa juureen `sw.js`-tiedoston, joka tallentaa pelin koodin,

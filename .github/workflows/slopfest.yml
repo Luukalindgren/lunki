@@ -1,0 +1,96 @@
+name: Deploy to Slopfest
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: slopfest-${{ github.workflow }}
+  cancel-in-progress: true
+
+env:
+  SLOPFEST_DEPLOY_URL: https://deploy.slopfest.dev
+  MANIFEST: slopfest.json
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out the game
+        uses: actions/checkout@v7
+        with:
+          lfs: false
+          persist-credentials: false
+
+      - name: Download the Slopfest deploy command
+        run: curl -fsSL --retry 3 -o "$RUNNER_TEMP/slopfest.mjs" "$SLOPFEST_DEPLOY_URL/slopfest.mjs"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+
+      - name: Validate slopfest.json
+        id: manifest
+        run: node "$RUNNER_TEMP/slopfest.mjs" validate --manifest "$MANIFEST"
+
+      - name: Build
+        if: steps.manifest.outputs.method == 'command'
+        working-directory: ${{ steps.manifest.outputs.root }}
+        env:
+          BUILD_COMMAND: ${{ steps.manifest.outputs.build_command }}
+        run: bash -eo pipefail -c "$BUILD_COMMAND"
+
+      - name: Cache Godot
+        if: steps.manifest.outputs.method == 'godot'
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/slopfest-godot/${{ steps.manifest.outputs.godot_version }}
+          key: slopfest-godot-${{ steps.manifest.outputs.godot_version }}-linux-x86_64-web
+
+      - name: Install Godot
+        if: steps.manifest.outputs.method == 'godot'
+        env:
+          GODOT_VERSION: ${{ steps.manifest.outputs.godot_version }}
+        run: |
+          set -euo pipefail
+          dir="$HOME/.cache/slopfest-godot/$GODOT_VERSION"
+          if [ ! -x "$dir/godot" ]; then
+            base="https://github.com/godotengine/godot-builds/releases/download/$GODOT_VERSION"
+            mkdir -p "$dir/templates"
+            curl -fsSL --retry 3 -o "$RUNNER_TEMP/godot.zip" "$base/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+            unzip -q -o "$RUNNER_TEMP/godot.zip" -d "$dir"
+            mv "$dir/Godot_v${GODOT_VERSION}_linux.x86_64" "$dir/godot"
+            curl -fsSL --retry 3 -o "$RUNNER_TEMP/templates.tpz" "$base/Godot_v${GODOT_VERSION}_export_templates.tpz"
+            # Only the web templates are needed; the full archive is about 1 GB unpacked.
+            unzip -q -j -o "$RUNNER_TEMP/templates.tpz" 'templates/web*' 'templates/version.txt' -d "$dir/templates"
+            rm -f "$RUNNER_TEMP/godot.zip" "$RUNNER_TEMP/templates.tpz"
+          fi
+          templates="$HOME/.local/share/godot/export_templates/$(cat "$dir/templates/version.txt")"
+          mkdir -p "$templates"
+          cp "$dir"/templates/* "$templates/"
+          echo "$dir" >> "$GITHUB_PATH"
+
+      - name: Export with Godot
+        if: steps.manifest.outputs.method == 'godot'
+        working-directory: ${{ steps.manifest.outputs.root }}
+        env:
+          PROJECT: ${{ steps.manifest.outputs.godot_project }}
+          PRESET: ${{ steps.manifest.outputs.godot_preset }}
+          OUTPUT: ${{ steps.manifest.outputs.output }}
+        run: |
+          set -euo pipefail
+          out="$PWD/$OUTPUT"
+          # Godot refuses to export into a folder that doesn't exist yet.
+          mkdir -p "$out"
+          godot --headless --path "$PROJECT" --import
+          godot --headless --path "$PROJECT" --export-release "$PRESET" "$out/index.html"
+
+      - name: Deploy
+        run: node "$RUNNER_TEMP/slopfest.mjs" deploy --manifest "$MANIFEST" --url "$SLOPFEST_DEPLOY_URL"
