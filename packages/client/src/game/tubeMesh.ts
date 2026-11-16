@@ -7,7 +7,7 @@ import {
   type EmoteId,
 } from '@lunki/shared';
 import { toWorld } from '../world/lakeMesh';
-import { submerge } from '../world/submerged';
+import { solidUnderwater, submerge } from '../world/submerged';
 import { playerColorMaterial, setPlayerColor } from './playerColor';
 import { ROD_COLOR } from './rodModel';
 import { REST_POSE, bendRod, type RodPose } from './rodMotion';
@@ -136,9 +136,11 @@ export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THR
     shin.name = 'leg';
     shin.userData.shin = true;
     shin.position.set(KNEE.x, KNEE.y, z);
-    shin.add(new THREE.Mesh(shinGeometry, shinMat));
+    shin.add(solidUnderwater(new THREE.Mesh(shinGeometry, shinMat)));
     group.add(shin);
-    const fin = new THREE.Mesh(new THREE.BoxGeometry(FIN_LENGTH, 0.05, 0.22), finMat);
+    const fin = solidUnderwater(
+      new THREE.Mesh(new THREE.BoxGeometry(FIN_LENGTH, 0.05, 0.22), finMat),
+    );
     fin.position.set(FIN_X, FIN_Y, z);
     fin.name = 'fin';
     fin.userData.shape = 'fin';

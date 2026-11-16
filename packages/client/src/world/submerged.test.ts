@@ -1,7 +1,13 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { playerColorMaterial } from '../game/playerColor';
-import { SEE_THROUGH_DEPTH, coverVisibility, submerge } from './submerged';
+import {
+  SEE_THROUGH_DEPTH,
+  SUBMERGED_ORDER,
+  coverVisibility,
+  solidUnderwater,
+  submerge,
+} from './submerged';
 
 /** Kääntää materiaalin varjostinmuokkaukset three.js:n lohkoja muistuttavaan runkoon. */
 function compile(material: THREE.Material) {
@@ -55,5 +61,28 @@ describe('veden alla näkyvät osat', () => {
     expect(define).toBe(0);
     expect(ramp).toBeGreaterThan(define);
     expect(shader.fragmentShader.indexOf('uRamp[0]')).toBeGreaterThan(ramp);
+  });
+
+  it('kiinteä kappale piirtää syvyytensä ennen väriä samasta muodosta', () => {
+    const material = submerge(new THREE.MeshLambertMaterial());
+    material.side = THREE.DoubleSide;
+    const mesh = solidUnderwater(
+      new THREE.Mesh<THREE.BufferGeometry>(new THREE.BoxGeometry(), material),
+    );
+    const depth = mesh.children[0] as THREE.Mesh;
+    const depthMaterial = depth.material as THREE.Material;
+    expect(depthMaterial.colorWrite).toBe(false);
+    expect(depthMaterial.depthWrite).toBe(true);
+    expect(depthMaterial.transparent).toBe(false);
+    expect(depthMaterial.side).toBe(THREE.DoubleSide);
+    expect(depth.renderOrder).toBe(SUBMERGED_ORDER);
+    // Sama syvyys kuin värillä, ja näkymätön kohta ei peitä.
+    const shader = compile(depthMaterial);
+    expect(shader.vertexShader).toBe(compile(material).vertexShader);
+    expect(shader.fragmentShader).toContain('discard');
+    // Moderni vaihtaa kappaleen muodon: syvyys seuraa mukana.
+    const soft = new THREE.SphereGeometry();
+    mesh.geometry = soft;
+    expect(depth.geometry).toBe(soft);
   });
 });

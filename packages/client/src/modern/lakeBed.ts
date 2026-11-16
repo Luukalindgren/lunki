@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { BottomSource } from '../world/bottomMesh';
 import { clipToSwellPatch } from '../world/lakeMesh';
-import { coverVisibility, submerge } from '../world/submerged';
+import { coverVisibility, solidUnderwater, submerge } from '../world/submerged';
 import { blob, mergeParts, mixColor, paint, paintedMaterial, seeded, solid } from './shapes';
 
 const ROCK = [0x6f8388, 0x8a9a9a] as const;
@@ -145,7 +145,7 @@ export function createLakeBed({ bottom, waves }: BottomSource): {
     else clipToSwellPatch(material, waves);
     const m = new THREE.Mesh(mergeParts(parts), material);
     m.name = name;
-    return m;
+    return sunk ? solidUnderwater(m) : m;
   };
   return {
     rocks: mesh(rocks, 'modern-structures', false),
