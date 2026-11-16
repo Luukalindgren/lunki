@@ -238,7 +238,7 @@ export class FishingView {
       mat.color.setHex(s.stage === 'charging' ? 0xf6d04d : 0xfff3b0);
     }
 
-    this.updateFlyLine(s, ctx, side);
+    this.updateFlyLine(s, ctx, rodEnd);
 
     const out = s.stage === 'flight' || s.stage === 'water';
     this.line.visible = out;
@@ -366,17 +366,29 @@ export class FishingView {
     }
   }
 
-  /** Perhoheitossa siima ilmassa silmukkana vavan kärjestä perhoon (#236). */
-  private updateFlyLine(s: FishingState, ctx: FishingContext, side: Vec2): void {
+  /**
+   * Perhoheitossa siima ilmassa silmukkana vavan kärjestä perhoon (#236).
+   * Alkupiste on piirretyn vavan kärki `rodEnd` kuten muullakin siimalla;
+   * ilman piirrettyä vapaa (maalla, katsojana) kärki lasketaan heiton asennosta.
+   */
+  private updateFlyLine(s: FishingState, ctx: FishingContext, rodEnd: LinePoint | null): void {
     const c = s.stage === 'casting' ? s.flyCast : null;
     this.flyLine.visible = this.fly.visible = c !== null;
     if (!c) return;
+    let tip = rodEnd;
+    if (!tip) {
+      const swing = flyRodTip(c.rod);
+      const side = rodSideOffset(ctx.heading);
+      tip = {
+        x: ctx.tubePos.x + side.x + Math.cos(ctx.heading) * swing.forward,
+        y: ctx.tubePos.y + side.y + Math.sin(ctx.heading) * swing.forward,
+        h: swing.height,
+      };
+    }
     const pts = flyLineWorld(
-      flyLineProfile(flyLinePose(c, flyRodTip(c.rod))),
-      ctx.tubePos,
-      ctx.heading,
+      flyLineProfile(flyLinePose(c, { forward: 0, height: tip.h })),
+      tip,
       ctx.heading + c.aim,
-      side,
       this.flyPoints,
     );
     const pos = this.flyLine.geometry.getAttribute('position') as THREE.BufferAttribute;

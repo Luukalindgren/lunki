@@ -62,13 +62,17 @@ describe('perhosiiman muoto (#236)', () => {
     expect(late.h).toBeLessThan(back.h - 0.5);
   });
 
-  it('järven koordinaateissa kärki on katsesuunnassa ja siima heittosuunnassa', () => {
-    const pts = flyLineProfile(loop(1, 1));
-    const world = flyLineWorld(pts, { x: 10, y: 20 }, 0, Math.PI / 2, { x: 0, y: -0.5 });
-    expect(world[0]!.x).toBeCloseTo(10 + tip.forward);
-    expect(world[0]!.y).toBeCloseTo(19.5);
-    expect(last(world).x).toBeCloseTo(10 + tip.forward);
-    expect(last(world).y).toBeGreaterThan(19.5 + 11);
+  it('järven koordinaateissa siima alkaa vavan kärjestä ja kulkee heittosuuntaan', () => {
+    const rodEnd = { x: 11.6, y: 19.5 };
+    for (const pose of [loop(1, 1), loop(0.3, -1), { ...loop(0, 1), phase: 'stroke' as const }]) {
+      const world = flyLineWorld(flyLineProfile(pose), rodEnd, Math.PI / 2);
+      expect(world[0]!.x).toBeCloseTo(rodEnd.x);
+      expect(world[0]!.y).toBeCloseTo(rodEnd.y);
+      expect(world[0]!.h).toBeCloseTo(tip.height);
+    }
+    const world = flyLineWorld(flyLineProfile(loop(1, 1)), rodEnd, Math.PI / 2);
+    expect(last(world).x).toBeCloseTo(rodEnd.x);
+    expect(last(world).y).toBeGreaterThan(rodEnd.y + 11);
   });
 
   it('muiden heitossa suunta ja aukeaminen päätellään perhon liikkeestä', () => {

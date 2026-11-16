@@ -62,6 +62,9 @@ export function flyRodAngle(rod: number): number {
   return ROD_REST + (ROD_BACK - ROD_REST) * k;
 }
 
+/** Perhoheiton vavan nosto lepoasennosta (rad): sama heilahdus jokaiselle vavan mallille. */
+export const flyRodLift = (rod: number): number => flyRodAngle(rod) - flyRodAngle(1);
+
 /** Kelan osien paikat kelan omassa kehyksessä: x = vapaa pitkin eteen, y = ylös, z = oikealle. */
 const SPOOL = { x: 0.04, y: -0.05, radius: 0.018, lip: 0.021, half: 0.012 };
 const BAIL_RADIUS = 0.024;

@@ -136,20 +136,17 @@ export function flyLineProfile(p: FlyLinePose): SidePoint[] {
 }
 
 /**
- * Sivukuvan pisteet järven koordinaatteihin. Vavan kärki on katsesuunnassa
- * `heading` (ja `side` verran oikealla), siima kulkee siitä heittosuuntaan `axis`.
+ * Sivukuvan pisteet järven koordinaatteihin. Siima alkaa piirretyn vavan
+ * kärjestä `tip` (sama piste, josta muukin siima lähtee) ja kulkee siitä
+ * heittosuuntaan `axis`.
  */
 export function flyLineWorld(
   pts: readonly SidePoint[],
-  pos: Vec2,
-  heading: number,
+  tip: Vec2,
   axis: number,
-  side: Vec2,
   out: LinePoint[] = [],
 ): LinePoint[] {
   const tipS = pts[0]?.s ?? 0;
-  const tx = pos.x + side.x + Math.cos(heading) * tipS;
-  const ty = pos.y + side.y + Math.sin(heading) * tipS;
   const cx = Math.cos(axis);
   const cy = Math.sin(axis);
   // Oikea puoli: suunta käännettynä 90° myötäpäivään.
@@ -158,7 +155,7 @@ export function flyLineWorld(
   out.length = pts.length;
   pts.forEach((p, i) => {
     const d = p.s - tipS;
-    out[i] = { x: tx + cx * d + rx * p.lat, y: ty + cy * d + ry * p.lat, h: p.h };
+    out[i] = { x: tip.x + cx * d + rx * p.lat, y: tip.y + cy * d + ry * p.lat, h: p.h };
   });
   return out;
 }

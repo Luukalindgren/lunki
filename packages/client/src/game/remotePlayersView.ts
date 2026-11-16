@@ -23,8 +23,14 @@ import {
   setFlyRod,
   setSeated,
 } from './tubeMesh';
-import { FLY_LINE_POINTS, RemoteFlyLine, flyLineProfile, flyLineWorld } from './flyLine';
-import { flyRodTip } from './povRod';
+import {
+  FLY_LINE_POINTS,
+  RemoteFlyLine,
+  flyLineProfile,
+  flyLineWorld,
+  type FlyLinePose,
+} from './flyLine';
+import { flyRodLift, flyRodTip } from './povRod';
 import { stackTags, type TagBox } from './nameTagStack';
 import { screenAnchor } from './screenAnchor';
 import { REMOTE_FIGHT, RemoteFight } from './remoteFight';
@@ -196,22 +202,24 @@ export class RemotePlayersView {
         if (hooked) e.rod.pulse(m.hookSet.lift, m.hookSet.time);
         e.stage = p.lureStage;
       }
+      const showLure = p.lure !== null && p.lureStage !== LureStage.none;
+      // Perhovälineillä lento on perhoheittoa: perho kulkee edestakaisin silmukan kärjessä.
+      const casting = showLure && p.fly === true && p.lureStage === LureStage.flight;
+      // Perhoheitossa vapa heiluu silmukan suuntaan kuten omassa heitossa.
+      const fly = casting ? this.flyCastPose(e, p) : null;
+      if (!casting) e.fly.reset();
       let tip: THREE.Vector3;
       if (hooked) tip = this.drawFight(e, p, dt, eyes?.tip);
       else {
         e.fight.reset();
-        e.pose = { ...e.rod.step(0, 0, dt), pull: null };
+        e.pose = { ...e.rod.step(fly ? flyRodLift(fly.dir) : 0, 0, dt), pull: null };
         tip = eyes?.tip ?? aimRod(e.tube, e.pose, this.tip);
       }
 
-      const showLure = p.lure !== null && p.lureStage !== LureStage.none;
-      // Perhovälineillä lento on perhoheittoa: perho kulkee edestakaisin silmukan kärjessä.
-      const casting = showLure && p.fly === true && p.lureStage === LureStage.flight;
       if (!showLure) e.lure.hide();
       e.line.visible = showLure && !casting;
       e.flyLine.visible = casting;
-      if (casting) this.drawFlyCast(e, p);
-      else e.fly.reset();
+      if (fly) this.drawFlyCast(e, p, fly, tip);
       if (showLure && !casting && !hooked) {
         // Siima lähtee hahmon vavan kärjestä.
         const from = { x: tip.x, y: -tip.z };
@@ -314,20 +322,24 @@ export class RemotePlayersView {
     return w;
   }
 
-  /** Muun pelaajan perhoheitto perhon paikasta päätellen. */
-  private drawFlyCast(e: Entry, p: RemotePlayer): void {
+  /** Muun pelaajan perhoheiton silmukka perhon paikasta päätellen. */
+  private flyCastPose(e: Entry, p: RemotePlayer): FlyLinePose {
     const heading = p.heading + p.look;
     const side = rodSideOffset(heading);
-    const tip0 = flyRodTip(1);
-    const tip = {
-      x: p.pos.x + side.x + Math.cos(heading) * tip0.forward,
-      y: p.pos.y + side.y + Math.sin(heading) * tip0.forward,
-    };
-    const along = (p.lure!.x - tip.x) * Math.cos(heading) + (p.lure!.y - tip.y) * Math.sin(heading);
-    const prev = e.fly.pose(along, tip0);
-    // Vapa on silmukan suunnan pysäytysasennossa.
-    const pose = { ...prev, ...posed(flyRodTip(prev.dir)) };
-    const pts = flyLineWorld(flyLineProfile(pose), p.pos, heading, heading, side);
+    const rest = flyRodTip(1);
+    const x = p.pos.x + side.x + Math.cos(heading) * rest.forward;
+    const y = p.pos.y + side.y + Math.sin(heading) * rest.forward;
+    const along = (p.lure!.x - x) * Math.cos(heading) + (p.lure!.y - y) * Math.sin(heading);
+    return e.fly.pose(along, rest);
+  }
+
+  /** Muun pelaajan perhosiima piirretyn vavan kärjestä `tip` perhoon. */
+  private drawFlyCast(e: Entry, p: RemotePlayer, pose: FlyLinePose, tip: THREE.Vector3): void {
+    const pts = flyLineWorld(
+      flyLineProfile({ ...pose, tipS: 0, tipH: tip.y }),
+      { x: tip.x, y: -tip.z },
+      p.heading + p.look,
+    );
     const pos = e.flyLine.geometry.attributes.position as THREE.BufferAttribute;
     writeLine(pos, pts);
     pos.needsUpdate = true;
@@ -422,8 +434,3 @@ export class RemotePlayersView {
 
 const sameAppearance = (a: Appearance, b: Appearance) =>
   a.tube === b.tube && a.fins === b.fins && a.shirt === b.shirt && a.line === b.line;
-
-const posed = (tip: { forward: number; height: number }) => ({
-  tipS: tip.forward,
-  tipH: tip.height,
-});
