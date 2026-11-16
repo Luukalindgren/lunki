@@ -58,6 +58,13 @@
  */
 html.look-modern {
   --font: var(--text-font);
+  /*
+   * Tekstifontin numerot ovat oletuksena vanhan tyylin numeroita, jotka
+   * roikkuvat peruslinjan alle ja ovat eri levyisiä. Tasakorkuiset ja
+   * tasalevyiset numerot (lnum, tnum) pitävät luvut samalla viivalla ja
+   * pilkun kohdalta allekkain valikoissa, HUDissa ja kellossa (#745).
+   */
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 /*

@@ -354,7 +354,9 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
   Uusi valikon tai HUDin osa käyttää näitä muuttujia eikä kirjoita värejä
   itse, jolloin se saa teeman ilman omaa sääntöä. Teema asettaa myös pelin
   fontin (`--font`) tekstifontikseen, ja ympyrävalikot ovat paperilohkoja
-  musteen värisessä kehässä.
+  musteen värisessä kehässä. Tekstifontin numerot ovat tasakorkuisia ja
+  tasalevyisiä (`font-variant-numeric: lining-nums tabular-nums`, #745), jotta
+  luvut ovat samalla viivalla ja allekkain.
   HUDin teksti on Modernissa ilman varjoa, koska se on paneelin sisällä:
   paneelin ulkopuolelle jäävä teksti (mittarin nimi) saa teemassa tumman
   reunuksen, ja uusi ilmoitusalueen kortti lisätään teeman paneelilistaan (#732).
