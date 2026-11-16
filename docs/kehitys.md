@@ -372,6 +372,12 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
   näkyvä alue ei riipu ilmeestä. Terävä piirtää jokaisen sisäisen pikselin
   `scale` × `scale` kuvapisteenä (`renderSize`). Älä laske mitään näkymän
   osaa piirron tarkkuudesta.
+- **Kameran liike on Terävässä ja Modernissa portaaton** (`cameraAngles`,
+  `game/povCamera.ts`). Retrossa kameran suunta, nyökkäys ja kallistus
+  porrastetaan sisäisiin pikseleihin, koska kiertyvä pikselikuva välkkyy.
+  Näytön tarkkuudella sisäinen pikseli on monta kuvapistettä, ja porrastettuna
+  aallokon keinunta nyki horisonttia. Uusi kameran tai kuvan liike porrastetaan
+  vain Retrossa.
 - Ilmeestä riippuva varjostin lukee `LOOK_UNIFORMS`-arvot (`uLookSharp`,
   `uLookDetail`, `uLookModern`) eikä tee omaa kopiota materiaalista:
   esimerkkeinä pohjan syvyyssävyt (`world/depthShade.ts`, Terävällä omat
