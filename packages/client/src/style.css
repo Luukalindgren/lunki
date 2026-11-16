@@ -2202,6 +2202,45 @@ textarea,
   }
 }
 
+/*
+ * Tulossivu matalalla ruudulla (puhelin vaakana, #744): otsikko ja voittaja
+ * samalle riville ja Näkymä-teksti nappien viereen, jotta tuloslistasta näkyy
+ * useampi rivi. Alanapit pysyvät paikallaan kuten muissa valikoissa.
+ */
+@media (max-height: 480px) {
+  .screen-panel[data-screen$='results'] h2 {
+    display: inline-block;
+    margin: 0 20px 4px 0;
+    font-size: 30px;
+    vertical-align: baseline;
+  }
+
+  .screen-panel[data-screen$='results'] h2::after {
+    display: none;
+  }
+
+  .screen-panel[data-screen$='results'] > p.total:first-of-type {
+    display: inline-block;
+    margin: 0 0 4px;
+  }
+
+  .screen-panel .choice.results-view {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 12px;
+    margin: 0 0 6px;
+  }
+
+  .screen-panel .choice.results-view .choice-label {
+    margin: 0;
+  }
+
+  .screen-panel .choice.results-view button {
+    padding-block: 2px;
+  }
+}
+
 /* Asetusnäkymän osiot: Näyttö, Äänet, Kieli. */
 .screen-panel h3.settings-section,
 .screen-panel h3.awards-title {
