@@ -2117,8 +2117,8 @@ export class Screens {
     clock?: string;
     /** Kisan tilanne: kalat, paino, sija tai aika ja paras kala (#469). */
     status?: RaceStatus | null;
-    /** Koko tulostaulu riveinä, kun se ei ole HUDissa (kosketus). */
-    scoreboard?: string[] | null;
+    /** Koko tulostaulu otsikkoriveineen, kun se ei ole HUDissa (kosketus). */
+    scoreboard?: Line[] | null;
     /** Kisan säännöt luettavaksi: vaikeus, sää, kausi, voittaja ja kesto. */
     rules?: CompetitionSettings;
     /** Perukkeen vaihto kesken kisan; katsojalla ei ole varusteita. */
@@ -3530,10 +3530,21 @@ function pausePractice(p: PracticeLobby): HTMLElement {
   return box;
 }
 
-/** Koko tulostaulu tauolla: puhelimella se ei ole HUDissa viemässä tilaa. */
-function pauseScoreboard(lines: string[]): HTMLElement {
+/**
+ * Koko tulostaulu tauolla: puhelimella se ei ole HUDissa viemässä tilaa.
+ * Ensimmäinen rivi on otsikko, ja rivien tasatut osat ovat sarakkeita
+ * (`ui/columns.ts`), jotta ne ovat kohdakkain myös Modernin fontilla (#771).
+ */
+function pauseScoreboard(lines: readonly Line[]): HTMLElement {
   const box = h('div', '', 'pause-scoreboard');
-  box.append(h('span', t('game.scoreboard'), 'pause-stat-label'), h('pre', lines.join('\n')));
+  // Rivit yhtenä lohkona keskellä: jokainen rivi alkaa samasta reunasta.
+  const rows = h('div', '', 'pause-score-rows');
+  lines.forEach((line, i) => {
+    const row = h('div', '', i === 0 ? 'pause-score-row pause-stat-label' : 'pause-score-row');
+    row.append(...lineNodes(line));
+    rows.append(row);
+  });
+  box.append(rows);
   return box;
 }
 

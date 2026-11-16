@@ -565,7 +565,8 @@ Koodi: `packages/client/src/ui/screens.ts` (`showSettings`, `showPause`).
   Kisan tilanteen alla näkyvät kisan säännöt vain luettavina (`pauseRules`:
   vaikeus, sää, kausi, voittaja ja kesto); niitä ei vaihdeta kesken kisan.
   Kosketuksella tilanteen alla on koko tulostaulu (`pauseScoreboard`), koska
-  se ei ole puhelimen HUDissa.
+  se ei ole puhelimen HUDissa: sama taulu kuin työpöydällä Tab pohjassa
+  (`fullScoreboard`, #771).
 - Koko näyttö on pieni kuvake paneelin oikeassa yläkulmassa
   (`fullscreenButton`, `ui/fullscreen.ts`) päävalikossa ja tauolla, ei oma
   rivinsä valikossa.
