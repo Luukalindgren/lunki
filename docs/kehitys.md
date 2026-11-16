@@ -439,8 +439,10 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
   pohjan lajit ovat samat. Punnituskortti ja
   järvikartta tekevät Terävälle sileän version samasta piirroksesta
   (`smoothPixels`). Järvikartan värit kysytään `mapColors()`-kutsulla
-  (`ui/mapColors.ts`): Modernissa kartta on eräkartta (paperin värinen maa,
-  sinivihreät syvyysvyöhykkeet, käyrät ja tekstit musteella), ja uusi kartan
+  (`ui/mapColors.ts`): Modernissa kartta näyttää järven sellaisena kuin se on
+  kisassa ylhäältä kesäpäivänä (#752: tumma sinivihreä vesi, vaalea matala
+  ranta, vihreä maa, rannan puut latvuksina `planVegetation`in paikoilla ja
+  vaaleat tekstit tummalla reunuksella), ja uusi kartan
   merkki tai teksti ottaa värinsä sieltä eikä kirjoita sitä itse.
 - **Ilme ja laatu vaihtuvat vain pelaajan valinnasta.** Peli ei mittaa
   ruutunopeutta eikä kevennä laatua tai vaihda ilmettä itse (automaatti
