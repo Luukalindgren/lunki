@@ -37,7 +37,7 @@ describe('latausanimaatio', () => {
     expect(boot).toContain('lunki.lang');
     // Kotiteatterin versio valitaan tallennetusta ilmeestä ennen pelin koodia.
     expect(boot).toContain('lunki.look');
-    expect(boot).toContain('class="boot-bobber"');
+    expect(boot).toContain('class="boot-scene"');
     const index = readFileSync(fileURLToPath(new URL('../../index.html', import.meta.url)), 'utf8');
     expect(index).toContain('<!-- latausnäkymä -->');
     expect(index).toContain('<!-- latausnäkymän tyylit -->');

@@ -361,7 +361,7 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
 - **Sivun latausnäkymä on Modernissa samaa lautaseinää** (`modern/boot.css`,
   `modern/bootArt.ts`): kun tallennettu ilme on Moderni, sivun alun koodi
   antaa latausnäkymälle luokan `boot-modern` jo ennen pelin koodia, ja
-  pikselikuvan tilalla on koho. Näkymä pysyy, kunnes Moderni on ladattu ja
+  pikselikuvan tilalla on sama hauki-kohtaus sileänä vektorikuvana. Näkymä pysyy, kunnes Moderni on ladattu ja
   piirretty, joten Retro ei välähdä välissä. Koska näkymä näkyy ennen
   teemaa, `vite.config.ts` upottaa `boot.css`:n index.html:ään: seinän värit,
   laudoitus ja kehys (`--wall-planks`, `--wall-frame`) ovat siinä yhdessä
