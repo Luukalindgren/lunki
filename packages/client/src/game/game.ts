@@ -1243,7 +1243,9 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     this.view.apply(alpha);
     this.weather.render(pos, air);
     // Ohjaajan yleiskuvassa (#564) ei ole seurattavaa, joten merkkiä ei näytetä.
-    const marked = this.viewMode === 'top' && this.shot?.view !== 'overview';
+    // Noston ajaksi merkki väistyy: nostettu kala on kalastajan edessä nuolen kohdalla.
+    const marked =
+      this.viewMode === 'top' && this.shot?.view !== 'overview' && !this.fishingView.lifting;
     this.youMarker.update(pos, heading, this.view.metersPerPixel, marked);
     this.hud.compass.update(heading);
     if (this.viewMode === 'pov') {

@@ -32,18 +32,28 @@ const NET_DIP = 0.35;
 /** Kala näkyy vielä hetken kalastajan edessä ennen punnitusta (s). */
 const HOLD_TIME = 0.6;
 /**
- * Ylhäältä katsottuna kala piirretään isompana, jotta se erottuu: vähintään
- * tämä kerroin ja vähintään `TOP_MIN_PX` kuvapistettä pitkä loitonnettunakin.
+ * Kala piirretään järvellä tämän verran mittaansa pidempänä, jotta se erottuu
+ * myös takaa ja ylhäältä. Kerroin on sama joka näkymässä ja joka kalalle:
+ * kalan koko kalastajaan, renkaaseen ja vapaan nähden ei riipu näkymästä, ja
+ * kaksi kertaa pidempi kala on kuvassakin kaksi kertaa pidempi.
  */
-const TOP_SCALE = 1.6;
-const TOP_MIN_PX = 26;
+export const LANDED_SCALE = 1.5;
+/** Nostettu kala jää tähän kalastajan eteen (m) ja vähintään tälle korkeudelle. */
+const HOLD = { ahead: 1.5, height: 0.42 } as const;
+/** Siimassa roikkuvan kalan pyrstö jää vähintään tämän verran veden yläpuolelle (m). */
+const TAIL_CLEAR = 0.08;
 /** Ylhäältä pinnan kuvat piirretään tähän korkeuteen veden päälle (m), kuten viehe. */
 const TOP_SURFACE_Y = 0.3;
-/** Ylhäältä nostettu kala renkaan ja kalastajan yläpuolella (m). */
-const TOP_LAP_Y = 3;
 /** Haavin kehän säde (m) ja pussin syvyys. */
 const HOOP = 0.4;
 const BAG = 0.35;
+/** Haavin kehän halkaisija kalan piirretystä pituudesta ja haavin koon rajat. */
+const NET_FIT = { perLength: 0.55, min: 1, max: 1.6 } as const;
+
+/** Kalan pituus järvellä piirrettynä (m): sama luku joka näkymässä. */
+export function landedLength(species: SpeciesId, weight: number): number {
+  return (fishLengthCm(species, weight) / 100) * LANDED_SCALE;
+}
 
 const NET_FRAME = 0x3d3428;
 const NET_MESH = 0x8a949e;
@@ -51,13 +61,12 @@ const NET_MESH = 0x8a949e;
 /**
  * Nosto näkyväksi (#366): väsynyt kala kyljellään pinnassa vavan edessä ja
  * nosto kyytiin siimasta tai haavilla. Kala on lajin pikselikuva
- * (`fishArt`) samassa koossa kuin punnituskortissa, haavi viivoista.
+ * (`fishArt`), haavi viivoista. Kalan pituus tulee sen painosta
+ * (`landedLength`) ja on sama kalastajan silmin, takaa ja ylhäältä.
  */
 export class LandingView {
   readonly group = new THREE.Group();
   pov = false;
-  /** Ylhäältä-näkymän mittakaava (m kuvapisteelle). */
-  metersPerPixel = 0.125;
   private readonly sprite: THREE.Sprite;
   private readonly net: THREE.Group;
   private readonly line: THREE.Line;
@@ -124,9 +133,11 @@ export class LandingView {
         return;
       }
       const k = Math.min(1, age / dur);
-      // Kala kalastajan eteen katseen alle. Ylhäältä se nousee renkaan päälle
-      // syliin ja piirtyy kalastajan päälle, jotta se näkyy.
-      const end = this.pov ? front(1.3, 0.42) : front(0.2, TOP_LAP_Y);
+      // Kala kalastajan eteen katseen alle, samaan paikkaan joka näkymässä.
+      // Siimassa roikkuva pitkä kala nostetaan niin ylös, ettei pyrstö jää veteen.
+      const { w } = this.size(l.species, l.weight);
+      const hung = l.by !== 'net' && this.pov;
+      const end = front(HOLD.ahead, hung ? Math.max(HOLD.height, w / 2 + TAIL_CLEAR) : HOLD.height);
       const from = toWorld(l.from, 0.05);
       let pos: THREE.Vector3;
       let hang = 0;
@@ -146,10 +157,9 @@ export class LandingView {
         pos = arc(from, end, ease(k), l.by === 'swing' ? 0.5 : 0.3);
         // Siima vavan kärjestä kalan suuhun: silmin kala roikkuu pää ylöspäin,
         // ylhäältä kuono osoittaa vapaa kohti.
-        const { w, h } = this.size(l.species, l.weight);
         hang = this.pov ? 1 : 0;
         const mouth = this.pov
-          ? pos.clone().setY(pos.y + h / 2)
+          ? pos.clone().setY(pos.y + w / 2)
           : pos
               .clone()
               .add(
@@ -176,16 +186,9 @@ export class LandingView {
     if (net) this.showNet(front(0.9, 0.02), tube, heading, surfaced.species, surfaced.weight);
   }
 
-  /** Kuvan suurennos kalan oikeaan kokoon nähden (silmin 1). */
-  private grow(species: SpeciesId, weight: number): number {
-    if (this.pov) return 1;
-    const len = fishLengthCm(species, weight) / 100;
-    return Math.max(TOP_SCALE, (TOP_MIN_PX * this.metersPerPixel) / len);
-  }
-
   private size(species: SpeciesId, weight: number): { w: number; h: number } {
     const { aspect } = this.texture(species, weight);
-    const w = (fishLengthCm(species, weight) / 100) * this.grow(species, weight);
+    const w = landedLength(species, weight);
     return { w, h: w * aspect };
   }
 
@@ -205,9 +208,7 @@ export class LandingView {
       mat.needsUpdate = true;
     }
     const { w, h } = this.size(species, weight);
-    // Ylhäältä korkeus näkyy koon kasvuna kuten lentävällä vieheellä.
-    const up = this.pov ? 1 : 1 + Math.max(0, pos.y) * 0.08;
-    this.sprite.scale.set(w * up, h * up, 1);
+    this.sprite.scale.set(w, h, 1);
     this.sprite.position.copy(pos);
     if (!this.pov) this.sprite.position.y = Math.max(pos.y, TOP_SURFACE_Y);
     // Kuvassa kuono on vasemmalla. Ylhäältä kala osoittaa uintisuuntaansa,
@@ -235,7 +236,8 @@ export class LandingView {
     species: SpeciesId,
     weight: number,
   ): void {
-    const g = this.grow(species, weight);
+    const fit = (landedLength(species, weight) * NET_FIT.perLength) / (HOOP * 2);
+    const g = Math.max(NET_FIT.min, Math.min(NET_FIT.max, fit));
     this.net.position.copy(hoop);
     if (!this.pov) this.net.position.y = Math.max(hoop.y, TOP_SURFACE_Y);
     this.net.scale.setScalar(g);

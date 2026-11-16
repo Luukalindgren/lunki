@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import type { Fish } from '@lunki/shared';
-import { LandingView, type LandedFishPose } from './landingView';
+import { fishLengthCm, type Fish } from '@lunki/shared';
+import { LandingView, landedLength, type LandedFishPose } from './landingView';
 
 const tip = new THREE.Vector3(0, 2, 0);
 const tube = { x: 0, y: 0 };
@@ -36,5 +36,34 @@ describe('nostonäkymä', () => {
     expect(lifted.species).toBe('perch');
     expect(lifted.hang).toBe(1);
     view.dispose();
+  });
+});
+
+describe('nostetun kalan koko', () => {
+  const lift = (pov: boolean, species: 'perch' | 'pike', weight: number) => {
+    const view = new LandingView();
+    view.pov = pov;
+    view.start({ by: 'net', at: { x: 3, y: 1 } }, species, weight);
+    view.update(null, false, tip, tube, 0);
+    const sprite = spriteOf(view);
+    const size = { w: sprite.scale.x, x: sprite.position.x, z: sprite.position.z };
+    view.dispose();
+    return size;
+  };
+
+  it('on sama järven tasolta ja ylhäältä, samassa paikassa', () => {
+    const level = lift(true, 'pike', 6);
+    const top = lift(false, 'pike', 6);
+    expect(top.w).toBeCloseTo(level.w, 6);
+    expect(top.w).toBeCloseTo(landedLength('pike', 6), 6);
+    expect(top.x).toBeCloseTo(level.x, 1);
+    expect(top.z).toBeCloseTo(level.z, 1);
+  });
+
+  it('tulee kalan pituudesta: iso kala on kuvassa yhtä monta kertaa pidempi', () => {
+    const ratio = fishLengthCm('pike', 10) / fishLengthCm('perch', 0.1);
+    expect(ratio).toBeGreaterThan(4);
+    for (const pov of [true, false])
+      expect(lift(pov, 'pike', 10).w / lift(pov, 'perch', 0.1).w).toBeCloseTo(ratio, 6);
   });
 });

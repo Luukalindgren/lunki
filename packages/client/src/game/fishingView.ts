@@ -293,7 +293,6 @@ export class FishingView {
     }
 
     this.landing.pov = this.pov;
-    this.landing.metersPerPixel = this.metersPerPixel;
     this.landing.update(
       s.landing ? hooked : null,
       !!s.landing?.net,
@@ -303,6 +302,11 @@ export class FishingView {
     );
     this.splash.update(dt);
     this.lureSigns.update(dt);
+  }
+
+  /** Kalaa nostetaan juuri kalastajan eteen. */
+  get lifting(): boolean {
+    return this.landing.lifting;
   }
 
   /**
