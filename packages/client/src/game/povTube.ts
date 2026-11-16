@@ -4,7 +4,7 @@ import { activeLook, smoothLook } from '../engine/look';
 import { emoteIcon } from '../ui/emoteIcons';
 import { playerColorMaterial, setPlayerColor } from './playerColor';
 import { SCULL, turnScull } from './turnScull';
-import { submerge } from '../world/submerged';
+import { solidUnderwater, submerge } from '../world/submerged';
 
 /**
  * Kalastajan silmin näkyvä kelluntarengas (#230): U-muotoisen renkaan
@@ -368,12 +368,14 @@ export class PovTube {
       const shinDry = new THREE.Mesh(new THREE.BoxGeometry(0.1, dry, 0.1), legMat);
       shinDry.position.y = -dry / 2;
       const wet = DIM.shin - dry;
-      const shinWet = new THREE.Mesh(new THREE.BoxGeometry(0.09, wet, 0.09), this.wetLeg);
+      const shinWet = solidUnderwater(
+        new THREE.Mesh(new THREE.BoxGeometry(0.09, wet, 0.09), this.wetLeg),
+      );
       shinWet.name = 'pov-wet';
       shinWet.position.y = -dry - wet / 2;
       const ankle = new THREE.Group();
       ankle.position.y = -DIM.shin;
-      const fin = new THREE.Mesh(finGeometry(), this.wetFin);
+      const fin = solidUnderwater(new THREE.Mesh(finGeometry(), this.wetFin));
       fin.name = 'pov-wet';
       fin.userData.shape = 'fin';
       fin.position.x = -0.05;

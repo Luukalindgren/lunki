@@ -1,4 +1,4 @@
-import type * as THREE from 'three';
+import * as THREE from 'three';
 import { LOOK_UNIFORMS } from '../engine/look';
 import { VEIL } from '../engine/veil';
 
@@ -24,6 +24,11 @@ export const SUBMERGED = {
    * näkyisi veden läpi vähintään näin paljon (0–1), ja muuten ei lainkaan.
    */
   solid: 0.15,
+  /**
+   * Vedenalaisten osien keskinäinen järjestys mahtuu näin korkeaan kaistaan
+   * (m) `surface`-korkeuden alle: syvin kirjoitetaan kaistan alareunaan.
+   */
+  order: 0.03,
 } as const;
 
 /**
@@ -44,12 +49,54 @@ export const SUBMERGED_LIFT = { value: 0 };
 const f = (n: number) => n.toFixed(3);
 
 /**
+ * Vedenalaisten osien syvyys piirretään tässä järjestyksessä: veden ja
+ * aaltoilevan lähiveden jälkeen, ennen läpikuultavia pintoja.
+ */
+export const SUBMERGED_ORDER = 1;
+
+// `invariant`: väri ja syvyys lasketaan eri ohjelmissa, ja niiden pitää osua samaan syvyyteen.
+const VERTEX_HEAD =
+  'invariant gl_Position;\nuniform float uSubmergedLift;\nvarying float vSubmerged;\nvarying float vSubmergedFar;\n';
+const FRAGMENT_HEAD =
+  'uniform float uLookSharp;\nvarying float vSubmerged;\nvarying float vSubmergedFar;\n';
+
+/**
+ * Syvyys kohdasta, jossa katseen säde leikkaa vedenpinnan. Syvemmällä oleva
+ * kohta kirjoitetaan hieman alemmas pinnan ja `surface`-korkeuden väliin,
+ * joten vedenalaiset osat pysyvät keskenään oikeassa järjestyksessä.
+ */
+const VERTEX = /* glsl */ `#include <project_vertex>
+      vec4 subWorld = modelMatrix * vec4(transformed, 1.0);
+      vSubmerged = uSubmergedLift - subWorld.y;
+      float subSurface = uSubmergedLift + ${f(SUBMERGED.surface)};
+      vSubmergedFar = isOrthographic ? 0.0 : length(subWorld.xz - cameraPosition.xz);
+      if (subWorld.y < subSurface) {
+        // Katseen säde: perspektiivissä kamerasta, kartalla kameran suuntaan.
+        vec3 subRay = isOrthographic
+          ? -vec3(viewMatrix[0][2], viewMatrix[1][2], viewMatrix[2][2])
+          : subWorld.xyz - cameraPosition;
+        if (subRay.y < -1e-4) {
+          float subLevel = subSurface - ${f(SUBMERGED.order)} * clamp(vSubmerged / ${f(SEE_THROUGH_DEPTH)}, 0.0, 1.0);
+          vec3 subAt = subWorld.xyz + subRay * ((subLevel - subWorld.y) / subRay.y);
+          vec4 subClip = projectionMatrix * viewMatrix * vec4(subAt, 1.0);
+          gl_Position.z = subClip.z / subClip.w * gl_Position.w;
+        }
+      }`;
+
+/** Kuinka paljon osasta näkyy veden läpi (`subSeen`, 0–1). */
+const SEEN = /* glsl */ `float subSeen = ${f(1 - SUBMERGED.veil)} * clamp(1.0 - vSubmerged / ${f(SEE_THROUGH_DEPTH)}, 0.0, 1.0);
+        subSeen *= 1.0 - smoothstep(${f(SUBMERGED.far[0])}, ${f(SUBMERGED.far[1])}, vSubmergedFar);`;
+
+/**
  * Tekee pinnasta veden läpi näkyvän: vesi on läpinäkymätön, joten pinnan
  * (y = 0, aallokossa `SUBMERGED_LIFT`) alla oleva osa piirretään veden jälkeen sen päälle sitä
  * läpikuultavampana, mitä syvemmällä se on. Syvyystesti tehdään kohdasta,
  * jossa katseen säde leikkaa vedenpinnan, joten pinnan yläpuoliset kappaleet
  * (rengas, vene, kalastaja) peittävät osan oikein. Pinnan yläpuolelle jäävä
  * osa samasta kappaleesta piirtyy tavallisesti.
+ *
+ * Osa kuultaa vain veteen: toista vedenalaista osaa tai omaa takapuoltaan se
+ * ei päästä läpi, kun kappale saa syvyytensä `solidUnderwater`-kutsulla.
  *
  * Retrossa paletti pyöristäisi osan ja veden sekoituksen vieraaseen sävyyn
  * (punainen räpylä violetiksi, musta veden väriin, #728), joten osa piirretään
@@ -65,36 +112,14 @@ export function submerge<T extends THREE.Material>(material: T): T {
     before.call(material, shader, renderer);
     shader.uniforms.uSubmergedLift = SUBMERGED_LIFT;
     shader.uniforms.uLookSharp = LOOK_UNIFORMS.uLookSharp;
-    shader.vertexShader = (
-      'uniform float uSubmergedLift;\nvarying float vSubmerged;\nvarying float vSubmergedFar;\n' +
-      shader.vertexShader
-    ).replace(
+    shader.vertexShader = (VERTEX_HEAD + shader.vertexShader).replace(
       '#include <project_vertex>',
-      /* glsl */ `#include <project_vertex>
-      vec4 subWorld = modelMatrix * vec4(transformed, 1.0);
-      vSubmerged = uSubmergedLift - subWorld.y;
-      float subSurface = uSubmergedLift + ${f(SUBMERGED.surface)};
-      vSubmergedFar = isOrthographic ? 0.0 : length(subWorld.xz - cameraPosition.xz);
-      if (subWorld.y < subSurface) {
-        // Katseen säde: perspektiivissä kamerasta, kartalla kameran suuntaan.
-        vec3 subRay = isOrthographic
-          ? -vec3(viewMatrix[0][2], viewMatrix[1][2], viewMatrix[2][2])
-          : subWorld.xyz - cameraPosition;
-        if (subRay.y < -1e-4) {
-          vec3 subAt = subWorld.xyz + subRay * ((subSurface - subWorld.y) / subRay.y);
-          vec4 subClip = projectionMatrix * viewMatrix * vec4(subAt, 1.0);
-          gl_Position.z = subClip.z / subClip.w * gl_Position.w;
-        }
-      }`,
+      VERTEX,
     );
-    shader.fragmentShader = (
-      '#define SUBMERGED\nuniform float uLookSharp;\nvarying float vSubmerged;\nvarying float vSubmergedFar;\n' +
-      shader.fragmentShader
-    ).replace(
+    shader.fragmentShader = ('#define SUBMERGED\n' + FRAGMENT_HEAD + shader.fragmentShader).replace(
       '#include <opaque_fragment>',
       /* glsl */ `if (vSubmerged > 0.0) {
-        float subSeen = ${f(1 - SUBMERGED.veil)} * clamp(1.0 - vSubmerged / ${f(SEE_THROUGH_DEPTH)}, 0.0, 1.0);
-        subSeen *= 1.0 - smoothstep(${f(SUBMERGED.far[0])}, ${f(SUBMERGED.far[1])}, vSubmergedFar);
+        ${SEEN}
         // Vesirajassa peitto alkaa liukuen, ettei pintaan jää terävää rajaa.
         float subWet = smoothstep(0.0, 0.04, vSubmerged);
         if (uLookSharp < 0.5) {
@@ -111,4 +136,64 @@ export function submerge<T extends THREE.Material>(material: T): T {
   material.customProgramCacheKey = () => `${key}|submerged`;
   Object.assign(material, VEIL);
   return material;
+}
+
+const depthMaterials = new Map<THREE.Side, THREE.Material>();
+
+/** Pelkän syvyyden kirjoittava pinta samalla syvyydellä kuin `submerge`. */
+function depthMaterial(side: THREE.Side): THREE.Material {
+  let material = depthMaterials.get(side);
+  if (material) return material;
+  material = new THREE.MeshBasicMaterial({
+    colorWrite: false,
+    side,
+    // Hiuksen verran taemmas, jotta osan oma pinta läpäisee syvyystestin.
+    // Ei kaltevuuden mukaan: vedenpinnan tasoon litistetty syvyys on viistosti
+    // katsottuna jyrkkä, ja siirto ylittäisi osien keskinäisen järjestyksen.
+    polygonOffset: true,
+    polygonOffsetFactor: 0,
+    polygonOffsetUnits: 4,
+  });
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uSubmergedLift = SUBMERGED_LIFT;
+    shader.uniforms.uLookSharp = LOOK_UNIFORMS.uLookSharp;
+    shader.vertexShader = (VERTEX_HEAD + shader.vertexShader).replace(
+      '#include <project_vertex>',
+      VERTEX,
+    );
+    // Kohta, josta ei näy mitään, ei saa peittää muutakaan.
+    shader.fragmentShader = (FRAGMENT_HEAD + shader.fragmentShader).replace(
+      '#include <opaque_fragment>',
+      /* glsl */ `if (vSubmerged > 0.0) {
+        ${SEEN}
+        if (subSeen < (uLookSharp < 0.5 ? ${f((1 - SUBMERGED.veil) * SUBMERGED.solid)} : 0.004)) discard;
+      }
+      #include <opaque_fragment>`,
+    );
+  };
+  material.customProgramCacheKey = () => 'submerged-depth';
+  depthMaterials.set(side, material);
+  return material;
+}
+
+/**
+ * Tekee veden alla näkyvästä kappaleesta (`submerge`-pinta) kiinteän: sen
+ * syvyys piirretään ennen väriä, joten päällekkäisistä vedenalaisista
+ * pinnoista näkyy vain lähin, eikä räpylän kantapää kuulla jalkaterän läpi.
+ * Syvyyden piirtää kappaleen lapsi, joka käyttää aina kappaleen nykyistä
+ * muotoa (Moderni vaihtaa muodon pehmeään, `Softener`).
+ */
+export function solidUnderwater<T extends THREE.Mesh>(mesh: T): T {
+  const material = mesh.material as THREE.Material;
+  const depth = new THREE.Mesh(mesh.geometry, depthMaterial(material.side));
+  Object.defineProperty(depth, 'geometry', {
+    get: () => mesh.geometry,
+    set: () => {},
+  });
+  depth.name = 'submerged-depth';
+  depth.renderOrder = SUBMERGED_ORDER;
+  depth.frustumCulled = mesh.frustumCulled;
+  depth.raycast = () => {};
+  mesh.add(depth);
+  return mesh;
 }
