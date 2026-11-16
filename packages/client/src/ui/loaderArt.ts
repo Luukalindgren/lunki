@@ -432,7 +432,7 @@ export function loaderHtml(label: string | null = null, variant = LOADER_VARIANT
  * Kieli valitaan samoin kuin i18n:ssä (tallennettu valinta, muuten suomi).
  * Jos lataus kestää, ruutu kertoo hetken päästä, että peli latautuu yhä.
  * Kun tallennettu ilme on Kotiteatteri (Moderni), näkymä on sen lautaseinää ja
- * pikselikuvan tilalla on koho (`modern/bootArt.ts`, tyylit `modern/boot.css`).
+ * pikselikuvan tilalla on sama hauki sileänä (`modern/bootArt.ts`, tyylit `modern/boot.css`).
  */
 export function bootLoaderHtml(): string {
   const text = (fi: string, en: string) => `<span data-fi="${fi}" data-en="${en}">${fi}</span>`;

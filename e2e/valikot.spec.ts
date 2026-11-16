@@ -479,10 +479,10 @@ test('latausruutu on Kotiteatterin lautaseinää, kun se on tallennettu ilme', a
   if (isMobile) {
     await expect(boot).not.toHaveClass(/boot-modern/);
     await expect(boot.locator('.loader-art')).toBeVisible();
-    await expect(boot.locator('.boot-bobber')).toBeHidden();
+    await expect(boot.locator('.boot-scene')).toBeHidden();
   } else {
     await expect(boot).toHaveClass(/boot-modern/);
-    await expect(boot.locator('.boot-bobber')).toBeVisible();
+    await expect(boot.locator('.boot-scene')).toBeVisible();
     await expect(boot.locator('.loader-art')).toBeHidden();
     // Lautaseinä kehyksineen on piirretty (tyylit ovat sivussa, ei pelin koodissa).
     const wall = await boot
