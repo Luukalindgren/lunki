@@ -83,7 +83,7 @@ import type { VoiceId } from '../audio/voice';
 import type { Hud, SituationBar } from '../ui/hud';
 import { FishingView } from './fishingView';
 import { rodSideOffset, type LinePoint } from './lineHang';
-import { PovRod, flyRodAngle, flyRodTip } from './povRod';
+import { PovRod, flyRodLift, flyRodTip } from './povRod';
 import type { Shot } from './director';
 import type { RemotePlayer } from '../net/netWorld';
 import { REST_POSE, lakePoint } from './rodMotion';
@@ -1231,7 +1231,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
         aimRod(
           this.tubeMesh,
           // Ylhäältä perhovapa heiluu heitossa kuten kalastajan silmin.
-          flyCast ? { ...REST_POSE, lift: flyRodAngle(flyCast.rod) - flyRodAngle(1) } : rodPose,
+          flyCast ? { ...REST_POSE, lift: flyRodLift(flyCast.rod) } : rodPose,
           this.rodEnd,
         ),
       );
