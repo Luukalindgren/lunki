@@ -129,7 +129,7 @@ import { controlText, currentPadKind } from '../game/controls';
 import { copyText } from './clipboard';
 import { MANUAL_SECTIONS, manualTopics, type ManualSection } from './manual';
 import { padDiagram } from './padDiagram';
-import { isMine, rankLabel } from '../game/raceScoreboard';
+import { isMine, isMineRow, rankLabel } from '../game/raceScoreboard';
 import type { RaceStatus } from '../game/raceStatus';
 import { challengeOutcome, challengeScoreText } from '../game/challenge';
 import { loadCraft, saveCraft } from '../game/tackle';
@@ -3546,6 +3546,7 @@ function pauseScoreboard(lines: readonly Line[]): HTMLElement {
   const rows = h('div', '', 'pause-score-rows');
   lines.forEach((line, i) => {
     const row = h('div', '', i === 0 ? 'pause-score-row pause-stat-label' : 'pause-score-row');
+    row.classList.toggle('mine', isMineRow(line));
     row.append(...lineNodes(line));
     rows.append(row);
   });

@@ -2,6 +2,7 @@ import { rankPlayers } from '@lunki/shared';
 import { describe, expect, it } from 'vitest';
 import { lineParts, lineText } from '../ui/columns';
 import {
+  isMineRow,
   CATCH_FLASH_SECONDS,
   CatchFlashes,
   fullScoreboard,
@@ -184,6 +185,12 @@ describe('saaliin saaneen rivin korostus (#635)', () => {
   it('rivit kertovat, kenen tulos niillä on', () => {
     const rows = scoreboardRows(rankPlayers(nobody(7), 'total'), 'p6');
     expect(rows.map((r) => r.id)).toEqual(['p0', 'p1', 'p2', 'p3', 'p4', null, 'p6']);
+  });
+
+  it('oma rivi on merkitty korostusta varten (#778)', () => {
+    const rows = scoreboardRows(rankPlayers(nobody(7), 'total'), 'p6');
+    expect(rows.filter(isMineRow).map((r) => r.id)).toEqual(['p6']);
+    expect(isMineRow('Tulostaulu')).toBe(false);
   });
 
   it('koko taulussa ovat kaikki ilman väliviivaa (#735)', () => {

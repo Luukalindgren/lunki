@@ -148,7 +148,7 @@ Koodi: `packages/client/src/game/controls.ts`.
   niin kauan kuin se on pohjassa (`HudPresenter.setFullScoreboard`). Taulun
   otsikko kertoo napin, kun kaikki eivät mahdu. Koko taulussa (myös
   lähetysnäkymässä) nimet ovat kokonaan ja rivillä on kalojen määrä
-  otsikkoriveineen (`scoreboardRows(…, full)`, `scoreboardHead`, #743). Kosketuksella koko taulu on
+  otsikkoriveineen (`scoreboardRows(…, full)`, `scoreboardHead`, #743). Oma rivi on kaikissa tauluissa keltainen kuten tulossivulla (`ScoreRow.mine`, `isMineRow`, #778). Kosketuksella koko taulu on
   taukovalikossa.
 - Peliohjaimen asetukset (#594, `engine/padSettings.ts`): kääntymisen
   herkkyys (`TurnPulse` jättää osan askelista väliin, koska käännös kulkee
