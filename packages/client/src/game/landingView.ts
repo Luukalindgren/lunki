@@ -37,7 +37,7 @@ const HOLD_TIME = 0.6;
  * kalan koko kalastajaan, renkaaseen ja vapaan nähden ei riipu näkymästä, ja
  * kaksi kertaa pidempi kala on kuvassakin kaksi kertaa pidempi.
  */
-export const LANDED_SCALE = 1.5;
+export const LANDED_SCALE = 2;
 /** Nostettu kala jää tähän kalastajan eteen (m) ja vähintään tälle korkeudelle. */
 const HOLD = { ahead: 1.5, height: 0.42 } as const;
 /** Siimassa roikkuvan kalan pyrstö jää vähintään tämän verran veden yläpuolelle (m). */
