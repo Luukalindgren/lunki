@@ -31,6 +31,16 @@ describe('randomAppearance', () => {
     }
   });
 
+  it('paita ei ole renkaan värinen (#777)', () => {
+    for (let i = 0; i < 40; i++) {
+      for (let j = 0; j < 40; j++) {
+        const rolls = [i / 40, j / 40];
+        const a = randomAppearance(() => rolls.shift() ?? 0);
+        expect(a.shirt).not.toBe(a.tube);
+      }
+    }
+  });
+
   it('värilistoissa ei ole tuplia', () => {
     for (const list of [GEAR_COLORS, LINE_COLORS])
       expect(new Set(list.map((c) => c.hex)).size).toBe(list.length);

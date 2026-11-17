@@ -80,5 +80,8 @@ export function randomAppearance(random: () => number = Math.random): Appearance
   const bright = GEAR_COLORS.filter((c) =>
     [0xd23a2a, 0xf08a2c, 0xf6d04d, 0xa3c45a, 0x2f9e8f, 0xc05bb4, 0xeef2f3].includes(c.hex),
   );
-  return { ...DEFAULT_APPEARANCE, tube: pick(bright), shirt: pick(GEAR_COLORS) };
+  const tube = pick(bright);
+  // Paita eri värinen kuin rengas, ettei kalastaja sulaudu renkaaseen takaa (#777).
+  const shirt = pick(GEAR_COLORS.filter((c) => c.hex !== tube));
+  return { ...DEFAULT_APPEARANCE, tube, shirt };
 }
