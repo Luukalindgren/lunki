@@ -9,6 +9,7 @@ import { SonarDisplay } from './sonar';
 import { lineNodes, lineText, type Line } from './columns';
 import { onLangChange, t, type MsgKey } from '../i18n';
 import { controlText } from '../game/controls';
+import { isMineRow } from '../game/raceScoreboard';
 
 /**
  * Pelin HUD DOM-elementteinä VT323-pikselifontilla. Koko skaalautuu samalla
@@ -364,6 +365,7 @@ export class Hud {
       ...lines.map((line, i) => {
         const note = notes?.get(i);
         const row = el('div', note ? 'hud-score-row fresh' : 'hud-score-row');
+        row.classList.toggle('mine', isMineRow(line));
         row.append(...lineNodes(line));
         if (note) {
           const tag = document.createElement('span');

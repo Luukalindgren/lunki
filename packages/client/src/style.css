@@ -838,6 +838,12 @@ textarea,
   position: relative;
 }
 
+/* Oma rivi keltaisella kuten tulossivulla (#778); tuore saalis menee sen yli. */
+.hud-catches .hud-score-row.mine,
+.pause-score-row.mine {
+  color: var(--c-accent);
+}
+
 .hud-catches .hud-score-row.fresh {
   margin: 0 calc(var(--u) * -3);
   padding: 0 calc(var(--u) * 3);

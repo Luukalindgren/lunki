@@ -26,7 +26,13 @@ export function scoreboardLines(
  */
 export interface ScoreRow extends AlignedLine {
   id: string | null;
+  /** Oma rivi (tai lähetysnäkymässä seurattavan): korostetaan keltaisella (#778). */
+  mine: boolean;
 }
+
+/** Onko taulun rivi oma (#778). Otsikko ja tavallinen teksti eivät ole. */
+export const isMineRow = (line: Line): boolean =>
+  typeof line !== 'string' && 'mine' in line && line.mine === true;
 
 /**
  * Tulostaulun rivit tunnisteineen, jotta saaliin saaneen rivi voidaan korostaa (#635).
@@ -57,10 +63,11 @@ export function scoreboardRows(
   };
   const row = (r: PlayerResult, mine: boolean): ScoreRow => ({
     id: r.id,
+    mine,
     ...scoreLine(r, mine, layout),
   });
   const lines = top.map((r) => row(r, isMine(r, myId)));
-  if (below) lines.push({ id: null, text: '…', columns: [] }, row(below, true));
+  if (below) lines.push({ id: null, mine: false, text: '…', columns: [] }, row(below, true));
   return lines;
 }
 
