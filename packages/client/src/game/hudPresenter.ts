@@ -10,6 +10,8 @@ import {
   holdForce,
   isAshore,
   isFly,
+  isPole,
+  POLE,
   isUntimed,
   loopProgress,
   tackleTip,
@@ -166,7 +168,9 @@ export class HudPresenter {
     } else hud.setPower(f.stage === 'charging' ? chargePower(f.charge) : null);
     const hold = holdForce(f, { lineHand: s.lineHand });
     hud.setSimple(simple);
-    hud.setTension(f.tension, Math.min(hold, f.drag), breakingStrength(f.tackle));
+    // Ongella mittarin jarrumerkki on laskettu vapa: kala vie siimaa tämän vedon yli.
+    const give = isPole(f.tackle) ? POLE.giveForce : Math.min(hold, f.drag);
+    hud.setTension(f.tension, give, breakingStrength(f.tackle));
     // Rangaistukset ajastimineen isona ilmoitusalueelle, ei tilapaneelin sekaan.
     host.penalties.show(hud, host.flying);
     const ashore =
@@ -191,6 +195,7 @@ export class HudPresenter {
     const guide = host.guide.update(dt, {
       fishing: f,
       fly: isFly(f.tackle),
+      pole: isPole(f.tackle),
       pos: tube.pos,
       seat: !host.inBoat ? 'tube' : host.rower ? 'rower' : 'passenger',
     });
@@ -254,12 +259,17 @@ export class HudPresenter {
       hud.setStatus([
         describeTackle(f.tackle),
         t('game.line', { m: decimal(f.lineLength, 1) }),
-        isFly(f.tackle) && !f.onReel
-          ? t('game.flyHand', { m: decimal(f.slack, 1) })
-          : t('game.drag', {
-              kg: decimal(f.drag, 2),
-              gear: f.gear === REEL.fastGear ? t('game.fastGear') : f.gear + 1,
-            }),
+        // Ongella (#570) ei ole kelaa eikä jarrua.
+        ...(isPole(f.tackle)
+          ? []
+          : [
+              isFly(f.tackle) && !f.onReel
+                ? t('game.flyHand', { m: decimal(f.slack, 1) })
+                : t('game.drag', {
+                    kg: decimal(f.drag, 2),
+                    gear: f.gear === REEL.fastGear ? t('game.fastGear') : f.gear + 1,
+                  }),
+            ]),
         ...(hud.lureSonar.showing
           ? []
           : [

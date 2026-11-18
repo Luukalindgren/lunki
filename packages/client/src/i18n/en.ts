@@ -366,6 +366,7 @@ export const en: Record<keyof typeof fi, string> = {
   'tackle.method': 'Method',
   'tackle.bait': 'Bait',
   'tackle.floatDepth': 'Float depth',
+  'tackle.floatShort': 'float {m}',
   'tackle.floatDepthValue': '{m} m',
   'tackle.floatDepthHint':
     'The bait hangs this deep under the float. Over shallower bottom it lies on the bottom',
@@ -815,7 +816,7 @@ export const en: Record<keyof typeof fi, string> = {
     'Hold {pointer|reel} = reel in (at once on a bite) · {twitch} = twitch, hooks a big fish',
   'help.gear': '{gear} = reel speed · {gearFast} = quick retrieve · {dragLess}/{dragMore} = drag',
   'help.tools':
-    '{lure} = change lure (hold: box) · {method} = spin/fly · {sonar} = finder · {lureSonar} = depth',
+    '{lure} = change lure (hold: box) · {method} = spin/fly/pole · {sonar} = finder · {lureSonar} = depth',
   'help.flyCast': 'Fly cast: {backCast} = back, {forwardCast} = forward · {swipe}',
   'help.flyCast2':
     '{castForward} = rhythm cast · {lift} = pick up (on a take: set the hook) · {flyPanel} = side view',
@@ -1310,7 +1311,7 @@ export const en: Record<keyof typeof fi, string> = {
     'A lure touching the bottom can snag on stones, fallen trees, brush, reeds or weed.\nReel for about a second to free it: the lure comes free {normalSnag} % of the time on Normal and {realisticSnag} % on Realistic, always on Easy. Otherwise the line breaks.\nIn submerged weed the lure collects weed and then hardly interests fish. Reel it in to clean it.\nA weedless spoon slides through weed, but strikes hook less often.',
   'manual.spin.tools': 'Tackle and tools',
   'manual.spin.toolsText':
-    'Set up your tackle in the main menu Tackle view. During a competition you can change the line and leader from Tackle in the pause menu. The tackle box shows how many fish you have caught with each lure and in what conditions.\n{lure} = change lure, hold for the tackle box\n{method} = spinning or fly\n{sonar} = sonar, {lureSonar} = lure depth\nA diamond in the state colour marks your lure. On Easy and Normal the swirls of a following fish show in the water.',
+    'Set up your tackle in the main menu Tackle view. During a competition you can change the line and leader from Tackle in the pause menu. The tackle box shows how many fish you have caught with each lure and in what conditions.\n{lure} = change lure, hold for the tackle box\n{method} = spinning, fly or pole\n{sonar} = sonar, {lureSonar} = lure depth\nA diamond in the state colour marks your lure. On Easy and Normal the swirls of a following fish show in the water.',
   'manual.fly.cast': 'Fly casting',
   'manual.fly.castText':
     'A fly is cast back and forth: back cast, forward cast and so on, until the line lands in front.\n{backCast} = back cast, {forwardCast} = forward cast. Moving sideways turns the cast.\nEvery stroke ends in a crisp stop. Wait for the line to straighten (a tug and "now" in the side view), then make the opposite stroke.\nA short line needs a small stroke, a long line a wide one.\n{castForward} = rhythm cast: each press switches direction. Time it to the line straightening.\n{cancel} = cancel the cast, {flyPanel} = side view of the cast',

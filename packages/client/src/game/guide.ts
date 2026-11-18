@@ -66,6 +66,8 @@ export function saveGuide(p: GuideProgress): void {
 export interface GuideView {
   fishing: FishingState;
   fly: boolean;
+  /** Onki (#570): opastus on virvelille ja perholle, ongen ohje on ohjelaatikossa. */
+  pole?: boolean;
   pos: Vec2;
   /** Kulkupeli: rengas, veneen soutaja vai kyytiläinen (ei liiku itse). */
   seat: 'tube' | 'rower' | 'passenger';
@@ -124,7 +126,7 @@ export class Guide {
 
   /** Askeleen ohje sanakirjan avaimena, tai null, kun opastettavaa ei ole. */
   update(dt: number, v: GuideView): MsgKey | null {
-    if (this.progress.off) return null;
+    if (this.progress.off || v.pole) return null;
     const f = v.fishing;
     this.start ??= { ...v.pos };
     if (Math.hypot(v.pos.x - this.start.x, v.pos.y - this.start.y) >= MOVE_DONE) this.mark('move');

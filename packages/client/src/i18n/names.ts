@@ -95,13 +95,15 @@ export function colorName(hex: number, fallback: string): string {
 
 /** Varusteet lyhyesti HUD:iin. */
 export const describeTackle = (tk: Tackle) =>
-  tk.method === 'fly'
-    ? `${flyName(tk.fly)} · ${flyLineName(tk.flyLine)} · ${flyLeaderName(tk.flyLeader)}`
-    : `${tackleLureName(tk)} · ${lineName(tk.line)}${tk.leader ? ` · ${t('tackle.leaderShort')}` : ''}`;
+  tk.method === 'pole'
+    ? `${poleBaitName(tk.bait)} · ${t('tackle.floatShort', { m: floatDepthText(tk.floatDepth) })} · ${lineName(tk.line)}${tk.leader ? ` · ${t('tackle.leaderShort')}` : ''}`
+    : tk.method === 'fly'
+      ? `${flyName(tk.fly)} · ${flyLineName(tk.flyLine)} · ${flyLeaderName(tk.flyLeader)}`
+      : `${tackleLureName(tk)} · ${lineName(tk.line)}${tk.leader ? ` · ${t('tackle.leaderShort')}` : ''}`;
 
 /** Varusteet kokonaan, vapa mukaan lukien (aula ja tulostaulu). */
 export const describeFullTackle = (tk: Tackle) =>
-  `${tk.method === 'fly' ? flyRodName(tk.flyRod) : rodName(tk.rod)} · ${describeTackle(tk)}`;
+  `${tk.method === 'pole' ? t('poleRod') : tk.method === 'fly' ? flyRodName(tk.flyRod) : rodName(tk.rod)} · ${describeTackle(tk)}`;
 
 /** Käytössä oleva viehe tai perho nimeltä. */
 export const baitName = (tk: Tackle) =>
