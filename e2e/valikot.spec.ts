@@ -319,11 +319,11 @@ test('viehepakki: R vaihtaa lokeroa, R pohjassa avaa pikavalikon (#365, #387)', 
   await expect(menu).toBeHidden();
   await expect(message).toContainText('Viehe: Jigi 20 g');
   await expect(page.locator('.screen')).toBeHidden();
-  // M:n napautus jättää kalastustavan valikon auki (#386), uusi napautus sulkee.
+  // M:n napautus jättää kalastustavan valikon auki (#386), uusi napautus sulkee. Tapoja on kolme (onki #570).
   const method = page.locator('.method-menu');
   await page.keyboard.press('KeyM');
   await expect(method).toBeVisible();
-  await expect(method.locator('.method-option')).toHaveCount(2);
+  await expect(method.locator('.method-option')).toHaveCount(3);
   await expect(method.locator('.method-caption')).toHaveText('Virveli');
   await page.keyboard.press('KeyM');
   await expect(method).toBeHidden();
