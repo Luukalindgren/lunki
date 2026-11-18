@@ -221,23 +221,6 @@ export class HudPresenter {
       situation,
       situation !== null && situation === host.craftHint ? host.craftHintBars : null,
     );
-    const lureOut = s.lureOut;
-    // Yksinkertaisella ohjauksella (#653) tilapaneelia ei ole: viehe on aina
-    // lippa, siimaa ja jarrua ei tarvitse seurata, ja pohjan syvyys näkyy luotaimessa.
-    if (simple) hud.setStatus([]);
-    else
-      hud.setStatus([
-        describeTackle(f.tackle),
-        t('game.line', { m: decimal(f.lineLength, 1) }),
-        isFly(f.tackle) && !f.onReel
-          ? t('game.flyHand', { m: decimal(f.slack, 1) })
-          : t('game.drag', {
-              kg: decimal(f.drag, 2),
-              gear: f.gear === REEL.fastGear ? t('game.fastGear') : f.gear + 1,
-            }),
-        t('game.lureDepth', { m: decimal(f.stage === 'water' && !f.onLand ? f.depth : 0, 1) }),
-        t('game.bottom', { m: decimal(host.bottom.depthAt(lureOut ? f.lure : tube.pos), 1) }),
-      ]);
     hud.sonar.update(dt, () =>
       sonarPing(tube.pos, host.fish.fish, host.bottom.depthAt(tube.pos), {
         floor: host.bottom.bottomTypeAt(tube.pos),
@@ -261,6 +244,31 @@ export class HudPresenter {
       snag: f.snag !== null,
       fouled: f.fouled,
     }));
+    const lureOut = s.lureOut;
+    // Yksinkertaisella ohjauksella (#653) tilapaneelia ei ole: viehe on aina
+    // lippa, siimaa ja jarrua ei tarvitse seurata, ja pohjan syvyys näkyy luotaimessa.
+    // Täydellä vieheen ja pohjan syvyys ovat paneelissa vain, kun vieheluotain
+    // ei näytä niitä (#786): sama tieto ei toistu kahdessa paikassa.
+    if (simple) hud.setStatus([]);
+    else
+      hud.setStatus([
+        describeTackle(f.tackle),
+        t('game.line', { m: decimal(f.lineLength, 1) }),
+        isFly(f.tackle) && !f.onReel
+          ? t('game.flyHand', { m: decimal(f.slack, 1) })
+          : t('game.drag', {
+              kg: decimal(f.drag, 2),
+              gear: f.gear === REEL.fastGear ? t('game.fastGear') : f.gear + 1,
+            }),
+        ...(hud.lureSonar.showing
+          ? []
+          : [
+              t('game.lureDepth', {
+                m: decimal(f.stage === 'water' && !f.onLand ? f.depth : 0, 1),
+              }),
+              t('game.bottom', { m: decimal(host.bottom.depthAt(lureOut ? f.lure : tube.pos), 1) }),
+            ]),
+      ]);
   }
 
   /**

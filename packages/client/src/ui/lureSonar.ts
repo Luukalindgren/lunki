@@ -138,6 +138,11 @@ export class LureSonarDisplay {
     parent.appendChild(this.root);
   }
 
+  /** Luotain on ruudulla: viehe vedessä, eikä pelaaja ole piilottanut sitä. */
+  get showing(): boolean {
+    return !this.root.hidden;
+  }
+
   /** Näkymä päälle tai pois; palauttaa uuden tilan. */
   toggle(): boolean {
     this.off = !this.off;

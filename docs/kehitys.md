@@ -55,7 +55,9 @@ Koodi: `packages/client/src/ui/hud.ts`, tyylit `style.css`.
   `lureImage`, `ui/lureArt.ts`). Älä lisää omaa ilmoituslaatikkoa.
 - **Tilanneohje `Hud.setSituation(text | null)`:** pysyvä ohje siihen, mitä
   pelaajan pitää nyt tehdä (sotku, viehe maalla, perhoheitto, ukkonen).
-  Sama tieto ei saa toistua ilmoituksena, ohjeessa ja tilarivillä.
+  Sama tieto ei saa toistua ilmoituksena, ohjeessa ja tilarivillä:
+  vieheen ja pohjan syvyys ovat tilapaneelissa vain, kun vieheluotain ei
+  näytä niitä (#786).
   Edistyminen osittain näkyy palkkeina samassa ohjeessa
   (`setSituation(text, bars)`, täyttökisan ponttoonit #482), ei omana
   laatikkona.
