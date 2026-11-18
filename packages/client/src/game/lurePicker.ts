@@ -2,6 +2,7 @@ import { simpleControls } from './controlStyle';
 import {
   METHODS,
   isFly,
+  isPole,
   type Difficulty,
   type FishingState,
   type Method,
@@ -10,7 +11,7 @@ import {
 import { t } from '../i18n';
 import { baitName, methodName } from '../i18n/names';
 import type { Hud } from '../ui/hud';
-import { lureImage, rodImage } from '../ui/lureArt';
+import { lureImage, rodImage, tackleArt } from '../ui/lureArt';
 import { RingMenu } from '../ui/ringMenu';
 import { CONTROLS, type Controls } from './controls';
 import { HeldMenu } from './heldMenu';
@@ -147,7 +148,7 @@ export class LurePicker {
     };
     this.menu.setItems(
       all.map((v) => ({
-        icon: lureImage(isFly(v) ? v.fly : v.lure, '2px'),
+        icon: lureImage(tackleArt(v), '2px'),
         label: baitName(v),
       })),
     );
@@ -183,7 +184,8 @@ export class LurePicker {
    * otetaan käyttöön; palauttaa ilmoitukseen lisättävän rivin tai null.
    */
   lost(tk: Tackle): string | null {
-    if (!this.realistic) return null;
+    // Ongen syöttejä riittää aina (#570): uusi mato pujotetaan koukkuun.
+    if (!this.realistic || isPole(tk)) return null;
     const { box, next, left } = loseFromBox(tk, this.box);
     if (!next) return currentSlot(tk, this.box) >= 0 ? t('box.lastLure') : null;
     this.box = box;

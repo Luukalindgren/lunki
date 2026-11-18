@@ -19,6 +19,7 @@ import {
   rankPlayers,
   removeCaughtFish,
   rodTip,
+  tackleTip,
   stepPlayerTube,
   type Appearance,
   type BotLevel,
@@ -259,7 +260,7 @@ export class SoloBots {
     if (host.fishing.stage === 'water')
       lines.push({
         id: SOLO_ID,
-        tip: rodTip(host.tube.pos, host.facing),
+        tip: tackleTip(host.fishing.tackle, host.tube.pos, host.facing),
         lure: host.fishing.lure,
         reeling: reelHeld,
       });

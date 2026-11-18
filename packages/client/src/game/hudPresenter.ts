@@ -12,7 +12,7 @@ import {
   isFly,
   isUntimed,
   loopProgress,
-  rodTip,
+  tackleTip,
   sonarPing,
   timeLeft,
   type CompetitionSettings,
@@ -178,7 +178,7 @@ export class HudPresenter {
       rowing === false,
     );
     hud.setHelpContext({
-      fly: isFly(f.tackle),
+      method: f.tackle.method,
       pov: lakeLevel(host.viewMode),
       chase: host.viewMode === 'chase',
       seat: !host.inBoat ? 'tube' : !host.rower ? 'passenger' : host.rowing ? 'rower' : 'rowerRod',
@@ -228,7 +228,7 @@ export class HudPresenter {
       }),
     );
     hud.lureSonar.update(dt, f.stage === 'water' && !f.onLand, () => ({
-      tip: rodTip(tube.pos, host.facing),
+      tip: tackleTip(f.tackle, tube.pos, host.facing),
       lure: f.lure,
       depth: f.depth,
       depthAt: (p) => host.bottom.depthAt(p),
@@ -286,7 +286,7 @@ export class HudPresenter {
     hud.setPower(null);
     hud.setAshore(false);
     hud.setSeatBadge(null);
-    hud.setHelpContext({ fly: false, pov: lakeLevel(this.host.viewMode), seat: 'tube' });
+    hud.setHelpContext({ method: 'spin', pov: lakeLevel(this.host.viewMode), seat: 'tube' });
     hud.setSituation(null);
     if (shot) {
       const who = shot.view === 'overview' || !name ? t('broadcast.lake') : name;

@@ -731,6 +731,12 @@ Koodi: `packages/client/src/audio/sounds.ts`.
 - Vieheen merkki järvellä on `game/lureMarker.ts`: tilan värinen
   pikselitimantti kaikilla tasoilla (Luuka testasi vesirajan ja vieheen
   kuvan, ja valitsi timantin). Sama merkki piirtää muiden pelaajien vieheet.
+- Ongella (#570) vieheen merkin paikalla on koho (`game/floatMarker.ts`, ryhmä
+  `pole-float`): silmin sivulta nähty pikselikoho, ylhäältä nuppi. Tärppi näkyy kohossa
+  (näykintä nytkäyttää, vienti painaa pinnan alle), joten timanttia ei piirretä. Pitkä
+  vapa vaihtuu `setRodKind`-kutsulla, ja NOSTA (`poleLift`) on sama iso nappi kuin
+  kelaus; Q ja E (`floatShallower`, `floatDeeper`) säätävät kohon syvyyttä. Modernissa
+  koho on toistaiseksi sileä kuva eikä oma malli.
 - Tärppi näkyy merkissä kaikilla tasoilla (#440): timantti nykii siiman
   nykäysten tahdissa (`strikeTug`, silmin pinnan alle), ja jokainen nykäys
   nostaa renkaan (`STRIKE_SIGNS` `fishingView.ts`:ssä, ylhäältä

@@ -4,6 +4,7 @@ import {
   timeLeft,
   type CatchRecord,
   type CompetitionState,
+  type BaitId,
   type FlyId,
   type PlayerResult,
   type SpeciesId,
@@ -11,8 +12,8 @@ import {
 import { isMine } from './raceScoreboard';
 import type { LureSlot } from './tackleBox';
 
-/** Viehe tai perho, jolla oma kala saatiin. */
-export type Bait = LureSlot | FlyId;
+/** Viehe, perho tai ongen syötti (#570), jolla oma kala saatiin. */
+export type Bait = LureSlot | FlyId | BaitId;
 
 /**
  * Kisan tilanne taukovalikkoon (#469): kalat, paino ja kolmantena

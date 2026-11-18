@@ -82,6 +82,8 @@ export interface RemotePlayer {
   appearance: Appearance;
   /** Perhovälineet: lennossa oleva "viehe" on perhoheiton perho (#236). */
   fly?: boolean;
+  /** Onki (#570): pitkä vapa ilman kelaa, ja vedessä on koho. */
+  pole?: boolean;
   /** Trombin lennättämänä korkeus ilmassa (m) ja kieppuminen (rad). */
   lift?: number;
   tumble?: number;
@@ -246,6 +248,7 @@ export class NetWorld {
       player: string;
       appearance: Appearance;
       fly: boolean;
+      pole: boolean;
       buf: SnapshotBuffer<RemoteSnap>;
       boat: number;
       seat: number;
@@ -636,6 +639,7 @@ export class NetWorld {
           player: p.name,
           appearance: playerAppearance(p),
           fly: p.method === 'fly',
+          pole: p.method === 'pole',
           buf: new SnapshotBuffer(lerpSnap),
           boat: 0,
           seat: 0,
@@ -653,6 +657,7 @@ export class NetWorld {
       r.name = p.connected ? p.name : t('game.peerOffline', { name: p.name });
       r.appearance = playerAppearance(p);
       r.fly = p.method === 'fly';
+      r.pole = p.method === 'pole';
       r.boat = p.boat ?? 0;
       r.seat = r.boat ? (p.seat ?? 0) : BoatSeat.rower;
       r.seatAsk = p.seatAsk ? p.seatAsk - 1 : null;
@@ -817,6 +822,7 @@ export class NetWorld {
         lureStage: s.lureStage,
         appearance: r.appearance,
         fly: r.fly,
+        pole: r.pole,
         boat: r.boat,
         seat: r.seat,
         look: r.boat && r.seat === BoatSeat.rower ? s.look : 0,

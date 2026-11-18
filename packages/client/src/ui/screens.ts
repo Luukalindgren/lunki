@@ -23,6 +23,10 @@ import {
   FLY_ROD_IDS,
   METHODS,
   isFly,
+  isPole,
+  POLE,
+  BAIT_IDS,
+  clampFloatDepth,
   type Method,
   NAME_MAX_LENGTH,
   LAND_PENALTIES,
@@ -156,6 +160,10 @@ import {
   flyLineHint,
   flyLineName,
   flyName,
+  stringBaitName,
+  poleBaitName,
+  poleBaitHint,
+  floatDepthText,
   flyRodHint,
   flyRodName,
   methodName,
@@ -2205,7 +2213,13 @@ export class Screens {
     update();
     const rig = document.createElement('div');
     rig.className = 'settings';
-    rig.append(this.lineChoice(tk, set), ...(fly ? [lineHint] : []), this.leaderChoice(tk, set));
+    rig.append(
+      // Ongella (#570) kohon syvyys säädetään myös tästä: kosketuksella ei ole Q- ja E-näppäimiä.
+      ...(isPole(tk) ? [this.floatDepthChoice(tk, set)] : []),
+      this.lineChoice(tk, set),
+      ...(fly ? [lineHint] : []),
+      this.leaderChoice(tk, set),
+    );
     const panel = this.panel('pause-tackle');
     panel.append(
       h('h2', t('menu.tackle')),
@@ -2968,6 +2982,18 @@ export class Screens {
     );
   }
 
+  /** Kohon syvyys (#570): Varusteissa ja kisan taukovalikossa. */
+  private floatDepthChoice(tk: Tackle, set: (patch: Partial<Tackle>) => void): HTMLElement {
+    const steps = Math.round((POLE.maxDepth - POLE.minDepth) / POLE.depthStep);
+    const depths = Array.from({ length: steps + 1 }, (_, i) => POLE.minDepth + i * POLE.depthStep);
+    return this.choice(
+      t('tackle.floatDepth'),
+      depths.map((d) => [String(d), floatDepthText(d)]),
+      String(tk.floatDepth),
+      (v) => set({ floatDepth: clampFloatDepth(Number(v)) }),
+    );
+  }
+
   /**
    * Varusteet: kalastustapa (virveli tai perho), viehepakki tai perhorasia
    * ja vavat siimoineen. Vieheet säätöineen ovat pakissa, josta R valitsee
@@ -2994,8 +3020,10 @@ export class Screens {
       ),
     );
     const fly = tk.method === 'fly';
-    // Viehepakki tai perhorasia (#365): mitkä vieheet R kiertää.
-    box.append(this.boxSummary(pack.pack.current, tk.method, () => pack.open(tk.method)));
+    const pole = tk.method === 'pole';
+    // Viehepakki tai perhorasia (#365): mitkä vieheet R kiertää. Ongen syötit ovat aina mukana.
+    if (!pole)
+      box.append(this.boxSummary(pack.pack.current, tk.method, () => pack.open(tk.method)));
     // Vihjeet päivittyvät valinnan mukana.
     const hints: [HTMLElement, () => string][] = [];
     const hint = (text: () => string) => {
@@ -3008,7 +3036,22 @@ export class Screens {
       for (const [p, text] of hints) p.textContent = text();
       onChange({ ...tk });
     };
-    if (fly) {
+    if (pole) {
+      box.append(
+        h('p', `${t('poleRod')}. ${t('poleRod.hint')}.`, 'hint'),
+        this.choice(
+          t('tackle.bait'),
+          BAIT_IDS.map((id) => [id, poleBaitName(id)]),
+          tk.bait,
+          (v) => set({ bait: v as Tackle['bait'] }),
+        ),
+        hint(() => poleBaitHint(tk.bait)),
+        this.floatDepthChoice(tk, set),
+        h('p', t('tackle.floatDepthHint'), 'hint'),
+        this.lineChoice(tk, set),
+        this.leaderChoice(tk, set),
+      );
+    } else if (fly) {
       box.append(
         this.choice(
           t('tackle.flyRod'),
@@ -3041,19 +3084,27 @@ export class Screens {
     }
     box.append(h('p', controlText('tackle.lureInRace'), 'hint'));
     // Vieheet ja perhot ovat pakissa, joten ne säilyvät ennallaan.
-    const reset: Tackle = fly
+    const reset: Tackle = pole
       ? {
           ...tk,
-          flyRod: DEFAULT_TACKLE.flyRod,
-          flyLine: DEFAULT_TACKLE.flyLine,
-          flyLeader: DEFAULT_TACKLE.flyLeader,
-        }
-      : {
-          ...tk,
-          rod: DEFAULT_TACKLE.rod,
+          bait: DEFAULT_TACKLE.bait,
+          floatDepth: DEFAULT_TACKLE.floatDepth,
           line: DEFAULT_TACKLE.line,
           leader: DEFAULT_TACKLE.leader,
-        };
+        }
+      : fly
+        ? {
+            ...tk,
+            flyRod: DEFAULT_TACKLE.flyRod,
+            flyLine: DEFAULT_TACKLE.flyLine,
+            flyLeader: DEFAULT_TACKLE.flyLeader,
+          }
+        : {
+            ...tk,
+            rod: DEFAULT_TACKLE.rod,
+            line: DEFAULT_TACKLE.line,
+            leader: DEFAULT_TACKLE.leader,
+          };
     const beginner = document.createElement('button');
     beginner.textContent = t('tackle.beginner');
     beginner.title = describeFullTackle(reset);
@@ -3505,7 +3556,10 @@ function pauseStatus(s: RaceStatus): HTMLElement[] {
     ? t('pause.bestBait', {
         fish,
         weight,
-        bait: typeof b.bait === 'string' ? flyName(b.bait) : lureLabel(b.bait.lure, b.bait.variant),
+        bait:
+          typeof b.bait === 'string'
+            ? stringBaitName(b.bait)
+            : lureLabel(b.bait.lure, b.bait.variant),
       })
     : t('pause.best', { fish, weight });
   return [grid, h('p', best, 'pause-best')];

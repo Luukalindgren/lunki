@@ -144,6 +144,8 @@ export function recordTackle(
       flyLine: t.flyLine,
       flyLeader: t.flyLeader,
     };
+  // Onki (#570): siima ja peruke ovat samat kuin virvelissä, vapa ja viehe eivät.
+  if (t.method === 'pole') return { method: 'pole', line: t.line, leader: t.leader };
   const variant = lureVariant(t);
   return {
     method: 'spin',

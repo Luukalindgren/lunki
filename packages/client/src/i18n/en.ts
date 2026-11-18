@@ -55,6 +55,14 @@ export const en: Record<keyof typeof fi, string> = {
   'tackle.leaderShort': 'leader',
   'method.spin': 'Spinning',
   'method.fly': 'Fly',
+  'method.pole': 'Pole',
+  'bait.worm': 'Worm',
+  'bait.worm.hint': 'A treat for perch, ruffe and burbot. A pike may swallow it: use a leader',
+  'bait.maggot': 'Maggots',
+  'bait.maggot.hint': 'A favourite of roach, bream and whitefish',
+  poleRod: '5 m pole',
+  'poleRod.hint':
+    'A long rod without a reel: swing the float out and tire the fish by lifting the rod',
   'flyRod.fly6': 'Fly rod #6',
   'flyRod.fly6.hint':
     'Light: presents a small fly softly, but cannot turn over a big pike streamer',
@@ -356,6 +364,11 @@ export const en: Record<keyof typeof fi, string> = {
   'journal.depth.3': '3–5 m',
   'journal.depth.4': 'over 5 m',
   'tackle.method': 'Method',
+  'tackle.bait': 'Bait',
+  'tackle.floatDepth': 'Float depth',
+  'tackle.floatDepthValue': '{m} m',
+  'tackle.floatDepthHint':
+    'The bait hangs this deep under the float. Over shallower bottom it lies on the bottom',
   'tackle.jigWeight': 'Jig weight',
   'tackle.crankDepth': 'Crankbait depth',
   'tackle.castWeightOff':
@@ -809,11 +822,18 @@ export const en: Record<keyof typeof fi, string> = {
   'help.flyStrip':
     'Fly in the water: {strip} = strip line · {lift} = lift for a new cast · {reelSlack} = slack onto the reel',
   'help.flyReel': 'On the reel: hold {pointer|reel} = reel in · {dragLess}/{dragMore} = drag',
+  'help.poleCast': 'Hold and release {castForward} = swing the float out · {cancel} = cancel',
+  'help.poleLift':
+    '{poleLift} = strike when the float goes under, otherwise lift the float out · {floatShallower}/{floatDeeper} = float depth',
+  'help.poleFight':
+    'Fish on: hold {poleLift} = rod up, release = let the fish pull · {back} = kick away',
   'help.shortMove': '{forward}/{back} = kick · {turn} = turn',
   'help.shortCast': 'Hold and release {castForward} = cast',
   'help.shortReel': 'Hold {pointer|reel} = reel',
   'help.shortFly': '{castForward} = fly cast in rhythm · {lift} = lift the line off the water',
   'help.shortFlyStrip': 'Fly in the water: {strip} = strip line',
+  'help.shortPoleCast': 'Hold and release {castForward} = cast the float',
+  'help.shortPoleLift': 'Float goes under: {poleLift} = strike · fish on: hold {poleLift}',
   'help.shortMore': '{help} = all controls · {pause} = pause',
   'help.shortHide': '{help} = hide help · {pause} = pause',
   'help.camera': '{camera} = turn the camera: sideways orbits, up and down raise and lower it',
@@ -943,6 +963,9 @@ export const en: Record<keyof typeof fi, string> = {
     'Line hand: works by itself until you press · hold to grip the line, release to let it slip',
   'touch.lift': 'LIFT',
   'touch.liftTitle': 'Lift the line off the water for a new cast, on a take set the hook',
+  'touch.poleLift': 'LIFT',
+  'touch.poleLiftTitle':
+    'Lift the rod: strike on a take, otherwise lift the float out, hold while playing a fish',
   'touch.strip': 'STRIP',
   'touch.stripTitle': 'Strip line (haul while casting)',
   'touch.emote': 'EMO',
@@ -1106,6 +1129,11 @@ export const en: Record<keyof typeof fi, string> = {
   'game.landNet': 'Big fish at the surface! {landNet} = net it',
   'game.lunge': 'The fish lunges! Don’t lift now',
   'game.lureChanged': 'Lure: {lure}',
+  'game.baitChanged': 'Bait: {bait} · float {depth}',
+  'game.baitLater': 'Bait and float change once the float is lifted out',
+  'game.floatDown': 'The float goes under – lift! ({poleLift})',
+  'game.missedPole': 'Missed – strike when the float goes under, not on the nibbles',
+  'game.lineBrokenPole': 'Line broke! Lower the rod (release {poleLift}) when the fish pulls hard',
   'game.leaderOn': 'Steel leader on',
   'game.leaderOff': 'Steel leader off',
   'game.flyLeaderChanged': 'Leader: {leader}',
@@ -1232,6 +1260,7 @@ export const en: Record<keyof typeof fi, string> = {
   'manual.section.move': 'Moving',
   'manual.section.spin': 'Spinning',
   'manual.section.fly': 'Fly',
+  'manual.section.pole': 'Pole',
   'manual.section.weather': 'Weather',
   'manual.section.multiplayer': 'Multiplayer',
   'manual.move.tube': 'Float tube',
@@ -1300,6 +1329,15 @@ export const en: Record<keyof typeof fi, string> = {
   'manual.fly.fight': 'Strike and fight',
   'manual.fly.fightText':
     'On a take, strike by stripping ({strip}) or lifting the rod ({lift}). A strip sets the hook more surely.\n{reelSlack} = reel the slack onto the reel. Then the fight goes on from the reel like spinning.\nLine held tight in the hand can snap the leader, and released line slips through your fingers.\nA steel leader stands pike teeth.',
+  'manual.pole.gear': 'Pole, float and bait',
+  'manual.pole.gearText':
+    'A fishing pole has no reel: a five-metre pole and {line} m of line with a float, a weight and a hook. Change the method with {method}.\nChoose a worm or maggots as bait. Worms suit perch, ruffe and burbot, maggots roach, bream and whitefish. Pike hardly care for bait.\nThe float depth sets how deep the bait hangs ({min}–{max} m). In shallow water the bait lies on the bottom. {floatShallower} and {floatDeeper} adjust the depth, and the new depth applies from the next cast. The pause Gear menu changes it during a competition.\n{castForward} = cast. The float flies close, at most a line length from the pole tip.',
+  'manual.pole.bite': 'Bite and strike',
+  'manual.pole.biteText':
+    'A fish does not take at once: first the float twitches as the fish nibbles. Striking too early pulls the bait from its mouth.\nWhen the float goes under, strike: {poleLift}. Wait too long and the fish spits the bait.\nOn Easy the hook sets itself when the float goes under.\n{poleLift} with no fish lifts the float out for a new cast.',
+  'manual.pole.fight': 'Fight and landing',
+  'manual.pole.fightText':
+    '{poleLift} held = pole up: the line shortens and the fish comes closer. A big fish can still pull, and a tight line can snap.\nLet go and the pole lowers, so the fish can take at most {line} m of line. It works like a drag.\nKick backwards if the fish takes too much. Land a fish at the surface as with spinning.',
   'manual.weather.sky': 'Weather',
   'manual.weather.skyText':
     'The weather changes during the competition according to the chosen weather level: calm, windy, rain, thunder or storm. The weather and wind show under the timer.\nRain and thunder arrive as a front from upwind: a dark wall of cloud rises on the horizon about {front} minutes ahead and closes in. Distant lightning flickers under a thunder front, and its rumble comes from that direction. The rain starts when the front reaches you.\nOn Easy and Normal the change is also announced in text: the sky darkens, the wind picks up or thunder rumbles far away. On Realistic you only see it in the sky and hear the rumble.\nWind bends casts and raises bigger waves on open water than in a cove.',

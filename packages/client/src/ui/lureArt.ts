@@ -1,4 +1,13 @@
-import { FLY_IDS, LURE_IDS, type FlyId, type LureId, type Method } from '@lunki/shared';
+import {
+  BAIT_IDS,
+  FLY_IDS,
+  LURE_IDS,
+  type BaitId,
+  type FlyId,
+  type LureId,
+  type Method,
+  type Tackle,
+} from '@lunki/shared';
 import { activeLook } from '../engine/look';
 import { outlinePixels } from '../engine/smoothPixels';
 import { fineOutline, lookArt, paintPixels } from './lookArt';
@@ -12,7 +21,8 @@ import { fineOutline, lookArt, paintPixels } from './lookArt';
  * animaatio ei tarvitse JavaScript-silmukkaa.
  */
 
-export type LureArtId = LureId | FlyId;
+/** Vieheet, perhot ja ongen syötit (#570). */
+export type LureArtId = LureId | FlyId | BaitId;
 /** Kalastustavan vapa: virvelivapa kelalla tai perhovapa siimalenkkeineen. */
 export type RodArtId = `${Method}Rod`;
 type ArtId = LureArtId | RodArtId;
@@ -376,6 +386,74 @@ function flyRod(frame: number): Shape {
   };
 }
 
+/** Koukku syötin alla: varsi ylhäältä ja kaari kärkeen. */
+function hook(x: number, y: number, x0: number, y0: number): boolean {
+  return (
+    segDist(x, y, x0, y0, x0, y0 + 7) < 0.5 ||
+    (Math.abs(Math.hypot(x - (x0 - 1.8), y - (y0 + 7)) - 1.8) < 0.5 && y > y0 + 7) ||
+    segDist(x, y, x0 - 3.6, y0 + 7, x0 - 3.6, y0 + 5.5) < 0.5
+  );
+}
+
+/** Mato (#570): kiemurteleva punaruskea mato koukussa, pää heiluu. */
+function worm(frame: number): Shape {
+  const phase = (frame / LURE_FRAMES) * Math.PI * 2;
+  return (x, y) => {
+    if (hook(x, y, 16, 2)) return 0x8e99a4;
+    // Madon keskiviiva kiemurtelee: aalto kulkee pyrstöstä päähän.
+    const k = (x - 5) / 22;
+    if (k < 0 || k > 1) return -1;
+    const cy = 8 + Math.sin(k * 9 + phase) * (1.2 + k * 1.6);
+    const r = 1.5 - Math.abs(k - 0.5) * 0.9;
+    if (Math.abs(y - cy) > r) return -1;
+    // Vyö ja renkaat.
+    if (k > 0.3 && k < 0.4) return 0xf08a2c;
+    if (Math.floor(x) % 3 === 0) return 0x8c1c1c;
+    return y < cy ? 0xd23a2a : 0x8c1c1c;
+  };
+}
+
+/** Toukka (#570): kolme vaaleaa toukkaa koukussa, ne kiemurtelevat vuorotellen. */
+function maggot(frame: number): Shape {
+  const phase = (frame / LURE_FRAMES) * Math.PI * 2;
+  const grubs: [number, number, number][] = [
+    [10, 8, 0],
+    [16, 11, 2],
+    [22, 8, 4],
+  ];
+  return (x, y) => {
+    if (hook(x, y, 16, 1)) return 0x8e99a4;
+    for (const [gx, gy, off] of grubs) {
+      const a = Math.sin(phase + off) * 0.5;
+      const dx = (x - gx) * Math.cos(a) + (y - gy) * Math.sin(a);
+      const dy = -(x - gx) * Math.sin(a) + (y - gy) * Math.cos(a);
+      if (inEllipse(dx, dy, 0, 0, 3.4, 1.6)) {
+        if (dx > 2.4) return 0x3b2a1e;
+        return Math.floor(dx + 4) % 2 === 0 ? 0xe0cf9c : 0xeef2f3;
+      }
+    }
+    return -1;
+  };
+}
+
+/** Onkivapa (#570): pitkä ohut vapa ilman kelaa, koho keinuu siiman päässä. */
+function poleRod(frame: number): Shape {
+  const phase = (frame / LURE_FRAMES) * Math.PI * 2;
+  const pts = rodPoints(1.5, 13, 29.5, 1.5, 1.2 + Math.sin(phase) * 0.8);
+  const [tx, ty] = pts[pts.length - 1]!;
+  const fy = 10.5 + Math.sin(phase) * 0.8;
+  return (x, y) => {
+    // Koho: punainen yläpää ja valkoinen alapää, antenni ylhäällä.
+    if (segDist(x, y, 28.5, fy - 3.5, 28.5, fy - 1.6) < 0.45) return 0xf6d04d;
+    if (inEllipse(x, y, 28.5, fy, 1.3, 2)) return y < fy ? 0xd23a2a : 0xeef2f3;
+    if (segDist(x, y, tx, ty, 28.5, fy - 3.5) < 0.45) return 0xeef2f3;
+    const k = onRod(x, y, pts, (k) => (k < 0.18 ? 0.9 : 0.5));
+    if (k < 0) return -1;
+    if (k < 0.18) return 0x3b2a1e;
+    return Math.floor(k * 6) % 2 === 0 ? 0xb99a68 : 0x8a6a42;
+  };
+}
+
 const SHAPES: Record<ArtId, (frame: number) => Shape> = {
   spoon,
   wobbler,
@@ -403,12 +481,19 @@ const SHAPES: Record<ArtId, (frame: number) => Shape> = {
     }),
   nymph,
   weedlessStreamer,
+  worm,
+  maggot,
   spinRod,
   flyRod,
+  poleRod,
 };
 
-export const LURE_ART_IDS: LureArtId[] = [...LURE_IDS, ...FLY_IDS];
-export const ROD_ART_IDS: RodArtId[] = ['spinRod', 'flyRod'];
+export const LURE_ART_IDS: LureArtId[] = [...LURE_IDS, ...FLY_IDS, ...BAIT_IDS];
+export const ROD_ART_IDS: RodArtId[] = ['spinRod', 'flyRod', 'poleRod'];
+
+/** Käytössä olevan vieheen, perhon tai ongen syötin kuva. */
+export const tackleArt = (t: Tackle): LureArtId =>
+  t.method === 'fly' ? t.fly : t.method === 'pole' ? t.bait : t.lure;
 
 export interface LurePixels {
   width: number;

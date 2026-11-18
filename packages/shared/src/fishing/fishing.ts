@@ -16,11 +16,13 @@ import {
 import {
   DEFAULT_TACKLE,
   FLY_CAST_FACTOR,
+  POLE,
   baitOf,
   biteOffRate,
   breakingStrength,
   RODS,
   isFly,
+  isPole,
   rodPower,
   tackleCastFactor,
   type Tackle,
@@ -38,8 +40,8 @@ import {
   chargePower,
   clampCastAngle,
   launchLure,
-  rodTip,
   stepFlight,
+  tackleTip,
   type LureFlight,
 } from './cast';
 
@@ -54,7 +56,11 @@ export interface FishingInput {
   aim: Vec2;
   /** Heittonappi pohjassa (hiiren vasen). */
   castHeld: boolean;
-  /** Kelaus (hiiren vasen vieheen ollessa vedessä, tai välilyönti). */
+  /**
+   * Kelaus (hiiren vasen vieheen ollessa vedessä, tai välilyönti). Ongella
+   * (#570) NOSTA pohjassa: painallus on vastaisku tai nostaa kohon vedestä,
+   * ja väsytyksessä pito pitää vavan pystyssä.
+   */
   reel: boolean;
   /** Peruu latauksen (hiiren oikea). */
   cancel: boolean;
@@ -152,6 +158,19 @@ export interface FishingState {
   landing: LandingState | null;
   /** Riuhtaisun jälkeen kala ei ole heti uudelleen nostettavissa (s). */
   landCooldown: number;
+  /** Onki (#570): tärppi kohossa, ensin näykintää ja sitten vienti. */
+  bite: PoleBite | null;
+  /** Onki: NOSTA oli pohjassa edellisellä askeleella (painalluksen tunnistus). */
+  liftWas: boolean;
+}
+
+/** Ongen tärppi (#570): kala näykkii syöttiä ja lähtee sitten viemään kohoa. */
+export interface PoleBite {
+  phase: 'nibble' | 'run';
+  /** Näykkäisyjä jäljellä ennen vientiä. */
+  left: number;
+  /** Aikaa seuraavaan näykkäisyyn tai viennin loppuun (s). */
+  timer: number;
 }
 
 /** Nostovaihe (#366): kala pinnassa, pelaaja nostaa käsin tai haaviin. */
@@ -252,6 +271,8 @@ export const createFishing = (tackle: Tackle = DEFAULT_TACKLE): FishingState => 
   knot: false,
   landing: null,
   landCooldown: 0,
+  bite: null,
+  liftWas: false,
 });
 
 /** Kalan tunniste kalakannassa: paikka (indeksi) ja sukupolvi. */
@@ -286,8 +307,10 @@ export interface FishingEvents {
   cast?: number;
   splash?: Vec2;
   home?: boolean;
-  /** Kala iski (tärppi). */
+  /** Kala iski (tärppi); ongella koho lähtee viemään. */
   strike?: boolean;
+  /** Onki (#570): kala näykkäisi syöttiä, ja koho nytkähti. */
+  nibble?: boolean;
   /** Kala tarttui. */
   hooked?: boolean;
   /** Isku meni ohi (ei vastaiskua ajoissa). */
@@ -441,7 +464,8 @@ export function lureInfo(s: FishingState, ctx: FishingContext): LureInfo | null 
     depth: s.depth,
     speed: s.lureSpeed,
     fishable: s.hookedId === null,
-    tip: rodTip(ctx.tubePos, ctx.heading),
+    // Ongen kärki on kohon lähellä, joten kala säikkyy kalastajaa itseään.
+    tip: isPole(s.tackle) ? { ...ctx.tubePos } : tackleTip(s.tackle, ctx.tubePos, ctx.heading),
     tackle: s.tackle,
     fouled: s.fouled,
     snagged: s.snag !== null,
@@ -451,8 +475,8 @@ export function lureInfo(s: FishingState, ctx: FishingContext): LureInfo | null 
 }
 
 /** Heiton suunta: hiiren suunta renkaasta, rajattuna kalastajan ulottuville. */
-export function castAngle(ctx: FishingContext, aim: Vec2): number {
-  const tip = rodTip(ctx.tubePos, ctx.heading);
+export function castAngle(ctx: FishingContext, aim: Vec2, tackle?: Tackle): number {
+  const tip = tackleTip(tackle, ctx.tubePos, ctx.heading);
   return clampCastAngle(Math.atan2(aim.y - tip.y, aim.x - tip.x), ctx.heading);
 }
 
@@ -464,7 +488,6 @@ export function stepFishing(
   dt: number,
 ): FishingEvents {
   const events: FishingEvents = {};
-  const tip = rodTip(ctx.tubePos, ctx.heading);
   if (input.dragDelta) {
     s.drag = Math.max(
       REEL.minDrag,
@@ -478,6 +501,7 @@ export function stepFishing(
     s.tackle = { ...input.tackle };
     events.tackleChanged = true;
   }
+  const tip = tackleTip(s.tackle, ctx.tubePos, ctx.heading);
   s.dragSlipping = false;
   s.fingerSlip = false;
 
@@ -509,10 +533,11 @@ export function stepFishing(
       s.power = chargePower(s.charge);
       s.flight = launchLure(
         tip,
-        castAngle(ctx, input.aim),
+        castAngle(ctx, input.aim, s.tackle),
         s.power,
         tackleCastFactor(s.tackle) * shootSlack(s, ctx, tip, input.aim, events),
       );
+      if (isPole(s.tackle)) s.flight.height = POLE.tipHeight;
       s.stage = 'flight';
       s.onReel = false;
       events.cast = s.power;
@@ -524,7 +549,16 @@ export function stepFishing(
 
     case 'flight': {
       const f = s.flight!;
-      const landed = stepFlight(f, dt, ctx.wind);
+      let landed = stepFlight(f, dt, ctx.wind);
+      // Ongen siima on vavan mittainen: koho putoaa, kun siima loppuu.
+      const out = distance(tip, f.pos);
+      if (isPole(s.tackle) && out >= POLE.line) {
+        f.pos = {
+          x: tip.x + ((f.pos.x - tip.x) / out) * POLE.line,
+          y: tip.y + ((f.pos.y - tip.y) / out) * POLE.line,
+        };
+        landed = true;
+      }
       s.lure = { ...f.pos };
       s.lineLength = Math.min(REEL.spool, f.travelled);
       straightenLine(s.line, tip, s.lure);
@@ -534,7 +568,11 @@ export function stepFishing(
         // Laiturit ovat vesialueessa saarina, joten nekin ovat "maata".
         s.onLand = !ctx.isWater(s.lure);
         s.depth = 0;
-        s.lineLength = Math.min(REEL.spool, distance(tip, s.lure) * (1 + REEL.landingSlack));
+        s.lineLength = isPole(s.tackle)
+          ? Math.min(POLE.line, distance(tip, s.lure))
+          : Math.min(REEL.spool, distance(tip, s.lure) * (1 + REEL.landingSlack));
+        // Heiton jälkeen pohjassa pysynyt nappi ei ole vastaisku.
+        s.liftWas = true;
         if (s.onLand) events.stuck = true;
         else events.splash = { ...s.lure };
       }
@@ -542,6 +580,10 @@ export function stepFishing(
     }
 
     case 'water': {
+      if (isPole(s.tackle)) {
+        stepPole(s, input, ctx, tip, events, dt);
+        break;
+      }
       const fish = ctx.fish;
       const hooked =
         s.hookedId !== null && fish ? fish.pop.fish.find((f) => f.id === s.hookedId) : undefined;
@@ -986,6 +1028,7 @@ export function resetFishing(s: FishingState, fish?: { pop: FishPopulation; rng:
   s.knot = false;
   s.landing = null;
   s.landCooldown = 0;
+  s.bite = null;
 }
 
 /**
@@ -1004,7 +1047,7 @@ export function needsTwitch(
  * kova suu korostaa eroa, joten kevyellä vavalla hauki pääsee useammin irti.
  */
 export function rodHookMiss(t: Tackle, species: SpeciesId): number {
-  if (isFly(t)) return 1;
+  if (isFly(t) || isPole(t)) return 1;
   const miss = RODS[t.rod].hookMiss;
   return species === 'pike' ? miss * miss : miss;
 }
@@ -1041,26 +1084,175 @@ function resolveStrike(
       (1 - SNAG.hookLoss * baitOf(s.tackle).weedGuard);
     // Nykäisyssä vavan jäykkyys ratkaisee, kuinka hyvin koukku uppoaa.
     if (twitch) chance = 1 - (1 - chance) * rodHookMiss(s.tackle, f.species);
-    if (diff.autoHook || rng.next() < Math.min(1, chance)) {
-      f.mode = 'hooked';
-      f.stamina = 1;
-      f.running = true;
-      f.timer = rng.range(1, 2.5);
-      f.slack = 0;
-      s.hookedId = f.id;
-      events.hooked = true;
-    } else {
-      f.mode = 'roam';
-      f.cooldown = rng.range(10, 20);
-      events.missed = true;
-    }
+    if (diff.autoHook || rng.next() < Math.min(1, chance)) hookFish(s, f, rng, events);
+    else missFish(f, rng, events);
   } else if (s.strikeAge > window) {
     s.struckId = null;
-    f.mode = 'roam';
-    f.cooldown = rng.range(10, 20);
-    events.missed = true;
+    missFish(f, rng, events);
     if (s.strikeBig) events.missedTwitch = true;
   }
+}
+
+/** Koukku tarttui: väsytys alkaa. */
+function hookFish(
+  s: FishingState,
+  f: FishPopulation['fish'][number],
+  rng: Rng,
+  events: FishingEvents,
+): void {
+  f.mode = 'hooked';
+  f.stamina = 1;
+  f.running = true;
+  f.timer = rng.range(1, 2.5);
+  f.slack = 0;
+  s.hookedId = f.id;
+  events.hooked = true;
+}
+
+/** Isku meni ohi: kala ui pois eikä hetkeen kiinnostu. */
+function missFish(f: FishPopulation['fish'][number], rng: Rng, events: FishingEvents): void {
+  f.mode = 'roam';
+  f.cooldown = rng.range(10, 20);
+  events.missed = true;
+}
+
+/**
+ * Onki (#570) vedessä. Koho pitää syötin säädetyssä syvyydessä (tai pohjalla,
+ * jos pohja on matalammalla), eikä siimaa kelata: NOSTA-painallus on
+ * vastaisku viennin aikana, ja muulloin se nostaa kohon vedestä. Väsytyksessä
+ * pystyyn nostettu vapa lyhentää siimaa ja pitää kalan, ja laskettu vapa
+ * antaa kalan vetää siiman mitan verran. Kalastaja voi myös potkia kauemmas.
+ */
+function stepPole(
+  s: FishingState,
+  input: FishingInput,
+  ctx: FishingContext,
+  tip: Vec2,
+  events: FishingEvents,
+  dt: number,
+): void {
+  const fish = ctx.fish;
+  const held = input.reel && !input.cancel;
+  const press = held && !s.liftWas;
+  s.liftWas = held;
+  s.lureSpeed = 0;
+  if (s.onLand) {
+    // Rannalle lentänyt koho nousee vavalla irti, tai siiman voi katkaista.
+    s.tension = 0;
+    if (input.cut) {
+      events.lineCut = true;
+      events.lureLost = true;
+      resetFishing(s);
+    } else if (press) liftOut(s, events);
+    return;
+  }
+  const hooked =
+    s.hookedId !== null && fish ? fish.pop.fish.find((f) => f.id === s.hookedId) : undefined;
+  if (hooked && fish) {
+    if (held) s.lineLength = Math.max(FIGHT.minLine, s.lineLength - POLE.liftSpeed * dt);
+    const hold = held || s.lineLength >= POLE.line ? Infinity : POLE.giveForce;
+    fight(s, hooked, tip, ctx, fish, events, dt, hold, input.land === true);
+    if (s.stage !== 'water') return;
+    s.lineLength = Math.min(s.lineLength, POLE.line);
+    stepLine(s.line, tip, s.lure, s.lineLength, dt, { x: 0.15, y: 0.1 });
+    return;
+  }
+  if (fish && s.struckId === null && fish.strike !== undefined) {
+    // Tärppi alkaa näykinnällä: koho nytkähtää 1–4 kertaa ennen vientiä.
+    s.struckId = fish.strike;
+    s.strikeAge = 0;
+    const [lo, hi] = POLE.nibbles;
+    s.bite = {
+      phase: 'nibble',
+      left: Math.floor(fish.rng.range(lo, hi + 1)) - 1,
+      timer: fish.rng.range(...POLE.nibbleGap),
+    };
+    events.nibble = true;
+  }
+  if (fish && s.struckId !== null && s.bite && stepBite(s, s.bite, press, fish, events, dt)) return;
+  if (press) {
+    liftOut(s, events);
+    return;
+  }
+  pullLure(s, tip, dt, Infinity);
+  s.lureSpeed = 0;
+  const bottom = ctx.depthAt(s.lure);
+  const limit = Math.min(bottom, s.tackle.floatDepth);
+  s.depth = Math.min(limit, s.depth + POLE.sinkRate * dt);
+  s.stillTime += dt;
+  stepLine(s.line, tip, s.lure, s.lineLength, dt, { x: 0.15, y: 0.1 });
+  if (distance(s.lure, tip) <= LURE.homeDistance) {
+    resetFishing(s);
+    events.home = true;
+  }
+}
+
+/**
+ * Ongen tärpin askel. Liian aikainen vastaisku näykinnässä vie syötin kalan
+ * suulta, ja koho nousee vedestä. Viennin aikana vastaisku tarttuu kuten
+ * virvelissä; jos sitä ei tule, kala hylkää syötin. Helpolla koukku tarttuu
+ * itsestään viennin alkaessa. Palauttaa true, kun askel on käsitelty (kala
+ * tarttui tai koho nousi vedestä).
+ */
+function stepBite(
+  s: FishingState,
+  b: PoleBite,
+  press: boolean,
+  fish: NonNullable<FishingContext['fish']>,
+  events: FishingEvents,
+  dt: number,
+): boolean {
+  const f = fish.pop.fish.find((x) => x.id === s.struckId);
+  if (!f || f.mode !== 'struck') {
+    s.struckId = null;
+    s.bite = null;
+    return false;
+  }
+  const { diff, rng } = fish;
+  s.strikeAge += dt;
+  b.timer -= dt;
+  if (b.phase === 'nibble') {
+    if (press && !diff.autoHook) {
+      s.struckId = null;
+      s.bite = null;
+      missFish(f, rng, events);
+      liftOut(s, events);
+      return true;
+    }
+    if (b.timer > 0) return false;
+    if (b.left > 0) {
+      b.left--;
+      b.timer = rng.range(...POLE.nibbleGap);
+      events.nibble = true;
+      return false;
+    }
+    b.phase = 'run';
+    b.timer = diff.hookWindow * POLE.runWindow * (SPECIES[f.species].behavior.strikeWindow ?? 1);
+    events.strike = true;
+    if (!diff.autoHook) return false;
+  } else if (!press) {
+    if (b.timer > 0) return false;
+    // Vienti jäi ilman vastaiskua: kala sylkee syötin, ja koho nousee pintaan.
+    s.struckId = null;
+    s.bite = null;
+    missFish(f, rng, events);
+    return false;
+  }
+  s.struckId = null;
+  s.bite = null;
+  if (diff.autoHook || rng.next() < diff.hookChance) hookFish(s, f, rng, events);
+  else {
+    missFish(f, rng, events);
+    liftOut(s, events);
+  }
+  // Vastaiskun painallus on käytetty: se ei saa enää nostaa kohoa vedestä.
+  return true;
+}
+
+/** Ongen koho nostetaan vedestä: valmis uuteen heittoon. */
+function liftOut(s: FishingState, events: FishingEvents): void {
+  resetFishing(s);
+  events.home = true;
 }
 
 /** Väsytys: kala ui ja vetää, siima ja jarru rajoittavat, kelaus tuo lähemmäs. */

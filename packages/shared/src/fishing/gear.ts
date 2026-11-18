@@ -385,10 +385,124 @@ export const RODS: Record<RodId, Rod> = {
 
 export const ROD_IDS = Object.keys(RODS) as RodId[];
 
-/** Kalastustapa: virveli (heittovapa ja viehe) tai perho (#234). */
-export type Method = 'spin' | 'fly';
+/**
+ * Kalastustapa: virveli (heittovapa ja viehe), perho (#234) tai onki (#570):
+ * kelaton onkivapa, koho ja syötti.
+ */
+export type Method = 'spin' | 'fly' | 'pole';
 
-export const METHODS: Record<Method, string> = { spin: 'Virveli', fly: 'Perho' };
+export const METHODS: Record<Method, string> = { spin: 'Virveli', fly: 'Perho', pole: 'Onki' };
+
+/** Ongen syötit (#570): mato kiinnostaa ahventa ja kiiskeä, toukka särkikaloja. */
+export type BaitId = 'worm' | 'maggot';
+
+export interface PoleBait {
+  id: BaitId;
+  name: string;
+  /** Houkuttelevuus lajeittain (kerroin, 1 = tavallinen). */
+  appeal: Record<SpeciesId, number>;
+  /** Hauen puraisun riski ilman peruketta (#512): syötti nielaistaan syvälle. */
+  biteRisk: number;
+}
+
+export const BAITS: Record<BaitId, PoleBait> = {
+  worm: {
+    id: 'worm',
+    name: 'Mato',
+    appeal: {
+      perch: 1.15,
+      pike: 0.6,
+      roach: 0.9,
+      zander: 0.8,
+      trout: 1.1,
+      bream: 1,
+      ruffe: 1.25,
+      burbot: 1.3,
+      ide: 1,
+      rainbow: 1.1,
+      carp: 1,
+      whitefish: 0.7,
+    },
+    biteRisk: 0.5,
+  },
+  maggot: {
+    id: 'maggot',
+    name: 'Toukka',
+    appeal: {
+      perch: 0.85,
+      pike: 0.2,
+      roach: 1.3,
+      zander: 0.4,
+      trout: 0.9,
+      bream: 1.15,
+      ruffe: 1,
+      burbot: 0.5,
+      ide: 1.1,
+      rainbow: 0.9,
+      carp: 1,
+      whitefish: 1.3,
+    },
+    biteRisk: 0.4,
+  },
+};
+
+export const BAIT_IDS = Object.keys(BAITS) as BaitId[];
+
+/**
+ * Kelaton onkivapa (#570). Vavan kärki on kauempana kalastajasta kuin
+ * virvelissä, ja siima on vavan mittainen: koho heitetään heilauttamalla
+ * enintään siiman mitan päähän kärjestä. Kala väsytetään vapaa nostamalla.
+ */
+export const POLE = {
+  name: 'Onkivapa 5 m',
+  /** Vavan kärki on näin kaukana kalastajasta katsesuuntaan (m). */
+  reach: 4.2,
+  /** Kärjen korkeus vedenpinnasta (m). */
+  tipHeight: 3.2,
+  /** Kärjestä kohoon ulottuva siima (m): pisin heitto kärjestä. */
+  line: 5,
+  /** Heittokerroin: heilautus on lyhyt, täydellä voimalla siima loppuu. */
+  castFactor: 0.42,
+  /** Kohon syvyyden säätö (m): syötti on näin syvällä kohon alla. */
+  minDepth: 0.5,
+  maxDepth: 4,
+  depthStep: 0.25,
+  defaultDepth: 1.5,
+  /** Syötin vajoaminen kohon alle (m/s). */
+  sinkRate: 0.5,
+  /** Vavan jousto (siiman kestävyyden kerroin) ja väsytysvoima. */
+  flex: 1.3,
+  power: 0.75,
+  /** Vapaa nostettaessa siima lyhenee kärjen ja kalan välillä (m/s). */
+  liftSpeed: 0.7,
+  /**
+   * Laskettu vapa antaa kalan vetää näin kevyesti (kg), kunnes koko siima on
+   * ulkona; sen jälkeen veto on vavan ja siiman varassa.
+   */
+  giveForce: 0.6,
+  /** Näykkäisyjä ennen vientiä (vähintään, enintään). */
+  nibbles: [1, 4] as const,
+  /** Näykkäisyjen väli (s). */
+  nibbleGap: [0.5, 1.3] as const,
+  /** Vienti kestää vaikeustason iskuikkunan tällä kertoimella. */
+  runWindow: 1.5,
+  /** Syötti kiinnostaa suurkaloja vähemmän kuin iso viehe. */
+  bigFish: 0.7,
+  /**
+   * Kala säikkyy kalastajaa: kalastajan ja kohon väli (m), jota lähempänä
+   * kala kääntyy pois. Mitataan kalastajasta, koska kärki on kaukana.
+   */
+  shyDistance: 3.5,
+} as const;
+
+/** Kohon syvyys sallitulle välille ja säätöaskeleeseen. */
+export function clampFloatDepth(d: number): number {
+  const step = Math.round(d / POLE.depthStep) * POLE.depthStep;
+  return Math.max(
+    POLE.minDepth,
+    Math.min(POLE.maxDepth, Number.isFinite(step) ? step : POLE.defaultDepth),
+  );
+}
 
 /**
  * Perhovavat luokittain: luokka määrää, kuinka isoa perhoa vapa kääntää ja
@@ -692,6 +806,9 @@ export interface Tackle {
   flyLine: FlyLineId;
   flyLeader: FlyLeaderId;
   fly: FlyId;
+  /** Onki (#570): syötti ja kohon syvyys (m). Siima ja peruke ovat virvelin. */
+  bait: BaitId;
+  floatDepth: number;
 }
 
 /**
@@ -710,18 +827,24 @@ export const DEFAULT_TACKLE: Tackle = {
   flyLine: 'floating',
   flyLeader: 'steel',
   fly: 'pikeStreamer',
+  bait: 'worm',
+  floatDepth: POLE.defaultDepth,
 };
 
 export const isFly = (t: Tackle) => t.method === 'fly';
+
+/** Onki (#570): kelaton vapa, koho ja syötti. */
+export const isPole = (t: Tackle) => t.method === 'pole';
 
 /** Siiman (perhossa perukkeen) todellinen kestävyys (kg) vavan jousto huomioiden. */
 export const breakingStrength = (t: Tackle) =>
   isFly(t)
     ? FLY_LEADERS[t.flyLeader].strength * FLY_RODS[t.flyRod].flex
-    : LINES[t.line].strength * RODS[t.rod].flex;
+    : LINES[t.line].strength * (isPole(t) ? POLE.flex : RODS[t.rod].flex);
 
 /** Vavan väsytysvoima. */
-export const rodPower = (t: Tackle) => (isFly(t) ? FLY_RODS[t.flyRod] : RODS[t.rod]).power;
+export const rodPower = (t: Tackle) =>
+  isPole(t) ? POLE.power : (isFly(t) ? FLY_RODS[t.flyRod] : RODS[t.rod]).power;
 
 /** Teräsperuke karkottaa muita kuin haukea hieman. */
 export const LEADER_SHYNESS = 0.85;
@@ -737,7 +860,11 @@ export const BITE_OFF = { early: 0.75, rate: 0.25, late: 0.002 };
 /** Hauen puraisun todennäköisyys sekunnissa näillä varusteilla. */
 export function biteOffRate(t: Tackle, stamina: number): number {
   const guard = isFly(t) ? FLY_LEADERS[t.flyLeader].biteOff : t.leader ? 0 : 1;
-  const risk = isFly(t) ? FLIES[t.fly].biteRisk : LURES[t.lure].biteRisk;
+  const risk = isFly(t)
+    ? FLIES[t.fly].biteRisk
+    : isPole(t)
+      ? BAITS[t.bait].biteRisk
+      : LURES[t.lure].biteRisk;
   return guard * (stamina > BITE_OFF.early ? risk * BITE_OFF.rate : BITE_OFF.late);
 }
 
@@ -800,6 +927,21 @@ export function fitsCastWeight(t: Tackle): boolean {
 
 /** Käytössä olevan vieheen tai perhon ominaisuudet. */
 export function baitOf(t: Tackle): Bait {
+  if (isPole(t))
+    // Koho pitää syötin paikallaan säädetyssä syvyydessä (pohja voi tulla vastaan).
+    return {
+      sinkRate: POLE.sinkRate,
+      lift: 0,
+      maxDepth: t.floatDepth,
+      castFactor: POLE.castFactor * LINES[t.line].castFactor,
+      stillAppeal: 1,
+      pauseAppeal: 1,
+      snagRisk: 0,
+      weedGuard: 0,
+      bigFish: POLE.bigFish,
+      surface: false,
+      drag: 1,
+    };
   if (!isFly(t)) {
     const l = lureTuning(t);
     const rod = RODS[t.rod];
@@ -847,6 +989,10 @@ export function tackleAppeal(t: Tackle, species: SpeciesId): number {
     const leader = species === 'pike' ? 1 : FLY_LEADERS[t.flyLeader].appeal;
     return FLIES[t.fly].appeal[species] * leader;
   }
+  if (isPole(t)) {
+    const leader = t.leader && species !== 'pike' ? LEADER_SHYNESS : 1;
+    return BAITS[t.bait].appeal[species] * LINES[t.line].appeal * leader;
+  }
   const leader = t.leader && species !== 'pike' ? LEADER_SHYNESS : 1;
   const tuning = lureTuning(t).appeal[species] ?? 1;
   return LURES[t.lure].appeal[species] * tuning * LINES[t.line].appeal * leader;
@@ -890,7 +1036,10 @@ export function isTackle(v: unknown): v is Tackle {
     isKey(FLY_RODS, t.flyRod) &&
     isKey(FLY_LINES, t.flyLine) &&
     isKey(FLY_LEADERS, t.flyLeader) &&
-    isKey(FLIES, t.fly)
+    isKey(FLIES, t.fly) &&
+    isKey(BAITS, t.bait) &&
+    typeof t.floatDepth === 'number' &&
+    clampFloatDepth(t.floatDepth) === t.floatDepth
   );
 }
 
@@ -916,6 +1065,8 @@ export function parseTackle(v: unknown): Tackle | null {
     flyLine: t.flyLine,
     flyLeader: t.flyLeader,
     fly: t.fly,
+    bait: t.bait,
+    floatDepth: t.floatDepth,
   };
 }
 
@@ -947,6 +1098,8 @@ function lureLabel(t: Tackle): string {
 
 /** Varusteet lyhyesti HUD:iin. */
 export function describeTackle(t: Tackle): string {
+  if (isPole(t))
+    return `${BAITS[t.bait].name} · koho ${fmtDepth(t.floatDepth)} m · ${LINES[t.line].name}${t.leader ? ' · peruke' : ''}`;
   if (isFly(t))
     return `${FLIES[t.fly].name} · ${FLY_LINES[t.flyLine].name} · ${FLY_LEADERS[t.flyLeader].name}`;
   return `${lureLabel(t)} · ${LINES[t.line].name}${t.leader ? ' · peruke' : ''}`;
@@ -954,5 +1107,9 @@ export function describeTackle(t: Tackle): string {
 
 /** Varusteet kokonaan, vapa mukaan lukien (aula ja tulostaulu). */
 export function describeFullTackle(t: Tackle): string {
-  return `${isFly(t) ? FLY_RODS[t.flyRod].name : RODS[t.rod].name} · ${describeTackle(t)}`;
+  const rod = isPole(t) ? POLE.name : isFly(t) ? FLY_RODS[t.flyRod].name : RODS[t.rod].name;
+  return `${rod} · ${describeTackle(t)}`;
 }
+
+/** Kohon syvyys tekstinä: "1,25". */
+const fmtDepth = (d: number) => String(d).replace('.', ',');

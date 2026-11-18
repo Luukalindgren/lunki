@@ -58,6 +58,14 @@ export const fi = {
   'tackle.leaderShort': 'peruke',
   'method.spin': 'Virveli',
   'method.fly': 'Perho',
+  'method.pole': 'Onki',
+  'bait.worm': 'Mato',
+  'bait.worm.hint': 'Ahvenen, kiisken ja mateen herkku. Hauki voi niellä sen: käytä peruketta',
+  'bait.maggot': 'Toukka',
+  'bait.maggot.hint': 'Särjen, lahnan ja siian suosikki',
+  poleRod: 'Onkivapa 5 m',
+  'poleRod.hint':
+    'Pitkä vapa ilman kelaa: koho heilautetaan veteen, ja kala väsytetään vapaa nostamalla',
   'flyRod.fly6': 'Perhovapa #6',
   'flyRod.fly6.hint':
     'Kevyt: heittää pienen perhon pehmeästi, mutta ei käännä isoa hauki-streameria',
@@ -361,6 +369,11 @@ export const fi = {
   'journal.depth.3': '3–5 m',
   'journal.depth.4': 'yli 5 m',
   'tackle.method': 'Kalastustapa',
+  'tackle.bait': 'Syötti',
+  'tackle.floatDepth': 'Kohon syvyys',
+  'tackle.floatDepthValue': '{m} m',
+  'tackle.floatDepthHint':
+    'Syötti on näin syvällä kohon alla. Jos pohja on matalammalla, syötti makaa pohjassa',
   'tackle.jigWeight': 'Jigin paino',
   'tackle.crankDepth': 'Vaapun uintisyvyys',
   'tackle.castWeightOff':
@@ -812,11 +825,19 @@ export const fi = {
   'help.flyStrip':
     'Perho vedessä: {strip} = vedä siimaa · {lift} = nosta uuteen heittoon · {reelSlack} = löysät kelalle',
   'help.flyReel': 'Kelalla: {pointer|reel} pohjassa = kelaa · {dragLess}/{dragMore} = jarru',
+  'help.poleCast': '{castForward} pohjassa ja päästä = heilauta koho veteen · {cancel} = peru',
+  'help.poleLift':
+    '{poleLift} = vastaisku, kun koho painuu, muulloin koho pois vedestä · {floatShallower}/{floatDeeper} = kohon syvyys',
+  'help.poleFight':
+    'Kala kiinni: {poleLift} pohjassa = vapa pystyyn, irti = anna kalan vetää · {back} = potki kauemmas',
   'help.shortMove': '{forward}/{back} = potki · {turn} = käänny',
   'help.shortCast': '{castForward} pohjassa ja päästä = heitto',
   'help.shortReel': '{pointer|reel} pohjassa = kelaa',
   'help.shortFly': '{castForward} = perhoheitto rytmissä · {lift} = nosta siima vedestä',
   'help.shortFlyStrip': 'Perho vedessä: {strip} = vedä siimaa',
+  'help.shortPoleCast': '{castForward} pohjassa ja päästä = heitä koho',
+  'help.shortPoleLift':
+    'Koho painuu: {poleLift} = vastaisku · kala kiinni: pidä {poleLift} pohjassa',
   'help.shortMore': '{help} = kaikki ohjeet · {pause} = tauko',
   'help.shortHide': '{help} = ohje piiloon · {pause} = tauko',
   'help.camera': '{camera} = käännä kameraa: sivulle kiertää, ylös ja alas nostaa ja laskee',
@@ -947,6 +968,9 @@ export const fi = {
     'Siimakäsi: toimii itsestään, kunnes painat · pohjassa pitää siimaa, irti päästää sitä luistamaan',
   'touch.lift': 'NOSTA',
   'touch.liftTitle': 'Nosta siima vedestä uuteen heittoon, tärpissä vastaisku',
+  'touch.poleLift': 'NOSTA',
+  'touch.poleLiftTitle':
+    'Nosta vapaa: tärpissä vastaisku, muuten koho pois vedestä, väsytyksessä pidä pohjassa',
   'touch.strip': 'VETO',
   'touch.stripTitle': 'Vedä siimaa (heitossa siimakäden veto)',
   'touch.emote': 'ELE',
@@ -1110,6 +1134,11 @@ export const fi = {
   'game.landNet': 'Iso kala pinnassa! {landNet} = haaviin',
   'game.lunge': 'Kala riuhtaisee! Älä nosta nyt',
   'game.lureChanged': 'Viehe: {lure}',
+  'game.baitChanged': 'Syötti: {bait} · koho {depth}',
+  'game.baitLater': 'Syötti ja koho vaihtuvat, kun koho on nostettu vedestä',
+  'game.floatDown': 'Koho painuu – nosta! ({poleLift})',
+  'game.missedPole': 'Ohi meni – iske vasta, kun koho painuu, ei näykinnässä',
+  'game.lineBrokenPole': 'Siima katkesi! Laske vapaa ({poleLift} irti), kun kala vetää lujaa',
   'game.leaderOn': 'Teräsperuke paikallaan',
   'game.leaderOff': 'Teräsperuke pois',
   'game.flyLeaderChanged': 'Peruke: {leader}',
@@ -1235,6 +1264,7 @@ export const fi = {
   'manual.section.move': 'Liikkuminen',
   'manual.section.spin': 'Virveli',
   'manual.section.fly': 'Perho',
+  'manual.section.pole': 'Onki',
   'manual.section.weather': 'Sää ja vaarat',
   'manual.section.multiplayer': 'Moninpeli',
   'manual.move.tube': 'Kelluntarengas',
@@ -1303,6 +1333,15 @@ export const fi = {
   'manual.fly.fight': 'Vastaisku ja väsytys',
   'manual.fly.fightText':
     'Tärpissä iske vetämällä siimaa ({strip}) tai nostamalla vapaa ({lift}). Veto pistää koukun varmemmin.\n{reelSlack} = kelaa löysät kelalle. Sen jälkeen väsytys jatkuu kelalta kuten virvelillä.\nKädessä tiukasti pidetty siima voi katkaista perukkeen, ja irti päästetty luistaa sormien läpi.\nTeräsperuke kestää hauen hampaat.',
+  'manual.pole.gear': 'Onkivapa, koho ja syötti',
+  'manual.pole.gearText':
+    'Onkivavassa ei ole kelaa: viisimetrinen vapa ja {line} m siimaa, jonka päässä on koho, paino ja koukku. Kalastustavan vaihdat napilla {method}.\nSyötiksi valitaan mato tai toukka. Mato maistuu ahvenelle, kiiskelle ja mateelle, toukka särjelle, lahnalle ja siialle. Hauki ei syötistä juuri välitä.\nKohon syvyys kertoo, kuinka syvällä syötti on ({min}–{max} m). Matalassa syötti on pohjalla. {floatShallower} ja {floatDeeper} säätävät syvyyttä, ja uusi syvyys tulee voimaan seuraavassa heitossa. Tauon Varusteista sen voi vaihtaa kesken kisan.\n{castForward} = heitä. Koho lentää lähelle, enintään siiman mitan päähän vavan kärjestä.',
+  'manual.pole.bite': 'Tärppi ja vastaisku',
+  'manual.pole.biteText':
+    'Kala ei iske heti: ensin koho nytkähtää, kun kala näykkii syöttiä. Liian aikainen vastaisku vie syötin kalan suulta.\nKun koho painuu pinnan alle, iske: {poleLift}. Jos odotat liian kauan, kala sylkee syötin.\nHelpolla koukku tarttuu itsestään, kun koho painuu.\n{poleLift} ilman kalaa nostaa kohon vedestä uuteen heittoon.',
+  'manual.pole.fight': 'Väsytys ja nosto',
+  'manual.pole.fightText':
+    '{poleLift} pohjassa = vapa pystyssä: siima lyhenee ja kala tulee lähemmäs. Iso kala jaksaa silti vetää, ja kireä siima voi katketa.\nKun päästät irti, vapa laskee ja kala saa viedä siimaa enintään {line} m. Se toimii kuin jarru.\nPotki taaksepäin, jos kala vie liikaa. Pintaan tullut kala nostetaan kuten virvelillä.',
   'manual.weather.sky': 'Sää',
   'manual.weather.skyText':
     'Sää vaihtuu kisan aikana valitun säätason mukaan: tyyni, tuulinen, sade, ukkonen tai myrsky. Ajastimen alla näkyy säätila ja tuuli.\nSade ja ukkonen tulevat rintamana tuulen yläpuolelta: tumma pilvivalli nousee taivaanrantaan noin {front} minuuttia ennen ja lähestyy. Ukkosrintaman alla välkkyy kaukaisia salamoita, ja jyrinä kuuluu sen suunnasta. Sade alkaa, kun rintama on kohdalla.\nHelpolla ja normaalilla muutoksesta varoitetaan myös tekstillä: taivas tummuu, tuuli yltyy tai kaukaa kuuluu jyrinää. Realistisella ukkosen tulon näkee vain taivaalta ja kuulee jyrinästä.\nTuuli kaartaa heittoa ja nostaa selällä isompia aaltoja kuin poukamassa.',

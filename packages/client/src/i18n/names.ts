@@ -1,8 +1,10 @@
 import {
+  BAITS,
   fishLengthCm,
   BoatSeat,
   LURES,
   lureVariant,
+  type BaitId,
   type CrankDepthId,
   type JigWeightId,
   type Craft,
@@ -29,7 +31,7 @@ import {
   type WeatherWarning,
   type WinRule,
 } from '@lunki/shared';
-import { formatWeight, hasKey, t } from './index';
+import { formatWeight, hasKey, shortDecimal, t } from './index';
 
 /**
  * Jaetun koodin tunnisteiden (laji, viehe, sää…) nimet pelaajan kielellä.
@@ -103,7 +105,22 @@ export const describeFullTackle = (tk: Tackle) =>
 
 /** Käytössä oleva viehe tai perho nimeltä. */
 export const baitName = (tk: Tackle) =>
-  tk.method === 'fly' ? flyName(tk.fly) : tackleLureName(tk);
+  tk.method === 'fly'
+    ? flyName(tk.fly)
+    : tk.method === 'pole'
+      ? poleBaitName(tk.bait)
+      : tackleLureName(tk);
+
+/** Ongen syötti (#570): "Mato", "Toukka". */
+export const poleBaitName = (id: BaitId) => t(`bait.${id}`);
+export const poleBaitHint = (id: BaitId) => t(`bait.${id}.hint`);
+
+/** Päiväkirjan tai kisan tekstinä tallennettu syötti: perho tai ongen syötti. */
+export const stringBaitName = (id: FlyId | BaitId) =>
+  Object.hasOwn(BAITS, id) ? poleBaitName(id as BaitId) : flyName(id as FlyId);
+
+/** Kohon syvyys tekstinä pelaajan kielellä: "1,25 m". */
+export const floatDepthText = (m: number) => t('tackle.floatDepthValue', { m: shortDecimal(m) });
 
 /** Viehe tunnetaan, vaikka nimeä ei näytettäisi (tallennetut ennätykset). */
 export const isLure = (v: string): v is LureId => Object.hasOwn(LURES, v);

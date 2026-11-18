@@ -16,4 +16,6 @@ export const ROD_COLOR = {
   knob: 0xe0cf9c,
   /** Perhovapa (#236): oliivinvihreä aihio. */
   flyRod: 0x6a9a3e,
+  /** Onkivapa (#570): vaalea ruoko ilman kelaa. */
+  poleRod: 0xb99a68,
 } as const;

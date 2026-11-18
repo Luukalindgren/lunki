@@ -206,6 +206,20 @@ describe('tilannenapit kosketuksella', () => {
     expect(contextActions(spin({ stage: 'water', onLand: true }), false).tool).toBe('cut');
   });
 
+  it('onki (#570): HEITÄ, vedessä NOSTA, eikä NYKÄISE-nappia', () => {
+    const pole = (s: Partial<FishingState> = {}) =>
+      spin({ ...s, tackle: { ...DEFAULT_TACKLE, method: 'pole' } });
+    expect(contextActions(pole(), false).main).toBe('castForward');
+    expect(contextActions(pole({ stage: 'water' }), false).main).toBe('poleLift');
+    expect(contextActions(pole({ stage: 'water', struckId: 1 }), false).tool).toBe('cut');
+    expect(
+      contextActions(
+        pole({ stage: 'water', hookedId: 1, landing: { age: 0, net: false, lunge: 0 } }),
+        false,
+      ).main,
+    ).toBe('land');
+  });
+
   it('perho: HEITÄ valmiina, heitossa VETO ja PERU, rytmiheitossa HEITÄ', () => {
     expect(contextActions(fly(), false).main).toBe('castForward');
     expect(contextActions(fly({ stage: 'casting' }), false)).toEqual({
