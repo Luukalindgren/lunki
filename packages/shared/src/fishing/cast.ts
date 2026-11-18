@@ -1,5 +1,6 @@
 import { wrapAngle } from '../physics/tube';
 import type { Vec2 } from '../vec2';
+import { POLE, isPole, type Tackle } from './gear';
 
 /** Heiton ja vieheen lennon vakiot. */
 export const CAST = {
@@ -37,13 +38,25 @@ export interface LureFlight {
   travelled: number;
 }
 
-/** Vavan kärjen sijainti. */
-export function rodTip(tubePos: Vec2, heading: number): Vec2 {
+/** Vavan kärjen sijainti; `reach` on kärjen etäisyys kalastajasta. */
+export function rodTip(tubePos: Vec2, heading: number, reach: number = CAST.rodReach): Vec2 {
   return {
-    x: tubePos.x + Math.cos(heading) * CAST.rodReach,
-    y: tubePos.y + Math.sin(heading) * CAST.rodReach,
+    x: tubePos.x + Math.cos(heading) * reach,
+    y: tubePos.y + Math.sin(heading) * reach,
   };
 }
+
+/** Kärjen etäisyys kalastajasta näillä varusteilla: onkivapa on pitkä (#570). */
+export const tipReach = (t: Tackle | undefined): number =>
+  t && isPole(t) ? POLE.reach : CAST.rodReach;
+
+/** Kärjen korkeus vedenpinnasta näillä varusteilla. */
+export const tipHeight = (t: Tackle | undefined): number =>
+  t && isPole(t) ? POLE.tipHeight : CAST.tipHeight;
+
+/** Vavan kärki käytössä olevilla varusteilla. */
+export const tackleTip = (t: Tackle | undefined, tubePos: Vec2, heading: number): Vec2 =>
+  rodTip(tubePos, heading, tipReach(t));
 
 /** Rajaa heittosuunnan kalastajan ulottuville (ei suoraan selän taakse). */
 export function clampCastAngle(aimAngle: number, heading: number): number {

@@ -43,6 +43,8 @@ const ROD_LENGTH = Math.hypot(CAST.rodReach - ROD.seatForward, ROD_TIP_Y - ROD.s
 const ROD_REST = Math.atan2(ROD_TIP_Y - ROD.seatHeight, CAST.rodReach - ROD.seatForward);
 /** Takaheiton pysäytys (vapa hieman pystyn yli, kello 1). */
 const ROD_BACK = THREE.MathUtils.degToRad(115);
+/** Onkivavan (#570) kärjen korkeus vedestä lepoasennossa (m): pitkä vapa on pystympi. */
+export const POLE_TIP_Y = 2.6;
 
 /**
  * Perhoheitossa (#235) vavan kulma -1 (taakse) … +1 (eteen): kärjen
@@ -343,9 +345,10 @@ export class PovRod {
     s: FishingState,
     cranking: boolean,
     lineColor: number,
-    style: { tipY?: number; fly?: boolean; bend?: number; pose?: RodPose } = {},
+    style: { tipY?: number; fly?: boolean; pole?: boolean; bend?: number; pose?: RodPose } = {},
   ): LinePoint {
-    const tipY = style.tipY ?? ROD_TIP_Y;
+    const pole = style.pole === true;
+    const tipY = style.tipY ?? (pole ? POLE_TIP_Y : ROD_TIP_Y);
     const fly = style.fly === true;
     const bend = style.bend ?? 0;
     const pose = style.pose ?? REST_POSE;
@@ -418,7 +421,11 @@ export class PovRod {
       // Perhovapa on ohut: aihion varjoriviä ei piirretä, ja aihio on vihreä.
       line.visible = !fly || color !== COLOR.rodShade;
       (line.material as THREE.LineBasicMaterial).color.setHex(
-        fly && color === COLOR.rod ? COLOR.flyRod : color,
+        fly && color === COLOR.rod
+          ? COLOR.flyRod
+          : pole && color === COLOR.rod
+            ? COLOR.poleRod
+            : color,
       );
       const attr = line.geometry.getAttribute('position') as THREE.BufferAttribute;
       pieces.forEach((piece, i) => {
@@ -436,7 +443,9 @@ export class PovRod {
     this.reel.position.copy(v.seat);
     this.animateReel(s, cranking, dt);
     // Perhovavassa kela on tyvessä; virvelin kelan osat piiloon.
-    for (const part of this.reel.children) part.visible = (part === this.flyReel) === fly;
+    // Onkivavassa (#570) ei ole kelaa eikä ohjaimia: siima on sidottu kärkeen.
+    for (const part of this.reel.children) part.visible = !pole && (part === this.flyReel) === fly;
+    this.along.visible = !pole;
     this.reel.updateMatrixWorld(true);
 
     for (const m of this.lineMaterials) m.color.setHex(lineColor);
@@ -467,7 +476,7 @@ export class PovRod {
     attr.setXYZ(ROD.guides.length + 1, v.tip.x, v.tip.y, v.tip.z);
     attr.needsUpdate = true;
 
-    this.updateCoil(bailOpen && this.rate > 0.5, now);
+    this.updateCoil(!pole && bailOpen && this.rate > 0.5, now);
     return lakePoint(v.tip);
   }
 

@@ -1,4 +1,5 @@
 import {
+  BAIT_IDS,
   CRANK_DEPTHS,
   CRANK_DEPTH_IDS,
   FLIES,
@@ -135,6 +136,8 @@ export function saveTackleBox(box: TackleBox): void {
 
 /** Kalastustavan lokerot varusteina pikavalikkoa ja kiertoa varten. */
 export function boxTackles(t: Tackle, box: TackleBox): Tackle[] {
+  // Ongen syötit (#570) ovat aina mukana: mato ja toukka.
+  if (t.method === 'pole') return BAIT_IDS.map((bait) => ({ ...t, bait }));
   return t.method === 'fly'
     ? box.flies.map((fly) => ({ ...t, fly }))
     : box.lures.map((slot) => withSlot(t, slot));
@@ -143,6 +146,7 @@ export function boxTackles(t: Tackle, box: TackleBox): Tackle[] {
 /** Käytössä olevan vieheen tai perhon lokero pakissa, tai -1. */
 export function currentSlot(t: Tackle, box: TackleBox): number {
   if (t.method === 'fly') return box.flies.indexOf(t.fly);
+  if (t.method === 'pole') return BAIT_IDS.indexOf(t.bait);
   const here = slotOf(t);
   return box.lures.findIndex((s) => sameSlot(s, here));
 }
@@ -166,6 +170,8 @@ export function loseFromBox(
   t: Tackle,
   box: TackleBox,
 ): { box: TackleBox; next: Tackle | null; left: number } {
+  // Syöttiä on rasiassa riittämiin, eikä koho jää pohjaan kuten viehe.
+  if (t.method === 'pole') return { box, next: null, left: BAIT_IDS.length };
   const i = currentSlot(t, box);
   const fly = t.method === 'fly';
   const count = fly ? box.flies.length : box.lures.length;

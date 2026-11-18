@@ -63,6 +63,8 @@ export const SOUNDS = {
   cast: { effect: (s, power) => s.cast(power) },
   follow: { effect: 'tick' },
   strike: { effect: 'strike', duck: 'hit' },
+  /** Ongen näykintä (#570): koho nytkähtää pienellä loiskeella. */
+  nibble: { effect: 'plip', rumble: 'tug' },
   // Tärpin nykäykset tuntuvat ohjaimessa samassa tahdissa kuin merkki nykii (#592).
   strikeTug: { rumble: 'tug' },
   strikeTugBig: { rumble: 'tugBig' },

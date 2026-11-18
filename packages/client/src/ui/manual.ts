@@ -2,6 +2,7 @@ import {
   COLD_WATER,
   DIFFICULTIES,
   FLY_CAST,
+  POLE,
   LINES,
   RODS,
   SEASONS,
@@ -20,13 +21,14 @@ import { shortDecimal, t, type MsgKey } from '../i18n';
  * näyttävät kosketuksella napit, koneella näppäimet ja peliohjaimella sen
  * napit, ja vaikeustasoa koskevat luvut luetaan `DIFFICULTIES`-taulukosta.
  */
-export type ManualSection = 'start' | 'move' | 'spin' | 'fly' | 'weather' | 'multiplayer';
+export type ManualSection = 'start' | 'move' | 'spin' | 'fly' | 'pole' | 'weather' | 'multiplayer';
 
 export const MANUAL_SECTIONS: readonly ManualSection[] = [
   'start',
   'move',
   'spin',
   'fly',
+  'pole',
   'weather',
   'multiplayer',
 ];
@@ -151,6 +153,24 @@ const TOPICS: Record<ManualSection, readonly Topic[]> = {
       vars: () => ({ pickup: FLY_CAST.pickupMax, roll: FLY_CAST.rollMax }),
     },
     { title: 'manual.fly.fight', text: 'manual.fly.fightText' },
+  ],
+  // Onki (#570): vapa ilman kelaa, koho ja syötti.
+  pole: [
+    {
+      title: 'manual.pole.gear',
+      text: 'manual.pole.gearText',
+      vars: () => ({
+        line: POLE.line,
+        min: shortDecimal(POLE.minDepth),
+        max: shortDecimal(POLE.maxDepth),
+      }),
+    },
+    { title: 'manual.pole.bite', text: 'manual.pole.biteText' },
+    {
+      title: 'manual.pole.fight',
+      text: 'manual.pole.fightText',
+      vars: () => ({ line: POLE.line }),
+    },
   ],
   weather: [
     {

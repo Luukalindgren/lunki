@@ -303,6 +303,25 @@ tapahtuu yleensä heti iskun jälkeen, kun hauki on vielä voimissaan (kestävyy
 
 Perhon peruke kertoo riskin: tavallinen 1, fluorohiili 0,35 ja teräs 0.
 
+### Onki (#570)
+
+Kolmas kalastustapa on onki (`method: 'pole'`, `POLE` ja `BAITS` tiedostossa
+`fishing/gear.ts`): viisimetrinen vapa ilman kelaa, viisi metriä siimaa, koho ja syötti
+(mato tai toukka). Kohon syvyys (`floatDepth`, 0,5–4 m, 0,25 m:n askelin) pitää syötin
+paikallaan siinä syvyydessä tai pohjalla, jos järvi on matalampi. Syötti ei liiku, joten
+kiinnostus tulee lajin `baitInterest`-arvosta (ahven, särki, kiiski ja kirjolohi
+korkeimmat, hauki lähes nolla) ja syötin lajikohtaisesta `appeal`-kertoimesta. Kalojen
+arkuuden etäisyys lasketaan kalastajasta eikä vavan kärjestä (`lureInfo.tip`), koska kärki
+ulottuu 4,2 m eteen.
+
+Tärppi alkaa näykinnällä (`PoleBite`, 1–4 nytkähdystä), ja vasta kohon painuessa tulee
+vienti, jonka aikana NOSTA-painallus on vastaisku. Liian aikainen painallus vie syötin, ja
+myöhästynyt vienti päättyy syötin sylkemiseen. Helpolla koukku tarttuu itsestään. Ilman
+kalaa NOSTA nostaa kohon vedestä. Väsytyksessä pohjassa pidetty NOSTA lyhentää siimaa
+(`liftSpeed`) ja pitää kalan, ja irrotettuna kala saa viedä siimaa enintään sen mitan
+(`giveForce`, jarrun tavoin). Naiivi simulaatio (`naiveAngler.test.ts`) pitää ongen saaliin
+painon samalla tasolla kuin virvelin: onkija saa enemmän pieniä kaloja.
+
 ### Viehepakki ja perhorasia (#365)
 
 Pelaaja kokoaa päävalikon Varusteet-näkymän Viehepakki-rivillä enintään kahdeksan lokeroa

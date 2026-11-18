@@ -1,8 +1,10 @@
 import {
+  BAITS,
   FLIES,
   isPlayableSeason,
   SPECIES,
   type Season,
+  type BaitId,
   type FlyId,
   type Sky,
   type SpeciesId,
@@ -20,8 +22,8 @@ import { parseSlot, sameSlot, type LureSlot } from './tackleBox';
 export interface JournalEntry {
   species: SpeciesId;
   weight: number;
-  /** Viehe säätöineen tai perho. */
-  bait: LureSlot | FlyId;
+  /** Viehe säätöineen, perho tai ongen syötti (#570). */
+  bait: JournalBait;
   sky: Sky;
   timeOfDay: TimeOfDay;
   /** Kisan vuodenaika (#427); vanhat saaliit ovat kesältä. */
@@ -49,10 +51,13 @@ export type DepthBand = 0 | 1 | 2 | 3 | 4;
 export const depthBand = (depth: number) =>
   DEPTH_BANDS.filter((edge) => depth >= edge).length as DepthBand;
 
+export type JournalBait = LureSlot | FlyId | BaitId;
+
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 
-function parseBait(v: unknown): LureSlot | FlyId | null {
-  if (typeof v === 'string') return Object.hasOwn(FLIES, v) ? (v as FlyId) : null;
+function parseBait(v: unknown): JournalBait | null {
+  if (typeof v === 'string')
+    return Object.hasOwn(FLIES, v) || Object.hasOwn(BAITS, v) ? (v as FlyId | BaitId) : null;
   return parseSlot(v);
 }
 
@@ -110,7 +115,7 @@ export function addJournalEntry(entry: JournalEntry): void {
   }
 }
 
-const sameBait = (a: LureSlot | FlyId, b: LureSlot | FlyId) =>
+const sameBait = (a: JournalBait, b: JournalBait) =>
   typeof a === 'string' || typeof b === 'string' ? a === b : sameSlot(a, b);
 
 export interface BaitSummary {
@@ -133,7 +138,7 @@ function most<T>(newestFirst: readonly T[]): T {
 }
 
 /** Vieheen tai perhon saaliit päiväkirjasta viehepakin lokeroon ja vihjeeseen. */
-export function baitSummary(journal: readonly JournalEntry[], bait: LureSlot | FlyId): BaitSummary {
+export function baitSummary(journal: readonly JournalEntry[], bait: JournalBait): BaitSummary {
   const mine = journal.filter((e) => sameBait(e.bait, bait)).reverse();
   const bySpecies = new Map<SpeciesId, number>();
   for (const e of mine) bySpecies.set(e.species, (bySpecies.get(e.species) ?? 0) + 1);

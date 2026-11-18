@@ -1,5 +1,5 @@
 import '@fontsource/vt323';
-import { formatTime, type SpeciesId } from '@lunki/shared';
+import { formatTime, type Method, type SpeciesId } from '@lunki/shared';
 import { CompassDisplay } from './compass';
 import { fishImage } from './fishArt';
 import { LureSonarDisplay } from './lureSonar';
@@ -34,7 +34,7 @@ export class Hud {
   private readonly help: HTMLDivElement;
   /** Ohjeelle varattu tila: ohjeen vaihtuminen ei siirrä luotaimia. */
   private readonly helpSlot: HTMLDivElement;
-  private helpContext: HelpContext = { fly: false, pov: false, seat: 'tube' };
+  private helpContext: HelpContext = { method: 'spin', pov: false, seat: 'tube' };
   /** Tilanneohje (viehe maalla, sotku, perhoheitto): näkyy niin kauan kuin tilanne kestää. */
   private readonly situation: HTMLDivElement;
   private readonly situationText: HTMLSpanElement;
@@ -516,7 +516,7 @@ export class Hud {
   setHelpContext(context: HelpContext): void {
     const c = this.helpContext;
     if (
-      c.fly === context.fly &&
+      c.method === context.method &&
       c.pov === context.pov &&
       !!c.chase === !!context.chase &&
       c.seat === context.seat &&
@@ -579,7 +579,10 @@ export class Hud {
     const moves = Object.values(MOVE_HELP);
     const bases = this.spectator
       ? [HELP.spectator]
-      : [HELP.shore, ...[HELP.spin, HELP.fly].flatMap((b) => moves.map((m) => [...m, ...b]))];
+      : [
+          HELP.shore,
+          ...[HELP.spin, HELP.fly, HELP.pole].flatMap((b) => moves.map((m) => [...m, ...b])),
+        ];
     // Maalla (#457) kävely ja rannan toiminnot, täyttökisassa (#458) renkaalla
     // pumppu ja veneellä äyskäri (#495): kalastus ja potkut eivät silloin toimi.
     const base = this.spectator
@@ -590,7 +593,7 @@ export class Hud {
           : HELP.raceBoat
         : c.ashore === 'walk'
           ? HELP.shore
-          : [...MOVE_HELP[c.seat], ...(c.fly ? HELP.fly : HELP.spin)];
+          : [...MOVE_HELP[c.seat], ...HELP[c.method]];
     // Zoom ja oikean tatin heittosuunta toimivat vain ylhäältä katsottaessa.
     const opts = { skip: c.pov ? (['zoom', 'aim'] as const) : [] };
     // Lyhyt ohje (#638): kisan alussa vain liike, heitto ja kelaus.
@@ -598,7 +601,7 @@ export class Hud {
       ((this.helpLevel === 'short' && !this.touch) || c.simple) && !this.spectator && !c.ashore
         ? [
             ...(c.seat === 'tube' ? (['help.shortMove'] as const) : MOVE_HELP[c.seat]),
-            ...(c.fly ? SHORT_HELP.fly : SHORT_HELP.spin),
+            ...SHORT_HELP[c.method],
             c.simple ? ('help.shortHide' as const) : ('help.shortMore' as const),
           ]
         : null;
@@ -707,8 +710,8 @@ export interface MessageOptions {
 
 /** Pelitilanne, jonka mukaan ohje näyttää vain oleelliset rivit. */
 export interface HelpContext {
-  /** Perhovälineet (muuten virveli). */
-  fly: boolean;
+  /** Kalastustapa: virveli, perho tai onki (#570). */
+  method: Method;
   /** Näkymä järven tasolta (silmin tai takaa): zoomia ei ole. */
   pov: boolean;
   /** Takaa-näkymä (#691): ohjeessa on kameran rivi, ja nuolet ovat kameran. */
@@ -754,12 +757,13 @@ function smallText(text: string): HTMLElement {
 const HELP = {
   spin: ['help.castForward', 'help.cast', 'help.reel', 'help.gear', 'help.tools'],
   fly: ['help.flyCast', 'help.flyCast2', 'help.flyStrip', 'help.flyReel', 'help.tools'],
+  pole: ['help.poleCast', 'help.poleLift', 'help.poleFight', 'help.tools'],
   spectator: ['help.spectate'],
   shore: ['help.walk', 'help.shoreAct'],
   race: ['help.shoreRace'],
   raceBoat: ['help.shoreRaceBoat'],
 } as const satisfies Record<
-  'spin' | 'fly' | 'spectator' | 'shore' | 'race' | 'raceBoat',
+  Method | 'spectator' | 'shore' | 'race' | 'raceBoat',
   readonly MsgKey[]
 >;
 
@@ -767,7 +771,8 @@ const HELP = {
 const SHORT_HELP = {
   spin: ['help.shortCast', 'help.shortReel'],
   fly: ['help.shortFly', 'help.shortFlyStrip'],
-} as const satisfies Record<'spin' | 'fly', readonly MsgKey[]>;
+  pole: ['help.shortPoleCast', 'help.shortPoleLift'],
+} as const satisfies Record<Method, readonly MsgKey[]>;
 
 type HelpLevel = 'short' | 'full' | 'off';
 const HELP_KEY = 'lunki.help';

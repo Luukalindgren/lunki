@@ -5,6 +5,7 @@ import {
   TUBE_RADIUS,
   type Appearance,
   type EmoteId,
+  type Method,
 } from '@lunki/shared';
 import { toWorld } from '../world/lakeMesh';
 import { solidUnderwater, submerge } from '../world/submerged';
@@ -165,6 +166,9 @@ export function createTubeMesh(appearance: Appearance = DEFAULT_APPEARANCE): THR
 }
 
 const ROD_LENGTH = 2.1;
+/** Onkivapa (#570): pitkä vapa pystymmässä, jotta kärki on simulaation kärjen kohdalla. */
+const POLE_LENGTH = 5;
+const POLE_REST = 0.55;
 const ROD_SEGMENTS = 8;
 /** Lepoasennon nousukulma (rad). */
 const ROD_REST = 0.25;
@@ -279,14 +283,22 @@ function createRod(): THREE.Group {
   return rod;
 }
 
-/** Perhovapa (#236) on vihreä ja kela on kahvan tyvessä; muuten virveli. */
-export function setFlyRod(group: THREE.Object3D, fly: boolean): void {
+/**
+ * Vavan malli kalastustavan mukaan: perhovapa (#236) on vihreä ja kela on
+ * kahvan tyvessä, onkivapa (#570) on pitkä vaalea vapa ilman kelaa, muuten
+ * virveli.
+ */
+export function setRodKind(group: THREE.Object3D, method: Method): void {
   const rod = group.getObjectByName('rod');
-  if (!rod || rod.userData.fly === fly) return;
-  rod.userData.fly = fly;
-  const color = fly ? ROD_COLOR.flyRod : ROD_COLOR.rod;
+  if (!rod || rod.userData.method === method) return;
+  rod.userData.method = method;
+  const fly = method === 'fly';
+  const pole = method === 'pole';
+  rod.userData.length = pole ? POLE_LENGTH : ROD_LENGTH;
+  rod.userData.rest = pole ? POLE_REST : ROD_REST;
+  const color = fly ? ROD_COLOR.flyRod : pole ? ROD_COLOR.poleRod : ROD_COLOR.rod;
   rod.traverse((c) => {
-    if (c.name === 'rod-reel') c.visible = !fly;
+    if (c.name === 'rod-reel') c.visible = method === 'spin';
     else if (c.name === 'rod-fly-reel') c.visible = fly;
     else if (c.name === 'rod-blank' || c.name === 'rod-line')
       ((c as THREE.Mesh).material as THREE.MeshLambertMaterial).color.setHex(color);
@@ -306,7 +318,8 @@ export function aimRod(
   const rod = group.getObjectByName('rod');
   if (!rod) return out;
   group.updateMatrixWorld(true);
-  const pitch = ROD_REST + pose.lift;
+  const length = (rod.userData.length as number | undefined) ?? ROD_LENGTH;
+  const pitch = ((rod.userData.rest as number | undefined) ?? ROD_REST) + pose.lift;
   const target = pose.pull
     ? group.worldToLocal(toWorld(pose.pull, -Math.max(0, pose.pull.depth)))
     : null;
@@ -318,13 +331,13 @@ export function aimRod(
   dir.set(Math.cos(pitch) * Math.cos(yaw), Math.sin(pitch), -Math.cos(pitch) * Math.sin(yaw));
   let pullDir: THREE.Vector3 | null = null;
   if (target) {
-    pull.copy(target).sub(d.copy(ROD_BUTT).addScaledVector(dir, ROD_LENGTH));
+    pull.copy(target).sub(d.copy(ROD_BUTT).addScaledVector(dir, length));
     if (pull.lengthSq() > 1e-6) pullDir = pull.normalize();
   }
   // Kahva ja kela ovat suorat; vain aihio etukahvasta kärkeen taipuu.
   up.set(0, 1, 0).addScaledVector(dir, -dir.y).normalize();
   right.crossVectors(dir, up);
-  const blankLength = ROD_LENGTH - HANDLE.blank;
+  const blankLength = length - HANDLE.blank;
   bendRod(
     d.copy(ROD_BUTT).addScaledVector(dir, HANDLE.blank),
     dir,

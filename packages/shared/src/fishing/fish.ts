@@ -5,7 +5,7 @@ import { distance, type Vec2 } from '../vec2';
 import { DEFAULT_SEASON, type Season } from '../weather/season';
 import type { WeatherNow } from '../weather/weather';
 import type { DifficultyParams } from './difficulty';
-import { baitOf, isFly, tackleAppeal, type Tackle } from './gear';
+import { baitOf, isFly, isPole, tackleAppeal, type Tackle } from './gear';
 
 export type SpeciesId =
   | 'perch'
@@ -68,6 +68,11 @@ export interface Species {
    * hyönteisiä ja nymfejä, mutta tarttuvat uistimeen harvoin.
    */
   flyInterest?: number;
+  /**
+   * Kiinnostus ongen syöttiin (#570): särkikalat, kiiski ja ahven syövät
+   * matoa ja toukkaa, petokalat harvemmin.
+   */
+  baitInterest: number;
   /** Mieluisin vieheen nopeus (m/s) ja sallittu poikkeama. */
   preferredSpeed: number;
   speedTolerance: number;
@@ -174,6 +179,7 @@ export const SPECIES: Record<SpeciesId, Species> = {
     endurancePerKg: 14,
     senseRadius: 9,
     lureInterest: 1,
+    baitInterest: 0.59,
     preferredSpeed: 0.6,
     speedTolerance: 0.5,
     roamSpeed: 0.25,
@@ -229,6 +235,7 @@ export const SPECIES: Record<SpeciesId, Species> = {
     endurancePerKg: 7,
     senseRadius: 12,
     lureInterest: 0.9,
+    baitInterest: 0.08,
     preferredSpeed: 1,
     speedTolerance: 0.7,
     roamSpeed: 0.06,
@@ -288,6 +295,7 @@ export const SPECIES: Record<SpeciesId, Species> = {
     // (nymfi) kuitenkin hyvin.
     lureInterest: 0.05,
     flyInterest: 0.35,
+    baitInterest: 0.52,
     preferredSpeed: 0.25,
     speedTolerance: 0.3,
     roamSpeed: 0.35,
@@ -343,6 +351,7 @@ export const SPECIES: Record<SpeciesId, Species> = {
     endurancePerKg: 9,
     senseRadius: 8,
     lureInterest: 0.8,
+    baitInterest: 0.2,
     preferredSpeed: 0.45,
     speedTolerance: 0.35,
     roamSpeed: 0.18,
@@ -402,6 +411,7 @@ export const SPECIES: Record<SpeciesId, Species> = {
     endurancePerKg: 16,
     senseRadius: 11,
     lureInterest: 1,
+    baitInterest: 0.39,
     preferredSpeed: 1.2,
     speedTolerance: 0.6,
     roamSpeed: 0.5,
@@ -466,6 +476,7 @@ export const SPECIES: Record<SpeciesId, Species> = {
     // pohjaa laahaavaan jigiin, lähinnä vahingossa (#512).
     lureInterest: 0.025,
     flyInterest: 0.25,
+    baitInterest: 0.45,
     preferredSpeed: 0.15,
     speedTolerance: 0.2,
     roamSpeed: 0.2,
@@ -519,6 +530,7 @@ export const SPECIES: Record<SpeciesId, Species> = {
     senseRadius: 4,
     // Tarttuu herkästi pohjan tuntumassa uitettuun jigiin ja pieneen lippaan.
     lureInterest: 1.1,
+    baitInterest: 0.72,
     preferredSpeed: 0.2,
     speedTolerance: 0.3,
     roamSpeed: 0.15,
@@ -572,6 +584,7 @@ export const SPECIES: Record<SpeciesId, Species> = {
     // pyydetään talvella verkoilla, pilkillä ja katiskoilla. Yön yllätys
     // pohjaan lasketulle, hitaasti nytkytetylle jigille (#535).
     lureInterest: 0.05,
+    baitInterest: 0.29,
     preferredSpeed: 0.1,
     speedTolerance: 0.25,
     roamSpeed: 0.08,
@@ -632,6 +645,7 @@ export const SPECIES: Record<SpeciesId, Species> = {
     senseRadius: 8,
     // Tarttuu lippaan ja pieneen lusikkaan.
     lureInterest: 0.75,
+    baitInterest: 0.39,
     preferredSpeed: 0.5,
     speedTolerance: 0.4,
     roamSpeed: 0.35,
@@ -685,6 +699,7 @@ export const SPECIES: Record<SpeciesId, Species> = {
     senseRadius: 11,
     // Ahne: tarttuu hyvin lusikkaan ja lippaan.
     lureInterest: 1.25,
+    baitInterest: 0.52,
     preferredSpeed: 1.1,
     speedTolerance: 0.6,
     roamSpeed: 0.6,
@@ -745,6 +760,7 @@ export const SPECIES: Record<SpeciesId, Species> = {
     // pohjaa pitkin uitettuun jigiin (#512).
     lureInterest: 0.02,
     flyInterest: 0.12,
+    baitInterest: 0.39,
     preferredSpeed: 0.12,
     speedTolerance: 0.15,
     roamSpeed: 0.15,
@@ -805,6 +821,7 @@ export const SPECIES: Record<SpeciesId, Species> = {
     // kuivaperho hyvin (Sportfiskarna, ahven.net).
     lureInterest: 0.15,
     flyInterest: 0.8,
+    baitInterest: 0.33,
     preferredSpeed: 0.3,
     speedTolerance: 0.3,
     roamSpeed: 0.35,
@@ -1064,7 +1081,10 @@ export interface LureInfo {
   speed: number;
   /** Onko viehe vedessä ja vapaana (ei kalaa kiinni). */
   fishable: boolean;
-  /** Vavan kärki: kala kääntyy pois, jos viehe tulee liian lähelle kalastajaa. */
+  /**
+   * Vavan kärki: kala kääntyy pois, jos viehe tulee liian lähelle kalastajaa.
+   * Ongella (#570) kalastajan paikka, koska pitkän vavan kärki on kohon lähellä.
+   */
   tip: Vec2;
   /** Kalastajan varusteet (viehe, siima, peruke). */
   tackle?: Tackle;
@@ -1476,6 +1496,7 @@ function boutFactor(bout: FeedingBout | undefined, diff: DifficultyParams) {
 
 /** Lajin kiinnostus vieheeseen tai perhoon (#512). */
 function interestIn(sp: Species, lure: LureInfo): number {
+  if (lure.tackle && isPole(lure.tackle)) return sp.baitInterest;
   return lure.tackle && isFly(lure.tackle) ? (sp.flyInterest ?? sp.lureInterest) : sp.lureInterest;
 }
 

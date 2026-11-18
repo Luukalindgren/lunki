@@ -10,9 +10,11 @@ import {
   holdForce,
   isAshore,
   isFly,
+  isPole,
+  POLE,
   isUntimed,
   loopProgress,
-  rodTip,
+  tackleTip,
   sonarPing,
   timeLeft,
   type CompetitionSettings,
@@ -166,7 +168,9 @@ export class HudPresenter {
     } else hud.setPower(f.stage === 'charging' ? chargePower(f.charge) : null);
     const hold = holdForce(f, { lineHand: s.lineHand });
     hud.setSimple(simple);
-    hud.setTension(f.tension, Math.min(hold, f.drag), breakingStrength(f.tackle));
+    // Ongella mittarin jarrumerkki on laskettu vapa: kala vie siimaa tämän vedon yli.
+    const give = isPole(f.tackle) ? POLE.giveForce : Math.min(hold, f.drag);
+    hud.setTension(f.tension, give, breakingStrength(f.tackle));
     // Rangaistukset ajastimineen isona ilmoitusalueelle, ei tilapaneelin sekaan.
     host.penalties.show(hud, host.flying);
     const ashore =
@@ -178,7 +182,7 @@ export class HudPresenter {
       rowing === false,
     );
     hud.setHelpContext({
-      fly: isFly(f.tackle),
+      method: f.tackle.method,
       pov: lakeLevel(host.viewMode),
       chase: host.viewMode === 'chase',
       seat: !host.inBoat ? 'tube' : !host.rower ? 'passenger' : host.rowing ? 'rower' : 'rowerRod',
@@ -191,6 +195,7 @@ export class HudPresenter {
     const guide = host.guide.update(dt, {
       fishing: f,
       fly: isFly(f.tackle),
+      pole: isPole(f.tackle),
       pos: tube.pos,
       seat: !host.inBoat ? 'tube' : host.rower ? 'rower' : 'passenger',
     });
@@ -228,7 +233,7 @@ export class HudPresenter {
       }),
     );
     hud.lureSonar.update(dt, f.stage === 'water' && !f.onLand, () => ({
-      tip: rodTip(tube.pos, host.facing),
+      tip: tackleTip(f.tackle, tube.pos, host.facing),
       lure: f.lure,
       depth: f.depth,
       depthAt: (p) => host.bottom.depthAt(p),
@@ -254,12 +259,17 @@ export class HudPresenter {
       hud.setStatus([
         describeTackle(f.tackle),
         t('game.line', { m: decimal(f.lineLength, 1) }),
-        isFly(f.tackle) && !f.onReel
-          ? t('game.flyHand', { m: decimal(f.slack, 1) })
-          : t('game.drag', {
-              kg: decimal(f.drag, 2),
-              gear: f.gear === REEL.fastGear ? t('game.fastGear') : f.gear + 1,
-            }),
+        // Ongella (#570) ei ole kelaa eikä jarrua.
+        ...(isPole(f.tackle)
+          ? []
+          : [
+              isFly(f.tackle) && !f.onReel
+                ? t('game.flyHand', { m: decimal(f.slack, 1) })
+                : t('game.drag', {
+                    kg: decimal(f.drag, 2),
+                    gear: f.gear === REEL.fastGear ? t('game.fastGear') : f.gear + 1,
+                  }),
+            ]),
         ...(hud.lureSonar.showing
           ? []
           : [
@@ -286,7 +296,7 @@ export class HudPresenter {
     hud.setPower(null);
     hud.setAshore(false);
     hud.setSeatBadge(null);
-    hud.setHelpContext({ fly: false, pov: lakeLevel(this.host.viewMode), seat: 'tube' });
+    hud.setHelpContext({ method: 'spin', pov: lakeLevel(this.host.viewMode), seat: 'tube' });
     hud.setSituation(null);
     if (shot) {
       const who = shot.view === 'overview' || !name ? t('broadcast.lake') : name;

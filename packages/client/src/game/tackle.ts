@@ -62,6 +62,7 @@ export function saveCraft(c: Craft): void {
 const RIG_KEYS = {
   spin: ['line', 'leader'],
   fly: ['flyLine', 'flyLeader'],
+  pole: ['line', 'leader'],
 } as const satisfies Record<Tackle['method'], readonly (keyof Tackle)[]>;
 
 export type RigKey = (typeof RIG_KEYS)[keyof typeof RIG_KEYS][number];

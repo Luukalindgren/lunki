@@ -3,12 +3,15 @@ import { simpleControls } from './controlStyle';
 import {
   DIFFICULTIES,
   FLY,
+  POLE,
   FLY_CAST,
   REEL,
   breakingStrength,
   distance,
   fishConditions,
+  clampFloatDepth,
   isFly,
+  isPole,
   lureInfo,
   recordCatch,
   recordTackle,
@@ -39,11 +42,12 @@ import {
 import type { Sounds } from '../audio/sounds';
 import type { Input } from '../engine/input';
 import type { NetWorld } from '../net/netWorld';
-import { lureImage } from '../ui/lureArt';
+import { lureImage, tackleArt } from '../ui/lureArt';
 import type { Hud } from '../ui/hud';
 import { formatWeight, ordinal, t } from '../i18n';
 import {
   baitName,
+  floatDepthText,
   flyLeaderName,
   flyLineName,
   lengthText,
@@ -224,7 +228,9 @@ export class FishingController {
           ? t('game.rigLater')
           : isFly(tk)
             ? t('game.flyLater', { fly: baitName(tk) })
-            : t('game.lureLater', { lure: baitName(tk) }),
+            : isPole(tk)
+              ? t('game.baitLater')
+              : t('game.lureLater', { lure: baitName(tk) }),
         1.5,
         'info',
       );
@@ -347,7 +353,10 @@ export class FishingController {
     // Sotkussa vapa on kiinni: kelaaminen selvittää sotkua palvelimella.
     const reeling = !flyHand && !frozen && !tangled && lureOut && reelHeld;
     const simple = simpleControls();
-    this.cranking = !flyHand && !frozen && lureOut && reelHeld;
+    // Ongessa (#570) ei ole kelaa: sama nappi nostaa vapaa, ja Q/E säätävät kohon syvyyttä.
+    const pole = isPole(f.tackle);
+    this.cranking = !pole && !flyHand && !frozen && lureOut && reelHeld;
+    if (pole && !simple) this.readFloatDepth();
     const world = {
       isWater: (p: Vec2) => host.water.isWater(p),
       depthAt: (p: Vec2) => host.bottom.depthAt(p),
@@ -379,15 +388,17 @@ export class FishingController {
               // Oikea nappi peruu vain latauksen: heitossa se on veto, vedessä nosto.
               cancel: c.isDown('cancel') || (f.stage === 'charging' && c.isDown('cancelCharge')),
               // Yksinkertaisella ohjauksella (#638) kelalla on yksi nopeus (3, #653) eikä jarrua säädetä.
-              dragDelta: simple
-                ? 0
-                : (c.wasPressed('dragMore') ? 1 : 0) - (c.wasPressed('dragLess') ? 1 : 0),
+              dragDelta:
+                simple || pole
+                  ? 0
+                  : (c.wasPressed('dragMore') ? 1 : 0) - (c.wasPressed('dragLess') ? 1 : 0),
               ...(simple ? (f.gear === SIMPLE_GEAR ? {} : { gear: SIMPLE_GEAR }) : this.readGear()),
               ...(this.pendingTackle ? { tackle: this.pendingTackle } : {}),
               cut: c.wasPressed('cut'),
               // Yksinkertaisella ohjauksella kelaus on myös ison kalan vastaisku (#653).
               twitch:
                 !isFly(f.tackle) &&
+                !pole &&
                 (c.wasPressed('twitch') || flick || (simple && reeling && f.strikeBig)),
               // Nosto on oma painalluksensa (#395); yksinkertaisella ohjauksella kelaus nostaa kalan.
               land:
@@ -530,12 +541,22 @@ export class FishingController {
     if (follow) sounds.play('follow');
     if (events.strike || (events.hooked && this.strikeDepth === null))
       this.strikeDepth = host.fishing.depth;
+    const poleGear = isPole(host.fishing.tackle);
+    if (events.nibble) {
+      // Ongen näykintä (#570): koho nytkähtää, vastaiskua ei vielä tehdä.
+      host.fishingView.nibble(host.fishing.lure);
+      sounds.play('nibble');
+    }
     if (events.strike) {
       host.fishingView.strikeSwirl(host.fishing.lure, host.fishing.strikeBig);
       sounds.play('strike');
       // Iso kala tarttuu vain nykäisyyn (#402): raskas tärppi kertoo sen.
       hud.showMessage(
-        host.fishing.strikeBig ? controlText('game.strikeBig') : t('game.strike'),
+        poleGear
+          ? controlText('game.floatDown')
+          : host.fishing.strikeBig
+            ? controlText('game.strikeBig')
+            : t('game.strike'),
         1.2,
       );
     }
@@ -548,9 +569,11 @@ export class FishingController {
       hud.showMessage(
         flyGear
           ? t('game.missedFly')
-          : events.missedTwitch
-            ? controlText('game.missedTwitch')
-            : controlText('game.missed'),
+          : poleGear
+            ? t('game.missedPole')
+            : events.missedTwitch
+              ? controlText('game.missedTwitch')
+              : controlText('game.missed'),
         2.5,
       );
       sounds.play('missed');
@@ -584,10 +607,12 @@ export class FishingController {
         hud.showMessage(
           isFly(tk)
             ? t('game.flyChanged', { fly: baitName(tk) })
-            : t('game.lureChanged', { lure: baitName(tk) }),
+            : isPole(tk)
+              ? t('game.baitChanged', { bait: baitName(tk), depth: floatDepthText(tk.floatDepth) })
+              : t('game.lureChanged', { lure: baitName(tk) }),
           1.5,
           'info',
-          { icon: lureImage(isFly(tk) ? tk.fly : tk.lure, 'calc(var(--u) * 1.5)') },
+          { icon: lureImage(tackleArt(tk), 'calc(var(--u) * 1.5)') },
         );
     }
     if (events.onReel) hud.showMessage(t('game.onReel'), 2, 'info');
@@ -636,7 +661,14 @@ export class FishingController {
       );
     } else if (events.lineBroken) {
       sounds.play('lineBroken');
-      hud.showMessage(withLost(controlText(flyGear ? 'game.lineBrokenFly' : 'game.lineBroken')), 3);
+      hud.showMessage(
+        withLost(
+          controlText(
+            flyGear ? 'game.lineBrokenFly' : poleGear ? 'game.lineBrokenPole' : 'game.lineBroken',
+          ),
+        ),
+        3,
+      );
     }
     if (this.weighIn && (this.weighIn.left -= dt) <= 0) this.flushWeighIn();
     if (events.caught) {
@@ -647,7 +679,7 @@ export class FishingController {
     this.feel();
     if (host.fishing.dragSlipping) sounds.play('dragSlip');
     this.reelClickTimer -= dt;
-    if (reeling && this.reelClickTimer <= 0) {
+    if (reeling && this.cranking && this.reelClickTimer <= 0) {
       sounds.play('reelClick');
       this.reelClickTimer = 0.09 / (host.fishing.gear + 1);
     }
@@ -702,7 +734,7 @@ export class FishingController {
     }
     if (record) {
       const gear = host.fishing.tackle;
-      const bait = isFly(gear) ? gear.fly : slotOf(gear);
+      const bait = isFly(gear) ? gear.fly : isPole(gear) ? gear.bait : slotOf(gear);
       this.baits.set(baitKey(record), bait);
       addJournalEntry({
         species: record.species,
@@ -778,6 +810,16 @@ export class FishingController {
       dt,
       pad && free && !menu && f.stage === 'water' && f.landing === null,
     );
+  }
+
+  /** Kohon syvyys Q/E:llä (#570): vaihtuu heti, tai kun koho seuraavan kerran on nostettu. */
+  private readFloatDepth(): void {
+    const c = this.host.controls;
+    const step = (c.wasPressed('floatDeeper') ? 1 : 0) - (c.wasPressed('floatShallower') ? 1 : 0);
+    if (step === 0) return;
+    const tk = this.tackle;
+    const floatDepth = clampFloatDepth(tk.floatDepth + step * POLE.depthStep);
+    if (floatDepth !== tk.floatDepth) this.setTackle({ ...tk, floatDepth });
   }
 
   private readGear(): { gear?: number } {

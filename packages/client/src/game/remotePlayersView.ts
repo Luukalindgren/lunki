@@ -20,7 +20,7 @@ import {
   animateFins,
   applyAppearance,
   createTubeMesh,
-  setFlyRod,
+  setRodKind,
   setSeated,
 } from './tubeMesh';
 import {
@@ -37,6 +37,7 @@ import { REMOTE_FIGHT, RemoteFight } from './remoteFight';
 import { SplashRings } from './splashRings';
 import { turnScull } from './turnScull';
 import { REST_POSE, ROD_MOTION, RodMotion, type RodPose } from './rodMotion';
+import { FloatMarker } from './floatMarker';
 import { LureMarker, markerPosition } from './lureMarker';
 import { lureColor } from './lureColor';
 import { AshoreFigure } from './shoreView';
@@ -54,6 +55,9 @@ interface Entry {
   tube: THREE.Group;
   /** Vieheen merkki; muiden vieheen tilaa ei tiedetä. */
   lure: LureMarker;
+  /** Ongen koho (#570) merkin paikalla, kun pelaaja onkii. */
+  float: FloatMarker;
+  pole: boolean;
   line: THREE.Line;
   /** Perhoheiton siima silmukkana (#236). */
   flyLine: THREE.Line;
@@ -172,7 +176,8 @@ export class RemotePlayersView {
       e.tube.position.copy(toWorld(p.pos, (p.lift ?? 0) + (p.boat > 0 ? SEATED_LIFT : 0)));
       e.tube.rotation.y = p.heading + p.look;
       e.tube.rotation.x = p.tumble ?? p.roll;
-      setFlyRod(e.tube, p.fly === true);
+      setRodKind(e.tube, p.fly === true ? 'fly' : p.pole === true ? 'pole' : 'spin');
+      e.pole = p.pole === true;
       // Kääntymisen nopeus piirretyistä suunnista: verkon yli tulee vain suunta.
       const turned = e.heading === null || dt <= 0 ? 0 : wrapAngle(p.heading - e.heading) / dt;
       e.turn += (Math.max(-TURN_MAX, Math.min(TURN_MAX, turned)) - e.turn) * Math.min(1, dt * 8);
@@ -216,7 +221,10 @@ export class RemotePlayersView {
         tip = eyes?.tip ?? aimRod(e.tube, e.pose, this.tip);
       }
 
-      if (!showLure) e.lure.hide();
+      if (!showLure) {
+        e.lure.hide();
+        e.float.hide();
+      }
       e.line.visible = showLure && !casting;
       e.flyLine.visible = casting;
       if (fly) this.drawFlyCast(e, p, fly, tip);
@@ -317,7 +325,7 @@ export class RemotePlayersView {
     writeLine(pos, pts);
     pos.needsUpdate = true;
     e.line.geometry.computeBoundingSphere();
-    this.mark(e, fish, 0);
+    this.mark(e, fish, 0, 1);
     if (pose.splash !== null) this.splashes.start(fish, pose.splash);
     return w;
   }
@@ -348,13 +356,20 @@ export class RemotePlayersView {
   }
 
   /** Vieheen merkki: muiden vieheen syvyyttä ja tilaa ei tiedetä. */
-  private mark(e: Entry, at: Vec2, height: number): void {
+  private mark(e: Entry, at: Vec2, height: number, dip = 0): void {
+    if (e.pole) {
+      e.lure.hide();
+      e.float.update({ at, height, pov: this.pov, pixel: this.pixel, dip });
+      return;
+    }
+    e.float.hide();
     e.lure.update({ at, height, color: lureColor(0), pov: this.pov, pixel: this.pixel });
   }
 
   private add(id: string, appearance: Appearance): Entry {
     const tube = createTubeMesh(appearance);
     const lure = new LureMarker();
+    const float = new FloatMarker();
     const line = new THREE.Line(
       new THREE.BufferGeometry().setFromPoints(
         Array.from({ length: LINE_VERTS }, () => new THREE.Vector3()),
@@ -370,7 +385,7 @@ export class RemotePlayersView {
     );
     flyLine.frustumCulled = false;
     flyLine.visible = false;
-    this.group.add(tube, lure.group, line, flyLine);
+    this.group.add(tube, lure.group, float.group, line, flyLine);
     const tag = document.createElement('div');
     tag.className = 'name-tag';
     tag.style.borderColor = cssColor(appearance.tube);
@@ -380,6 +395,8 @@ export class RemotePlayersView {
     const e: Entry = {
       tube,
       lure,
+      float,
+      pole: false,
       line,
       flyLine,
       fly: new RemoteFlyLine(),
@@ -416,7 +433,7 @@ export class RemotePlayersView {
   }
 
   private remove(id: string, e: Entry): void {
-    this.group.remove(e.tube, e.lure.group, e.line, e.flyLine);
+    this.group.remove(e.tube, e.lure.group, e.float.group, e.line, e.flyLine);
     if (e.ashore) {
       this.group.remove(e.ashore.group);
       e.ashore.dispose();

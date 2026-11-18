@@ -1,4 +1,4 @@
-import { isFly, type FishingState } from '@lunki/shared';
+import { isFly, isPole, type FishingState } from '@lunki/shared';
 import type { PadKind } from '../engine/gamepad';
 import type { Input } from '../engine/input';
 import { hasKey, t, type MsgKey } from '../i18n';
@@ -200,6 +200,21 @@ export const CONTROLS = {
     pad: PAD_MAIN,
   },
   lift: { keys: ['Mouse2', 'KeyJ'], touch: 'touch.lift', title: 'touch.liftTitle', pad: ['Pad2'] },
+
+  // Onki (#570).
+  /**
+   * NOSTA kelauksen paikalla: painallus on tärpissä vastaisku ja muulloin
+   * nostaa kohon vedestä, ja väsytyksessä pito pitää vavan pystyssä.
+   */
+  poleLift: {
+    keys: ['Space', 'Mouse0'],
+    touch: 'touch.poleLift',
+    title: 'touch.poleLiftTitle',
+    pad: PAD_MAIN,
+  },
+  /** Kohon syvyys (#570) jarrun näppäimillä, koska ongessa ei ole kelaa. */
+  floatShallower: { keys: ['KeyQ'], pad: [DPAD.down] },
+  floatDeeper: { keys: ['KeyE'], pad: [DPAD.up] },
   reelSlack: {
     keys: ['KeyF'],
     touch: 'touch.reelSlack',
@@ -451,8 +466,11 @@ export type ShoreMain = 'pump' | 'bail' | 'pickUp' | 'putDown' | 'board';
  * katkaisunappi tekevät eri asioita kalastuksen vaiheen mukaan.
  */
 export interface ContextActions {
-  /** Iso punainen nappi: HEITÄ, KELAA, VETO, nostossa NOSTA/HAAVI ja maalla PUMPPAA/OTA/LASKE/KYYTIIN. */
-  main: 'castForward' | 'reel' | 'strip' | 'haul' | 'land' | 'landNet' | ShoreMain;
+  /**
+   * Iso punainen nappi: HEITÄ, KELAA, VETO, ongella NOSTA, nostossa
+   * NOSTA/HAAVI ja maalla PUMPPAA/OTA/LASKE/KYYTIIN.
+   */
+  main: 'castForward' | 'reel' | 'strip' | 'haul' | 'poleLift' | 'land' | 'landNet' | ShoreMain;
   /** Perhon nappi: SIIMA heitossa, NOSTA vedestä ja tärpissä, KELALLE kalan kanssa. */
   line: 'lineGrip' | 'lift' | 'reelSlack';
   /** KATKO, heiton aikana PERU, virvelin vapaalla vieheellä ja tärpissä NYKÄISE. */
@@ -488,7 +506,9 @@ export function contextActions(
             ? 'haul'
             : inHand && f.stage === 'water'
               ? 'strip'
-              : 'reel',
+              : isPole(f.tackle)
+                ? 'poleLift'
+                : 'reel',
     // Tärpissä NOSTA on vastaisku (#399).
     line:
       f.stage !== 'water'
@@ -499,7 +519,11 @@ export function contextActions(
     tool:
       f.stage === 'charging' || casting
         ? 'cancel'
-        : !fly && f.stage === 'water' && (free || f.struckId !== null) && !tangled
+        : !fly &&
+            !isPole(f.tackle) &&
+            f.stage === 'water' &&
+            (free || f.struckId !== null) &&
+            !tangled
           ? 'twitch'
           : 'cut',
   };

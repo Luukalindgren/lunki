@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import {
   breakingStrength,
   isFly,
+  isPole,
+  tackleTip,
   LUNKINJARVI,
   WaterBody,
   BoatSeat,
@@ -99,7 +101,7 @@ import {
   animateEmote,
   animateFins,
   createTubeMesh,
-  setFlyRod,
+  setRodKind,
   setSeated,
 } from './tubeMesh';
 import { AnchorView, type AnchoredCraft } from './anchorView';
@@ -669,6 +671,8 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     const fishingNow = this.fishing;
     const reelHeld =
       c.isDown('pointer') ||
+      // Ongen NOSTA (#570) on kosketuksella oma toimintonsa saman ison napin alla.
+      c.isDown('poleLift') ||
       this.reelLatch.step(
         c.isDown('reel'),
         c.wasPressed('reel'),
@@ -1235,7 +1239,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     const rodPose = this.angler.rodPose();
     const flyCast = this.fishing.stage === 'casting' ? this.fishing.flyCast : null;
     let rodEnd: LinePoint | null = null;
-    setFlyRod(this.tubeMesh, isFly(this.fishing.tackle));
+    setRodKind(this.tubeMesh, this.fishing.tackle.method);
     if (this.viewMode !== 'pov' && !standing)
       rodEnd = lakePoint(
         aimRod(
@@ -1300,7 +1304,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
             x: pos.x + Math.cos(heading) * swing.forward,
             y: pos.y + Math.sin(heading) * swing.forward,
           }
-        : rodTip(pos, heading);
+        : tackleTip(this.fishing.tackle, pos, heading);
       tip.x += side.x;
       tip.y += side.y;
       if (!standing && !this.spectating)
@@ -1316,6 +1320,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
           {
             tipY: swing?.height,
             fly: isFly(this.fishing.tackle),
+            pole: isPole(this.fishing.tackle),
             bend: this.angler.flyRodBend(flyCast),
             pose: rodPose,
           },

@@ -1,11 +1,14 @@
 import * as THREE from 'three';
 import {
   LINE_POINTS,
+  POLE,
   castAngle,
   chargePower,
+  distance,
+  isPole,
   predictLanding,
-  rodTip,
   tackleCastFactor,
+  tackleTip,
   type Fish,
   type FishingContext,
   type FishingEvents,
@@ -32,6 +35,7 @@ import { SplashRings } from './splashRings';
 import { LandingView } from './landingView';
 import { ROD_MOTION, strikeTaut, strikeTug, strikeTugs } from './rodMotion';
 import { LURE_MARKER, LureMarker, markerPosition } from './lureMarker';
+import { FLOAT_MARKER, FloatMarker } from './floatMarker';
 
 /** Vieheen merkkien tahti (s), pohjakosketuksen raja (m) ja pohjan pölläys. */
 const LURE_SIGNS = { followEvery: 0.8, bottomEvery: 0.7, touch: 0.05, mud: 0x8a6a42 } as const;
@@ -68,6 +72,10 @@ export class FishingView {
   private readonly aimMarker: THREE.Mesh;
   /** Vieheen merkki (#391). */
   readonly marker = new LureMarker();
+  /** Ongen koho (#570) vieheen merkin paikalla. */
+  readonly float = new FloatMarker();
+  /** Aika viimeisestä näykkäisystä (s). */
+  private nibbleAge = Infinity;
   private readonly lureShadow: THREE.Mesh;
   private readonly line: THREE.Line;
   /** Perhosiima ja perho ilmassa heiton aikana (#236). */
@@ -104,6 +112,7 @@ export class FishingView {
     this.group.add(this.aimMarker);
 
     this.group.add(this.marker.group);
+    this.group.add(this.float.group);
 
     this.lureShadow = new THREE.Mesh(
       new THREE.CircleGeometry(0.15, 6),
@@ -198,7 +207,8 @@ export class FishingView {
       this.fishShadow.position.copy(toWorld(hooked.pos, 0.02));
       this.fishShadow.rotation.z = hooked.heading;
     }
-    const tip = rodTip(ctx.tubePos, ctx.heading);
+    const pole = isPole(s.tackle);
+    const tip = tackleTip(s.tackle, ctx.tubePos, ctx.heading);
     // Piirretty kärki on oikeassa kädessä pidetyn vavan päässä; vavan liike
     // (`rodEnd`, nosto ja taipuma) siirtää sitä, ja siima lähtee siitä.
     const side = rodSideOffset(ctx.heading);
@@ -216,16 +226,20 @@ export class FishingView {
     this.aimLine.visible = aiming;
     this.aimMarker.visible = aiming;
     if (aiming) {
-      const angle = castAngle(ctx, aim);
+      const angle = castAngle(ctx, aim, s.tackle);
       const target =
         s.stage === 'charging'
-          ? predictLanding(
+          ? poleReach(
               tip,
-              angle,
-              chargePower(s.charge),
-              tackleCastFactor(s.tackle),
-              1 / 60,
-              ctx.wind,
+              predictLanding(
+                tip,
+                angle,
+                chargePower(s.charge),
+                tackleCastFactor(s.tackle),
+                1 / 60,
+                ctx.wind,
+              ),
+              pole,
             )
           : {
               x: tip.x + Math.cos(angle) * Math.hypot(aim.x - tip.x, aim.y - tip.y),
@@ -243,7 +257,9 @@ export class FishingView {
     const out = s.stage === 'flight' || s.stage === 'water';
     this.line.visible = out;
     this.lureShadow.visible = s.stage === 'flight';
-    if (!out || s.landing) this.marker.hide();
+    if (!out || s.landing || pole) this.marker.hide();
+    if (!out || s.landing || !pole) this.float.hide();
+    this.nibbleAge += dt;
     if (out) {
       const height = s.flight?.height ?? 0;
       const lureAt = markerPosition(s.lure, height, this.pov);
@@ -252,9 +268,10 @@ export class FishingView {
       // Nostossa kala itse näkyy pinnassa, joten merkki piilotetaan.
       const bottom = ctx.depthAt(s.lure);
       const depth = s.stage === 'water' ? s.depth : 0;
-      const strike = s.stage === 'water' && s.struckId !== null && s.hookedId === null;
+      const strike = !pole && s.stage === 'water' && s.struckId !== null && s.hookedId === null;
       if (strike) this.strikeSigns(s);
-      if (!s.landing)
+      if (pole && !s.landing) this.updateFloat(s, height, shownTip);
+      else if (!s.landing)
         this.marker.update({
           at: s.lure,
           height,
@@ -273,7 +290,7 @@ export class FishingView {
       // Siima roikkuu vavan kärjestä kaarena veteen ja jatkaa pinnalla fysiikan muotoa.
       this.taut += (tautness(s.tension) - this.taut) * Math.min(1, dt * 4);
       // Tärppi: kala nykii viehettä, ja siima kiristyy ja löystyy nykäyksittäin.
-      if (s.struckId !== null && s.hookedId === null) this.taut = strikeTaut(s.strikeAge);
+      if (!pole && s.struckId !== null && s.hookedId === null) this.taut = strikeTaut(s.strikeAge);
       const pts =
         s.stage === 'flight'
           ? flightLine(
@@ -323,6 +340,39 @@ export class FishingView {
       ? STRIKE_SIGNS.ringM
       : Math.max(STRIKE_SIGNS.ringM, STRIKE_SIGNS.ringPx * this.metersPerPixel);
     this.lureSigns.start(at, size * (big ? STRIKE_SIGNS.bigRing : 1), STRIKE_SIGNS.time);
+  }
+
+  /** Ongen näykkäisy (#570): koho nytkähtää, ja pinnalle nousee pieni rengas. */
+  nibble(at: Vec2): void {
+    this.nibbleAge = 0;
+    const size = this.pov
+      ? STRIKE_SIGNS.ringM * 0.6
+      : Math.max(STRIKE_SIGNS.ringM * 0.6, STRIKE_SIGNS.ringPx * 0.6 * this.metersPerPixel);
+    this.lureSigns.start(at, size, STRIKE_SIGNS.time);
+  }
+
+  /**
+   * Koho (#570): levossa pinnalla, näykinnässä nytkähtäen, viennissä ja
+   * väsytyksessä pinnan alla kalan mukana.
+   */
+  private updateFloat(s: FishingState, height: number, tip: Vec2): void {
+    const run = s.bite?.phase === 'run';
+    const nib =
+      this.nibbleAge < FLOAT_MARKER.nibbleTime
+        ? FLOAT_MARKER.nibble * (1 - this.nibbleAge / FLOAT_MARKER.nibbleTime)
+        : 0;
+    const dip = s.stage !== 'water' ? 0 : s.hookedId !== null ? 1 : run ? FLOAT_MARKER.run : nib;
+    const dx = s.lure.x - tip.x;
+    const dy = s.lure.y - tip.y;
+    const len = Math.hypot(dx, dy) || 1;
+    this.float.update({
+      at: s.lure,
+      height,
+      pov: this.pov,
+      pixel: this.pov ? this.povPixel : this.metersPerPixel,
+      dip,
+      pull: run ? { px: FLOAT_MARKER.runPx, dir: { x: dx / len, y: dy / len } } : undefined,
+    });
   }
 
   /** Tärpin aikana jokainen nykäys nostaa renkaan vieheen kohdalle. */
@@ -412,6 +462,16 @@ function setLine(line: THREE.Line, a: THREE.Vector3, b: THREE.Vector3) {
   pos.setXYZ(1, b.x, b.y, b.z);
   pos.needsUpdate = true;
   line.geometry.computeBoundingSphere();
+}
+
+/** Ongen heitto (#570) päättyy siiman mittaan vavan kärjestä. */
+function poleReach(tip: Vec2, at: Vec2, pole: boolean): Vec2 {
+  const d = distance(tip, at);
+  if (!pole || d <= POLE.line) return at;
+  return {
+    x: tip.x + ((at.x - tip.x) / d) * POLE.line,
+    y: tip.y + ((at.y - tip.y) / d) * POLE.line,
+  };
 }
 
 /** Katkeamisvaroitus: keltainen, ellei siima ole jo valmiiksi keltainen. */

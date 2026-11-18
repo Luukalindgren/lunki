@@ -16,9 +16,13 @@ import {
   type FishConditions,
 } from './fish';
 import { createFishing, lureInfo, stepFishing, type FishingContext } from './fishing';
+import { DEFAULT_TACKLE, isPole, type Tackle } from './gear';
 
 /** Reaktioaika (s), jonka jälkeen tavallinen pelaaja nostaa pintaan tulleen kalan (#366). */
 const NAIVE_LAND_DELAY = 0.8;
+
+/** Ongella (#570) vastaisku tulee näin pian kohon painumisesta (s). */
+const NAIVE_STRIKE_DELAY = 0.35;
 
 /** Kalastusta tuntemattoman pelaajan saldo simulaatiosta. */
 export interface NaiveResult {
@@ -33,6 +37,8 @@ export interface NaiveResult {
   lineBroken: number;
   snagged: number;
   lureLost: number;
+  /** Saaliin yhteispaino (kg). */
+  weight: number;
 }
 
 let lake: { water: WaterBody; bottom: LakeBottom } | null = null;
@@ -61,7 +67,13 @@ export function simulateNaiveAngler(
   difficulty: Difficulty,
   seed: number,
   minutes = 10,
-  opts: { dt?: number; move?: number; cond?: FishConditions; season?: Season } = {},
+  opts: {
+    dt?: number;
+    move?: number;
+    cond?: FishConditions;
+    season?: Season;
+    tackle?: Tackle;
+  } = {},
 ): NaiveResult {
   const dt = opts.dt ?? 1 / 30;
   const move = opts.move ?? 120;
@@ -83,7 +95,10 @@ export function simulateNaiveAngler(
     season,
   );
   const diff = DIFFICULTIES[difficulty];
-  const s = createFishing();
+  const s = createFishing(opts.tackle ?? DEFAULT_TACKLE);
+  const pole = isPole(s.tackle);
+  // Ongella pelaaja iskee, kun koho painuu, ja pitää vavan pystyssä väsytyksessä.
+  let strikeAt = Infinity;
   const r: NaiveResult = {
     minutes,
     casts: 0,
@@ -96,6 +111,7 @@ export function simulateNaiveAngler(
     lineBroken: 0,
     snagged: 0,
     lureLost: 0,
+    weight: 0,
   };
   let pos = { x: 0, y: 0 };
   let heading = 0;
@@ -138,7 +154,9 @@ export function simulateNaiveAngler(
       {
         aim,
         castHeld,
-        reel: s.stage === 'water',
+        reel: pole
+          ? s.stage === 'water' && (s.hookedId !== null || t >= strikeAt)
+          : s.stage === 'water',
         cancel: false,
         cut: s.stage === 'water' && s.onLand,
         // Nosto (#366): tavallinen pelaaja nostaa, kun on huomannut kalan pinnassa.
@@ -151,9 +169,16 @@ export function simulateNaiveAngler(
       r.casts++;
       charge = 0;
     }
-    if (ev.strike) r.strikes++;
+    if (t >= strikeAt) strikeAt = Infinity;
+    if (ev.strike) {
+      r.strikes++;
+      if (pole) strikeAt = t + NAIVE_STRIKE_DELAY;
+    }
     if (ev.hooked) r.hooked++;
-    if (ev.caught) r.caught++;
+    if (ev.caught) {
+      r.caught++;
+      r.weight += ev.caught.weight;
+    }
     if (ev.missed) r.missed++;
     if (ev.escaped) r.escaped++;
     if (ev.lineBroken) r.lineBroken++;
