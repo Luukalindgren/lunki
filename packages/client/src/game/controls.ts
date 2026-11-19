@@ -204,10 +204,12 @@ export const CONTROLS = {
   // Onki (#570).
   /**
    * NOSTA kelauksen paikalla: painallus on tärpissä vastaisku ja muulloin
-   * nostaa kohon vedestä, ja väsytyksessä pito pitää vavan pystyssä.
+   * nostaa kohon vedestä, ja väsytyksessä pito pitää vavan pystyssä. Hiiren
+   * vasen luetaan pointerista; sormi järvellä ei nosta (`fingerLifts`).
    */
   poleLift: {
-    keys: ['Space', 'Mouse0'],
+    keys: ['Space'],
+    label: 'ctl.poleLiftKeys',
     touch: 'touch.poleLift',
     title: 'touch.poleLiftTitle',
     pad: PAD_MAIN,
@@ -419,6 +421,14 @@ export class Controls {
     }
     if (b.padWith && b.pad?.includes(k)) return this.input.isDown(b.padWith);
     return !COMBOS.get(k)?.some((c) => (!c.orbit || orbit) && this.input.isDown(c.held));
+  }
+
+  /**
+   * Sormi pelikuvalla. Ongella (#570) se ei nosta kohoa: puhelimella järveen
+   * osui vahingossa, joten nosto tulee vain NOSTA-napista.
+   */
+  get finger(): boolean {
+    return this.input.finger;
   }
 
   /** Oikea tatti kameralle: takaa-näkymässä vasen liipaisin pohjassa (#691). */

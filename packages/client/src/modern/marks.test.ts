@@ -119,4 +119,37 @@ describe('veden pinnan merkit modernissa ilmeessä (#650)', () => {
     expect(gem()).toBeUndefined();
     expect(sprite.visible).toBe(true);
   });
+
+  it('piirtää ongen kohon mallina, joka uppoaa tärpissä (#570)', () => {
+    const scene = new THREE.Scene();
+    const group = new THREE.Group();
+    group.name = 'pole-float';
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial());
+    group.add(sprite);
+    scene.add(group);
+    sprite.position.set(0, 0.02, -6);
+    sprite.scale.set(0.01, 0.022, 1);
+    sprite.material.sizeAttenuation = false;
+    sprite.center.set(0.5, 0.3);
+    const marks = new Marks(scene);
+    marks.update(camera);
+    const bob = group.children.find((c) => c.name === 'modern-mark') as THREE.Mesh;
+    expect(sprite.visible).toBe(false);
+    const depth = -sprite.position.clone().applyMatrix4(camera.matrixWorldInverse).z;
+    const height = 0.022 * depth;
+    expect(bob.scale.y).toBeCloseTo(height);
+    // Alapää on pinnan alla saman osuuden kuin kuvassa.
+    expect(bob.position.y).toBeCloseTo(0.02 - height * 0.3);
+    sprite.center.y = 0.85;
+    marks.update(camera);
+    expect(bob.position.y).toBeCloseTo(0.02 - height * 0.85);
+    // Malli on sorvattu koho: korkeus 1, leveys vajaa puolet.
+    bob.geometry.computeBoundingBox();
+    const box = bob.geometry.boundingBox!;
+    expect(box.max.y - box.min.y).toBeCloseTo(1, 1);
+    expect(box.max.x - box.min.x).toBeLessThan(0.5);
+    marks.dispose();
+    expect(group.children.some((c) => c.name === 'modern-mark')).toBe(false);
+    expect(sprite.visible).toBe(true);
+  });
 });
