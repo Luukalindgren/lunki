@@ -1,4 +1,4 @@
-import { REEL } from '@lunki/shared';
+import { REEL, type Tackle } from '@lunki/shared';
 import {
   CONTROLS,
   bindingText,
@@ -39,7 +39,10 @@ export class TouchControls {
   private readonly lineButton: ContextButton<ContextActions['line']>;
   /** KATKO, heiton aikana PERU. */
   private readonly toolButton: ContextButton<ContextActions['tool']>;
-  private fly = false;
+  private method: Tackle['method'] = 'spin';
+  /** Jarrun napit; ongella (#570) niiden paikalla ovat kohon syvyyden napit. */
+  private readonly dragButtons: HTMLButtonElement[];
+  private readonly floatButtons: HTMLButtonElement[];
   /** KAM: ruudukossa, yksinkertaisella ohjauksella työkalupinossa tauon alla. */
   private readonly camButton: HTMLButtonElement;
   private readonly helpButton: HTMLButtonElement;
@@ -117,6 +120,9 @@ export class TouchControls {
     directorButton.classList.add('touch-director');
     const emoteButton = this.hold('emote');
     emoteButton.classList.add('touch-emote');
+    this.dragButtons = [this.tap('dragLess'), this.tap('dragMore')];
+    this.floatButtons = [this.tap('floatShallower'), this.tap('floatDeeper')];
+    for (const b of this.floatButtons) b.hidden = true;
     const grid = div('touch-grid');
     grid.append(
       this.hold('lure'),
@@ -125,8 +131,8 @@ export class TouchControls {
       camButton,
       directorButton,
       emoteButton,
-      this.tap('dragLess'),
-      this.tap('dragMore'),
+      ...this.dragButtons,
+      ...this.floatButtons,
       this.gearButton,
       this.lineButton.b,
       this.toolButton.b,
@@ -205,13 +211,19 @@ export class TouchControls {
 
   /**
    * Kalastuksen tilanne joka ruudulla: tilannenapit vaihtavat toimintoa
-   * (contextActions), ja perhovälineillä SIIMA-nappi on kelausnopeuden tilalla.
+   * (contextActions). Perhovälineillä SIIMA-nappi on kelausnopeuden tilalla,
+   * ja ongella (#570), jossa ei ole kelaa eikä jarrua, jarrun ja
+   * kelausnopeuden paikalla ovat kohon syvyyden napit.
    */
-  update(context: ContextActions, fly: boolean, gear: number): void {
-    if (fly !== this.fly) {
-      this.fly = fly;
+  update(context: ContextActions, method: Tackle['method'], gear: number): void {
+    if (method !== this.method) {
+      this.method = method;
+      const fly = method === 'fly';
+      const pole = method === 'pole';
       this.lineButton.b.hidden = !fly;
-      this.gearButton.hidden = fly;
+      this.gearButton.hidden = fly || pole;
+      for (const b of this.dragButtons) b.hidden = pole;
+      for (const b of this.floatButtons) b.hidden = !pole;
     }
     this.mainButton.set(context.main);
     this.lineButton.set(context.line);

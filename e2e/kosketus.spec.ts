@@ -285,6 +285,35 @@ test('tilapaneeli ei jää luotaimen alle korkealla pystyruudulla (#705)', async
   errors.check();
 });
 
+test('ongella puhelimella kohon syvyyden napit jarrun ja kelausnopeuden paikalla (#570)', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, 'vain puhelinemuloinnit');
+  const errors = watchErrors(page);
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      'lunki.tackle',
+      JSON.stringify({ method: 'pole', bait: 'worm', floatDepth: 1.5 }),
+    ),
+  );
+  await page.goto(soloUrl('top'));
+  await page.getByRole('button', { name: 'Pelaa' }).tap();
+  await page.getByRole('button', { name: 'Yksinpeli' }).tap();
+  await page.getByRole('button', { name: 'Aloita kisa' }).tap();
+  await raceRunning(page);
+  // Ongessa ei ole kelaa eikä jarrua: niiden napit eivät tekisi mitään.
+  for (const name of ['JAR−', 'JAR+', 'NOP 2'])
+    await expect(page.getByRole('button', { name, exact: true })).toBeHidden();
+  await expect(page.locator('.hud-status')).toContainText('koho 1,5 m');
+  await page.getByRole('button', { name: 'KOHO+', exact: true }).tap();
+  await expect(page.locator('.hud-status')).toContainText('koho 1,75 m');
+  await page.getByRole('button', { name: 'KOHO−', exact: true }).tap();
+  await page.getByRole('button', { name: 'KOHO−', exact: true }).tap();
+  await expect(page.locator('.hud-status')).toContainText('koho 1,25 m');
+  errors.check();
+});
+
 test('?-nappi avaa ja sulkee ohjeen puhelimella', async ({ page, isMobile }) => {
   test.skip(!isMobile, 'vain puhelinemuloinnit');
   const errors = watchErrors(page);

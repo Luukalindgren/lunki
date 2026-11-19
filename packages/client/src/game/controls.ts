@@ -215,8 +215,18 @@ export const CONTROLS = {
     pad: PAD_MAIN,
   },
   /** Kohon syvyys (#570) jarrun näppäimillä, koska ongessa ei ole kelaa. */
-  floatShallower: { keys: ['KeyQ'], pad: [DPAD.down] },
-  floatDeeper: { keys: ['KeyE'], pad: [DPAD.up] },
+  floatShallower: {
+    keys: ['KeyQ'],
+    touch: 'touch.floatShallower',
+    title: 'touch.floatShallowerTitle',
+    pad: [DPAD.down],
+  },
+  floatDeeper: {
+    keys: ['KeyE'],
+    touch: 'touch.floatDeeper',
+    title: 'touch.floatDeeperTitle',
+    pad: [DPAD.up],
+  },
   reelSlack: {
     keys: ['KeyF'],
     touch: 'touch.reelSlack',
