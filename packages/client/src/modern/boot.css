@@ -136,6 +136,27 @@
     inset 0 2px 10px rgb(0 0 0 / 45%);
 }
 
+/*
+ * Valikon latausanimaatio (ui/loader.ts: ennätykset, liittyminen) on
+ * Kotiteatterissa sama hauki pienempänä kehyksessä.
+ */
+.look-modern .loader .loader-art {
+  display: none;
+}
+
+.look-modern .loader .boot-scene {
+  display: block;
+  width: min(288px, 70vw);
+  aspect-ratio: 2 / 1;
+  overflow: hidden;
+  border-radius: 4px;
+  box-shadow:
+    0 0 0 2px var(--wood-dark),
+    0 0 0 4px var(--wood-light),
+    0 0 0 6px var(--wood-dark),
+    inset 0 2px 8px rgb(0 0 0 / 45%);
+}
+
 .boot-scene svg {
   display: block;
   width: 100%;
