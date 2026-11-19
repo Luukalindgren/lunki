@@ -371,7 +371,7 @@ modernin ilmeen osat `engine/modernHost.ts` ja `src/modern/`.
   piirretty, joten Retro ei välähdä välissä. Koska näkymä näkyy ennen
   teemaa, `vite.config.ts` upottaa `boot.css`:n index.html:ään: seinän värit,
   laudoitus ja kehys (`--wall-planks`, `--wall-frame`) ovat siinä yhdessä
-  paikassa, ja teema käyttää samoja muuttujia. Muilla ilmeillä latausnäkymä on ennallaan.
+  paikassa, ja teema käyttää samoja muuttujia. Valikon latausanimaatio (`ui/loader.ts`: ennätykset, liittyminen) ottaa saman sileän hauen sivun latausnäkymästä, ja `boot.css` näyttää sen luokan `look-modern` alla pikselikuvan tilalla. Muilla ilmeillä latausnäkymä on ennallaan.
 - **Modernin teema** (`modern/theme.css`) vaihtaa käyttöliittymän värit
   `style.css`:n `--c-`-muuttujilla ja kirjasimet luokan `.look-modern` alla.
   Uusi valikon tai HUDin osa käyttää näitä muuttujia eikä kirjoita värejä
