@@ -669,8 +669,10 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     const capsized = this.penalties.capsizeLeft > 0;
     // Peliohjaimella kelaus voi olla kytkin (#594): painallus aloittaa, toinen lopettaa.
     const fishingNow = this.fishing;
+    // Ongella sormi järvellä ei nosta kohoa (#570): vain NOSTA-nappi.
+    const fingerOff = isPole(fishingNow.tackle) && c.finger;
     const reelHeld =
-      c.isDown('pointer') ||
+      (c.isDown('pointer') && !fingerOff) ||
       // Ongen NOSTA (#570) on kosketuksella oma toimintonsa saman ison napin alla.
       c.isDown('poleLift') ||
       this.reelLatch.step(

@@ -735,8 +735,9 @@ Koodi: `packages/client/src/audio/sounds.ts`.
   `pole-float`): silmin sivulta nähty pikselikoho, ylhäältä nuppi. Tärppi näkyy kohossa
   (näykintä nytkäyttää, vienti painaa pinnan alle), joten timanttia ei piirretä. Pitkä
   vapa vaihtuu `setRodKind`-kutsulla, ja NOSTA (`poleLift`) on sama iso nappi kuin
-  kelaus; Q ja E (`floatShallower`, `floatDeeper`) säätävät kohon syvyyttä. Modernissa
-  koho on toistaiseksi sileä kuva eikä oma malli.
+  kelaus; Q ja E (`floatShallower`, `floatDeeper`) säätävät kohon syvyyttä. Sormi
+  järvellä ei nosta kohoa (`Controls.finger`): puhelimella nosto tulee vain NOSTA-napista.
+  Modernissa koho on sorvattu malli (`floatShape`, `modern/marks.ts`) kuvan paikalla.
 - Tärppi näkyy merkissä kaikilla tasoilla (#440): timantti nykii siiman
   nykäysten tahdissa (`strikeTug`, silmin pinnan alle), ja jokainen nykäys
   nostaa renkaan (`STRIKE_SIGNS` `fishingView.ts`:ssä, ylhäältä

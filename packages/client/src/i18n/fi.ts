@@ -865,6 +865,7 @@ export const fi = {
   'ctl.finger': 'sormi järvellä',
   'ctl.gearKeys': '1/2/3',
   'ctl.lineGripKeys': 'hiiren vasen/välilyönti',
+  'ctl.poleLiftKeys': 'välilyönti/hiiren vasen',
   'ctl.gearButton': 'NOP',
   'ctl.mouseBack': 'hiiri itseä kohti',
   'ctl.mouseForward': 'poispäin',

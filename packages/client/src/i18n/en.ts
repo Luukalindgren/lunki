@@ -861,6 +861,7 @@ export const en: Record<keyof typeof fi, string> = {
   'ctl.finger': 'finger on the lake',
   'ctl.gearKeys': '1/2/3',
   'ctl.lineGripKeys': 'left mouse/space',
+  'ctl.poleLiftKeys': 'Space/left mouse',
   'ctl.gearButton': 'SPD',
   'ctl.mouseBack': 'mouse towards you',
   'ctl.mouseForward': 'away',
