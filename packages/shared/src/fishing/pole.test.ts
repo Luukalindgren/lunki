@@ -138,6 +138,7 @@ describe('ongen tärppi ja väsytys', () => {
     expect(s.hookedId).toBeNull();
     const e = stepFishing(s, { ...idle, reel: true }, c, DT);
     expect(e.missed).toBe(true);
+    expect(e.missedPole).toBe('early');
     expect(s.stage).toBe('idle');
   });
 
@@ -148,6 +149,8 @@ describe('ongen tärppi ja väsytys', () => {
       const { s, c } = bite(seed);
       expect(waitRun(s, c)).not.toBeNull();
       const e = stepFishing(s, { ...idle, reel: true }, c, DT);
+      // Ohi mennyt vastaisku kertoo, ettei koukku tarttunut, ei näykinnästä.
+      if (e.missed) expect(e.missedPole).toBe('set');
       if (!e.hooked) continue;
       hooked++;
       // Vastaiskun painallus ei nosta kohoa vedestä: kala on yhä kiinni.
@@ -164,8 +167,8 @@ describe('ongen tärppi ja väsytys', () => {
   it('ilman vastaiskua kala sylkee syötin', () => {
     const { s, c } = bite(2);
     expect(waitRun(s, c)).not.toBeNull();
-    const misses = run(s, 5, idle, c).filter((e) => e.missed).length;
-    expect(misses).toBe(1);
+    const misses = run(s, 5, idle, c).filter((e) => e.missed);
+    expect(misses.map((e) => e.missedPole)).toEqual(['late']);
     expect(s.hookedId).toBeNull();
   });
 

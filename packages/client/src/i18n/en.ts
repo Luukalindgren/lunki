@@ -1141,6 +1141,9 @@ export const en: Record<keyof typeof fi, string> = {
   'game.baitChanged': 'Bait: {bait} · float {depth}',
   'game.baitLater': 'Bait and float change once the float is lifted out',
   'game.floatDown': 'The float goes under – lift! ({poleLift})',
+  'game.missedPoleLate':
+    'The fish spat the bait – strike as soon as the float goes under ({poleLift})',
+  'game.missedPoleSet': 'Missed – the hook did not set',
   'game.missedPole': 'Missed – strike when the float goes under, not on the nibbles',
   'game.lineBrokenPole': 'Line broke! Lower the rod (release {poleLift}) when the fish pulls hard',
   'game.leaderOn': 'Steel leader on',
