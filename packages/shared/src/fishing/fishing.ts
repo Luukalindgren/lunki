@@ -317,6 +317,11 @@ export interface FishingEvents {
   missed?: boolean;
   /** Ohi meni iso kala, joka olisi vaatinut nykäisyn (#402). */
   missedTwitch?: boolean;
+  /**
+   * Ongen ohi (#570): vastaisku näykinnässä (`early`), vienti jäi ilman
+   * vastaiskua (`late`) tai koukku ei tarttunut vastaiskusta (`set`).
+   */
+  missedPole?: 'early' | 'late' | 'set';
   /** Kala irtosi väsytyksessä. */
   escaped?: boolean;
   /** Kala hyppäsi väsytyksessä (kirjolohi, säyne, taimen). */
@@ -1216,6 +1221,7 @@ function stepBite(
       s.struckId = null;
       s.bite = null;
       missFish(f, rng, events);
+      events.missedPole = 'early';
       liftOut(s, events);
       return true;
     }
@@ -1236,6 +1242,7 @@ function stepBite(
     s.struckId = null;
     s.bite = null;
     missFish(f, rng, events);
+    events.missedPole = 'late';
     return false;
   }
   s.struckId = null;
@@ -1243,6 +1250,7 @@ function stepBite(
   if (diff.autoHook || rng.next() < diff.hookChance) hookFish(s, f, rng, events);
   else {
     missFish(f, rng, events);
+    events.missedPole = 'set';
     liftOut(s, events);
   }
   // Vastaiskun painallus on käytetty: se ei saa enää nostaa kohoa vedestä.

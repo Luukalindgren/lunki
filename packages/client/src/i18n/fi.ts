@@ -1146,6 +1146,8 @@ export const fi = {
   'game.baitChanged': 'Syötti: {bait} · koho {depth}',
   'game.baitLater': 'Syötti ja koho vaihtuvat, kun koho on nostettu vedestä',
   'game.floatDown': 'Koho painuu – nosta! ({poleLift})',
+  'game.missedPoleLate': 'Kala sylki syötin – iske heti, kun koho painuu ({poleLift})',
+  'game.missedPoleSet': 'Ohi meni – koukku ei tarttunut',
   'game.missedPole': 'Ohi meni – iske vasta, kun koho painuu, ei näykinnässä',
   'game.lineBrokenPole': 'Siima katkesi! Laske vapaa ({poleLift} irti), kun kala vetää lujaa',
   'game.leaderOn': 'Teräsperuke paikallaan',

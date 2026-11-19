@@ -569,11 +569,15 @@ export class FishingController {
       hud.showMessage(
         flyGear
           ? t('game.missedFly')
-          : poleGear
-            ? t('game.missedPole')
-            : events.missedTwitch
-              ? controlText('game.missedTwitch')
-              : controlText('game.missed'),
+          : events.missedPole === 'late'
+            ? controlText('game.missedPoleLate')
+            : events.missedPole === 'set'
+              ? t('game.missedPoleSet')
+              : poleGear
+                ? t('game.missedPole')
+                : events.missedTwitch
+                  ? controlText('game.missedTwitch')
+                  : controlText('game.missed'),
         2.5,
       );
       sounds.play('missed');
