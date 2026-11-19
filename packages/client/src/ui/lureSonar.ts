@@ -9,7 +9,7 @@ import {
   type Vec2,
 } from '@lunki/shared';
 import { lureColor } from '../game/lureColor';
-import { decimal, t } from '../i18n';
+import { decimal, t, type MsgKey } from '../i18n';
 import {
   sonarColors,
   drawBed,
@@ -39,6 +39,16 @@ export interface LureSonarFish {
   species: SpeciesId;
 }
 
+export type BiteAction = 'reel' | 'twitch' | 'strip' | 'lift' | 'wait';
+
+const BITE_LABEL = {
+  reel: 'lureSonar.biteReel',
+  twitch: 'lureSonar.biteTwitch',
+  strip: 'lureSonar.biteStrip',
+  lift: 'lureSonar.biteLift',
+  wait: 'lureSonar.biteWait',
+} as const satisfies Record<BiteAction, MsgKey>;
+
 /** Yhden hetken tiedot vieheestä ja järvestä siiman suunnassa. */
 export interface LureSonarFrame {
   /** Vavan kärki: näytön vasen reuna. */
@@ -51,10 +61,14 @@ export interface LureSonarFrame {
   bottomTypeAt?(p: Vec2): BottomType;
   /** Vieheen perässä uivat kalat ja kiinni oleva kala. */
   fish: readonly LureSonarFish[];
-  /** Kala iski: kelaa nyt. */
+  /** Kala iski. */
   bite: boolean;
-  /** Iskenyt kala on iso: nykäise (#402). */
-  biteBig?: boolean;
+  /**
+   * Mitä tärpissä tehdään: kelaa, nykäise (iso kala virvelillä, #402), vedä
+   * siimaa (perho kädessä) tai nosta (ongen vienti, #570). `wait` on ongen
+   * näykintä, jossa vastaisku on vielä liian aikaisin. Puuttuva = kelaa.
+   */
+  biteAction?: BiteAction;
   /** Kala on kiinni. */
   hooked: boolean;
   /** Viehe on tarttunut pohjaan. */
@@ -394,8 +408,9 @@ export class LureSonarDisplay {
 
 function labelFor(frame: LureSonarFrame, bottom: number, blink: number): string {
   if (frame.bite) {
-    const act = frame.biteBig ? 'lureSonar.biteTwitch' : 'lureSonar.biteReel';
-    return t(Math.floor(blink / 0.3) % 2 === 0 ? act : 'lureSonar.bite');
+    const act = frame.biteAction ?? 'reel';
+    if (act === 'wait') return t(BITE_LABEL.wait);
+    return t(Math.floor(blink / 0.3) % 2 === 0 ? BITE_LABEL[act] : 'lureSonar.bite');
   }
   if (frame.snag) return t('lureSonar.snag');
   if (frame.fouled) return t('lureSonar.fouled');

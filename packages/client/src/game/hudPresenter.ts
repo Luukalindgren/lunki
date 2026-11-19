@@ -29,6 +29,7 @@ import {
 import type { Sounds } from '../audio/sounds';
 import type { NetWorld } from '../net/netWorld';
 import type { Hud, SituationBar } from '../ui/hud';
+import type { BiteAction } from '../ui/lureSonar';
 import { decimal, formatWeight, t, type MsgKey } from '../i18n';
 import { describeTackle, speciesName } from '../i18n/names';
 import { bindingText, controlText, type Action } from './controls';
@@ -244,7 +245,7 @@ export class HudPresenter {
         (x) => x.mode === 'follow' || x.mode === 'struck' || x.id === f.hookedId,
       ),
       bite: f.struckId !== null,
-      biteBig: f.struckId !== null && f.strikeBig,
+      biteAction: biteAction(f),
       hooked: f.hookedId !== null,
       snag: f.snag !== null,
       fouled: f.fouled,
@@ -445,4 +446,12 @@ export class HudPresenter {
           ],
     );
   }
+}
+
+/** Vieheluotaimen tärppiteksti: sama toiminto, joka tärpissä tarttuttaa kalan. */
+export function biteAction(f: FishingState): BiteAction | undefined {
+  if (f.struckId === null) return undefined;
+  if (isPole(f.tackle)) return f.bite?.phase === 'run' ? 'lift' : 'wait';
+  if (f.strikeBig) return 'twitch';
+  return isFly(f.tackle) && !f.onReel ? 'strip' : 'reel';
 }
