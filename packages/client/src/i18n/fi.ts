@@ -970,6 +970,10 @@ export const fi = {
     'Siimakäsi: toimii itsestään, kunnes painat · pohjassa pitää siimaa, irti päästää sitä luistamaan',
   'touch.lift': 'NOSTA',
   'touch.liftTitle': 'Nosta siima vedestä uuteen heittoon, tärpissä vastaisku',
+  'touch.floatShallower': 'KOHO−',
+  'touch.floatShallowerTitle': 'Koho matalammalle',
+  'touch.floatDeeper': 'KOHO+',
+  'touch.floatDeeperTitle': 'Koho syvemmälle',
   'touch.poleLift': 'NOSTA',
   'touch.poleLiftTitle':
     'Nosta vapaa: tärpissä vastaisku, muuten koho pois vedestä, väsytyksessä pidä pohjassa',

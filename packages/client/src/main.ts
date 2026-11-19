@@ -11,7 +11,6 @@ import {
   formatTime,
   isTimeOfDay,
   isPlayableSeason,
-  isFly,
   isValidStart,
   isWeatherLevel,
   parseRoomCode,
@@ -1207,7 +1206,7 @@ startLoop({
     if (game) {
       touch?.update(
         contextActions(game.fishing, game.flyRhythm, game.tangled, game.shoreMain),
-        isFly(game.fishing.tackle),
+        game.fishing.tackle.method,
         game.fishing.gear,
       );
       touch?.setCrew(game.crewSeats);

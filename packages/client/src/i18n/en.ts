@@ -965,6 +965,10 @@ export const en: Record<keyof typeof fi, string> = {
     'Line hand: works by itself until you press · hold to grip the line, release to let it slip',
   'touch.lift': 'LIFT',
   'touch.liftTitle': 'Lift the line off the water for a new cast, on a take set the hook',
+  'touch.floatShallower': 'FLOAT−',
+  'touch.floatShallowerTitle': 'Float shallower',
+  'touch.floatDeeper': 'FLOAT+',
+  'touch.floatDeeperTitle': 'Float deeper',
   'touch.poleLift': 'LIFT',
   'touch.poleLiftTitle':
     'Lift the rod: strike on a take, otherwise lift the float out, hold while playing a fish',
