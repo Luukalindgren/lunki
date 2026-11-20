@@ -114,13 +114,23 @@ export class Marks {
    * verran, ja vesi peittää vedenalaisen osan. Ylhäältä kuva on neliö, jonka
    * leveys on kohon leveys.
    */
-  private placeBob({ sprite, bob }: Bob, camera: THREE.Camera): void {
+  private placeBob({ group, sprite, bob }: Bob, camera: THREE.Camera): void {
     const eyes = (camera as THREE.PerspectiveCamera).isPerspectiveCamera === true;
     let size = sprite.material.sizeAttenuation ? sprite.scale.x / FLOAT_WIDTH : sprite.scale.y;
     if (!sprite.material.sizeAttenuation && eyes)
       size *= -v.copy(sprite.position).applyMatrix4(camera.matrixWorldInverse).z;
     bob.scale.setScalar(Math.max(size, 1e-4));
     bob.position.copy(sprite.position);
+    const lie = group.userData.lie as number | null | undefined;
+    if (typeof lie === 'number') {
+      // Kyljellään (#799): akseli siiman suuntaan, keskikohta kuvan paikalla
+      // ja puolet kohosta pinnan alla.
+      bob.rotation.set(0, lie, -Math.PI / 2);
+      bob.position.x -= Math.cos(lie) * size * 0.5;
+      bob.position.z += Math.sin(lie) * size * 0.5;
+      return;
+    }
+    bob.rotation.set(0, 0, 0);
     bob.position.y -= sprite.material.sizeAttenuation ? size * 0.5 : size * sprite.center.y;
   }
 

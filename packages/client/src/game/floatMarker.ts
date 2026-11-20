@@ -26,6 +26,12 @@ export const FLOAT_MARKER = {
   runPx: 2,
   /** Ylhäältä painunut koho näkyy tummempana. */
   sunkTint: 0x5f6b78,
+  /**
+   * Koho makaa kyljellään, kun syötti on tätä enemmän (m) säädettyä kohon
+   * syvyyttä ylempänä (#799): paino on pohjassa tai vasta vajoamassa, eikä
+   * koho nouse pystyyn. Tärpissä koho nousee pystyyn ja painuu.
+   */
+  lieGap: 0.1,
 } as const;
 
 const EDGE = 0x1c232b;
@@ -109,6 +115,11 @@ export interface FloatInput {
   dip: number;
   /** Viennin suunta (yksikkövektori järvellä) ja siirtymä kuvapisteinä. */
   pull?: { px: number; dir: Vec2 };
+  /**
+   * Koho makaa kyljellään siiman suuntaisena (yksikkövektori järvellä), kun
+   * syötti on pohjassa (#799). Vain levossa: tärpissä koho nousee pystyyn.
+   */
+  lie?: Vec2;
 }
 
 /** Oman ja muiden pelaajien koho. */
@@ -147,6 +158,30 @@ export class FloatMarker {
       mat.needsUpdate = true;
     }
     const dip = Math.max(0, Math.min(1, m.dip));
+    const lie = m.lie && dip === 0 && m.height <= 0 && !m.pull ? m.lie : null;
+    // Kyljellään makaavan kohon suunta (Moderni kääntää mallinsa samoin).
+    this.group.userData.lie = lie ? Math.atan2(lie.y, lie.x) : null;
+    if (lie) {
+      // Kyljellään ylhäältäkin näkyy kohon sivu siiman suuntaisena.
+      if (mat.map !== side) {
+        mat.map = side!;
+        mat.needsUpdate = true;
+      }
+      mat.rotation = m.pov ? Math.PI / 2 : Math.atan2(lie.y, lie.x) - Math.PI / 2;
+      mat.color.setHex(0xffffff);
+      s.center.set(0.5, 0.5);
+      if (m.pov) {
+        // Silmin koho on vaakatasossa puoliksi vedessä.
+        s.position.copy(toWorld(m.at, 0.02));
+        s.scale.set(FLOAT_MARKER.sideW * m.pixel, FLOAT_MARKER.sideH * m.pixel, 1);
+      } else {
+        s.position.copy(toWorld(m.at, LURE_MARKER.topY));
+        const k = (FLOAT_MARKER.topPx / FLOAT_MARKER.sideW) * m.pixel;
+        s.scale.set(FLOAT_MARKER.sideW * k, FLOAT_MARKER.sideH * k, 1);
+      }
+      return;
+    }
+    mat.rotation = 0;
     if (m.pov) {
       // Silmin koho seisoo pinnalla alapää vedessä, ja painuessaan se uppoaa.
       s.position.copy(toWorld(m.at, m.height + 0.02));

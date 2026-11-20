@@ -246,6 +246,7 @@ export class HudPresenter {
       ),
       bite: f.struckId !== null,
       biteAction: biteAction(f),
+      bait: isPole(f.tackle),
       hooked: f.hookedId !== null,
       snag: f.snag !== null,
       fouled: f.fouled,
@@ -274,7 +275,7 @@ export class HudPresenter {
         ...(hud.lureSonar.showing
           ? []
           : [
-              t('game.lureDepth', {
+              t(isPole(f.tackle) ? 'game.baitDepth' : 'game.lureDepth', {
                 m: decimal(f.stage === 'water' && !f.onLand ? f.depth : 0, 1),
               }),
               t('game.bottom', { m: decimal(host.bottom.depthAt(lureOut ? f.lure : tube.pos), 1) }),

@@ -739,6 +739,9 @@ Koodi: `packages/client/src/audio/sounds.ts`.
   kosketuksella KOHO− ja KOHO+ jarrun ja kelausnopeuden nappien paikalla (#793). Sormi
   järvellä ei nosta kohoa (`Controls.finger`): puhelimella nosto tulee vain NOSTA-napista.
   Modernissa koho on sorvattu malli (`floatShape`, `modern/marks.ts`) kuvan paikalla.
+  Kun syötti on pohjassa eikä kohon syvyydellä, koho makaa kyljellään siiman
+  suuntaisena (#799, `FloatInput.lie`, mallille `userData.lie`) ja nousee tärpissä
+  pystyyn. Vieheluotain ja tilarivi sanovat ongella "Syötti" eivätkä "Viehe".
 - Tärppi näkyy merkissä kaikilla tasoilla (#440): timantti nykii siiman
   nykäysten tahdissa (`strikeTug`, silmin pinnan alle), ja jokainen nykäys
   nostaa renkaan (`STRIKE_SIGNS` `fishingView.ts`:ssä, ylhäältä
