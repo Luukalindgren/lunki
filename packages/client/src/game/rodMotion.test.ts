@@ -91,6 +91,48 @@ describe('vavan liike', () => {
     expect(Math.max(...bends.slice(10)) - Math.min(...bends.slice(10))).toBeGreaterThan(0.1);
   });
 
+  it('onkivapa taipuu kevyelläkin kalalla, nostettuna eniten (#800)', () => {
+    const pole = { ...DEFAULT_TACKLE, method: 'pole' as const };
+    expect(loadBend(0.3, pole)).toBeGreaterThan(2 * loadBend(0.3, DEFAULT_TACKLE));
+    expect(loadBend(100, pole)).toBeLessThanOrEqual(ROD_MOTION.pole.maxBend);
+    const fight = {
+      ...createFishing(),
+      tackle: pole,
+      stage: 'water' as const,
+      hookedId: 7,
+      tension: 0.3,
+    };
+    const low = run(new OwnRodMotion(), fight, 1).last;
+    const high = run(new OwnRodMotion(), { ...fight, liftWas: true }, 1).last;
+    expect(low.bend).toBeGreaterThan(1);
+    expect(high.bend).toBeGreaterThan(low.bend);
+    expect(high.lift).toBeGreaterThan(low.lift);
+  });
+
+  it('onkivavan kärki nyökkää kalan syöksyssä ja rauhoittuu (#800)', () => {
+    const pole = { ...DEFAULT_TACKLE, method: 'pole' as const };
+    const s = {
+      ...createFishing(),
+      tackle: pole,
+      stage: 'water' as const,
+      hookedId: 7,
+      tension: 0.1,
+    };
+    const m = new OwnRodMotion();
+    const calm = () => {
+      const b: number[] = [];
+      for (let i = 0; i < 20; i++) b.push(m.pose(s, DT).bend);
+      return Math.max(...b) - Math.min(...b);
+    };
+    run(m, s, 2);
+    const still = calm();
+    s.tension = 0.4; // syöksy
+    const lunge = calm();
+    run(m, s, 2);
+    expect(lunge).toBeGreaterThan(still + 0.2);
+    expect(calm()).toBeLessThan(0.05);
+  });
+
   it('jousi pysyy vakaana hitaallakin ruudunpäivityksellä', () => {
     const m = new RodMotion();
     m.pulse(0.6, 0.12);
