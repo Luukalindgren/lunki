@@ -148,6 +148,18 @@ describe('veden pinnan merkit modernissa ilmeessä (#650)', () => {
     const box = bob.geometry.boundingBox!;
     expect(box.max.y - box.min.y).toBeCloseTo(1, 1);
     expect(box.max.x - box.min.x).toBeLessThan(0.5);
+    // Kyljellään (#799): akseli siiman suuntaan, keskikohta kuvan paikalla.
+    group.userData.lie = 0;
+    sprite.center.set(0.5, 0.5);
+    marks.update(camera);
+    const axis = new THREE.Vector3(0, 1, 0).applyEuler(bob.rotation);
+    expect(axis.x).toBeCloseTo(1);
+    expect(axis.y).toBeCloseTo(0);
+    expect(bob.position.x).toBeCloseTo(-height * 0.5);
+    expect(bob.position.y).toBeCloseTo(0.02);
+    group.userData.lie = null;
+    marks.update(camera);
+    expect(bob.rotation.z).toBe(0);
     marks.dispose();
     expect(group.children.some((c) => c.name === 'modern-mark')).toBe(false);
     expect(sprite.visible).toBe(true);

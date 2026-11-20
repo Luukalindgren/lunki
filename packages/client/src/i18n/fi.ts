@@ -930,6 +930,7 @@ export const fi = {
   'lureSonar.snag': 'Pohjassa kiinni!',
   'lureSonar.fouled': 'Rikkaa vieheessä',
   // Sitovat välilyönnit: kapealla ruudulla rivi katkeaa vain kauttaviivan jälkeen.
+  'lureSonar.baitDepth': 'Syötti\u00a0{lure}\u00a0/ pohja\u00a0{bottom}\u00a0m',
   'lureSonar.depth': 'Viehe\u00a0{lure}\u00a0/ pohja\u00a0{bottom}\u00a0m',
 
   // --- Kosketusohjaimet ---
@@ -1123,6 +1124,7 @@ export const fi = {
   'game.line': 'Siimaa {m} m',
   'game.drag': 'Jarru {kg} kg · kela {gear}',
   'game.fastGear': 'pika',
+  'game.baitDepth': 'Syötti {m} m',
   'game.lureDepth': 'Viehe {m} m',
   'game.bottom': 'Pohja {m} m',
   'game.catches': 'Saalis {n} kpl  {total}',

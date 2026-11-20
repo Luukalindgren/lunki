@@ -925,6 +925,7 @@ export const en: Record<keyof typeof fi, string> = {
   'lureSonar.bite': 'BITE!',
   'lureSonar.snag': 'Snagged on the bottom!',
   'lureSonar.fouled': 'Weed on the lure',
+  'lureSonar.baitDepth': 'Bait\u00a0{lure}\u00a0/ bottom\u00a0{bottom}\u00a0m',
   'lureSonar.depth': 'Lure\u00a0{lure}\u00a0/ bottom\u00a0{bottom}\u00a0m',
 
   // --- Touch controls ---
@@ -1118,6 +1119,7 @@ export const en: Record<keyof typeof fi, string> = {
   'game.line': 'Line out {m} m',
   'game.drag': 'Drag {kg} kg · reel {gear}',
   'game.fastGear': 'fast',
+  'game.baitDepth': 'Bait {m} m',
   'game.lureDepth': 'Lure {m} m',
   'game.bottom': 'Bottom {m} m',
   'game.catches': 'Catch {n} pcs  {total}',

@@ -69,6 +69,8 @@ export interface LureSonarFrame {
    * näykintä, jossa vastaisku on vielä liian aikaisin. Puuttuva = kelaa.
    */
   biteAction?: BiteAction;
+  /** Ongella (#570) vieheen paikalla on syötti (#799). */
+  bait?: boolean;
   /** Kala on kiinni. */
   hooked: boolean;
   /** Viehe on tarttunut pohjaan. */
@@ -414,7 +416,10 @@ function labelFor(frame: LureSonarFrame, bottom: number, blink: number): string 
   }
   if (frame.snag) return t('lureSonar.snag');
   if (frame.fouled) return t('lureSonar.fouled');
-  return t('lureSonar.depth', { lure: decimal(frame.depth, 1), bottom: decimal(bottom, 1) });
+  return t(frame.bait ? 'lureSonar.baitDepth' : 'lureSonar.depth', {
+    lure: decimal(frame.depth, 1),
+    bottom: decimal(bottom, 1),
+  });
 }
 
 const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;

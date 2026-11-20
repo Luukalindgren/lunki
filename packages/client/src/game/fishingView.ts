@@ -353,7 +353,9 @@ export class FishingView {
 
   /**
    * Koho (#570): levossa pinnalla, näykinnässä nytkähtäen, viennissä ja
-   * väsytyksessä pinnan alla kalan mukana.
+   * väsytyksessä pinnan alla kalan mukana. Kun syötti ei ole säädetyssä
+   * syvyydessä (paino pohjassa tai vasta vajoamassa), koho makaa kyljellään
+   * siiman suuntaisena (#799).
    */
   private updateFloat(s: FishingState, height: number, tip: Vec2): void {
     const run = s.bite?.phase === 'run';
@@ -372,6 +374,10 @@ export class FishingView {
       pixel: this.pov ? this.povPixel : this.metersPerPixel,
       dip,
       pull: run ? { px: FLOAT_MARKER.runPx, dir: { x: dx / len, y: dy / len } } : undefined,
+      lie:
+        s.stage === 'water' && s.tackle.floatDepth - s.depth > FLOAT_MARKER.lieGap
+          ? { x: dx / len, y: dy / len }
+          : undefined,
     });
   }
 
