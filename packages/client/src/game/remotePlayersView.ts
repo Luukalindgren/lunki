@@ -317,7 +317,8 @@ export class RemotePlayersView {
     const fish = p.lure!;
     const pose = e.fight.update(fish, dt);
     // Vapa pystyssä ja taipuneena kalaa kohti; nykiminen näkyy taipumassa.
-    const bend = ROD_MOTION.maxBend.spin * Math.min(1, pose.bend + pose.jerk * 4);
+    const max = e.pole ? ROD_MOTION.pole.maxBend : ROD_MOTION.maxBend.spin;
+    const bend = max * Math.min(1, pose.bend + pose.jerk * 4);
     e.pose = { ...e.rod.step(ROD_MOTION.fight, bend, dt), pull: { ...fish, depth: 1 } };
     const w = eyes ?? aimRod(e.tube, e.pose, this.tip);
     const pts = hangLine([{ x: w.x, y: -w.z }, fish], w.y, 1, 0.05);

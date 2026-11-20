@@ -4,6 +4,7 @@ import {
   RODS,
   chargePower,
   isFly,
+  isPole,
   type FishingEvents,
   type FishingState,
   type Tackle,
@@ -68,6 +69,23 @@ export const ROD_MOTION = {
   /** Raskaan tärpin (iso kala, #402) nykäysten kerroin: vapa painuu syvemmälle. */
   strikeBigNod: 1.6,
   strikeRate: 10,
+  /**
+   * Onkivapa (#800): viisimetrinen ja pehmeä, joten se taipuu kevyelläkin
+   * kalalla kaarelle (`load` kg ≈ 63 % suurimmasta). NOSTA pohjassa vapa on
+   * pystympänä (`liftBase`) ja kaartuu vielä `liftBend` enemmän. Kalan syöksy
+   * (jännityksen nousu) nyökäyttää kärkeä: `nodPerKg` rad nousukiloa kohden,
+   * enintään `nodMax`, vaimenee `nodDecay` 1/s ja nykii `nodRate` rad/s.
+   */
+  pole: {
+    load: 0.3,
+    maxBend: 2.2,
+    liftBase: 0.6,
+    liftBend: 0.4,
+    nodPerKg: 2.5,
+    nodMax: 0.6,
+    nodDecay: 5,
+    nodRate: 24,
+  },
 } as const;
 
 /** Tärpin nykäys (s iskusta) 0–1: kala vetää noin kolme kertaa sekunnissa. */
@@ -90,6 +108,8 @@ export function strikeTaut(age: number): number {
 
 /** Siiman jännitystä (kg) vastaava taipuma (rad) näillä varusteilla. */
 export function loadBend(tension: number, tackle: Tackle): number {
+  if (isPole(tackle))
+    return ROD_MOTION.pole.maxBend * (1 - Math.exp(-Math.max(0, tension) / ROD_MOTION.pole.load));
   const fly = isFly(tackle);
   const load = fly
     ? ROD_MOTION.load[FLY_RODS[tackle.flyRod].id]
@@ -156,6 +176,8 @@ export class RodMotion {
  */
 export class OwnRodMotion {
   private readonly motion = new RodMotion();
+  /** Onkivavan kärjen nyökkäys kalan syöksyistä (#800). */
+  private readonly nod = new PoleNod();
 
   onEvents(events: FishingEvents, s: FishingState, rodLift = false): void {
     const m = ROD_MOTION;
@@ -165,6 +187,7 @@ export class OwnRodMotion {
     if (events.cast !== undefined && !isFly(s.tackle))
       this.motion.pulse(m.castThrow.lift, m.castThrow.time);
     if (events.landed) this.motion.pulse(m.landed[events.landed.by], 0.35);
+    if (events.lunged && isPole(s.tackle)) this.nod.kick(m.pole.nodMax);
   }
 
   pose(s: FishingState, dt: number): RodPose {
@@ -173,7 +196,8 @@ export class OwnRodMotion {
     if (s.stage === 'charging') base = m.castBack * chargePower(s.charge);
     else if (s.stage === 'water') {
       if (s.landing) base = m.landing;
-      else if (s.hookedId !== null) base = m.fight;
+      else if (s.hookedId !== null)
+        base = isPole(s.tackle) && s.liftWas ? m.pole.liftBase : m.fight;
       else if ((s.snag !== null || s.onLand) && s.tension > 0) base = m.pullStuck;
     }
     const water = s.stage === 'water';
@@ -181,7 +205,13 @@ export class OwnRodMotion {
     const strike = water && s.struckId !== null && s.hookedId === null;
     const heavy = s.strikeBig ? ROD_MOTION.strikeBigNod : 1;
     const nod = strike ? ROD_MOTION.strikeNod * heavy * strikeTaut(s.strikeAge) : 0;
-    const bend = water ? loadBend(s.tension, s.tackle) + nod : 0;
+    let bend = water ? loadBend(s.tension, s.tackle) + nod : 0;
+    if (water && isPole(s.tackle)) {
+      const fighting = s.hookedId !== null;
+      const lifted =
+        fighting && s.liftWas ? m.pole.liftBend * Math.min(1, s.tension / m.pole.load) : 0;
+      bend += lifted + this.nod.step(fighting ? s.tension : 0, dt);
+    } else this.nod.reset();
     const shake = water && s.dragSlipping ? m.slipShake : 0;
     return {
       ...this.motion.step(base, bend, dt, shake),
@@ -191,6 +221,35 @@ export class OwnRodMotion {
 
   reset(): void {
     this.motion.reset();
+    this.nod.reset();
+  }
+}
+
+/**
+ * Onkivavan kärjen nyökkäys (#800): kalan syöksy ja päänravistus nostavat
+ * siiman jännitystä hetkessä (sama kuorma, josta värinä tulee), ja kärki
+ * nykii sen tahdissa ja rauhoittuu. Palauttaa lisätaipuman (rad).
+ */
+export class PoleNod {
+  private last = 0;
+  private amount = 0;
+  private time = 0;
+
+  kick(amount: number): void {
+    this.amount = Math.max(this.amount, amount);
+  }
+
+  step(tension: number, dt: number): number {
+    const p = ROD_MOTION.pole;
+    this.time += dt;
+    const rise = Math.max(0, tension - this.last);
+    this.last = tension;
+    this.amount = Math.min(p.nodMax, this.amount * Math.exp(-p.nodDecay * dt) + rise * p.nodPerKg);
+    return this.amount * Math.abs(Math.sin(this.time * p.nodRate));
+  }
+
+  reset(): void {
+    this.last = this.amount = 0;
   }
 }
 

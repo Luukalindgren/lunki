@@ -742,6 +742,9 @@ Koodi: `packages/client/src/audio/sounds.ts`.
   Kun syötti on pohjassa eikä kohon syvyydellä, koho makaa kyljellään siiman
   suuntaisena (#799, `FloatInput.lie`, mallille `userData.lie`) ja nousee tärpissä
   pystyyn. Vieheluotain ja tilarivi sanovat ongella "Syötti" eivätkä "Viehe".
+  Väsytyksessä onkivapa taipuu kevyelläkin kalalla kaarelle, NOSTA pohjassa
+  pystympänä ja eniten, ja kalan syöksy (jännityksen nousu, sama kuorma kuin
+  värinässä) nyökäyttää kärkeä (#800, `ROD_MOTION.pole`, `PoleNod` `game/rodMotion.ts`:ssä).
 - Tärppi näkyy merkissä kaikilla tasoilla (#440): timantti nykii siiman
   nykäysten tahdissa (`strikeTug`, silmin pinnan alle), ja jokainen nykäys
   nostaa renkaan (`STRIKE_SIGNS` `fishingView.ts`:ssä, ylhäältä
