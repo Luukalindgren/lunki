@@ -8,7 +8,7 @@ import {
   isPole,
   predictLanding,
   tackleCastFactor,
-  tackleTip,
+  fishingTip,
   type Fish,
   type FishingContext,
   type FishingEvents,
@@ -208,7 +208,8 @@ export class FishingView {
       this.fishShadow.rotation.z = hooked.heading;
     }
     const pole = isPole(s.tackle);
-    const tip = tackleTip(s.tackle, ctx.tubePos, ctx.heading);
+    // Ongen väsytyksessä siima lähtee pystyyn nostetun vavan kärjestä (#805).
+    const tip = fishingTip(s, ctx.tubePos, ctx.heading);
     // Piirretty kärki on oikeassa kädessä pidetyn vavan päässä; vavan liike
     // (`rodEnd`, nosto ja taipuma) siirtää sitä, ja siima lähtee siitä.
     const side = rodSideOffset(ctx.heading);

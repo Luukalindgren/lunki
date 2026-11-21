@@ -5,6 +5,7 @@ import {
   chargePower,
   isFly,
   isPole,
+  poleUpright,
   type FishingEvents,
   type FishingState,
   type Tackle,
@@ -85,6 +86,11 @@ export const ROD_MOTION = {
     nodMax: 0.6,
     nodDecay: 5,
     nodRate: 24,
+    /**
+     * Lyhyellä siimalla (`poleUpright`, #805) vapa on pystyssä: nosto (rad),
+     * jolla kärki on suunnilleen virvelin kärjen kohdalla kuten fysiikassa.
+     */
+    uprightLift: 0.7,
   },
 } as const;
 
@@ -199,6 +205,8 @@ export class OwnRodMotion {
       else if (s.hookedId !== null)
         base = isPole(s.tackle) && s.liftWas ? m.pole.liftBase : m.fight;
       else if ((s.snag !== null || s.onLand) && s.tension > 0) base = m.pullStuck;
+      // Onkivapa on väsytyksen lopussa ja nostossa pystyssä kuten fysiikassa (#805).
+      base = Math.max(base, m.pole.uprightLift * poleUpright(s));
     }
     const water = s.stage === 'water';
     // Tärpissä kala nykii viehettä: kärki nyökkää siiman nykäysten tahdissa.

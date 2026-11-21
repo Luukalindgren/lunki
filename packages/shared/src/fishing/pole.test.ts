@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { Rng } from '../rng';
 import { distance } from '../vec2';
-import { tackleTip } from './cast';
+import { CAST, tackleTip } from './cast';
 import { DIFFICULTIES, type Difficulty } from './difficulty';
 import { SPECIES, lureAppeal, spawnFish, type FishPopulation, type LureInfo } from './fish';
 import {
+  FIGHT,
   createFishing,
+  fishingTip,
   lureInfo,
+  poleUpright,
   stepFishing,
   type FishingContext,
   type FishingEvents,
@@ -162,6 +165,42 @@ describe('ongen tärppi ja väsytys', () => {
     }
     expect(hooked).toBeGreaterThan(10);
     expect(landed).toBeGreaterThan(hooked * 0.7);
+  });
+
+  it('pystyyn nostettu vapa tuo kalan nostettavaksi renkaan eteen kuten virvelillä (#805)', () => {
+    let surfaced = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+      const { s, c } = bite(seed);
+      waitRun(s, c);
+      if (!stepFishing(s, { ...idle, reel: true }, c, DT).hooked) continue;
+      for (let t = 0; t < 60 && s.landing === null && s.hookedId !== null; t += DT)
+        stepFishing(s, { ...idle, reel: true }, c, DT);
+      if (!s.landing) continue;
+      surfaced++;
+      // Kala on pinnassa virvelin nostomatkalla kalastajasta, ei vavan kärjen alla.
+      expect(distance(s.lure, ctx.tubePos)).toBeLessThanOrEqual(
+        CAST.rodReach + FIGHT.landDistance + 1e-6,
+      );
+      // Nostossa vapa nousee pystyyn, ja siima lähtee renkaan edestä.
+      run(s, POLE.raiseTime, idle, c);
+      if (!s.landing) continue;
+      expect(poleUpright(s)).toBe(1);
+      expect(distance(fishingTip(s, ctx.tubePos, ctx.heading), ctx.tubePos)).toBeCloseTo(
+        CAST.rodReach,
+      );
+      expect(distance(s.lure, ctx.tubePos)).toBeLessThanOrEqual(
+        CAST.rodReach + s.lineLength + 1e-6,
+      );
+    }
+    expect(surfaced).toBeGreaterThan(10);
+  });
+
+  it('ilman kalaa ja pitkällä siimalla onkivapa on laskettuna', () => {
+    const s = cast();
+    expect(poleUpright(s)).toBe(0);
+    expect(fishingTip(s, ctx.tubePos, ctx.heading)).toEqual(
+      tackleTip(s.tackle, ctx.tubePos, ctx.heading),
+    );
   });
 
   it('ilman vastaiskua kala sylkee syötin', () => {
