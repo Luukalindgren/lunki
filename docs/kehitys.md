@@ -745,6 +745,10 @@ Koodi: `packages/client/src/audio/sounds.ts`.
   Väsytyksessä onkivapa taipuu kevyelläkin kalalla kaarelle, NOSTA pohjassa
   pystympänä ja eniten, ja kalan syöksy (jännityksen nousu, sama kuorma kuin
   värinässä) nyökäyttää kärkeä (#800, `ROD_MOTION.pole`, `PoleNod` `game/rodMotion.ts`:ssä).
+  Väsytyksen lopussa lyhyellä siimalla NOSTA nostaa vavan pystyyn (`FishingState.poleLift`,
+  `POLE.uprightLine`), jolloin kärki ja kala tulevat virvelin kärjen kohdalle: kala pintautuu
+  ja nostetaan renkaan edestä kuten virvelillä (#805, `poleFightTip`). Siima piirretään
+  samasta kärjestä (`fishingTip`), ja vapa on pystyssä myös kuvassa (`poleUpright`).
 - Tärppi näkyy merkissä kaikilla tasoilla (#440): timantti nykii siiman
   nykäysten tahdissa (`strikeTug`, silmin pinnan alle), ja jokainen nykäys
   nostaa renkaan (`STRIKE_SIGNS` `fishingView.ts`:ssä, ylhäältä

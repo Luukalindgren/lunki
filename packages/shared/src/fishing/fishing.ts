@@ -39,7 +39,9 @@ import { createLine, stepLine, straightenLine, type VerletLine } from './line';
 import {
   chargePower,
   clampCastAngle,
+  CAST,
   launchLure,
+  rodTip,
   stepFlight,
   tackleTip,
   type LureFlight,
@@ -162,6 +164,8 @@ export interface FishingState {
   bite: PoleBite | null;
   /** Onki: NOSTA oli pohjassa edellisellä askeleella (painalluksen tunnistus). */
   liftWas: boolean;
+  /** Onki (#805): kuinka pystyyn vapa on nostettu väsytyksessä, 0–1. */
+  poleLift: number;
 }
 
 /** Ongen tärppi (#570): kala näykkii syöttiä ja lähtee sitten viemään kohoa. */
@@ -273,6 +277,7 @@ export const createFishing = (tackle: Tackle = DEFAULT_TACKLE): FishingState => 
   landCooldown: 0,
   bite: null,
   liftWas: false,
+  poleLift: 0,
 });
 
 /** Kalan tunniste kalakannassa: paikka (indeksi) ja sukupolvi. */
@@ -452,7 +457,10 @@ export const LANDING = {
 } as const;
 
 export const FIGHT = {
-  /** Kala nostetaan, kun se on näin lähellä vavan kärkeä ja pinnassa. */
+  /**
+   * Kala nostetaan, kun se on näin lähellä nostopaikkaa ja pinnassa: virvelin
+   * kärkeä, ongella samaa kohtaa renkaan edessä (#805).
+   */
   landDistance: 2.2,
   landDepth: 1,
   /** Kalan vastus vedettäessä: kg per kg kalaa ja per (m/s)². */
@@ -1034,6 +1042,7 @@ export function resetFishing(s: FishingState, fish?: { pop: FishPopulation; rng:
   s.landing = null;
   s.landCooldown = 0;
   s.bite = null;
+  s.poleLift = 0;
 }
 
 /**
@@ -1122,6 +1131,33 @@ function missFish(f: FishPopulation['fish'][number], rng: Rng, events: FishingEv
 }
 
 /**
+ * Kuinka pystyssä onkivapa on väsytyksessä 0–1 (#805), pehmeästi tasattuna.
+ * Ilman kalaa vapa on laskettuna.
+ */
+export function poleUpright(s: FishingState): number {
+  if (!isPole(s.tackle) || s.hookedId === null || s.stage !== 'water') return 0;
+  const c = Math.max(0, Math.min(1, s.poleLift));
+  return c * c * (3 - 2 * c);
+}
+
+/**
+ * Ongen kärki väsytyksessä (#805): pystyyn nostetun vavan kärki on lähempänä
+ * kalastajaa, pystyssä virvelin kärjen kohdalla. Kala vedetään ja nostetaan
+ * tästä kärjestä, joten se pintautuu renkaan edessä kuten virvelillä.
+ */
+export function poleFightTip(s: FishingState, tubePos: Vec2, heading: number): Vec2 {
+  const reach = POLE.reach + (CAST.rodReach - POLE.reach) * poleUpright(s);
+  return rodTip(tubePos, heading, reach);
+}
+
+/** Vavan kärki, josta siima lähtee: ongen väsytyksessä nostetun vavan kärki. */
+export function fishingTip(s: FishingState, tubePos: Vec2, heading: number): Vec2 {
+  return poleUpright(s) > 0
+    ? poleFightTip(s, tubePos, heading)
+    : tackleTip(s.tackle, tubePos, heading);
+}
+
+/**
  * Onki (#570) vedessä. Koho pitää syötin säädetyssä syvyydessä (tai pohjalla,
  * jos pohja on matalammalla), eikä siimaa kelata: NOSTA-painallus on
  * vastaisku viennin aikana, ja muulloin se nostaa kohon vedestä. Väsytyksessä
@@ -1153,13 +1189,25 @@ function stepPole(
   }
   const hooked =
     s.hookedId !== null && fish ? fish.pop.fish.find((f) => f.id === s.hookedId) : undefined;
+  if (!hooked) s.poleLift = 0;
   if (hooked && fish) {
     if (held) s.lineLength = Math.max(FIGHT.minLine, s.lineLength - POLE.liftSpeed * dt);
     const hold = held || s.lineLength >= POLE.line ? Infinity : POLE.giveForce;
-    fight(s, hooked, tip, ctx, fish, events, dt, hold, input.land === true);
+    // Väsytyksen lopussa (lyhyt siima) NOSTA pohjassa vapa nousee pystyyn ja
+    // tuo kärjen ja kalan renkaan eteen; laskettu vapa vie kärjen takaisin.
+    // Pinnassa odottavaa kalaa nostettaessa vapa on pystyssä (#805).
+    const lifting = held && s.lineLength <= POLE.uprightLine;
+    const raise = s.landing || lifting ? 1 : held ? 0 : -1;
+    s.poleLift = Math.max(0, Math.min(1, s.poleLift + (raise * dt) / POLE.raiseTime));
+    const near = poleFightTip(s, ctx.tubePos, ctx.heading);
+    // Kala pintautuu renkaan edessä kuten virvelillä, ei kaukaisen kärjen alla,
+    // ja nostossa pystyyn nouseva vapa tuo sen siiman mitan päähän kärjestä.
+    const landAt = s.landing ? near : rodTip(ctx.tubePos, ctx.heading);
+    const reach = s.landing ? Math.min(FIGHT.landDistance, s.lineLength) : FIGHT.landDistance;
+    fight(s, hooked, near, ctx, fish, events, dt, hold, input.land === true, landAt, reach);
     if (s.stage !== 'water') return;
     s.lineLength = Math.min(s.lineLength, POLE.line);
-    stepLine(s.line, tip, s.lure, s.lineLength, dt, { x: 0.15, y: 0.1 });
+    stepLine(s.line, near, s.lure, s.lineLength, dt, { x: 0.15, y: 0.1 });
     return;
   }
   if (fish && s.struckId === null && fish.strike !== undefined) {
@@ -1274,11 +1322,15 @@ function fight(
   dt: number,
   hold: number,
   land: boolean,
+  /** Nostopaikka: kala nostetaan, kun se on tämän lähellä (oletuksena kärki). */
+  landAt: Vec2 = tip,
+  /** Nostossa kala pysyy näin lähellä nostopaikkaa (m). */
+  landReach: number = FIGHT.landDistance,
 ): void {
   const { diff, rng } = fish;
   const world = { isWater: ctx.isWater, depthAt: ctx.depthAt };
   if (s.landing) {
-    stepLanding(s, f, tip, fish, world, events, dt, land);
+    stepLanding(s, f, landAt, fish, world, events, dt, land, landReach);
     return;
   }
   s.landCooldown = Math.max(0, s.landCooldown - dt);
@@ -1357,7 +1409,7 @@ function fight(
   }
 
   if (
-    distance(f.pos, tip) <= FIGHT.landDistance &&
+    distance(f.pos, landAt) <= FIGHT.landDistance &&
     f.depth <= FIGHT.landDepth &&
     s.landCooldown === 0
   ) {
@@ -1405,16 +1457,17 @@ function stepLanding(
   events: FishingEvents,
   dt: number,
   land: boolean,
+  reach: number = FIGHT.landDistance,
 ): void {
   const l = s.landing!;
   const { diff, rng, pop } = fish;
   l.age += dt;
   // Kala pysyy pinnassa kärjen ulottuvilla, vaikka rengas liikkuu.
   const d = distance(f.pos, tip);
-  if (d > FIGHT.landDistance)
+  if (d > reach)
     f.pos = {
-      x: tip.x + ((f.pos.x - tip.x) / d) * FIGHT.landDistance,
-      y: tip.y + ((f.pos.y - tip.y) / d) * FIGHT.landDistance,
+      x: tip.x + ((f.pos.x - tip.x) / d) * reach,
+      y: tip.y + ((f.pos.y - tip.y) / d) * reach,
     };
   f.depth = 0;
   f.slack = 0;

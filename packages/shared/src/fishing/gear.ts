@@ -476,6 +476,14 @@ export const POLE = {
   /** Vapaa nostettaessa siima lyhenee kärjen ja kalan välillä (m/s). */
   liftSpeed: 0.7,
   /**
+   * Väsytyksen loppu (#805): kun siimaa on kärjestä tätä vähemmän (m), NOSTA
+   * pohjassa vapa nousee pystyyn `raiseTime` sekunnissa ja kärki tulee
+   * kalastajaa kohti virvelin kärjen kohdalle. Näin kala nostetaan renkaan
+   * edestä eikä neljän metrin päästä. NOSTA irti vapa laskeutuu yhtä nopeasti.
+   */
+  uprightLine: 3,
+  raiseTime: 2.5,
+  /**
    * Laskettu vapa antaa kalan vetää näin kevyesti (kg), kunnes koko siima on
    * ulkona; sen jälkeen veto on vavan ja siiman varassa.
    */
