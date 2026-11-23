@@ -315,11 +315,13 @@ export class RemotePlayersView {
    */
   private drawFight(e: Entry, p: RemotePlayer, dt: number, eyes?: THREE.Vector3): THREE.Vector3 {
     const fish = p.lure!;
-    const pose = e.fight.update(fish, dt);
+    const pose = e.fight.update(fish, dt, e.pole ? p.pos : undefined);
     // Vapa pystyssä ja taipuneena kalaa kohti; nykiminen näkyy taipumassa.
-    const max = e.pole ? ROD_MOTION.pole.maxBend : ROD_MOTION.maxBend.spin;
+    // Onkivapa nousee väsytyksen lopussa pystyyn kuten omassa kuvassa (#811).
+    const max = e.pole ? REMOTE_FIGHT.poleBend : ROD_MOTION.maxBend.spin;
     const bend = max * Math.min(1, pose.bend + pose.jerk * 4);
-    e.pose = { ...e.rod.step(ROD_MOTION.fight, bend, dt), pull: { ...fish, depth: 1 } };
+    const lift = Math.max(ROD_MOTION.fight, ROD_MOTION.pole.uprightLift * pose.upright);
+    e.pose = { ...e.rod.step(lift, bend, dt), pull: { ...fish, depth: 1 } };
     const w = eyes ?? aimRod(e.tube, e.pose, this.tip);
     const pts = hangLine([{ x: w.x, y: -w.z }, fish], w.y, 1, 0.05);
     const pos = e.line.geometry.attributes.position as THREE.BufferAttribute;

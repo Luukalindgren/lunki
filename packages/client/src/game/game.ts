@@ -26,6 +26,8 @@ import {
   fishConditions,
   lerpAngle,
   rodTip,
+  CAST,
+  POLE,
   ChatLimiter,
   EMOTE_DURATION,
   EMOTE_RATE,
@@ -1012,7 +1014,8 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     }
     this.povTubeTime = now;
     const side = rodSideOffset(heading);
-    const tip = rodTip(pos, heading);
+    // Onkijalla on pitkä vapa kuten omassa kuvassa (#811).
+    const tip = rodTip(pos, heading, o.pole === true ? POLE.reach : CAST.rodReach);
     tip.x += side.x;
     tip.y += side.y;
     const length = o.lure ? distance(pos, o.lure) : 0;
@@ -1035,7 +1038,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       state,
       cranking,
       o.appearance.line,
-      { fly: o.fly === true, pose },
+      { fly: o.fly === true, pole: o.pole === true, pose },
     );
     remote.firstPerson = { id: o.id, tip: toWorld(end, end.h) };
   }

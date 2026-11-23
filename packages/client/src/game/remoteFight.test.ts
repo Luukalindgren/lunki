@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { REMOTE_FIGHT, RemoteFight } from './remoteFight';
+import { CAST, POLE } from '@lunki/shared';
+import { REMOTE_FIGHT, RemoteFight, poleUprightAt } from './remoteFight';
 import { ROD_BUTT, aimRod, createTubeMesh } from './tubeMesh';
 
 describe('toisen väsytys näkyy (#368)', () => {
@@ -54,5 +55,36 @@ describe('toisen väsytys näkyy (#368)', () => {
     expect(bent.z).toBeLessThan(rest.z);
     // Kuorma painaa kärkeä alas kalaa kohti.
     expect(bent.y).toBeLessThan(lifted.y - 0.3);
+  });
+});
+
+describe('muiden onkivapa väsytyksessä (#811)', () => {
+  it('nousee pystyyn, kun kala on tullut virvelin kärjen kohdalle', () => {
+    expect(poleUprightAt(POLE.reach + 2)).toBe(0);
+    expect(poleUprightAt(POLE.reach)).toBe(0);
+    expect(poleUprightAt(CAST.rodReach)).toBe(1);
+    expect(poleUprightAt((POLE.reach + CAST.rodReach) / 2)).toBeCloseTo(0.5);
+  });
+
+  it('nousee pehmeästi eikä hyppää', () => {
+    const fight = new RemoteFight(() => 1);
+    const angler = { x: 0, y: 0 };
+    expect(fight.update({ x: POLE.reach + 1, y: 0 }, 1 / 60, angler).upright).toBe(0);
+    const first = fight.update({ x: CAST.rodReach, y: 0 }, 1 / 60, angler).upright;
+    expect(first).toBeGreaterThan(0);
+    expect(first).toBeLessThan(0.1);
+    let up = first;
+    for (let i = 0; i < 300; i++)
+      up = fight.update({ x: CAST.rodReach, y: 0 }, 1 / 60, angler).upright;
+    expect(up).toBeGreaterThan(0.99);
+  });
+
+  it('virvelillä (ilman kalastajan paikkaa) vapa ei nouse', () => {
+    const fight = new RemoteFight(() => 1);
+    expect(fight.update({ x: 1, y: 0 }, 1 / 60).upright).toBe(0);
+  });
+
+  it('onkivapa taipuu vähemmän kuin vavan suurin taipuma', () => {
+    expect(REMOTE_FIGHT.poleBend).toBeLessThan(Math.PI / 2);
   });
 });
