@@ -112,7 +112,7 @@ export class LandingView {
    * `heading` kalastajan paikka ja katse.
    */
   update(
-    surfaced: Fish | null,
+    surfaced: Pick<Fish, 'species' | 'weight' | 'pos' | 'heading'> | null,
     net: boolean,
     tip: THREE.Vector3,
     tube: Vec2,

@@ -589,6 +589,10 @@ export class FishingController {
     if (events.surfaced) {
       sounds.play('surfaced');
       host.fishingView.startSplash(host.fishing.lure, 0.6);
+      // Muut piirtävät saman kalan pintaan ja nostoon (#813).
+      const f = host.fishing.hookedId;
+      const fish = f !== null ? host.fish.fish.find((x) => x.id === f) : undefined;
+      if (fish) host.netWorld?.sendSurfaced({ species: fish.species, weight: fish.weight });
     }
     if (events.lunged) {
       sounds.play('lunged');

@@ -199,7 +199,15 @@ export class SoloBots {
           b.outUntil = now + (host.settings.landPenalty ?? 30);
           a.reset();
         }
-        if (ev.caught) this.caught(b, ev.caught);
+        if (ev.surfaced && hooked) {
+          // Pintaan noussut kala näkyy kuten moninpelissä (#813).
+          const at = this.remoteView.surface(b.id, hooked);
+          if (at) host.sounds.playAt('surfaced', at);
+        }
+        if (ev.caught) {
+          this.remoteView.land(b.id, ev.caught.species, ev.caught.weight, ev.landed?.at);
+          this.caught(b, ev.caught);
+        }
         if (out.emote) {
           this.remoteView.showEmote(b.id, out.emote);
           host.speakAt(out.emote, b.id, b.tube.pos);

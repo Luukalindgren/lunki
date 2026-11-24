@@ -48,6 +48,8 @@ import {
   type ChatMessage,
   type EmoteId,
   type EmoteMessage,
+  type SurfacedFish,
+  type SurfacedMessage,
   type Vec2,
   type WaterBody,
   type AnchorState,
@@ -310,6 +312,8 @@ export class NetWorld {
   private seenCatches = 0;
   /** Toisen pelaajan käsimerkki ja chat-viesti puhekuplaksi. */
   onEmote: ((msg: EmoteMessage) => void) | null = null;
+  /** Toisen pelaajan kala nousi pintaan (#813). */
+  onSurfaced: ((msg: SurfacedMessage) => void) | null = null;
   onChatBubble: ((msg: ChatMessage) => void) | null = null;
   /** Uusi punnittu saalis kisan aikana ja saajan paikka (tulossivun karttaan, tunnisteena nimi). */
   onCatchSeen: ((mark: RaceCatchMark, own: boolean, player: string) => void) | null = null;
@@ -341,7 +345,13 @@ export class NetWorld {
     session.onUntangled = (m) => this.onUntangled?.(m);
     session.onRecord = (m) => this.onRecord?.(m);
     session.onEmote = (m) => this.onEmote?.(m);
+    session.onSurfaced = (m) => this.onSurfaced?.(m);
     session.onChatBubble = (m) => this.onChatBubble?.(m);
+  }
+
+  /** Oma kala nousi pintaan: muut piirtävät sen (#813). */
+  sendSurfaced(fish: SurfacedFish): void {
+    this.session.sendSurfaced(fish);
   }
 
   sendEmote(emote: EmoteId): void {
@@ -871,6 +881,7 @@ export class NetWorld {
     this.session.onUntangled = null;
     this.session.onRecord = null;
     this.session.onEmote = null;
+    this.session.onSurfaced = null;
     this.session.onChatBubble = null;
   }
 }

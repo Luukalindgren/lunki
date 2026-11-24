@@ -1,4 +1,4 @@
-import type { SpeciesId } from '../fishing/fish';
+import { isSpeciesId, type SpeciesId } from '../fishing/fish';
 import type { RaceStats } from '../game/raceStats';
 import { CONTROL_CHARS, INVISIBLE_CHARS } from './text';
 
@@ -13,7 +13,7 @@ export const ROOM_NAME = 'lunki';
  * uudelleen: asiakas ei lähetä vanhemmalle palvelimelle viestejä, joita se
  * ei tunne. Vanha palvelin ilman kenttää = 1.
  */
-export const PROTOCOL_VERSION = 17;
+export const PROTOCOL_VERSION = 18;
 /** Chat tuli versiossa 2. */
 export const CHAT_PROTOCOL = 2;
 /** Maalle juuttuneen vieheen siiman katkaisu (ClientMsg.landCut) tuli versiossa 3. */
@@ -84,6 +84,12 @@ export const WHITEFISH_PROTOCOL = 16;
  * asiakkaalle botit näkyvät tavallisina pelaajina.
  */
 export const BOT_PROTOCOL = 17;
+/**
+ * Pintaan noussut kala muille (#813): ClientMsg.surfaced ja ServerMsg.surfaced
+ * tulivat versiossa 18. Vanhan palvelimen kanssa muut näkevät vain siiman ja
+ * noston saaliin tullessa.
+ */
+export const SURFACED_PROTOCOL = 18;
 
 /** Oletuspelaajamäärä huoneessa. Rakenne sallii isomman. */
 export const DEFAULT_MAX_PLAYERS = 8;
@@ -238,6 +244,8 @@ export const ClientMsg = {
    * Vanha palvelin ohittaa viestin.
    */
   latency: 'latency',
+  /** Oma kala nousi pintaan nostettavaksi (SurfacedFish), muiden kuvaan (#813). */
+  surfaced: 'surfaced',
 } as const;
 
 /** Viive (ms), joka mahtuu tilan uint16-kenttään; suurempi näkyy tällä. */
@@ -301,7 +309,37 @@ export const ServerMsg = {
   emote: 'emote',
   /** Kisan tilastot tulossivulle: kaikki tähän mennessä saadut (RaceStatsMessage). */
   stats: 'stats',
+  /** Toisen pelaajan kala nousi pintaan (SurfacedMessage, #813). */
+  surfaced: 'surfaced',
 } as const;
+
+/** Pintaan noussut kala: laji ja paino, jotta muut piirtävät saman kalan (#813). */
+export interface SurfacedFish {
+  species: SpeciesId;
+  weight: number;
+}
+
+/** Palvelin välittää pintaan nousseen kalan muille. */
+export interface SurfacedMessage extends SurfacedFish {
+  /** Kalastajan sessionId (myös botin `bot:N`). */
+  from: string;
+}
+
+/** Suurin uskottava paino (kg) pintaan nousseelle kalalle. */
+const SURFACED_MAX_WEIGHT = 60;
+
+/** Kelpaako viesti pintaan nousseeksi kalaksi (laji tunnettu, paino järkevä). */
+export function isSurfacedFish(v: unknown): v is SurfacedFish {
+  if (!v || typeof v !== 'object') return false;
+  const m = v as Partial<SurfacedFish>;
+  return (
+    isSpeciesId(m.species) &&
+    typeof m.weight === 'number' &&
+    Number.isFinite(m.weight) &&
+    m.weight > 0 &&
+    m.weight <= SURFACED_MAX_WEIGHT
+  );
+}
 
 /** ServerMsg.stats: pelaajien tilastot sessionId:n mukaan. */
 export type RaceStatsMessage = Record<string, RaceStats>;

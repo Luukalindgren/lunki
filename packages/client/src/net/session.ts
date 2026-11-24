@@ -39,6 +39,10 @@ import {
   type ChatMessage,
   type EmoteId,
   type EmoteMessage,
+  type SurfacedFish,
+  type SurfacedMessage,
+  isSurfacedFish,
+  SURFACED_PROTOCOL,
   EMOTE_PROTOCOL,
   STATS_PROTOCOL,
   SPECIES,
@@ -448,6 +452,8 @@ export class NetSession {
   onChatBubble: ((msg: ChatMessage) => void) | null = null;
   /** Toisen pelaajan käsimerkki. */
   onEmote: ((msg: EmoteMessage) => void) | null = null;
+  /** Toisen pelaajan kala nousi pintaan (#813). */
+  onSurfaced: ((msg: SurfacedMessage) => void) | null = null;
   /** Viimeisimmät chat-viestit, vanhin ensin. */
   chat: ChatMessage[] = [];
   /** Päättyneen kisan tilastot sessionId:n mukaan (#367); uusi kisa tyhjentää. */
@@ -516,6 +522,9 @@ export class NetSession {
     room.onMessage(ServerMsg.chatRejected, () => this.onChatRejected?.());
     room.onMessage(ServerMsg.emote, (m: EmoteMessage) => {
       if (m && typeof m.from === 'string' && isEmoteId(m.emote)) this.onEmote?.(m);
+    });
+    room.onMessage(ServerMsg.surfaced, (m: SurfacedMessage) => {
+      if (m && typeof m.from === 'string' && isSurfacedFish(m)) this.onSurfaced?.(m);
     });
     // Yhteyden laatu aulaan (#575): oma viive palvelimelle muiden nähtäväksi.
     // Vain aulassa, ettei kisan liikenne kasva; vanha palvelin ei kerro viiveitä.
@@ -756,6 +765,12 @@ export class NetSession {
   /** Vanha palvelin ei välitä eleitä: ne näkyvät silloin vain omalla koneella. */
   sendEmote(emote: EmoteId): void {
     if (this.serverProtocol >= EMOTE_PROTOCOL) this.room.send(ClientMsg.emote, emote);
+  }
+
+  /** Oma kala pintaan muiden kuvaan (#813); vanha palvelin ei välitä sitä. */
+  sendSurfaced(fish: SurfacedFish): void {
+    if (this.serverProtocol >= SURFACED_PROTOCOL)
+      this.room.send(ClientMsg.surfaced, { species: fish.species, weight: fish.weight });
   }
 
   /** Omat tilastot muiden tulossivulle; vanha palvelin ei välitä niitä. */
