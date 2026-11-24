@@ -243,6 +243,12 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
   private followedLine = 0;
   /** Kenen värit katsojan silmin -renkaassa ovat. */
   private followedLook: string | null = null;
+  /**
+   * Pelin aika edellisestä piirrosta (s): piirrossa etenevät tehosteet
+   * (roiskeet, kohon nykintä, siiman kiristyminen) kulkevat pelin tahdissa
+   * eivätkä näytön virkistystaajuuden mukaan. Pysäytetyssä kisassa 0.
+   */
+  private viewDt = 0;
 
   constructor(
     readonly input: Input,
@@ -625,6 +631,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
   }
 
   update(dt: number): void {
+    this.viewDt += dt;
     const input = this.input;
     const c = this.controls;
     const net = this.net;
@@ -1371,10 +1378,11 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       this.fishing,
       this.angler.context(),
       this.angler.aim,
-      1 / 60,
+      this.viewDt,
       hooked,
       rodEnd,
     );
+    this.viewDt = 0;
     this.weather.shakeCamera(this.camera);
     this.birds.render(this.camera, lake, lake ? this.pov.pixelSize : this.view.metersPerPixel);
     // Täyttökisan vene rannalla (#458) lepää maan pinnalla.
