@@ -26,6 +26,7 @@ import { formatWeight, ordinal, t } from '../i18n';
 import { lengthText, speciesName } from '../i18n/names';
 import { KnotView } from './knotView';
 import { liftTime } from './landingView';
+import { anglerState } from './anglerState';
 import { tangleEnded, tangleStarted } from './tangleNotices';
 import type { RaceCatchMark, RaceLog } from './raceLog';
 import { RemotePlayersView } from './remotePlayersView';
@@ -327,6 +328,12 @@ export class NetBridge {
       this.order,
       timeLeft(this.host.competition),
     );
+  }
+
+  /** Seurattavan kalastustapa ja tilanne katsojan tilariville (#814); null = ei ketään. */
+  followedState(): string | null {
+    const p = this.followed ? this.world.others().find((o) => o.id === this.followed) : undefined;
+    return p ? anglerState(p, this.remoteView.isSurfaced(p.id)) : null;
   }
 
   /** Katsoja vaihtoi näkymän itse (V): ohjaaja pitää kuvan hetken (#564). */

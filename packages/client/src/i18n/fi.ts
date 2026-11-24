@@ -1205,6 +1205,12 @@ export const fi = {
   'game.personalBest': 'oma ennätys!',
   'game.following': 'Seuraat: {name}',
   'game.nobody': 'Järvellä ei ole ketään',
+  // Seurattavan tilanne katsojan tilarivillä (#814).
+  'spectate.stageIn': 'siima sisällä',
+  'spectate.stageCast': 'heitto',
+  'spectate.stageWater': 'vedessä',
+  'spectate.stageHooked': 'kala kiinni',
+  'spectate.stageSurfaced': 'kala pinnassa',
   // Iso näyttö ja automaattinen ohjaaja (#564).
   'broadcast.live': 'SUORA · {who} · {what}',
   'broadcast.screenName': 'Iso näyttö',

@@ -538,6 +538,11 @@ export class RemotePlayersView {
     e.appearance = a;
   }
 
+  /** Onko pelaajan kala pinnassa nostettavana (#813, katsojan tilarivi #814). */
+  isSurfaced(id: string): boolean {
+    return this.entries.get(id)?.surfaced != null;
+  }
+
   /** Kalastajan vavan viimeisin asento (katsojan silmin -kuva, #564). */
   poseOf(id: string): RodPose {
     return this.entries.get(id)?.pose ?? REST_POSE;
