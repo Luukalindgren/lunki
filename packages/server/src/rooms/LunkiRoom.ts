@@ -102,6 +102,8 @@ import {
   ChatLimiter,
   EMOTE_RATE,
   isEmoteId,
+  isSurfacedFish,
+  type SurfacedMessage,
   type EmoteMessage,
   type RaceStats,
   type RaceStatsMessage,
@@ -491,6 +493,19 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       if (!limiter.take(Date.now())) return;
       const msg: EmoteMessage = { from: client.sessionId, emote };
       this.broadcast(ServerMsg.emote, msg, { except: client });
+    });
+
+    // Pintaan noussut kala muiden kuvaan (#813): vain väsytyksen aikana, ja
+    // laji ja paino tarkistetaan. Saalis punnitaan erikseen (ClientMsg.catch).
+    this.onMessage(ClientMsg.surfaced, (client, fish: unknown) => {
+      const p = this.state.players.get(client.sessionId);
+      if (!p || p.lureStage !== LureStage.hooked || !isSurfacedFish(fish)) return;
+      const msg: SurfacedMessage = {
+        from: client.sessionId,
+        species: fish.species,
+        weight: fish.weight,
+      };
+      this.broadcast(ServerMsg.surfaced, msg, { except: client });
     });
 
     // Kisan huvitilastot (#367): jokainen kertoo omansa kerran kisan lopussa,
@@ -1826,6 +1841,10 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     b.stats.move(sim.tube.pos, this.state.clock);
     if (ev.lineCut) this.landCut(id);
     if (ev.caught?.fish) this.landCatch(id, ev.caught.fish);
+    if (ev.surfaced && hooked) {
+      const msg: SurfacedMessage = { from: id, species: hooked.species, weight: hooked.weight };
+      this.broadcast(ServerMsg.surfaced, msg);
+    }
     if (out.emote) {
       const msg: EmoteMessage = { from: id, emote: out.emote };
       this.broadcast(ServerMsg.emote, msg);

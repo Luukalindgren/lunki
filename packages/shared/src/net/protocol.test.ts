@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { formatRoomCode, parseRoomCode, randomRoomCode, sanitizeName } from './protocol';
+import {
+  formatRoomCode,
+  isSurfacedFish,
+  parseRoomCode,
+  randomRoomCode,
+  sanitizeName,
+} from './protocol';
+import { landingBy } from '../fishing/fishing';
 
 describe('huonekoodi', () => {
   it('arpoo kelvollisen koodin', () => {
@@ -33,5 +40,21 @@ describe('nimimerkki', () => {
     expect(sanitizeName('Luuka\u202eakuuL')).toBe('LuukaakuuL');
     expect(sanitizeName('\u001b[31mA\u009bB')).toBe('[31mAB');
     expect(sanitizeName('x'.repeat(10_000_000))).toHaveLength(16);
+  });
+});
+
+describe('pintaan noussut kala (#813)', () => {
+  it('hyväksyy tunnetun lajin ja järkevän painon', () => {
+    expect(isSurfacedFish({ species: 'perch', weight: 0.3 })).toBe(true);
+    expect(isSurfacedFish({ species: 'perch', weight: 0 })).toBe(false);
+    expect(isSurfacedFish({ species: 'perch', weight: Number.NaN })).toBe(false);
+    expect(isSurfacedFish({ species: 'perch', weight: 1000 })).toBe(false);
+    expect(isSurfacedFish({ species: 'nemo', weight: 1 })).toBe(false);
+    expect(isSurfacedFish(null)).toBe(false);
+  });
+
+  it('nostotapa kasvaa kalan koon mukana', () => {
+    expect(landingBy('perch', 0.05)).toBe('swing');
+    expect(landingBy('pike', 8)).toBe('net');
   });
 });

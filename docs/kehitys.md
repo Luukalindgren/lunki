@@ -774,6 +774,13 @@ Koodi: `packages/client/src/audio/sounds.ts`.
   samaan paikkaan kalastajan eteen. Älä suurenna kalaa näkymän, zoomin tai
   kuvapisteiden mukaan: sama kala oli ylhäältä kolme metriä ja takaa
   mittansa kokoinen. Ylhäältä oman paikan nuoli väistyy noston ajaksi.
+- Muiden pelaajien ja katsojan kuvassa kalan pintaan nousu ja nosto ovat samat
+  kuin kalastajalla (#813): kalastaja kertoo pintaan nousseen kalan lajin ja
+  painon (`ClientMsg.surfaced`, botin palvelin), ja `RemotePlayersView`
+  piirtää kalan pinnassa ja nostossa samalla `LandingView`llä saaliin
+  tullessa. Nostotapa (heilautus, käsi, haavi) on `landingBy`, ja katsojan
+  punnituskortti odottaa noston loppuun (`liftTime`). Uusi kalastajan oma
+  animaatio näytetään muille samoin eikä omana versionaan.
 
 ### Tekstit ja nimet
 

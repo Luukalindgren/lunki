@@ -456,6 +456,19 @@ export const LANDING = {
   recover: 0.03,
 } as const;
 
+/**
+ * Miten kala nostetaan kyytiin (#366): pieni heilautetaan siimasta, keskikokoinen
+ * nostetaan käsin ja iso haaviin. Lajista ja painosta, joten muiden kuvassa
+ * nosto näkyy samana kuin kalastajalla (#813).
+ */
+export function landingBy(
+  species: SpeciesId,
+  weight: number,
+): NonNullable<FishingEvents['landed']>['by'] {
+  const size = sizeClass(species, weight);
+  return size >= LANDING.netSize ? 'net' : size < LANDING.handSize ? 'swing' : 'hand';
+}
+
 export const FIGHT = {
   /**
    * Kala nostetaan, kun se on näin lähellä nostopaikkaa ja pinnassa: virvelin
@@ -1415,7 +1428,7 @@ function fight(
   ) {
     // Pintaan noussut kala odottaa aina erillistä nostopainallusta: pohjassa
     // pidetty kelaus ei nosta pientäkään kalaa.
-    s.landing = { age: 0, net: sizeClass(f.species, f.weight) >= LANDING.netSize, lunge: 0 };
+    s.landing = { age: 0, net: landingBy(f.species, f.weight) === 'net', lunge: 0 };
     events.surfaced = true;
   }
 }
@@ -1498,8 +1511,7 @@ function stepLanding(
     return;
   }
   if (land) {
-    const by = l.net ? 'net' : sizeClass(f.species, f.weight) < LANDING.handSize ? 'swing' : 'hand';
-    landFish(s, f, pop, world, rng, events, by);
+    landFish(s, f, pop, world, rng, events, landingBy(f.species, f.weight));
     return;
   }
   if (l.age > LANDING.calm && rng.chance(diff.landing.lungeRate * f.stamina, dt)) {

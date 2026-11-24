@@ -39,6 +39,7 @@ import {
   CHAT_RATE,
   EMOTE_RATE,
   type EmoteMessage,
+  type SurfacedMessage,
   type RaceStatsMessage,
   emptyRaceStats,
   JoinRefusal,
@@ -563,6 +564,40 @@ describe('LunkiRoom', () => {
     expect(seen.length).toBe(EMOTE_RATE.burst);
     // Tekijä ei saa omaa elettään takaisin.
     expect(own).toBe(1);
+
+    await host.leave();
+    await guest.leave();
+  });
+
+  it('pintaan noussut kala välitetään muille vain väsytyksessä (#813)', async () => {
+    const host = await sdk().create(ROOM_NAME, {
+      name: 'A',
+      playerId: 'a',
+      testTiming: { countdown: 0.1, duration: 30 },
+    });
+    const guest = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
+    await until(() => players(host).length === 2);
+    guest.send(ClientMsg.ready, true);
+    await until(() => players(host).every((p) => p.name === 'A' || p.ready));
+    host.send(ClientMsg.start);
+    await until(() => host.state.phase === 'playing');
+    const seen: SurfacedMessage[] = [];
+    guest.onMessage(ServerMsg.surfaced, (m: SurfacedMessage) => seen.push(m));
+    let own = 0;
+    host.onMessage(ServerMsg.surfaced, () => own++);
+    type P = { x: number; y: number; lureStage: number };
+    const me = host.state.players.get(host.sessionId) as P;
+
+    // Ilman kalaa kiinni viesti ohitetaan.
+    host.send(ClientMsg.surfaced, { species: 'perch', weight: 0.3 });
+    host.send(ClientMsg.input, { i: [], l: [me.x + 3, me.y, 3] });
+    await until(() => me.lureStage === 3);
+    host.send(ClientMsg.surfaced, { species: 'shark', weight: 0.3 });
+    host.send(ClientMsg.surfaced, { species: 'pike', weight: -1 });
+    host.send(ClientMsg.surfaced, { species: 'pike', weight: 2.4 });
+    await until(() => seen.length === 1);
+    expect(seen[0]).toEqual({ from: host.sessionId, species: 'pike', weight: 2.4 });
+    expect(own).toBe(0);
 
     await host.leave();
     await guest.leave();

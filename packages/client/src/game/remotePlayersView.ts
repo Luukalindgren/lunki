@@ -1,7 +1,12 @@
 import * as THREE from 'three';
 import {
+  CAST,
   EMOTE_DURATION,
+  FIGHT,
   LureStage,
+  landingBy,
+  type SpeciesId,
+  type SurfacedFish,
   inflateProgress,
   distance,
   type Appearance,
@@ -41,6 +46,16 @@ import { FloatMarker } from './floatMarker';
 import { LureMarker, markerPosition } from './lureMarker';
 import { lureColor } from './lureColor';
 import { AshoreFigure } from './shoreView';
+import { LandingView } from './landingView';
+
+/**
+ * Pintaan noussut kala on nostettavana tätä lähempänä kalastajaa (m): kärjen
+ * ulottuma ja nostoetäisyys väljästi. Kauempana kala riuhtaisi takaisin
+ * väsytykseen (#813).
+ */
+const SURFACED_RANGE = CAST.rodReach + FIGHT.landDistance + 0.6;
+/** Pintaan nousu voi tulla perille ennen tilaa, jossa kala on kiinni (ms). */
+const SURFACED_LEAD = 1500;
 
 const cssColor = (hex: number) => `#${hex.toString(16).padStart(6, '0')}`;
 /** Muiden siiman kireyttä ei tiedetä: piirretään puolikireänä. */
@@ -84,6 +99,15 @@ interface Entry {
   pose: RodPose;
   /** Maalla seisova kalastaja ja rengas (#457); luodaan, kun pelaaja nousee maihin. */
   ashore: AshoreFigure | null;
+  /** Pintaan noussut kala (#813) kalastajan kertomana; null väsytyksessä. */
+  surfaced: SurfacedFish | null;
+  /** Milloin kala nousi pintaan (ms) ja onko sen roiske vielä piirtämättä. */
+  surfacedAt: number;
+  surfaceSplash: boolean;
+  /** Kiinni olleen kalan viimeisin paikka: nosto alkaa siitä (#813). */
+  fishAt: Vec2 | null;
+  /** Kalan pinta ja nosto kuten omassa kuvassa (#813); luodaan ensimmäisestä. */
+  landing: LandingView | null;
 }
 
 /** Piirtää muut pelaajat, heidän vieheensä ja nimilaput. */
@@ -125,6 +149,41 @@ export class RemotePlayersView {
   /** Pelaajan chat-viesti kuplana. */
   showChat(id: string, text: string, now = performance.now()): void {
     this.bubble(id, { text }, now);
+  }
+
+  /**
+   * Pelaajan kala nousi pintaan (#813): kala kyljellään siiman päässä ja iso
+   * kala haavi valmiina, kuten kalastajan omassa kuvassa. Palauttaa kalan
+   * paikan (ääntä varten) tai null, jos kalaa ei näy.
+   */
+  surface(id: string, fish: SurfacedFish, now = performance.now()): Vec2 | null {
+    const e = this.entries.get(id);
+    if (!e) return null;
+    e.surfaced = { species: fish.species, weight: fish.weight };
+    // Viesti voi ehtiä ennen tilaa, jossa kala on kiinni: roiske piirretään sitten.
+    e.surfacedAt = now;
+    e.surfaceSplash = true;
+    return e.fishAt ?? { x: e.tube.position.x, y: -e.tube.position.z };
+  }
+
+  /**
+   * Pelaaja nosti kalan (#813): nosto siimasta tai haavilla kalan
+   * viimeisimmästä paikasta, sama animaatio kuin kalastajalla. `at` = noston
+   * paikka, kun se tiedetään (yksinpelin botit).
+   */
+  land(id: string, species: SpeciesId, weight: number, at?: Vec2): void {
+    const e = this.entries.get(id);
+    const from = at ?? e?.fishAt;
+    if (!e || !from) return;
+    const by = landingBy(species, weight);
+    if (!e.landing) {
+      e.landing = new LandingView();
+      this.group.add(e.landing.group);
+    }
+    e.landing.start({ by, at: { ...from } }, species, weight);
+    e.rod.pulse(ROD_MOTION.landed[by], 0.35);
+    e.surfaced = null;
+    e.fishAt = null;
   }
 
   private bubble(id: string, content: BubbleContent, now: number): void {
@@ -217,6 +276,7 @@ export class RemotePlayersView {
       if (hooked) tip = this.drawFight(e, p, dt, eyes?.tip);
       else {
         e.fight.reset();
+        if (now - e.surfacedAt > SURFACED_LEAD) e.surfaced = null;
         e.pose = { ...e.rod.step(fly ? flyRodLift(fly.dir) : 0, 0, dt), pull: null };
         tip = eyes?.tip ?? aimRod(e.tube, e.pose, this.tip);
       }
@@ -224,6 +284,22 @@ export class RemotePlayersView {
       if (!showLure) {
         e.lure.hide();
         e.float.hide();
+      }
+      if (e.landing) {
+        // Pinta ja nosto (#813) samasta kuvasta kuin omassa kuvassa.
+        const heading = p.heading + p.look;
+        const fish = hooked && e.surfaced ? this.surfacedFish(e, p) : null;
+        e.landing.pov = this.pov;
+        e.landing.update(
+          fish,
+          fish !== null && landingBy(fish.species, fish.weight) === 'net',
+          tip,
+          p.pos,
+          heading,
+        );
+      } else if (hooked && e.surfaced) {
+        e.landing = new LandingView();
+        this.group.add(e.landing.group);
       }
       e.line.visible = showLure && !casting;
       e.flyLine.visible = casting;
@@ -315,22 +391,49 @@ export class RemotePlayersView {
    */
   private drawFight(e: Entry, p: RemotePlayer, dt: number, eyes?: THREE.Vector3): THREE.Vector3 {
     const fish = p.lure!;
+    e.fishAt = { x: fish.x, y: fish.y };
+    // Riuhtaisu vei kalan takaisin väsytykseen. Juuri tullut viesti voi
+    // olla tilaa edellä, joten kalan annetaan ensin ehtiä kohdalle.
+    const settled = performance.now() - e.surfacedAt > SURFACED_LEAD;
+    if (e.surfaced && settled && distance(fish, p.pos) > SURFACED_RANGE) e.surfaced = null;
+    const surfaced = e.surfaced !== null;
     const pose = e.fight.update(fish, dt, e.pole ? p.pos : undefined);
     // Vapa pystyssä ja taipuneena kalaa kohti; nykiminen näkyy taipumassa.
     // Onkivapa nousee väsytyksen lopussa pystyyn kuten omassa kuvassa (#811).
+    // Pinnassa lepäävä kala ei kiristä siimaa: vapa nousee nostoasentoon (#813).
     const max = e.pole ? REMOTE_FIGHT.poleBend : ROD_MOTION.maxBend.spin;
-    const bend = max * Math.min(1, pose.bend + pose.jerk * 4);
-    const lift = Math.max(ROD_MOTION.fight, ROD_MOTION.pole.uprightLift * pose.upright);
-    e.pose = { ...e.rod.step(lift, bend, dt), pull: { ...fish, depth: 1 } };
+    const bend = surfaced ? 0 : max * Math.min(1, pose.bend + pose.jerk * 4);
+    const base = surfaced ? ROD_MOTION.landing : ROD_MOTION.fight;
+    const lift = Math.max(base, ROD_MOTION.pole.uprightLift * pose.upright);
+    e.pose = { ...e.rod.step(lift, bend, dt), pull: { ...fish, depth: surfaced ? 0 : 1 } };
     const w = eyes ?? aimRod(e.tube, e.pose, this.tip);
-    const pts = hangLine([{ x: w.x, y: -w.z }, fish], w.y, 1, 0.05);
+    const pts = hangLine([{ x: w.x, y: -w.z }, fish], w.y, surfaced ? REMOTE_TAUT : 1, 0.05);
     const pos = e.line.geometry.attributes.position as THREE.BufferAttribute;
     writeLine(pos, pts);
     pos.needsUpdate = true;
     e.line.geometry.computeBoundingSphere();
+    if (surfaced) {
+      if (e.surfaceSplash) this.splashes.start(fish, 0.6);
+      e.surfaceSplash = false;
+      // Kala näkyy itse pinnassa (LandingView), joten merkkiä ei piirretä.
+      e.lure.hide();
+      e.float.hide();
+      return w;
+    }
     this.mark(e, fish, 0, 1);
     if (pose.splash !== null) this.splashes.start(fish, pose.splash);
     return w;
+  }
+
+  /** Pintaan noussut kala kyljellään kuono kalastajaa kohti (#813). */
+  private surfacedFish(e: Entry, p: RemotePlayer) {
+    const at = p.lure!;
+    return {
+      species: e.surfaced!.species,
+      weight: e.surfaced!.weight,
+      pos: at,
+      heading: Math.atan2(p.pos.y - at.y, p.pos.x - at.x),
+    };
   }
 
   /** Muun pelaajan perhoheiton silmukka perhon paikasta päätellen. */
@@ -416,6 +519,11 @@ export class RemotePlayersView {
       turn: 0,
       pose: REST_POSE,
       ashore: null,
+      surfaced: null,
+      surfacedAt: 0,
+      surfaceSplash: false,
+      fishAt: null,
+      landing: null,
     };
     this.entries.set(id, e);
     return e;
@@ -437,6 +545,10 @@ export class RemotePlayersView {
 
   private remove(id: string, e: Entry): void {
     this.group.remove(e.tube, e.lure.group, e.float.group, e.line, e.flyLine);
+    if (e.landing) {
+      this.group.remove(e.landing.group);
+      e.landing.dispose();
+    }
     if (e.ashore) {
       this.group.remove(e.ashore.group);
       e.ashore.dispose();

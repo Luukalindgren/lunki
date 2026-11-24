@@ -1,5 +1,6 @@
 import { lakeLevel, type ViewMode } from './chaseCamera';
 import {
+  landingBy,
   LureStage,
   distance,
   removeCaughtFish,
@@ -24,6 +25,7 @@ import type { Hud } from '../ui/hud';
 import { formatWeight, ordinal, t } from '../i18n';
 import { lengthText, speciesName } from '../i18n/names';
 import { KnotView } from './knotView';
+import { liftTime } from './landingView';
 import { tangleEnded, tangleStarted } from './tangleNotices';
 import type { RaceCatchMark, RaceLog } from './raceLog';
 import { RemotePlayersView } from './remotePlayersView';
@@ -99,6 +101,8 @@ export class NetBridge {
   /** Tuoreen saaliin punnituskortti: näytetään, kun kuva tulee saajaan. */
   private shownCard: string | null = null;
   private readonly cards = new Map<string, { at: number; show: () => void }>();
+  /** Punnituskortit, jotka odottavat noston loppua (s). */
+  private liftCards: { left: number; show: () => void }[] = [];
   /** Kisan suurin katsojan näkemä saalis (kg). */
   private biggest = 0;
 
@@ -142,9 +146,16 @@ export class NetBridge {
       for (const id of m.victims) this.logCapsize(net.world.playerPos(id));
       if (m.victims.includes(net.world.myId)) host.onCapsize('wave');
     };
+    net.world.onSurfaced = (m) => {
+      const at = this.remoteView.surface(m.from, m);
+      if (at) host.sounds.playAt('surfaced', at);
+    };
     net.world.onCatchSeen = (mark, own, player) => {
       host.raceLog.addCatch(mark);
-      if (!own) host.sounds.playAt('caught', mark.pos);
+      if (!own) {
+        host.sounds.playAt('caught', mark.pos);
+        this.remoteView.land(player, mark.species, mark.weight);
+      }
       if (this.director) this.spectatorCatch(mark, player);
     };
     net.world.onRemoteSplash = (pos) => host.sounds.playAt('lureSplash', pos);
@@ -256,7 +267,9 @@ export class NetBridge {
     // Iso saalis näytetään heti, vaikka kuvassa olisi toinen kalastaja (#637).
     const big = mark.weight >= SPECTATOR_BIG_KG || mark.weight > this.biggest;
     this.biggest = Math.max(this.biggest, mark.weight);
-    if (player === this.followed || big) show();
+    // Kortti odottaa, että nosto on kalastajan edessä, kuten kalastajan omassa kuvassa (#813).
+    const lift = liftTime(landingBy(mark.species, mark.weight));
+    if (player === this.followed || big) this.liftCards.push({ left: lift, show });
     else this.cards.set(player, { at: this.host.competition.elapsed, show });
   }
 
@@ -274,6 +287,8 @@ export class NetBridge {
   stepDirector(dt: number): Shot | null {
     const d = this.director;
     if (!d) return null;
+    for (const c of this.liftCards) if ((c.left -= dt) <= 0) c.show();
+    this.liftCards = this.liftCards.filter((c) => c.left > 0);
     const w = this.world;
     const others = w.others();
     for (const o of others) {
