@@ -181,6 +181,8 @@ export class RemotePlayersView {
       this.group.add(e.landing.group);
     }
     e.landing.start({ by, at: { ...from } }, species, weight);
+    // Roiske nostopaikkaan kuten kalastajan omassa kuvassa saaliin tullessa.
+    this.splashes.start(from);
     e.rod.pulse(ROD_MOTION.landed[by], 0.35);
     e.surfaced = null;
     e.fishAt = null;
