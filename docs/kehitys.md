@@ -781,6 +781,11 @@ Koodi: `packages/client/src/audio/sounds.ts`.
   tullessa. Nostotapa (heilautus, käsi, haavi) on `landingBy`, ja katsojan
   punnituskortti odottaa noston loppuun (`liftTime`). Uusi kalastajan oma
   animaatio näytetään muille samoin eikä omana versionaan.
+- Katsojan tilarivillä on seurattavan kalastustapa, vaihe ja siiman pituus
+  (`anglerState`, #814: "Onki · kala kiinni · 9,1 m"), myös lähetyksen
+  alaotsikossa. Tiedot tulevat verkon yli tulevasta tilasta (`fly`, `pole`,
+  `lureStage`, vieheen paikka); uusi seurattavan tieto lisätään samaan
+  riviin eikä omaksi laatikokseen.
 
 ### Tekstit ja nimet
 

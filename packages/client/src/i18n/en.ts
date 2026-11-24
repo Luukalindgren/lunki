@@ -1202,6 +1202,11 @@ export const en: Record<keyof typeof fi, string> = {
   'game.personalBest': 'personal best!',
   'game.following': 'Following: {name}',
   'game.nobody': 'There is nobody on the lake',
+  'spectate.stageIn': 'line in',
+  'spectate.stageCast': 'casting',
+  'spectate.stageWater': 'in the water',
+  'spectate.stageHooked': 'fish on',
+  'spectate.stageSurfaced': 'fish at the surface',
   // Big screen and auto director (#564).
   'broadcast.live': 'LIVE · {who} · {what}',
   'broadcast.screenName': 'Big screen',

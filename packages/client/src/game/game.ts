@@ -742,7 +742,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     presenter.setFullScoreboard(this.controls.isDown('scoreboard'));
     if (this.spectating) {
       // Katsojan HUD: kenen kisaa seurataan, tulostaulu ja kello.
-      presenter.showSpectator(net!.followed, shot, net!.news);
+      presenter.showSpectator(net!.followed, shot, net!.news, net!.followedState());
       presenter.updateTimer();
       this.weather.update(dt);
       presenter.updateRaceHud(net!.followed);

@@ -287,11 +287,13 @@ export class HudPresenter {
    * Katsojan HUD: kenen kisaa seurataan. Ohjaajan ollessa päällä (#564)
    * tilarivi on lähetyksen alaotsikko: SUORA, kuvattava ja mitä tapahtuu,
    * ja viimeisin tapahtuma. Näppäimet ovat ohjeessa (H piilottaa sen).
+   * `state` on seurattavan tapa ja tilanne (#814, `anglerState`).
    */
   showSpectator(
     followed: string | null,
     shot: Shot | null = null,
     news: string | null = null,
+    state: string | null = null,
   ): void {
     const hud = this.host.hud;
     const name = followed ? this.host.netWorld!.playerName(followed) : null;
@@ -305,6 +307,7 @@ export class HudPresenter {
       hud.setStatus(
         [
           t('broadcast.live', { who, what: t(`broadcast.${shot.reason}`) }),
+          ...(state && shot.view !== 'overview' ? [state] : []),
           ...(news ? [news] : []),
         ],
         true,
@@ -314,6 +317,7 @@ export class HudPresenter {
     hud.setStatus([
       t('mp.spectating'),
       name ? t('game.following', { name }) : t('game.nobody'),
+      ...(name && state ? [state] : []),
       controlText('game.next'),
       controlText('game.viewToggle'),
     ]);
