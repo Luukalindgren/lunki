@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   formatRoomCode,
   isSurfacedFish,
+  isFloatDepthMessage,
   parseRoomCode,
   randomRoomCode,
   sanitizeName,
@@ -40,6 +41,17 @@ describe('nimimerkki', () => {
     expect(sanitizeName('Luuka\u202eakuuL')).toBe('LuukaakuuL');
     expect(sanitizeName('\u001b[31mA\u009bB')).toBe('[31mAB');
     expect(sanitizeName('x'.repeat(10_000_000))).toHaveLength(16);
+  });
+});
+
+describe('muiden kohon syvyys (#822)', () => {
+  it('hyväksyy vain sallitut syvyydet', () => {
+    expect(isFloatDepthMessage({ a: 1.5, 'bot:1': 4 })).toBe(true);
+    expect(isFloatDepthMessage({ a: 1.3 })).toBe(false);
+    expect(isFloatDepthMessage({ a: 9 })).toBe(false);
+    expect(isFloatDepthMessage({ a: '1.5' })).toBe(false);
+    expect(isFloatDepthMessage([1.5])).toBe(false);
+    expect(isFloatDepthMessage(null)).toBe(false);
   });
 });
 

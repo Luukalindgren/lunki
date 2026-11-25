@@ -104,6 +104,7 @@ import {
   isEmoteId,
   isSurfacedFish,
   type SurfacedMessage,
+  type FloatDepthMessage,
   type EmoteMessage,
   type RaceStats,
   type RaceStatsMessage,
@@ -300,6 +301,8 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
    */
   /** Kisan aikana vapaa ei enää vaihdeta: istunnot, joiden vapa on lukittu. */
   private readonly rodFixed = new Set<string>();
+  /** Ongen kohon syvyys (m) varusteista muiden kuvaan (#822); vain onkijoilla. */
+  private readonly floatDepths = new Map<string, number>();
   /** Kisan botit (sessionId `bot:N`); aulassa botit ovat vain pelaajalistassa. */
   private readonly bots = new Map<string, RoomBot>();
   /** Kisan ensimmäinen aloituspaikka: myöhästyneet aloittavat sen läheltä. */
@@ -412,6 +415,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       p.flyLine = t.flyLine;
       p.flyLeader = t.flyLeader;
       p.fly = t.fly;
+      this.shareFloatDepth(client, t.method === 'pole' ? t.floatDepth : null);
     });
 
     this.onMessage(ClientMsg.appearance, (client, msg: unknown) => {
@@ -946,6 +950,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       else if (!watch) this.state.waiting.set(client.sessionId, true);
       if (!this.state.hostId) this.state.hostId = client.sessionId;
       client.send(ServerMsg.chatHistory, this.chatLog);
+      this.sendFloatDepths(client);
       return;
     }
     // Sama selain uudesta välilehdestä: katkennut yhteys luovuttaa paikkansa,
@@ -968,6 +973,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
       this.packCrews();
     }
     client.send(ServerMsg.chatHistory, this.chatLog);
+    this.sendFloatDepths(client);
   }
 
   /** Kisassa ollut palaa: paikka odottaa tai yhteys on vielä katkenneena. */
@@ -1112,6 +1118,26 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     p.connected = true;
     // Katkon aikana tulleet viestit.
     client.send(ServerMsg.chatHistory, this.chatLog);
+    this.sendFloatDepths(client);
+  }
+
+  /** Onkijan kohon syvyys muille, kun se muuttuu (#822); null = ei onki. */
+  private shareFloatDepth(client: Client, depth: number | null): void {
+    const id = client.sessionId;
+    if (depth === null || this.floatDepths.get(id) === depth) {
+      if (depth === null) this.floatDepths.delete(id);
+      return;
+    }
+    this.floatDepths.set(id, depth);
+    const msg: FloatDepthMessage = { [id]: depth };
+    this.broadcast(ServerMsg.floatDepth, msg, { except: client });
+  }
+
+  /** Liittyvälle kaikkien onkijoiden kohon syvyydet (#822). */
+  private sendFloatDepths(client: Client): void {
+    if (this.floatDepths.size === 0) return;
+    const msg: FloatDepthMessage = Object.fromEntries(this.floatDepths);
+    client.send(ServerMsg.floatDepth, msg);
   }
 
   override onLeave(client: Client) {
@@ -1151,6 +1177,7 @@ export class LunkiRoom extends Room<{ state: LunkiState }> {
     this.state.protocols.delete(id);
     this.state.pings.delete(id);
     this.state.players.delete(id);
+    this.floatDepths.delete(id);
     // Lähtevän soutajan vene jää kyytiläisille: seuraava tarttuu airoihin.
     const sim = this.sims.get(id);
     if (sim?.boat && !isPassenger(sim)) this.passOars(id, sim);

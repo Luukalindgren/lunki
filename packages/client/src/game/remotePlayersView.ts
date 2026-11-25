@@ -42,7 +42,7 @@ import { REMOTE_FIGHT, RemoteFight } from './remoteFight';
 import { SplashRings } from './splashRings';
 import { turnScull } from './turnScull';
 import { REST_POSE, ROD_MOTION, RodMotion, type RodPose } from './rodMotion';
-import { FloatMarker } from './floatMarker';
+import { FloatMarker, floatLie, sunkBait } from './floatMarker';
 import { LureMarker, markerPosition } from './lureMarker';
 import { lureColor } from './lureColor';
 import { AshoreFigure } from './shoreView';
@@ -73,6 +73,8 @@ interface Entry {
   /** Ongen koho (#570) merkin paikalla, kun pelaaja onkii. */
   float: FloatMarker;
   pole: boolean;
+  /** Milloin koho putosi veteen (ms): syötin vajoaminen (#822). */
+  inWater: number;
   line: THREE.Line;
   /** Perhoheiton siima silmukkana (#236). */
   flyLine: THREE.Line;
@@ -127,6 +129,8 @@ export class RemotePlayersView {
   pixel = 0.125;
   /** Maanpinnan korkeus maalla seisoville (#457); ylhäältä 0. */
   heightAt: (p: Vec2) => number = () => 0;
+  /** Järven syvyys: muiden koho makaa, kun syötti on pohjassa (#822). */
+  depthAt: ((p: Vec2) => number) | null = null;
   /**
    * Katsoja seuraa tätä kalastajaa tämän silmin (#564): hahmo ja nimilappu
    * piiloon, ja siima lähtee katsojan kuvan vavan kärjestä `tip`.
@@ -266,6 +270,7 @@ export class RemotePlayersView {
         if (p.lureStage === LureStage.flight && !p.fly)
           e.rod.pulse(m.castThrow.lift, m.castThrow.time);
         if (hooked) e.rod.pulse(m.hookSet.lift, m.hookSet.time);
+        if (p.lureStage === LureStage.water) e.inWater = now;
         e.stage = p.lureStage;
       }
       const showLure = p.lure !== null && p.lureStage !== LureStage.none;
@@ -311,7 +316,13 @@ export class RemotePlayersView {
         const from = { x: tip.x, y: -tip.z };
         const flying = p.lureStage === LureStage.flight;
         const lure = markerPosition(p.lure!, flying ? 1 : 0, this.pov);
-        this.mark(e, p.lure!, flying ? 1 : 0);
+        this.mark(
+          e,
+          p.lure!,
+          flying ? 1 : 0,
+          0,
+          flying ? undefined : this.floatLie(e, p, from, now),
+        );
         const pts = flying
           ? flightLine(
               { ...from, h: tip.y },
@@ -463,11 +474,22 @@ export class RemotePlayersView {
     this.mark(e, end, end.h);
   }
 
-  /** Vieheen merkki: muiden vieheen syvyyttä ja tilaa ei tiedetä. */
-  private mark(e: Entry, at: Vec2, height: number, dip = 0): void {
+  /**
+   * Muun onkijan koho makaa kuten omassa kuvassa (#822): kohon syvyys tulee
+   * palvelimelta, pohja jaetusta kartasta ja syötti vajoaa samaa tahtia.
+   */
+  private floatLie(e: Entry, p: RemotePlayer, tip: Vec2, now: number): Vec2 | undefined {
+    if (!e.pole || p.floatDepth === undefined || !this.depthAt || p.lureStage !== LureStage.water)
+      return undefined;
+    const bait = sunkBait(p.floatDepth, this.depthAt(p.lure!), (now - e.inWater) / 1000);
+    return floatLie(p.floatDepth, bait, tip, p.lure!);
+  }
+
+  /** Vieheen merkki: muiden vieheen syvyyttä ja tilaa ei tiedetä; ongen koho voi maata. */
+  private mark(e: Entry, at: Vec2, height: number, dip = 0, lie?: Vec2): void {
     if (e.pole) {
       e.lure.hide();
-      e.float.update({ at, height, pov: this.pov, pixel: this.pixel, dip });
+      e.float.update({ at, height, pov: this.pov, pixel: this.pixel, dip, lie });
       return;
     }
     e.float.hide();
@@ -505,6 +527,7 @@ export class RemotePlayersView {
       lure,
       float,
       pole: false,
+      inWater: 0,
       line,
       flyLine,
       fly: new RemoteFlyLine(),

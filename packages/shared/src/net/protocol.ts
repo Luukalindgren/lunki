@@ -1,4 +1,5 @@
 import { isSpeciesId, type SpeciesId } from '../fishing/fish';
+import { clampFloatDepth } from '../fishing/gear';
 import type { RaceStats } from '../game/raceStats';
 import { CONTROL_CHARS, INVISIBLE_CHARS } from './text';
 
@@ -13,7 +14,7 @@ export const ROOM_NAME = 'lunki';
  * uudelleen: asiakas ei lähetä vanhemmalle palvelimelle viestejä, joita se
  * ei tunne. Vanha palvelin ilman kenttää = 1.
  */
-export const PROTOCOL_VERSION = 18;
+export const PROTOCOL_VERSION = 19;
 /** Chat tuli versiossa 2. */
 export const CHAT_PROTOCOL = 2;
 /** Maalle juuttuneen vieheen siiman katkaisu (ClientMsg.landCut) tuli versiossa 3. */
@@ -90,6 +91,12 @@ export const BOT_PROTOCOL = 17;
  * noston saaliin tullessa.
  */
 export const SURFACED_PROTOCOL = 18;
+/**
+ * Muiden kohon syvyys (#822): ServerMsg.floatDepth tuli versiossa 19. Palvelin
+ * saa syvyyden varusteista (ClientMsg.tackle). Vanhan palvelimen kanssa muiden
+ * koho on aina pystyssä.
+ */
+export const FLOAT_DEPTH_PROTOCOL = 19;
 
 /** Oletuspelaajamäärä huoneessa. Rakenne sallii isomman. */
 export const DEFAULT_MAX_PLAYERS = 8;
@@ -311,7 +318,24 @@ export const ServerMsg = {
   stats: 'stats',
   /** Toisen pelaajan kala nousi pintaan (SurfacedMessage, #813). */
   surfaced: 'surfaced',
+  /** Muiden ongen kohon syvyys (FloatDepthMessage, #822). */
+  floatDepth: 'floatDepth',
 } as const;
+
+/**
+ * Ongen kohon syvyys (m) kalastajan sessionId:n mukaan (#822): liittyvälle
+ * kaikki tunnetut, muuten muuttunut. Muut päättelevät siitä, makaako koho
+ * kyljellään, kun syötti on pohjassa.
+ */
+export type FloatDepthMessage = Record<string, number>;
+
+/** Kelpaako viesti kohon syvyyksiksi: vain sallitut syvyydet. */
+export function isFloatDepthMessage(v: unknown): v is FloatDepthMessage {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return false;
+  return Object.values(v).every(
+    (d) => typeof d === 'number' && Number.isFinite(d) && clampFloatDepth(d) === d,
+  );
+}
 
 /** Pintaan noussut kala: laji ja paino, jotta muut piirtävät saman kalan (#813). */
 export interface SurfacedFish {

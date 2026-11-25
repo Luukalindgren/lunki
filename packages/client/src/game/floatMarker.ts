@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { Vec2 } from '@lunki/shared';
+import { POLE, type Vec2 } from '@lunki/shared';
 import { toWorld } from '../world/lakeMesh';
 import { LURE_MARKER } from './lureMarker';
 import { pixelTexture, type Pixels } from './pixelSprite';
@@ -33,6 +33,32 @@ export const FLOAT_MARKER = {
    */
   lieGap: 0.1,
 } as const;
+
+/**
+ * Kyljellään makaavan kohon suunta (#799): siiman suunta vavan kärjestä kohoon,
+ * kun syötti on `lieGap`ia ylempänä kuin kohon syvyys. Sama sääntö omalle ja
+ * muiden kohoille (#822).
+ */
+export function floatLie(
+  floatDepth: number,
+  baitDepth: number,
+  tip: Vec2,
+  at: Vec2,
+): Vec2 | undefined {
+  if (floatDepth - baitDepth <= FLOAT_MARKER.lieGap) return undefined;
+  const dx = at.x - tip.x;
+  const dy = at.y - tip.y;
+  const len = Math.hypot(dx, dy) || 1;
+  return { x: dx / len, y: dy / len };
+}
+
+/**
+ * Muun onkijan syötin syvyys (#822): verkon yli tulee vain kohon syvyys, joten
+ * syötti vajoaa samalla nopeudella kuin omassa ongessa (`POLE.sinkRate`)
+ * pohjaan tai kohon syvyyteen asti siitä, kun koho putosi veteen.
+ */
+export const sunkBait = (floatDepth: number, bottom: number, seconds: number): number =>
+  Math.min(bottom, floatDepth, POLE.sinkRate * Math.max(0, seconds));
 
 const EDGE = 0x1c232b;
 const RED = 0xd23a2a;

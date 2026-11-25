@@ -35,7 +35,7 @@ import { SplashRings } from './splashRings';
 import { LandingView } from './landingView';
 import { ROD_MOTION, strikeTaut, strikeTug, strikeTugs } from './rodMotion';
 import { LURE_MARKER, LureMarker, markerPosition } from './lureMarker';
-import { FLOAT_MARKER, FloatMarker } from './floatMarker';
+import { FLOAT_MARKER, FloatMarker, floatLie } from './floatMarker';
 
 /** Vieheen merkkien tahti (s), pohjakosketuksen raja (m) ja pohjan pölläys. */
 const LURE_SIGNS = { followEvery: 0.8, bottomEvery: 0.7, touch: 0.05, mud: 0x8a6a42 } as const;
@@ -375,10 +375,7 @@ export class FishingView {
       pixel: this.pov ? this.povPixel : this.metersPerPixel,
       dip,
       pull: run ? { px: FLOAT_MARKER.runPx, dir: { x: dx / len, y: dy / len } } : undefined,
-      lie:
-        s.stage === 'water' && s.tackle.floatDepth - s.depth > FLOAT_MARKER.lieGap
-          ? { x: dx / len, y: dy / len }
-          : undefined,
+      lie: s.stage === 'water' ? floatLie(s.tackle.floatDepth, s.depth, tip, s.lure) : undefined,
     });
   }
 

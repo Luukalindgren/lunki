@@ -40,6 +40,7 @@ import {
   EMOTE_RATE,
   type EmoteMessage,
   type SurfacedMessage,
+  type FloatDepthMessage,
   type RaceStatsMessage,
   emptyRaceStats,
   JoinRefusal,
@@ -601,6 +602,38 @@ describe('LunkiRoom', () => {
 
     await host.leave();
     await guest.leave();
+  });
+
+  it('onkijan kohon syvyys välitetään muille ja liittyvälle (#822)', async () => {
+    const host = await sdk().create(ROOM_NAME, { name: 'A', playerId: 'a' });
+    const guest = await sdk().joinById(host.roomId, { name: 'B', playerId: 'b' });
+    await until(() => players(host).length === 2);
+    const seen: FloatDepthMessage[] = [];
+    guest.onMessage(ServerMsg.floatDepth, (m: FloatDepthMessage) => seen.push(m));
+    let own = 0;
+    host.onMessage(ServerMsg.floatDepth, () => own++);
+
+    host.send(ClientMsg.tackle, { method: 'pole', floatDepth: 2.5 });
+    await until(() => seen.length === 1);
+    expect(seen[0]).toEqual({ [host.sessionId]: 2.5 });
+    // Sama syvyys ei lähde uudelleen; virvelillä syvyyttä ei kerrota.
+    host.send(ClientMsg.tackle, { method: 'pole', floatDepth: 2.5 });
+    guest.send(ClientMsg.tackle, { method: 'spin', floatDepth: 1 });
+    host.send(ClientMsg.tackle, { method: 'pole', floatDepth: 3 });
+    await until(() => seen.length === 2);
+    expect(seen[1]).toEqual({ [host.sessionId]: 3 });
+    expect(own).toBe(0);
+
+    // Myöhemmin tullut katsoja saa kaikki syvyydet heti.
+    const late: FloatDepthMessage[] = [];
+    const watcher = await sdk().joinById(host.roomId, { name: 'C', playerId: 'c' });
+    watcher.onMessage(ServerMsg.floatDepth, (m: FloatDepthMessage) => late.push(m));
+    await until(() => late.length === 1);
+    expect(late[0]).toEqual({ [host.sessionId]: 3 });
+
+    await host.leave();
+    await guest.leave();
+    await watcher.leave();
   });
 
   it('tuntematon viestityyppi ei katkaise yhteyttä, ja protokollaversio näkyy', async () => {
