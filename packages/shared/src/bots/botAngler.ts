@@ -110,7 +110,10 @@ interface SkillParams {
   /** Heiton suunnan hajonta (rad) ja voiman vaihteluväli (osuus latauksesta). */
   aimSpread: number;
   power: readonly [number, number];
-  /** Viive ennen pinnassa olevan kalan nostoa (s). */
+  /**
+   * Viive ennen pinnassa olevan kalan nostoa (s). Vähintään noin sekunti kaikilla
+   * taidoilla, jotta muut ja katsoja näkevät kalan pinnassa (#823).
+   */
   landDelay: readonly [number, number];
   /** Todennäköisyys, että botti nykäisee ison kalan tärppiin. */
   twitch: number;
@@ -136,7 +139,7 @@ export const BOT_SKILL: Record<BotSkill, SkillParams> = {
   novice: {
     aimSpread: 1.1,
     power: [0.3, 1],
-    landDelay: [1.2, 2.6],
+    landDelay: [1.4, 2.8],
     twitch: 0,
     easeOff: false,
     waitLunge: false,
@@ -150,7 +153,7 @@ export const BOT_SKILL: Record<BotSkill, SkillParams> = {
   regular: {
     aimSpread: 0.5,
     power: [0.5, 1],
-    landDelay: [0.7, 1.2],
+    landDelay: [1.1, 1.6],
     twitch: 0.5,
     easeOff: true,
     waitLunge: false,
@@ -165,7 +168,7 @@ export const BOT_SKILL: Record<BotSkill, SkillParams> = {
   veteran: {
     aimSpread: 0.18,
     power: [0.7, 1],
-    landDelay: [0.3, 0.6],
+    landDelay: [0.9, 1.2],
     twitch: 1,
     easeOff: true,
     waitLunge: true,
@@ -201,6 +204,8 @@ const BOT = {
   bigFish: 1,
   /** Jännitys, jolla hellitetään (osuus siiman lujuudesta). */
   ease: 0.75,
+  /** Haavilla nostettava kala odottaa lisäksi tämän verran: haavin ottaminen (s, #823). */
+  netWait: 0.8,
 } as const;
 
 const REST: TubeInput = { kick: 0, turn: 0, sprint: false };
@@ -412,7 +417,9 @@ export class BotAngler {
     if (s.stage === 'charging') this.charge -= dt;
     const landing = s.landing;
     const land =
-      landing !== null && landing.age > this.landDelay && !(k.waitLunge && landing.lunge > 0);
+      landing !== null &&
+      landing.age > this.landDelay + (landing.net ? BOT.netWait : 0) &&
+      !(k.waitLunge && landing.lunge > 0);
     const fast = shelter && inWater && !hooked && s.gear !== REEL.fastGear;
     const ev = stepFishing(
       s,
