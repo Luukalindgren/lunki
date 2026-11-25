@@ -86,6 +86,8 @@ export interface RemotePlayer {
   fly?: boolean;
   /** Onki (#570): pitkä vapa ilman kelaa, ja vedessä on koho. */
   pole?: boolean;
+  /** Ongen kohon syvyys (m, #822); puuttuu, jos palvelin ei kerro sitä. */
+  floatDepth?: number;
   /** Trombin lennättämänä korkeus ilmassa (m) ja kieppuminen (rad). */
   lift?: number;
   tumble?: number;
@@ -833,6 +835,8 @@ export class NetWorld {
         appearance: r.appearance,
         fly: r.fly,
         pole: r.pole,
+        ...(r.pole &&
+          this.session.floatDepths.has(id) && { floatDepth: this.session.floatDepths.get(id) }),
         boat: r.boat,
         seat: r.seat,
         look: r.boat && r.seat === BoatSeat.rower ? s.look : 0,

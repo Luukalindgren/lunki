@@ -42,6 +42,7 @@ import {
   type SurfacedFish,
   type SurfacedMessage,
   isSurfacedFish,
+  isFloatDepthMessage,
   SURFACED_PROTOCOL,
   EMOTE_PROTOCOL,
   STATS_PROTOCOL,
@@ -454,6 +455,11 @@ export class NetSession {
   onEmote: ((msg: EmoteMessage) => void) | null = null;
   /** Toisen pelaajan kala nousi pintaan (#813). */
   onSurfaced: ((msg: SurfacedMessage) => void) | null = null;
+  /**
+   * Muiden ongen kohon syvyydet sessionId:n mukaan (#822). Talteen jo aulassa,
+   * koska syvyys tulee varusteiden mukana ennen kisaa.
+   */
+  readonly floatDepths = new Map<string, number>();
   /** Viimeisimmät chat-viestit, vanhin ensin. */
   chat: ChatMessage[] = [];
   /** Päättyneen kisan tilastot sessionId:n mukaan (#367); uusi kisa tyhjentää. */
@@ -525,6 +531,10 @@ export class NetSession {
     });
     room.onMessage(ServerMsg.surfaced, (m: SurfacedMessage) => {
       if (m && typeof m.from === 'string' && isSurfacedFish(m)) this.onSurfaced?.(m);
+    });
+    room.onMessage(ServerMsg.floatDepth, (m: unknown) => {
+      if (isFloatDepthMessage(m))
+        for (const [id, d] of Object.entries(m)) this.floatDepths.set(id, d);
     });
     // Yhteyden laatu aulaan (#575): oma viive palvelimelle muiden nähtäväksi.
     // Vain aulassa, ettei kisan liikenne kasva; vanha palvelin ei kerro viiveitä.

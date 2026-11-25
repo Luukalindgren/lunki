@@ -166,6 +166,8 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
   private readonly povTube: PovTube;
   readonly water: WaterBody;
   readonly bottom: LakeBottom;
+  /** Järven syvyys (m): muiden ongen koho makaa, kun syötti on pohjassa (#822). */
+  private readonly depthAt = (p: Vec2): number => this.bottom.depthAt(p);
   tube: TubeState;
   prevTube: TubeState;
   /**
@@ -268,7 +270,13 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     this.sounds = new Sounds(sfx);
     this.appearance = link?.world.ownAppearance ?? loadAppearance();
     this.tubeMesh = createTubeMesh(this.appearance);
-    this.fishing = createFishing(link?.world.ownTackle ?? loadTackle());
+    const own = loadTackle();
+    const net = link?.world.ownTackle;
+    // Palvelimen tilassa ei ole syöttiä eikä kohon syvyyttä: ne tulevat omista
+    // varusteista, jotka lähtivät palvelimelle aulassa (#822).
+    this.fishing = createFishing(
+      net ? { ...net, bait: own.bait, floatDepth: own.floatDepth } : own,
+    );
     this.competition = createCompetition(settings);
     this.spectating = link?.world.spectating ?? false;
     this.water = new WaterBody(map);
@@ -1438,6 +1446,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
       const remote = this.net.remoteView;
       remote.pov = lake;
       remote.heightAt = groundAt;
+      remote.depthAt = this.depthAt;
       remote.pixel = remote.pov ? this.pov.pixelSize : this.view.metersPerPixel;
       remote.update(shown, this.camera, this.net.link.canvas, this.tube.pos);
     }

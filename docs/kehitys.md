@@ -745,7 +745,11 @@ Koodi: `packages/client/src/audio/sounds.ts`.
   Modernissa koho on sorvattu malli (`floatShape`, `modern/marks.ts`) kuvan paikalla.
   Kun syötti on pohjassa eikä kohon syvyydellä, koho makaa kyljellään siiman
   suuntaisena (#799, `FloatInput.lie`, mallille `userData.lie`) ja nousee tärpissä
-  pystyyn. Vieheluotain ja tilarivi sanovat ongella "Syötti" eivätkä "Viehe".
+  pystyyn. Muiden ja katsojan kuvassa koho makaa samasta säännöstä (`floatLie`, #822):
+  palvelin välittää kohon syvyyden varusteista (`ServerMsg.floatDepth`, myös
+  liittyvälle), pohja tulee kartasta ja syötti vajoaa samaa tahtia (`sunkBait`).
+  Palvelimen tilassa ei ole syöttiä eikä kohon syvyyttä, joten moninpelin kisa ottaa
+  ne omista varusteista. Vieheluotain ja tilarivi sanovat ongella "Syötti" eivätkä "Viehe".
   Väsytyksessä onkivapa taipuu kevyelläkin kalalla kaarelle, NOSTA pohjassa
   pystympänä ja eniten, ja kalan syöksy (jännityksen nousu, sama kuorma kuin
   värinässä) nyökäyttää kärkeä (#800, `ROD_MOTION.pole`, `PoleNod` `game/rodMotion.ts`:ssä).
