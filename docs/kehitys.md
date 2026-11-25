@@ -666,6 +666,10 @@ Koodi: `packages/shared/src/bots/botAngler.ts`, palvelimella
 - Taidot (`BOT_SKILL`) eroavat paikan valinnassa, tähtäyksessä ja kalan
   väsytyksessä. Uusi käytös on uusi kenttä taulukkoon, ja saalistahti
   tarkistetaan `botAngler.test.ts`:n simulaatiolla.
+- Botti nostaa pintaan nousseen kalan pelaajan tahdissa (#823): kaikilla
+  taidoilla vähintään noin sekunnin päästä (`landDelay`), ja haavikala odottaa
+  lisäksi haavin ottamisen (`BOT.netWait`), jotta muut ja iso näyttö näkevät
+  kalan pinnassa.
 
 ### Äänet (#371)
 
