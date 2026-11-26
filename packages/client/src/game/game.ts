@@ -134,6 +134,13 @@ export type { NetLink } from './netBridge';
 const LAND_COLOR = 0x24502c;
 /** Viehettä seuraava kala näkyy pyörteinä tätä lähempänä viehettä (m). */
 const FOLLOW_SIGN_RANGE = 4;
+/**
+ * Veneessä nostettava kala on runsaan metrin perän takana, ja istuvan
+ * kalastajan silmin perän reuna peittää sen (#830). Noston ajaksi kalastaja
+ * suoristaa selkänsä (`lift`, m) ja katsoo alas perän yli (`pitch`, rad);
+ * asento liukuu `time` sekunnissa ja palaa noston jälkeen.
+ */
+const BOAT_LAND_LEAN = { lift: 0.4, pitch: 0.25, time: 0.6 } as const;
 
 /**
  * Pelikierros järvellä, yksin- tai moninpeli. Kokoaa osat ja kutsuu niitä
@@ -155,6 +162,9 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
   viewMode: ViewMode = 'top';
   /** Takaa-näkymän kameran asento kalastajan suhteen (#691). */
   readonly chase = new ChaseOrbit();
+  /** Veneessä noston asento 0–1 (#830) ja edellisen askeleen arvo piirron liukua varten. */
+  private boatLean = 0;
+  private prevBoatLean = 0;
   /** Vain POV:ssa näkyvät (maasto, metsänreuna) ja vain ylhäältä näkyvät (karttapohja). */
   private readonly scenery = new THREE.Group();
   private readonly mapOverlay = new THREE.Group();
@@ -610,6 +620,20 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     return this.craft.inBoat;
   }
 
+  /**
+   * Veneessä kalastaja nousee katsomaan perän yli, kun kala on pinnassa tai
+   * sitä nostetaan kyytiin (#830). Vain kuvaa: kalan paikka ei muutu.
+   */
+  private stepBoatLean(dt: number): void {
+    this.prevBoatLean = this.boatLean;
+    const leaning =
+      this.inBoat &&
+      !this.spectating &&
+      (this.fishing.landing !== null || this.fishingView.lifting);
+    const step = dt / BOAT_LAND_LEAN.time;
+    this.boatLean = Math.max(0, Math.min(1, this.boatLean + (leaning ? step : -step)));
+  }
+
   get rower(): boolean {
     return this.craft.rower;
   }
@@ -672,6 +696,7 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     c.setArrowSequence(this.craft.arrowSequence);
     if (this.viewMode === 'chase')
       this.chase.step(dt, c.cameraInput(), window.innerHeight, this.fishing.landing !== null);
+    this.stepBoatLean(dt);
     if (this.spectating && c.wasPressed('director'))
       this.hud.showMessage(
         controlText(net?.toggleDirector() ? 'broadcast.directorOn' : 'broadcast.directorOff'),
@@ -1278,6 +1303,8 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
     this.youMarker.update(pos, heading, this.view.metersPerPixel, marked);
     this.hud.compass.update(heading);
     if (this.viewMode === 'pov') {
+      const k = this.prevBoatLean + (this.boatLean - this.prevBoatLean) * alpha;
+      const lean = k * k * (3 - 2 * k);
       // Kumossa kamera kallistuu ja painuu veden rajaan.
       this.pov.apply(
         bailing?.pos ?? body,
@@ -1308,9 +1335,9 @@ export class Game implements WeatherHost, FishingHost, CraftHost, NetHost, HudHo
                   pitch: shore.inflate ? -0.7 : -0.15,
                 }
               : {
-                  lift: sway.lift - 0.7 * (roll / Math.PI) + seated,
+                  lift: sway.lift - 0.7 * (roll / Math.PI) + seated + BOAT_LAND_LEAN.lift * lean,
                   roll: sway.roll + roll * 0.3 + rock,
-                  pitch: sway.pitch,
+                  pitch: sway.pitch - BOAT_LAND_LEAN.pitch * lean,
                 },
       );
       if (eyes) this.followedPov(eyes, pos, heading);
