@@ -782,6 +782,9 @@ Koodi: `packages/client/src/audio/sounds.ts`.
   samaan paikkaan kalastajan eteen. Älä suurenna kalaa näkymän, zoomin tai
   kuvapisteiden mukaan: sama kala oli ylhäältä kolme metriä ja takaa
   mittansa kokoinen. Ylhäältä oman paikan nuoli väistyy noston ajaksi.
+  Veneessä perän reuna peittäisi pinnassa olevan kalan silmin, joten noston
+  ajaksi kalastaja nousee katsomaan perän yli (`BOAT_LAND_LEAN`, `game.ts`, #830);
+  kalan paikka ei muutu.
 - Muiden pelaajien ja katsojan kuvassa kalan pintaan nousu ja nosto ovat samat
   kuin kalastajalla (#813): kalastaja kertoo pintaan nousseen kalan lajin ja
   painon (`ClientMsg.surfaced`, botin palvelin), ja `RemotePlayersView`
