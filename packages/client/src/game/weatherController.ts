@@ -57,7 +57,6 @@ import {
 import { SWELL_GAIN, Swell } from '../world/swell';
 import { WAVE_FACTOR_SCALE, WaveField } from '../world/waveField';
 import { decimal, t } from '../i18n';
-import { skyName } from '../i18n/names';
 import { BigWaveView } from './bigWaveView';
 import { LightningView } from './lightningView';
 import { MistView } from './mistView';
@@ -66,7 +65,7 @@ import type { PovCamera } from './povCamera';
 import { SkyView, auroraFor, flashStrength, moonPhaseFor } from './skyView';
 import { SpoutView, flightPose } from './spoutView';
 import type { TopDownCamera } from './topDownCamera';
-import { WeatherView, compassIn, windFrom, windName } from './weatherView';
+import { WeatherView, compassIn, weatherLine, windFrom } from './weatherView';
 import { controlText } from './controls';
 
 const LAND_COLOR = 0x24502c;
@@ -542,10 +541,7 @@ export class WeatherController {
       (this.thunderNow ? t('game.lightningRisk') : '') +
       this.spoutText()
     ).replace(/^ · /, '');
-    host.hud.setWeather(
-      `${skyName(w.sky)} · ${windName(w.windDir)} ${Math.round(w.windSpeed)} m/s` +
-        (extra ? `\n${extra}` : ''),
-    );
+    host.hud.setWeather(weatherLine(w) + (extra ? `\n${extra}` : ''));
   }
 
   /** Aallot vesishaderille sekä renkaan keinunta pinnan korkeudesta ja kaltevuudesta. */
