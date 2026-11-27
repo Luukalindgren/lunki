@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { planWeather } from '@lunki/shared';
-import { WeatherView, windName } from './weatherView';
+import { WeatherView, weatherLine, windName } from './weatherView';
 
 describe('sään näkymä', () => {
   it('tuuli nimetään suunnasta, josta se tulee', () => {
@@ -9,6 +9,14 @@ describe('sään näkymä', () => {
     expect(windName(0)).toBe('länsituuli');
     expect(windName(Math.PI)).toBe('itätuuli');
     expect(windName(-Math.PI / 4)).toBe('luoteistuuli');
+  });
+
+  it('tyynellä säärivi ei nimeä tuulen suuntaa (#835)', () => {
+    expect(weatherLine({ sky: 'calm', windSpeed: 0, windDir: 0.6 })).toBe('Tyyni');
+    expect(weatherLine({ sky: 'rain', windSpeed: 0.3, windDir: 0 })).toBe('Sade · tyyntä');
+    expect(weatherLine({ sky: 'windy', windSpeed: 6.2, windDir: 0 })).toBe(
+      'Tuulinen · länsituuli 6 m/s',
+    );
   });
 
   it('varoittaa muutoksesta kerran ja kertoo muutoksen', () => {

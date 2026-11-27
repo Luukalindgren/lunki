@@ -34,6 +34,16 @@ export function windName(windDir: number): string {
   return tr(`wind.${octant(windDir + Math.PI)}`);
 }
 
+/**
+ * Säärivi HUDiin: taivas ja tuuli, esim. "Tuulinen · lounaistuuli 6 m/s".
+ * Tyynellä suuntaa ei nimetä (#835): tyyni taivas on pelkkä "Tyyni".
+ */
+export function weatherLine(w: Pick<WeatherNow, 'sky' | 'windSpeed' | 'windDir'>): string {
+  const speed = Math.round(w.windSpeed);
+  if (speed > 0) return `${skyName(w.sky)} · ${windName(w.windDir)} ${speed} m/s`;
+  return w.sky === 'calm' ? skyName(w.sky) : `${skyName(w.sky)} · ${tr('game.noWind')}`;
+}
+
 export interface WeatherEvents {
   message: (text: string) => void;
   /** Ukkosen jyrinä; `from` = suunta, josta rintama tulee (null = yläpuolelta). */

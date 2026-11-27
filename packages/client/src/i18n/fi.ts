@@ -1130,6 +1130,7 @@ export const fi = {
   'game.catches': 'Saalis {n} kpl  {total}',
   'game.waves': ' · aallot {m} m',
   'game.lightningRisk': ' · salamavaara!',
+  'game.noWind': 'tyyntä',
   'game.quiet': 'Hiljaista – potki muualle, {sonar} näyttää kalat',
   'game.quietBoat': 'Hiljaista – souda muualle, {sonar} näyttää kalat',
   'game.strike': 'Tärppi!',

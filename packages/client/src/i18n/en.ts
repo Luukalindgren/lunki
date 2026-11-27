@@ -1125,6 +1125,7 @@ export const en: Record<keyof typeof fi, string> = {
   'game.catches': 'Catch {n} pcs  {total}',
   'game.waves': ' · waves {m} m',
   'game.lightningRisk': ' · lightning risk!',
+  'game.noWind': 'no wind',
   'game.quiet': 'Quiet here – kick somewhere else, {sonar} shows the fish',
   'game.quietBoat': 'Quiet here – row somewhere else, {sonar} shows the fish',
   'game.strike': 'Bite!',
